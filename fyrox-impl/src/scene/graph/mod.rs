@@ -319,17 +319,26 @@ impl Default for GraphUpdateSwitches {
     }
 }
 
+/// A set of potential errors that may occur when using the [`Graph`] API.
 #[derive(PartialEq)]
 pub enum GraphError {
+    /// An error from the underlying scene node storage. See [`PoolError`] for more info.
     PoolError(PoolError),
+    /// There's no script of the requested type.
     NoScript {
+        /// Handle of the node.
         handle: Handle<Node>,
+        /// Type name of the script.
         script_type_name: &'static str,
     },
+    /// There's no script component of the requested type.
     NoScriptComponent {
+        /// Handle of the node.
         handle: Handle<Node>,
+        /// Type name of the script component.
         component_type_name: &'static str,
     },
+    /// There's no scene node with the given id.
     UnknownId(SceneNodeId),
 }
 
@@ -1817,7 +1826,7 @@ impl Graph {
     pub fn node_by_id(&self, id: SceneNodeId) -> Result<(Handle<Node>, &Node), GraphError> {
         self.instance_id_map
             .get(&id)
-            .ok_or_else(|| GraphError::UnknownId(id))
+            .ok_or(GraphError::UnknownId(id))
             .and_then(|h| Ok(self.pool.try_borrow(*h).map(|n| (*h, n))?))
     }
 
@@ -1828,7 +1837,7 @@ impl Graph {
     ) -> Result<(Handle<Node>, &mut Node), GraphError> {
         self.instance_id_map
             .get(&id)
-            .ok_or_else(|| GraphError::UnknownId(id))
+            .ok_or(GraphError::UnknownId(id))
             .and_then(|h| Ok(self.pool.try_borrow_mut(*h).map(|n| (*h, n))?))
     }
 }

@@ -130,7 +130,7 @@ where
     ) {
         if let Some(container) = get_animations_container(self.animation_player, controller, scenes)
         {
-            if let Some(animation) = container.try_get(self.animation) {
+            if let Ok(animation) = container.try_get(self.animation) {
                 if let Some(animation::selection::SelectedEntity::Signal(id)) =
                     self.entities.first()
                 {

@@ -248,7 +248,7 @@ impl CameraController {
                 .try_normalize(f32::EPSILON)
                 .unwrap_or_default()
                 .scale(5.0);
-        if let Some(relative_to) = graph.try_get_node(relative_to) {
+        if let Ok(relative_to) = graph.try_get_node(relative_to) {
             return relative_to
                 .global_transform()
                 .try_inverse()

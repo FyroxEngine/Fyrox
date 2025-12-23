@@ -263,6 +263,7 @@ impl Toolbar {
                         .filter(|n| {
                             graph
                                 .try_get_node(*n)
+                                .ok()
                                 .is_some_and(|n| !unique_nodes.contains(&n.parent()))
                         })
                         .collect::<Vec<_>>();

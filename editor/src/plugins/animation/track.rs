@@ -759,7 +759,7 @@ impl TrackList {
         N: SceneGraphNode<SceneGraph = G>,
     {
         let selected_animation = animation_container_ref(graph, selection.animation_player)
-            .and_then(|c| c.try_get(selection.animation));
+            .and_then(|c| c.try_get(selection.animation).ok());
 
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.add_track
@@ -907,7 +907,7 @@ impl TrackList {
         } else if let Some(PropertySelectorMessage::Selection(selected_properties)) = message.data()
         {
             if message.is_from(self.property_selector) {
-                if let Some(node) = graph.try_get_node(self.selected_node.into()) {
+                if let Ok(node) = graph.try_get_node(self.selected_node.into()) {
                     for property_path in selected_properties {
                         node.resolve_path(&property_path.path, &mut |result| match result {
                             Ok(property) => {
@@ -1085,7 +1085,7 @@ impl TrackList {
         N: SceneGraphNode,
     {
         let mut descriptors = Vec::new();
-        if let Some(node) = graph.try_get_node(node) {
+        if let Ok(node) = graph.try_get_node(node) {
             node.as_reflect(&mut |node| {
                 descriptors = object_to_property_tree("", node, &mut |field: &FieldRef| {
                     let type_id = field.value.field_value_as_reflect().type_id();
@@ -1207,7 +1207,7 @@ impl TrackList {
             return;
         };
 
-        let Some(node) = graph.try_get_node(binding.target()) else {
+        let Ok(node) = graph.try_get_node(binding.target()) else {
             Log::err("Invalid node handle!");
             return;
         };
@@ -1503,7 +1503,7 @@ impl TrackList {
                 }
 
                 let mut validation_result = Ok(());
-                if let Some(target) = graph.try_get_node(model_track_binding.target()) {
+                if let Ok(target) = graph.try_get_node(model_track_binding.target()) {
                     if let Some(parent_group) =
                         self.group_views.get(&model_track_binding.target().into())
                     {

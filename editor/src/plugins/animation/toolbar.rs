@@ -378,7 +378,7 @@ impl RootMotionDropdownArea {
                     graph
                         .try_get_node(settings.node)
                         .map(|n| n.name().to_owned())
-                        .unwrap_or_else(|| String::from("<Unassigned>")),
+                        .unwrap_or_else(|_| String::from("<Unassigned>")),
                 ),
             );
 
@@ -873,7 +873,7 @@ impl Toolbar {
         G: SceneGraph<Node = N>,
         N: SceneGraphNode<SceneGraph = G>,
     {
-        if let Some(animation) = animations.try_get(selection.animation) {
+        if let Ok(animation) = animations.try_get(selection.animation) {
             self.root_motion_dropdown_area
                 .handle_ui_message(message, graph, sender, ui, animation, root, selection);
         }
@@ -910,7 +910,7 @@ impl Toolbar {
                 );
                 ui.send(self.root_motion_dropdown_area.popup, PopupMessage::Open);
             } else if message.destination() == self.remove_current_animation {
-                if animations.try_get(selection.animation).is_some() {
+                if animations.try_get(selection.animation).is_ok() {
                     let group = vec![
                         Command::new(ChangeSelectionCommand::new(Selection::new(
                             AnimationSelection {
@@ -947,7 +947,7 @@ impl Toolbar {
                 );
                 sender.do_command(AddAnimationCommand::new(animation_player_handle, animation));
             } else if message.destination() == self.clone_current_animation {
-                if let Some(animation) = animations.try_get(selection.animation) {
+                if let Ok(animation) = animations.try_get(selection.animation) {
                     let mut animation_clone = animation.clone();
                     animation_clone.set_name(format!("{} Copy", animation.name()));
 
@@ -1193,7 +1193,7 @@ impl Toolbar {
         );
 
         let mut selected_animation_valid = false;
-        if let Some(animation) = animations.try_get(selection.animation) {
+        if let Ok(animation) = animations.try_get(selection.animation) {
             self.root_motion_dropdown_area
                 .sync_to_model(animation, graph, ui);
 

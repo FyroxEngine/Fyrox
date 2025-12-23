@@ -207,7 +207,7 @@ impl GridSnappingMenu {
         for message in self.receiver.try_iter() {
             match message {
                 SettingsMessage::Changed => {
-                    if let Some(button) = ui.try_get_of_type::<Button>(self.button) {
+                    if let Ok(button) = ui.try_get_of_type::<Button>(self.button) {
                         ui.send_many(
                             *button.decorator,
                             [
