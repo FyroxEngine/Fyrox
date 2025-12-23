@@ -151,7 +151,7 @@ impl MessageData for DockingManagerMessage {}
 ///     docking_manager_handle: Handle<UiNode>,
 /// ) -> Option<DockingManagerLayoutDescriptor> {
 ///     ui.try_get_of_type::<DockingManager>(docking_manager_handle)
-///         .as_ref()
+///         .as_ref().ok()
 ///         .map(|docking_manager| docking_manager.layout(ui))
 /// }
 /// ```
