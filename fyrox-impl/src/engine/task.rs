@@ -20,6 +20,7 @@
 
 //! Asynchronous task handler. See [`TaskPoolHandler`] for more info and usage examples.
 
+use crate::plugin::error::GameResult;
 use crate::plugin::PluginContainer;
 use crate::{
     core::{
@@ -39,7 +40,7 @@ pub(crate) type NodeTaskHandlerClosure = Box<
         Box<dyn AsyncTaskResult>,
         &mut dyn ScriptTrait,
         &mut ScriptContext<'a, 'b, 'c>,
-    ),
+    ) -> GameResult,
 >;
 
 pub(crate) type PluginTaskHandler = Box<
@@ -47,7 +48,7 @@ pub(crate) type PluginTaskHandler = Box<
         Box<dyn AsyncTaskResult>,
         &'a mut [PluginContainer],
         &mut PluginContext<'a, 'b>,
-    ),
+    ) -> GameResult,
 >;
 
 pub(crate) struct NodeTaskHandler {
@@ -147,7 +148,7 @@ impl TaskPoolHandler {
         F: AsyncTask<T>,
         T: AsyncTaskResult,
         P: Plugin,
-        for<'a, 'b> C: Fn(T, &mut P, &mut PluginContext<'a, 'b>) + 'static,
+        for<'a, 'b> C: Fn(T, &mut P, &mut PluginContext<'a, 'b>) -> GameResult + 'static,
     {
         let task_id = self.task_pool.spawn_with_result(future);
         self.plugin_task_handlers.insert(
@@ -220,7 +221,7 @@ impl TaskPoolHandler {
     ) where
         F: AsyncTask<T>,
         T: AsyncTaskResult,
-        for<'a, 'b, 'c> C: Fn(T, &mut S, &mut ScriptContext<'a, 'b, 'c>) + 'static,
+        for<'a, 'b, 'c> C: Fn(T, &mut S, &mut ScriptContext<'a, 'b, 'c>) -> GameResult + 'static,
         S: ScriptTrait,
     {
         let task_id = self.task_pool.spawn_with_result(future);
@@ -236,7 +237,7 @@ impl TaskPoolHandler {
                         .downcast_mut::<S>()
                         .expect("Types must match");
                     let result = result.downcast::<T>().expect("Types must match");
-                    on_complete(*result, script, context);
+                    on_complete(*result, script, context)
                 }),
             },
         );

@@ -20,6 +20,7 @@
 
 use crate::scene::graph::GraphError;
 use fyrox_core::pool::PoolError;
+use fyrox_core::visitor::error::VisitError;
 use fyrox_resource::state::LoadError;
 use std::fmt::{Debug, Display, Formatter};
 
@@ -27,6 +28,7 @@ pub enum GameError {
     GraphError(GraphError),
     PoolError(PoolError),
     AnyError(AnyScriptError),
+    VisitError(VisitError),
     ResourceLoadError(LoadError),
 }
 
@@ -54,23 +56,22 @@ impl From<LoadError> for GameError {
     }
 }
 
+impl From<VisitError> for GameError {
+    fn from(value: VisitError) -> Self {
+        Self::VisitError(value)
+    }
+}
+
 impl std::error::Error for GameError {}
 
 impl Display for GameError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            GameError::GraphError(err) => {
-                write!(f, "{}", err)
-            }
-            GameError::PoolError(err) => {
-                write!(f, "{}", err)
-            }
-            GameError::AnyError(err) => {
-                write!(f, "{}", err)
-            }
-            GameError::ResourceLoadError(err) => {
-                write!(f, "{}", err)
-            }
+            GameError::GraphError(err) => Display::fmt(&err, f),
+            GameError::PoolError(err) => Display::fmt(&err, f),
+            GameError::AnyError(err) => Display::fmt(&err, f),
+            GameError::ResourceLoadError(err) => Display::fmt(&err, f),
+            GameError::VisitError(err) => Display::fmt(&err, f),
         }
     }
 }

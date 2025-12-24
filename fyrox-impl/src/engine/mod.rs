@@ -2039,26 +2039,26 @@ impl Engine {
         while let Some(result) = self.task_pool.inner().next_task_result() {
             if let Some(plugin_task_handler) = self.task_pool.pop_plugin_task_handler(result.id) {
                 // Handle plugin task.
-                (plugin_task_handler)(
-                    result.payload,
-                    &mut self.plugins,
-                    &mut PluginContext {
-                        scenes: &mut self.scenes,
-                        resource_manager: &self.resource_manager,
-                        graphics_context: &mut self.graphics_context,
-                        dt,
-                        lag,
-                        user_interfaces: &mut self.user_interfaces,
-                        serialization_context: &self.serialization_context,
-                        widget_constructors: &self.widget_constructors,
-                        performance_statistics: &self.performance_statistics,
-                        elapsed_time: self.elapsed_time,
-                        script_processor: &self.script_processor,
-                        async_scene_loader: &mut self.async_scene_loader,
-                        loop_controller: controller,
-                        task_pool: &mut self.task_pool,
-                        input_state: &self.input_state,
-                    },
+                let mut ctx = PluginContext {
+                    scenes: &mut self.scenes,
+                    resource_manager: &self.resource_manager,
+                    graphics_context: &mut self.graphics_context,
+                    dt,
+                    lag,
+                    user_interfaces: &mut self.user_interfaces,
+                    serialization_context: &self.serialization_context,
+                    widget_constructors: &self.widget_constructors,
+                    performance_statistics: &self.performance_statistics,
+                    elapsed_time: self.elapsed_time,
+                    script_processor: &self.script_processor,
+                    async_scene_loader: &mut self.async_scene_loader,
+                    loop_controller: controller,
+                    task_pool: &mut self.task_pool,
+                    input_state: &self.input_state,
+                };
+                report_plugin_error(
+                    "handle_async_tasks",
+                    (plugin_task_handler)(result.payload, &mut self.plugins, &mut ctx),
                 )
             } else if let Some(node_task_handler) = self.task_pool.pop_node_task_handler(result.id)
             {
@@ -2079,25 +2079,29 @@ impl Engine {
                                 .get_mut(node_task_handler.script_index)
                                 .and_then(|e| e.script.take())
                             {
-                                (node_task_handler.closure)(
-                                    payload,
-                                    script.deref_mut(),
-                                    &mut ScriptContext {
-                                        dt,
-                                        elapsed_time: self.elapsed_time,
-                                        plugins: PluginsRefMut(&mut self.plugins),
-                                        handle: node_task_handler.node_handle,
-                                        scene,
-                                        scene_handle: scripted_scene.handle,
-                                        resource_manager: &self.resource_manager,
-                                        message_sender: &scripted_scene.message_sender,
-                                        message_dispatcher: &mut scripted_scene.message_dispatcher,
-                                        task_pool: &mut self.task_pool,
-                                        graphics_context: &mut self.graphics_context,
-                                        user_interfaces: &mut self.user_interfaces,
-                                        script_index: node_task_handler.script_index,
-                                        input_state: &self.input_state,
-                                    },
+                                let mut ctx = ScriptContext {
+                                    dt,
+                                    elapsed_time: self.elapsed_time,
+                                    plugins: PluginsRefMut(&mut self.plugins),
+                                    handle: node_task_handler.node_handle,
+                                    scene,
+                                    scene_handle: scripted_scene.handle,
+                                    resource_manager: &self.resource_manager,
+                                    message_sender: &scripted_scene.message_sender,
+                                    message_dispatcher: &mut scripted_scene.message_dispatcher,
+                                    task_pool: &mut self.task_pool,
+                                    graphics_context: &mut self.graphics_context,
+                                    user_interfaces: &mut self.user_interfaces,
+                                    script_index: node_task_handler.script_index,
+                                    input_state: &self.input_state,
+                                };
+                                report_plugin_error(
+                                    "handle_async_tasks",
+                                    (node_task_handler.closure)(
+                                        payload,
+                                        script.deref_mut(),
+                                        &mut ctx,
+                                    ),
                                 );
 
                                 if let Ok(node) =
@@ -3432,6 +3436,7 @@ mod test {
                 |result, script: &mut ScriptSpawningAsyncTasks, _ctx| {
                     assert_eq!(result, 123u32);
                     script.num = Some(result);
+                    Ok(())
                 },
             );
             Ok(())
