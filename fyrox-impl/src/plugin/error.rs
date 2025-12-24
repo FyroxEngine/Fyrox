@@ -18,17 +18,26 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::scene::graph::GraphError;
-use fyrox_core::pool::PoolError;
-use fyrox_core::visitor::error::VisitError;
-use fyrox_resource::state::LoadError;
+//! Contains all possible errors that may occur during script or plugin methods execution.
+
+use crate::{
+    asset::state::LoadError,
+    core::{pool::PoolError, visitor::error::VisitError},
+    scene::graph::GraphError,
+};
 use std::fmt::{Debug, Display, Formatter};
 
+/// All possible errors that may occur during script or plugin methods execution.
 pub enum GameError {
+    /// A [`GraphError`] has occurred.
     GraphError(GraphError),
+    /// A [`PoolError`] has occurred.
     PoolError(PoolError),
+    /// An arbitrary, user-defined error has occurred.
     AnyError(AnyScriptError),
+    /// A [`VisitError`] has occurred.
     VisitError(VisitError),
+    /// A [`LoadError`] has occurred.
     ResourceLoadError(LoadError),
 }
 
@@ -82,5 +91,8 @@ impl Debug for GameError {
     }
 }
 
+/// An alias for [`Result`] that has `()` as `Ok` value, and [`GameError`] as error value.
 pub type GameResult = Result<(), GameError>;
+
+/// An arbitrary, user-defined, boxed error type.
 pub type AnyScriptError = Box<dyn std::error::Error>;
