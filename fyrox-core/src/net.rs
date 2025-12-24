@@ -135,10 +135,7 @@ impl NetStream {
         }
     }
 
-    pub fn process_input<M>(&mut self, mut func: impl FnMut(M))
-    where
-        M: DeserializeOwned,
-    {
+    fn receive_bytes(&mut self) {
         // Receive all bytes from the stream first.
         loop {
             let mut bytes = [0; 8192];
@@ -169,10 +166,22 @@ impl NetStream {
                 },
             }
         }
+    }
+
+    pub fn process_input<M>(&mut self, mut func: impl FnMut(M))
+    where
+        M: DeserializeOwned,
+    {
+        self.receive_bytes();
 
         // Extract all the messages and process them.
         while let Some(message) = self.next_message() {
             func(message)
         }
+    }
+
+    pub fn pop_message<M: DeserializeOwned>(&mut self) -> Option<M> {
+        self.receive_bytes();
+        self.next_message()
     }
 }
