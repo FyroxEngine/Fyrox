@@ -176,7 +176,7 @@ impl TaskPoolHandler {
     /// #     script::{ScriptContext, ScriptTrait},
     /// # };
     /// # use fyrox_core::uuid_provider;
-    /// # use fyrox_impl::script::ScriptResult;
+    /// # use fyrox_impl::script::GameResult;
     /// #
     /// #[derive(Reflect, Visit, Default, Debug, Clone)]
     /// struct MyScript;
@@ -185,7 +185,7 @@ impl TaskPoolHandler {
     /// # uuid_provider!(MyScript = "f5ded79e-6101-4e23-b20d-48cbdb25d87a");
     ///
     /// impl ScriptTrait for MyScript {
-    ///     fn on_start(&mut self, ctx: &mut ScriptContext) -> ScriptResult {
+    ///     fn on_start(&mut self, ctx: &mut ScriptContext) -> GameResult {
     ///         ctx.task_pool.spawn_script_task(
     ///             ctx.scene_handle,
     ///             ctx.handle,

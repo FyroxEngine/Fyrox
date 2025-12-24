@@ -23,26 +23,27 @@
 #![warn(missing_docs)]
 
 pub mod dylib;
+pub mod error;
 
-use crate::engine::input::InputState;
-use crate::engine::ApplicationLoopController;
 use crate::{
     asset::manager::ResourceManager,
-    core::{pool::Handle, reflect::Reflect, visitor::Visit},
+    core::{
+        define_as_any_trait, pool::Handle, reflect::Reflect, visitor::error::VisitError,
+        visitor::Visit,
+    },
     engine::{
-        task::TaskPoolHandler, AsyncSceneLoader, GraphicsContext, PerformanceStatistics,
-        ScriptProcessor, SerializationContext,
+        input::InputState, task::TaskPoolHandler, ApplicationLoopController, AsyncSceneLoader,
+        GraphicsContext, PerformanceStatistics, ScriptProcessor, SerializationContext,
     },
     event::Event,
     gui::{
         constructor::WidgetConstructorContainer,
         inspector::editors::PropertyEditorDefinitionContainer, message::UiMessage, UiContainer,
+        UserInterface,
     },
+    plugin::error::GameResult,
     scene::{Scene, SceneContainer},
 };
-use fyrox_core::define_as_any_trait;
-use fyrox_core::visitor::error::VisitError;
-use fyrox_ui::UserInterface;
 use std::{
     ops::{Deref, DerefMut},
     path::Path,
@@ -230,7 +231,7 @@ impl dyn Plugin {
 /// ```rust
 /// # use fyrox_impl::{
 /// #     core::{pool::Handle}, core::visitor::prelude::*, core::reflect::prelude::*,
-/// #     plugin::{Plugin, PluginContext, PluginRegistrationContext},
+/// #     plugin::{Plugin, PluginContext, PluginRegistrationContext, GameResult},
 /// #     scene::Scene,
 /// #     event::Event
 /// # };
@@ -241,25 +242,33 @@ impl dyn Plugin {
 /// struct MyPlugin {}
 ///
 /// impl Plugin for MyPlugin {
-///     fn on_deinit(&mut self, context: PluginContext) {
+///     fn on_deinit(&mut self, context: PluginContext) -> GameResult {
 ///         // The method is called when the plugin is disabling.
 ///         // The implementation is optional.
+///         Ok(())
 ///     }
 ///
-///     fn update(&mut self, context: &mut PluginContext) {
+///     fn update(&mut self, context: &mut PluginContext) -> GameResult {
 ///         // The method is called on every frame, it is guaranteed to have fixed update rate.
 ///         // The implementation is optional.
+///         Ok(())
 ///     }
 ///
-///     fn on_os_event(&mut self, event: &Event<()>, context: PluginContext) {
+///     fn on_os_event(&mut self, event: &Event<()>, context: PluginContext) -> GameResult {
 ///         // The method is called when the main window receives an event from the OS.
+///         Ok(())
 ///     }
 /// }
 /// ```
 pub trait Plugin: PluginAsAny + Visit + Reflect {
     /// The method is called when the plugin constructor was just registered in the engine. The main
     /// use of this method is to register scripts and custom scene graph nodes in [`SerializationContext`].
-    fn register(&self, #[allow(unused_variables)] context: PluginRegistrationContext) {}
+    fn register(
+        &self,
+        #[allow(unused_variables)] context: PluginRegistrationContext,
+    ) -> GameResult {
+        Ok(())
+    }
 
     /// This method is used to register property editors for your game types; to make them editable
     /// in the editor.
@@ -272,25 +281,37 @@ pub trait Plugin: PluginAsAny + Visit + Reflect {
         &mut self,
         #[allow(unused_variables)] scene_path: Option<&str>,
         #[allow(unused_variables)] context: PluginContext,
-    ) {
+    ) -> GameResult {
+        Ok(())
     }
 
     /// This method is called when your plugin was re-loaded from a dynamic library. It could be used
     /// to restore some runtime state, that cannot be serialized. This method is called **only for
     /// dynamic plugins!** It is guaranteed to be called after all plugins were constructed, so the
     /// cross-plugins interactions are possible.
-    fn on_loaded(&mut self, #[allow(unused_variables)] context: PluginContext) {}
+    fn on_loaded(&mut self, #[allow(unused_variables)] context: PluginContext) -> GameResult {
+        Ok(())
+    }
 
     /// The method is called before plugin will be disabled. It should be used for clean up, or some
     /// additional actions.
-    fn on_deinit(&mut self, #[allow(unused_variables)] context: PluginContext) {}
+    fn on_deinit(&mut self, #[allow(unused_variables)] context: PluginContext) -> GameResult {
+        Ok(())
+    }
 
     /// Updates the plugin internals at fixed rate (see [`PluginContext::dt`] parameter for more
     /// info).
-    fn update(&mut self, #[allow(unused_variables)] context: &mut PluginContext) {}
+    fn update(&mut self, #[allow(unused_variables)] context: &mut PluginContext) -> GameResult {
+        Ok(())
+    }
 
     /// called after all Plugin and Script updates
-    fn post_update(&mut self, #[allow(unused_variables)] context: &mut PluginContext) {}
+    fn post_update(
+        &mut self,
+        #[allow(unused_variables)] context: &mut PluginContext,
+    ) -> GameResult {
+        Ok(())
+    }
 
     /// The method is called when the main window receives an event from the OS. The main use of
     /// the method is to respond to some external events, for example an event from keyboard or
@@ -299,7 +320,8 @@ pub trait Plugin: PluginAsAny + Visit + Reflect {
         &mut self,
         #[allow(unused_variables)] event: &Event<()>,
         #[allow(unused_variables)] context: PluginContext,
-    ) {
+    ) -> GameResult {
+        Ok(())
     }
 
     /// The method is called when a graphics context was successfully created. It could be useful
@@ -307,15 +329,25 @@ pub trait Plugin: PluginAsAny + Visit + Reflect {
     fn on_graphics_context_initialized(
         &mut self,
         #[allow(unused_variables)] context: PluginContext,
-    ) {
+    ) -> GameResult {
+        Ok(())
     }
 
     /// The method is called before the actual frame rendering. It could be useful to render off-screen
     /// data (render something to texture, that can be used later in the main frame).
-    fn before_rendering(&mut self, #[allow(unused_variables)] context: PluginContext) {}
+    fn before_rendering(
+        &mut self,
+        #[allow(unused_variables)] context: PluginContext,
+    ) -> GameResult {
+        Ok(())
+    }
 
     /// The method is called when the current graphics context was destroyed.
-    fn on_graphics_context_destroyed(&mut self, #[allow(unused_variables)] context: PluginContext) {
+    fn on_graphics_context_destroyed(
+        &mut self,
+        #[allow(unused_variables)] context: PluginContext,
+    ) -> GameResult {
+        Ok(())
     }
 
     /// The method will be called when there is any message from a user interface (UI) instance
@@ -326,7 +358,8 @@ pub trait Plugin: PluginAsAny + Visit + Reflect {
         #[allow(unused_variables)] context: &mut PluginContext,
         #[allow(unused_variables)] message: &UiMessage,
         #[allow(unused_variables)] ui_handle: Handle<UserInterface>,
-    ) {
+    ) -> GameResult {
+        Ok(())
     }
 
     /// This method is called when the engine starts loading a scene from the given `path`. It could
@@ -336,7 +369,8 @@ pub trait Plugin: PluginAsAny + Visit + Reflect {
         &mut self,
         #[allow(unused_variables)] path: &Path,
         #[allow(unused_variables)] context: &mut PluginContext,
-    ) {
+    ) -> GameResult {
+        Ok(())
     }
 
     /// This method is called when the engine finishes loading a scene from the given `path`. Use
@@ -348,7 +382,8 @@ pub trait Plugin: PluginAsAny + Visit + Reflect {
         #[allow(unused_variables)] scene: Handle<Scene>,
         #[allow(unused_variables)] data: &[u8],
         #[allow(unused_variables)] context: &mut PluginContext,
-    ) {
+    ) -> GameResult {
+        Ok(())
     }
 
     /// This method is called when the engine finishes loading a scene from the given `path` with
@@ -358,6 +393,7 @@ pub trait Plugin: PluginAsAny + Visit + Reflect {
         #[allow(unused_variables)] path: &Path,
         #[allow(unused_variables)] error: &VisitError,
         #[allow(unused_variables)] context: &mut PluginContext,
-    ) {
+    ) -> GameResult {
+        Ok(())
     }
 }

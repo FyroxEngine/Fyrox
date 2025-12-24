@@ -22,7 +22,7 @@
 //! See [`FlyingCameraController`] docs for more info and usage examples.
 
 use fyrox::graph::BaseSceneGraph;
-use fyrox::script::ScriptResult;
+use fyrox::plugin::error::GameResult;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, UnitVector3, Vector3},
@@ -205,7 +205,7 @@ impl_component_provider!(FlyingCameraController);
 uuid_provider!(FlyingCameraController = "8d9e2feb-8c61-482c-8ba4-b0b13b201113");
 
 impl ScriptTrait for FlyingCameraController {
-    fn on_os_event(&mut self, event: &Event<()>, context: &mut ScriptContext) -> ScriptResult {
+    fn on_os_event(&mut self, event: &Event<()>, context: &mut ScriptContext) -> GameResult {
         match event {
             Event::WindowEvent {
                 event: WindowEvent::KeyboardInput { event, .. },
@@ -240,7 +240,7 @@ impl ScriptTrait for FlyingCameraController {
         Ok(())
     }
 
-    fn on_update(&mut self, context: &mut ScriptContext) -> ScriptResult {
+    fn on_update(&mut self, context: &mut ScriptContext) -> GameResult {
         let mut new_velocity = Vector3::default();
 
         let this = context.scene.graph.try_get_node_mut(context.handle)?;
