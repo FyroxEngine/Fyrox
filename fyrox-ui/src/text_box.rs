@@ -436,6 +436,7 @@ pub struct TextBox {
     #[reflect(hidden)]
     pub recent: Vec<char>,
     /// Placeholder widget when the search bar is empty.
+    #[visit(optional)]
     pub placeholder: Handle<UiNode>,
 }
 
