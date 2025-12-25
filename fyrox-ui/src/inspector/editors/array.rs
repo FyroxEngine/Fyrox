@@ -42,10 +42,7 @@ use crate::{
 use crate::message::{DeliveryMode, MessageData};
 use fyrox_graph::BaseSceneGraph;
 use std::sync::Arc;
-use std::{
-    any::TypeId,
-    fmt::Debug,
-};
+use std::{any::TypeId, fmt::Debug};
 
 #[derive(Clone, Debug, PartialEq, Visit, Reflect, Default)]
 pub struct Item {
