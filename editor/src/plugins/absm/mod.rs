@@ -135,6 +135,7 @@ where
 {
     graph
         .try_get_node_mut(handle)
+        .ok()
         .and_then(|n| n.component_mut::<InheritableVariable<Machine<Handle<N>>>>())
         .map(|v| v.get_value_mut_silent())
 }
@@ -149,11 +150,13 @@ where
 {
     let animation_player_handle = *graph
         .try_get_node(handle)
+        .ok()
         .and_then(|n| n.component_ref::<InheritableVariable<Handle<N>>>())
         .cloned()?;
 
     graph
         .try_get_node_mut(animation_player_handle)
+        .ok()
         .and_then(|n| n.component_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>())
         .map(|ac| (animation_player_handle, ac.get_value_mut_silent()))
 }
@@ -165,6 +168,7 @@ where
 {
     graph
         .try_get_node(handle)
+        .ok()
         .and_then(|n| n.component_ref::<InheritableVariable<Machine<Handle<N>>>>())
         .map(|v| v.get_value_ref())
 }
@@ -179,10 +183,12 @@ where
 {
     graph
         .try_get_node(handle)
+        .ok()
         .and_then(|n| n.component_ref::<InheritableVariable<Handle<N>>>())
         .and_then(|ap| {
             graph
                 .try_get_node(**ap)
+                .ok()
                 .and_then(|n| {
                     n.component_ref::<InheritableVariable<AnimationContainer<Handle<N>>>>()
                 })

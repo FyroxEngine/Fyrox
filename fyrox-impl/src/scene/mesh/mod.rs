@@ -674,7 +674,7 @@ impl NodeTrait for Mesh {
             // Special case for skinned meshes.
             for surface in self.surfaces.iter() {
                 for &bone in surface.bones() {
-                    if let Some(node) = context.nodes.try_borrow(bone) {
+                    if let Ok(node) = context.nodes.try_borrow(bone) {
                         world_aabb.add_point(node.global_position())
                     }
                 }
@@ -781,8 +781,7 @@ impl NodeTrait for Mesh {
                                     .bones
                                     .iter()
                                     .map(|bone_handle| {
-                                        if let Some(bone_node) =
-                                            ctx.graph.try_get_node(*bone_handle)
+                                        if let Ok(bone_node) = ctx.graph.try_get_node(*bone_handle)
                                         {
                                             bone_node.global_transform()
                                                 * bone_node.inv_bind_pose_transform()

@@ -44,6 +44,7 @@ use crate::{
         leaf::LeafNode,
     },
 };
+use fyrox_core::pool::PoolError;
 use std::{
     fmt::Debug,
     ops::{Index, IndexMut},
@@ -224,12 +225,15 @@ where
     }
 
     /// Tries to get a shared reference to a node by given handle.
-    pub fn node(&self, handle: Handle<BehaviorNode<B>>) -> Option<&BehaviorNode<B>> {
+    pub fn node(&self, handle: Handle<BehaviorNode<B>>) -> Result<&BehaviorNode<B>, PoolError> {
         self.nodes.try_borrow(handle)
     }
 
     /// Tries to get a mutable reference to a node by given handle.
-    pub fn node_mut(&mut self, handle: Handle<BehaviorNode<B>>) -> Option<&mut BehaviorNode<B>> {
+    pub fn node_mut(
+        &mut self,
+        handle: Handle<BehaviorNode<B>>,
+    ) -> Result<&mut BehaviorNode<B>, PoolError> {
         self.nodes.try_borrow_mut(handle)
     }
 

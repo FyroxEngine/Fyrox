@@ -103,7 +103,7 @@ impl UiScene {
     }
 
     fn select_object(&mut self, handle: ErasedHandle) {
-        if self.ui.try_get_node(handle.into()).is_some() {
+        if self.ui.try_get_node(handle.into()).is_ok() {
             self.message_sender
                 .do_command(ChangeSelectionCommand::new(Selection::new(
                     UiSelection::single_or_empty(handle.into()),
@@ -362,7 +362,7 @@ impl SceneController for UiScene {
         // Draw selection on top.
         if let Some(selection) = editor_selection.as_ui() {
             for node in selection.widgets.iter() {
-                if let Some(node) = self.ui.try_get_node(*node) {
+                if let Ok(node) = self.ui.try_get_node(*node) {
                     let bounds = node.screen_bounds();
                     let clip_bounds = node.clip_bounds();
                     let drawing_context = &mut self.ui.drawing_context;
@@ -457,6 +457,7 @@ impl SceneController for UiScene {
                     UiMessage::with_data(HandlePropertyEditorNameMessage(
                         self.ui
                             .try_get_node((*handle).into())
+                            .ok()
                             .map(|n| n.name().to_owned()),
                     ))
                     .with_destination(*view)

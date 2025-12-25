@@ -179,6 +179,7 @@ fn current_widget_style(
             return ui_scene
                 .ui
                 .try_get_node(ui_selection.widgets[0])
+                .ok()
                 .and_then(|n| n.style.clone());
         }
     }

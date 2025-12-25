@@ -78,7 +78,7 @@ use std::{
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
-use fyrox_graph::{BaseSceneGraph, SceneGraphNode};
+use fyrox_graph::{BaseSceneGraph, SceneGraph, SceneGraphNode};
 pub use rapier3d::geometry::shape::*;
 use rapier3d::parry::query::DefaultQueryDispatcher;
 use rapier3d::prelude::FrictionModel;
@@ -512,7 +512,7 @@ fn make_trimesh(
     let root_inv_transform = owner_inv_transform;
 
     for &source in sources {
-        if let Some(mesh) = nodes.try_borrow(source.0).and_then(|n| n.cast::<Mesh>()) {
+        if let Ok(mesh) = nodes.try_get_component_of_type::<Mesh>(source.0) {
             let global_transform = root_inv_transform * mesh.global_transform();
 
             for surface in mesh.surfaces() {
@@ -800,12 +800,12 @@ fn collider_shape_into_native_shape(
             }
         }
         ColliderShape::Heightfield(heightfield) => pool
-            .try_borrow(heightfield.geometry_source.0)
-            .and_then(|n| n.cast::<Terrain>())
+            .try_get_component_of_type::<Terrain>(heightfield.geometry_source.0)
+            .ok()
             .and_then(make_heightfield),
         ColliderShape::Polyhedron(polyhedron) => pool
-            .try_borrow(polyhedron.geometry_source.0)
-            .and_then(|n| n.cast::<Mesh>())
+            .try_get_component_of_type::<Mesh>(polyhedron.geometry_source.0)
+            .ok()
             .map(|mesh| make_polyhedron_shape(owner_inv_global_transform, mesh)),
     }
 }
@@ -1334,13 +1334,11 @@ impl PhysicsWorld {
             }),
             exclude_collider: filter
                 .exclude_collider
-                .and_then(|h| graph.try_get_node(h))
-                .and_then(|n| n.component_ref::<collider::Collider>())
+                .and_then(|h| graph.try_get_of_type::<collider::Collider>(h).ok())
                 .map(|c| c.native.get()),
             exclude_rigid_body: filter
                 .exclude_collider
-                .and_then(|h| graph.try_get_node(h))
-                .and_then(|n| n.component_ref::<rigidbody::RigidBody>())
+                .and_then(|h| graph.try_get_of_type::<rigidbody::RigidBody>(h).ok())
                 .map(|c| c.native.get()),
             predicate: Some(&predicate),
         };
@@ -1727,9 +1725,8 @@ impl PhysicsWorld {
                     }
                 }
             }
-        } else if let Some(parent_body) = nodes
-            .try_borrow(collider_node.parent())
-            .and_then(|n| n.cast::<scene::rigidbody::RigidBody>())
+        } else if let Ok(parent_body) =
+            nodes.try_get_component_of_type::<scene::rigidbody::RigidBody>(collider_node.parent())
         {
             if parent_body.native.get() != RigidBodyHandle::invalid() {
                 let inv_global_transform = isometric_global_transform(nodes, handle)
@@ -1798,12 +1795,12 @@ impl PhysicsWorld {
 
         if let Some(native) = self.joints.set.get_mut(joint.native.get(), false) {
             joint.body1.try_sync_model(|v| {
-                if let Some(rigid_body_node) = nodes.try_get(v) {
+                if let Ok(rigid_body_node) = nodes.try_get(v) {
                     native.body1 = rigid_body_node.native.get();
                 }
             });
             joint.body2.try_sync_model(|v| {
-                if let Some(rigid_body_node) = nodes.try_get(v) {
+                if let Ok(rigid_body_node) = nodes.try_get(v) {
                     native.body2 = rigid_body_node.native.get();
                 }
             });
@@ -1855,7 +1852,7 @@ impl PhysicsWorld {
 
             let mut local_frames = joint.local_frames.borrow_mut();
             if local_frames.is_none() {
-                if let (Some(body1), Some(body2)) =
+                if let (Ok(body1), Ok(body2)) =
                     (nodes.try_get(joint.body1()), nodes.try_get(joint.body2()))
                 {
                     let (local_frame1, local_frame2) = calculate_local_frames(joint, body1, body2);
@@ -1874,9 +1871,11 @@ impl PhysicsWorld {
             if let (Some(body1), Some(body2)) = (
                 nodes
                     .try_get(body1_handle)
+                    .ok()
                     .filter(|b| self.bodies.get(b.native.get()).is_some()),
                 nodes
                     .try_get(body2_handle)
+                    .ok()
                     .filter(|b| self.bodies.get(b.native.get()).is_some()),
             ) {
                 let native_body1 = body1.native.get();

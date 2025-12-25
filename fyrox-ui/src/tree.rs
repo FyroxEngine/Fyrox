@@ -865,7 +865,7 @@ impl Control for TreeRoot {
                     if &self.selected != selected {
                         let mut items = self.items.clone();
                         while let Some(handle) = items.pop() {
-                            if let Some(tree_ref) = ui.try_get_of_type::<Tree>(handle) {
+                            if let Ok(tree_ref) = ui.try_get_of_type::<Tree>(handle) {
                                 items.extend_from_slice(&tree_ref.items);
 
                                 let new_selection_state = if selected.contains(&handle) {
@@ -903,10 +903,7 @@ impl Control for TreeRoot {
                     }
                     KeyCode::ArrowLeft => {
                         if let Some(selection) = self.selected.first() {
-                            if let Some(item) = ui
-                                .try_get_node(*selection)
-                                .and_then(|n| n.component_ref::<Tree>())
-                            {
+                            if let Ok(item) = ui.try_get_of_type::<Tree>(*selection) {
                                 if item.is_expanded {
                                     ui.send(
                                         *selection,
@@ -967,10 +964,7 @@ impl TreeRoot {
 
     fn move_selection(&self, ui: &UserInterface, direction: Direction, expand: bool) {
         if let Some(selected_item) = self.selected.first() {
-            let Some(item) = ui
-                .try_get_node(*selected_item)
-                .and_then(|n| n.component_ref::<Tree>())
-            else {
+            let Ok(item) = ui.try_get_of_type::<Tree>(*selected_item) else {
                 return;
             };
 

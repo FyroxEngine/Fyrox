@@ -85,6 +85,7 @@ impl SceneNodePropertyChangedHandler {
                         .scene
                         .graph
                         .try_get_node_mut(handle)
+                        .ok()
                         .map(|n| n as &mut dyn Reflect)
                 })
             }

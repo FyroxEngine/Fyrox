@@ -20,6 +20,7 @@
 
 //! Asynchronous task handler. See [`TaskPoolHandler`] for more info and usage examples.
 
+use crate::plugin::error::GameResult;
 use crate::plugin::PluginContainer;
 use crate::{
     core::{
@@ -39,7 +40,7 @@ pub(crate) type NodeTaskHandlerClosure = Box<
         Box<dyn AsyncTaskResult>,
         &mut dyn ScriptTrait,
         &mut ScriptContext<'a, 'b, 'c>,
-    ),
+    ) -> GameResult,
 >;
 
 pub(crate) type PluginTaskHandler = Box<
@@ -47,7 +48,7 @@ pub(crate) type PluginTaskHandler = Box<
         Box<dyn AsyncTaskResult>,
         &'a mut [PluginContainer],
         &mut PluginContext<'a, 'b>,
-    ),
+    ) -> GameResult,
 >;
 
 pub(crate) struct NodeTaskHandler {
@@ -97,7 +98,7 @@ impl TaskPoolHandler {
     /// ## Example
     ///
     /// ```rust ,no_run
-    /// # use fyrox_impl::plugin::{Plugin, PluginContext};
+    /// # use fyrox_impl::plugin::{Plugin, PluginContext, error::GameResult};
     /// # use fyrox_impl::core::visitor::prelude::*;
     /// # use fyrox_impl::core::reflect::prelude::*;
     /// # use std::{fs::File, io::Read};
@@ -124,6 +125,7 @@ impl TaskPoolHandler {
     ///             |data, game: &mut MyGame, _context| {
     ///                 // Store the data in the game instance.
     ///                 game.data = Some(data);
+    ///                 Ok(())
     ///             },
     ///         );
     ///
@@ -133,11 +135,12 @@ impl TaskPoolHandler {
     /// }
     ///
     /// impl Plugin for MyGame {
-    ///     fn update(&mut self, _context: &mut PluginContext) {
+    ///     fn update(&mut self, _context: &mut PluginContext) -> GameResult {
     ///         // Do something with the data.
     ///         if let Some(data) = self.data.take() {
     ///             println!("The data is: {:?}", data);
     ///         }
+    ///         Ok(())
     ///     }
     /// }
     /// ```
@@ -147,7 +150,7 @@ impl TaskPoolHandler {
         F: AsyncTask<T>,
         T: AsyncTaskResult,
         P: Plugin,
-        for<'a, 'b> C: Fn(T, &mut P, &mut PluginContext<'a, 'b>) + 'static,
+        for<'a, 'b> C: Fn(T, &mut P, &mut PluginContext<'a, 'b>) -> GameResult + 'static,
     {
         let task_id = self.task_pool.spawn_with_result(future);
         self.plugin_task_handlers.insert(
@@ -176,6 +179,7 @@ impl TaskPoolHandler {
     /// #     script::{ScriptContext, ScriptTrait},
     /// # };
     /// # use fyrox_core::uuid_provider;
+    /// # use fyrox_impl::plugin::error::GameResult;
     /// #
     /// #[derive(Reflect, Visit, Default, Debug, Clone)]
     /// struct MyScript;
@@ -184,7 +188,7 @@ impl TaskPoolHandler {
     /// # uuid_provider!(MyScript = "f5ded79e-6101-4e23-b20d-48cbdb25d87a");
     ///
     /// impl ScriptTrait for MyScript {
-    ///     fn on_start(&mut self, ctx: &mut ScriptContext) {
+    ///     fn on_start(&mut self, ctx: &mut ScriptContext) -> GameResult {
     ///         ctx.task_pool.spawn_script_task(
     ///             ctx.scene_handle,
     ///             ctx.handle,
@@ -199,11 +203,11 @@ impl TaskPoolHandler {
     ///             // This closure will executed only when the upper future is done and only on the next
     ///             // update iteration.
     ///             |result, script: &mut MyScript, ctx| {
-    ///                 if let Ok(model) = result {
-    ///                     model.instantiate(&mut ctx.scene);
-    ///                 }
+    ///                 result?.instantiate(&mut ctx.scene);
+    ///                 Ok(())
     ///             },
     ///         );
+    ///         Ok(())
     ///     }
     /// }
     /// ```
@@ -218,7 +222,7 @@ impl TaskPoolHandler {
     ) where
         F: AsyncTask<T>,
         T: AsyncTaskResult,
-        for<'a, 'b, 'c> C: Fn(T, &mut S, &mut ScriptContext<'a, 'b, 'c>) + 'static,
+        for<'a, 'b, 'c> C: Fn(T, &mut S, &mut ScriptContext<'a, 'b, 'c>) -> GameResult + 'static,
         S: ScriptTrait,
     {
         let task_id = self.task_pool.spawn_with_result(future);
@@ -234,7 +238,7 @@ impl TaskPoolHandler {
                         .downcast_mut::<S>()
                         .expect("Types must match");
                     let result = result.downcast::<T>().expect("Types must match");
-                    on_complete(*result, script, context);
+                    on_complete(*result, script, context)
                 }),
             },
         );

@@ -89,7 +89,7 @@ impl<T: EntityId> AnimationPoseSource<T> for PlayAnimation<T> {
         animations: &AnimationContainer<T>,
         _dt: f32,
     ) -> Ref<AnimationPose<T>> {
-        if let Some(animation) = animations.try_get(self.animation) {
+        if let Ok(animation) = animations.try_get(self.animation) {
             let mut output_pose = self.output_pose.borrow_mut();
             animation.pose().clone_into(&mut output_pose);
             // Pass the root motion (if any) so it will be blended correctly.

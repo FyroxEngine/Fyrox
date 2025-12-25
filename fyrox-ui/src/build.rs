@@ -25,6 +25,7 @@ use crate::{
     core::pool::Handle, font::FontResource, message::UiMessage, style::resource::StyleResource,
     Control, RestrictionEntry, UiNode, UserInterface,
 };
+use fyrox_core::pool::PoolError;
 use fyrox_graph::BaseSceneGraph;
 use std::{
     ops::{Index, IndexMut},
@@ -148,12 +149,12 @@ impl BuildContext<'_> {
     }
 
     /// Tries to fetch the node by its handle. Returns `None` if the handle is invalid.
-    pub fn try_get_node(&self, node: Handle<UiNode>) -> Option<&UiNode> {
+    pub fn try_get_node(&self, node: Handle<UiNode>) -> Result<&UiNode, PoolError> {
         self.ui.try_get_node(node)
     }
 
     /// Tries to fetch the node by its handle. Returns `None` if the handle is invalid.
-    pub fn try_get_node_mut(&mut self, node: Handle<UiNode>) -> Option<&mut UiNode> {
+    pub fn try_get_node_mut(&mut self, node: Handle<UiNode>) -> Result<&mut UiNode, PoolError> {
         self.ui.nodes.try_borrow_mut(node)
     }
 

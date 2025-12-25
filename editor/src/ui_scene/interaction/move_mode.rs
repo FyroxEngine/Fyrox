@@ -83,7 +83,7 @@ impl InteractionMode for MoveWidgetsInteractionMode {
                 .widgets
                 .iter()
                 .filter_map(|w| {
-                    if let Some(widget_ref) = ui_scene.ui.try_get_node(*w) {
+                    if let Ok(widget_ref) = ui_scene.ui.try_get_node(*w) {
                         if !in_bounds && widget_ref.screen_bounds().contains(mouse_position) {
                             in_bounds = true;
                         }
@@ -180,6 +180,7 @@ impl InteractionMode for MoveWidgetsInteractionMode {
                 let parent_inv_transform = ui_scene
                     .ui
                     .try_get_node(ui_scene.ui.node(entry.widget).parent)
+                    .ok()
                     .and_then(|w| w.visual_transform().try_inverse())
                     .unwrap_or_default();
                 let new_local_position = parent_inv_transform.transform_point(&Point2::new(

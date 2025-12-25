@@ -53,6 +53,7 @@ pub mod prelude {
     pub use crate::visitor::error::VisitError;
 }
 
+use crate::pool::PoolError;
 use crate::{
     array_as_u8_slice_mut,
     io::{self},
@@ -682,7 +683,7 @@ impl Visitor {
         let mut handle = self.current_node;
         loop {
             let node = self.nodes.try_borrow(handle);
-            let Some(node) = node else {
+            let Ok(node) = node else {
                 break;
             };
             if !rev.is_empty() {
@@ -696,7 +697,7 @@ impl Visitor {
 
     /// The name of the current region. This should never be None if the Visitor is operating normally,
     /// because there should be no way to leave the initial `__ROOT__` region.
-    pub fn current_region(&self) -> Option<&str> {
+    pub fn current_region(&self) -> Result<&str, PoolError> {
         self.nodes
             .try_borrow(self.current_node)
             .map(|n| n.name.as_str())

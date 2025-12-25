@@ -58,6 +58,7 @@ use crate::{
         tilemap::TileMap,
     },
 };
+use fyrox_graph::SceneGraph;
 pub use rapier2d::geometry::shape::*;
 use rapier2d::parry::query::DefaultQueryDispatcher;
 use rapier2d::{
@@ -361,7 +362,10 @@ fn tile_map_to_collider_shape(
     nodes: &NodePool,
     collider_name: &ImmutableString,
 ) -> Option<SharedShape> {
-    let tile_map = nodes.try_borrow(tile_map.0)?.component_ref::<TileMap>()?;
+    let tile_map = nodes
+        .try_borrow(tile_map.0)
+        .ok()?
+        .component_ref::<TileMap>()?;
 
     let tile_set_resource = tile_map.tile_set()?.data_ref();
     let tile_set = tile_set_resource.as_loaded_ref()?;
@@ -847,13 +851,11 @@ impl PhysicsWorld {
             }),
             exclude_collider: filter
                 .exclude_collider
-                .and_then(|h| graph.try_get_node(h))
-                .and_then(|n| n.component_ref::<dim2::collider::Collider>())
+                .and_then(|h| graph.try_get_of_type::<dim2::collider::Collider>(h).ok())
                 .map(|c| c.native.get()),
             exclude_rigid_body: filter
                 .exclude_collider
-                .and_then(|h| graph.try_get_node(h))
-                .and_then(|n| n.component_ref::<dim2::rigidbody::RigidBody>())
+                .and_then(|h| graph.try_get_of_type::<dim2::rigidbody::RigidBody>(h).ok())
                 .map(|c| c.native.get()),
             predicate: Some(&predicate),
         };
@@ -1163,9 +1165,8 @@ impl PhysicsWorld {
                     }
                 }
             }
-        } else if let Some(parent_body) = nodes
-            .try_borrow(collider_node.parent())
-            .and_then(|n| n.cast::<dim2::rigidbody::RigidBody>())
+        } else if let Ok(parent_body) =
+            nodes.try_get_component_of_type::<dim2::rigidbody::RigidBody>(collider_node.parent())
         {
             if parent_body.native.get() != RigidBodyHandle::invalid() {
                 let rigid_body_native = parent_body.native.get();
@@ -1235,12 +1236,12 @@ impl PhysicsWorld {
 
         if let Some(native) = self.joints.set.get_mut(joint.native.get(), false) {
             joint.body1.try_sync_model(|v| {
-                if let Some(rigid_body_node) = nodes.try_get(v) {
+                if let Ok(rigid_body_node) = nodes.try_get(v) {
                     native.body1 = rigid_body_node.native.get();
                 }
             });
             joint.body2.try_sync_model(|v| {
-                if let Some(rigid_body_node) = nodes.try_get(v) {
+                if let Ok(rigid_body_node) = nodes.try_get(v) {
                     native.body2 = rigid_body_node.native.get();
                 }
             });
@@ -1288,7 +1289,7 @@ impl PhysicsWorld {
             });
             let mut local_frames = joint.local_frames.borrow_mut();
             if local_frames.is_none() {
-                if let (Some(body1), Some(body2)) =
+                if let (Ok(body1), Ok(body2)) =
                     (nodes.try_get(joint.body1()), nodes.try_get(joint.body2()))
                 {
                     let (local_frame1, local_frame2) = calculate_local_frames(joint, body1, body2);
@@ -1303,7 +1304,7 @@ impl PhysicsWorld {
             let params = joint.params().clone();
 
             // A native joint can be created iff both rigid bodies are correctly assigned.
-            if let (Some(body1), Some(body2)) =
+            if let (Ok(body1), Ok(body2)) =
                 (nodes.try_get(body1_handle), nodes.try_get(body2_handle))
             {
                 let native_body1 = body1.native.get();

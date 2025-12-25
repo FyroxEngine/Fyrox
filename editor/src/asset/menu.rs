@@ -49,7 +49,7 @@ use crate::{
     },
     Message,
 };
-use fyrox::core::{some_or_return, SafeLock};
+use fyrox::core::{ok_or_return, SafeLock};
 use fyrox::gui::control_trait_proxy_impls;
 use fyrox::gui::formatted_text::WrapMode;
 use fyrox::gui::window::WindowAlignment;
@@ -312,7 +312,7 @@ impl AssetItemContextMenu {
         resource_manager: &ResourceManager,
     ) {
         self.placement_target = placement_target;
-        let item = some_or_return!(ui.try_get_of_type::<AssetItem>(self.placement_target));
+        let item = ok_or_return!(ui.try_get_of_type::<AssetItem>(self.placement_target));
         let is_built_in = resource_manager
             .state()
             .built_in_resources
@@ -342,7 +342,7 @@ impl AssetItemContextMenu {
                 self.on_menu_placed(*target, ui, &engine.resource_manager)
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {
-            if let Some(item) = ui.try_get_mut_of_type::<AssetItem>(self.placement_target) {
+            if let Ok(item) = ui.try_get_mut_of_type::<AssetItem>(self.placement_target) {
                 if message.destination() == self.delete {
                     let text = format!(
                         "Do you really want to delete {} asset? This \

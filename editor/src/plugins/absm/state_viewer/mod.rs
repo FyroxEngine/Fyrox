@@ -131,7 +131,8 @@ where
     G: SceneGraph<Node = N, Prefab = P>,
     N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
 {
-    if let Some(animation) = animation_container.and_then(|container| container.try_get(animation))
+    if let Some(animation) =
+        animation_container.and_then(|container| container.try_get(animation).ok())
     {
         format!("Play Animation: {}", animation.name())
     } else {
@@ -223,6 +224,7 @@ impl StateViewer {
         let (state_name, exists) = machine.layers()[layer_index]
             .states()
             .try_borrow(state)
+            .ok()
             .map(|state| {
                 (
                     format!(
@@ -417,7 +419,7 @@ impl StateViewer {
         G: SceneGraph<Node = N, Prefab = P>,
         N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
     {
-        if let Some(parent_state_ref) = machine_layer.states().try_borrow(self.state.into()) {
+        if let Ok(parent_state_ref) = machine_layer.states().try_borrow(self.state.into()) {
             let current_selection = fetch_selection(editor_selection);
 
             let mut views = Vec::new();
@@ -441,6 +443,7 @@ impl StateViewer {
                             if machine_layer
                                 .nodes()
                                 .try_borrow(pose_node.model_handle)
+                                .ok()
                                 .is_some_and(|node| node.parent_state == self.state.into())
                             {
                                 true

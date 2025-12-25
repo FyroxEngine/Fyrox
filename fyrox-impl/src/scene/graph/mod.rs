@@ -76,9 +76,9 @@ use crate::{
 };
 use bitflags::bitflags;
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_core::pool::ObjectOrVariant;
+use fyrox_core::pool::{ObjectOrVariant, PoolError};
 use fyrox_graph::SceneGraphNode;
-use std::fmt::Write;
+use std::fmt::{Display, Formatter, Write};
 use std::ops::Deref;
 use std::{
     any::{Any, TypeId},
@@ -319,6 +319,72 @@ impl Default for GraphUpdateSwitches {
     }
 }
 
+/// A set of potential errors that may occur when using the [`Graph`] API.
+#[derive(PartialEq)]
+pub enum GraphError {
+    /// An error from the underlying scene node storage. See [`PoolError`] for more info.
+    PoolError(PoolError),
+    /// There's no script of the requested type.
+    NoScript {
+        /// Handle of the node.
+        handle: Handle<Node>,
+        /// Type name of the script.
+        script_type_name: &'static str,
+    },
+    /// There's no script component of the requested type.
+    NoScriptComponent {
+        /// Handle of the node.
+        handle: Handle<Node>,
+        /// Type name of the script component.
+        component_type_name: &'static str,
+    },
+    /// There's no scene node with the given id.
+    UnknownId(SceneNodeId),
+}
+
+impl Display for GraphError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GraphError::PoolError(err) => std::fmt::Display::fmt(&err, f),
+            GraphError::NoScript {
+                handle,
+                script_type_name,
+            } => {
+                write!(
+                    f,
+                    "There's no script {script_type_name} on the scene node {handle}"
+                )
+            }
+            GraphError::NoScriptComponent {
+                handle,
+                component_type_name,
+            } => {
+                write!(
+                    f,
+                    "There's no script component {component_type_name} on the scene node {handle}"
+                )
+            }
+            GraphError::UnknownId(id) => {
+                write!(f, "There's no scene node with {id:?} id!")
+            }
+        }
+    }
+}
+
+impl Debug for GraphError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
+impl std::error::Error for GraphError {}
+
+impl From<PoolError> for GraphError {
+    fn from(value: PoolError) -> Self {
+        Self::PoolError(value)
+    }
+}
+
 impl Graph {
     /// Creates new graph instance with single root node.
     #[inline]
@@ -412,7 +478,7 @@ impl Graph {
         for _ in 0..indent {
             result.push_str("  ");
         }
-        let Some(node) = self.try_get(current) else {
+        let Ok(node) = self.try_get(current) else {
             use std::fmt::Write;
             writeln!(result, "{}: Failed to get", current).unwrap();
             return;
@@ -481,8 +547,8 @@ impl Graph {
         let (node, parent) = self
             .pool
             .try_borrow_dependant_mut(node_handle, |node| node.parent());
-        if let Some(node) = node {
-            if let Some(parent) = parent {
+        if let Ok(node) = node {
+            if let Ok(parent) = parent {
                 let relative_position = parent
                     .global_transform()
                     .try_inverse()
@@ -514,8 +580,8 @@ impl Graph {
         let (node, parent) = self
             .pool
             .try_borrow_dependant_mut(node, |node| node.parent());
-        if let Some(node) = node {
-            if let Some(parent) = parent {
+        if let Ok(node) = node {
+            if let Ok(parent) = parent {
                 let basis = parent
                     .global_transform()
                     .try_inverse()
@@ -989,7 +1055,7 @@ impl Graph {
         where
             F: FnMut(Handle<Node>, &Node) -> bool,
         {
-            graph.try_get_node(node).and_then(|n| {
+            graph.try_get_node(node).ok().and_then(|n| {
                 if filter(node, n) {
                     let mut aabb = n.local_bounding_box();
                     if aabb.is_invalid_or_degenerate() {
@@ -1014,12 +1080,13 @@ impl Graph {
     }
 
     pub(crate) fn update_enabled_flag_recursively(nodes: &NodePool, node_handle: Handle<Node>) {
-        let Some(node) = nodes.try_borrow(node_handle) else {
+        let Ok(node) = nodes.try_borrow(node_handle) else {
             return;
         };
 
         let parent_enabled = nodes
             .try_borrow(node.parent())
+            .ok()
             .is_none_or(|p| p.is_globally_enabled());
         node.global_enabled.set(parent_enabled && node.is_enabled());
 
@@ -1029,12 +1096,13 @@ impl Graph {
     }
 
     pub(crate) fn update_visibility_recursively(nodes: &NodePool, node_handle: Handle<Node>) {
-        let Some(node) = nodes.try_borrow(node_handle) else {
+        let Ok(node) = nodes.try_borrow(node_handle) else {
             return;
         };
 
         let parent_visibility = nodes
             .try_borrow(node.parent())
+            .ok()
             .is_none_or(|p| p.global_visibility());
         node.global_visibility
             .set(parent_visibility && node.visibility());
@@ -1051,11 +1119,11 @@ impl Graph {
         physics2d: &mut dim2::physics::PhysicsWorld,
         node_handle: Handle<Node>,
     ) {
-        let Some(node) = nodes.try_borrow(node_handle) else {
+        let Ok(node) = nodes.try_borrow(node_handle) else {
             return;
         };
 
-        let parent_global_transform = if let Some(parent) = nodes.try_borrow(node.parent()) {
+        let parent_global_transform = if let Ok(parent) = nodes.try_borrow(node.parent()) {
             parent.global_transform()
         } else {
             Matrix4::identity()
@@ -1161,7 +1229,7 @@ impl Graph {
 
         while let Ok(message) = self.message_receiver.try_recv() {
             if let NodeMessageKind::TransformChanged = message.kind {
-                if let Some(node) = self.pool.try_borrow(message.node) {
+                if let Ok(node) = self.pool.try_borrow(message.node) {
                     node.on_local_transform_changed(&mut SyncContext {
                         nodes: &self.pool,
                         physics: &mut self.physics,
@@ -1199,7 +1267,7 @@ impl Graph {
                 func: &mut impl FnMut(Handle<Node>),
             ) {
                 func(from);
-                if let Some(node) = graph.try_get_node(from) {
+                if let Ok(node) = graph.try_get_node(from) {
                     for &child in node.children() {
                         traverse_recursive(graph, child, func)
                     }
@@ -1264,7 +1332,7 @@ impl Graph {
         dt: f32,
         delete_dead_nodes: bool,
     ) {
-        if let Some((ticket, mut node)) = self.pool.try_take_reserve(handle) {
+        if let Ok((ticket, mut node)) = self.pool.try_take_reserve(handle) {
             let mut is_alive = node.is_alive();
 
             if node.is_globally_enabled() {
@@ -1650,7 +1718,7 @@ impl Graph {
     #[inline]
     pub fn global_scale(&self, mut node: Handle<Node>) -> Vector3<f32> {
         let mut global_scale = Vector3::repeat(1.0);
-        while let Some(node_ref) = self.try_get_node(node) {
+        while let Ok(node_ref) = self.try_get_node(node) {
             global_scale = global_scale.component_mul(node_ref.local_transform().scale());
             node = node_ref.parent;
         }
@@ -1660,12 +1728,16 @@ impl Graph {
     /// Tries to borrow a node using the given handle and searches the script buffer for a script
     /// of type T and cast the first script, that could be found to the specified type.
     #[inline]
-    pub fn try_get_script_of<T>(&self, node: Handle<Node>) -> Option<&T>
+    pub fn try_get_script_of<T>(&self, handle: Handle<Node>) -> Result<&T, GraphError>
     where
         T: ScriptTrait,
     {
-        self.try_get_node(node)
-            .and_then(|node| node.try_get_script::<T>())
+        let node = self.try_get_node(handle)?;
+        node.try_get_script::<T>()
+            .ok_or_else(|| GraphError::NoScript {
+                handle,
+                script_type_name: std::any::type_name::<T>(),
+            })
     }
 
     /// Tries to borrow a node and query all scripts of the given type `T`. This method returns
@@ -1674,55 +1746,75 @@ impl Graph {
     #[inline]
     pub fn try_get_scripts_of<T: ScriptTrait>(
         &self,
-        node: Handle<Node>,
-    ) -> Option<impl Iterator<Item = &T>> {
-        self.try_get_node(node).map(|n| n.try_get_scripts())
+        handle: Handle<Node>,
+    ) -> Result<impl Iterator<Item = &T>, GraphError> {
+        let node = self.try_get_node(handle)?;
+        Ok(node.try_get_scripts())
     }
 
     /// Tries to borrow a node using the given handle and searches the script buffer for a script
     /// of type T and cast the first script, that could be found to the specified type.
     #[inline]
-    pub fn try_get_script_of_mut<T>(&mut self, node: Handle<Node>) -> Option<&mut T>
+    pub fn try_get_script_of_mut<T>(&mut self, handle: Handle<Node>) -> Result<&mut T, GraphError>
     where
         T: ScriptTrait,
     {
-        self.try_get_node_mut(node)
-            .and_then(|node| node.try_get_script_mut::<T>())
+        let node = self.try_get_node_mut(handle)?;
+        node.try_get_script_mut::<T>()
+            .ok_or_else(|| GraphError::NoScript {
+                handle,
+                script_type_name: std::any::type_name::<T>(),
+            })
     }
 
     /// Tries to borrow a node and query all scripts of the given type `T`. This method returns
     /// [`None`] if the given node handle is invalid, otherwise it returns an iterator over the
     /// scripts of the type `T`.
     #[inline]
-    pub fn try_get_scripts_of_mut<T: ScriptTrait>(
+    pub fn try_get_scripts_of_mut<T>(
         &mut self,
-        node: Handle<Node>,
-    ) -> Option<impl Iterator<Item = &mut T>> {
-        self.try_get_node_mut(node).map(|n| n.try_get_scripts_mut())
+        handle: Handle<Node>,
+    ) -> Result<impl Iterator<Item = &mut T>, GraphError>
+    where
+        T: ScriptTrait,
+    {
+        let node = self.try_get_node_mut(handle)?;
+        Ok(node.try_get_scripts_mut())
     }
 
     /// Tries to borrow a node and find a component of the given type `C` across **all** available
     /// scripts of the node. If you want to search a component `C` in a particular script, then use
     /// [`Self::try_get_script_of`] and then search for component in it.
     #[inline]
-    pub fn try_get_script_component_of<C>(&self, node: Handle<Node>) -> Option<&C>
+    pub fn try_get_script_component_of<C>(&self, handle: Handle<Node>) -> Result<&C, GraphError>
     where
         C: Any,
     {
-        self.try_get_node(node)
-            .and_then(|node| node.try_get_script_component())
+        let node = self.try_get_node(handle)?;
+        node.try_get_script_component()
+            .ok_or_else(|| GraphError::NoScriptComponent {
+                handle,
+                component_type_name: std::any::type_name::<C>(),
+            })
     }
 
     /// Tries to borrow a node and find a component of the given type `C` across **all** available
     /// scripts of the node. If you want to search a component `C` in a particular script, then use
     /// [`Self::try_get_script_of_mut`] and then search for component in it.
     #[inline]
-    pub fn try_get_script_component_of_mut<C>(&mut self, node: Handle<Node>) -> Option<&mut C>
+    pub fn try_get_script_component_of_mut<C>(
+        &mut self,
+        handle: Handle<Node>,
+    ) -> Result<&mut C, GraphError>
     where
         C: Any,
     {
-        self.try_get_node_mut(node)
-            .and_then(|node| node.try_get_script_component_mut())
+        let node = self.try_get_node_mut(handle)?;
+        node.try_get_script_component_mut()
+            .ok_or_else(|| GraphError::NoScriptComponent {
+                handle,
+                component_type_name: std::any::type_name::<C>(),
+            })
     }
 
     /// Returns a handle of the node that has the given id.
@@ -1731,17 +1823,22 @@ impl Graph {
     }
 
     /// Tries to borrow a node by its id.
-    pub fn node_by_id(&self, id: SceneNodeId) -> Option<(Handle<Node>, &Node)> {
+    pub fn node_by_id(&self, id: SceneNodeId) -> Result<(Handle<Node>, &Node), GraphError> {
         self.instance_id_map
             .get(&id)
-            .and_then(|h| self.pool.try_borrow(*h).map(|n| (*h, n)))
+            .ok_or(GraphError::UnknownId(id))
+            .and_then(|h| Ok(self.pool.try_borrow(*h).map(|n| (*h, n))?))
     }
 
     /// Tries to borrow a node by its id.
-    pub fn node_by_id_mut(&mut self, id: SceneNodeId) -> Option<(Handle<Node>, &mut Node)> {
+    pub fn node_by_id_mut(
+        &mut self,
+        id: SceneNodeId,
+    ) -> Result<(Handle<Node>, &mut Node), GraphError> {
         self.instance_id_map
             .get(&id)
-            .and_then(|h| self.pool.try_borrow_mut(*h).map(|n| (*h, n)))
+            .ok_or(GraphError::UnknownId(id))
+            .and_then(|h| Ok(self.pool.try_borrow_mut(*h).map(|n| (*h, n))?))
     }
 }
 
@@ -1784,7 +1881,10 @@ impl Visit for Graph {
 }
 
 impl AbstractSceneGraph for Graph {
-    fn try_get_node_untyped(&self, handle: ErasedHandle) -> Option<&dyn AbstractSceneNode> {
+    fn try_get_node_untyped(
+        &self,
+        handle: ErasedHandle,
+    ) -> Result<&dyn AbstractSceneNode, PoolError> {
         self.pool
             .try_borrow(handle.into())
             .map(|n| n as &dyn AbstractSceneNode)
@@ -1793,7 +1893,7 @@ impl AbstractSceneGraph for Graph {
     fn try_get_node_untyped_mut(
         &mut self,
         handle: ErasedHandle,
-    ) -> Option<&mut dyn AbstractSceneNode> {
+    ) -> Result<&mut dyn AbstractSceneNode, PoolError> {
         self.pool
             .try_borrow_mut(handle.into())
             .map(|n| n as &mut dyn AbstractSceneNode)
@@ -1813,7 +1913,7 @@ impl BaseSceneGraph for Graph {
     }
 
     #[inline]
-    fn actual_type_id(&self, handle: Handle<Self::Node>) -> Option<TypeId> {
+    fn actual_type_id(&self, handle: Handle<Self::Node>) -> Result<TypeId, PoolError> {
         self.pool
             .try_borrow(handle)
             .map(|n| NodeAsAny::as_any(n.0.deref()).type_id())
@@ -1919,7 +2019,7 @@ impl BaseSceneGraph for Graph {
         let parent_handle = std::mem::replace(&mut self.pool[node_handle].parent, Handle::NONE);
 
         // Remove child from parent's children list
-        if let Some(parent) = self.pool.try_borrow_mut(parent_handle) {
+        if let Ok(parent) = self.pool.try_borrow_mut(parent_handle) {
             if let Some(i) = parent.children().iter().position(|h| *h == node_handle) {
                 parent.children.remove(i);
             }
@@ -1931,22 +2031,25 @@ impl BaseSceneGraph for Graph {
     }
 
     #[inline]
-    fn try_get_node(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
+    fn try_get_node(&self, handle: Handle<Self::Node>) -> Result<&Self::Node, PoolError> {
         self.pool.try_borrow(handle)
     }
 
     #[inline]
-    fn try_get_node_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
+    fn try_get_node_mut(
+        &mut self,
+        handle: Handle<Self::Node>,
+    ) -> Result<&mut Self::Node, PoolError> {
         self.pool.try_borrow_mut(handle)
     }
 
-    fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Option<Vec<TypeId>> {
+    fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Result<Vec<TypeId>, PoolError> {
         self.pool
             .try_borrow(handle)
             .map(|n| Box::deref(&n.0).query_derived_types().to_vec())
     }
 
-    fn actual_type_name(&self, handle: Handle<Self::Node>) -> Option<&'static str> {
+    fn actual_type_name(&self, handle: Handle<Self::Node>) -> Result<&'static str, PoolError> {
         self.pool
             .try_borrow(handle)
             .map(|n| n.0.deref().type_name())
@@ -1970,11 +2073,14 @@ impl SceneGraph for Graph {
         self.pool.iter_mut()
     }
 
-    fn try_get<U: ObjectOrVariant<Node>>(&self, handle: Handle<U>) -> Option<&U> {
+    fn try_get<U: ObjectOrVariant<Node>>(&self, handle: Handle<U>) -> Result<&U, PoolError> {
         self.pool.try_get(handle)
     }
 
-    fn try_get_mut<U: ObjectOrVariant<Node>>(&mut self, handle: Handle<U>) -> Option<&mut U> {
+    fn try_get_mut<U: ObjectOrVariant<Node>>(
+        &mut self,
+        handle: Handle<U>,
+    ) -> Result<&mut U, PoolError> {
         self.pool.try_get_mut(handle)
     }
 }
@@ -2056,14 +2162,14 @@ mod test {
 
         assert_eq!(
             graph.try_get_script_of::<MyScript>(handle),
-            Some(&MyScript {
+            Ok(&MyScript {
                 foo: "Stuff".to_string(),
                 bar: 123.321,
             })
         );
         assert_eq!(
             graph.try_get_script_of_mut::<MyScript>(handle),
-            Some(&mut MyScript {
+            Ok(&mut MyScript {
                 foo: "Stuff".to_string(),
                 bar: 123.321,
             })
@@ -2090,14 +2196,14 @@ mod test {
 
         assert_eq!(
             graph.try_get_script_of::<MyOtherScript>(handle),
-            Some(&MyOtherScript {
+            Ok(&MyOtherScript {
                 baz: 321,
                 foobar: vec![1, 2, 3],
             })
         );
         assert_eq!(
             graph.try_get_script_of_mut::<MyOtherScript>(handle),
-            Some(&mut MyOtherScript {
+            Ok(&mut MyOtherScript {
                 baz: 321,
                 foobar: vec![1, 2, 3],
             })
@@ -2482,18 +2588,15 @@ mod test {
         let pivot = PivotBuilder::new(BaseBuilder::new()).build(&mut graph);
         let rigid_body = RigidBodyBuilder::new(BaseBuilder::new()).build(&mut graph);
 
-        assert!(graph.pool.try_get(pivot).is_some());
-        assert!(graph.pool.try_get(pivot.transmute::<Pivot>()).is_some());
-        assert!(graph.pool.try_get(pivot.transmute::<RigidBody>()).is_none());
+        assert!(graph.pool.try_get(pivot).is_ok());
+        assert!(graph.pool.try_get(pivot.transmute::<Pivot>()).is_ok());
+        assert!(graph.pool.try_get(pivot.transmute::<RigidBody>()).is_err());
 
-        assert!(graph.pool.try_get(rigid_body).is_some());
+        assert!(graph.pool.try_get(rigid_body).is_ok());
         assert!(graph
             .pool
             .try_get(rigid_body.transmute::<RigidBody>())
-            .is_some());
-        assert!(graph
-            .pool
-            .try_get(rigid_body.transmute::<Pivot>())
-            .is_none());
+            .is_ok());
+        assert!(graph.pool.try_get(rigid_body.transmute::<Pivot>()).is_err());
     }
 }

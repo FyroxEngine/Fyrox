@@ -201,7 +201,7 @@ impl AudioPreviewPanel {
                 editor_selection.as_graph().is_some_and(|s| {
                     s.nodes()
                         .iter()
-                        .any(|n| scene.graph.try_get_of_type::<Sound>(*n).is_some())
+                        .any(|n| scene.graph.try_get_of_type::<Sound>(*n).is_ok())
                 })
             } else {
                 false
@@ -227,7 +227,7 @@ impl AudioPreviewPanel {
         let mut set = false;
         if let Some(new_graph_selection) = editor_selection.as_graph() {
             for &node_handle in &new_graph_selection.nodes {
-                if let Some(sound) = scene.graph.try_get_of_type::<Sound>(node_handle) {
+                if let Ok(sound) = scene.graph.try_get_of_type::<Sound>(node_handle) {
                     if !set {
                         if let Some(buffer) = sound.buffer() {
                             let mut state = buffer.state();
@@ -283,7 +283,7 @@ impl AudioPreviewPanel {
         let scene = &engine.scenes[game_scene.scene];
         if let Some(new_graph_selection) = editor_selection.as_graph() {
             for &node_handle in &new_graph_selection.nodes {
-                if let Some(sound) = scene.graph.try_get_of_type::<Sound>(node_handle) {
+                if let Ok(sound) = scene.graph.try_get_of_type::<Sound>(node_handle) {
                     engine
                         .user_interfaces
                         .first()
@@ -307,7 +307,7 @@ impl AudioPreviewPanel {
                 let scene = &mut engine.scenes[game_scene.scene];
 
                 for &node in &selection.nodes {
-                    if let Some(sound) = scene.graph.try_get_mut_of_type::<Sound>(node) {
+                    if let Ok(sound) = scene.graph.try_get_mut_of_type::<Sound>(node) {
                         if message.destination() == self.play {
                             sound.set_status(Status::Playing);
                         } else if message.destination() == self.pause {
@@ -333,7 +333,7 @@ impl AudioPreviewPanel {
                 let scene = &mut engine.scenes[game_scene.scene];
 
                 for &node in &selection.nodes {
-                    if let Some(sound) = scene.graph.try_get_mut_of_type::<Sound>(node) {
+                    if let Ok(sound) = scene.graph.try_get_mut_of_type::<Sound>(node) {
                         sound.set_playback_time(*playback_position);
                     }
                 }

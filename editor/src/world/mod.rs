@@ -594,7 +594,7 @@ impl WorldViewer {
         self.colorize(ui);
 
         self.node_to_view_map
-            .retain(|k, v| data_provider.is_valid_handle(*k) && ui.try_get_node(*v).is_some());
+            .retain(|k, v| data_provider.is_valid_handle(*k) && ui.try_get_node(*v).is_ok());
     }
 
     pub fn colorize(&mut self, ui: &UserInterface) {
@@ -661,8 +661,7 @@ impl WorldViewer {
             self.handle_drop(ui, data_provider, message.destination(), node);
         } else if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if let Some(&view) = self.breadcrumbs.get(&message.destination()) {
-                if let Some(graph_node) = ui.try_get_node(view).and_then(|n| n.cast::<SceneItem>())
-                {
+                if let Ok(graph_node) = ui.try_get_of_type::<SceneItem>(view) {
                     data_provider.on_selection_changed(&[graph_node.entity_handle]);
                 }
             } else if message.destination() == self.collapse_all {

@@ -897,7 +897,7 @@ impl RenderDataBundleStorage {
             if let Some(lod_group) = node.lod_group() {
                 for level in lod_group.levels.iter() {
                     for &object in level.objects.iter() {
-                        if let Some(object_ref) = graph.try_get_node(object) {
+                        if let Ok(object_ref) = graph.try_get_node(object) {
                             let distance = observer_position
                                 .translation
                                 .metric_distance(&object_ref.global_position());

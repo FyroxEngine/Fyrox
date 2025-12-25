@@ -66,6 +66,7 @@ impl FbxTexture {
         if self.filename == PathBuf::default() {
             components
                 .try_borrow(self.ancestor)
+                .ok()
                 .and_then(|parent| parent.as_texture().ok())
                 .map(|texture| texture.get_root_file_path(components))
                 .unwrap_or_default()

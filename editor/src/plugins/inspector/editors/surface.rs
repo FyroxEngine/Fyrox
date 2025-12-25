@@ -58,10 +58,7 @@ use crate::{
 };
 use fyrox::gui::brush::Brush;
 use fyrox::gui::message::MessageData;
-use std::{
-    any::TypeId,
-    sync::mpsc::Sender,
-};
+use std::{any::TypeId, sync::mpsc::Sender};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum SurfaceDataPropertyEditorMessage {

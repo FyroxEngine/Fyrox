@@ -1,3 +1,11 @@
+use crate::{
+    command::{CommandContext, CommandTrait},
+    message::MessageSender,
+    scene::Selection,
+    ui_scene::{commands::UiSceneContext, UiScene},
+    Message,
+};
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::{pool::Handle, variable::InheritableVariable},
     engine::Engine,
@@ -11,14 +19,6 @@ use fyrox::{
         widget::{WidgetBuilder, WidgetMessage},
         BBCode, BuildContext, UiNode, UserInterface,
     },
-};
-
-use crate::{
-    command::{CommandContext, CommandTrait},
-    message::MessageSender,
-    scene::Selection,
-    ui_scene::{commands::UiSceneContext, UiScene},
-    Message,
 };
 
 pub struct BBCodePanel {
@@ -62,11 +62,7 @@ impl BBCodePanel {
         };
         let mut bbcode = String::new();
         for handle in &selection.widgets {
-            if let Some(text) = ui_scene
-                .ui
-                .try_get_node_mut(*handle)
-                .and_then(|n| n.cast::<Text>())
-            {
+            if let Ok(text) = ui_scene.ui.try_get_mut_of_type::<Text>(*handle) {
                 bbcode = text.bbcode.clone_inner();
                 break;
             }
@@ -84,7 +80,11 @@ impl BBCodePanel {
             let text_selected = editor_selection.as_ui().is_some_and(|s| {
                 s.widgets.iter().any(|n| {
                     ui_scene
-                        .and_then(|s| s.ui.try_get_node(*n).map(|n| n.cast::<Text>().is_some()))
+                        .and_then(|s| {
+                            s.ui.try_get_node(*n)
+                                .ok()
+                                .map(|n| n.cast::<Text>().is_some())
+                        })
                         .unwrap_or_default()
                 })
             });
@@ -111,11 +111,7 @@ impl BBCodePanel {
             return;
         };
         for handle in selection.widgets.iter().copied() {
-            if let Some(text) = ui_scene
-                .ui
-                .try_get_node_mut(handle)
-                .and_then(|n| n.cast::<Text>())
-            {
+            if let Ok(text) = ui_scene.ui.try_get_mut_of_type::<Text>(handle) {
                 let font = text.font();
                 let parsed_code: BBCode = bbcode.parse().unwrap();
                 let text = parsed_code.text.chars().collect::<Vec<char>>();
@@ -143,8 +139,7 @@ impl BBCodeCommand {
         let ctx = context.get_mut::<UiSceneContext>();
         let text = ctx
             .ui
-            .try_get_node_mut(self.text_handle)
-            .and_then(|n| n.cast_mut::<Text>())
+            .try_get_mut_of_type::<Text>(self.text_handle)
             .expect("must be Text");
         std::mem::swap(&mut text.bbcode, &mut self.code);
         let formatted_text = text.formatted_text.get_mut();

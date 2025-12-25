@@ -400,6 +400,7 @@ pub fn build_single_folder(
 
 pub fn tree_path(tree_handle: Handle<UiNode>, ui: &UserInterface) -> Option<TreeItemPath> {
     ui.try_get(tree_handle)
+        .ok()
         .and_then(|n| n.user_data_cloned::<TreeItemPath>())
 }
 

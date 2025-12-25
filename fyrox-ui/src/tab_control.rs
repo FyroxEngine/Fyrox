@@ -655,7 +655,7 @@ impl TabControlBuilder {
         let tab_count = self.tabs.len();
         // Hide everything but initial tab content.
         for (i, (_, tab)) in self.tabs.iter().enumerate() {
-            if let Some(content) = ctx.try_get_node_mut(tab.content) {
+            if let Ok(content) = ctx.try_get_node_mut(tab.content) {
                 content.set_visibility(i == self.initial_tab);
             }
         }

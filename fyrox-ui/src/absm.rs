@@ -34,7 +34,7 @@ use crate::{
 };
 use fyrox_animation::machine::Parameter;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_graph::{SceneGraph, SceneGraphNode};
+use fyrox_graph::SceneGraph;
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// UI-specific root motion settings.
@@ -179,10 +179,9 @@ define_widget_deref!(AnimationBlendingStateMachine);
 
 impl Control for AnimationBlendingStateMachine {
     fn update(&mut self, dt: f32, ui: &mut UserInterface) {
-        if let Some(animation_player) = ui
+        if let Ok(animation_player) = ui
             .nodes
-            .try_borrow_mut(*self.animation_player)
-            .and_then(|n| n.component_mut::<AnimationPlayer>())
+            .try_get_component_of_type_mut::<AnimationPlayer>(*self.animation_player)
         {
             // Prevent animation player to apply animation to scene nodes. The animation will
             // do than instead.
@@ -316,7 +315,7 @@ impl AbsmEventProvider {
             return;
         };
 
-        let Some(absm) = ui.try_get_mut_of_type::<AnimationBlendingStateMachine>(*self.absm) else {
+        let Ok(absm) = ui.try_get_mut_of_type::<AnimationBlendingStateMachine>(*self.absm) else {
             return;
         };
 

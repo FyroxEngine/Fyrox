@@ -26,7 +26,7 @@ use crate::{
         asset::{manager::ResourceManager, untyped::UntypedResource, Resource, TypedResourceData},
         core::{
             algebra::Vector2, color::Color, futures::executor::block_on, make_relative_path,
-            parking_lot::lock_api::Mutex, pool::Handle, reflect::prelude::*, some_or_return,
+            parking_lot::lock_api::Mutex, pool::Handle, reflect::prelude::*,
             type_traits::prelude::*, uuid_provider, visitor::prelude::*,
         },
         graph::SceneGraph,
@@ -51,6 +51,7 @@ use crate::{
     message::MessageSender,
     Message,
 };
+use fyrox::core::ok_or_return;
 use fyrox::gui::message::MessageData;
 use std::{
     ops::{Deref, DerefMut},
@@ -182,7 +183,7 @@ impl AssetItem {
     }
 
     fn try_post_move_to_message(&self, ui: &UserInterface, dropped: Handle<UiNode>) {
-        let dropped_item = some_or_return!(ui.try_get_of_type::<Self>(dropped));
+        let dropped_item = ok_or_return!(ui.try_get_of_type::<Self>(dropped));
 
         if !self.path.is_dir() {
             return;
@@ -281,6 +282,7 @@ impl Control for AssetItem {
                 WidgetMessage::DragOver(dropped) => {
                     if ui
                         .try_get_of_type::<AssetItem>(*dropped)
+                        .ok()
                         .is_some_and(|dropped| dropped.can_be_dropped_to(self))
                     {
                         ui.send(
@@ -335,6 +337,7 @@ impl Control for AssetItem {
 
     fn accepts_drop(&self, widget: Handle<UiNode>, ui: &UserInterface) -> bool {
         ui.try_get_of_type::<Self>(widget)
+            .ok()
             .is_some_and(|asset_item| asset_item.can_be_dropped_to(self))
     }
 }

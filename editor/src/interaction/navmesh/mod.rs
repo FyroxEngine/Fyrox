@@ -163,7 +163,7 @@ impl NavmeshPanel {
         if let Some(selection) = fetch_selection(editor_selection) {
             navmesh_selected = graph
                 .try_get_of_type::<NavigationalMesh>(selection.navmesh_node())
-                .is_some();
+                .is_ok();
         }
 
         if navmesh_selected {
@@ -276,7 +276,7 @@ impl InteractionMode for EditNavmeshMode {
             let graph = &mut engine.scenes[game_scene.scene].graph;
 
             if let Some(plane_kind) = self.move_gizmo.handle_pick(editor_node, graph) {
-                if let Some(navmesh) = graph
+                if let Ok(navmesh) = graph
                     .try_get_of_type::<NavigationalMesh>(selection.navmesh_node())
                     .map(|n| n.navmesh_ref())
                 {
@@ -287,7 +287,7 @@ impl InteractionMode for EditNavmeshMode {
                     self.plane_kind = plane_kind;
                     self.drag_context = Some(DragContext::MoveSelection { initial_positions });
                 }
-            } else if let Some(navmesh) = graph
+            } else if let Ok(navmesh) = graph
                 .try_get_of_type::<NavigationalMesh>(selection.navmesh_node())
                 .map(|n| n.navmesh_ref())
             {
@@ -363,7 +363,7 @@ impl InteractionMode for EditNavmeshMode {
         self.move_gizmo.reset_state(graph);
 
         if let Some(selection) = fetch_selection(editor_selection) {
-            if let Some(navmesh) = graph
+            if let Ok(navmesh) = graph
                 .try_get_of_type::<NavigationalMesh>(selection.navmesh_node())
                 .map(|n| n.navmesh_ref())
             {
@@ -454,7 +454,7 @@ impl InteractionMode for EditNavmeshMode {
         );
 
         if let Some(selection) = fetch_selection(editor_selection) {
-            if let Some(mut navmesh) = graph
+            if let Ok(mut navmesh) = graph
                 .try_get_mut_of_type::<NavigationalMesh>(selection.navmesh_node())
                 .map(|n| n.navmesh_mut())
             {
@@ -528,7 +528,7 @@ impl InteractionMode for EditNavmeshMode {
             let mut gizmo_visible = false;
             let mut gizmo_position = Default::default();
 
-            if let Some(navmesh) = scene
+            if let Ok(navmesh) = scene
                 .graph
                 .try_get_mut_of_type::<NavigationalMesh>(selection.navmesh_node())
                 .map(|n| n.navmesh_mut())
@@ -621,7 +621,7 @@ impl InteractionMode for EditNavmeshMode {
                         .graph
                         .try_get_of_type::<NavigationalMesh>(selection.navmesh_node())
                         .map(|n| n.navmesh_ref())
-                        .is_some()
+                        .is_ok()
                         && !selection.is_empty()
                     {
                         let mut commands = Vec::new();
@@ -649,7 +649,7 @@ impl InteractionMode for EditNavmeshMode {
                         .keyboard_modifiers()
                         .control =>
                 {
-                    if let Some(navmesh) = scene
+                    if let Ok(navmesh) = scene
                         .graph
                         .try_get_of_type::<NavigationalMesh>(selection.navmesh_node())
                         .map(|n| n.navmesh_ref())

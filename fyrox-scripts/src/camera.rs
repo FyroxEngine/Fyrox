@@ -21,6 +21,8 @@
 //! Flying camera controller script is used to create flying cameras, that can be rotated via mouse and moved via keyboard keys.
 //! See [`FlyingCameraController`] docs for more info and usage examples.
 
+use fyrox::graph::BaseSceneGraph;
+use fyrox::plugin::error::GameResult;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, UnitVector3, Vector3},
@@ -203,7 +205,7 @@ impl_component_provider!(FlyingCameraController);
 uuid_provider!(FlyingCameraController = "8d9e2feb-8c61-482c-8ba4-b0b13b201113");
 
 impl ScriptTrait for FlyingCameraController {
-    fn on_os_event(&mut self, event: &Event<()>, context: &mut ScriptContext) {
+    fn on_os_event(&mut self, event: &Event<()>, context: &mut ScriptContext) -> GameResult {
         match event {
             Event::WindowEvent {
                 event: WindowEvent::KeyboardInput { event, .. },
@@ -234,12 +236,14 @@ impl ScriptTrait for FlyingCameraController {
             }
             _ => {}
         }
+
+        Ok(())
     }
 
-    fn on_update(&mut self, context: &mut ScriptContext) {
+    fn on_update(&mut self, context: &mut ScriptContext) -> GameResult {
         let mut new_velocity = Vector3::default();
 
-        let this = &mut context.scene.graph[context.handle];
+        let this = context.scene.graph.try_get_node_mut(context.handle)?;
 
         if self.move_forward {
             new_velocity += this.look_vector();
@@ -290,5 +294,7 @@ impl ScriptTrait for FlyingCameraController {
                 ) * yaw,
             )
             .offset(*self.velocity);
+
+        Ok(())
     }
 }

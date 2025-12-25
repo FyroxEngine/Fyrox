@@ -1181,7 +1181,7 @@ impl Base {
         if let Some(resource) = self.resource.as_ref() {
             let mut state = resource.state();
             if let Some(model) = state.data() {
-                if let Some(ancestor_node) = model
+                if let Ok(ancestor_node) = model
                     .get_scene()
                     .graph
                     .try_get_node(self.original_handle_in_resource)

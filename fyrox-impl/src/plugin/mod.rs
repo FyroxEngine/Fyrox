@@ -23,26 +23,27 @@
 #![warn(missing_docs)]
 
 pub mod dylib;
+pub mod error;
 
-use crate::engine::input::InputState;
-use crate::engine::ApplicationLoopController;
 use crate::{
     asset::manager::ResourceManager,
-    core::{pool::Handle, reflect::Reflect, visitor::Visit},
+    core::{
+        define_as_any_trait, pool::Handle, reflect::Reflect, visitor::error::VisitError,
+        visitor::Visit,
+    },
     engine::{
-        task::TaskPoolHandler, AsyncSceneLoader, GraphicsContext, PerformanceStatistics,
-        ScriptProcessor, SerializationContext,
+        input::InputState, task::TaskPoolHandler, ApplicationLoopController, AsyncSceneLoader,
+        GraphicsContext, PerformanceStatistics, ScriptProcessor, SerializationContext,
     },
     event::Event,
     gui::{
         constructor::WidgetConstructorContainer,
         inspector::editors::PropertyEditorDefinitionContainer, message::UiMessage, UiContainer,
+        UserInterface,
     },
+    plugin::error::GameResult,
     scene::{Scene, SceneContainer},
 };
-use fyrox_core::define_as_any_trait;
-use fyrox_core::visitor::error::VisitError;
-use fyrox_ui::UserInterface;
 use std::{
     ops::{Deref, DerefMut},
     path::Path,
@@ -211,26 +212,12 @@ impl dyn Plugin {
 
 /// Plugin is a convenient interface that allow you to extend engine's functionality.
 ///
-/// # Static vs dynamic plugins
-///
-/// Every plugin must be linked statically to ensure that everything is memory safe. There was some
-/// long research about hot reloading and dynamic plugins (in DLLs) and it turned out that they're
-/// not guaranteed to be memory safe because Rust does not have stable ABI. When a plugin compiled
-/// into DLL, Rust compiler is free to reorder struct members in any way it needs to. It is not
-/// guaranteed that two projects that uses the same library will have compatible ABI. This fact
-/// indicates that you either have to use static linking of your plugins or provide C interface
-/// to every part of the engine and "communicate" with plugin using C interface with C ABI (which
-/// is standardized and guaranteed to be compatible). The main problem with C interface is
-/// boilerplate code and the need to mark every structure "visible" through C interface with
-/// `#[repr(C)]` attribute which is not always easy and even possible (because some structures could
-/// be re-exported from dependencies). These are the main reasons why the engine uses static plugins.
-///
 /// # Example
 ///
 /// ```rust
 /// # use fyrox_impl::{
 /// #     core::{pool::Handle}, core::visitor::prelude::*, core::reflect::prelude::*,
-/// #     plugin::{Plugin, PluginContext, PluginRegistrationContext},
+/// #     plugin::{Plugin, PluginContext, PluginRegistrationContext, error::GameResult},
 /// #     scene::Scene,
 /// #     event::Event
 /// # };
@@ -241,25 +228,87 @@ impl dyn Plugin {
 /// struct MyPlugin {}
 ///
 /// impl Plugin for MyPlugin {
-///     fn on_deinit(&mut self, context: PluginContext) {
+///     fn on_deinit(&mut self, context: PluginContext) -> GameResult {
 ///         // The method is called when the plugin is disabling.
 ///         // The implementation is optional.
+///         Ok(())
 ///     }
 ///
-///     fn update(&mut self, context: &mut PluginContext) {
+///     fn update(&mut self, context: &mut PluginContext) -> GameResult {
 ///         // The method is called on every frame, it is guaranteed to have fixed update rate.
 ///         // The implementation is optional.
+///         Ok(())
 ///     }
 ///
-///     fn on_os_event(&mut self, event: &Event<()>, context: PluginContext) {
+///     fn on_os_event(&mut self, event: &Event<()>, context: PluginContext) -> GameResult {
 ///         // The method is called when the main window receives an event from the OS.
+///         Ok(())
+///     }
+/// }
+/// ```
+///
+/// # Error Handling
+///
+/// Every plugin method returns [`GameResult`] (which is a simple wrapper over `Result<(), GameError>`),
+/// this helps to reduce the amount of boilerplate code related to error handling. There are a number
+/// of errors that can be automatically handled via `?` operator. All supported error types listed
+/// in [`error::GameError`] enum.
+///
+/// The following code snippet shows the most common use cases for error handling:
+///
+/// ```rust
+/// # use crate::{
+/// #     core::{err, pool::Handle, reflect::prelude::*, visitor::prelude::*},
+/// #     event::Event,
+/// #     graph::SceneGraph,
+/// #     plugin::{error::GameResult, Plugin, PluginContext, PluginRegistrationContext},
+/// #     scene::{node::Node, Scene},
+/// # };
+/// # use std::str::FromStr;
+/// #[derive(Default, Visit, Reflect, Debug)]
+/// #[reflect(non_cloneable)]
+/// struct MyPlugin {
+///     scene: Handle<Scene>,
+///     player: Handle<Node>,
+/// }
+///
+/// impl Plugin for MyPlugin {
+///     fn update(&mut self, context: &mut PluginContext) -> GameResult {
+///         // 1. This is the old approach.
+///         match context.scenes.try_get(self.scene) {
+///             Ok(scene) => match scene.graph.try_get(self.player) {
+///                 Ok(player) => {
+///                     println!("Player name is: {}", player.name());
+///                 }
+///                 Err(error) => {
+///                     err!("Unable to borrow the player. Reason: {error}")
+///                 }
+///             },
+///             Err(error) => {
+///                 err!("Unable to borrow the scene. Reason: {error}")
+///             }
+///         }
+///
+///         // 2. This is the same code as above, but with shortcuts for easier error handling.
+///         // Message report is will be something like this:
+///         // `An error occurred during update plugin method call. Reason: <error message>`.
+///         let scene = context.scenes.try_get(self.scene)?;
+///         let player = scene.graph.try_get(self.player)?;
+///         println!("Player name is: {}", player.name());
+///
+///         Ok(())
 ///     }
 /// }
 /// ```
 pub trait Plugin: PluginAsAny + Visit + Reflect {
     /// The method is called when the plugin constructor was just registered in the engine. The main
     /// use of this method is to register scripts and custom scene graph nodes in [`SerializationContext`].
-    fn register(&self, #[allow(unused_variables)] context: PluginRegistrationContext) {}
+    fn register(
+        &self,
+        #[allow(unused_variables)] context: PluginRegistrationContext,
+    ) -> GameResult {
+        Ok(())
+    }
 
     /// This method is used to register property editors for your game types; to make them editable
     /// in the editor.
@@ -272,25 +321,37 @@ pub trait Plugin: PluginAsAny + Visit + Reflect {
         &mut self,
         #[allow(unused_variables)] scene_path: Option<&str>,
         #[allow(unused_variables)] context: PluginContext,
-    ) {
+    ) -> GameResult {
+        Ok(())
     }
 
     /// This method is called when your plugin was re-loaded from a dynamic library. It could be used
     /// to restore some runtime state, that cannot be serialized. This method is called **only for
     /// dynamic plugins!** It is guaranteed to be called after all plugins were constructed, so the
     /// cross-plugins interactions are possible.
-    fn on_loaded(&mut self, #[allow(unused_variables)] context: PluginContext) {}
+    fn on_loaded(&mut self, #[allow(unused_variables)] context: PluginContext) -> GameResult {
+        Ok(())
+    }
 
     /// The method is called before plugin will be disabled. It should be used for clean up, or some
     /// additional actions.
-    fn on_deinit(&mut self, #[allow(unused_variables)] context: PluginContext) {}
+    fn on_deinit(&mut self, #[allow(unused_variables)] context: PluginContext) -> GameResult {
+        Ok(())
+    }
 
     /// Updates the plugin internals at fixed rate (see [`PluginContext::dt`] parameter for more
     /// info).
-    fn update(&mut self, #[allow(unused_variables)] context: &mut PluginContext) {}
+    fn update(&mut self, #[allow(unused_variables)] context: &mut PluginContext) -> GameResult {
+        Ok(())
+    }
 
     /// called after all Plugin and Script updates
-    fn post_update(&mut self, #[allow(unused_variables)] context: &mut PluginContext) {}
+    fn post_update(
+        &mut self,
+        #[allow(unused_variables)] context: &mut PluginContext,
+    ) -> GameResult {
+        Ok(())
+    }
 
     /// The method is called when the main window receives an event from the OS. The main use of
     /// the method is to respond to some external events, for example an event from keyboard or
@@ -299,7 +360,8 @@ pub trait Plugin: PluginAsAny + Visit + Reflect {
         &mut self,
         #[allow(unused_variables)] event: &Event<()>,
         #[allow(unused_variables)] context: PluginContext,
-    ) {
+    ) -> GameResult {
+        Ok(())
     }
 
     /// The method is called when a graphics context was successfully created. It could be useful
@@ -307,15 +369,25 @@ pub trait Plugin: PluginAsAny + Visit + Reflect {
     fn on_graphics_context_initialized(
         &mut self,
         #[allow(unused_variables)] context: PluginContext,
-    ) {
+    ) -> GameResult {
+        Ok(())
     }
 
     /// The method is called before the actual frame rendering. It could be useful to render off-screen
     /// data (render something to texture, that can be used later in the main frame).
-    fn before_rendering(&mut self, #[allow(unused_variables)] context: PluginContext) {}
+    fn before_rendering(
+        &mut self,
+        #[allow(unused_variables)] context: PluginContext,
+    ) -> GameResult {
+        Ok(())
+    }
 
     /// The method is called when the current graphics context was destroyed.
-    fn on_graphics_context_destroyed(&mut self, #[allow(unused_variables)] context: PluginContext) {
+    fn on_graphics_context_destroyed(
+        &mut self,
+        #[allow(unused_variables)] context: PluginContext,
+    ) -> GameResult {
+        Ok(())
     }
 
     /// The method will be called when there is any message from a user interface (UI) instance
@@ -326,7 +398,8 @@ pub trait Plugin: PluginAsAny + Visit + Reflect {
         #[allow(unused_variables)] context: &mut PluginContext,
         #[allow(unused_variables)] message: &UiMessage,
         #[allow(unused_variables)] ui_handle: Handle<UserInterface>,
-    ) {
+    ) -> GameResult {
+        Ok(())
     }
 
     /// This method is called when the engine starts loading a scene from the given `path`. It could
@@ -336,7 +409,8 @@ pub trait Plugin: PluginAsAny + Visit + Reflect {
         &mut self,
         #[allow(unused_variables)] path: &Path,
         #[allow(unused_variables)] context: &mut PluginContext,
-    ) {
+    ) -> GameResult {
+        Ok(())
     }
 
     /// This method is called when the engine finishes loading a scene from the given `path`. Use
@@ -348,7 +422,8 @@ pub trait Plugin: PluginAsAny + Visit + Reflect {
         #[allow(unused_variables)] scene: Handle<Scene>,
         #[allow(unused_variables)] data: &[u8],
         #[allow(unused_variables)] context: &mut PluginContext,
-    ) {
+    ) -> GameResult {
+        Ok(())
     }
 
     /// This method is called when the engine finishes loading a scene from the given `path` with
@@ -358,6 +433,7 @@ pub trait Plugin: PluginAsAny + Visit + Reflect {
         #[allow(unused_variables)] path: &Path,
         #[allow(unused_variables)] error: &VisitError,
         #[allow(unused_variables)] context: &mut PluginContext,
-    ) {
+    ) -> GameResult {
+        Ok(())
     }
 }

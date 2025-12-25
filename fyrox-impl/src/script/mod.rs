@@ -22,24 +22,26 @@
 
 //! Script is used to add custom logic to scene nodes. See [ScriptTrait] for more info.
 
+use crate::plugin::error::GameResult;
 use crate::{
     asset::manager::ResourceManager,
     core::{
         log::Log,
-        pool::Handle,
-        reflect::{FieldRef, Reflect, ReflectArray, ReflectList},
+        pool::{Handle, PoolError},
+        reflect::{FieldMut, FieldRef, Reflect, ReflectArray, ReflectList},
         type_traits::ComponentProvider,
         uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
         TypeUuidProvider,
     },
-    engine::{task::TaskPoolHandler, GraphicsContext, ScriptMessageDispatcher},
+    engine::{input::InputState, task::TaskPoolHandler, GraphicsContext, ScriptMessageDispatcher},
     event::Event,
     gui::UiContainer,
     plugin::{Plugin, PluginContainer},
     scene::{base::NodeScriptMessage, node::Node, Scene},
 };
-use fyrox_core::reflect::FieldMut;
+pub use fyrox_core_derive::ScriptMessagePayload;
+use fyrox_graph::BaseSceneGraph;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
@@ -48,13 +50,10 @@ use std::{
     sync::mpsc::Sender,
 };
 
-use crate::engine::input::InputState;
-pub use fyrox_core_derive::ScriptMessagePayload;
-use fyrox_graph::BaseSceneGraph;
 pub mod constructor;
 
 pub(crate) trait UniversalScriptContext {
-    fn node(&mut self) -> Option<&mut Node>;
+    fn node(&mut self) -> Result<&mut Node, PoolError>;
     fn destroy_script_deferred(&self, script: Script, index: usize);
     fn set_script_index(&mut self, index: usize);
 }
@@ -335,7 +334,7 @@ pub struct ScriptContext<'a, 'b, 'c> {
     /// ```rust
     /// # use fyrox_impl::{
     /// #     core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
-    /// #     plugin::Plugin,
+    /// #     plugin::{Plugin, error::GameResult},
     /// #     script::{ScriptContext, ScriptTrait},
     /// # };
     /// #
@@ -352,10 +351,12 @@ pub struct ScriptContext<'a, 'b, 'c> {
     /// struct MyScript {}
     ///
     /// impl ScriptTrait for MyScript {
-    ///     fn on_update(&mut self, ctx: &mut ScriptContext) {
+    ///     fn on_update(&mut self, ctx: &mut ScriptContext) -> GameResult {
     ///         let game = ctx.plugins.get::<Game>();
     ///
     ///         println!("Player name is: {}", game.player_name);
+    ///
+    ///         Ok(())
     ///     }
     /// }
     /// ```
@@ -417,7 +418,7 @@ pub struct ScriptContext<'a, 'b, 'c> {
 }
 
 impl UniversalScriptContext for ScriptContext<'_, '_, '_> {
-    fn node(&mut self) -> Option<&mut Node> {
+    fn node(&mut self) -> Result<&mut Node, PoolError> {
         self.scene.graph.try_get_node_mut(self.handle)
     }
 
@@ -501,7 +502,7 @@ pub struct ScriptMessageContext<'a, 'b, 'c> {
 }
 
 impl UniversalScriptContext for ScriptMessageContext<'_, '_, '_> {
-    fn node(&mut self) -> Option<&mut Node> {
+    fn node(&mut self) -> Result<&mut Node, PoolError> {
         self.scene.graph.try_get_node_mut(self.handle)
     }
 
@@ -576,7 +577,7 @@ pub struct ScriptDeinitContext<'a, 'b, 'c> {
 }
 
 impl UniversalScriptContext for ScriptDeinitContext<'_, '_, '_> {
-    fn node(&mut self) -> Option<&mut Node> {
+    fn node(&mut self) -> Result<&mut Node, PoolError> {
         self.scene.graph.try_get_node_mut(self.node_handle)
     }
 
@@ -610,16 +611,25 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     /// loaded the instance. Internal flag will tell the engine that the script is initialized and this
     /// method **will not** be called. This is intentional design decision to be able to create save files
     /// in games. If you need a method that will be called in any case, use [`ScriptTrait::on_start`].
-    fn on_init(&mut self, #[allow(unused_variables)] ctx: &mut ScriptContext) {}
+    fn on_init(&mut self, #[allow(unused_variables)] ctx: &mut ScriptContext) -> GameResult {
+        Ok(())
+    }
 
     /// The method is called after [`ScriptTrait::on_init`], but in separate pass, which means that all
     /// script instances are already initialized. However, if implementor of this method creates a new
     /// node with a script, there will be a second pass of initialization. The method is guaranteed to
     /// be called once.
-    fn on_start(&mut self, #[allow(unused_variables)] ctx: &mut ScriptContext) {}
+    fn on_start(&mut self, #[allow(unused_variables)] ctx: &mut ScriptContext) -> GameResult {
+        Ok(())
+    }
 
     /// The method is called when the script is about to be destroyed. It is guaranteed to be called last.
-    fn on_deinit(&mut self, #[allow(unused_variables)] ctx: &mut ScriptDeinitContext) {}
+    fn on_deinit(
+        &mut self,
+        #[allow(unused_variables)] ctx: &mut ScriptDeinitContext,
+    ) -> GameResult {
+        Ok(())
+    }
 
     /// Called when there is an event from the OS. The method allows you to "listen" for events
     /// coming from the main window of your game. It could be used to react to pressed keys, mouse movements,
@@ -628,13 +638,16 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
         &mut self,
         #[allow(unused_variables)] event: &Event<()>,
         #[allow(unused_variables)] ctx: &mut ScriptContext,
-    ) {
+    ) -> GameResult {
+        Ok(())
     }
 
     /// Performs a single update tick of the script. The method may be called multiple times per frame, but it is guaranteed
     /// that the rate of call is stable and by default it will be called 60 times per second, but can be changed by using
     /// [`crate::engine::executor::Executor::set_desired_update_rate`] method.
-    fn on_update(&mut self, #[allow(unused_variables)] ctx: &mut ScriptContext) {}
+    fn on_update(&mut self, #[allow(unused_variables)] ctx: &mut ScriptContext) -> GameResult {
+        Ok(())
+    }
 
     /// Allows you to react to certain script messages. It could be used for communication between scripts; to
     /// bypass borrowing issues. If you need to receive messages of a particular type, you must subscribe to a type
@@ -645,6 +658,7 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     ///     core::{reflect::prelude::*, uuid::Uuid, visitor::prelude::*, type_traits::prelude::*},
     ///     core::TypeUuidProvider,
     ///     script::ScriptTrait,
+    ///     plugin::error::GameResult,
     ///     script::{ScriptContext, ScriptMessageContext, ScriptMessagePayload},
     /// };
     ///
@@ -660,19 +674,21 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     /// # }
     ///
     /// impl ScriptTrait for MyScript {
-    ///     fn on_start(&mut self, ctx: &mut ScriptContext) {
+    ///     fn on_start(&mut self, ctx: &mut ScriptContext) -> GameResult {
     ///         // Subscription is mandatory to receive any message of the type!
-    ///         ctx.message_dispatcher.subscribe_to::<Message>(ctx.handle)
+    ///         ctx.message_dispatcher.subscribe_to::<Message>(ctx.handle);
+    ///         Ok(())
     ///     }
     ///
     ///     fn on_message(
     ///         &mut self,
     ///         message: &mut dyn ScriptMessagePayload,
     ///         ctx: &mut ScriptMessageContext,
-    ///     ) {
+    ///     ) -> GameResult {
     ///         if let Some(message) = message.downcast_ref::<Message>() {
     ///             // Do something.
     ///         }
+    ///         Ok(())
     ///     }
     /// }
     /// ```
@@ -680,7 +696,8 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
         &mut self,
         #[allow(unused_variables)] message: &mut dyn ScriptMessagePayload,
         #[allow(unused_variables)] ctx: &mut ScriptMessageContext,
-    ) {
+    ) -> GameResult {
+        Ok(())
     }
 }
 

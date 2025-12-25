@@ -57,7 +57,7 @@ impl SelectionContainer for UiSelection {
     ) {
         let ui_scene = some_or_return!(controller.downcast_ref::<UiScene>());
         if let Some(first) = self.widgets.first() {
-            if let Some(node) = ui_scene.ui.try_get_node(*first) {
+            if let Ok(node) = ui_scene.ui.try_get_node(*first) {
                 (callback)(EntityInfo {
                     entity: node as &dyn Reflect,
                     has_inheritance_parent: node.has_inheritance_parent(),
@@ -79,7 +79,7 @@ impl SelectionContainer for UiSelection {
             .widgets
             .iter()
             .filter_map(|&node_handle| {
-                let node = ui_scene.ui.try_get_node(node_handle)?;
+                let node = ui_scene.ui.try_get_node(node_handle).ok()?;
                 if args.is_inheritable() {
                     // Prevent reverting property value if there's no parent resource.
                     if node.resource().is_some() {
@@ -95,6 +95,7 @@ impl SelectionContainer for UiSelection {
                         ctx.get_mut::<UiSceneContext>()
                             .ui
                             .try_get_node_mut(node_handle)
+                            .ok()
                             .map(|n| n as &mut dyn Reflect)
                     })
                 }
@@ -117,6 +118,7 @@ impl SelectionContainer for UiSelection {
                             ctx.get_mut::<UiSceneContext>()
                                 .ui
                                 .try_get_node_mut(node_handle)
+                                .ok()
                                 .map(|n| n as &mut dyn Reflect)
                         },
                     ))
@@ -129,9 +131,13 @@ impl SelectionContainer for UiSelection {
 
     fn provide_docs(&self, controller: &dyn SceneController, _engine: &Engine) -> Option<String> {
         let ui_scene = controller.downcast_ref::<UiScene>()?;
-        self.widgets
-            .first()
-            .and_then(|h| ui_scene.ui.try_get_node(*h).map(|n| n.doc().to_string()))
+        self.widgets.first().and_then(|h| {
+            ui_scene
+                .ui
+                .try_get_node(*h)
+                .ok()
+                .map(|n| n.doc().to_string())
+        })
     }
 }
 

@@ -50,7 +50,7 @@ use fyrox_core::algebra::{Isometry3, Translation3};
 use fyrox_core::uuid_provider;
 
 use fyrox_graph::constructor::ConstructorProvider;
-use fyrox_graph::{BaseSceneGraph, SceneGraphNode};
+use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use rapier3d::geometry::{self, ColliderHandle};
 use std::fmt::Write;
 use std::{
@@ -1044,9 +1044,8 @@ impl NodeTrait for Collider {
 
         if scene
             .graph
-            .try_get_node(self.parent())
-            .and_then(|p| p.component_ref::<RigidBody>())
-            .is_none()
+            .try_get_of_type::<RigidBody>(self.parent())
+            .is_err()
         {
             message += "3D Collider must be a direct child of a 3D Rigid Body node, \
             otherwise it will not have any effect!";

@@ -351,10 +351,9 @@ impl NodeTrait for Ragdoll {
         let mut new_lin_vel = None;
         let mut new_ang_vel = None;
         if *self.is_active && !self.prev_enabled {
-            if let Some(character_rigid_body) = ctx
+            if let Ok(character_rigid_body) = ctx
                 .nodes
-                .try_borrow_mut(*self.character_rigid_body)
-                .and_then(|n| n.component_mut::<RigidBody>())
+                .try_get_component_of_type::<RigidBody>(*self.character_rigid_body)
             {
                 new_lin_vel = Some(character_rigid_body.lin_vel());
                 new_ang_vel = Some(character_rigid_body.ang_vel());
@@ -475,12 +474,11 @@ impl NodeTrait for Ragdoll {
             }
         });
 
-        if let Some(root_limb_body) = ctx.nodes.try_borrow(self.root_limb.bone) {
+        if let Ok(root_limb_body) = ctx.nodes.try_borrow(self.root_limb.bone) {
             let position = root_limb_body.global_position();
-            if let Some(character_rigid_body) = ctx
+            if let Ok(character_rigid_body) = ctx
                 .nodes
-                .try_borrow_mut(*self.character_rigid_body)
-                .and_then(|n| n.component_mut::<RigidBody>())
+                .try_get_component_of_type_mut::<RigidBody>(*self.character_rigid_body)
             {
                 if *self.is_active {
                     character_rigid_body.set_lin_vel(Default::default());

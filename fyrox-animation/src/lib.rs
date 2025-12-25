@@ -41,6 +41,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 pub use fyrox_core as core;
+use fyrox_core::pool::PoolError;
 use fyrox_resource::untyped::ResourceKind;
 use fyrox_resource::{Resource, ResourceData};
 pub use pose::{AnimationPose, NodePose};
@@ -1008,7 +1009,7 @@ impl<T: EntityId> AnimationContainer<T> {
 
     /// Tries to remove an animation from the container by its handle.
     #[inline]
-    pub fn remove(&mut self, handle: Handle<Animation<T>>) -> Option<Animation<T>> {
+    pub fn remove(&mut self, handle: Handle<Animation<T>>) -> Result<Animation<T>, PoolError> {
         self.pool.try_free(handle)
     }
 
@@ -1055,13 +1056,16 @@ impl<T: EntityId> AnimationContainer<T> {
 
     /// Tries to borrow a reference to an animation in the container.
     #[inline]
-    pub fn try_get(&self, handle: Handle<Animation<T>>) -> Option<&Animation<T>> {
+    pub fn try_get(&self, handle: Handle<Animation<T>>) -> Result<&Animation<T>, PoolError> {
         self.pool.try_borrow(handle)
     }
 
     /// Tries to borrow a mutable reference to an animation in the container.
     #[inline]
-    pub fn try_get_mut(&mut self, handle: Handle<Animation<T>>) -> Option<&mut Animation<T>> {
+    pub fn try_get_mut(
+        &mut self,
+        handle: Handle<Animation<T>>,
+    ) -> Result<&mut Animation<T>, PoolError> {
         self.pool.try_borrow_mut(handle)
     }
 

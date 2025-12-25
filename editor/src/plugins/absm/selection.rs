@@ -207,6 +207,7 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
                             .get_mut(layer_index)?
                             .transitions_mut()
                             .try_borrow_mut(transition)
+                            .ok()
                             .map(|t| t as &mut dyn Reflect)
                     }),
                     SelectedEntity::State(state) => make_command(args, move |ctx| {
@@ -216,6 +217,7 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
                             .get_mut(layer_index)?
                             .states_mut()
                             .try_borrow_mut(state)
+                            .ok()
                             .map(|s| s as &mut dyn Reflect)
                     }),
                     SelectedEntity::PoseNode(pose) => make_command(args, move |ctx| {
@@ -225,6 +227,7 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
                             .get_mut(layer_index)?
                             .nodes_mut()
                             .try_borrow_mut(pose)
+                            .ok()
                             .map(|p| p as &mut dyn Reflect)
                     }),
                 })
@@ -259,6 +262,7 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
                                     .get_mut(layer_index)?
                                     .transitions_mut()
                                     .try_borrow_mut(transition)
+                                    .ok()
                                     .map(|t| t as &mut dyn Reflect)
                             },
                         ))
@@ -274,6 +278,7 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
                                     .get_mut(layer_index)?
                                     .states_mut()
                                     .try_borrow_mut(state)
+                                    .ok()
                                     .map(|s| s as &mut dyn Reflect)
                             },
                         ))
@@ -289,6 +294,7 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
                                     .get_mut(layer_index)?
                                     .nodes_mut()
                                     .try_borrow_mut(pose)
+                                    .ok()
                                     .map(|n| n as &mut dyn Reflect)
                             },
                         ))

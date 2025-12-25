@@ -182,7 +182,7 @@ impl ScrollPanel {
         children_size
     }
     fn bring_into_view(&self, ui: &UserInterface, handle: Handle<UiNode>) {
-        let Some(node_to_focus_ref) = ui.try_get_node(handle) else {
+        let Ok(node_to_focus_ref) = ui.try_get_node(handle) else {
             return;
         };
         let mut parent = handle;

@@ -31,7 +31,7 @@ pub mod camera;
 /// ```rust,no_run
 /// # use fyrox::{
 /// #     core::pool::Handle, core::visitor::prelude::*, core::reflect::prelude::*,
-/// #     plugin::{Plugin, PluginContext, PluginRegistrationContext},
+/// #     plugin::{Plugin, PluginContext, PluginRegistrationContext, error::GameResult},
 /// #     scene::Scene,
 /// # };
 /// #
@@ -41,8 +41,9 @@ pub mod camera;
 /// #
 /// # impl Plugin for Game {
 ///   // This is PluginConstructor::register method of your GameConstructor.
-///   fn register(&self, context: PluginRegistrationContext) {
-///       fyrox_scripts::register(&context.serialization_context.script_constructors)
+///   fn register(&self, context: PluginRegistrationContext) -> GameResult {
+///         fyrox_scripts::register(&context.serialization_context.script_constructors);
+///         Ok(())
 ///   }
 /// # }
 /// ```

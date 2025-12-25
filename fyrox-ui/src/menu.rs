@@ -365,7 +365,7 @@ impl DerefMut for ItemsContainer {
 impl ItemsContainer {
     fn selected_item_index(&self, ui: &UserInterface) -> Option<usize> {
         for (index, item) in self.items.iter().enumerate() {
-            if let Some(item_ref) = ui.try_get_of_type::<MenuItem>(*item) {
+            if let Ok(item_ref) = ui.try_get_of_type::<MenuItem>(*item) {
                 if *item_ref.is_selected {
                     return Some(index);
                 }
@@ -388,7 +388,8 @@ impl ItemsContainer {
                     }
                     index %= count;
                     let handle = self.items.get(index as usize).cloned();
-                    if let Some(item) = handle.and_then(|h| ui.try_get_of_type::<MenuItem>(h)) {
+                    if let Some(item) = handle.and_then(|h| ui.try_get_of_type::<MenuItem>(h).ok())
+                    {
                         if item.enabled() {
                             return handle;
                         }
@@ -445,6 +446,7 @@ crate::define_widget_deref!(MenuItem);
 impl MenuItem {
     fn is_opened(&self, ui: &UserInterface) -> bool {
         ui.try_get_of_type::<ContextMenu>(*self.items_panel)
+            .ok()
             .is_some_and(|items_panel| *items_panel.popup.is_open)
     }
 
@@ -496,7 +498,7 @@ fn close_menu_chain(from: Handle<UiNode>, ui: &UserInterface) {
     while handle.is_some() {
         let popup_handle = ui.find_handle_up(handle, &mut |n| n.has_component::<ContextMenu>());
 
-        if let Some(panel) = ui.try_get_of_type::<ContextMenu>(popup_handle) {
+        if let Ok(panel) = ui.try_get_of_type::<ContextMenu>(popup_handle) {
             if *panel.popup.is_open {
                 ui.send(popup_handle, PopupMessage::Close);
             }
@@ -1164,7 +1166,7 @@ impl Control for ContextMenu {
 
         if let Some(WidgetMessage::KeyDown(key_code)) = message.data() {
             if !message.handled() {
-                if let Some(parent_menu_item) = ui.try_get_node(self.parent_menu_item) {
+                if let Ok(parent_menu_item) = ui.try_get_node(self.parent_menu_item) {
                     if keyboard_navigation(
                         ui,
                         *key_code,
@@ -1255,7 +1257,7 @@ fn keyboard_navigation(
 
             ui.send(selected_item, MenuItemMessage::Open);
 
-            if let Some(selected_item_ref) = ui.try_get_of_type::<MenuItem>(selected_item) {
+            if let Ok(selected_item_ref) = ui.try_get_of_type::<MenuItem>(selected_item) {
                 if let Some(first_item) = selected_item_ref.items_container.first() {
                     ui.send(*first_item, MenuItemMessage::Select(true));
                 }

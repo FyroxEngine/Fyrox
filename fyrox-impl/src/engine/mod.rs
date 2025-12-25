@@ -31,10 +31,7 @@ pub mod task;
 mod hotreload;
 mod wasm_utils;
 
-use crate::engine::input::InputState;
-use crate::renderer::ui_renderer::UiRenderInfo;
-use crate::resource::gltf::material::GLTF_SHADER;
-use crate::scene::skybox::SkyBoxKind;
+use crate::plugin::error::GameResult;
 use crate::{
     asset::{
         event::ResourceEvent,
@@ -44,6 +41,7 @@ use crate::{
     },
     core::{
         algebra::Vector2,
+        err,
         futures::{executor::block_on, future::join_all},
         instant,
         log::Log,
@@ -51,18 +49,21 @@ use crate::{
         reflect::Reflect,
         task::TaskPool,
         variable::try_inherit_properties,
-        SafeLock,
+        visitor::error::VisitError,
+        warn, SafeLock,
     },
-    engine::{error::EngineError, task::TaskPoolHandler},
+    engine::{error::EngineError, input::InputState, task::TaskPoolHandler},
     event::Event,
     graph::{BaseSceneGraph, NodeMapping, SceneGraph},
     graphics::error::FrameworkError,
     gui::{
         constructor::WidgetConstructorContainer,
-        font::{loader::FontLoader, Font, BUILT_IN_FONT},
+        font::{
+            loader::FontLoader, Font, BOLD_ITALIC, BUILT_IN_BOLD, BUILT_IN_FONT, BUILT_IN_ITALIC,
+        },
         loader::UserInterfaceLoader,
         style::{self, resource::StyleLoader, Style},
-        UiContainer, UiUpdateSwitches, UserInterface,
+        RenderMode, UiContainer, UiUpdateSwitches, UserInterface,
     },
     material::{
         self,
@@ -74,9 +75,10 @@ use crate::{
         dylib::DyLibDynamicPlugin, DynamicPlugin, Plugin, PluginContainer, PluginContext,
         PluginRegistrationContext,
     },
-    renderer::Renderer,
+    renderer::{ui_renderer::UiRenderInfo, Renderer},
     resource::{
         curve::{loader::CurveLoader, CurveResourceState},
+        gltf::material::GLTF_SHADER,
         model::{loader::ModelLoader, Model, ModelResource},
         texture::{
             self, loader::TextureLoader, CompressionOptions, Texture, TextureImportOptions,
@@ -92,6 +94,7 @@ use crate::{
             constructor::{new_node_constructor_container, NodeConstructorContainer},
             Node,
         },
+        skybox::SkyBoxKind,
         sound::SoundEngine,
         tilemap::{
             brush::{TileMapBrush, TileMapBrushLoader},
@@ -109,16 +112,12 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_animation::AnimationTracksData;
-use fyrox_core::visitor::error::VisitError;
-use fyrox_core::warn;
 use fyrox_graphics::server::SharedGraphicsServer;
 use fyrox_graphics_gl::server::GlGraphicsServer;
 use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
 };
-use fyrox_ui::font::{BOLD_ITALIC, BUILT_IN_BOLD, BUILT_IN_ITALIC};
-use fyrox_ui::RenderMode;
 use std::{
     any::TypeId,
     cell::Cell,
@@ -288,7 +287,7 @@ struct SceneLoadingOptions {
 /// ```rust
 /// use fyrox_impl::{
 ///     core::{color::Color, visitor::prelude::*, reflect::prelude::*, log::Log, pool::Handle},
-///     plugin::{Plugin, PluginContext},
+///     plugin::{Plugin, PluginContext, error::GameResult},
 ///     scene::Scene,
 /// };
 /// use std::path::Path;
@@ -312,10 +311,11 @@ struct SceneLoadingOptions {
 /// }
 ///
 /// impl Plugin for MyGame {
-///     fn on_scene_begin_loading(&mut self, path: &Path, _context: &mut PluginContext) {
+///     fn on_scene_begin_loading(&mut self, path: &Path, _context: &mut PluginContext) -> GameResult {
 ///         Log::info(format!("{} scene has started loading.", path.display()));
 ///
 ///         // Use this method if you need to so something when a scene started loading.
+///         Ok(())
 ///     }
 ///
 ///     fn on_scene_loaded(
@@ -324,7 +324,7 @@ struct SceneLoadingOptions {
 ///         scene: Handle<Scene>,
 ///         data: &[u8],
 ///         context: &mut PluginContext,
-///     ) {
+///     ) -> GameResult {
 ///         // Optionally remove previous scene.
 ///         if self.scene.is_some() {
 ///             context.scenes.remove(self.scene);
@@ -339,6 +339,8 @@ struct SceneLoadingOptions {
 ///         let scene_ref = &mut context.scenes[scene];
 ///
 ///         scene_ref.rendering_options.ambient_lighting_color = Color::opaque(20, 20, 20);
+///
+///         Ok(())
 ///     }
 /// }
 /// ```
@@ -530,6 +532,12 @@ pub struct ScriptMessageDispatcher {
     message_receiver: Receiver<ScriptMessage>,
 }
 
+fn report_plugin_error(method_name: &str, result: GameResult) {
+    if let Err(error) = result {
+        err!("An error occurred in {method_name} plugin method. Reason: {error}");
+    }
+}
+
 impl ScriptMessageDispatcher {
     fn new(message_receiver: Receiver<ScriptMessage>) -> Self {
         Self {
@@ -634,7 +642,7 @@ impl ScriptMessageDispatcher {
                                 input_state,
                             };
 
-                            process_node_scripts(&mut context, &mut |s, ctx| {
+                            process_node_scripts("on_message", &mut context, &mut |s, ctx| {
                                 s.on_message(&mut *payload, ctx)
                             })
                         }
@@ -642,7 +650,7 @@ impl ScriptMessageDispatcher {
                     ScriptMessageKind::Hierarchical { root, routing } => match routing {
                         RoutingStrategy::Up => {
                             let mut node = root;
-                            while let Some(node_ref) = scene.graph.try_get_node(node) {
+                            while let Ok(node_ref) = scene.graph.try_get_node(node) {
                                 let parent = node_ref.parent();
 
                                 let mut context = ScriptMessageContext {
@@ -662,9 +670,11 @@ impl ScriptMessageDispatcher {
                                 };
 
                                 if receivers.contains(&node) {
-                                    process_node_scripts(&mut context, &mut |s, ctx| {
-                                        s.on_message(&mut *payload, ctx)
-                                    });
+                                    process_node_scripts(
+                                        "on_message",
+                                        &mut context,
+                                        &mut |s, ctx| s.on_message(&mut *payload, ctx),
+                                    );
                                 }
 
                                 node = parent;
@@ -689,9 +699,11 @@ impl ScriptMessageDispatcher {
                                 };
 
                                 if receivers.contains(&node) {
-                                    process_node_scripts(&mut context, &mut |s, ctx| {
-                                        s.on_message(&mut *payload, ctx)
-                                    });
+                                    process_node_scripts(
+                                        "on_message",
+                                        &mut context,
+                                        &mut |s, ctx| s.on_message(&mut *payload, ctx),
+                                    );
                                 }
                             }
                         }
@@ -714,7 +726,7 @@ impl ScriptMessageDispatcher {
                                 input_state,
                             };
 
-                            process_node_scripts(&mut context, &mut |s, ctx| {
+                            process_node_scripts("on_message", &mut context, &mut |s, ctx| {
                                 s.on_message(&mut *payload, ctx)
                             });
                         }
@@ -864,16 +876,19 @@ impl ScriptProcessor {
                                 context.script_index = script_index;
 
                                 process_node_script(
+                                    "on_init",
                                     script_index,
                                     &mut context,
                                     &mut |script, context| {
                                         if !script.initialized {
-                                            script.on_init(context);
+                                            script.on_init(context)?;
                                             script.initialized = true;
                                         }
 
                                         // `on_start` must be called even if the script was initialized.
                                         start_queue.push_back((handle, script_index));
+
+                                        Ok(())
                                     },
                                 );
                             }
@@ -900,14 +915,17 @@ impl ScriptProcessor {
                             context.script_index = script_index;
 
                             process_node_script(
+                                "on_start",
                                 script_index,
                                 &mut context,
                                 &mut |script, context| {
                                     if script.initialized && !script.started {
-                                        script.on_start(context);
+                                        let result = script.on_start(context);
                                         script.started = true;
-
                                         update_queue.push_back((handle, script_index));
+                                        result
+                                    } else {
+                                        Ok(())
                                     }
                                 },
                             );
@@ -930,9 +948,12 @@ impl ScriptProcessor {
                         context.handle = handle;
                         context.script_index = script_index;
 
-                        process_node_script(script_index, &mut context, &mut |script, context| {
-                            script.on_update(context);
-                        });
+                        process_node_script(
+                            "on_update",
+                            script_index,
+                            &mut context,
+                            &mut |script, context| script.on_update(context),
+                        );
                     }
                 }
 
@@ -986,7 +1007,9 @@ impl ScriptProcessor {
 
                 // `on_deinit` could also spawn new nodes, but we won't take those into account on
                 // this frame. They'll be correctly handled on next frame.
-                script.on_deinit(&mut context);
+                if let Err(error) = script.on_deinit(&mut context) {
+                    err!("An error occurred during on_deinit call. Reason: {error}");
+                }
             }
         }
 
@@ -1013,9 +1036,11 @@ impl ScriptProcessor {
                     let handle_node = context.scene.graph.handle_from_index(node_index);
                     context.node_handle = handle_node;
 
-                    process_node_scripts(&mut context, &mut |script, context| {
+                    process_node_scripts("on_deinit", &mut context, &mut |script, context| {
                         if script.initialized {
                             script.on_deinit(context)
+                        } else {
+                            Ok(())
                         }
                     });
                 }
@@ -1183,12 +1208,12 @@ pub struct EngineInitParams {
     pub task_pool: Arc<TaskPool>,
 }
 
-fn process_node_script<T, C>(index: usize, context: &mut C, func: &mut T) -> bool
+fn process_node_script<T, C>(caller_name: &str, index: usize, context: &mut C, func: &mut T) -> bool
 where
-    T: FnMut(&mut Script, &mut C),
+    T: FnMut(&mut Script, &mut C) -> GameResult,
     C: UniversalScriptContext,
 {
-    let Some(node) = context.node() else {
+    let Ok(node) = context.node() else {
         // A node was destroyed.
         return false;
     };
@@ -1206,10 +1231,12 @@ where
         return false;
     };
 
-    func(&mut script, context);
+    if let Err(error) = func(&mut script, context) {
+        err!("An error occurred during {caller_name} call. Reason: {error}");
+    }
 
     match context.node() {
-        Some(node) => {
+        Ok(node) => {
             let entry = node
                 .scripts
                 .get_mut(index)
@@ -1222,7 +1249,7 @@ where
                 entry.script = Some(script);
             }
         }
-        None => {
+        Err(_) => {
             // If the node was deleted by the `func` call, we must send the script to destruction
             // queue, not silently drop it.
             context.destroy_script_deferred(script, index);
@@ -1232,16 +1259,16 @@ where
     true
 }
 
-fn process_node_scripts<T, C>(context: &mut C, func: &mut T)
+fn process_node_scripts<T, C>(caller_name: &str, context: &mut C, func: &mut T)
 where
-    T: FnMut(&mut Script, &mut C),
+    T: FnMut(&mut Script, &mut C) -> GameResult,
     C: UniversalScriptContext,
 {
     let mut index = 0;
     loop {
         context.set_script_index(index);
 
-        if !process_node_script(index, context, func) {
+        if !process_node_script(caller_name, index, context, func) {
             return;
         }
 
@@ -1251,6 +1278,7 @@ where
 }
 
 pub(crate) fn process_scripts<T>(
+    caller_name: &str,
     scene: &mut Scene,
     scene_handle: Handle<Scene>,
     plugins: &mut [PluginContainer],
@@ -1265,7 +1293,7 @@ pub(crate) fn process_scripts<T>(
     input_state: &InputState,
     mut func: T,
 ) where
-    T: FnMut(&mut Script, &mut ScriptContext),
+    T: FnMut(&mut Script, &mut ScriptContext) -> GameResult,
 {
     let mut context = ScriptContext {
         dt,
@@ -1287,7 +1315,7 @@ pub(crate) fn process_scripts<T>(
     for node_index in 0..context.scene.graph.capacity() {
         context.handle = context.scene.graph.handle_from_index(node_index);
 
-        process_node_scripts(&mut context, &mut func);
+        process_node_scripts(caller_name, &mut context, &mut func);
     }
 }
 
@@ -1727,7 +1755,10 @@ impl Engine {
                         };
 
                         for plugin in self.plugins.iter_mut() {
-                            plugin.on_scene_begin_loading(&path, &mut context);
+                            report_plugin_error(
+                                "on_scene_begin_loading",
+                                plugin.on_scene_begin_loading(&path, &mut context),
+                            );
                         }
                     }
                 }
@@ -1835,11 +1866,14 @@ impl Engine {
                                     loading_result.path.display()
                                 ));
 
-                                plugin.on_scene_loaded(
-                                    &request.path,
-                                    scene_handle,
-                                    &data,
-                                    &mut context,
+                                report_plugin_error(
+                                    "on_scene_loaded",
+                                    plugin.on_scene_loaded(
+                                        &request.path,
+                                        scene_handle,
+                                        &data,
+                                        &mut context,
+                                    ),
                                 );
                             }
                         }
@@ -1853,7 +1887,14 @@ impl Engine {
                             ));
 
                             for plugin in self.plugins.iter_mut() {
-                                plugin.on_scene_loading_failed(&request.path, &error, &mut context);
+                                report_plugin_error(
+                                    "on_scene_loading_failed",
+                                    plugin.on_scene_loading_failed(
+                                        &request.path,
+                                        &error,
+                                        &mut context,
+                                    ),
+                                )
                             }
                         }
                     }
@@ -2001,26 +2042,26 @@ impl Engine {
         while let Some(result) = self.task_pool.inner().next_task_result() {
             if let Some(plugin_task_handler) = self.task_pool.pop_plugin_task_handler(result.id) {
                 // Handle plugin task.
-                (plugin_task_handler)(
-                    result.payload,
-                    &mut self.plugins,
-                    &mut PluginContext {
-                        scenes: &mut self.scenes,
-                        resource_manager: &self.resource_manager,
-                        graphics_context: &mut self.graphics_context,
-                        dt,
-                        lag,
-                        user_interfaces: &mut self.user_interfaces,
-                        serialization_context: &self.serialization_context,
-                        widget_constructors: &self.widget_constructors,
-                        performance_statistics: &self.performance_statistics,
-                        elapsed_time: self.elapsed_time,
-                        script_processor: &self.script_processor,
-                        async_scene_loader: &mut self.async_scene_loader,
-                        loop_controller: controller,
-                        task_pool: &mut self.task_pool,
-                        input_state: &self.input_state,
-                    },
+                let mut ctx = PluginContext {
+                    scenes: &mut self.scenes,
+                    resource_manager: &self.resource_manager,
+                    graphics_context: &mut self.graphics_context,
+                    dt,
+                    lag,
+                    user_interfaces: &mut self.user_interfaces,
+                    serialization_context: &self.serialization_context,
+                    widget_constructors: &self.widget_constructors,
+                    performance_statistics: &self.performance_statistics,
+                    elapsed_time: self.elapsed_time,
+                    script_processor: &self.script_processor,
+                    async_scene_loader: &mut self.async_scene_loader,
+                    loop_controller: controller,
+                    task_pool: &mut self.task_pool,
+                    input_state: &self.input_state,
+                };
+                report_plugin_error(
+                    "handle_async_tasks",
+                    (plugin_task_handler)(result.payload, &mut self.plugins, &mut ctx),
                 )
             } else if let Some(node_task_handler) = self.task_pool.pop_node_task_handler(result.id)
             {
@@ -2032,8 +2073,8 @@ impl Engine {
                     .find(|e| e.handle == node_task_handler.scene_handle)
                 {
                     let payload = result.payload;
-                    if let Some(scene) = self.scenes.try_get_mut(node_task_handler.scene_handle) {
-                        if let Some(node) =
+                    if let Ok(scene) = self.scenes.try_get_mut(node_task_handler.scene_handle) {
+                        if let Ok(node) =
                             scene.graph.try_get_node_mut(node_task_handler.node_handle)
                         {
                             if let Some(mut script) = node
@@ -2041,28 +2082,32 @@ impl Engine {
                                 .get_mut(node_task_handler.script_index)
                                 .and_then(|e| e.script.take())
                             {
-                                (node_task_handler.closure)(
-                                    payload,
-                                    script.deref_mut(),
-                                    &mut ScriptContext {
-                                        dt,
-                                        elapsed_time: self.elapsed_time,
-                                        plugins: PluginsRefMut(&mut self.plugins),
-                                        handle: node_task_handler.node_handle,
-                                        scene,
-                                        scene_handle: scripted_scene.handle,
-                                        resource_manager: &self.resource_manager,
-                                        message_sender: &scripted_scene.message_sender,
-                                        message_dispatcher: &mut scripted_scene.message_dispatcher,
-                                        task_pool: &mut self.task_pool,
-                                        graphics_context: &mut self.graphics_context,
-                                        user_interfaces: &mut self.user_interfaces,
-                                        script_index: node_task_handler.script_index,
-                                        input_state: &self.input_state,
-                                    },
+                                let mut ctx = ScriptContext {
+                                    dt,
+                                    elapsed_time: self.elapsed_time,
+                                    plugins: PluginsRefMut(&mut self.plugins),
+                                    handle: node_task_handler.node_handle,
+                                    scene,
+                                    scene_handle: scripted_scene.handle,
+                                    resource_manager: &self.resource_manager,
+                                    message_sender: &scripted_scene.message_sender,
+                                    message_dispatcher: &mut scripted_scene.message_dispatcher,
+                                    task_pool: &mut self.task_pool,
+                                    graphics_context: &mut self.graphics_context,
+                                    user_interfaces: &mut self.user_interfaces,
+                                    script_index: node_task_handler.script_index,
+                                    input_state: &self.input_state,
+                                };
+                                report_plugin_error(
+                                    "handle_async_tasks",
+                                    (node_task_handler.closure)(
+                                        payload,
+                                        script.deref_mut(),
+                                        &mut ctx,
+                                    ),
                                 );
 
-                                if let Some(node) =
+                                if let Ok(node) =
                                     scene.graph.try_get_node_mut(node_task_handler.node_handle)
                                 {
                                     if let Some(entry) =
@@ -2116,7 +2161,7 @@ impl Engine {
             };
 
             for plugin in self.plugins.iter_mut() {
-                plugin.update(&mut context);
+                report_plugin_error("update", plugin.update(&mut context));
             }
 
             let mut uis = self
@@ -2129,6 +2174,7 @@ impl Engine {
                 while let Some(message) = self
                     .user_interfaces
                     .try_get_mut(ui)
+                    .ok()
                     .and_then(|ui| ui.poll_message())
                 {
                     let mut context = PluginContext {
@@ -2150,7 +2196,10 @@ impl Engine {
                     };
 
                     for plugin in self.plugins.iter_mut() {
-                        plugin.on_ui_message(&mut context, &message, ui);
+                        report_plugin_error(
+                            "on_ui_message",
+                            plugin.on_ui_message(&mut context, &message, ui),
+                        );
                     }
                 }
             }
@@ -2187,7 +2236,7 @@ impl Engine {
             };
 
             for plugin in self.plugins.iter_mut() {
-                plugin.post_update(&mut context);
+                report_plugin_error("post_update", plugin.post_update(&mut context));
             }
         }
 
@@ -2273,26 +2322,25 @@ impl Engine {
 
         if self.plugins_enabled {
             for plugin in self.plugins.iter_mut() {
-                plugin.on_os_event(
-                    event,
-                    PluginContext {
-                        scenes: &mut self.scenes,
-                        resource_manager: &self.resource_manager,
-                        graphics_context: &mut self.graphics_context,
-                        dt,
-                        lag,
-                        user_interfaces: &mut self.user_interfaces,
-                        serialization_context: &self.serialization_context,
-                        widget_constructors: &self.widget_constructors,
-                        performance_statistics: &self.performance_statistics,
-                        elapsed_time: self.elapsed_time,
-                        script_processor: &self.script_processor,
-                        async_scene_loader: &mut self.async_scene_loader,
-                        loop_controller: controller,
-                        task_pool: &mut self.task_pool,
-                        input_state: &self.input_state,
-                    },
-                );
+                let ctx = PluginContext {
+                    scenes: &mut self.scenes,
+                    resource_manager: &self.resource_manager,
+                    graphics_context: &mut self.graphics_context,
+                    dt,
+                    lag,
+                    user_interfaces: &mut self.user_interfaces,
+                    serialization_context: &self.serialization_context,
+                    widget_constructors: &self.widget_constructors,
+                    performance_statistics: &self.performance_statistics,
+                    elapsed_time: self.elapsed_time,
+                    script_processor: &self.script_processor,
+                    async_scene_loader: &mut self.async_scene_loader,
+                    loop_controller: controller,
+                    task_pool: &mut self.task_pool,
+                    input_state: &self.input_state,
+                };
+
+                report_plugin_error("on_os_event", plugin.on_os_event(event, ctx));
             }
         }
     }
@@ -2305,7 +2353,7 @@ impl Engine {
     ) {
         if self.plugins_enabled {
             for plugin in self.plugins.iter_mut() {
-                plugin.on_graphics_context_initialized(PluginContext {
+                let ctx = PluginContext {
                     scenes: &mut self.scenes,
                     resource_manager: &self.resource_manager,
                     graphics_context: &mut self.graphics_context,
@@ -2321,7 +2369,12 @@ impl Engine {
                     loop_controller: controller,
                     task_pool: &mut self.task_pool,
                     input_state: &self.input_state,
-                });
+                };
+
+                report_plugin_error(
+                    "on_graphics_context_initialized",
+                    plugin.on_graphics_context_initialized(ctx),
+                );
             }
         }
     }
@@ -2334,7 +2387,7 @@ impl Engine {
     ) {
         if self.plugins_enabled {
             for plugin in self.plugins.iter_mut() {
-                plugin.on_graphics_context_destroyed(PluginContext {
+                let ctx = PluginContext {
                     scenes: &mut self.scenes,
                     resource_manager: &self.resource_manager,
                     graphics_context: &mut self.graphics_context,
@@ -2350,7 +2403,12 @@ impl Engine {
                     loop_controller: controller,
                     task_pool: &mut self.task_pool,
                     input_state: &self.input_state,
-                });
+                };
+
+                report_plugin_error(
+                    "on_graphics_context_destroyed",
+                    plugin.on_graphics_context_destroyed(ctx),
+                );
             }
         }
     }
@@ -2363,7 +2421,7 @@ impl Engine {
     ) {
         if self.plugins_enabled {
             for plugin in self.plugins.iter_mut() {
-                plugin.before_rendering(PluginContext {
+                let ctx = PluginContext {
                     scenes: &mut self.scenes,
                     resource_manager: &self.resource_manager,
                     graphics_context: &mut self.graphics_context,
@@ -2379,7 +2437,9 @@ impl Engine {
                     loop_controller: controller,
                     task_pool: &mut self.task_pool,
                     input_state: &self.input_state,
-                });
+                };
+
+                report_plugin_error("before_rendering", plugin.before_rendering(ctx));
             }
         }
     }
@@ -2406,6 +2466,7 @@ impl Engine {
             let scene = &mut self.scenes[scene_handle];
             if *scene.enabled {
                 process_scripts(
+                    "on_os_event",
                     scene,
                     scene_handle,
                     &mut self.plugins,
@@ -2420,7 +2481,9 @@ impl Engine {
                     &self.input_state,
                     |script, context| {
                         if script.initialized && script.started {
-                            script.on_os_event(event, context);
+                            script.on_os_event(event, context)
+                        } else {
+                            Ok(())
                         }
                     },
                 )
@@ -2505,33 +2568,7 @@ impl Engine {
             if self.plugins_enabled {
                 // Create and initialize instances.
                 for plugin in self.plugins.iter_mut() {
-                    plugin.init(
-                        scene_path,
-                        PluginContext {
-                            scenes: &mut self.scenes,
-                            resource_manager: &self.resource_manager,
-                            graphics_context: &mut self.graphics_context,
-                            dt: 0.0,
-                            lag: &mut 0.0,
-                            user_interfaces: &mut self.user_interfaces,
-                            serialization_context: &self.serialization_context,
-                            widget_constructors: &self.widget_constructors,
-                            performance_statistics: &self.performance_statistics,
-                            elapsed_time: self.elapsed_time,
-                            script_processor: &self.script_processor,
-                            async_scene_loader: &mut self.async_scene_loader,
-                            loop_controller: controller,
-                            task_pool: &mut self.task_pool,
-                            input_state: &self.input_state,
-                        },
-                    );
-                }
-            } else {
-                self.handle_scripts(0.0);
-
-                for mut plugin in self.plugins.drain(..) {
-                    // Deinit plugin first.
-                    plugin.on_deinit(PluginContext {
+                    let ctx = PluginContext {
                         scenes: &mut self.scenes,
                         resource_manager: &self.resource_manager,
                         graphics_context: &mut self.graphics_context,
@@ -2547,7 +2584,34 @@ impl Engine {
                         loop_controller: controller,
                         task_pool: &mut self.task_pool,
                         input_state: &self.input_state,
-                    });
+                    };
+
+                    report_plugin_error("init", plugin.init(scene_path, ctx));
+                }
+            } else {
+                self.handle_scripts(0.0);
+
+                for mut plugin in self.plugins.drain(..) {
+                    let ctx = PluginContext {
+                        scenes: &mut self.scenes,
+                        resource_manager: &self.resource_manager,
+                        graphics_context: &mut self.graphics_context,
+                        dt: 0.0,
+                        lag: &mut 0.0,
+                        user_interfaces: &mut self.user_interfaces,
+                        serialization_context: &self.serialization_context,
+                        widget_constructors: &self.widget_constructors,
+                        performance_statistics: &self.performance_statistics,
+                        elapsed_time: self.elapsed_time,
+                        script_processor: &self.script_processor,
+                        async_scene_loader: &mut self.async_scene_loader,
+                        loop_controller: controller,
+                        task_pool: &mut self.task_pool,
+                        input_state: &self.input_state,
+                    };
+
+                    // Deinit plugin first.
+                    report_plugin_error("on_deinit", plugin.on_deinit(ctx));
                 }
             }
         }
@@ -2559,11 +2623,14 @@ impl Engine {
         resource_manager: &ResourceManager,
         plugin: &dyn Plugin,
     ) {
-        plugin.register(PluginRegistrationContext {
-            serialization_context,
-            widget_constructors,
-            resource_manager,
-        });
+        report_plugin_error(
+            "register",
+            plugin.register(PluginRegistrationContext {
+                serialization_context,
+                widget_constructors,
+                resource_manager,
+            }),
+        );
     }
 
     fn register_plugin(&self, plugin: &dyn Plugin) {
@@ -2844,7 +2911,7 @@ impl Engine {
         }
 
         // Call `on_loaded` for plugins, so they could restore some runtime non-serializable state.
-        plugin.as_loaded_mut().on_loaded(PluginContext {
+        let ctx = PluginContext {
             scenes: &mut self.scenes,
             resource_manager: &self.resource_manager,
             user_interfaces: &mut self.user_interfaces,
@@ -2860,7 +2927,8 @@ impl Engine {
             loop_controller: controller,
             task_pool: &mut self.task_pool,
             input_state: &self.input_state,
-        });
+        };
+        report_plugin_error("on_loaded", plugin.as_loaded_mut().on_loaded(ctx));
 
         Log::info(format!("Plugin {plugin_index} was successfully reloaded!"));
 
@@ -2931,6 +2999,7 @@ impl Drop for Engine {
 #[cfg(test)]
 mod test {
     use crate::engine::ApplicationLoopController;
+    use crate::plugin::error::GameResult;
     use crate::{
         asset::manager::ResourceManager,
         core::{
@@ -3002,7 +3071,7 @@ mod test {
     }
 
     impl ScriptTrait for MyScript {
-        fn on_init(&mut self, ctx: &mut ScriptContext) {
+        fn on_init(&mut self, ctx: &mut ScriptContext) -> GameResult {
             self.sender
                 .send(Event::Initialized(Source::from_ctx(ctx)))
                 .unwrap();
@@ -3013,9 +3082,11 @@ mod test {
             }))
             .build(&mut ctx.scene.graph);
             assert_eq!(handle, Handle::new(2, 1));
+
+            Ok(())
         }
 
-        fn on_start(&mut self, ctx: &mut ScriptContext) {
+        fn on_start(&mut self, ctx: &mut ScriptContext) -> GameResult {
             self.sender
                 .send(Event::Started(Source::from_ctx(ctx)))
                 .unwrap();
@@ -3026,15 +3097,19 @@ mod test {
             }))
             .build(&mut ctx.scene.graph);
             assert_eq!(handle, Handle::new(3, 1));
+
+            Ok(())
         }
 
-        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) {
+        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) -> GameResult {
             self.sender
                 .send(Event::Destroyed(Source::from_deinit_ctx(ctx)))
                 .unwrap();
+
+            Ok(())
         }
 
-        fn on_update(&mut self, ctx: &mut ScriptContext) {
+        fn on_update(&mut self, ctx: &mut ScriptContext) -> GameResult {
             self.sender
                 .send(Event::Updated(Source::from_ctx(ctx)))
                 .unwrap();
@@ -3048,6 +3123,8 @@ mod test {
 
                 self.spawned = true;
             }
+
+            Ok(())
         }
     }
 
@@ -3060,28 +3137,32 @@ mod test {
     }
 
     impl ScriptTrait for MySubScript {
-        fn on_init(&mut self, ctx: &mut ScriptContext) {
+        fn on_init(&mut self, ctx: &mut ScriptContext) -> GameResult {
             self.sender
                 .send(Event::Initialized(Source::from_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
 
-        fn on_start(&mut self, ctx: &mut ScriptContext) {
+        fn on_start(&mut self, ctx: &mut ScriptContext) -> GameResult {
             self.sender
                 .send(Event::Started(Source::from_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
 
-        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) {
+        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) -> GameResult {
             self.sender
                 .send(Event::Destroyed(Source::from_deinit_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
 
-        fn on_update(&mut self, ctx: &mut ScriptContext) {
+        fn on_update(&mut self, ctx: &mut ScriptContext) -> GameResult {
             self.sender
                 .send(Event::Updated(Source::from_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
     }
 
@@ -3214,15 +3295,16 @@ mod test {
     }
 
     impl ScriptTrait for ScriptListeningToMessages {
-        fn on_start(&mut self, ctx: &mut ScriptContext) {
+        fn on_start(&mut self, ctx: &mut ScriptContext) -> GameResult {
             ctx.message_dispatcher.subscribe_to::<MyMessage>(ctx.handle);
+            Ok(())
         }
 
         fn on_message(
             &mut self,
             message: &mut dyn ScriptMessagePayload,
             ctx: &mut ScriptMessageContext,
-        ) {
+        ) -> GameResult {
             let typed_message = message.downcast_ref::<MyMessage>().unwrap();
             match self.index {
                 0 => {
@@ -3249,6 +3331,8 @@ mod test {
             }
 
             self.index += 1;
+
+            Ok(())
         }
     }
 
@@ -3259,7 +3343,7 @@ mod test {
     }
 
     impl ScriptTrait for ScriptSendingMessages {
-        fn on_update(&mut self, ctx: &mut ScriptContext) {
+        fn on_update(&mut self, ctx: &mut ScriptContext) -> GameResult {
             match self.index {
                 0 => ctx.message_sender.send_global(MyMessage::Foo(123)),
                 1 => ctx
@@ -3268,6 +3352,8 @@ mod test {
                 _ => (),
             }
             self.index += 1;
+
+            Ok(())
         }
     }
 
@@ -3344,7 +3430,7 @@ mod test {
     }
 
     impl ScriptTrait for ScriptSpawningAsyncTasks {
-        fn on_start(&mut self, ctx: &mut ScriptContext) {
+        fn on_start(&mut self, ctx: &mut ScriptContext) -> GameResult {
             ctx.task_pool.spawn_script_task(
                 ctx.scene_handle,
                 ctx.handle,
@@ -3353,8 +3439,10 @@ mod test {
                 |result, script: &mut ScriptSpawningAsyncTasks, _ctx| {
                     assert_eq!(result, 123u32);
                     script.num = Some(result);
+                    Ok(())
                 },
-            )
+            );
+            Ok(())
         }
     }
 
@@ -3443,31 +3531,35 @@ mod test {
     }
 
     impl ScriptTrait for ScriptThatDeletesItself {
-        fn on_init(&mut self, ctx: &mut ScriptContext) {
+        fn on_init(&mut self, ctx: &mut ScriptContext) -> GameResult {
             self.sender
                 .send(Event::Initialized(Source::from_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
 
-        fn on_start(&mut self, ctx: &mut ScriptContext) {
+        fn on_start(&mut self, ctx: &mut ScriptContext) -> GameResult {
             self.sender
                 .send(Event::Started(Source::from_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
 
-        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) {
+        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) -> GameResult {
             self.sender
                 .send(Event::Destroyed(Source::from_deinit_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
 
-        fn on_update(&mut self, ctx: &mut ScriptContext) {
+        fn on_update(&mut self, ctx: &mut ScriptContext) -> GameResult {
             self.sender
                 .send(Event::Updated(Source::from_ctx(ctx)))
                 .unwrap();
 
             let node = &mut ctx.scene.graph[ctx.handle];
             node.remove_script(ctx.script_index);
+            Ok(())
         }
     }
 
@@ -3481,13 +3573,14 @@ mod test {
     }
 
     impl ScriptTrait for ScriptThatAddsScripts {
-        fn on_init(&mut self, ctx: &mut ScriptContext) {
+        fn on_init(&mut self, ctx: &mut ScriptContext) -> GameResult {
             self.sender
                 .send(Event::Initialized(Source::from_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
 
-        fn on_start(&mut self, ctx: &mut ScriptContext) {
+        fn on_start(&mut self, ctx: &mut ScriptContext) -> GameResult {
             self.sender
                 .send(Event::Started(Source::from_ctx(ctx)))
                 .unwrap();
@@ -3498,18 +3591,24 @@ mod test {
                     sender: self.sender.clone(),
                 });
             }
+
+            Ok(())
         }
 
-        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) {
+        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) -> GameResult {
             self.sender
                 .send(Event::Destroyed(Source::from_deinit_ctx(ctx)))
                 .unwrap();
+
+            Ok(())
         }
 
-        fn on_update(&mut self, ctx: &mut ScriptContext) {
+        fn on_update(&mut self, ctx: &mut ScriptContext) -> GameResult {
             self.sender
                 .send(Event::Updated(Source::from_ctx(ctx)))
                 .unwrap();
+
+            Ok(())
         }
     }
 
@@ -3523,28 +3622,32 @@ mod test {
     }
 
     impl ScriptTrait for SimpleScript {
-        fn on_init(&mut self, ctx: &mut ScriptContext) {
+        fn on_init(&mut self, ctx: &mut ScriptContext) -> GameResult {
             self.sender
                 .send(Event::Initialized(Source::from_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
 
-        fn on_start(&mut self, ctx: &mut ScriptContext) {
+        fn on_start(&mut self, ctx: &mut ScriptContext) -> GameResult {
             self.sender
                 .send(Event::Started(Source::from_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
 
-        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) {
+        fn on_deinit(&mut self, ctx: &mut ScriptDeinitContext) -> GameResult {
             self.sender
                 .send(Event::Destroyed(Source::from_deinit_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
 
-        fn on_update(&mut self, ctx: &mut ScriptContext) {
+        fn on_update(&mut self, ctx: &mut ScriptContext) -> GameResult {
             self.sender
                 .send(Event::Updated(Source::from_ctx(ctx)))
                 .unwrap();
+            Ok(())
         }
     }
 

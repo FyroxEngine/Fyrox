@@ -78,6 +78,7 @@ use crate::{
     utils::navmesh::Navmesh,
 };
 use fxhash::FxHashSet;
+use fyrox_core::pool::PoolError;
 use std::{
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},
@@ -130,22 +131,22 @@ impl NavMeshContainer {
     }
 
     /// Tries to borrow a navmesh by its index.
-    pub fn at(&self, i: u32) -> Option<&Navmesh> {
+    pub fn at(&self, i: u32) -> Result<&Navmesh, PoolError> {
         self.pool.at(i)
     }
 
     /// Tries to borrow a navmesh by its handle.
-    pub fn try_get(&self, handle: Handle<Navmesh>) -> Option<&Navmesh> {
+    pub fn try_get(&self, handle: Handle<Navmesh>) -> Result<&Navmesh, PoolError> {
         self.pool.try_borrow(handle)
     }
 
     /// Tries to borrow a navmesh by its index.
-    pub fn at_mut(&mut self, i: u32) -> Option<&mut Navmesh> {
+    pub fn at_mut(&mut self, i: u32) -> Result<&mut Navmesh, PoolError> {
         self.pool.at_mut(i)
     }
 
     /// Tries to borrow a navmesh by its handle.
-    pub fn try_get_mut(&mut self, handle: Handle<Navmesh>) -> Option<&mut Navmesh> {
+    pub fn try_get_mut(&mut self, handle: Handle<Navmesh>) -> Result<&mut Navmesh, PoolError> {
         self.pool.try_borrow_mut(handle)
     }
 }
@@ -654,12 +655,12 @@ impl SceneContainer {
     }
 
     /// Tries to borrow a scene using its handle.
-    pub fn try_get(&self, handle: Handle<Scene>) -> Option<&Scene> {
+    pub fn try_get(&self, handle: Handle<Scene>) -> Result<&Scene, PoolError> {
         self.pool.try_borrow(handle)
     }
 
     /// Tries to borrow a scene using its handle.
-    pub fn try_get_mut(&mut self, handle: Handle<Scene>) -> Option<&mut Scene> {
+    pub fn try_get_mut(&mut self, handle: Handle<Scene>) -> Result<&mut Scene, PoolError> {
         self.pool.try_borrow_mut(handle)
     }
 
