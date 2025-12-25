@@ -96,8 +96,10 @@ use crate::{
     },
     utils,
 };
+use fyrox::asset::Resource;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::window::WindowAlignment;
+use fyrox::resource::model::ModelResource;
 use std::{
     any::TypeId,
     cmp::Ordering,
@@ -1097,6 +1099,9 @@ impl TrackList {
                         // Makes no sense to animate drawing parameters.
                         && type_id != TypeId::of::<DrawParameters>()
                         && type_id != TypeId::of::<Samples>()
+                        // Do not allow animating prefab's content.
+                        && type_id != TypeId::of::<ModelResource>()
+                        && type_id != TypeId::of::<Resource<UserInterface>>()
                 });
             });
         }
