@@ -287,7 +287,7 @@ struct SceneLoadingOptions {
 /// ```rust
 /// use fyrox_impl::{
 ///     core::{color::Color, visitor::prelude::*, reflect::prelude::*, log::Log, pool::Handle},
-///     plugin::{Plugin, PluginContext},
+///     plugin::{Plugin, PluginContext, error::GameResult},
 ///     scene::Scene,
 /// };
 /// use std::path::Path;
@@ -311,10 +311,11 @@ struct SceneLoadingOptions {
 /// }
 ///
 /// impl Plugin for MyGame {
-///     fn on_scene_begin_loading(&mut self, path: &Path, _context: &mut PluginContext) {
+///     fn on_scene_begin_loading(&mut self, path: &Path, _context: &mut PluginContext) -> GameResult {
 ///         Log::info(format!("{} scene has started loading.", path.display()));
 ///
 ///         // Use this method if you need to so something when a scene started loading.
+///         Ok(())
 ///     }
 ///
 ///     fn on_scene_loaded(
@@ -323,7 +324,7 @@ struct SceneLoadingOptions {
 ///         scene: Handle<Scene>,
 ///         data: &[u8],
 ///         context: &mut PluginContext,
-///     ) {
+///     ) -> GameResult {
 ///         // Optionally remove previous scene.
 ///         if self.scene.is_some() {
 ///             context.scenes.remove(self.scene);
@@ -338,6 +339,8 @@ struct SceneLoadingOptions {
 ///         let scene_ref = &mut context.scenes[scene];
 ///
 ///         scene_ref.rendering_options.ambient_lighting_color = Color::opaque(20, 20, 20);
+///
+///         Ok(())
 ///     }
 /// }
 /// ```

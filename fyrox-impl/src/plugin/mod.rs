@@ -231,7 +231,7 @@ impl dyn Plugin {
 /// ```rust
 /// # use fyrox_impl::{
 /// #     core::{pool::Handle}, core::visitor::prelude::*, core::reflect::prelude::*,
-/// #     plugin::{Plugin, PluginContext, PluginRegistrationContext, GameResult},
+/// #     plugin::{Plugin, PluginContext, PluginRegistrationContext, error::GameResult},
 /// #     scene::Scene,
 /// #     event::Event
 /// # };

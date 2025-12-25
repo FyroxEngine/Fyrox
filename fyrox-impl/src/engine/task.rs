@@ -98,7 +98,7 @@ impl TaskPoolHandler {
     /// ## Example
     ///
     /// ```rust ,no_run
-    /// # use fyrox_impl::plugin::{Plugin, PluginContext};
+    /// # use fyrox_impl::plugin::{Plugin, PluginContext, error::GameResult};
     /// # use fyrox_impl::core::visitor::prelude::*;
     /// # use fyrox_impl::core::reflect::prelude::*;
     /// # use std::{fs::File, io::Read};
@@ -125,6 +125,7 @@ impl TaskPoolHandler {
     ///             |data, game: &mut MyGame, _context| {
     ///                 // Store the data in the game instance.
     ///                 game.data = Some(data);
+    ///                 Ok(())
     ///             },
     ///         );
     ///
@@ -134,11 +135,12 @@ impl TaskPoolHandler {
     /// }
     ///
     /// impl Plugin for MyGame {
-    ///     fn update(&mut self, _context: &mut PluginContext) {
+    ///     fn update(&mut self, _context: &mut PluginContext) -> GameResult {
     ///         // Do something with the data.
     ///         if let Some(data) = self.data.take() {
     ///             println!("The data is: {:?}", data);
     ///         }
+    ///         Ok(())
     ///     }
     /// }
     /// ```
@@ -177,7 +179,7 @@ impl TaskPoolHandler {
     /// #     script::{ScriptContext, ScriptTrait},
     /// # };
     /// # use fyrox_core::uuid_provider;
-    /// # use fyrox_impl::script::GameResult;
+    /// # use fyrox_impl::plugin::error::GameResult;
     /// #
     /// #[derive(Reflect, Visit, Default, Debug, Clone)]
     /// struct MyScript;
@@ -201,9 +203,8 @@ impl TaskPoolHandler {
     ///             // This closure will executed only when the upper future is done and only on the next
     ///             // update iteration.
     ///             |result, script: &mut MyScript, ctx| {
-    ///                 if let Ok(model) = result {
-    ///                     model.instantiate(&mut ctx.scene);
-    ///                 }
+    ///                 result?.instantiate(&mut ctx.scene);
+    ///                 Ok(())
     ///             },
     ///         );
     ///         Ok(())

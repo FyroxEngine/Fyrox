@@ -334,8 +334,8 @@ pub struct ScriptContext<'a, 'b, 'c> {
     /// ```rust
     /// # use fyrox_impl::{
     /// #     core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
-    /// #     plugin::Plugin,
-    /// #     script::{ScriptContext, ScriptTrait },
+    /// #     plugin::{Plugin, error::GameResult},
+    /// #     script::{ScriptContext, ScriptTrait},
     /// # };
     /// #
     /// #[derive(Visit, Reflect, Default, Debug)]
@@ -658,7 +658,8 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     ///     core::{reflect::prelude::*, uuid::Uuid, visitor::prelude::*, type_traits::prelude::*},
     ///     core::TypeUuidProvider,
     ///     script::ScriptTrait,
-    ///     script::{ScriptContext, ScriptMessageContext, GameResult, ScriptMessagePayload},
+    ///     plugin::error::GameResult,
+    ///     script::{ScriptContext, ScriptMessageContext, ScriptMessagePayload},
     /// };
     ///
     /// struct Message;
