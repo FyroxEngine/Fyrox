@@ -194,16 +194,19 @@ where
                     };
 
                     for i in 0..array.reflect_len() {
-                        let item = array.reflect_index(i).unwrap();
-                        let item_path = format!("{path}[{i}]");
-                        descriptor.children_properties.push(PropertyDescriptor {
-                            path: item_path.clone(),
-                            display_name: format!("[{i}]"),
-                            type_name: item.type_name().to_owned(),
-                            type_id: item.type_id(),
-                            read_only: field_info.read_only,
-                            children_properties: object_to_property_tree(&item_path, item, filter),
-                        })
+                        if let Some(item) = array.reflect_index(i) {
+                            let item_path = format!("{path}[{i}]");
+                            descriptor.children_properties.push(PropertyDescriptor {
+                                path: item_path.clone(),
+                                display_name: format!("[{i}]"),
+                                type_name: item.type_name().to_owned(),
+                                type_id: item.type_id(),
+                                read_only: field_info.read_only,
+                                children_properties: object_to_property_tree(
+                                    &item_path, item, filter,
+                                ),
+                            })
+                        }
                     }
 
                     descriptors.push(descriptor);
