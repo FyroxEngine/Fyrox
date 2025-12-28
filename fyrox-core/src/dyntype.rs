@@ -18,11 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::reflect::Reflect;
-use crate::visitor::{Visit, VisitResult, Visitor};
+use crate::reflect::prelude::*;
+use crate::visitor::prelude::*;
 use crate::{SafeLock, TypeUuidProvider};
 use fxhash::FxHashMap;
 use parking_lot::Mutex;
+use std::any::{type_name, Any, TypeId};
 use std::fmt::{Debug, Display, Formatter};
 use uuid::Uuid;
 
@@ -66,18 +67,146 @@ impl Debug for DynTypeError {
 
 impl std::error::Error for DynTypeError {}
 
-pub trait DynType: Reflect + Visit {
+pub trait DynType: Reflect + Visit + Debug + FieldValue + Send {
     fn type_uuid(&self) -> Uuid;
+    fn clone_box(&self) -> Box<dyn DynType>;
 }
 
-#[derive(Default)]
-pub struct DynTypeContainer(Option<Box<dyn DynType>>);
+impl<T> DynType for T
+where
+    T: TypeUuidProvider + Clone + Visit + Reflect + FieldValue + Send,
+{
+    fn type_uuid(&self) -> Uuid {
+        <T as TypeUuidProvider>::type_uuid()
+    }
+
+    fn clone_box(&self) -> Box<dyn DynType> {
+        Box::new(self.clone())
+    }
+}
+
+#[derive(Debug)]
+pub struct DynTypeWrapper(Box<dyn DynType>);
+
+impl Clone for DynTypeWrapper {
+    fn clone(&self) -> Self {
+        Self(self.0.clone_box())
+    }
+}
+
+impl Reflect for DynTypeWrapper {
+    fn source_path() -> &'static str {
+        file!()
+    }
+
+    fn derived_types() -> &'static [TypeId] {
+        &[]
+    }
+
+    fn query_derived_types(&self) -> &'static [TypeId] {
+        Self::derived_types()
+    }
+
+    fn type_name(&self) -> &'static str {
+        type_name::<Self>()
+    }
+
+    fn doc(&self) -> &'static str {
+        ""
+    }
+
+    fn assembly_name(&self) -> &'static str {
+        env!("CARGO_PKG_NAME")
+    }
+
+    fn type_assembly_name() -> &'static str {
+        env!("CARGO_PKG_NAME")
+    }
+
+    fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
+        func(&[{
+            static METADATA: FieldMetadata = FieldMetadata {
+                name: "Content",
+                display_name: "Content",
+                tag: "",
+                read_only: false,
+                immutable_collection: false,
+                min_value: None,
+                max_value: None,
+                step: None,
+                precision: None,
+                doc: "",
+            };
+            FieldRef {
+                metadata: &METADATA,
+                value: &*self.0,
+            }
+        }])
+    }
+
+    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
+        func(&mut [{
+            static METADATA: FieldMetadata = FieldMetadata {
+                name: "Content",
+                display_name: "Content",
+                tag: "",
+                read_only: false,
+                immutable_collection: false,
+                min_value: None,
+                max_value: None,
+                step: None,
+                precision: None,
+                doc: "",
+            };
+            FieldMut {
+                metadata: &METADATA,
+                value: &mut *self.0,
+            }
+        }])
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+
+    fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
+        func(self)
+    }
+
+    fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
+        func(self)
+    }
+
+    fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+        func(self)
+    }
+
+    fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+        func(self)
+    }
+
+    fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+        let this = std::mem::replace(self, value.take()?);
+        Ok(Box::new(this))
+    }
+
+    fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
+        Some(Box::new(self.clone()))
+    }
+}
+
+#[derive(Default, Reflect, Clone, Debug)]
+pub struct DynTypeContainer(Option<DynTypeWrapper>);
 
 impl Visit for DynTypeContainer {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
-        let mut uuid = self.0.as_ref().map(|ty| ty.type_uuid()).unwrap_or_default();
+        let mut uuid = self
+            .0
+            .as_ref()
+            .map(|ty| ty.0.type_uuid())
+            .unwrap_or_default();
         uuid.visit("TypeUuid", &mut region)?;
 
         if region.is_reading() {
@@ -95,10 +224,10 @@ impl Visit for DynTypeContainer {
 
                 data.visit("DynTypeData", &mut region)?;
 
-                self.0 = Some(data);
+                self.0 = Some(DynTypeWrapper(data));
             }
         } else if let Some(ty) = self.0.as_mut() {
-            ty.visit("DynTypeData", &mut region)?;
+            ty.0.visit("DynTypeData", &mut region)?;
         }
 
         Ok(())
