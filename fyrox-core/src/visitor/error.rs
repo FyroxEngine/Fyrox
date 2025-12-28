@@ -100,6 +100,8 @@ pub enum VisitError {
     DecodeError(DecodeError),
     /// An error occurred when trying to parse uuid from a string.
     UuidError(uuid::Error),
+    /// Arbitrary error.
+    Any(Box<dyn Error + Send + Sync>),
 }
 
 impl Error for VisitError {}
@@ -166,6 +168,9 @@ impl Display for VisitError {
             Self::ParseFloatError(e) => write!(f, "unable to parse float: {e:?}"),
             Self::DecodeError(e) => write!(f, "base64 decoding error: {e:?}"),
             Self::UuidError(e) => write!(f, "uuid error: {e:?}"),
+            Self::Any(e) => {
+                write!(f, "{e}")
+            }
         }
     }
 }
@@ -233,5 +238,11 @@ impl From<DecodeError> for VisitError {
 impl From<uuid::Error> for VisitError {
     fn from(value: uuid::Error) -> Self {
         Self::UuidError(value)
+    }
+}
+
+impl From<Box<dyn Error + Send + Sync>> for VisitError {
+    fn from(value: Box<dyn Error + Send + Sync>) -> Self {
+        Self::Any(value)
     }
 }
