@@ -76,6 +76,7 @@ use crate::{
 };
 use bitflags::bitflags;
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_core::dyntype::DynTypeContainer;
 use fyrox_core::pool::{ObjectOrVariant, PoolError};
 use fyrox_graph::SceneGraphNode;
 use std::fmt::{Display, Formatter, Write};
@@ -137,6 +138,8 @@ pub struct Graph {
 
     #[reflect(hidden)]
     stack: Vec<Handle<Node>>,
+
+    pub user_data: DynTypeContainer,
 
     /// Backing physics "world". It is responsible for the physics simulation.
     pub physics: PhysicsWorld,
@@ -220,6 +223,7 @@ impl Default for Graph {
             lightmap: None,
             instance_id_map: Default::default(),
             message_receiver,
+            user_data: Default::default(),
         }
     }
 }
@@ -423,6 +427,7 @@ impl Graph {
             lightmap: None,
             instance_id_map,
             message_receiver,
+            user_data: Default::default(),
         }
     }
 
@@ -1875,6 +1880,8 @@ impl Visit for Graph {
         self.physics.visit("PhysicsWorld", &mut region)?;
         self.physics2d.visit("PhysicsWorld2D", &mut region)?;
         self.lightmap.visit("Lightmap", &mut region)?;
+
+        Log::verify(self.user_data.visit("UserData", &mut region));
 
         Ok(())
     }
