@@ -56,6 +56,7 @@ use std::{
 };
 pub mod color;
 pub mod color_gradient;
+pub mod dyntype;
 pub mod early;
 pub mod io;
 pub mod log;
