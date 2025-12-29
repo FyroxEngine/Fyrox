@@ -18,13 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::reflect::prelude::*;
-use crate::visitor::prelude::*;
-use crate::{SafeLock, TypeUuidProvider};
+use crate::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*, SafeLock};
 use fxhash::FxHashMap;
 use parking_lot::Mutex;
-use std::any::{type_name, Any, TypeId};
-use std::fmt::{Debug, Display, Formatter};
+use std::{
+    any::{type_name, Any, TypeId},
+    fmt::{Debug, Display, Formatter},
+};
 use uuid::Uuid;
 
 pub enum DynTypeError {
@@ -85,7 +85,8 @@ where
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, TypeUuidProvider)]
+#[type_uuid(id = "87d9ef74-09a9-4228-a2d1-df270b50fddb")]
 pub struct DynTypeWrapper(Box<dyn DynType>);
 
 impl Clone for DynTypeWrapper {
@@ -197,6 +198,16 @@ impl Reflect for DynTypeWrapper {
 
 #[derive(Default, Reflect, Clone, Debug)]
 pub struct DynTypeContainer(Option<DynTypeWrapper>);
+
+impl DynTypeContainer {
+    pub fn value_ref(&self) -> Option<&dyn DynType> {
+        self.0.as_ref().map(|v| &*v.0)
+    }
+
+    pub fn value_mut(&mut self) -> Option<&mut dyn DynType> {
+        self.0.as_mut().map(|v| &mut *v.0)
+    }
+}
 
 impl Visit for DynTypeContainer {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
