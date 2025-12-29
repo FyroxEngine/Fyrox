@@ -139,6 +139,7 @@ pub struct Graph {
     #[reflect(hidden)]
     stack: Vec<Handle<Node>>,
 
+    /// User-defined data. Could be any registered [`crate::core::dyntype::DynType`] instance.
     pub user_data: DynTypeContainer,
 
     /// Backing physics "world". It is responsible for the physics simulation.
