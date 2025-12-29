@@ -56,6 +56,7 @@ use crate::{
     utils::window_content,
     Editor, Message, WidgetMessage, WrapMode,
 };
+use fyrox::core::dyntype::DynTypeConstructorContainer;
 use fyrox::gui::style::resource::StyleResource;
 use fyrox::{
     core::type_traits::prelude::*,
@@ -81,6 +82,7 @@ pub struct AnimationDefinition {
 pub struct EditorEnvironment {
     pub resource_manager: ResourceManager,
     pub serialization_context: Arc<SerializationContext>,
+    pub dyn_type_constructors: Arc<DynTypeConstructorContainer>,
     /// List of animations definitions (name + handle). It is filled only if current selection
     /// is `AnimationBlendingStateMachine`. The list is filled using ABSM's animation player.
     pub available_animations: Vec<AnimationDefinition>,
@@ -325,6 +327,7 @@ impl InspectorPlugin {
         ui: &mut UserInterface,
         resource_manager: ResourceManager,
         serialization_context: Arc<SerializationContext>,
+        dyn_type_constructors: Arc<DynTypeConstructorContainer>,
         available_animations: &[AnimationDefinition],
         sender: &MessageSender,
         icon_request_sender: Sender<IconRequest>,
@@ -338,6 +341,7 @@ impl InspectorPlugin {
             sender: sender.clone(),
             icon_request_sender,
             style,
+            dyn_type_constructors,
         });
 
         let context = InspectorContext::from_object(InspectorContextArgs {
@@ -406,6 +410,7 @@ impl EditorPlugin for InspectorPlugin {
                             ui,
                             editor.engine.resource_manager.clone(),
                             editor.engine.serialization_context.clone(),
+                            editor.engine.dyn_type_constructors.clone(),
                             &available_animations,
                             &editor.message_sender,
                             editor.asset_browser.preview_sender.clone(),

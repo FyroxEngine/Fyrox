@@ -44,6 +44,7 @@ use crate::{
     plugin::error::GameResult,
     scene::{Scene, SceneContainer},
 };
+use fyrox_core::dyntype::DynTypeConstructorContainer;
 use std::{
     ops::{Deref, DerefMut},
     path::Path,
@@ -120,6 +121,9 @@ pub struct PluginRegistrationContext<'a> {
     /// A reference to serialization context of the engine. See [`WidgetConstructorContainer`] for more
     /// info.
     pub widget_constructors: &'a Arc<WidgetConstructorContainer>,
+    /// A container with constructors for dynamic types. See [`DynTypeConstructorContainer`] for more
+    /// info.
+    pub dyn_type_constructors: &'a Arc<DynTypeConstructorContainer>,
     /// A reference to the resource manager instance of the engine. Could be used to register resource loaders.
     pub resource_manager: &'a ResourceManager,
 }

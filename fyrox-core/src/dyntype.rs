@@ -20,7 +20,7 @@
 
 use crate::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*, SafeLock};
 use fxhash::FxHashMap;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, MutexGuard};
 use std::{
     any::{type_name, Any, TypeId},
     fmt::{Debug, Display, Formatter},
@@ -87,7 +87,7 @@ where
 
 #[derive(Debug, TypeUuidProvider)]
 #[type_uuid(id = "87d9ef74-09a9-4228-a2d1-df270b50fddb")]
-pub struct DynTypeWrapper(Box<dyn DynType>);
+pub struct DynTypeWrapper(pub Box<dyn DynType>);
 
 impl Clone for DynTypeWrapper {
     fn clone(&self) -> Self {
@@ -197,7 +197,7 @@ impl Reflect for DynTypeWrapper {
 }
 
 #[derive(Default, Reflect, Clone, Debug)]
-pub struct DynTypeContainer(Option<DynTypeWrapper>);
+pub struct DynTypeContainer(pub Option<DynTypeWrapper>);
 
 impl DynTypeContainer {
     pub fn value_ref(&self) -> Option<&dyn DynType> {
@@ -245,24 +245,36 @@ impl Visit for DynTypeContainer {
     }
 }
 
-pub type DynTypeConstructor = Box<dyn Fn() -> Box<dyn DynType>>;
+pub type DynTypeConstructor = Box<dyn Fn() -> Box<dyn DynType> + Send + 'static>;
 
+pub struct DynTypeConstructorDefinition {
+    pub name: String,
+    pub constructor: DynTypeConstructor,
+}
+
+#[derive(Default)]
 pub struct DynTypeConstructorContainer {
-    map: Mutex<FxHashMap<Uuid, DynTypeConstructor>>,
+    map: Mutex<FxHashMap<Uuid, DynTypeConstructorDefinition>>,
 }
 
 impl DynTypeConstructorContainer {
     pub fn try_create(&self, type_uuid: &Uuid) -> Option<Box<dyn DynType>> {
-        self.map.safe_lock().get(type_uuid).map(|c| (*c)())
+        self.map
+            .safe_lock()
+            .get(type_uuid)
+            .map(|c| (*c.constructor)())
     }
 
-    pub fn add<T>(&self) -> &Self
+    pub fn add<T>(&self, name: &str) -> &Self
     where
         T: TypeUuidProvider + Default + DynType,
     {
         let old = self.map.safe_lock().insert(
             <T as TypeUuidProvider>::type_uuid(),
-            Box::new(|| Box::new(T::default())),
+            DynTypeConstructorDefinition {
+                name: name.to_string(),
+                constructor: Box::new(|| Box::new(T::default())),
+            },
         );
 
         assert!(old.is_none());
@@ -273,7 +285,7 @@ impl DynTypeConstructorContainer {
     pub fn add_custom(
         &self,
         type_uuid: Uuid,
-        constructor: DynTypeConstructor,
+        constructor: DynTypeConstructorDefinition,
     ) -> Result<(), String> {
         let mut map = self.map.safe_lock();
         let old = map.insert(type_uuid, constructor);
@@ -281,5 +293,9 @@ impl DynTypeConstructorContainer {
         assert!(old.is_none());
 
         Ok(())
+    }
+
+    pub fn inner(&self) -> MutexGuard<FxHashMap<Uuid, DynTypeConstructorDefinition>> {
+        self.map.safe_lock()
     }
 }

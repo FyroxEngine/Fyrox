@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::plugins::inspector::editors::dyntype::DynTypePropertyEditorDefinition;
 use crate::plugins::inspector::editors::shader::field::ShaderSourceCodeEditorDefinition;
 use crate::{
     fyrox::{
@@ -185,6 +186,7 @@ use crate::{
 use fyrox::resource::texture::TextureKind;
 
 pub mod animation;
+pub mod dyntype;
 pub mod font;
 pub mod handle;
 pub mod resource;
@@ -631,6 +633,8 @@ pub fn make_property_editors_container(
     container.insert(ShaderSourceCodeEditorDefinition);
 
     container.insert(EnumPropertyEditorDefinition::<TextureKind>::new());
+
+    container.insert(DynTypePropertyEditorDefinition {});
 
     reg_node_handle_editors!(
         container,

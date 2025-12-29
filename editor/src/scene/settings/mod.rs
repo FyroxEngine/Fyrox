@@ -151,6 +151,7 @@ impl SceneSettingsWindow {
         let environment = Arc::new(EditorEnvironment {
             resource_manager: engine.resource_manager.clone(),
             serialization_context: engine.serialization_context.clone(),
+            dyn_type_constructors: engine.dyn_type_constructors.clone(),
             available_animations: Default::default(),
             sender,
             icon_request_sender,

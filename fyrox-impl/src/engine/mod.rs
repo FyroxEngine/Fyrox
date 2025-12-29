@@ -112,6 +112,7 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_animation::AnimationTracksData;
+use fyrox_core::dyntype::DynTypeConstructorContainer;
 use fyrox_graphics::server::SharedGraphicsServer;
 use fyrox_graphics_gl::server::GlGraphicsServer;
 use fyrox_sound::{
@@ -515,6 +516,10 @@ pub struct Engine {
 
     /// A container with widget constructors.
     pub widget_constructors: Arc<WidgetConstructorContainer>,
+
+    /// A container with constructors for dynamic types. See [`DynTypeConstructorContainer`] for more
+    /// info.
+    pub dyn_type_constructors: Arc<DynTypeConstructorContainer>,
 
     /// Script processor is used to run script methods in a strict order.
     pub script_processor: ScriptProcessor,
@@ -1546,6 +1551,7 @@ impl Engine {
             plugins: Default::default(),
             serialization_context,
             widget_constructors,
+            dyn_type_constructors: Default::default(),
             script_processor: Default::default(),
             plugins_enabled: false,
             elapsed_time: 0.0,
@@ -2620,6 +2626,7 @@ impl Engine {
     fn register_plugin_internal(
         serialization_context: &Arc<SerializationContext>,
         widget_constructors: &Arc<WidgetConstructorContainer>,
+        dyn_type_constructors: &Arc<DynTypeConstructorContainer>,
         resource_manager: &ResourceManager,
         plugin: &dyn Plugin,
     ) {
@@ -2628,6 +2635,7 @@ impl Engine {
             plugin.register(PluginRegistrationContext {
                 serialization_context,
                 widget_constructors,
+                dyn_type_constructors,
                 resource_manager,
             }),
         );
@@ -2637,6 +2645,7 @@ impl Engine {
         Self::register_plugin_internal(
             &self.serialization_context,
             &self.widget_constructors,
+            &self.dyn_type_constructors,
             &self.resource_manager,
             plugin,
         )
@@ -2862,6 +2871,7 @@ impl Engine {
             Self::register_plugin_internal(
                 &self.serialization_context,
                 &self.widget_constructors,
+                &self.dyn_type_constructors,
                 &self.resource_manager,
                 plugin,
             );

@@ -29,7 +29,7 @@ use crate::{
     button::Button,
     canvas::Canvas,
     core::{
-        algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
+        algebra::{Matrix2, Matrix3, Matrix4, SMatrix, UnitQuaternion, Vector2, Vector3, Vector4},
         color::Color,
         color_gradient::ColorGradient,
         math::{curve::Curve, Rect, SmoothAngle},
@@ -112,7 +112,6 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_animation::machine::Parameter;
-use fyrox_core::algebra::{Matrix2, Matrix3, Matrix4, SMatrix};
 use fyrox_texture::TextureResource;
 use std::{
     any::{Any, TypeId},
