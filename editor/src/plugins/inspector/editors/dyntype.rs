@@ -410,9 +410,7 @@ impl PropertyEditorDefinition for DynTypePropertyEditorDefinition {
                     }
                     DynTypePropertyEditorMessage::PropertyChanged(property_changed) => {
                         return Some(PropertyChanged {
-                            // Mimic Option<DynTypeWrapper> path by adding `.Some@0` suffix to property path.
-                            // It is needed because we're editing compound type in this editor.
-                            name: ctx.name.to_string() + ".Some@0",
+                            name: ctx.name.to_string() + ".0.Some@0.Content",
                             value: FieldKind::Inspectable(Box::new(property_changed.clone())),
                         });
                     }
