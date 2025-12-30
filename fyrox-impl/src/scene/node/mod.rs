@@ -793,6 +793,8 @@ mod test {
         engine::initialize_resource_manager_loaders(
             &resource_manager,
             Arc::new(serialization_context),
+            Default::default(),
+            Default::default(),
         );
 
         resource_manager.update_or_load_registry();

@@ -103,6 +103,7 @@ impl Executor {
             serialization_context,
             task_pool,
             widget_constructors: Arc::new(new_widget_constructor_container()),
+            dyn_type_constructors: Default::default(),
         })
         .unwrap();
 

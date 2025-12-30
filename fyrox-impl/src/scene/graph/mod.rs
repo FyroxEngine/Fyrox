@@ -2346,6 +2346,8 @@ mod test {
         engine::initialize_resource_manager_loaders(
             &resource_manager,
             Arc::new(SerializationContext::new()),
+            Default::default(),
+            Default::default(),
         );
         resource_manager.update_or_load_registry();
         resource_manager
@@ -2386,6 +2388,7 @@ mod test {
                     &root_asset_path,
                     &FsResourceIo,
                     Arc::new(SerializationContext::new()),
+                    Default::default(),
                     resource_manager.clone(),
                 ))
                 .unwrap()

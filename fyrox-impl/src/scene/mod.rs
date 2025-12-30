@@ -78,6 +78,7 @@ use crate::{
     utils::navmesh::Navmesh,
 };
 use fxhash::FxHashSet;
+use fyrox_core::dyntype::DynTypeConstructorContainer;
 use fyrox_core::pool::PoolError;
 use std::{
     fmt::{Display, Formatter},
@@ -340,6 +341,7 @@ impl SceneLoader {
         path: P,
         io: &dyn ResourceIo,
         serialization_context: Arc<SerializationContext>,
+        dyn_type_constructors: Arc<DynTypeConstructorContainer>,
         resource_manager: ResourceManager,
     ) -> Result<(Self, Vec<u8>), VisitError> {
         // Wait until the registry is fully loaded.
@@ -356,6 +358,7 @@ impl SceneLoader {
         let loader = Self::load(
             "Scene",
             serialization_context,
+            dyn_type_constructors,
             resource_manager,
             &mut visitor,
             Some(path.as_ref().to_path_buf()),
@@ -367,6 +370,7 @@ impl SceneLoader {
     pub fn load(
         region_name: &str,
         serialization_context: Arc<SerializationContext>,
+        dyn_type_constructors: Arc<DynTypeConstructorContainer>,
         resource_manager: ResourceManager,
         visitor: &mut Visitor,
         path: Option<PathBuf>,
@@ -378,6 +382,7 @@ impl SceneLoader {
         }
 
         visitor.blackboard.register(serialization_context);
+        visitor.blackboard.register(dyn_type_constructors);
         visitor
             .blackboard
             .register(Arc::new(resource_manager.clone()));

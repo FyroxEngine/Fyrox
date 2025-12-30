@@ -89,6 +89,7 @@ fn main() {
         serialization_context,
         task_pool,
         widget_constructors: Arc::new(new_widget_constructor_container()),
+        dyn_type_constructors: Arc::new(Default::default()),
     })
     .unwrap();
 

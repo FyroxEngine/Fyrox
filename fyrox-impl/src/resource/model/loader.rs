@@ -33,6 +33,7 @@ use crate::{
     engine::SerializationContext,
     resource::model::{Model, ModelImportOptions},
 };
+use fyrox_core::dyntype::DynTypeConstructorContainer;
 use fyrox_resource::state::LoadError;
 use std::{path::PathBuf, sync::Arc};
 
@@ -43,6 +44,8 @@ pub struct ModelLoader {
     /// Node constructors contains a set of constructors that allows to build a node using its
     /// type UUID.
     pub serialization_context: Arc<SerializationContext>,
+    /// A container for dynamic types. See [`DynTypeConstructorContainer`] docs for more info.
+    pub dyn_type_constructors: Arc<DynTypeConstructorContainer>,
     /// Default import options for model resources.
     pub default_import_options: ModelImportOptions,
 }
@@ -63,6 +66,7 @@ impl ResourceLoader for ModelLoader {
     fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
         let resource_manager = self.resource_manager.clone();
         let node_constructors = self.serialization_context.clone();
+        let dyn_type_constructors = self.dyn_type_constructors.clone();
         let default_import_options = self.default_import_options.clone();
 
         Box::pin(async move {
@@ -76,6 +80,7 @@ impl ResourceLoader for ModelLoader {
                 path,
                 io,
                 node_constructors,
+                dyn_type_constructors,
                 resource_manager,
                 import_options,
             )

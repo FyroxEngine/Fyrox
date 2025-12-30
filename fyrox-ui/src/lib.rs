@@ -296,7 +296,7 @@ pub mod wrap_panel;
 use crate::{
     brush::Brush,
     canvas::Canvas,
-    constructor::{new_widget_constructor_container, WidgetConstructorContainer},
+    constructor::WidgetConstructorContainer,
     container::WidgetContainer,
     core::{
         algebra::{Matrix3, Vector2},
@@ -359,6 +359,7 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
+use fyrox_core::dyntype::DynTypeConstructorContainer;
 use fyrox_core::pool::PoolError;
 pub use fyrox_texture as texture;
 pub use node::*;
@@ -3398,11 +3399,14 @@ impl UserInterface {
     #[allow(clippy::arc_with_non_send_sync)]
     pub async fn load_from_file<P: AsRef<Path>>(
         path: P,
+        constructors: Arc<WidgetConstructorContainer>,
+        dyn_type_constructors: Arc<DynTypeConstructorContainer>,
         resource_manager: ResourceManager,
     ) -> Result<Self, VisitError> {
         Self::load_from_file_ex(
             path,
-            Arc::new(new_widget_constructor_container()),
+            constructors,
+            dyn_type_constructors,
             resource_manager,
             &FsResourceIo,
         )
@@ -3444,6 +3448,7 @@ impl UserInterface {
     pub async fn load_from_file_ex<P: AsRef<Path>>(
         path: P,
         constructors: Arc<WidgetConstructorContainer>,
+        dyn_type_constructors: Arc<DynTypeConstructorContainer>,
         resource_manager: ResourceManager,
         io: &dyn ResourceIo,
     ) -> Result<Self, VisitError> {
@@ -3456,6 +3461,7 @@ impl UserInterface {
             visitor.blackboard.register(constructors);
             visitor.blackboard.register(Arc::new(sender.clone()));
             visitor.blackboard.register(Arc::new(resource_manager));
+            visitor.blackboard.register(Arc::new(dyn_type_constructors));
             let mut ui =
                 UserInterface::new_with_channel(sender, receiver, Vector2::new(100.0, 100.0));
             ui.visit("Ui", &mut visitor)?;

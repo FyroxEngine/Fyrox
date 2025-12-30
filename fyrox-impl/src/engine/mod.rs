@@ -353,6 +353,7 @@ struct SceneLoadingOptions {
 pub struct AsyncSceneLoader {
     resource_manager: ResourceManager,
     serialization_context: Arc<SerializationContext>,
+    dyn_type_constructors: Arc<DynTypeConstructorContainer>,
     receiver: Receiver<SceneLoadingResult>,
     sender: Sender<SceneLoadingResult>,
     loading_scenes: FxHashMap<PathBuf, LoadingScene>,
@@ -374,11 +375,13 @@ impl AsyncSceneLoader {
     fn new(
         resource_manager: ResourceManager,
         serialization_context: Arc<SerializationContext>,
+        dyn_type_constructors: Arc<DynTypeConstructorContainer>,
     ) -> Self {
         let (sender, receiver) = channel();
         Self {
             resource_manager,
             serialization_context,
+            dyn_type_constructors,
             receiver,
             sender,
             loading_scenes: Default::default(),
@@ -404,6 +407,7 @@ impl AsyncSceneLoader {
             // Start loading in a separate off-thread task.
             let sender = self.sender.clone();
             let serialization_context = self.serialization_context.clone();
+            let dyn_type_constructors = self.dyn_type_constructors.clone();
             let resource_manager = self.resource_manager.clone();
             let uuid = resource_manager.find::<Model>(&path).resource_uuid();
 
@@ -415,6 +419,7 @@ impl AsyncSceneLoader {
                     path.clone(),
                     io.as_ref(),
                     serialization_context,
+                    dyn_type_constructors,
                     resource_manager.clone(),
                 )
                 .await
@@ -1207,6 +1212,8 @@ pub struct EngineInitParams {
     pub serialization_context: Arc<SerializationContext>,
     /// A container with widget constructors.
     pub widget_constructors: Arc<WidgetConstructorContainer>,
+    /// A container for dynamic types. See [`DynTypeConstructorContainer`] docs for more info.
+    pub dyn_type_constructors: Arc<DynTypeConstructorContainer>,
     /// A resource manager.
     pub resource_manager: ResourceManager,
     /// Task pool for asynchronous task management.
@@ -1327,10 +1334,13 @@ pub(crate) fn process_scripts<T>(
 pub(crate) fn initialize_resource_manager_loaders(
     resource_manager: &ResourceManager,
     serialization_context: Arc<SerializationContext>,
+    widget_constructors: Arc<WidgetConstructorContainer>,
+    dyn_type_constructors: Arc<DynTypeConstructorContainer>,
 ) {
     let model_loader = ModelLoader {
         resource_manager: resource_manager.clone(),
         serialization_context,
+        dyn_type_constructors: dyn_type_constructors.clone(),
         default_import_options: Default::default(),
     };
 
@@ -1416,6 +1426,8 @@ pub(crate) fn initialize_resource_manager_loaders(
     loaders.set(FontLoader::new(resource_manager.clone()));
     loaders.set(UserInterfaceLoader {
         resource_manager: resource_manager.clone(),
+        constructors: widget_constructors,
+        dyn_type_constructors,
     });
     loaders.set(SurfaceDataLoader {});
     loaders.set(TileSetLoader {
@@ -1519,6 +1531,7 @@ impl Engine {
             graphics_context_params,
             serialization_context,
             widget_constructors,
+            dyn_type_constructors,
             resource_manager,
             task_pool,
         } = params;
@@ -1526,7 +1539,12 @@ impl Engine {
         #[cfg(target_arch = "wasm32")]
         wasm_utils::set_panic_hook();
 
-        initialize_resource_manager_loaders(&resource_manager, serialization_context.clone());
+        initialize_resource_manager_loaders(
+            &resource_manager,
+            serialization_context.clone(),
+            widget_constructors.clone(),
+            dyn_type_constructors.clone(),
+        );
 
         let (rx, tx) = channel();
         resource_manager.state().event_broadcaster.add(rx);
@@ -1542,6 +1560,7 @@ impl Engine {
             async_scene_loader: AsyncSceneLoader::new(
                 resource_manager.clone(),
                 serialization_context.clone(),
+                dyn_type_constructors.clone(),
             ),
             resource_manager,
             scenes: SceneContainer::new(sound_engine.clone()),
@@ -1551,7 +1570,7 @@ impl Engine {
             plugins: Default::default(),
             serialization_context,
             widget_constructors,
-            dyn_type_constructors: Default::default(),
+            dyn_type_constructors,
             script_processor: Default::default(),
             plugins_enabled: false,
             elapsed_time: 0.0,
@@ -1751,6 +1770,7 @@ impl Engine {
                             user_interfaces: &mut self.user_interfaces,
                             serialization_context: &self.serialization_context,
                             widget_constructors: &self.widget_constructors,
+                            dyn_type_constructors: &self.dyn_type_constructors,
                             performance_statistics: &self.performance_statistics,
                             elapsed_time: self.elapsed_time,
                             script_processor: &self.script_processor,
@@ -1788,6 +1808,7 @@ impl Engine {
                     user_interfaces: &mut self.user_interfaces,
                     serialization_context: &self.serialization_context,
                     widget_constructors: &self.widget_constructors,
+                    dyn_type_constructors: &self.dyn_type_constructors,
                     performance_statistics: &self.performance_statistics,
                     elapsed_time: self.elapsed_time,
                     script_processor: &self.script_processor,
@@ -2057,6 +2078,7 @@ impl Engine {
                     user_interfaces: &mut self.user_interfaces,
                     serialization_context: &self.serialization_context,
                     widget_constructors: &self.widget_constructors,
+                    dyn_type_constructors: &self.dyn_type_constructors,
                     performance_statistics: &self.performance_statistics,
                     elapsed_time: self.elapsed_time,
                     script_processor: &self.script_processor,
@@ -2157,6 +2179,7 @@ impl Engine {
                 user_interfaces: &mut self.user_interfaces,
                 serialization_context: &self.serialization_context,
                 widget_constructors: &self.widget_constructors,
+                dyn_type_constructors: &self.dyn_type_constructors,
                 performance_statistics: &self.performance_statistics,
                 elapsed_time: self.elapsed_time,
                 script_processor: &self.script_processor,
@@ -2192,6 +2215,7 @@ impl Engine {
                         user_interfaces: &mut self.user_interfaces,
                         serialization_context: &self.serialization_context,
                         widget_constructors: &self.widget_constructors,
+                        dyn_type_constructors: &self.dyn_type_constructors,
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
                         script_processor: &self.script_processor,
@@ -2232,6 +2256,7 @@ impl Engine {
                 user_interfaces: &mut self.user_interfaces,
                 serialization_context: &self.serialization_context,
                 widget_constructors: &self.widget_constructors,
+                dyn_type_constructors: &self.dyn_type_constructors,
                 performance_statistics: &self.performance_statistics,
                 elapsed_time: self.elapsed_time,
                 script_processor: &self.script_processor,
@@ -2337,6 +2362,7 @@ impl Engine {
                     user_interfaces: &mut self.user_interfaces,
                     serialization_context: &self.serialization_context,
                     widget_constructors: &self.widget_constructors,
+                    dyn_type_constructors: &self.dyn_type_constructors,
                     performance_statistics: &self.performance_statistics,
                     elapsed_time: self.elapsed_time,
                     script_processor: &self.script_processor,
@@ -2368,6 +2394,7 @@ impl Engine {
                     user_interfaces: &mut self.user_interfaces,
                     serialization_context: &self.serialization_context,
                     widget_constructors: &self.widget_constructors,
+                    dyn_type_constructors: &self.dyn_type_constructors,
                     performance_statistics: &self.performance_statistics,
                     elapsed_time: self.elapsed_time,
                     script_processor: &self.script_processor,
@@ -2402,6 +2429,7 @@ impl Engine {
                     user_interfaces: &mut self.user_interfaces,
                     serialization_context: &self.serialization_context,
                     widget_constructors: &self.widget_constructors,
+                    dyn_type_constructors: &self.dyn_type_constructors,
                     performance_statistics: &self.performance_statistics,
                     elapsed_time: self.elapsed_time,
                     script_processor: &self.script_processor,
@@ -2436,6 +2464,7 @@ impl Engine {
                     user_interfaces: &mut self.user_interfaces,
                     serialization_context: &self.serialization_context,
                     widget_constructors: &self.widget_constructors,
+                    dyn_type_constructors: &self.dyn_type_constructors,
                     performance_statistics: &self.performance_statistics,
                     elapsed_time: self.elapsed_time,
                     script_processor: &self.script_processor,
@@ -2583,6 +2612,7 @@ impl Engine {
                         user_interfaces: &mut self.user_interfaces,
                         serialization_context: &self.serialization_context,
                         widget_constructors: &self.widget_constructors,
+                        dyn_type_constructors: &self.dyn_type_constructors,
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
                         script_processor: &self.script_processor,
@@ -2607,6 +2637,7 @@ impl Engine {
                         user_interfaces: &mut self.user_interfaces,
                         serialization_context: &self.serialization_context,
                         widget_constructors: &self.widget_constructors,
+                        dyn_type_constructors: &self.dyn_type_constructors,
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
                         script_processor: &self.script_processor,
@@ -2885,6 +2916,7 @@ impl Engine {
                 &self.serialization_context,
                 &self.resource_manager,
                 &self.widget_constructors,
+                &self.dyn_type_constructors,
             )
             .map_err(|e| e.to_string())?;
 
@@ -2906,6 +2938,7 @@ impl Engine {
                 &self.serialization_context,
                 &self.resource_manager,
                 &self.widget_constructors,
+                &self.dyn_type_constructors,
             )?;
         }
 
@@ -2917,6 +2950,7 @@ impl Engine {
                 &self.serialization_context,
                 &self.resource_manager,
                 &self.widget_constructors,
+                &self.dyn_type_constructors,
             )?;
         }
 
@@ -2930,6 +2964,7 @@ impl Engine {
             lag,
             serialization_context: &self.serialization_context,
             widget_constructors: &self.widget_constructors,
+            dyn_type_constructors: &self.dyn_type_constructors,
             performance_statistics: &Default::default(),
             elapsed_time: self.elapsed_time,
             script_processor: &self.script_processor,
@@ -3472,6 +3507,7 @@ mod test {
             graphics_context_params: Default::default(),
             serialization_context: Arc::new(Default::default()),
             widget_constructors: Arc::new(Default::default()),
+            dyn_type_constructors: Arc::new(Default::default()),
             resource_manager: ResourceManager::new(Arc::new(FsResourceIo), task_pool.clone()),
             task_pool,
         })

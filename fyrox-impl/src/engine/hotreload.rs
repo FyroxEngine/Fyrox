@@ -37,6 +37,7 @@ use crate::{
     },
     script::Script,
 };
+use fyrox_core::dyntype::DynTypeConstructorContainer;
 use fyrox_core::visitor::error::VisitError;
 use fyrox_graph::BaseSceneGraph;
 use std::{
@@ -138,6 +139,7 @@ impl SceneState {
         serialization_context: &Arc<SerializationContext>,
         resource_manager: &ResourceManager,
         widget_constructors: &Arc<WidgetConstructorContainer>,
+        dyn_type_constructors: &Arc<DynTypeConstructorContainer>,
     ) -> Result<(), String> {
         // SAFETY: Scene is guaranteed to be used only once per inner loop.
         let scene2 = unsafe { &mut *(scene as *mut Scene) };
@@ -156,6 +158,7 @@ impl SceneState {
             serialization_context,
             resource_manager,
             widget_constructors,
+            dyn_type_constructors,
         )
     }
 
@@ -165,6 +168,7 @@ impl SceneState {
         serialization_context: &Arc<SerializationContext>,
         resource_manager: &ResourceManager,
         widget_constructors: &Arc<WidgetConstructorContainer>,
+        dyn_type_constructors: &Arc<DynTypeConstructorContainer>,
     ) -> Result<(), String> {
         let script_message_sender = prefab.data_ref().scene.graph.script_message_sender.clone();
         let message_sender = prefab.data_ref().scene.graph.message_sender.clone();
@@ -180,6 +184,7 @@ impl SceneState {
             serialization_context,
             resource_manager,
             widget_constructors,
+            dyn_type_constructors,
         )
     }
 
@@ -192,6 +197,7 @@ impl SceneState {
         serialization_context: &Arc<SerializationContext>,
         resource_manager: &ResourceManager,
         widget_constructors: &Arc<WidgetConstructorContainer>,
+        dyn_type_constructors: &Arc<DynTypeConstructorContainer>,
     ) -> Result<(), String>
     where
         S: FnMut(Handle<Node>, usize, Option<Script>),
@@ -206,6 +212,7 @@ impl SceneState {
                         serialization_context,
                         resource_manager,
                         widget_constructors,
+                        dyn_type_constructors,
                     )
                     .map_err(|e| e.to_string())?;
                     let mut opt_script: Option<Script> = None;
@@ -224,6 +231,7 @@ impl SceneState {
                     serialization_context,
                     resource_manager,
                     widget_constructors,
+                    dyn_type_constructors,
                 )
                 .map_err(|e| e.to_string())?;
                 let mut container = NodeContainer::default();
@@ -261,6 +269,7 @@ pub fn make_reading_visitor(
     serialization_context: &Arc<SerializationContext>,
     resource_manager: &ResourceManager,
     widget_constructors: &Arc<WidgetConstructorContainer>,
+    dyn_type_constructors: &Arc<DynTypeConstructorContainer>,
 ) -> Result<Visitor, VisitError> {
     let mut visitor = Visitor::load_from_memory(binary_blob)?;
     visitor.blackboard.register(serialization_context.clone());
@@ -268,6 +277,7 @@ pub fn make_reading_visitor(
         .blackboard
         .register(Arc::new(resource_manager.clone()));
     visitor.blackboard.register(widget_constructors.clone());
+    visitor.blackboard.register(dyn_type_constructors.clone());
     Ok(visitor)
 }
 

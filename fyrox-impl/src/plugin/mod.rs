@@ -168,6 +168,10 @@ pub struct PluginContext<'a, 'b> {
     /// info.
     pub widget_constructors: &'a Arc<WidgetConstructorContainer>,
 
+    /// A container with constructors for dynamic types. See [`DynTypeConstructorContainer`] for more
+    /// info.
+    pub dyn_type_constructors: &'a Arc<DynTypeConstructorContainer>,
+
     /// Performance statistics from the last frame.
     pub performance_statistics: &'a PerformanceStatistics,
 

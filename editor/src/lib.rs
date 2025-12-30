@@ -811,6 +811,7 @@ impl Editor {
             serialization_context,
             task_pool,
             widget_constructors: Arc::new(new_widget_constructor_container()),
+            dyn_type_constructors: Arc::new(Default::default()),
         })
         .unwrap();
 
@@ -2081,11 +2082,13 @@ impl Editor {
             let loading_scenes = self.loading_scenes.clone();
             if ext == "rgs" {
                 let serialization_context = self.engine.serialization_context.clone();
+                let dyn_type_constructors = self.engine.dyn_type_constructors.clone();
                 self.engine.task_pool.inner().spawn_task(async move {
                     let result = SceneLoader::from_file(
                         &scene_path,
                         &FsResourceIo,
                         serialization_context,
+                        dyn_type_constructors,
                         resource_manager,
                     )
                     .await;
@@ -2105,10 +2108,12 @@ impl Editor {
                 });
             } else if ext == "ui" {
                 let widget_constructors = self.engine.widget_constructors.clone();
+                let dyn_type_constructors = self.engine.dyn_type_constructors.clone();
                 self.engine.task_pool.inner().spawn_task(async move {
                     let result = UserInterface::load_from_file_ex(
                         &scene_path,
                         widget_constructors,
+                        dyn_type_constructors,
                         resource_manager,
                         &FsResourceIo,
                     )

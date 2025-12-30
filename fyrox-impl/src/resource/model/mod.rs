@@ -44,13 +44,16 @@ use crate::{
         Resource, ResourceData,
     },
     core::{
-        algebra::{UnitQuaternion, Vector3},
+        algebra::{Point3, UnitQuaternion, Vector3},
+        dyntype::DynTypeConstructorContainer,
         log::{Log, MessageKind},
+        math,
         pool::Handle,
         reflect::prelude::*,
         uuid::Uuid,
         uuid_provider,
         variable::InheritableVariable,
+        visitor::error::VisitError,
         visitor::{Visit, VisitResult, Visitor},
         NameProvider, TypeUuidProvider,
     },
@@ -64,9 +67,6 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
-use fyrox_core::algebra::Point3;
-use fyrox_core::math;
-use fyrox_core::visitor::error::VisitError;
 use fyrox_ui::{UiNode, UserInterface};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -790,6 +790,7 @@ impl Model {
         path: P,
         io: &dyn ResourceIo,
         serialization_context: Arc<SerializationContext>,
+        dyn_type_constructors: Arc<DynTypeConstructorContainer>,
         resource_manager: ResourceManager,
         model_import_options: ModelImportOptions,
     ) -> Result<Self, ModelLoadError> {
@@ -826,6 +827,7 @@ impl Model {
                     path.as_ref(),
                     io,
                     serialization_context,
+                    dyn_type_constructors,
                     resource_manager.clone(),
                 )
                 .await?

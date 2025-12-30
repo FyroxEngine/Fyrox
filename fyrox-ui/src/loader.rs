@@ -20,11 +20,12 @@
 
 //! User Interface loader.
 
+use crate::constructor::WidgetConstructorContainer;
 use crate::{
-    constructor::new_widget_constructor_container,
     core::{uuid::Uuid, TypeUuidProvider},
     UserInterface,
 };
+use fyrox_core::dyntype::DynTypeConstructorContainer;
 use fyrox_resource::{
     io::ResourceIo,
     loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
@@ -36,6 +37,8 @@ use std::{path::PathBuf, sync::Arc};
 /// Default implementation for UI loading.
 pub struct UserInterfaceLoader {
     pub resource_manager: ResourceManager,
+    pub constructors: Arc<WidgetConstructorContainer>,
+    pub dyn_type_constructors: Arc<DynTypeConstructorContainer>,
 }
 
 impl ResourceLoader for UserInterfaceLoader {
@@ -53,11 +56,14 @@ impl ResourceLoader for UserInterfaceLoader {
 
     fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
         let resource_manager = self.resource_manager.clone();
+        let constructors = self.constructors.clone();
+        let dyn_type_constructors = self.dyn_type_constructors.clone();
         Box::pin(async move {
             let io = io.as_ref();
             let ui = UserInterface::load_from_file_ex(
                 &path,
-                Arc::new(new_widget_constructor_container()),
+                constructors,
+                dyn_type_constructors,
                 resource_manager,
                 io,
             )
