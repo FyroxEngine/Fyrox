@@ -359,7 +359,7 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
-use fyrox_core::dyntype::DynTypeConstructorContainer;
+use fyrox_core::dyntype::{DynTypeConstructorContainer, DynTypeContainer};
 use fyrox_core::pool::PoolError;
 pub use fyrox_texture as texture;
 pub use node::*;
@@ -742,6 +742,7 @@ pub struct UserInterface {
     /// A flag that indicates that the UI should be rendered. It is only taken into account if
     /// the render mode is set to [`RenderMode::OnChanges`].
     pub need_render: bool,
+    pub user_data: DynTypeContainer,
 }
 
 impl Debug for UserInterface {
@@ -780,6 +781,7 @@ impl Debug for UserInterface {
             .field("render_target", &self.render_target)
             .field("render_mode", &self.render_mode)
             .field("need_render", &self.need_render)
+            .field("user_data", &self.user_data)
             .finish()?;
         f.write_char('\n')?;
         f.write_str(&self.summary())
@@ -819,6 +821,7 @@ impl Visit for UserInterface {
         self.standard_material
             .visit("StandardMaterial", &mut region)?;
         self.render_mode.visit("RenderMode", &mut region)?;
+        Log::verify(self.user_data.visit("UserData", &mut region));
 
         if region.is_reading() {
             for node in self.nodes.iter() {
@@ -880,6 +883,7 @@ impl Clone for UserInterface {
             render_target: None,
             render_mode: Default::default(),
             need_render: self.need_render,
+            user_data: self.user_data.clone(),
         }
     }
 }
@@ -1216,6 +1220,7 @@ impl UserInterface {
             render_target: None,
             render_mode: Default::default(),
             need_render: true,
+            user_data: Default::default(),
         };
         let root_node = UiNode::new(Canvas {
             widget: WidgetBuilder::new().build(&ui.build_ctx()),
