@@ -1605,6 +1605,7 @@ impl Graph {
             sound_context: self.sound_context.deep_clone(),
             physics: self.physics.clone(),
             physics2d: self.physics2d.clone(),
+            user_data: self.user_data.clone(),
             ..Default::default()
         };
 
