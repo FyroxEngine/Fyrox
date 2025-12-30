@@ -1465,6 +1465,13 @@ impl Editor {
             current_scene_entry,
             self.message_sender.clone(),
         );
+
+        self.scene_settings.handle_ui_message(
+            &*current_scene_entry.controller,
+            message,
+            &self.message_sender,
+        );
+
         if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
             self.particle_system_control_panel.handle_ui_message(
                 message,
@@ -1505,8 +1512,6 @@ impl Editor {
                 engine,
                 &self.message_sender,
             );
-            self.scene_settings
-                .handle_ui_message(message, &self.message_sender);
 
             self.navmesh_panel
                 .handle_message(message, &current_scene_entry.selection);
@@ -1805,14 +1810,15 @@ impl Editor {
             engine.user_interfaces.first_mut(),
         );
 
+        self.scene_settings.sync_to_model(
+            false,
+            &*current_scene_entry.controller,
+            engine,
+            self.message_sender.clone(),
+            self.asset_browser.preview_sender.clone(),
+        );
+
         if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
-            self.scene_settings.sync_to_model(
-                false,
-                game_scene,
-                engine,
-                self.message_sender.clone(),
-                self.asset_browser.preview_sender.clone(),
-            );
             let sender = &self.message_sender;
             self.world_viewer.sync_to_model(
                 &EditorSceneWrapper {

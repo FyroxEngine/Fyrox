@@ -22,29 +22,25 @@ use crate::{
     asset::preview::cache::IconRequest,
     export::ExportWindow,
     fyrox::{
-        core::pool::Handle,
+        asset::manager::ResourceManager,
+        core::{pool::Handle, uuid, Uuid},
         gui::{
-            file_browser::{FileSelectorBuilder, FileSelectorMessage},
-            menu,
-            menu::MenuItemMessage,
+            file_browser::{FileSelectorBuilder, FileSelectorMessage, FileType, PathFilter},
+            menu::{self, MenuItemMessage},
             message::UiMessage,
             messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage},
             widget::{WidgetBuilder, WidgetMessage},
-            window::{WindowBuilder, WindowMessage, WindowTitle},
+            window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, UiNode, UserInterface,
         },
     },
     load_image, make_save_file_selector,
     menu::{create_menu_item, create_menu_item_shortcut, create_root_menu_item},
     message::MessageSender,
-    scene::{container::EditorSceneEntry, GameScene},
+    scene::container::EditorSceneEntry,
     settings::{recent::RecentFiles, Settings},
     Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
 };
-use fyrox::asset::manager::ResourceManager;
-use fyrox::core::{uuid, Uuid};
-use fyrox::gui::file_browser::{FileType, PathFilter};
-use fyrox::gui::window::WindowAlignment;
 use std::{path::PathBuf, sync::mpsc::Sender};
 
 pub struct FileMenu {
@@ -448,14 +444,12 @@ impl FileMenu {
                 *panels.export_window = Some(export_window);
             } else if message.destination() == self.open_scene_settings {
                 if let Some(game_scene) = entry {
-                    if let Some(game_scene) = game_scene.controller.downcast_ref::<GameScene>() {
-                        panels.scene_settings.open(
-                            game_scene,
-                            engine,
-                            sender.clone(),
-                            icon_request_sender,
-                        );
-                    }
+                    panels.scene_settings.open(
+                        &*game_scene.controller,
+                        engine,
+                        sender.clone(),
+                        icon_request_sender,
+                    );
                 }
             } else if let Some(recent_file) = self
                 .recent_files
