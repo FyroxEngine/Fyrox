@@ -18,28 +18,32 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::asset::preview::cache::IconRequest;
-use crate::scene::EntityInfo;
-use crate::utils::make_square_image_button_with_tooltip;
 use crate::{
+    asset::preview::cache::IconRequest,
     fyrox::{
         asset::manager::ResourceManager,
         core::{
+            dyntype::DynTypeConstructorContainer,
             log::{Log, MessageKind},
             pool::{ErasedHandle, Handle},
             reflect::prelude::*,
+            type_traits::prelude::*,
         },
         engine::SerializationContext,
         graph::BaseSceneGraph,
         gui::{
+            border::BorderBuilder,
             button::ButtonMessage,
             grid::{Column, GridBuilder, Row},
+            inspector::InspectorContextArgs,
             inspector::{
                 editors::PropertyEditorDefinitionContainer, InspectorBuilder, InspectorContext,
                 InspectorEnvironment, InspectorError, InspectorMessage,
             },
             message::{MessageDirection, UiMessage},
             scroll_viewer::ScrollViewerBuilder,
+            stack_panel::StackPanelBuilder,
+            style::{resource::StyleResource, resource::StyleResourceExt, Style},
             text::{TextBuilder, TextMessage},
             widget::WidgetBuilder,
             window::{WindowBuilder, WindowTitle},
@@ -50,22 +54,11 @@ use crate::{
     load_image,
     message::MessageSender,
     plugin::EditorPlugin,
-    plugins::{absm::animation_container_ref, inspector::editors::make_property_editors_container},
-    scene::{controller::SceneController, GameScene, Selection},
+    plugins::absm::animation_container_ref,
+    scene::{controller::SceneController, EntityInfo, GameScene, Selection},
     ui_scene::UiScene,
-    utils::window_content,
+    utils::{make_square_image_button_with_tooltip, window_content},
     Editor, Message, WidgetMessage, WrapMode,
-};
-use fyrox::core::dyntype::DynTypeConstructorContainer;
-use fyrox::gui::style::resource::StyleResource;
-use fyrox::{
-    core::type_traits::prelude::*,
-    gui::{
-        border::BorderBuilder,
-        inspector::InspectorContextArgs,
-        stack_panel::StackPanelBuilder,
-        style::{resource::StyleResourceExt, Style},
-    },
 };
 use std::{any::Any, sync::mpsc::Sender, sync::Arc};
 
@@ -119,8 +112,6 @@ impl InspectorEnvironment for EditorEnvironment {
 }
 
 pub struct InspectorPlugin {
-    /// Allows you to register your property editors for custom types.
-    pub property_editors: Arc<PropertyEditorDefinitionContainer>,
     pub(crate) window: Handle<UiNode>,
     pub inspector: Handle<UiNode>,
     pub head: Handle<UiNode>,
@@ -204,13 +195,7 @@ fn is_out_of_sync(sync_errors: &[InspectorError]) -> bool {
 }
 
 impl InspectorPlugin {
-    pub fn new(
-        ctx: &mut BuildContext,
-        sender: MessageSender,
-        resource_manager: ResourceManager,
-    ) -> Self {
-        let property_editors = Arc::new(make_property_editors_container(sender, resource_manager));
-
+    pub fn new(ctx: &mut BuildContext) -> Self {
         let warning_text_str =
             "Multiple objects are selected, showing properties of the first object only!\
             Only common properties will be editable!";
@@ -297,7 +282,6 @@ impl InspectorPlugin {
             window,
             inspector,
             head,
-            property_editors,
             warning_text,
             type_name_text,
             docs_button,
@@ -333,6 +317,7 @@ impl InspectorPlugin {
         icon_request_sender: Sender<IconRequest>,
         has_parent_object: bool,
         style: Option<StyleResource>,
+        property_editors: Arc<PropertyEditorDefinitionContainer>,
     ) {
         let environment = Arc::new(EditorEnvironment {
             resource_manager,
@@ -347,7 +332,7 @@ impl InspectorPlugin {
         let context = InspectorContext::from_object(InspectorContextArgs {
             object: obj,
             ctx: &mut ui.build_ctx(),
-            definition_container: self.property_editors.clone(),
+            definition_container: property_editors,
             environment: Some(environment),
             layer_index: 0,
             generate_property_string_values: true,
@@ -416,6 +401,7 @@ impl EditorPlugin for InspectorPlugin {
                             editor.asset_browser.preview_sender.clone(),
                             has_inheritance_parent,
                             style,
+                            editor.property_editors.clone(),
                         );
 
                         need_clear = false;

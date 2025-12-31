@@ -62,6 +62,7 @@ mod test;
 
 pub use fyrox;
 
+use crate::plugins::inspector::editors::make_property_editors_container;
 use crate::{
     asset::{item::AssetItem, AssetBrowser},
     audio::{preview::AudioPreviewPanel, AudioPanel},
@@ -181,6 +182,7 @@ use fyrox::core::{info, uuid};
 use fyrox::engine::GraphicsContext;
 use fyrox::event_loop::ActiveEventLoop;
 use fyrox::gui::file_browser::{FileSelectorMode, FileType, PathFilter};
+use fyrox::gui::inspector::editors::PropertyEditorDefinitionContainer;
 use fyrox::gui::window::WindowAlignment;
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
@@ -669,6 +671,8 @@ pub struct Editor {
     pub scene_loading_window: Option<SceneLoadingWindow>,
     pub default_layout: DockingManagerLayoutDescriptor,
     pub startup_data: Option<StartupData>,
+    /// Allows you to register your property editors for custom types.
+    pub property_editors: Arc<PropertyEditorDefinitionContainer>,
 }
 
 fn make_dark_style() -> StyleResource {
@@ -823,12 +827,16 @@ impl Editor {
             ui.set_style(style.clone());
         }
 
+        let property_editors = Arc::new(make_property_editors_container(
+            message_sender.clone(),
+            engine.resource_manager.clone(),
+        ));
         let configurator = Configurator::new(message_sender.clone(), &mut ui.build_ctx());
 
         let scene_viewer = SceneViewer::new(&mut engine, message_sender.clone(), &mut settings);
         let asset_browser = AssetBrowser::new(&mut engine);
         let menu = Menu::new(&mut engine, message_sender.clone(), &settings);
-        let light_panel = LightPanel::new(&mut engine, message_sender.clone());
+        let light_panel = LightPanel::new(&mut engine, property_editors.clone());
         let audio_panel = AudioPanel::new(
             &mut engine,
             message_sender.clone(),
@@ -853,8 +861,7 @@ impl Editor {
             load_image!("../resources/clear.png"),
             true,
         );
-        let inspector_plugin =
-            InspectorPlugin::new(ctx, message_sender.clone(), engine.resource_manager.clone());
+        let inspector_plugin = InspectorPlugin::new(ctx);
         let bbcode_panel = BBCodePanel::new(inspector_plugin.head, ctx);
         let particle_system_control_panel =
             ParticleSystemPreviewControlPanel::new(inspector_plugin.head, ctx);
@@ -863,8 +870,7 @@ impl Editor {
         let audio_preview_panel = AudioPreviewPanel::new(inspector_plugin.head, ctx);
         let doc_window = DocWindow::new(ctx);
         let node_removal_dialog = NodeRemovalDialog::new(ctx);
-        let scene_settings =
-            SceneSettingsWindow::new(ctx, message_sender.clone(), engine.resource_manager.clone());
+        let scene_settings = SceneSettingsWindow::new(ctx, property_editors.clone());
 
         let docking_manager;
         let root_grid = GridBuilder::new(
@@ -1111,6 +1117,7 @@ impl Editor {
             scene_loading_window: None,
             default_layout,
             startup_data: startup_data.clone(),
+            property_editors,
         };
 
         if let Some(data) = startup_data {
@@ -2834,11 +2841,7 @@ impl Editor {
     where
         P: Plugin + 'static,
     {
-        let inspector = self.plugins.get::<InspectorPlugin>();
-        *inspector.property_editors.context_type_id.safe_lock() = plugin.type_id();
-        inspector
-            .property_editors
-            .merge(plugin.register_property_editors());
+        plugin.register_property_editors(self.property_editors.clone());
         self.engine.add_plugin(plugin)
     }
 
@@ -2874,11 +2877,7 @@ impl Editor {
         P: DynamicPlugin + 'static,
     {
         let plugin = self.engine.add_dynamic_plugin_custom(plugin);
-        let inspector = self.plugins.get::<InspectorPlugin>();
-        *inspector.property_editors.context_type_id.safe_lock() = plugin.type_id();
-        inspector
-            .property_editors
-            .merge(plugin.register_property_editors());
+        plugin.register_property_editors(self.property_editors.clone());
         Ok(())
     }
 
@@ -3206,8 +3205,7 @@ fn update(editor: &mut Editor, loop_controller: ApplicationLoopController) -> f3
                     editor.message_sender.send(Message::ForceSync);
 
                     // Remove property editors that were created from the plugin.
-                    let inspector = editor.plugins.get_mut::<InspectorPlugin>();
-                    let mut definitions = inspector.property_editors.definitions_mut();
+                    let mut definitions = editor.property_editors.definitions_mut();
 
                     let mut to_be_removed = Vec::new();
                     for (type_id, entry) in &mut *definitions {
@@ -3236,11 +3234,8 @@ fn update(editor: &mut Editor, loop_controller: ApplicationLoopController) -> f3
 
         if need_reload_plugins {
             let on_plugin_reloaded = |plugin: &dyn Plugin| {
-                let inspector = editor.plugins.get_mut::<InspectorPlugin>();
-                *inspector.property_editors.context_type_id.safe_lock() = plugin.type_id();
-                inspector
-                    .property_editors
-                    .merge(plugin.register_property_editors());
+                *editor.property_editors.context_type_id.safe_lock() = plugin.type_id();
+                plugin.register_property_editors(editor.property_editors.clone());
             };
 
             editor.engine.handle_plugins_hot_reloading(

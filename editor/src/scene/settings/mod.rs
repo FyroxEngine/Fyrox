@@ -23,7 +23,6 @@ use crate::{
     asset::preview::cache::IconRequest,
     command::make_command,
     fyrox::{
-        asset::manager::ResourceManager,
         core::{color::Color, pool::Handle, reflect::Reflect},
         engine::Engine,
         graph::SceneGraph,
@@ -52,7 +51,7 @@ use crate::{
         utils::lightmap::Lightmap,
     },
     message::MessageSender,
-    plugins::inspector::{editors::make_property_editors_container, EditorEnvironment},
+    plugins::inspector::EditorEnvironment,
     scene::{commands::GameSceneContext, controller::SceneController},
     ui_scene::UiScene,
     GameScene, Message,
@@ -68,8 +67,7 @@ pub struct SceneSettingsWindow {
 impl SceneSettingsWindow {
     pub fn new(
         ctx: &mut BuildContext,
-        sender: MessageSender,
-        resource_manager: ResourceManager,
+        property_definitions: Arc<PropertyEditorDefinitionContainer>,
     ) -> Self {
         let inspector;
         let window = WindowBuilder::new(
@@ -91,19 +89,17 @@ impl SceneSettingsWindow {
         .with_title(WindowTitle::text("Scene Settings"))
         .build(ctx);
 
-        let container = make_property_editors_container(sender, resource_manager);
-
-        container.register_inheritable_inspectable::<Graph>();
-        container.register_inheritable_inspectable::<IntegrationParameters>();
-        container.register_inheritable_inspectable::<PhysicsWorld>();
-        container.register_inheritable_inspectable::<dim2::physics::PhysicsWorld>();
-        container.register_inheritable_inspectable::<SceneRenderingOptions>();
-        container.insert(EnumPropertyEditorDefinition::<Color>::new_optional());
+        property_definitions.register_inheritable_inspectable::<Graph>();
+        property_definitions.register_inheritable_inspectable::<IntegrationParameters>();
+        property_definitions.register_inheritable_inspectable::<PhysicsWorld>();
+        property_definitions.register_inheritable_inspectable::<dim2::physics::PhysicsWorld>();
+        property_definitions.register_inheritable_inspectable::<SceneRenderingOptions>();
+        property_definitions.insert(EnumPropertyEditorDefinition::<Color>::new_optional());
 
         Self {
             window,
             inspector,
-            property_definitions: Arc::new(container),
+            property_definitions,
         }
     }
 

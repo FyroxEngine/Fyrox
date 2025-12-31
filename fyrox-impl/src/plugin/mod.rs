@@ -320,8 +320,10 @@ pub trait Plugin: PluginAsAny + Visit + Reflect {
 
     /// This method is used to register property editors for your game types; to make them editable
     /// in the editor.
-    fn register_property_editors(&self) -> PropertyEditorDefinitionContainer {
-        PropertyEditorDefinitionContainer::empty()
+    fn register_property_editors(
+        &self,
+        #[allow(unused_variables)] editors: Arc<PropertyEditorDefinitionContainer>,
+    ) {
     }
 
     /// This method is used to initialize your plugin.

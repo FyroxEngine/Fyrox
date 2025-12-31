@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::plugins::inspector::editors::make_property_editors_container;
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
@@ -65,8 +64,8 @@ use crate::{
     world::selection::GraphSelection,
     Editor,
 };
-use fyrox::asset::manager::ResourceManager;
 use fyrox::core::{uuid, Uuid};
+use fyrox::gui::inspector::editors::PropertyEditorDefinitionContainer;
 use fyrox::gui::inspector::{Inspector, InspectorContextArgs};
 use fyrox::gui::window::WindowAlignment;
 use std::{ops::Range, sync::Arc};
@@ -1017,11 +1016,9 @@ pub struct RagdollWizard {
 impl RagdollWizard {
     pub fn new(
         ctx: &mut BuildContext,
-        sender: MessageSender,
-        resource_manager: ResourceManager,
+        property_editors: Arc<PropertyEditorDefinitionContainer>,
     ) -> Self {
         let preset = RagdollPreset::default();
-        let container = Arc::new(make_property_editors_container(sender, resource_manager));
 
         let inspector;
         let ok;
@@ -1049,7 +1046,7 @@ impl RagdollWizard {
                             .with_context(InspectorContext::from_object(InspectorContextArgs {
                                 object: &preset,
                                 ctx,
-                                definition_container: container,
+                                definition_container: property_editors,
                                 environment: None,
                                 layer_index: 0,
                                 generate_property_string_values: true,
@@ -1242,13 +1239,9 @@ impl RagdollPlugin {
     fn on_open_ragdoll_wizard_clicked(&mut self, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first_mut();
         let ctx = &mut ui.build_ctx();
-        let wizard = self.ragdoll_wizard.get_or_insert_with(|| {
-            RagdollWizard::new(
-                ctx,
-                editor.message_sender.clone(),
-                editor.engine.resource_manager.clone(),
-            )
-        });
+        let wizard = self
+            .ragdoll_wizard
+            .get_or_insert_with(|| RagdollWizard::new(ctx, editor.property_editors.clone()));
         wizard.open(ui);
     }
 }

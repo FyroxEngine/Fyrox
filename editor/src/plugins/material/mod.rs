@@ -21,7 +21,7 @@
 use crate::{
     asset::preview::cache::IconRequest,
     fyrox::{
-        asset::manager::ResourceManager,
+        asset::{event::ResourceEvent, manager::ResourceManager},
         core::{
             algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
             color::Color,
@@ -30,6 +30,7 @@ use crate::{
             some_or_continue, some_or_return,
             sstorage::ImmutableString,
         },
+        engine::ApplicationLoopController,
         fxhash::FxHashMap,
         graph::SceneGraph,
         graphics::gpu_program::{ShaderProperty, ShaderPropertyKind},
@@ -45,7 +46,7 @@ use crate::{
             },
             list_view::{ListView, ListViewBuilder, ListViewMessage},
             matrix::{MatrixEditorBuilder, MatrixEditorMessage},
-            message::{MessageDirection, UiMessage},
+            message::{DeliveryMode, MessageDirection, UiMessage},
             numeric::{NumericUpDownBuilder, NumericUpDownMessage},
             scroll_viewer::ScrollViewerBuilder,
             stack_panel::StackPanelBuilder,
@@ -56,6 +57,7 @@ use crate::{
                 VecEditorMessage,
             },
             widget::{WidgetBuilder, WidgetMaterial, WidgetMessage},
+            window::WindowAlignment,
             window::{WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
@@ -74,12 +76,9 @@ use crate::{
     message::MessageSender,
     plugin::EditorPlugin,
     plugins::{
-        inspector::{
-            editors::{
-                resource::{ResourceFieldBuilder, ResourceFieldMessage},
-                texture::{TextureEditorBuilder, TextureEditorMessage},
-            },
-            InspectorPlugin,
+        inspector::editors::{
+            resource::{ResourceFieldBuilder, ResourceFieldMessage},
+            texture::{TextureEditorBuilder, TextureEditorMessage},
         },
         material::editor::MaterialPropertyEditorDefinition,
     },
@@ -90,13 +89,10 @@ use crate::{
     },
     Editor, Engine, Message,
 };
-use fyrox::asset::event::ResourceEvent;
-use fyrox::engine::ApplicationLoopController;
-use fyrox::gui::message::DeliveryMode;
-use fyrox::gui::window::WindowAlignment;
-use std::path::PathBuf;
-use std::sync::mpsc::Receiver;
-use std::sync::{mpsc::Sender, Arc};
+use std::{
+    path::PathBuf,
+    sync::{mpsc::Receiver, mpsc::Sender, Arc},
+};
 
 pub mod editor;
 
@@ -730,10 +726,11 @@ pub struct MaterialPlugin {
 
 impl EditorPlugin for MaterialPlugin {
     fn on_start(&mut self, editor: &mut Editor) {
-        let container = &editor.plugins.get_mut::<InspectorPlugin>().property_editors;
-        container.insert(MaterialPropertyEditorDefinition {
-            sender: Mutex::new(editor.message_sender.clone()),
-        });
+        editor
+            .property_editors
+            .insert(MaterialPropertyEditorDefinition {
+                sender: Mutex::new(editor.message_sender.clone()),
+            });
         let (sender, receiver) = std::sync::mpsc::channel();
         editor
             .engine
@@ -742,9 +739,15 @@ impl EditorPlugin for MaterialPlugin {
             .event_broadcaster
             .add(sender);
         self.receiver = Some(receiver);
-        container.insert(InheritablePropertyEditorDefinition::<MaterialResource>::new());
-        container.insert(InheritablePropertyEditorDefinition::<WidgetMaterial>::new());
-        container.insert(InspectablePropertyEditorDefinition::<WidgetMaterial>::new());
+        editor
+            .property_editors
+            .insert(InheritablePropertyEditorDefinition::<MaterialResource>::new());
+        editor
+            .property_editors
+            .insert(InheritablePropertyEditorDefinition::<WidgetMaterial>::new());
+        editor
+            .property_editors
+            .insert(InspectablePropertyEditorDefinition::<WidgetMaterial>::new());
     }
 
     fn on_sync_to_model(&mut self, editor: &mut Editor) {

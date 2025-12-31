@@ -23,7 +23,6 @@
 use crate::menu::create_menu_item_shortcut;
 use crate::{
     fyrox::{
-        asset::manager::ResourceManager,
         core::{
             log::Log, parking_lot::lock_api::Mutex, pool::Handle, reflect::Reflect, some_or_return,
         },
@@ -34,14 +33,8 @@ use crate::{
             dock::DockingManagerMessage,
             grid::{Column, GridBuilder, Row},
             inspector::{
-                editors::{
-                    collection::VecCollectionPropertyEditorDefinition,
-                    enumeration::EnumPropertyEditorDefinition,
-                    inspectable::InspectablePropertyEditorDefinition,
-                    key::HotKeyPropertyEditorDefinition, PropertyEditorDefinitionContainer,
-                },
-                Inspector, InspectorBuilder, InspectorContext, InspectorContextArgs,
-                InspectorMessage, PropertyAction,
+                editors::PropertyEditorDefinitionContainer, Inspector, InspectorBuilder,
+                InspectorContext, InspectorContextArgs, InspectorMessage, PropertyAction,
             },
             menu::MenuItemMessage,
             message::UiMessage,
@@ -52,76 +45,18 @@ use crate::{
             window::{WindowBuilder, WindowMessage, WindowTitle},
             HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
         },
-        renderer::QualitySettings,
-        renderer::{BloomSettings, CsmSettings, ShadowMapPrecision},
     },
     load_image,
-    message::MessageSender,
     plugin::EditorPlugin,
-    settings::{
-        build::BuildSettings,
-        camera::CameraSettings,
-        debugging::DebuggingSettings,
-        general::{EditorStyle, GeneralSettings, ScriptEditor},
-        graphics::GraphicsSettings,
-        keys::{KeyBindings, TerrainKeyBindings},
-        model::ModelSettings,
-        move_mode::MoveInteractionModeSettings,
-        navmesh::NavmeshSettings,
-        rotate_mode::RotateInteractionModeSettings,
-        selection::SelectionSettings,
-        Settings,
-    },
+    settings::Settings,
     Editor,
 };
 use fyrox::core::{ok_or_return, uuid, Uuid};
 use fyrox::engine::GraphicsContext;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
 use fyrox::gui::window::WindowAlignment;
-use fyrox_build_tools::{BuildProfile, CommandDescriptor, EnvironmentVariable};
 use rust_fuzzy_search::fuzzy_compare;
 use std::sync::Arc;
-
-fn make_property_editors_container(
-    sender: MessageSender,
-    resource_manager: ResourceManager,
-) -> Arc<PropertyEditorDefinitionContainer> {
-    let container = crate::plugins::inspector::editors::make_property_editors_container(
-        sender,
-        resource_manager,
-    );
-
-    container.insert(InspectablePropertyEditorDefinition::<GeneralSettings>::new());
-    container.insert(InspectablePropertyEditorDefinition::<GraphicsSettings>::new());
-    container.insert(InspectablePropertyEditorDefinition::<SelectionSettings>::new());
-    container.insert(EnumPropertyEditorDefinition::<ShadowMapPrecision>::new());
-    container.insert(EnumPropertyEditorDefinition::<ScriptEditor>::new());
-    container.insert(EnumPropertyEditorDefinition::<EditorStyle>::new());
-    container.insert(InspectablePropertyEditorDefinition::<DebuggingSettings>::new());
-    container.insert(InspectablePropertyEditorDefinition::<CsmSettings>::new());
-    container.insert(InspectablePropertyEditorDefinition::<QualitySettings>::new());
-    container.insert(InspectablePropertyEditorDefinition::<CameraSettings>::new());
-    container.insert(InspectablePropertyEditorDefinition::<
-        MoveInteractionModeSettings,
-    >::new());
-    container.insert(InspectablePropertyEditorDefinition::<
-        RotateInteractionModeSettings,
-    >::new());
-    container.insert(InspectablePropertyEditorDefinition::<ModelSettings>::new());
-    container.insert(InspectablePropertyEditorDefinition::<NavmeshSettings>::new());
-    container.insert(InspectablePropertyEditorDefinition::<KeyBindings>::new());
-    container.insert(InspectablePropertyEditorDefinition::<TerrainKeyBindings>::new());
-    container.insert(InspectablePropertyEditorDefinition::<BuildSettings>::new());
-    container.insert(InspectablePropertyEditorDefinition::<BloomSettings>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<EnvironmentVariable>::new());
-    container.insert(InspectablePropertyEditorDefinition::<EnvironmentVariable>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<BuildProfile>::new());
-    container.insert(InspectablePropertyEditorDefinition::<BuildProfile>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<CommandDescriptor>::new());
-    container.insert(InspectablePropertyEditorDefinition::<CommandDescriptor>::new());
-    container.insert(HotKeyPropertyEditorDefinition);
-    Arc::new(container)
-}
 
 #[derive(Clone, PartialEq)]
 struct GroupName(String);
@@ -248,8 +183,7 @@ impl SettingsWindow {
         &self,
         ui: &mut UserInterface,
         settings: &Settings,
-        sender: &MessageSender,
-        resource_manager: ResourceManager,
+        property_editors: Arc<PropertyEditorDefinitionContainer>,
     ) {
         ui.send(
             self.window,
@@ -260,21 +194,20 @@ impl SettingsWindow {
             },
         );
 
-        self.sync_to_model(ui, settings, sender, resource_manager);
+        self.sync_to_model(ui, settings, property_editors);
     }
 
     fn sync_to_model(
         &self,
         ui: &mut UserInterface,
         settings: &Settings,
-        sender: &MessageSender,
-        resource_manager: ResourceManager,
+        property_editors: Arc<PropertyEditorDefinitionContainer>,
     ) {
         let ctx = &mut ui.build_ctx();
         let context = InspectorContext::from_object(InspectorContextArgs {
             object: &**settings,
             ctx,
-            definition_container: make_property_editors_container(sender.clone(), resource_manager),
+            definition_container: property_editors,
             environment: None,
             layer_index: 0,
             generate_property_string_values: true,
@@ -342,8 +275,8 @@ impl SettingsWindow {
         message: &UiMessage,
         engine: &mut Engine,
         settings: &mut Settings,
-        sender: &MessageSender,
         docking_manager: Handle<UiNode>,
+        property_editors: Arc<PropertyEditorDefinitionContainer>,
     ) -> Option<Self> {
         let ui = engine.user_interfaces.first_mut();
 
@@ -366,7 +299,7 @@ impl SettingsWindow {
             } else if message.destination() == self.default {
                 **settings = Default::default();
 
-                self.sync_to_model(ui, settings, sender, engine.resource_manager.clone());
+                self.sync_to_model(ui, settings, property_editors);
             }
 
             if let Ok(node) = ui.try_get_node(message.destination()) {
@@ -438,12 +371,7 @@ impl SettingsPlugin {
             .window
             .get_or_insert_with(|| SettingsWindow::new(&mut editor.engine));
         let ui = editor.engine.user_interfaces.first_mut();
-        window.open(
-            ui,
-            &editor.settings,
-            &editor.message_sender,
-            editor.engine.resource_manager.clone(),
-        );
+        window.open(ui, &editor.settings, editor.property_editors.clone());
         ui.send(
             editor.docking_manager,
             DockingManagerMessage::AddFloatingWindow(window.window),
@@ -481,8 +409,8 @@ impl EditorPlugin for SettingsPlugin {
             message,
             &mut editor.engine,
             &mut editor.settings,
-            &editor.message_sender,
             editor.docking_manager,
+            editor.property_editors.clone(),
         );
     }
 }

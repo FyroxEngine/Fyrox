@@ -18,8 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::plugins::inspector::editors::dyntype::DynTypePropertyEditorDefinition;
-use crate::plugins::inspector::editors::shader::field::ShaderSourceCodeEditorDefinition;
 use crate::{
     fyrox::{
         asset::{manager::ResourceManager, untyped::UntypedResource, Resource},
@@ -47,6 +45,7 @@ use crate::{
             font::FontResource,
             grid::Grid,
             image::Image,
+            inspector::editors::key::HotKeyPropertyEditorDefinition,
             inspector::editors::{
                 bit::BitFieldPropertyEditorDefinition,
                 collection::VecCollectionPropertyEditorDefinition,
@@ -88,7 +87,9 @@ use crate::{
             RenderPassDefinition, SamplerFallback, Shader, ShaderDefinition, ShaderResource,
             ShaderResourceDefinition, ShaderResourceKind,
         },
+        renderer::{BloomSettings, CsmSettings, QualitySettings, ShadowMapPrecision},
         renderer::{HdrSettings, LuminanceCalculationMethod},
+        resource::texture::TextureKind,
         resource::{
             curve::{CurveResource, CurveResourceState},
             model::{MaterialSearchOptions, Model, ModelResource},
@@ -163,6 +164,8 @@ use crate::{
         },
     },
     message::MessageSender,
+    plugins::inspector::editors::dyntype::DynTypePropertyEditorDefinition,
+    plugins::inspector::editors::shader::field::ShaderSourceCodeEditorDefinition,
     plugins::{
         inspector::editors::{
             animation::{
@@ -182,8 +185,21 @@ use crate::{
             TileDefinitionHandlePropertyEditorDefinition,
         },
     },
+    settings::{
+        build::BuildSettings,
+        camera::CameraSettings,
+        debugging::DebuggingSettings,
+        general::{EditorStyle, GeneralSettings, ScriptEditor},
+        graphics::GraphicsSettings,
+        keys::{KeyBindings, TerrainKeyBindings},
+        model::ModelSettings,
+        move_mode::MoveInteractionModeSettings,
+        navmesh::NavmeshSettings,
+        rotate_mode::RotateInteractionModeSettings,
+        selection::SelectionSettings,
+    },
 };
-use fyrox::resource::texture::TextureKind;
+use fyrox_build_tools::{BuildProfile, CommandDescriptor, EnvironmentVariable};
 
 pub mod animation;
 pub mod dyntype;
@@ -635,6 +651,36 @@ pub fn make_property_editors_container(
     container.insert(EnumPropertyEditorDefinition::<TextureKind>::new());
 
     container.insert(DynTypePropertyEditorDefinition {});
+
+    container.insert(InspectablePropertyEditorDefinition::<GeneralSettings>::new());
+    container.insert(InspectablePropertyEditorDefinition::<GraphicsSettings>::new());
+    container.insert(InspectablePropertyEditorDefinition::<SelectionSettings>::new());
+    container.insert(EnumPropertyEditorDefinition::<ShadowMapPrecision>::new());
+    container.insert(EnumPropertyEditorDefinition::<ScriptEditor>::new());
+    container.insert(EnumPropertyEditorDefinition::<EditorStyle>::new());
+    container.insert(InspectablePropertyEditorDefinition::<DebuggingSettings>::new());
+    container.insert(InspectablePropertyEditorDefinition::<CsmSettings>::new());
+    container.insert(InspectablePropertyEditorDefinition::<QualitySettings>::new());
+    container.insert(InspectablePropertyEditorDefinition::<CameraSettings>::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        MoveInteractionModeSettings,
+    >::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        RotateInteractionModeSettings,
+    >::new());
+    container.insert(InspectablePropertyEditorDefinition::<ModelSettings>::new());
+    container.insert(InspectablePropertyEditorDefinition::<NavmeshSettings>::new());
+    container.insert(InspectablePropertyEditorDefinition::<KeyBindings>::new());
+    container.insert(InspectablePropertyEditorDefinition::<TerrainKeyBindings>::new());
+    container.insert(InspectablePropertyEditorDefinition::<BuildSettings>::new());
+    container.insert(InspectablePropertyEditorDefinition::<BloomSettings>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<EnvironmentVariable>::new());
+    container.insert(InspectablePropertyEditorDefinition::<EnvironmentVariable>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<BuildProfile>::new());
+    container.insert(InspectablePropertyEditorDefinition::<BuildProfile>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<CommandDescriptor>::new());
+    container.insert(InspectablePropertyEditorDefinition::<CommandDescriptor>::new());
+    container.insert(HotKeyPropertyEditorDefinition);
 
     reg_node_handle_editors!(
         container,

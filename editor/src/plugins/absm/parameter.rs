@@ -21,7 +21,6 @@
 use crate::{
     command::make_command,
     fyrox::{
-        asset::manager::ResourceManager,
         core::{log::Log, pool::Handle},
         generic_animation::machine::parameter::{
             Parameter, ParameterContainer, ParameterDefinition,
@@ -46,7 +45,7 @@ use crate::{
         },
     },
     message::MessageSender,
-    plugins::{absm::command::fetch_machine, inspector::editors::make_property_editors_container},
+    plugins::absm::command::fetch_machine,
     Message,
 };
 use std::sync::Arc;
@@ -60,10 +59,8 @@ pub struct ParameterPanel {
 impl ParameterPanel {
     pub fn new(
         ctx: &mut BuildContext,
-        sender: MessageSender,
-        resource_manager: ResourceManager,
+        property_editors: Arc<PropertyEditorDefinitionContainer>,
     ) -> Self {
-        let property_editors = make_property_editors_container(sender, resource_manager);
         property_editors
             .insert(VecCollectionPropertyEditorDefinition::<ParameterDefinition>::new());
         property_editors.insert(EnumPropertyEditorDefinition::<Parameter>::new());
@@ -87,7 +84,7 @@ impl ParameterPanel {
         Self {
             window,
             inspector,
-            property_editors: Arc::new(property_editors),
+            property_editors,
         }
     }
 

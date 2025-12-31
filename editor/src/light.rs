@@ -38,8 +38,8 @@ use crate::fyrox::{
         CancellationToken, Lightmap, LightmapGenerationError, LightmapInputData, ProgressIndicator,
     },
 };
-use crate::plugins::inspector::editors::make_property_editors_container;
-use crate::{message::MessageSender, scene::GameScene, Engine};
+use crate::{scene::GameScene, Engine};
+use fyrox::gui::inspector::editors::PropertyEditorDefinitionContainer;
 use fyrox::gui::inspector::{Inspector, InspectorContextArgs};
 use fyrox::gui::window::WindowAlignment;
 use std::{
@@ -207,12 +207,11 @@ pub struct LightPanel {
 }
 
 impl LightPanel {
-    pub fn new(engine: &mut Engine, sender: MessageSender) -> Self {
+    pub fn new(
+        engine: &mut Engine,
+        property_editors: Arc<PropertyEditorDefinitionContainer>,
+    ) -> Self {
         let settings = LightmapperSettings::default();
-        let container = Arc::new(make_property_editors_container(
-            sender,
-            engine.resource_manager.clone(),
-        ));
 
         let generate;
         let inspector;
@@ -241,7 +240,7 @@ impl LightPanel {
                             .with_context(InspectorContext::from_object(InspectorContextArgs {
                                 object: &settings,
                                 ctx,
-                                definition_container: container,
+                                definition_container: property_editors,
                                 environment: None,
                                 layer_index: 0,
                                 generate_property_string_values: true,
