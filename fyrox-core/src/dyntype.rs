@@ -88,6 +88,7 @@ impl std::error::Error for DynTypeError {}
 pub trait DynType: Reflect + Visit + Debug + FieldValue + Send {
     fn type_uuid(&self) -> Uuid;
     fn clone_box(&self) -> Box<dyn DynType>;
+    fn into_any(self: Box<Self>) -> Box<dyn Any>;
 }
 
 impl<T> DynType for T
@@ -100,6 +101,29 @@ where
 
     fn clone_box(&self) -> Box<dyn DynType> {
         Box::new(self.clone())
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+}
+
+impl dyn DynType {
+    pub fn downcast<T: DynType>(self: Box<dyn DynType>) -> Result<Box<T>, Box<dyn DynType>> {
+        if self.is::<T>() {
+            Ok(DynType::into_any(self).downcast().unwrap())
+        } else {
+            Err(self)
+        }
+    }
+
+    pub fn take<T: DynType>(self: Box<dyn DynType>) -> Result<T, Box<dyn DynType>> {
+        self.downcast::<T>().map(|value| *value)
+    }
+
+    #[inline]
+    pub fn is<T: DynType>(&self) -> bool {
+        self.type_id() == TypeId::of::<T>()
     }
 }
 
@@ -218,6 +242,23 @@ impl Reflect for DynTypeWrapper {
 pub struct DynTypeContainer(pub Option<DynTypeWrapper>);
 
 impl DynTypeContainer {
+    pub fn try_take<T: DynType>(&mut self) -> Result<T, DynTypeError> {
+        match self.0.take() {
+            None => Err(DynTypeError::Empty),
+            Some(wrapper) => match wrapper.0.take::<T>() {
+                Ok(casted) => Ok(casted),
+                Err(value) => {
+                    let actual_type_name = Reflect::type_name(&*value);
+                    self.0.replace(DynTypeWrapper(value));
+                    Err(DynTypeError::TypeCast {
+                        actual_type_name,
+                        requested_type_name: type_name::<T>(),
+                    })
+                }
+            },
+        }
+    }
+
     pub fn value_ref(&self) -> Option<&dyn DynType> {
         self.0.as_ref().map(|v| &*v.0)
     }
