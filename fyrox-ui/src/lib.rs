@@ -3466,7 +3466,7 @@ impl UserInterface {
             visitor.blackboard.register(constructors);
             visitor.blackboard.register(Arc::new(sender.clone()));
             visitor.blackboard.register(Arc::new(resource_manager));
-            visitor.blackboard.register(Arc::new(dyn_type_constructors));
+            visitor.blackboard.register(dyn_type_constructors);
             let mut ui =
                 UserInterface::new_with_channel(sender, receiver, Vector2::new(100.0, 100.0));
             ui.visit("Ui", &mut visitor)?;
