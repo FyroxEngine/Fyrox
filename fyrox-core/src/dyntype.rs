@@ -28,8 +28,13 @@ use std::{
 use uuid::Uuid;
 
 pub enum DynTypeError {
+    Empty,
     NoConstructorContainerProvided,
     NoConstructorForTypeUuid(Uuid),
+    TypeCast {
+        actual_type_name: &'static str,
+        requested_type_name: &'static str,
+    },
 }
 
 impl DynTypeError {
@@ -53,6 +58,19 @@ impl Display for DynTypeError {
                     f,
                     "Unable to deserialize a dynamic type, because \
                     there's no constructor provided for the {uuid} type!"
+                )
+            }
+            DynTypeError::Empty => {
+                write!(f, "The container is empty")
+            }
+            DynTypeError::TypeCast {
+                actual_type_name,
+                requested_type_name,
+            } => {
+                write!(
+                    f,
+                    "The actual type ({actual_type_name}) of the \
+                dynamic type is different ({requested_type_name})."
                 )
             }
         }
@@ -206,6 +224,27 @@ impl DynTypeContainer {
 
     pub fn value_mut(&mut self) -> Option<&mut dyn DynType> {
         self.0.as_mut().map(|v| &mut *v.0)
+    }
+
+    pub fn data_ref<T: DynType>(&self) -> Result<&T, DynTypeError> {
+        let value = self.value_ref().ok_or(DynTypeError::Empty)?;
+        (value as &dyn Any)
+            .downcast_ref()
+            .ok_or_else(|| DynTypeError::TypeCast {
+                actual_type_name: Reflect::type_name(value),
+                requested_type_name: type_name::<T>(),
+            })
+    }
+
+    pub fn data_mut<T: DynType>(&mut self) -> Result<&mut T, DynTypeError> {
+        let value = self.value_mut().ok_or(DynTypeError::Empty)?;
+        let actual_type_name = Reflect::type_name(value);
+        (value as &mut dyn Any)
+            .downcast_mut()
+            .ok_or_else(|| DynTypeError::TypeCast {
+                actual_type_name,
+                requested_type_name: type_name::<T>(),
+            })
     }
 }
 

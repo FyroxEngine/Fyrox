@@ -25,6 +25,7 @@ use crate::{
     core::{pool::PoolError, visitor::error::VisitError},
     scene::graph::GraphError,
 };
+use fyrox_core::dyntype::DynTypeError;
 use std::fmt::{Debug, Display, Formatter};
 
 /// All possible errors that may occur during script or plugin methods execution.
@@ -39,6 +40,8 @@ pub enum GameError {
     VisitError(VisitError),
     /// A [`LoadError`] has occurred.
     ResourceLoadError(LoadError),
+    /// A [`DynTypeError`] has occurred.
+    DynTypeError(DynTypeError),
 }
 
 impl From<GraphError> for GameError {
@@ -71,6 +74,12 @@ impl From<VisitError> for GameError {
     }
 }
 
+impl From<DynTypeError> for GameError {
+    fn from(value: DynTypeError) -> Self {
+        Self::DynTypeError(value)
+    }
+}
+
 impl std::error::Error for GameError {}
 
 impl Display for GameError {
@@ -81,6 +90,7 @@ impl Display for GameError {
             GameError::AnyError(err) => Display::fmt(&err, f),
             GameError::ResourceLoadError(err) => Display::fmt(&err, f),
             GameError::VisitError(err) => Display::fmt(&err, f),
+            GameError::DynTypeError(err) => Display::fmt(&err, f),
         }
     }
 }
