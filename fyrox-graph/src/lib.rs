@@ -203,10 +203,10 @@ where
     #[inline]
     pub fn remap_handles(&self, node: &mut N, ignored_types: &[TypeId]) {
         let name = node.name().to_string();
-        node.as_reflect_mut(&mut |node| self.remap_handles_internal(node, &name, ignored_types));
+        node.as_reflect_mut(&mut |node| self.remap_handles_any(node, &name, ignored_types));
     }
 
-    fn remap_handles_internal(
+    pub fn remap_handles_any(
         &self,
         entity: &mut dyn Reflect,
         node_name: &str,
@@ -259,11 +259,7 @@ where
         entity.as_inheritable_variable_mut(&mut |inheritable| {
             if let Some(inheritable) = inheritable {
                 // In case of inheritable variable we must take inner value and do not mark variables as modified.
-                self.remap_handles_internal(
-                    inheritable.inner_value_mut(),
-                    node_name,
-                    ignored_types,
-                );
+                self.remap_handles_any(inheritable.inner_value_mut(), node_name, ignored_types);
 
                 mapped = true;
             }
@@ -279,7 +275,7 @@ where
                 for i in 0..array.reflect_len() {
                     // Sparse arrays (like Pool) could have empty entries.
                     if let Some(item) = array.reflect_index_mut(i) {
-                        self.remap_handles_internal(item, node_name, ignored_types);
+                        self.remap_handles_any(item, node_name, ignored_types);
                     }
                 }
                 mapped = true;
@@ -294,7 +290,7 @@ where
             if let Some(hash_map) = hash_map {
                 for i in 0..hash_map.reflect_len() {
                     if let Some(item) = hash_map.reflect_get_nth_value_mut(i) {
-                        self.remap_handles_internal(item, node_name, ignored_types);
+                        self.remap_handles_any(item, node_name, ignored_types);
                     }
                 }
                 mapped = true;
@@ -312,7 +308,7 @@ where
                     .value
                     .field_value_as_reflect_mut()
                     .as_reflect_mut(&mut |field| {
-                        self.remap_handles_internal(field, node_name, ignored_types)
+                        self.remap_handles_any(field, node_name, ignored_types)
                     })
             }
         })

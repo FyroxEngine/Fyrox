@@ -1636,6 +1636,14 @@ impl Graph {
         }
         copy.lightmap = lightmap;
 
+        if let Some(user_data) = copy.user_data.0.as_mut() {
+            old_new_map.remap_handles_any(
+                user_data,
+                "UserData",
+                &[TypeId::of::<UntypedResource>()],
+            );
+        }
+
         (copy, old_new_map)
     }
 
