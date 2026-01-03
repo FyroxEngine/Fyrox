@@ -33,6 +33,7 @@
 //! - [Wikipedia article](https://en.wikipedia.org/wiki/Behavior_tree_(artificial_intelligence,_robotics_and_control))
 //! - [Gamasutra](https://www.gamasutra.com/blogs/ChrisSimpson/20140717/221339/Behavior_trees_for_AI_How_they_work.php)
 
+use crate::plugin::error::GameError;
 use crate::{
     core::{
         pool::{Handle, Pool},
@@ -72,7 +73,7 @@ pub trait Behavior<'a>: Visit + Default + PartialEq + Debug + Clone {
     /// A function that will be called each frame depending on
     /// the current execution path of the behavior tree it belongs
     /// to.
-    fn tick(&mut self, context: &mut Self::Context) -> Status;
+    fn tick(&mut self, context: &mut Self::Context) -> Result<Status, GameError>;
 }
 
 /// Root node of the tree.
@@ -164,7 +165,11 @@ where
         }
     }
 
-    fn tick_recursive<'a, Ctx>(&self, handle: Handle<BehaviorNode<B>>, context: &mut Ctx) -> Status
+    fn tick_recursive<'a, Ctx>(
+        &self,
+        handle: Handle<BehaviorNode<B>>,
+        context: &mut Ctx,
+    ) -> Result<Status, GameError>
     where
         B: Behavior<'a, Context = Ctx>,
     {
@@ -173,49 +178,49 @@ where
                 if root.child.is_some() {
                     self.tick_recursive(root.child, context)
                 } else {
-                    Status::Success
+                    Ok(Status::Success)
                 }
             }
             BehaviorNode::Composite(ref composite) => match composite.kind {
                 CompositeNodeKind::Sequence => {
                     let mut all_succeeded = true;
                     for child in composite.children.iter() {
-                        match self.tick_recursive(*child, context) {
+                        match self.tick_recursive(*child, context)? {
                             Status::Failure => {
                                 all_succeeded = false;
                                 break;
                             }
                             Status::Running => {
-                                return Status::Running;
+                                return Ok(Status::Running);
                             }
                             _ => (),
                         }
                     }
                     if all_succeeded {
-                        Status::Success
+                        Ok(Status::Success)
                     } else {
-                        Status::Failure
+                        Ok(Status::Failure)
                     }
                 }
                 CompositeNodeKind::Selector => {
                     for child in composite.children.iter() {
-                        match self.tick_recursive(*child, context) {
-                            Status::Success => return Status::Success,
-                            Status::Running => return Status::Running,
+                        match self.tick_recursive(*child, context)? {
+                            Status::Success => return Ok(Status::Success),
+                            Status::Running => return Ok(Status::Running),
                             _ => (),
                         }
                     }
-                    Status::Failure
+                    Ok(Status::Failure)
                 }
             },
             BehaviorNode::Leaf(ref leaf) => {
                 leaf.behavior.as_ref().unwrap().borrow_mut().tick(context)
             }
             BehaviorNode::Inverter(ref inverter) => {
-                match self.tick_recursive(inverter.child, context) {
-                    Status::Success => Status::Failure,
-                    Status::Failure => Status::Success,
-                    Status::Running => Status::Running,
+                match self.tick_recursive(inverter.child, context)? {
+                    Status::Success => Ok(Status::Failure),
+                    Status::Failure => Ok(Status::Success),
+                    Status::Running => Ok(Status::Running),
                 }
             }
             BehaviorNode::Unknown => {
@@ -238,7 +243,7 @@ where
     }
 
     /// Performs a single update tick with given context.
-    pub fn tick<'a, Ctx>(&self, context: &mut Ctx) -> Status
+    pub fn tick<'a, Ctx>(&self, context: &mut Ctx) -> Result<Status, GameError>
     where
         B: Behavior<'a, Context = Ctx>,
     {
@@ -303,6 +308,7 @@ where
 
 #[cfg(test)]
 mod test {
+    use crate::plugin::error::GameError;
     use crate::{
         core::{futures::executor::block_on, visitor::prelude::*},
         utils::behavior::{
@@ -319,16 +325,16 @@ mod test {
     impl Behavior<'_> for WalkAction {
         type Context = Environment;
 
-        fn tick(&mut self, context: &mut Self::Context) -> Status {
+        fn tick(&mut self, context: &mut Self::Context) -> Result<Status, GameError> {
             if context.distance_to_door <= 0.0 {
-                Status::Success
+                Ok(Status::Success)
             } else {
                 context.distance_to_door -= 0.1;
                 println!(
                     "Approaching door, remaining distance: {}",
                     context.distance_to_door
                 );
-                Status::Running
+                Ok(Status::Running)
             }
         }
     }
@@ -339,12 +345,12 @@ mod test {
     impl Behavior<'_> for OpenDoorAction {
         type Context = Environment;
 
-        fn tick(&mut self, context: &mut Self::Context) -> Status {
+        fn tick(&mut self, context: &mut Self::Context) -> Result<Status, GameError> {
             if !context.door_opened {
                 context.door_opened = true;
                 println!("Door was opened!");
             }
-            Status::Success
+            Ok(Status::Success)
         }
     }
 
@@ -354,16 +360,16 @@ mod test {
     impl Behavior<'_> for StepThroughAction {
         type Context = Environment;
 
-        fn tick(&mut self, context: &mut Self::Context) -> Status {
+        fn tick(&mut self, context: &mut Self::Context) -> Result<Status, GameError> {
             if context.distance_to_door < -1.0 {
-                Status::Success
+                Ok(Status::Success)
             } else {
                 context.distance_to_door -= 0.1;
                 println!(
                     "Stepping through doorway, remaining distance: {}",
                     -1.0 - context.distance_to_door
                 );
-                Status::Running
+                Ok(Status::Running)
             }
         }
     }
@@ -374,13 +380,13 @@ mod test {
     impl Behavior<'_> for CloseDoorAction {
         type Context = Environment;
 
-        fn tick(&mut self, context: &mut Self::Context) -> Status {
+        fn tick(&mut self, context: &mut Self::Context) -> Result<Status, GameError> {
             if context.door_opened {
                 context.door_opened = false;
                 context.done = true;
                 println!("Door was closed");
             }
-            Status::Success
+            Ok(Status::Success)
         }
     }
 
@@ -406,7 +412,7 @@ mod test {
     impl Behavior<'_> for BotBehavior {
         type Context = Environment;
 
-        fn tick(&mut self, context: &mut Self::Context) -> Status {
+        fn tick(&mut self, context: &mut Self::Context) -> Result<Status, GameError> {
             match self {
                 BotBehavior::None => unreachable!(),
                 BotBehavior::Walk(v) => v.tick(context),
@@ -447,7 +453,7 @@ mod test {
         };
 
         while !ctx.done {
-            tree.tick(&mut ctx);
+            tree.tick(&mut ctx).unwrap();
         }
     }
 
