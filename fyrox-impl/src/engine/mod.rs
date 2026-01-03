@@ -113,6 +113,7 @@ use crate::{
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_animation::AnimationTracksData;
 use fyrox_core::dyntype::DynTypeConstructorContainer;
+use fyrox_core::NameProvider;
 use fyrox_graphics::server::SharedGraphicsServer;
 use fyrox_graphics_gl::server::GlGraphicsServer;
 use fyrox_sound::{
@@ -1018,7 +1019,15 @@ impl ScriptProcessor {
                 // `on_deinit` could also spawn new nodes, but we won't take those into account on
                 // this frame. They'll be correctly handled on next frame.
                 if let Err(error) = script.on_deinit(&mut context) {
-                    err!("An error occurred during on_deinit call. Reason: {error}");
+                    err!(
+                        "An error occurred during on_deinit call in {handle} node (name: {}). \
+                        Reason: {error}",
+                        context
+                            .scene
+                            .graph
+                            .try_get(handle)
+                            .map_or("<undefined>", |n| n.name())
+                    );
                 }
             }
         }
@@ -1244,7 +1253,12 @@ where
     };
 
     if let Err(error) = func(&mut script, context) {
-        err!("An error occurred during {caller_name} call. Reason: {error}");
+        let node = context.node();
+        let (handle, name) = node.map_or((Handle::NONE, "<undefined>"), |n| (n.handle(), n.name()));
+        err!(
+            "An error occurred during {caller_name} call in {handle} node (name: {name}). \
+        Reason: {error}",
+        );
     }
 
     match context.node() {
