@@ -35,13 +35,27 @@ pub enum GameError {
     /// A [`PoolError`] has occurred.
     PoolError(PoolError),
     /// An arbitrary, user-defined error has occurred.
-    AnyError(AnyScriptError),
+    UserError(UserError),
     /// A [`VisitError`] has occurred.
     VisitError(VisitError),
     /// A [`LoadError`] has occurred.
     ResourceLoadError(LoadError),
     /// A [`DynTypeError`] has occurred.
     DynTypeError(DynTypeError),
+    /// Arbitrary error message.
+    StringError(String),
+}
+
+impl GameError {
+    /// A shortcut `GameError::user(value)` for `GameError::UserError(Box::new(value))`.
+    pub fn user(value: impl std::error::Error + 'static) -> Self {
+        Self::UserError(Box::new(value))
+    }
+
+    /// A shortcut for [`Self::StringError`]
+    pub fn str(value: impl AsRef<str>) -> Self {
+        Self::StringError(value.as_ref().to_string())
+    }
 }
 
 impl From<GraphError> for GameError {
@@ -56,9 +70,9 @@ impl From<PoolError> for GameError {
     }
 }
 
-impl From<AnyScriptError> for GameError {
-    fn from(value: AnyScriptError) -> Self {
-        Self::AnyError(value)
+impl From<UserError> for GameError {
+    fn from(value: UserError) -> Self {
+        Self::UserError(value)
     }
 }
 
@@ -87,10 +101,13 @@ impl Display for GameError {
         match self {
             GameError::GraphError(err) => Display::fmt(&err, f),
             GameError::PoolError(err) => Display::fmt(&err, f),
-            GameError::AnyError(err) => Display::fmt(&err, f),
+            GameError::UserError(err) => Display::fmt(&err, f),
             GameError::ResourceLoadError(err) => Display::fmt(&err, f),
             GameError::VisitError(err) => Display::fmt(&err, f),
             GameError::DynTypeError(err) => Display::fmt(&err, f),
+            GameError::StringError(msg) => {
+                write!(f, "{msg}")
+            }
         }
     }
 }
@@ -105,4 +122,4 @@ impl Debug for GameError {
 pub type GameResult = Result<(), GameError>;
 
 /// An arbitrary, user-defined, boxed error type.
-pub type AnyScriptError = Box<dyn std::error::Error>;
+pub type UserError = Box<dyn std::error::Error>;
