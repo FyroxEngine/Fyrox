@@ -22,14 +22,30 @@
 
 use crate::{
     asset::state::LoadError,
-    core::{pool::PoolError, visitor::error::VisitError},
+    core::{dyntype::DynTypeError, pool::PoolError, visitor::error::VisitError},
     scene::graph::GraphError,
 };
-use fyrox_core::dyntype::DynTypeError;
-use std::fmt::{Debug, Display, Formatter};
+use std::{
+    backtrace::Backtrace,
+    fmt::{Debug, Display, Formatter},
+    sync::atomic::{AtomicBool, Ordering},
+};
+
+static CAPTURE_BACKTRACE: AtomicBool = AtomicBool::new(false);
+
+/// Enables or disables backtrace capture when an error occurs. Backtrace capture is an expensive
+/// operation, so it is disabled by default.
+pub fn enable_backtrace_capture(capture: bool) {
+    CAPTURE_BACKTRACE.store(capture, Ordering::Relaxed);
+}
+
+/// Returns `true` when the backtrace capture is one, `false` - otherwise.
+pub fn is_capturing_backtrace() -> bool {
+    CAPTURE_BACKTRACE.load(Ordering::Relaxed)
+}
 
 /// All possible errors that may occur during script or plugin methods execution.
-pub enum GameError {
+pub enum GameErrorKind {
     /// A [`GraphError`] has occurred.
     GraphError(GraphError),
     /// A [`PoolError`] has occurred.
@@ -46,51 +62,69 @@ pub enum GameError {
     StringError(String),
 }
 
+/// An error that may occur during game code execution.
+pub struct GameError {
+    kind: GameErrorKind,
+    trace: Option<Backtrace>,
+}
+
 impl GameError {
+    /// Creates a new error from the specified kind.
+    pub fn new(kind: GameErrorKind) -> Self {
+        Self {
+            kind,
+            trace: if is_capturing_backtrace() {
+                Some(Backtrace::force_capture())
+            } else {
+                None
+            },
+        }
+    }
+
     /// A shortcut `GameError::user(value)` for `GameError::UserError(Box::new(value))`.
     pub fn user(value: impl std::error::Error + 'static) -> Self {
-        Self::UserError(Box::new(value))
+        Self::new(GameErrorKind::UserError(Box::new(value)))
     }
 
     /// A shortcut for [`Self::StringError`]
     pub fn str(value: impl AsRef<str>) -> Self {
-        Self::StringError(value.as_ref().to_string())
+        Self::new(GameErrorKind::StringError(value.as_ref().to_string()))
     }
 }
 
 impl From<GraphError> for GameError {
     fn from(value: GraphError) -> Self {
-        Self::GraphError(value)
+        Self::new(GameErrorKind::GraphError(value))
     }
 }
 
 impl From<PoolError> for GameError {
     fn from(value: PoolError) -> Self {
-        Self::PoolError(value)
+        Self::new(GameErrorKind::PoolError(value))
     }
 }
 
 impl From<UserError> for GameError {
     fn from(value: UserError) -> Self {
-        Self::UserError(value)
+        Self::new(GameErrorKind::UserError(value))
     }
 }
 
 impl From<LoadError> for GameError {
     fn from(value: LoadError) -> Self {
-        Self::ResourceLoadError(value)
+        Self::new(GameErrorKind::ResourceLoadError(value))
     }
 }
 
 impl From<VisitError> for GameError {
     fn from(value: VisitError) -> Self {
-        Self::VisitError(value)
+        Self::new(GameErrorKind::VisitError(value))
     }
 }
 
 impl From<DynTypeError> for GameError {
     fn from(value: DynTypeError) -> Self {
-        Self::DynTypeError(value)
+        Self::new(GameErrorKind::DynTypeError(value))
     }
 }
 
@@ -98,14 +132,32 @@ impl std::error::Error for GameError {}
 
 impl Display for GameError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self.trace.as_ref() {
+            Some(trace) => {
+                write!(f, "{}\nBacktrace:\n{}", self.kind, trace)
+            }
+            None => {
+                write!(
+                    f,
+                    "{}\nBacktrace is unavailable, call `enable_backtrace_capture(true)` to \
+                 enable backtrace capture. Keep in mind that it may be very slow!",
+                    self.kind
+                )
+            }
+        }
+    }
+}
+
+impl Display for GameErrorKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            GameError::GraphError(err) => Display::fmt(&err, f),
-            GameError::PoolError(err) => Display::fmt(&err, f),
-            GameError::UserError(err) => Display::fmt(&err, f),
-            GameError::ResourceLoadError(err) => Display::fmt(&err, f),
-            GameError::VisitError(err) => Display::fmt(&err, f),
-            GameError::DynTypeError(err) => Display::fmt(&err, f),
-            GameError::StringError(msg) => {
+            Self::GraphError(err) => Display::fmt(&err, f),
+            Self::PoolError(err) => Display::fmt(&err, f),
+            Self::UserError(err) => Display::fmt(&err, f),
+            Self::ResourceLoadError(err) => Display::fmt(&err, f),
+            Self::VisitError(err) => Display::fmt(&err, f),
+            Self::DynTypeError(err) => Display::fmt(&err, f),
+            Self::StringError(msg) => {
                 write!(f, "{msg}")
             }
         }
