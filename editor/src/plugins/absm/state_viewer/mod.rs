@@ -424,7 +424,7 @@ impl StateViewer {
 
             let mut views = Vec::new();
             if self.prev_layer != current_selection.layer
-                || current_selection.absm_node_handle != self.prev_absm.into()
+                || current_selection.absm_node_handle != Handle::<N>::from(self.prev_absm)
             {
                 self.prev_layer = current_selection.layer;
                 self.prev_absm = current_selection.absm_node_handle.into();
@@ -444,7 +444,10 @@ impl StateViewer {
                                 .nodes()
                                 .try_borrow(pose_node.model_handle)
                                 .ok()
-                                .is_some_and(|node| node.parent_state == self.state.into())
+                                .is_some_and(|node| {
+                                    node.parent_state
+                                        == Handle::<State<Handle<N>>>::from(self.state)
+                                })
                             {
                                 true
                             } else {
@@ -464,7 +467,7 @@ impl StateViewer {
                 .nodes()
                 .pair_iter()
                 .filter_map(|(h, n)| {
-                    if n.parent_state == self.state.into() {
+                    if n.parent_state == Handle::<State<Handle<N>>>::from(self.state) {
                         Some(h)
                     } else {
                         None
@@ -602,7 +605,7 @@ impl StateViewer {
                     ui.send_sync(view, WidgetMessage::DesiredPosition(model_ref.position));
                 }
 
-                if model_ref.parent_state == self.state.into() {
+                if model_ref.parent_state == Handle::<State<Handle<N>>>::from(self.state) {
                     ui.send_sync(
                         view,
                         AbsmNodeMessage::NormalBrush(if model_handle == parent_state_ref.root {

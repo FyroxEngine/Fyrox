@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::pool::ObjectOrVariant;
 use crate::reflect::ReflectHandle;
 use crate::{
     combine_uuids, pool::INVALID_GENERATION, reflect::prelude::*, uuid_provider,
@@ -217,9 +218,9 @@ impl<T> Copy for Handle<T> {}
 
 impl<T> Eq for Handle<T> {}
 
-impl<T> PartialEq for Handle<T> {
+impl<T, U: ObjectOrVariant<T>> PartialEq<Handle<U>> for Handle<T> {
     #[inline]
-    fn eq(&self, other: &Handle<T>) -> bool {
+    fn eq(&self, other: &Handle<U>) -> bool {
         self.generation == other.generation && self.index == other.index
     }
 }

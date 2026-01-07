@@ -135,7 +135,8 @@ impl StateGraphViewer {
             ui.node(*c)
                 .query_component::<TransitionView>()
                 .is_some_and(|transition_view_ref| {
-                    transition == transition_view_ref.model_handle.into()
+                    transition
+                        == Handle::<Transition<Handle<N>>>::from(transition_view_ref.model_handle)
                 })
         }) {
             ui.send(view_handle, TransitionMessage::Activate);
@@ -318,7 +319,7 @@ impl StateGraphViewer {
         let mut states = Vec::new();
         let mut transitions = Vec::new();
         if self.prev_layer != current_selection.layer
-            || current_selection.absm_node_handle != self.prev_absm.into()
+            || current_selection.absm_node_handle != Handle::<N>::from(self.prev_absm)
         {
             self.prev_layer = current_selection.layer;
             self.prev_absm = current_selection.absm_node_handle.into();
@@ -462,12 +463,12 @@ impl StateGraphViewer {
                 for (transition_handle, transition) in machine_layer.transitions().pair_iter() {
                     if transitions.iter().all(|transition_view| {
                         transition_handle
-                            != ui
-                                .node(*transition_view)
-                                .query_component::<TransitionView>()
-                                .unwrap()
-                                .model_handle
-                                .into()
+                            != Handle::<Transition<Handle<N>>>::from(
+                                ui.node(*transition_view)
+                                    .query_component::<TransitionView>()
+                                    .unwrap()
+                                    .model_handle,
+                            )
                     }) {
                         fn find_state_view<N: Reflect>(
                             state_handle: Handle<State<Handle<N>>>,
@@ -516,11 +517,9 @@ impl StateGraphViewer {
                         )
                     })
                 {
-                    if machine_layer
-                        .transitions()
-                        .pair_iter()
-                        .all(|(h, _)| h != transition_model_handle.into())
-                    {
+                    if machine_layer.transitions().pair_iter().all(|(h, _)| {
+                        h != Handle::<Transition<Handle<N>>>::from(transition_model_handle)
+                    }) {
                         ui.send_sync(transition_view_handle, WidgetMessage::Remove);
 
                         if let Some(position) = transitions
@@ -542,12 +541,12 @@ impl StateGraphViewer {
             .filter_map(|entry| match entry {
                 SelectedEntity::Transition(transition) => transitions.iter().cloned().find(|t| {
                     *transition
-                        == ui
-                            .node(*t)
-                            .query_component::<TransitionView>()
-                            .unwrap()
-                            .model_handle
-                            .into()
+                        == Handle::<Transition<Handle<N>>>::from(
+                            ui.node(*t)
+                                .query_component::<TransitionView>()
+                                .unwrap()
+                                .model_handle,
+                        )
                 }),
                 SelectedEntity::State(state) => states.iter().cloned().find(|s| {
                     ui.node(*s)

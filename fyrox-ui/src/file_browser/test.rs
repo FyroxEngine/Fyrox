@@ -149,7 +149,7 @@ fn test_find_tree() {
     // https://github.com/rust-lang/rust/issues/31374
     assert_eq!(
         fs_tree::find_tree_item(root, Path::new("test/path1"), &ui),
-        Handle::NONE
+        Handle::<UiNode>::NONE
     );
 }
 

@@ -471,13 +471,13 @@ impl UiMessage {
     /// Checks whether the message destination node handle matches the given one and the message
     /// direction is [`MessageDirection::FromWidget`].
     pub fn is_from(&self, handle: Handle<impl ObjectOrVariant<UiNode>>) -> bool {
-        self.destination == handle.transmute() && self.direction == MessageDirection::FromWidget
+        self.destination == handle && self.direction == MessageDirection::FromWidget
     }
 
     /// Checks whether the message destination node handle matches the given one and the message
     /// direction is [`MessageDirection::ToWidget`].
     pub fn is_for(&self, handle: Handle<impl ObjectOrVariant<UiNode>>) -> bool {
-        self.destination == handle.transmute() && self.direction == MessageDirection::ToWidget
+        self.destination == handle && self.direction == MessageDirection::ToWidget
     }
 
     /// Returns destination widget handle of the message.

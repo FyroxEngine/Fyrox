@@ -895,7 +895,9 @@ async fn convert(
                             indices[k] = surface
                                 .bones
                                 .iter()
-                                .position(|bone_handle| *bone_handle == weight.effector.into())
+                                .position(|bone_handle| {
+                                    *bone_handle == Handle::<Node>::from(weight.effector)
+                                })
                                 .ok_or(FbxError::UnableToFindBone)?
                                 as u8;
                             weights[k] = weight.value;

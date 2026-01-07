@@ -2204,7 +2204,7 @@ mod test {
         //   |_Root
         assert_eq!(graph.root, c);
 
-        assert_eq!(graph[graph.root].parent, Handle::NONE);
+        assert_eq!(graph[graph.root].parent, Handle::<Node>::NONE);
         assert_eq!(graph[graph.root].children.len(), 3);
 
         assert_eq!(graph[graph.root].children[0], d);
@@ -2227,14 +2227,14 @@ mod test {
         graph.apply_link_scheme(link_scheme);
 
         assert_eq!(graph.root, root);
-        assert_eq!(graph[graph.root].parent, Handle::NONE);
+        assert_eq!(graph[graph.root].parent, Handle::<Node>::NONE);
         assert_eq!(graph[graph.root].children, vec![a]);
 
         assert_eq!(graph[a].parent, root);
         assert_eq!(graph[a].children, vec![b, c]);
 
         assert_eq!(graph[b].parent, a);
-        assert_eq!(graph[b].children, vec![]);
+        assert_eq!(graph[b].children, Vec::<Handle<Node>>::new());
 
         assert_eq!(graph[c].parent, a);
         assert_eq!(graph[c].children, vec![d]);

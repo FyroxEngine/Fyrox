@@ -90,10 +90,11 @@ impl WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'_> {
     }
 
     fn is_node_has_child(&self, node: ErasedHandle, child: ErasedHandle) -> bool {
-        self.ui
-            .try_get_node(node.into())
-            .ok()
-            .is_some_and(|n| n.children().iter().any(|c| *c == child.into()))
+        self.ui.try_get_node(node.into()).ok().is_some_and(|n| {
+            n.children()
+                .iter()
+                .any(|c| *c == Handle::<UiNode>::from(child))
+        })
     }
 
     fn parent_of(&self, node: ErasedHandle) -> ErasedHandle {

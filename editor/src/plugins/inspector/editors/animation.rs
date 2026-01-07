@@ -103,7 +103,7 @@ where
                         .iter()
                         .enumerate()
                         .find_map(|(i, d)| {
-                            if *value == d.handle.into() {
+                            if *value == Handle::<T>::from(d.handle) {
                                 Some(i)
                             } else {
                                 None
@@ -123,7 +123,7 @@ where
         if let Some(index) = environment
             .available_animations
             .iter()
-            .position(|d| *value == d.handle.into())
+            .position(|d| *value == Handle::<T>::from(d.handle))
         {
             Ok(Some(UiMessage::for_widget(
                 ctx.instance,

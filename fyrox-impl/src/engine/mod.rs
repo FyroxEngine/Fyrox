@@ -3140,7 +3140,7 @@ mod test {
                 sender: self.sender.clone(),
             }))
             .build(&mut ctx.scene.graph);
-            assert_eq!(handle, Handle::new(2, 1));
+            assert_eq!(handle, Handle::<Node>::new(2, 1));
 
             Ok(())
         }
@@ -3155,7 +3155,7 @@ mod test {
                 sender: self.sender.clone(),
             }))
             .build(&mut ctx.scene.graph);
-            assert_eq!(handle, Handle::new(3, 1));
+            assert_eq!(handle, Handle::<Node>::new(3, 1));
 
             Ok(())
         }
@@ -3242,7 +3242,7 @@ mod test {
                 .with_script(MySubScript { sender: tx }),
         )
         .build(&mut scene.graph);
-        assert_eq!(node_handle, Handle::new(1, 1));
+        assert_eq!(node_handle, Handle::<Node>::new(1, 1));
 
         let node_handle_0 = Source {
             node_handle,
@@ -3725,7 +3725,7 @@ mod test {
                 .with_script(ScriptThatAddsScripts { num: 2, sender: tx }),
         )
         .build(&mut scene.graph);
-        assert_eq!(node_handle, Handle::new(1, 1));
+        assert_eq!(node_handle, Handle::<Node>::new(1, 1));
 
         let mut scene_container = SceneContainer::new(Default::default());
 

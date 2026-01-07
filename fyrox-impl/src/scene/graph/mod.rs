@@ -2248,7 +2248,7 @@ mod test {
     #[test]
     fn graph_init_test() {
         let graph = Graph::new();
-        assert_ne!(graph.root, Handle::NONE);
+        assert_ne!(graph.root, Handle::<Node>::NONE);
         assert_eq!(graph.pool.alive_count(), 1);
     }
 

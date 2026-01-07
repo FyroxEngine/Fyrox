@@ -1722,8 +1722,8 @@ mod test {
 
         assert_eq!(pool.spawn_at(2, Payload), Ok(Handle::new(2, 2)));
 
-        assert_eq!(pool.spawn(Payload), Handle::new(1, 2));
-        assert_eq!(pool.spawn(Payload), Handle::new(0, 2));
+        assert_eq!(pool.spawn(Payload), Handle::<Payload>::new(1, 2));
+        assert_eq!(pool.spawn(Payload), Handle::<Payload>::new(0, 2));
     }
 
     #[test]
@@ -1929,7 +1929,7 @@ mod test {
         let a = pool.spawn(42);
 
         assert_eq!(pool.handle_from_index(0), a);
-        assert_eq!(pool.handle_from_index(1), Handle::NONE);
+        assert_eq!(pool.handle_from_index(1), Handle::<u32>::NONE);
     }
 
     #[test]
@@ -2029,11 +2029,11 @@ mod test {
 
         pool.free(b);
 
-        let h0 = Handle::new(1, 2);
-        let h1 = Handle::new(3, 1);
-        let h2 = Handle::new(4, 1);
-        let h3 = Handle::new(5, 1);
-        let h4 = Handle::new(6, 1);
+        let h0 = Handle::<u32>::new(1, 2);
+        let h1 = Handle::<u32>::new(3, 1);
+        let h2 = Handle::<u32>::new(4, 1);
+        let h3 = Handle::<u32>::new(5, 1);
+        let h4 = Handle::<u32>::new(6, 1);
 
         let free_handles = pool.generate_free_handles(5);
         assert_eq!(free_handles, [h0, h1, h2, h3, h4]);
