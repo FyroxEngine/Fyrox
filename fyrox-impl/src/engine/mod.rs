@@ -31,7 +31,7 @@ pub mod task;
 mod hotreload;
 mod wasm_utils;
 
-use crate::plugin::error::GameResult;
+use crate::plugin::error::{GameError, GameResult};
 use crate::{
     asset::{
         event::ResourceEvent,
@@ -529,6 +529,8 @@ pub struct Engine {
 
     /// Script processor is used to run script methods in a strict order.
     pub script_processor: ScriptProcessor,
+
+    error_queue: VecDeque<GameError>,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -543,9 +545,11 @@ pub struct ScriptMessageDispatcher {
     message_receiver: Receiver<ScriptMessage>,
 }
 
-fn report_plugin_error(method_name: &str, result: GameResult) {
+fn report_plugin_error(method_name: &str, result: GameResult, queue: &mut VecDeque<GameError>) {
     if let Err(error) = result {
         err!("An error occurred in {method_name} plugin method. Reason: {error}");
+
+        queue.push_back(error);
     }
 }
 
@@ -616,6 +620,7 @@ impl ScriptMessageDispatcher {
         graphics_context: &mut GraphicsContext,
         task_pool: &mut TaskPoolHandler,
         input_state: &InputState,
+        error_queue: &mut VecDeque<GameError>,
     ) {
         while let Ok(message) = self.message_receiver.try_recv() {
             let type_id = match message.payload.get_dynamic_type_id() {
@@ -653,9 +658,12 @@ impl ScriptMessageDispatcher {
                                 input_state,
                             };
 
-                            process_node_scripts("on_message", &mut context, &mut |s, ctx| {
-                                s.on_message(&mut *payload, ctx)
-                            })
+                            process_node_scripts(
+                                "on_message",
+                                &mut context,
+                                error_queue,
+                                &mut |s, ctx| s.on_message(&mut *payload, ctx),
+                            )
                         }
                     }
                     ScriptMessageKind::Hierarchical { root, routing } => match routing {
@@ -684,6 +692,7 @@ impl ScriptMessageDispatcher {
                                     process_node_scripts(
                                         "on_message",
                                         &mut context,
+                                        error_queue,
                                         &mut |s, ctx| s.on_message(&mut *payload, ctx),
                                     );
                                 }
@@ -713,6 +722,7 @@ impl ScriptMessageDispatcher {
                                     process_node_scripts(
                                         "on_message",
                                         &mut context,
+                                        error_queue,
                                         &mut |s, ctx| s.on_message(&mut *payload, ctx),
                                     );
                                 }
@@ -737,9 +747,12 @@ impl ScriptMessageDispatcher {
                                 input_state,
                             };
 
-                            process_node_scripts("on_message", &mut context, &mut |s, ctx| {
-                                s.on_message(&mut *payload, ctx)
-                            });
+                            process_node_scripts(
+                                "on_message",
+                                &mut context,
+                                error_queue,
+                                &mut |s, ctx| s.on_message(&mut *payload, ctx),
+                            );
                         }
                     }
                 }
@@ -800,6 +813,7 @@ impl ScriptProcessor {
         dt: f32,
         elapsed_time: f32,
         input_state: &InputState,
+        error_queue: &mut VecDeque<GameError>,
     ) {
         self.wait_list
             .retain_mut(|context| !context.is_all_loaded());
@@ -890,6 +904,7 @@ impl ScriptProcessor {
                                     "on_init",
                                     script_index,
                                     &mut context,
+                                    error_queue,
                                     &mut |script, context| {
                                         if !script.initialized {
                                             script.on_init(context)?;
@@ -929,6 +944,7 @@ impl ScriptProcessor {
                                 "on_start",
                                 script_index,
                                 &mut context,
+                                error_queue,
                                 &mut |script, context| {
                                     if script.initialized && !script.started {
                                         let result = script.on_start(context);
@@ -963,6 +979,7 @@ impl ScriptProcessor {
                             "on_update",
                             script_index,
                             &mut context,
+                            error_queue,
                             &mut |script, context| script.on_update(context),
                         );
                     }
@@ -992,6 +1009,7 @@ impl ScriptProcessor {
                 graphics_context,
                 task_pool,
                 input_state,
+                error_queue,
             );
 
             // As the last step, destroy queued scripts.
@@ -1028,6 +1046,8 @@ impl ScriptProcessor {
                             .try_get(handle)
                             .map_or("<undefined>", |n| n.name())
                     );
+
+                    error_queue.push_back(error);
                 }
             }
         }
@@ -1055,13 +1075,18 @@ impl ScriptProcessor {
                     let handle_node = context.scene.graph.handle_from_index(node_index);
                     context.node_handle = handle_node;
 
-                    process_node_scripts("on_deinit", &mut context, &mut |script, context| {
-                        if script.initialized {
-                            script.on_deinit(context)
-                        } else {
-                            Ok(())
-                        }
-                    });
+                    process_node_scripts(
+                        "on_deinit",
+                        &mut context,
+                        error_queue,
+                        &mut |script, context| {
+                            if script.initialized {
+                                script.on_deinit(context)
+                            } else {
+                                Ok(())
+                            }
+                        },
+                    );
                 }
             }
         }
@@ -1229,7 +1254,13 @@ pub struct EngineInitParams {
     pub task_pool: Arc<TaskPool>,
 }
 
-fn process_node_script<T, C>(caller_name: &str, index: usize, context: &mut C, func: &mut T) -> bool
+fn process_node_script<T, C>(
+    caller_name: &str,
+    index: usize,
+    context: &mut C,
+    error_queue: &mut VecDeque<GameError>,
+    func: &mut T,
+) -> bool
 where
     T: FnMut(&mut Script, &mut C) -> GameResult,
     C: UniversalScriptContext,
@@ -1259,6 +1290,7 @@ where
             "An error occurred during {caller_name} call in {handle} node (name: {name}). \
         Reason: {error}",
         );
+        error_queue.push_back(error);
     }
 
     match context.node() {
@@ -1285,8 +1317,12 @@ where
     true
 }
 
-fn process_node_scripts<T, C>(caller_name: &str, context: &mut C, func: &mut T)
-where
+fn process_node_scripts<T, C>(
+    caller_name: &str,
+    context: &mut C,
+    error_queue: &mut VecDeque<GameError>,
+    func: &mut T,
+) where
     T: FnMut(&mut Script, &mut C) -> GameResult,
     C: UniversalScriptContext,
 {
@@ -1294,7 +1330,7 @@ where
     loop {
         context.set_script_index(index);
 
-        if !process_node_script(caller_name, index, context, func) {
+        if !process_node_script(caller_name, index, context, error_queue, func) {
             return;
         }
 
@@ -1317,6 +1353,7 @@ pub(crate) fn process_scripts<T>(
     dt: f32,
     elapsed_time: f32,
     input_state: &InputState,
+    error_queue: &mut VecDeque<GameError>,
     mut func: T,
 ) where
     T: FnMut(&mut Script, &mut ScriptContext) -> GameResult,
@@ -1341,7 +1378,7 @@ pub(crate) fn process_scripts<T>(
     for node_index in 0..context.scene.graph.capacity() {
         context.handle = context.scene.graph.handle_from_index(node_index);
 
-        process_node_scripts(caller_name, &mut context, &mut func);
+        process_node_scripts(caller_name, &mut context, error_queue, &mut func);
     }
 }
 
@@ -1590,6 +1627,7 @@ impl Engine {
             elapsed_time: 0.0,
             task_pool: TaskPoolHandler::new(task_pool),
             input_state: Default::default(),
+            error_queue: Default::default(),
         })
     }
 
@@ -1798,6 +1836,7 @@ impl Engine {
                             report_plugin_error(
                                 "on_scene_begin_loading",
                                 plugin.on_scene_begin_loading(&path, &mut context),
+                                &mut self.error_queue,
                             );
                         }
                     }
@@ -1915,6 +1954,7 @@ impl Engine {
                                         &data,
                                         &mut context,
                                     ),
+                                    &mut self.error_queue,
                                 );
                             }
                         }
@@ -1935,6 +1975,7 @@ impl Engine {
                                         &error,
                                         &mut context,
                                     ),
+                                    &mut self.error_queue,
                                 )
                             }
                         }
@@ -2069,6 +2110,7 @@ impl Engine {
             dt,
             self.elapsed_time,
             &self.input_state,
+            &mut self.error_queue,
         );
 
         self.performance_statistics.scripts_time = instant::Instant::now() - time;
@@ -2104,6 +2146,7 @@ impl Engine {
                 report_plugin_error(
                     "handle_async_tasks",
                     (plugin_task_handler)(result.payload, &mut self.plugins, &mut ctx),
+                    &mut self.error_queue,
                 )
             } else if let Some(node_task_handler) = self.task_pool.pop_node_task_handler(result.id)
             {
@@ -2147,6 +2190,7 @@ impl Engine {
                                         script.deref_mut(),
                                         &mut ctx,
                                     ),
+                                    &mut self.error_queue,
                                 );
 
                                 if let Ok(node) =
@@ -2204,7 +2248,7 @@ impl Engine {
             };
 
             for plugin in self.plugins.iter_mut() {
-                report_plugin_error("update", plugin.update(&mut context));
+                report_plugin_error("update", plugin.update(&mut context), &mut self.error_queue);
             }
 
             let mut uis = self
@@ -2243,6 +2287,7 @@ impl Engine {
                         report_plugin_error(
                             "on_ui_message",
                             plugin.on_ui_message(&mut context, &message, ui),
+                            &mut self.error_queue,
                         );
                     }
                 }
@@ -2281,7 +2326,17 @@ impl Engine {
             };
 
             for plugin in self.plugins.iter_mut() {
-                report_plugin_error("post_update", plugin.post_update(&mut context));
+                report_plugin_error(
+                    "post_update",
+                    plugin.post_update(&mut context),
+                    &mut self.error_queue,
+                );
+            }
+
+            while let Some(error) = self.error_queue.pop_back() {
+                for plugin in self.plugins.iter_mut() {
+                    plugin.on_game_error(&mut context, &error);
+                }
             }
         }
 
@@ -2386,7 +2441,11 @@ impl Engine {
                     input_state: &self.input_state,
                 };
 
-                report_plugin_error("on_os_event", plugin.on_os_event(event, ctx));
+                report_plugin_error(
+                    "on_os_event",
+                    plugin.on_os_event(event, ctx),
+                    &mut self.error_queue,
+                );
             }
         }
     }
@@ -2421,6 +2480,7 @@ impl Engine {
                 report_plugin_error(
                     "on_graphics_context_initialized",
                     plugin.on_graphics_context_initialized(ctx),
+                    &mut self.error_queue,
                 );
             }
         }
@@ -2456,6 +2516,7 @@ impl Engine {
                 report_plugin_error(
                     "on_graphics_context_destroyed",
                     plugin.on_graphics_context_destroyed(ctx),
+                    &mut self.error_queue,
                 );
             }
         }
@@ -2488,7 +2549,11 @@ impl Engine {
                     input_state: &self.input_state,
                 };
 
-                report_plugin_error("before_rendering", plugin.before_rendering(ctx));
+                report_plugin_error(
+                    "before_rendering",
+                    plugin.before_rendering(ctx),
+                    &mut self.error_queue,
+                );
             }
         }
     }
@@ -2528,6 +2593,7 @@ impl Engine {
                     dt,
                     self.elapsed_time,
                     &self.input_state,
+                    &mut self.error_queue,
                     |script, context| {
                         if script.initialized && script.started {
                             script.on_os_event(event, context)
@@ -2636,7 +2702,11 @@ impl Engine {
                         input_state: &self.input_state,
                     };
 
-                    report_plugin_error("init", plugin.init(scene_path, ctx));
+                    report_plugin_error(
+                        "init",
+                        plugin.init(scene_path, ctx),
+                        &mut self.error_queue,
+                    );
                 }
             } else {
                 self.handle_scripts(0.0);
@@ -2662,7 +2732,7 @@ impl Engine {
                     };
 
                     // Deinit plugin first.
-                    report_plugin_error("on_deinit", plugin.on_deinit(ctx));
+                    report_plugin_error("on_deinit", plugin.on_deinit(ctx), &mut self.error_queue);
                 }
             }
         }
@@ -2674,6 +2744,7 @@ impl Engine {
         dyn_type_constructors: &Arc<DynTypeConstructorContainer>,
         resource_manager: &ResourceManager,
         plugin: &dyn Plugin,
+        error_queue: &mut VecDeque<GameError>,
     ) {
         report_plugin_error(
             "register",
@@ -2683,16 +2754,18 @@ impl Engine {
                 dyn_type_constructors,
                 resource_manager,
             }),
+            error_queue,
         );
     }
 
-    fn register_plugin(&self, plugin: &dyn Plugin) {
+    fn register_plugin(&mut self, plugin: &dyn Plugin) {
         Self::register_plugin_internal(
             &self.serialization_context,
             &self.widget_constructors,
             &self.dyn_type_constructors,
             &self.resource_manager,
             plugin,
+            &mut self.error_queue,
         )
     }
 
@@ -2919,6 +2992,7 @@ impl Engine {
                 &self.dyn_type_constructors,
                 &self.resource_manager,
                 plugin,
+                &mut self.error_queue,
             );
 
             // New plugins may add custom resources and we must re-scan the data folder to include
@@ -2987,7 +3061,11 @@ impl Engine {
             task_pool: &mut self.task_pool,
             input_state: &self.input_state,
         };
-        report_plugin_error("on_loaded", plugin.as_loaded_mut().on_loaded(ctx));
+        report_plugin_error(
+            "on_loaded",
+            plugin.as_loaded_mut().on_loaded(ctx),
+            &mut self.error_queue,
+        );
 
         Log::info(format!("Plugin {plugin_index} was successfully reloaded!"));
 
@@ -3288,6 +3366,7 @@ mod test {
                 0.0,
                 0.0,
                 &Default::default(),
+                &mut Default::default(),
             );
 
             match iteration {
@@ -3460,6 +3539,7 @@ mod test {
                 0.0,
                 0.0,
                 &Default::default(),
+                &mut Default::default(),
             );
 
             match iteration {
@@ -3750,6 +3830,7 @@ mod test {
                 0.0,
                 0.0,
                 &Default::default(),
+                &mut Default::default(),
             );
 
             match iteration {

@@ -25,6 +25,7 @@
 pub mod dylib;
 pub mod error;
 
+use crate::plugin::error::GameError;
 use crate::{
     asset::manager::ResourceManager,
     core::{
@@ -445,5 +446,26 @@ pub trait Plugin: PluginAsAny + Visit + Reflect {
         #[allow(unused_variables)] context: &mut PluginContext,
     ) -> GameResult {
         Ok(())
+    }
+
+    /// This method is called when a game error has occurred, allowing you to perform some
+    /// specific action to react to it (for example - to show an error message UI in your game).
+    ///
+    /// ## Important notes
+    ///
+    /// This method is called at the end of the current frame, and before that, the engine collects
+    /// all the errors into a queue and then processes them one by one. This means that this method
+    /// won't be called immediately when an error was returned by any of your plugin or script methods,
+    /// but instead the processing will be delayed to the end of the frame.
+    ///
+    /// The error passed by a reference here instead of by-value, because there could be multiple
+    /// plugins that can handle the error. This might seem counterintuitive, but remember that
+    /// [`GameError`] can occur during script execution, which is not a part of a plugin and its
+    /// methods executed separately, outside the plugin routines.
+    fn on_game_error(
+        &mut self,
+        #[allow(unused_variables)] context: &mut PluginContext,
+        #[allow(unused_variables)] error: &GameError,
+    ) {
     }
 }
