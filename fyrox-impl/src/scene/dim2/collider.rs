@@ -615,8 +615,8 @@ impl Collider {
     pub fn active_intersects<'a>(
         &self,
         physics: &'a PhysicsWorld,
-    ) -> impl Iterator<Item = Handle<Node>> + 'a {
-        let self_handle = self.handle();
+    ) -> impl Iterator<Item = Handle<Self>> + 'a {
+        let self_handle = self.handle().to_variant();
         self.intersects(physics)
             .filter(|pair| pair.has_any_active_contact)
             .map(move |pair| pair.other(self_handle))

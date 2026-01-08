@@ -207,7 +207,7 @@ impl PhysicsPerformanceStatistics {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Intersection {
     /// A handle of the collider with which intersection was detected.
-    pub collider: Handle<Node>,
+    pub collider: Handle<collider::Collider>,
 
     /// A normal at the intersection position.
     pub normal: Vector3<f32>,
@@ -325,9 +325,9 @@ pub struct ContactManifold {
     /// The contact normal of all the contacts of this manifold, expressed in the local space of the second shape.
     pub local_n2: Vector3<f32>,
     /// The first rigid-body involved in this contact manifold.
-    pub rigid_body1: Handle<Node>,
+    pub rigid_body1: Handle<rigidbody::RigidBody>,
     /// The second rigid-body involved in this contact manifold.
-    pub rigid_body2: Handle<Node>,
+    pub rigid_body2: Handle<rigidbody::RigidBody>,
     /// The world-space contact normal shared by all the contact in this contact manifold.
     pub normal: Vector3<f32>,
 }
@@ -336,9 +336,9 @@ pub struct ContactManifold {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ContactPair {
     /// The first collider involved in the contact pair.
-    pub collider1: Handle<Node>,
+    pub collider1: Handle<collider::Collider>,
     /// The second collider involved in the contact pair.
-    pub collider2: Handle<Node>,
+    pub collider2: Handle<collider::Collider>,
     /// The set of contact manifolds between the two colliders.
     /// All contact manifold contain themselves contact points between the colliders.
     pub manifolds: Vec<ContactManifold>,
@@ -353,7 +353,7 @@ impl ContactPair {
     /// may be the first member of some pairs and the second member of other pairs.
     /// This method simplifies determining which objects a collider has collided with.
     #[inline]
-    pub fn other(&self, subject: Handle<Node>) -> Handle<Node> {
+    pub fn other(&self, subject: Handle<collider::Collider>) -> Handle<collider::Collider> {
         if subject == self.collider1 {
             self.collider2
         } else {
@@ -408,9 +408,9 @@ impl ContactPair {
 #[derive(Debug, Clone, PartialEq)]
 pub struct IntersectionPair {
     /// The first collider involved in the contact pair.
-    pub collider1: Handle<Node>,
+    pub collider1: Handle<collider::Collider>,
     /// The second collider involved in the contact pair.
-    pub collider2: Handle<Node>,
+    pub collider2: Handle<collider::Collider>,
     /// Is there any active contact in this contact pair?
     /// When false, this pair may just mean that bounding boxes are touching.
     pub has_any_active_contact: bool,
@@ -423,7 +423,7 @@ impl IntersectionPair {
     /// may be the first member of some pairs and the second member of other pairs.
     /// This method simplifies determining which objects a collider has collided with.
     #[inline]
-    pub fn other(&self, subject: Handle<Node>) -> Handle<Node> {
+    pub fn other(&self, subject: Handle<collider::Collider>) -> Handle<collider::Collider> {
         if subject == self.collider1 {
             self.collider2
         } else {
