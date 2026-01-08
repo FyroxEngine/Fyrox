@@ -243,6 +243,25 @@ impl<T> Handle<T> {
         type_marker: PhantomData,
     };
 
+    /// Converts the handle to its base variant. In other words, if there are two related types and
+    /// A is a variant of B, then this method converts `Handle<A> -> Handle<B>`.
+    #[inline(always)]
+    pub fn to_base<B>(self) -> Handle<B>
+    where
+        T: ObjectOrVariant<B>,
+    {
+        self.transmute()
+    }
+
+    /// Converts the handle of a base object to the handle of its variant.
+    #[inline(always)]
+    pub fn to_variant<V>(self) -> Handle<V>
+    where
+        V: ObjectOrVariant<T>,
+    {
+        self.transmute()
+    }
+
     #[inline(always)]
     pub fn is_none(self) -> bool {
         self.index == 0 && self.generation == INVALID_GENERATION
