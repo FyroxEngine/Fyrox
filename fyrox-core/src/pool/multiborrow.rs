@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use super::{Handle, PayloadContainer, Pool, PoolError, RefCounter};
+use super::{Handle, ObjectOrVariant, PayloadContainer, Pool, PoolError, RefCounter};
 use crate::ComponentProvider;
 use std::{
     any::TypeId,
@@ -198,20 +198,28 @@ where
     }
 
     /// Tries to get a mutable reference to a pool element located at the given handle. The method could
-    /// fail in three main reasons:
+    /// fail in the two main reasons:
     ///
     /// 1) A reference to an element is already taken - returning multiple mutable references to the
     /// same element is forbidden by Rust safety rules.
-    /// 2) You're trying to get more references that the context could handle (there is not enough space
-    /// in the internal handles storage) - in this case you must increase `N`.
-    /// 3) A given handle is invalid.
+    /// 2) A given handle is invalid.
     #[inline]
-    pub fn try_get<'b: 'a>(&'b self, handle: Handle<T>) -> Result<Ref<'a, 'b, T>, PoolError> {
-        self.try_get_internal(handle, |obj| Ok(obj))
+    pub fn try_get<'b, U>(&'b self, handle: Handle<U>) -> Result<Ref<'a, 'b, U>, PoolError>
+    where
+        'b: 'a,
+        U: ObjectOrVariant<T>,
+    {
+        self.try_get_internal(handle.to_base(), |obj| {
+            U::convert_to_dest_type(obj).ok_or(PoolError::InvalidType(handle.into()))
+        })
     }
 
     #[inline]
-    pub fn get<'b: 'a>(&'b self, handle: Handle<T>) -> Ref<'a, 'b, T> {
+    pub fn get<'b, U>(&'b self, handle: Handle<U>) -> Ref<'a, 'b, U>
+    where
+        'b: 'a,
+        U: ObjectOrVariant<T>,
+    {
         self.try_get(handle).unwrap()
     }
 
@@ -265,15 +273,22 @@ where
     }
 
     #[inline]
-    pub fn try_get_mut<'b: 'a>(
-        &'b self,
-        handle: Handle<T>,
-    ) -> Result<RefMut<'a, 'b, T>, PoolError> {
-        self.try_get_mut_internal(handle, |obj| Ok(obj))
+    pub fn try_get_mut<'b, U>(&'b self, handle: Handle<U>) -> Result<RefMut<'a, 'b, U>, PoolError>
+    where
+        'b: 'a,
+        U: ObjectOrVariant<T>,
+    {
+        self.try_get_mut_internal(handle.to_base(), |obj| {
+            U::convert_to_dest_type_mut(obj).ok_or(PoolError::InvalidType(handle.into()))
+        })
     }
 
     #[inline]
-    pub fn get_mut<'b: 'a>(&'b self, handle: Handle<T>) -> RefMut<'a, 'b, T> {
+    pub fn get_mut<'b, U>(&'b self, handle: Handle<U>) -> RefMut<'a, 'b, U>
+    where
+        'b: 'a,
+        U: ObjectOrVariant<T>,
+    {
         self.try_get_mut(handle).unwrap()
     }
 
