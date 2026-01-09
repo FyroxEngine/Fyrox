@@ -462,10 +462,19 @@ pub trait Plugin: PluginAsAny + Visit + Reflect {
     /// plugins that can handle the error. This might seem counterintuitive, but remember that
     /// [`GameError`] can occur during script execution, which is not a part of a plugin and its
     /// methods executed separately, outside the plugin routines.
+    ///
+    /// ## Error handling
+    ///
+    /// This method should return `true` if the error was handled and no logging is needed, otherwise
+    /// it should return `false` and in this case, the error will be logged by the engine. When
+    /// `true` is returned by the plugin, the error won't be passed to any other plugins. By default,
+    /// this method returns `false`, which means that it does not handle any errors and the engine
+    /// will log the errors as usual.
     fn on_game_error(
         &mut self,
         #[allow(unused_variables)] context: &mut PluginContext,
         #[allow(unused_variables)] error: &GameError,
-    ) {
+    ) -> bool {
+        false
     }
 }

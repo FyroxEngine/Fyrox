@@ -476,6 +476,22 @@ impl AsyncSceneLoader {
     }
 }
 
+pub(crate) enum GameErrorSource {
+    PluginMethod(&'static str),
+    ScriptMethod {
+        scene_handle: Handle<Scene>,
+        node_handle: Handle<Node>,
+        method_name: &'static str,
+    },
+}
+
+pub(crate) struct GameErrorContainer {
+    source: GameErrorSource,
+    error: GameError,
+}
+
+type ErrorQueue = VecDeque<GameErrorContainer>;
+
 /// See module docs.
 pub struct Engine {
     /// Graphics context of the engine. See [`GraphicsContext`] docs for more info.
@@ -530,7 +546,7 @@ pub struct Engine {
     /// Script processor is used to run script methods in a strict order.
     pub script_processor: ScriptProcessor,
 
-    error_queue: VecDeque<GameError>,
+    error_queue: ErrorQueue,
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
@@ -545,11 +561,12 @@ pub struct ScriptMessageDispatcher {
     message_receiver: Receiver<ScriptMessage>,
 }
 
-fn report_plugin_error(method_name: &str, result: GameResult, queue: &mut VecDeque<GameError>) {
+fn try_enqueue_plugin_error(method_name: &'static str, result: GameResult, queue: &mut ErrorQueue) {
     if let Err(error) = result {
-        err!("An error occurred in {method_name} plugin method. Reason: {error}");
-
-        queue.push_back(error);
+        queue.push_back(GameErrorContainer {
+            source: GameErrorSource::PluginMethod(method_name),
+            error,
+        });
     }
 }
 
@@ -620,7 +637,7 @@ impl ScriptMessageDispatcher {
         graphics_context: &mut GraphicsContext,
         task_pool: &mut TaskPoolHandler,
         input_state: &InputState,
-        error_queue: &mut VecDeque<GameError>,
+        error_queue: &mut ErrorQueue,
     ) {
         while let Ok(message) = self.message_receiver.try_recv() {
             let type_id = match message.payload.get_dynamic_type_id() {
@@ -661,6 +678,7 @@ impl ScriptMessageDispatcher {
                             process_node_scripts(
                                 "on_message",
                                 &mut context,
+                                scene_handle,
                                 error_queue,
                                 &mut |s, ctx| s.on_message(&mut *payload, ctx),
                             )
@@ -692,6 +710,7 @@ impl ScriptMessageDispatcher {
                                     process_node_scripts(
                                         "on_message",
                                         &mut context,
+                                        scene_handle,
                                         error_queue,
                                         &mut |s, ctx| s.on_message(&mut *payload, ctx),
                                     );
@@ -722,6 +741,7 @@ impl ScriptMessageDispatcher {
                                     process_node_scripts(
                                         "on_message",
                                         &mut context,
+                                        scene_handle,
                                         error_queue,
                                         &mut |s, ctx| s.on_message(&mut *payload, ctx),
                                     );
@@ -750,6 +770,7 @@ impl ScriptMessageDispatcher {
                             process_node_scripts(
                                 "on_message",
                                 &mut context,
+                                scene_handle,
                                 error_queue,
                                 &mut |s, ctx| s.on_message(&mut *payload, ctx),
                             );
@@ -813,7 +834,7 @@ impl ScriptProcessor {
         dt: f32,
         elapsed_time: f32,
         input_state: &InputState,
-        error_queue: &mut VecDeque<GameError>,
+        error_queue: &mut ErrorQueue,
     ) {
         self.wait_list
             .retain_mut(|context| !context.is_all_loaded());
@@ -903,6 +924,7 @@ impl ScriptProcessor {
                                 process_node_script(
                                     "on_init",
                                     script_index,
+                                    scripted_scene.handle,
                                     &mut context,
                                     error_queue,
                                     &mut |script, context| {
@@ -943,6 +965,7 @@ impl ScriptProcessor {
                             process_node_script(
                                 "on_start",
                                 script_index,
+                                scripted_scene.handle,
                                 &mut context,
                                 error_queue,
                                 &mut |script, context| {
@@ -978,6 +1001,7 @@ impl ScriptProcessor {
                         process_node_script(
                             "on_update",
                             script_index,
+                            scripted_scene.handle,
                             &mut context,
                             error_queue,
                             &mut |script, context| script.on_update(context),
@@ -1037,17 +1061,14 @@ impl ScriptProcessor {
                 // `on_deinit` could also spawn new nodes, but we won't take those into account on
                 // this frame. They'll be correctly handled on next frame.
                 if let Err(error) = script.on_deinit(&mut context) {
-                    err!(
-                        "An error occurred during on_deinit call in {handle} node (name: {}). \
-                        Reason: {error}",
-                        context
-                            .scene
-                            .graph
-                            .try_get(handle)
-                            .map_or("<undefined>", |n| n.name())
-                    );
-
-                    error_queue.push_back(error);
+                    error_queue.push_back(GameErrorContainer {
+                        source: GameErrorSource::ScriptMethod {
+                            scene_handle: scripted_scene.handle,
+                            node_handle: handle,
+                            method_name: "on_deinit",
+                        },
+                        error,
+                    });
                 }
             }
         }
@@ -1078,6 +1099,7 @@ impl ScriptProcessor {
                     process_node_scripts(
                         "on_deinit",
                         &mut context,
+                        scripted_scene.handle,
                         error_queue,
                         &mut |script, context| {
                             if script.initialized {
@@ -1255,10 +1277,11 @@ pub struct EngineInitParams {
 }
 
 fn process_node_script<T, C>(
-    caller_name: &str,
+    caller_name: &'static str,
     index: usize,
+    scene_handle: Handle<Scene>,
     context: &mut C,
-    error_queue: &mut VecDeque<GameError>,
+    error_queue: &mut ErrorQueue,
     func: &mut T,
 ) -> bool
 where
@@ -1285,12 +1308,15 @@ where
 
     if let Err(error) = func(&mut script, context) {
         let node = context.node();
-        let (handle, name) = node.map_or((Handle::NONE, "<undefined>"), |n| (n.handle(), n.name()));
-        err!(
-            "An error occurred during {caller_name} call in {handle} node (name: {name}). \
-        Reason: {error}",
-        );
-        error_queue.push_back(error);
+        let handle = node.map_or(Handle::NONE, |n| n.handle());
+        error_queue.push_back(GameErrorContainer {
+            source: GameErrorSource::ScriptMethod {
+                scene_handle,
+                node_handle: handle,
+                method_name: caller_name,
+            },
+            error,
+        });
     }
 
     match context.node() {
@@ -1318,9 +1344,10 @@ where
 }
 
 fn process_node_scripts<T, C>(
-    caller_name: &str,
+    caller_name: &'static str,
     context: &mut C,
-    error_queue: &mut VecDeque<GameError>,
+    scene_handle: Handle<Scene>,
+    error_queue: &mut ErrorQueue,
     func: &mut T,
 ) where
     T: FnMut(&mut Script, &mut C) -> GameResult,
@@ -1330,7 +1357,7 @@ fn process_node_scripts<T, C>(
     loop {
         context.set_script_index(index);
 
-        if !process_node_script(caller_name, index, context, error_queue, func) {
+        if !process_node_script(caller_name, index, scene_handle, context, error_queue, func) {
             return;
         }
 
@@ -1340,7 +1367,7 @@ fn process_node_scripts<T, C>(
 }
 
 pub(crate) fn process_scripts<T>(
-    caller_name: &str,
+    caller_name: &'static str,
     scene: &mut Scene,
     scene_handle: Handle<Scene>,
     plugins: &mut [PluginContainer],
@@ -1353,7 +1380,7 @@ pub(crate) fn process_scripts<T>(
     dt: f32,
     elapsed_time: f32,
     input_state: &InputState,
-    error_queue: &mut VecDeque<GameError>,
+    error_queue: &mut ErrorQueue,
     mut func: T,
 ) where
     T: FnMut(&mut Script, &mut ScriptContext) -> GameResult,
@@ -1378,7 +1405,13 @@ pub(crate) fn process_scripts<T>(
     for node_index in 0..context.scene.graph.capacity() {
         context.handle = context.scene.graph.handle_from_index(node_index);
 
-        process_node_scripts(caller_name, &mut context, error_queue, &mut func);
+        process_node_scripts(
+            caller_name,
+            &mut context,
+            scene_handle,
+            error_queue,
+            &mut func,
+        );
     }
 }
 
@@ -1833,7 +1866,7 @@ impl Engine {
                         };
 
                         for plugin in self.plugins.iter_mut() {
-                            report_plugin_error(
+                            try_enqueue_plugin_error(
                                 "on_scene_begin_loading",
                                 plugin.on_scene_begin_loading(&path, &mut context),
                                 &mut self.error_queue,
@@ -1946,7 +1979,7 @@ impl Engine {
                                     loading_result.path.display()
                                 ));
 
-                                report_plugin_error(
+                                try_enqueue_plugin_error(
                                     "on_scene_loaded",
                                     plugin.on_scene_loaded(
                                         &request.path,
@@ -1968,7 +2001,7 @@ impl Engine {
                             ));
 
                             for plugin in self.plugins.iter_mut() {
-                                report_plugin_error(
+                                try_enqueue_plugin_error(
                                     "on_scene_loading_failed",
                                     plugin.on_scene_loading_failed(
                                         &request.path,
@@ -2143,7 +2176,7 @@ impl Engine {
                     task_pool: &mut self.task_pool,
                     input_state: &self.input_state,
                 };
-                report_plugin_error(
+                try_enqueue_plugin_error(
                     "handle_async_tasks",
                     (plugin_task_handler)(result.payload, &mut self.plugins, &mut ctx),
                     &mut self.error_queue,
@@ -2183,7 +2216,7 @@ impl Engine {
                                     script_index: node_task_handler.script_index,
                                     input_state: &self.input_state,
                                 };
-                                report_plugin_error(
+                                try_enqueue_plugin_error(
                                     "handle_async_tasks",
                                     (node_task_handler.closure)(
                                         payload,
@@ -2248,7 +2281,11 @@ impl Engine {
             };
 
             for plugin in self.plugins.iter_mut() {
-                report_plugin_error("update", plugin.update(&mut context), &mut self.error_queue);
+                try_enqueue_plugin_error(
+                    "update",
+                    plugin.update(&mut context),
+                    &mut self.error_queue,
+                );
             }
 
             let mut uis = self
@@ -2284,7 +2321,7 @@ impl Engine {
                     };
 
                     for plugin in self.plugins.iter_mut() {
-                        report_plugin_error(
+                        try_enqueue_plugin_error(
                             "on_ui_message",
                             plugin.on_ui_message(&mut context, &message, ui),
                             &mut self.error_queue,
@@ -2326,16 +2363,46 @@ impl Engine {
             };
 
             for plugin in self.plugins.iter_mut() {
-                report_plugin_error(
+                try_enqueue_plugin_error(
                     "post_update",
                     plugin.post_update(&mut context),
                     &mut self.error_queue,
                 );
             }
 
-            while let Some(error) = self.error_queue.pop_back() {
+            while let Some(container) = self.error_queue.pop_back() {
                 for plugin in self.plugins.iter_mut() {
-                    plugin.on_game_error(&mut context, &error);
+                    if plugin.on_game_error(&mut context, &container.error) {
+                        continue;
+                    }
+                    match container.source {
+                        GameErrorSource::PluginMethod(method_name) => {
+                            err!(
+                                "An error occurred in {method_name} plugin method. Reason: {}",
+                                container.error
+                            );
+                        }
+                        GameErrorSource::ScriptMethod {
+                            scene_handle,
+                            node_handle,
+                            method_name,
+                        } => {
+                            let node_name = context
+                                .scenes
+                                .try_get(scene_handle)
+                                .ok()
+                                .and_then(|scene| {
+                                    scene.graph.try_get(node_handle).ok().map(|n| n.name())
+                                })
+                                .unwrap_or("<undefined>");
+
+                            err!(
+                                "An error occurred during {method_name} call in {node_handle} \
+                            node (name: {node_name}). Reason: {}",
+                                container.error
+                            );
+                        }
+                    }
                 }
             }
         }
@@ -2441,7 +2508,7 @@ impl Engine {
                     input_state: &self.input_state,
                 };
 
-                report_plugin_error(
+                try_enqueue_plugin_error(
                     "on_os_event",
                     plugin.on_os_event(event, ctx),
                     &mut self.error_queue,
@@ -2477,7 +2544,7 @@ impl Engine {
                     input_state: &self.input_state,
                 };
 
-                report_plugin_error(
+                try_enqueue_plugin_error(
                     "on_graphics_context_initialized",
                     plugin.on_graphics_context_initialized(ctx),
                     &mut self.error_queue,
@@ -2513,7 +2580,7 @@ impl Engine {
                     input_state: &self.input_state,
                 };
 
-                report_plugin_error(
+                try_enqueue_plugin_error(
                     "on_graphics_context_destroyed",
                     plugin.on_graphics_context_destroyed(ctx),
                     &mut self.error_queue,
@@ -2549,7 +2616,7 @@ impl Engine {
                     input_state: &self.input_state,
                 };
 
-                report_plugin_error(
+                try_enqueue_plugin_error(
                     "before_rendering",
                     plugin.before_rendering(ctx),
                     &mut self.error_queue,
@@ -2702,7 +2769,7 @@ impl Engine {
                         input_state: &self.input_state,
                     };
 
-                    report_plugin_error(
+                    try_enqueue_plugin_error(
                         "init",
                         plugin.init(scene_path, ctx),
                         &mut self.error_queue,
@@ -2732,7 +2799,11 @@ impl Engine {
                     };
 
                     // Deinit plugin first.
-                    report_plugin_error("on_deinit", plugin.on_deinit(ctx), &mut self.error_queue);
+                    try_enqueue_plugin_error(
+                        "on_deinit",
+                        plugin.on_deinit(ctx),
+                        &mut self.error_queue,
+                    );
                 }
             }
         }
@@ -2744,9 +2815,9 @@ impl Engine {
         dyn_type_constructors: &Arc<DynTypeConstructorContainer>,
         resource_manager: &ResourceManager,
         plugin: &dyn Plugin,
-        error_queue: &mut VecDeque<GameError>,
+        error_queue: &mut ErrorQueue,
     ) {
-        report_plugin_error(
+        try_enqueue_plugin_error(
             "register",
             plugin.register(PluginRegistrationContext {
                 serialization_context,
@@ -3061,7 +3132,7 @@ impl Engine {
             task_pool: &mut self.task_pool,
             input_state: &self.input_state,
         };
-        report_plugin_error(
+        try_enqueue_plugin_error(
             "on_loaded",
             plugin.as_loaded_mut().on_loaded(ctx),
             &mut self.error_queue,
