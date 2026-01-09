@@ -35,7 +35,7 @@ use crate::{
         variable::InheritableVariable,
         visitor::prelude::*,
     },
-    graph::BaseSceneGraph,
+    graph::SceneGraph,
     scene::{
         base::{Base, BaseBuilder},
         collider::Collider,

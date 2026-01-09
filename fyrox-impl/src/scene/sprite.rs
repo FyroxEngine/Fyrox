@@ -35,7 +35,7 @@ use crate::{
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
-    graph::{constructor::ConstructorProvider, BaseSceneGraph},
+    graph::{constructor::ConstructorProvider, SceneGraph},
     material::{Material, MaterialResource},
     renderer::{self, bundle::RenderContext},
     scene::{

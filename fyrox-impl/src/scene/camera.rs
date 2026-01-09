@@ -34,7 +34,7 @@ use crate::{
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
-    graph::BaseSceneGraph,
+    graph::SceneGraph,
     resource::texture::{
         TextureKind, TexturePixelKind, TextureResource, TextureResourceExtension, TextureWrapMode,
     },

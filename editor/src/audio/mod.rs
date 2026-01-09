@@ -26,7 +26,7 @@ use crate::{
     fyrox::{
         core::{pool::Handle, reflect::Reflect, some_or_return},
         engine::Engine,
-        graph::BaseSceneGraph,
+        graph::SceneGraph,
         gui::{
             button::{ButtonBuilder, ButtonMessage},
             dropdown_list::{DropdownListBuilder, DropdownListMessage},

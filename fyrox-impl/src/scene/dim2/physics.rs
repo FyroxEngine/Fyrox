@@ -38,7 +38,7 @@ use crate::{
         visitor::prelude::*,
         BiDirHashMap, ImmutableString, SafeLock,
     },
-    graph::{BaseSceneGraph, SceneGraphNode},
+    graph::{SceneGraph, SceneGraphNode},
     scene::{
         self,
         collider::{self},
@@ -58,7 +58,6 @@ use crate::{
         tilemap::TileMap,
     },
 };
-use fyrox_graph::SceneGraph;
 pub use rapier2d::geometry::shape::*;
 use rapier2d::parry::query::DefaultQueryDispatcher;
 use rapier2d::{

@@ -29,7 +29,7 @@ use crate::fyrox::{
         uuid_provider,
         visitor::prelude::*,
     },
-    graph::BaseSceneGraph,
+    graph::SceneGraph,
     gui::{
         brush::Brush,
         define_widget_deref,

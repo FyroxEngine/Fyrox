@@ -26,7 +26,7 @@ use crate::{
             math::Matrix4Ext,
             pool::Handle,
         },
-        graph::BaseSceneGraph,
+        graph::SceneGraph,
         scene::{
             base::BaseBuilder,
             graph::Graph,

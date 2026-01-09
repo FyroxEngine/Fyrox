@@ -30,7 +30,7 @@ use crate::{
             futures::executor::block_on, log::Log, make_relative_path, pool::Handle,
             reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
         },
-        graph::BaseSceneGraph,
+        graph::SceneGraph,
         gui::{
             button::{ButtonBuilder, ButtonMessage},
             define_widget_deref,

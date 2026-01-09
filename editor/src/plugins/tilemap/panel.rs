@@ -30,7 +30,7 @@ use crate::{
     asset::item::AssetItem,
     fyrox::{
         core::pool::Handle,
-        graph::{BaseSceneGraph, SceneGraph},
+        graph::SceneGraph,
         gui::{
             border::BorderBuilder,
             brush::Brush,

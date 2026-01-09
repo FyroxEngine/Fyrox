@@ -34,7 +34,7 @@ use crate::{
 use crate::message::MessageData;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
-    BaseSceneGraph,
+    SceneGraph,
 };
 use fyrox_material::MaterialResource;
 use fyrox_texture::{TextureKind, TextureResource};

@@ -34,7 +34,7 @@ use crate::{
         pool::Handle,
         sstorage::ImmutableString,
     },
-    graph::BaseSceneGraph,
+    graph::SceneGraph,
     graphics::{
         error::FrameworkError,
         framebuffer::{GpuFrameBuffer, ResourceBindGroup, ResourceBinding},
@@ -79,7 +79,7 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
-use fyrox_graph::{SceneGraph, SceneGraphNode};
+use fyrox_graph::SceneGraphNode;
 use fyrox_resource::manager::ResourceManager;
 use std::{
     fmt::{Debug, Formatter},

@@ -59,7 +59,7 @@ use crate::{
     },
     engine::SerializationContext,
     generic_animation::AnimationContainer,
-    graph::{BaseSceneGraph, NodeHandleMap, NodeMapping, PrefabData, SceneGraph, SceneGraphNode},
+    graph::{NodeHandleMap, NodeMapping, PrefabData, SceneGraph, SceneGraphNode},
     resource::fbx::{self, error::FbxError},
     scene::{
         animation::Animation, base::SceneNodeId, graph::Graph, node::Node, transform::Transform,

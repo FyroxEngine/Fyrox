@@ -23,7 +23,7 @@ use crate::fyrox::{
         color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid::uuid,
         visitor::prelude::*,
     },
-    graph::BaseSceneGraph,
+    graph::SceneGraph,
     gui::{
         border::{BorderBuilder, BorderMessage},
         brush::Brush,

@@ -37,7 +37,7 @@ use crate::{
     window::{WindowBuilder, WindowTitle},
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::SceneGraph;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},

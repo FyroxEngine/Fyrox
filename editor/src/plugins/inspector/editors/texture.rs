@@ -26,7 +26,7 @@ use crate::{
             algebra::Vector2, make_relative_path, pool::Handle, reflect::prelude::*,
             type_traits::prelude::*, uuid_provider, visitor::prelude::*,
         },
-        graph::{BaseSceneGraph, SceneGraph},
+        graph::SceneGraph,
         gui::{
             grid::{Column, GridBuilder, Row},
             image::{ImageBuilder, ImageMessage},

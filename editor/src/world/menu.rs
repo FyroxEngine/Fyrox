@@ -24,7 +24,7 @@ use crate::{
         asset::untyped::UntypedResource,
         core::{algebra::Vector2, algebra::Vector3, pool::Handle, reflect::Reflect},
         engine::SerializationContext,
-        graph::BaseSceneGraph,
+        graph::SceneGraph,
         gui::{
             constructor::WidgetConstructorContainer,
             file_browser::FileSelectorMessage,

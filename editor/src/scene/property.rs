@@ -24,7 +24,7 @@ use crate::fyrox::{
         sstorage::ImmutableString, type_traits::prelude::*, uuid_provider, visitor::prelude::*,
     },
     fxhash::FxHashSet,
-    graph::BaseSceneGraph,
+    graph::SceneGraph,
     gui::{
         border::BorderBuilder,
         button::{ButtonBuilder, ButtonMessage},

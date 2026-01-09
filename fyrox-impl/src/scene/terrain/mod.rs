@@ -61,7 +61,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_core::{uuid_provider, warn};
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::SceneGraph;
 use fyrox_resource::untyped::ResourceKind;
 use half::f16;
 use image::{imageops::FilterType, ImageBuffer, Luma};

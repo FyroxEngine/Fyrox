@@ -33,7 +33,7 @@ use crate::{
             TypeUuidProvider,
         },
         engine::Engine,
-        graph::BaseSceneGraph,
+        graph::SceneGraph,
         gui::{
             inspector::{
                 editors::{

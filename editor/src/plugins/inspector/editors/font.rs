@@ -25,7 +25,7 @@ use crate::{
             algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*,
             type_traits::prelude::*, uuid_provider, visitor::prelude::*,
         },
-        graph::BaseSceneGraph,
+        graph::SceneGraph,
         gui::{
             brush::Brush,
             draw::{CommandTexture, Draw, DrawingContext},

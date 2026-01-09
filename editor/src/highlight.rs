@@ -22,7 +22,7 @@ use crate::{
     fyrox::{
         core::{color::Color, pool::Handle, sstorage::ImmutableString},
         fxhash::FxHashSet,
-        graph::{BaseSceneGraph, SceneGraph},
+        graph::SceneGraph,
         graphics::{
             error::FrameworkError,
             framebuffer::{Attachment, GpuFrameBuffer},

@@ -24,7 +24,7 @@ use crate::{
     widget::{WidgetBuilder, WidgetMessage},
     Orientation, UiNode, UserInterface,
 };
-use fyrox_graph::{BaseSceneGraph, SceneGraph};
+use fyrox_graph::SceneGraph;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]

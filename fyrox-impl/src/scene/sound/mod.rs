@@ -60,7 +60,7 @@ pub use fyrox_sound::{
 use crate::scene::node::constructor::NodeConstructor;
 use crate::scene::Scene;
 use fyrox_graph::constructor::ConstructorProvider;
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::SceneGraph;
 use fyrox_resource::state::ResourceState;
 use fyrox_sound::source::SoundSource;
 use std::{

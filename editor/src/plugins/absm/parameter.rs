@@ -25,7 +25,7 @@ use crate::{
         generic_animation::machine::parameter::{
             Parameter, ParameterContainer, ParameterDefinition,
         },
-        graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
+        graph::{PrefabData, SceneGraph, SceneGraphNode},
         gui::{
             inspector::{
                 editors::{

@@ -32,7 +32,7 @@ use crate::{
         pool::Handle,
         ImmutableString,
     },
-    graph::BaseSceneGraph,
+    graph::SceneGraph,
     graphics::{
         error::FrameworkError,
         framebuffer::Attachment,

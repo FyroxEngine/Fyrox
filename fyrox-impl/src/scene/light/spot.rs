@@ -66,7 +66,7 @@ use crate::{
     },
 };
 use fyrox_graph::constructor::ConstructorProvider;
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::SceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.

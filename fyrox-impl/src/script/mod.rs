@@ -42,7 +42,7 @@ use crate::{
 };
 use fyrox_core::pool::ObjectOrVariant;
 pub use fyrox_core_derive::ScriptMessagePayload;
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::SceneGraph;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},

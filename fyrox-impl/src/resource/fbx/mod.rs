@@ -41,7 +41,7 @@ use crate::{
         math::{self, triangulator::triangulate, RotationOrder},
         pool::Handle,
     },
-    graph::BaseSceneGraph,
+    graph::SceneGraph,
     material,
     material::MaterialResourceBinding,
     resource::{

@@ -46,7 +46,7 @@ use fyrox_core::algebra::Vector3;
 use fyrox_core::math::TriangleDefinition;
 use fyrox_core::parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 use fyrox_graph::constructor::ConstructorProvider;
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::SceneGraph;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,

@@ -52,7 +52,7 @@ use crate::{
             Uuid,
         },
         engine::Engine,
-        graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
+        graph::{SceneGraph, SceneGraphNode},
         gui::{message::UiMessage, BuildContext, UiNode},
         material::{
             shader::{ShaderResource, ShaderResourceExtension},

@@ -46,7 +46,7 @@ use crate::{
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::SceneGraph;
 
 /// A set of messages that can be accepted by [`ScrollBar`] widget.
 #[derive(Debug, Clone, PartialEq)]

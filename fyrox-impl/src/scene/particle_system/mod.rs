@@ -51,7 +51,7 @@ use crate::{
         },
     },
 };
-use fyrox_graph::{constructor::ConstructorProvider, BaseSceneGraph};
+use fyrox_graph::{constructor::ConstructorProvider, SceneGraph};
 use std::{
     cmp::Ordering,
     fmt::Debug,

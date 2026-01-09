@@ -29,7 +29,7 @@ use crate::{
             reflect::prelude::*,
             some_or_return,
         },
-        graph::{BaseSceneGraph, SceneGraph},
+        graph::SceneGraph,
         gui::{
             button::{ButtonBuilder, ButtonMessage},
             grid::{Column, GridBuilder, Row},

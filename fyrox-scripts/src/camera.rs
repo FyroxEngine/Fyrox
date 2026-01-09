@@ -21,7 +21,7 @@
 //! Flying camera controller script is used to create flying cameras, that can be rotated via mouse and moved via keyboard keys.
 //! See [`FlyingCameraController`] docs for more info and usage examples.
 
-use fyrox::graph::BaseSceneGraph;
+use fyrox::graph::SceneGraph;
 use fyrox::plugin::error::GameResult;
 use fyrox::{
     core::{

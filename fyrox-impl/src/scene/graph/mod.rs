@@ -50,11 +50,11 @@ use crate::{
         instant,
         log::{Log, MessageKind},
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
-        pool::{ErasedHandle, Handle, MultiBorrowContext, Pool, Ticket},
+        pool::{Handle, MultiBorrowContext, Pool, Ticket},
         reflect::prelude::*,
         visitor::{Visit, VisitResult, Visitor},
     },
-    graph::{AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, SceneGraph},
+    graph::{NodeHandleMap, SceneGraph},
     material::{MaterialResourceBinding, MaterialTextureBinding},
     resource::model::{Model, ModelResource, ModelResourceExtension},
     scene::{
@@ -1429,7 +1429,7 @@ impl Graph {
     /// # use fyrox_impl::scene::node::Node;
     /// # use fyrox_impl::scene::graph::Graph;
     /// # use fyrox_impl::scene::pivot::Pivot;
-    /// # use fyrox_graph::BaseSceneGraph;
+    /// # use fyrox_graph::SceneGraph;
     /// let mut graph = Graph::new();
     /// graph.add_node(Node::new(Pivot::default()));
     /// graph.add_node(Node::new(Pivot::default()));
@@ -1453,7 +1453,7 @@ impl Graph {
     /// # use fyrox_impl::scene::node::Node;
     /// # use fyrox_impl::scene::graph::Graph;
     /// # use fyrox_impl::scene::pivot::Pivot;
-    /// # use fyrox_graph::BaseSceneGraph;
+    /// # use fyrox_graph::SceneGraph;
     /// let mut graph = Graph::new();
     /// graph.add_node(Node::new(Pivot::default()));
     /// graph.add_node(Node::new(Pivot::default()));
@@ -1911,27 +1911,8 @@ impl Visit for Graph {
     }
 }
 
-impl AbstractSceneGraph for Graph {
-    fn try_get_node_untyped(
-        &self,
-        handle: ErasedHandle,
-    ) -> Result<&dyn AbstractSceneNode, PoolError> {
-        self.pool
-            .try_borrow(handle.into())
-            .map(|n| n as &dyn AbstractSceneNode)
-    }
-
-    fn try_get_node_untyped_mut(
-        &mut self,
-        handle: ErasedHandle,
-    ) -> Result<&mut dyn AbstractSceneNode, PoolError> {
-        self.pool
-            .try_borrow_mut(handle.into())
-            .map(|n| n as &mut dyn AbstractSceneNode)
-    }
-}
-
-impl BaseSceneGraph for Graph {
+impl SceneGraph for Graph {
+    type ObjectType = Node;
     type Prefab = Model;
     type NodeContainer = NodeContainer;
     type Node = Node;
@@ -2085,10 +2066,7 @@ impl BaseSceneGraph for Graph {
             .try_borrow(handle)
             .map(|n| n.0.deref().type_name())
     }
-}
 
-impl SceneGraph for Graph {
-    type ObjectType = Node;
     #[inline]
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
         self.pool.pair_iter()
@@ -2130,7 +2108,7 @@ mod test {
             visitor::prelude::*,
         },
         engine::{self, SerializationContext},
-        graph::{BaseSceneGraph, SceneGraph},
+        graph::SceneGraph,
         resource::model::{Model, ModelResourceExtension},
         scene::{
             base::BaseBuilder,

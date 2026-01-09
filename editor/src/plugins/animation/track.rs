@@ -44,7 +44,7 @@ use crate::{
             value::{ValueBinding, ValueType},
             Animation,
         },
-        graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
+        graph::{SceneGraph, SceneGraphNode},
         graphics::DrawParameters,
         gui::{
             border::BorderBuilder,

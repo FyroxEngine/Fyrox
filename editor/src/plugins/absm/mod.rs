@@ -32,7 +32,7 @@ use crate::{
             },
             AnimationContainer,
         },
-        graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
+        graph::{PrefabData, SceneGraph, SceneGraphNode},
         gui::{
             check_box::CheckBoxMessage,
             dock::{DockingManagerBuilder, DockingManagerMessage, TileBuilder, TileContent},

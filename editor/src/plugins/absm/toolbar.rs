@@ -24,7 +24,7 @@ use crate::{
         core::pool::Handle,
         fxhash::FxHashSet,
         generic_animation::machine::{mask::LayerMask, Machine, MachineLayer},
-        graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
+        graph::{PrefabData, SceneGraph, SceneGraphNode},
         gui::{
             button::{ButtonBuilder, ButtonMessage},
             check_box::{CheckBoxBuilder, CheckBoxMessage},

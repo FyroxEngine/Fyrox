@@ -37,7 +37,7 @@ use crate::{
             ok_or_continue, pool::Handle, some_or_continue, SafeLock,
         },
         engine::Engine,
-        graph::{BaseSceneGraph, SceneGraph},
+        graph::SceneGraph,
         gui::{
             border::BorderBuilder,
             button::{Button, ButtonBuilder, ButtonMessage},

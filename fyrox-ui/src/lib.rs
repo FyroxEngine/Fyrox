@@ -305,7 +305,7 @@ use crate::{
         log::Log,
         math::Rect,
         parking_lot::Mutex,
-        pool::{ErasedHandle, Handle, ObjectOrVariant, Pool, Ticket},
+        pool::{Handle, ObjectOrVariant, Pool, Ticket},
         reflect::prelude::*,
         uuid::{uuid, Uuid},
         uuid_provider,
@@ -329,10 +329,7 @@ use crate::{
 use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
 pub use fyrox_animation as generic_animation;
-use fyrox_graph::{
-    AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, NodeMapping, PrefabData,
-    SceneGraph, SceneGraphNode,
-};
+use fyrox_graph::{NodeHandleMap, NodeMapping, PrefabData, SceneGraph, SceneGraphNode};
 use fyrox_resource::{
     io::{FsResourceIo, ResourceIo},
     manager::ResourceManager,
@@ -3504,27 +3501,8 @@ impl PrefabData for UserInterface {
     }
 }
 
-impl AbstractSceneGraph for UserInterface {
-    fn try_get_node_untyped(
-        &self,
-        handle: ErasedHandle,
-    ) -> Result<&dyn AbstractSceneNode, PoolError> {
-        self.nodes
-            .try_borrow(handle.into())
-            .map(|n| n as &dyn AbstractSceneNode)
-    }
-
-    fn try_get_node_untyped_mut(
-        &mut self,
-        handle: ErasedHandle,
-    ) -> Result<&mut dyn AbstractSceneNode, PoolError> {
-        self.nodes
-            .try_borrow_mut(handle.into())
-            .map(|n| n as &mut dyn AbstractSceneNode)
-    }
-}
-
-impl BaseSceneGraph for UserInterface {
+impl SceneGraph for UserInterface {
+    type ObjectType = UiNode;
     type Prefab = Self;
     type NodeContainer = WidgetContainer;
     type Node = UiNode;
@@ -3660,10 +3638,7 @@ impl BaseSceneGraph for UserInterface {
             .try_borrow(handle)
             .map(|n| Reflect::type_name(n.0.deref()))
     }
-}
 
-impl SceneGraph for UserInterface {
-    type ObjectType = UiNode;
     #[inline]
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
         self.nodes.pair_iter()
@@ -3932,7 +3907,7 @@ mod test_inner {
         widget::{WidgetBuilder, WidgetMessage},
         OsEvent, UserInterface,
     };
-    use fyrox_graph::BaseSceneGraph;
+    use fyrox_graph::SceneGraph;
 
     #[test]
     fn test_transform_size() {

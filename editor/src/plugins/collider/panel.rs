@@ -23,7 +23,7 @@ use crate::{
     fyrox::{
         core::{algebra::Vector3, pool::Handle, reflect::Reflect, TypeUuidProvider},
         engine::Engine,
-        graph::{BaseSceneGraph, SceneGraph},
+        graph::SceneGraph,
         gui::{
             button::{ButtonBuilder, ButtonMessage},
             message::UiMessage,

@@ -45,7 +45,7 @@ use crate::{
 
 use crate::message::MessageData;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_graph::{BaseSceneGraph, SceneGraph};
+use fyrox_graph::SceneGraph;
 use std::cell::Cell;
 
 #[derive(Debug, Clone, PartialEq)]

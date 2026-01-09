@@ -36,7 +36,7 @@ use crate::{
         visitor::prelude::*,
         ImmutableString, TypeUuidProvider,
     },
-    graph::BaseSceneGraph,
+    graph::SceneGraph,
     scene::{
         base::{Base, BaseBuilder},
         collider::InteractionGroups,
@@ -51,7 +51,6 @@ use crate::{
 };
 
 use fyrox_graph::constructor::ConstructorProvider;
-use fyrox_graph::SceneGraph;
 use rapier2d::geometry::ColliderHandle;
 use std::{
     cell::Cell,

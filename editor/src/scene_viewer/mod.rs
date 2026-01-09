@@ -24,7 +24,7 @@ use crate::{
         core::{color::Color, math::Rect, pool::Handle, uuid::Uuid},
         engine::Engine,
         fxhash::FxHashMap,
-        graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
+        graph::{SceneGraph, SceneGraphNode},
         graphics::PolygonFillMode,
         gui::{
             border::BorderBuilder,

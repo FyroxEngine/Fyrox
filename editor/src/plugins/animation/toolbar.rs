@@ -27,7 +27,7 @@ use crate::{
             pool::ErasedHandle, pool::Handle,
         },
         generic_animation::{Animation, AnimationContainer, RootMotionSettings},
-        graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
+        graph::{PrefabData, SceneGraph, SceneGraphNode},
         gui::{
             border::BorderBuilder,
             button::{Button, ButtonBuilder, ButtonMessage},

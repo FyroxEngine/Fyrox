@@ -46,7 +46,7 @@ use crate::{
 use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_graph::{BaseSceneGraph, SceneGraph, SceneGraphNode};
+use fyrox_graph::{SceneGraph, SceneGraphNode};
 use std::collections::VecDeque;
 
 /// Opaque selection state of a tree.

@@ -42,7 +42,7 @@ use crate::{
 };
 
 use crate::message::{DeliveryMode, MessageData};
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::SceneGraph;
 use std::{
     any::TypeId,
     fmt::Debug,

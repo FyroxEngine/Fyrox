@@ -65,7 +65,7 @@ use crate::{
         visitor::prelude::*,
         ImmutableString, SafeLock,
     },
-    graph::{constructor::ConstructorProvider, BaseSceneGraph},
+    graph::{constructor::ConstructorProvider, SceneGraph},
     material::{Material, MaterialResource, STANDARD_2D},
     renderer::{self, bundle::RenderContext},
     scene::{

@@ -35,7 +35,7 @@ use crate::{
         ImmutableString,
     },
     engine::SerializationContext,
-    graph::BaseSceneGraph,
+    graph::SceneGraph,
     resource::model::ModelResource,
     scene::{node::Node, transform::Transform},
     script::{Script, ScriptTrait},

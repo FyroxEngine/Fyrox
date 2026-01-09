@@ -24,7 +24,7 @@ use crate::{
     fyrox::{
         core::pool::Handle,
         generic_animation::machine::{Machine, State, Transition},
-        graph::BaseSceneGraph,
+        graph::SceneGraph,
         gui::{
             menu::MenuItemMessage,
             message::UiMessage,

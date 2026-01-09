@@ -25,7 +25,7 @@ use crate::{
             color::Color,
             pool::Handle,
         },
-        graph::BaseSceneGraph,
+        graph::SceneGraph,
         gui::{
             button::{ButtonBuilder, ButtonMessage},
             grid::{Column, GridBuilder, Row},

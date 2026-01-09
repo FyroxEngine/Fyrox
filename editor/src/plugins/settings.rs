@@ -27,7 +27,7 @@ use crate::{
             log::Log, parking_lot::lock_api::Mutex, pool::Handle, reflect::Reflect, some_or_return,
         },
         engine::Engine,
-        graph::{BaseSceneGraph, SceneGraph},
+        graph::SceneGraph,
         gui::{
             button::{ButtonBuilder, ButtonMessage},
             dock::DockingManagerMessage,

@@ -34,7 +34,7 @@ use crate::{
         visitor::prelude::*,
         SafeLock,
     },
-    graph::{BaseSceneGraph, SceneGraph},
+    graph::SceneGraph,
     graphics::ElementRange,
     material::{
         Material, MaterialResource, MaterialResourceBinding, MaterialResourceExtension,

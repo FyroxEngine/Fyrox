@@ -25,11 +25,11 @@
 pub mod constructor;
 
 pub mod prelude {
-    pub use crate::{AbstractSceneGraph, BaseSceneGraph, SceneGraph};
+    pub use crate::SceneGraph;
 }
 
 use fxhash::FxHashMap;
-use fyrox_core::pool::{ErasedHandle, ObjectOrVariant, PayloadContainer, PoolError};
+use fyrox_core::pool::{ObjectOrVariant, PayloadContainer, PoolError};
 use fyrox_core::reflect::ReflectHandle;
 use fyrox_core::{
     log::{Log, MessageKind},
@@ -468,11 +468,7 @@ fn reset_property_modified_flag(entity: &mut dyn Reflect, path: &str) {
     })
 }
 
-pub trait AbstractSceneNode: ComponentProvider + Reflect + NameProvider {}
-
-impl<T: SceneGraphNode> AbstractSceneNode for T {}
-
-pub trait SceneGraphNode: AbstractSceneNode + Clone + 'static {
+pub trait SceneGraphNode: ComponentProvider + Reflect + NameProvider + Clone + 'static {
     type Base: Clone;
     type SceneGraph: SceneGraph<Node = Self>;
     type ResourceData: PrefabData<Graph = Self::SceneGraph>;
@@ -674,21 +670,11 @@ impl<N> Default for LinkScheme<N> {
     }
 }
 
-pub trait AbstractSceneGraph: 'static {
-    fn try_get_node_untyped(
-        &self,
-        handle: ErasedHandle,
-    ) -> Result<&dyn AbstractSceneNode, PoolError>;
-    fn try_get_node_untyped_mut(
-        &mut self,
-        handle: ErasedHandle,
-    ) -> Result<&mut dyn AbstractSceneNode, PoolError>;
-}
-
-/// BaseSceneGraph is a dyn-compatible trait for all scene graphs to implement.
-/// Methods that would not be dyn-compatible are available through the
-/// [`SceneGraph`] trait.
-pub trait BaseSceneGraph: AbstractSceneGraph {
+/// SceneGraph is a non-dyn-compatible trait for all scene graphs to implement.
+/// To use a scene graph as a dyn object, use `dyn SceneGraph` because
+/// [`SceneGraph`] is dyn-compatible.
+pub trait SceneGraph: 'static {
+    type ObjectType: Sized;
     type Prefab: PrefabData<Graph = Self>;
     type NodeContainer: PayloadContainer<Element = Self::Node>;
     type Node: SceneGraphNode<SceneGraph = Self, ResourceData = Self::Prefab>;
@@ -838,13 +824,7 @@ pub trait BaseSceneGraph: AbstractSceneGraph {
             }
         }
     }
-}
 
-/// SceneGraph is a non-dyn-compatible trait for all scene graphs to implement.
-/// To use a scene graph as a dyn object, use `dyn BaseSceneGraph` because
-/// [`BaseSceneGraph`] is dyn-compatible.
-pub trait SceneGraph: BaseSceneGraph {
-    type ObjectType: Sized;
     /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)>;
 
@@ -1478,14 +1458,11 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::{
-        AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, NodeMapping,
-        PrefabData, SceneGraph, SceneGraphNode,
-    };
+    use crate::{NodeHandleMap, NodeMapping, PrefabData, SceneGraph, SceneGraphNode};
     use fyrox_core::pool::{ObjectOrVariant, ObjectOrVariantHelper, PoolError};
     use fyrox_core::{
         define_as_any_trait,
-        pool::{ErasedHandle, Handle, PayloadContainer, Pool},
+        pool::{Handle, PayloadContainer, Pool},
         reflect::prelude::*,
         type_traits::prelude::*,
         visitor::prelude::*,
@@ -1812,27 +1789,8 @@ mod test {
         }
     }
 
-    impl AbstractSceneGraph for Graph {
-        fn try_get_node_untyped(
-            &self,
-            handle: ErasedHandle,
-        ) -> Result<&dyn AbstractSceneNode, PoolError> {
-            self.nodes
-                .try_borrow(handle.into())
-                .map(|n| n as &dyn AbstractSceneNode)
-        }
-
-        fn try_get_node_untyped_mut(
-            &mut self,
-            handle: ErasedHandle,
-        ) -> Result<&mut dyn AbstractSceneNode, PoolError> {
-            self.nodes
-                .try_borrow_mut(handle.into())
-                .map(|n| n as &mut dyn AbstractSceneNode)
-        }
-    }
-
-    impl BaseSceneGraph for Graph {
+    impl SceneGraph for Graph {
+        type ObjectType = Node;
         type Prefab = Graph;
         type NodeContainer = NodeContainer;
         type Node = Node;
@@ -1932,10 +1890,7 @@ mod test {
                 .try_borrow(handle)
                 .map(|n| n.0.deref().type_name())
         }
-    }
 
-    impl SceneGraph for Graph {
-        type ObjectType = Node;
         fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
             self.nodes.pair_iter()
         }

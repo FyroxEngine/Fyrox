@@ -24,7 +24,7 @@ use crate::fyrox::{
         uuid_provider, visitor::prelude::*,
     },
     engine::SerializationContext,
-    graph::BaseSceneGraph,
+    graph::SceneGraph,
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         dropdown_list::{DropdownList, DropdownListMessage},

@@ -44,7 +44,7 @@ use crate::{
 };
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
-    BaseSceneGraph, SceneGraph,
+    SceneGraph,
 };
 use std::cell::RefCell;
 

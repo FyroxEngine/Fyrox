@@ -28,7 +28,7 @@ use crate::{
             make_relative_path,
             pool::{ErasedHandle, Handle},
         },
-        graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
+        graph::{SceneGraph, SceneGraphNode},
         resource::model::{Model, ModelResourceExtension},
         scene::{node::Node, Scene},
     },

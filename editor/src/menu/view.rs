@@ -21,7 +21,7 @@
 use crate::{
     fyrox::{
         core::pool::Handle,
-        graph::BaseSceneGraph,
+        graph::SceneGraph,
         gui::{
             menu::{self, MenuItemMessage},
             message::UiMessage,

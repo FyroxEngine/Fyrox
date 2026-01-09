@@ -39,7 +39,7 @@ use crate::{
         },
         engine::{Engine, SerializationContext},
         fxhash::FxHashSet,
-        graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
+        graph::{SceneGraph, SceneGraphNode},
         gui::{
             inspector::PropertyChanged,
             message::UiMessage,

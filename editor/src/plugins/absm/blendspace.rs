@@ -33,7 +33,7 @@ use crate::fyrox::{
         node::blendspace::BlendSpacePoint, node::PoseNode, parameter::Parameter,
         parameter::ParameterContainer, Machine, MachineLayer,
     },
-    graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
+    graph::{PrefabData, SceneGraph, SceneGraphNode},
     gui::{
         brush::Brush,
         define_widget_deref,

@@ -40,7 +40,7 @@ use crate::{
 use crate::message::MessageData;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
-    BaseSceneGraph,
+    SceneGraph,
 };
 
 /// A set of messages that could be used to alternate the state of a [`ScrollViewer`] widget.

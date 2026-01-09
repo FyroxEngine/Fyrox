@@ -34,7 +34,7 @@ use crate::{
             pool::Handle,
             reflect::prelude::*,
         },
-        graph::{BaseSceneGraph, SceneGraph},
+        graph::SceneGraph,
         gui::{
             border::BorderBuilder,
             button::{ButtonBuilder, ButtonMessage},

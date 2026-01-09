@@ -26,7 +26,7 @@ use crate::{
             uuid::{uuid, Uuid},
             TypeUuidProvider,
         },
-        graph::BaseSceneGraph,
+        graph::SceneGraph,
         gui::{BuildContext, UiNode},
         scene::node::Node,
     },

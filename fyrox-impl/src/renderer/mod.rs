@@ -97,7 +97,7 @@ use crate::{
 };
 use cache::DynamicSurfaceCache;
 use fxhash::FxHashMap;
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::SceneGraph;
 use lazy_static::lazy_static;
 use observer::{Observer, ObserversCollection};
 use resources::RendererResources;

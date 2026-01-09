@@ -41,7 +41,7 @@ use crate::{
     },
 };
 use fyrox_graph::constructor::ConstructorProvider;
-use fyrox_graph::{BaseSceneGraph, SceneGraph};
+use fyrox_graph::SceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// Scene specific root motion settings.

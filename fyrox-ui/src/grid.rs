@@ -37,7 +37,7 @@ use core::f32;
 
 use crate::message::MessageData;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::SceneGraph;
 use std::cell::RefCell;
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 

@@ -18,11 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::graph::{PrefabData, SceneGraph, SceneGraphNode};
+use crate::fyrox::graph::{PrefabData, SceneGraphNode};
 use crate::fyrox::{
     core::pool::{ErasedHandle, Handle},
     generic_animation::machine::{Machine, MachineLayer, State, Transition},
-    graph::BaseSceneGraph,
+    graph::SceneGraph,
     gui::{
         border::BorderBuilder,
         message::{MessageDirection, UiMessage},

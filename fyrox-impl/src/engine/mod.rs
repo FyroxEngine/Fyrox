@@ -54,7 +54,7 @@ use crate::{
     },
     engine::{error::EngineError, input::InputState, task::TaskPoolHandler},
     event::Event,
-    graph::{BaseSceneGraph, NodeMapping, SceneGraph},
+    graph::{NodeMapping, SceneGraph},
     graphics::error::FrameworkError,
     gui::{
         constructor::WidgetConstructorContainer,
@@ -3144,7 +3144,7 @@ mod test {
             visitor::prelude::*,
         },
         engine::{task::TaskPoolHandler, GraphicsContext, ScriptProcessor},
-        graph::BaseSceneGraph,
+        graph::SceneGraph,
         scene::{base::BaseBuilder, node::Node, pivot::PivotBuilder, Scene, SceneContainer},
         script::{
             ScriptContext, ScriptDeinitContext, ScriptMessageContext, ScriptMessagePayload,

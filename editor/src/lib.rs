@@ -92,7 +92,7 @@ use crate::{
         event::{Event, WindowEvent},
         event_loop::EventLoop,
         fxhash::{FxHashMap, FxHashSet},
-        graph::{BaseSceneGraph, SceneGraph},
+        graph::SceneGraph,
         gui::{
             brush::Brush,
             button::ButtonBuilder,
