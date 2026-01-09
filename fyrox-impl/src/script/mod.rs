@@ -40,6 +40,7 @@ use crate::{
     plugin::{Plugin, PluginContainer},
     scene::{base::NodeScriptMessage, node::Node, Scene},
 };
+use fyrox_core::pool::ObjectOrVariant;
 pub use fyrox_core_derive::ScriptMessagePayload;
 use fyrox_graph::BaseSceneGraph;
 use std::{
@@ -156,13 +157,13 @@ impl ScriptMessageSender {
     }
 
     /// Sends a targeted script message with the given payload.
-    pub fn send_to_target<T>(&self, target: Handle<Node>, payload: T)
+    pub fn send_to_target<T>(&self, target: Handle<impl ObjectOrVariant<Node>>, payload: T)
     where
         T: ScriptMessagePayload,
     {
         self.send(ScriptMessage {
             payload: Box::new(payload),
-            kind: ScriptMessageKind::Targeted(target),
+            kind: ScriptMessageKind::Targeted(target.transmute()),
         })
     }
 
@@ -178,13 +179,20 @@ impl ScriptMessageSender {
     }
 
     /// Sends a hierarchical script message with the given payload.
-    pub fn send_hierarchical<T>(&self, root: Handle<Node>, routing: RoutingStrategy, payload: T)
-    where
+    pub fn send_hierarchical<T>(
+        &self,
+        root: Handle<impl ObjectOrVariant<Node>>,
+        routing: RoutingStrategy,
+        payload: T,
+    ) where
         T: ScriptMessagePayload,
     {
         self.send(ScriptMessage {
             payload: Box::new(payload),
-            kind: ScriptMessageKind::Hierarchical { root, routing },
+            kind: ScriptMessageKind::Hierarchical {
+                root: root.transmute(),
+                routing,
+            },
         })
     }
 }

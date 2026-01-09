@@ -1731,11 +1731,12 @@ impl Graph {
 
     /// Returns global scale of a node.
     #[inline]
-    pub fn global_scale(&self, mut node: Handle<Node>) -> Vector3<f32> {
+    pub fn global_scale(&self, handle: Handle<impl ObjectOrVariant<Node>>) -> Vector3<f32> {
+        let mut handle = handle.to_base();
         let mut global_scale = Vector3::repeat(1.0);
-        while let Ok(node_ref) = self.try_get_node(node) {
+        while let Ok(node_ref) = self.try_get_node(handle) {
             global_scale = global_scale.component_mul(node_ref.local_transform().scale());
-            node = node_ref.parent;
+            handle = node_ref.parent;
         }
         global_scale
     }
@@ -1743,10 +1744,14 @@ impl Graph {
     /// Tries to borrow a node using the given handle and searches the script buffer for a script
     /// of type T and cast the first script, that could be found to the specified type.
     #[inline]
-    pub fn try_get_script_of<T>(&self, handle: Handle<Node>) -> Result<&T, GraphError>
+    pub fn try_get_script_of<T>(
+        &self,
+        handle: Handle<impl ObjectOrVariant<Node>>,
+    ) -> Result<&T, GraphError>
     where
         T: ScriptTrait,
     {
+        let handle = handle.to_base();
         let node = self.try_get_node(handle)?;
         node.try_get_script::<T>()
             .ok_or_else(|| GraphError::NoScript {
@@ -1761,8 +1766,9 @@ impl Graph {
     #[inline]
     pub fn try_get_scripts_of<T: ScriptTrait>(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<impl ObjectOrVariant<Node>>,
     ) -> Result<impl Iterator<Item = &T>, GraphError> {
+        let handle = handle.to_base();
         let node = self.try_get_node(handle)?;
         Ok(node.try_get_scripts())
     }
@@ -1770,10 +1776,14 @@ impl Graph {
     /// Tries to borrow a node using the given handle and searches the script buffer for a script
     /// of type T and cast the first script, that could be found to the specified type.
     #[inline]
-    pub fn try_get_script_of_mut<T>(&mut self, handle: Handle<Node>) -> Result<&mut T, GraphError>
+    pub fn try_get_script_of_mut<T>(
+        &mut self,
+        handle: Handle<impl ObjectOrVariant<Node>>,
+    ) -> Result<&mut T, GraphError>
     where
         T: ScriptTrait,
     {
+        let handle = handle.to_base();
         let node = self.try_get_node_mut(handle)?;
         node.try_get_script_mut::<T>()
             .ok_or_else(|| GraphError::NoScript {
@@ -1788,11 +1798,12 @@ impl Graph {
     #[inline]
     pub fn try_get_scripts_of_mut<T>(
         &mut self,
-        handle: Handle<Node>,
+        handle: Handle<impl ObjectOrVariant<Node>>,
     ) -> Result<impl Iterator<Item = &mut T>, GraphError>
     where
         T: ScriptTrait,
     {
+        let handle = handle.to_base();
         let node = self.try_get_node_mut(handle)?;
         Ok(node.try_get_scripts_mut())
     }
@@ -1801,10 +1812,14 @@ impl Graph {
     /// scripts of the node. If you want to search a component `C` in a particular script, then use
     /// [`Self::try_get_script_of`] and then search for component in it.
     #[inline]
-    pub fn try_get_script_component_of<C>(&self, handle: Handle<Node>) -> Result<&C, GraphError>
+    pub fn try_get_script_component_of<C>(
+        &self,
+        handle: Handle<impl ObjectOrVariant<Node>>,
+    ) -> Result<&C, GraphError>
     where
         C: Any,
     {
+        let handle = handle.to_base();
         let node = self.try_get_node(handle)?;
         node.try_get_script_component()
             .ok_or_else(|| GraphError::NoScriptComponent {
@@ -1819,11 +1834,12 @@ impl Graph {
     #[inline]
     pub fn try_get_script_component_of_mut<C>(
         &mut self,
-        handle: Handle<Node>,
+        handle: Handle<impl ObjectOrVariant<Node>>,
     ) -> Result<&mut C, GraphError>
     where
         C: Any,
     {
+        let handle = handle.to_base();
         let node = self.try_get_node_mut(handle)?;
         node.try_get_script_component_mut()
             .ok_or_else(|| GraphError::NoScriptComponent {

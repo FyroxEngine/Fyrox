@@ -24,6 +24,7 @@
 
 #![warn(missing_docs)]
 
+use super::collider::BitMask;
 use crate::{
     asset::{untyped::UntypedResource, Resource},
     core::{
@@ -68,8 +69,6 @@ use std::{
     marker::PhantomData,
     ops::{Deref, DerefMut},
 };
-
-use super::collider::BitMask;
 
 pub mod constructor;
 pub mod container;

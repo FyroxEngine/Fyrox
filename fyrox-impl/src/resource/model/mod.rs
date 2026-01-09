@@ -67,6 +67,7 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
+use fyrox_core::pool::ObjectOrVariant;
 use fyrox_ui::{UiNode, UserInterface};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -388,7 +389,7 @@ pub trait ModelResourceExtension: Sized {
     fn instantiate_and_attach(
         &self,
         scene: &mut Scene,
-        parent: Handle<Node>,
+        parent: Handle<impl ObjectOrVariant<Node>>,
         position: Vector3<f32>,
         face_towards: Vector3<f32>,
         scale: Vector3<f32>,
@@ -537,11 +538,12 @@ impl ModelResourceExtension for ModelResource {
     fn instantiate_and_attach(
         &self,
         scene: &mut Scene,
-        parent: Handle<Node>,
+        parent: Handle<impl ObjectOrVariant<Node>>,
         position: Vector3<f32>,
         face_towards: Vector3<f32>,
         scale: Vector3<f32>,
     ) -> Handle<Node> {
+        let parent = parent.to_base();
         let parent_scale = scene.graph.global_scale(parent);
 
         let parent_inv_transform = scene.graph[parent]
@@ -566,7 +568,7 @@ impl ModelResourceExtension for ModelResource {
             .with_scale(local_scale)
             .finish();
 
-        scene.graph.link_nodes(instance, parent);
+        scene.graph.link_nodes(instance, parent.transmute());
 
         instance
     }
