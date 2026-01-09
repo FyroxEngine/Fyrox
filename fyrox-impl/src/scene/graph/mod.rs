@@ -1984,7 +1984,9 @@ impl SceneGraph for Graph {
     }
 
     #[inline]
-    fn remove_node(&mut self, node_handle: Handle<Self::Node>) {
+    fn remove_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>) {
+        let node_handle = node_handle.to_base();
+
         self.isolate_node(node_handle);
 
         self.stack.clear();
@@ -2005,7 +2007,14 @@ impl SceneGraph for Graph {
     }
 
     #[inline]
-    fn link_nodes(&mut self, child: Handle<Self::Node>, parent: Handle<Self::Node>) {
+    fn link_nodes(
+        &mut self,
+        child: Handle<impl ObjectOrVariant<Self::Node>>,
+        parent: Handle<impl ObjectOrVariant<Self::Node>>,
+    ) {
+        let child = child.to_base();
+        let parent = parent.to_base();
+
         self.isolate_node(child);
         self.pool[child].parent = parent;
         self.pool[parent].children.push(child);
@@ -2017,7 +2026,8 @@ impl SceneGraph for Graph {
     }
 
     #[inline]
-    fn unlink_node(&mut self, node_handle: Handle<Node>) {
+    fn unlink_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>) {
+        let node_handle = node_handle.to_base();
         self.isolate_node(node_handle);
         self.link_nodes(node_handle, self.root);
         self.pool[node_handle]
@@ -2026,7 +2036,8 @@ impl SceneGraph for Graph {
     }
 
     #[inline]
-    fn isolate_node(&mut self, node_handle: Handle<Self::Node>) {
+    fn isolate_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>) {
+        let node_handle = node_handle.to_base();
         // Replace parent handle of child
         let parent_handle = std::mem::replace(&mut self.pool[node_handle].parent, Handle::NONE);
 

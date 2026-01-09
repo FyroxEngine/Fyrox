@@ -568,7 +568,7 @@ impl ModelResourceExtension for ModelResource {
             .with_scale(local_scale)
             .finish();
 
-        scene.graph.link_nodes(instance, parent.transmute());
+        scene.graph.link_nodes(instance, parent);
 
         instance
     }

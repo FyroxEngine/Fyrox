@@ -670,9 +670,7 @@ impl<N> Default for LinkScheme<N> {
     }
 }
 
-/// SceneGraph is a non-dyn-compatible trait for all scene graphs to implement.
-/// To use a scene graph as a dyn object, use `dyn SceneGraph` because
-/// [`SceneGraph`] is dyn-compatible.
+/// SceneGraph is a trait for all scene graphs to implement.
 pub trait SceneGraph: 'static {
     type ObjectType: Sized;
     type Prefab: PrefabData<Graph = Self>;
@@ -713,17 +711,21 @@ pub trait SceneGraph: 'static {
     fn add_node(&mut self, node: Self::Node) -> Handle<Self::Node>;
 
     /// Destroys the node and its children recursively.
-    fn remove_node(&mut self, node_handle: Handle<Self::Node>);
+    fn remove_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>);
 
     /// Links specified child with specified parent.
-    fn link_nodes(&mut self, child: Handle<Self::Node>, parent: Handle<Self::Node>);
+    fn link_nodes(
+        &mut self,
+        child: Handle<impl ObjectOrVariant<Self::Node>>,
+        parent: Handle<impl ObjectOrVariant<Self::Node>>,
+    );
 
     /// Unlinks specified node from its parent and attaches it to root graph node.
-    fn unlink_node(&mut self, node_handle: Handle<Self::Node>);
+    fn unlink_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>);
 
     /// Detaches the node from its parent, making the node unreachable from any other node in the
     /// graph.
-    fn isolate_node(&mut self, node_handle: Handle<Self::Node>);
+    fn isolate_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>);
 
     /// Borrows a node by its handle.
     fn node(&self, handle: Handle<Self::Node>) -> &Self::Node {
@@ -1831,7 +1833,8 @@ mod test {
             handle
         }
 
-        fn remove_node(&mut self, node_handle: Handle<Self::Node>) {
+        fn remove_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>) {
+            let node_handle = node_handle.to_base();
             self.isolate_node(node_handle);
             let mut stack = vec![node_handle];
             while let Some(handle) = stack.pop() {
@@ -1840,18 +1843,26 @@ mod test {
             }
         }
 
-        fn link_nodes(&mut self, child: Handle<Self::Node>, parent: Handle<Self::Node>) {
+        fn link_nodes(
+            &mut self,
+            child: Handle<impl ObjectOrVariant<Self::Node>>,
+            parent: Handle<impl ObjectOrVariant<Self::Node>>,
+        ) {
+            let child = child.to_base();
+            let parent = parent.to_base();
             self.isolate_node(child);
             self.nodes[child].parent = parent;
             self.nodes[parent].children.push(child);
         }
 
-        fn unlink_node(&mut self, node_handle: Handle<Self::Node>) {
+        fn unlink_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>) {
             self.isolate_node(node_handle);
             self.link_nodes(node_handle, self.root);
         }
 
-        fn isolate_node(&mut self, node_handle: Handle<Self::Node>) {
+        fn isolate_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>) {
+            let node_handle = node_handle.to_base();
+
             let parent_handle =
                 std::mem::replace(&mut self.nodes[node_handle].parent, Handle::NONE);
 
