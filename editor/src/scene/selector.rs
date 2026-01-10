@@ -281,14 +281,14 @@ impl Control for NodeSelector {
                 NodeSelectorMessage::Selection(
                     selection
                         .iter()
-                        .map(|s| {
-                            let tree_data = ui.node(*s).user_data_cloned::<TreeData>().unwrap();
+                        .filter_map(|s| {
+                            let tree_data = ui.try_get(*s).ok()?.user_data_cloned::<TreeData>()?;
 
-                            SelectedHandle {
+                            Some(SelectedHandle {
                                 handle: tree_data.handle,
                                 inner_type_id: tree_data.inner_type_id,
                                 derived_type_ids: tree_data.derived_type_ids,
-                            }
+                            })
                         })
                         .collect(),
                 ),
