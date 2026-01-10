@@ -49,7 +49,7 @@ use crate::{
 };
 use fyrox::gui::control_trait_proxy_impls;
 use fyrox::gui::formatted_text::WrapMode;
-use fyrox::gui::message::MessageData;
+use fyrox::gui::message::{DeliveryMode, MessageData};
 use fyrox::gui::text_box::EmptyTextPlaceholder;
 use std::hash::{Hash, Hasher};
 use std::{
@@ -276,23 +276,26 @@ impl Control for NodeSelector {
                 }
             }
         } else if let Some(TreeRootMessage::Select(selection)) = message.data_from(self.tree_root) {
-            ui.send(
-                self.handle,
-                NodeSelectorMessage::Selection(
-                    selection
-                        .iter()
-                        .filter_map(|s| {
-                            let tree_data = ui.try_get(*s).ok()?.user_data_cloned::<TreeData>()?;
+            if message.delivery_mode != DeliveryMode::SyncOnly {
+                ui.send(
+                    self.handle,
+                    NodeSelectorMessage::Selection(
+                        selection
+                            .iter()
+                            .filter_map(|s| {
+                                let tree_data =
+                                    ui.try_get(*s).ok()?.user_data_cloned::<TreeData>()?;
 
-                            Some(SelectedHandle {
-                                handle: tree_data.handle,
-                                inner_type_id: tree_data.inner_type_id,
-                                derived_type_ids: tree_data.derived_type_ids,
+                                Some(SelectedHandle {
+                                    handle: tree_data.handle,
+                                    inner_type_id: tree_data.inner_type_id,
+                                    derived_type_ids: tree_data.derived_type_ids,
+                                })
                             })
-                        })
-                        .collect(),
-                ),
-            );
+                            .collect(),
+                    ),
+                );
+            }
         } else if let Some(TreeRootMessage::ItemsChanged) = message.data_from(self.tree_root) {
             self.sync_selection(ui);
         }
@@ -333,7 +336,7 @@ impl NodeSelector {
             )
         }
 
-        ui.send(self.tree_root, TreeRootMessage::Select(selected_trees));
+        ui.send_sync(self.tree_root, TreeRootMessage::Select(selected_trees));
     }
 }
 
