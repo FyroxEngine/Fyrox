@@ -27,20 +27,23 @@ use crate::{
             math::Matrix4Ext,
             pool::Handle,
             reflect::prelude::*,
-            some_or_return,
+            some_or_return, uuid, Uuid,
         },
         graph::SceneGraph,
         gui::{
             button::{ButtonBuilder, ButtonMessage},
             grid::{Column, GridBuilder, Row},
-            inspector::{InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction},
+            inspector::{
+                editors::PropertyEditorDefinitionContainer, Inspector, InspectorBuilder,
+                InspectorContext, InspectorContextArgs, InspectorMessage, PropertyAction,
+            },
             menu::MenuItemMessage,
             message::UiMessage,
             scroll_viewer::ScrollViewerBuilder,
             stack_panel::StackPanelBuilder,
             utils::make_simple_tooltip,
             widget::WidgetBuilder,
-            window::{WindowBuilder, WindowMessage, WindowTitle},
+            window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
         },
         scene::{
@@ -50,7 +53,7 @@ use crate::{
             joint::{BallJoint, JointBuilder, JointParams, RevoluteJoint},
             node::Node,
             ragdoll::{Limb, RagdollBuilder},
-            rigidbody::{RigidBodyBuilder, RigidBodyType},
+            rigidbody::{RigidBody, RigidBodyBuilder, RigidBodyType},
             transform::TransformBuilder,
         },
     },
@@ -64,10 +67,6 @@ use crate::{
     world::selection::GraphSelection,
     Editor,
 };
-use fyrox::core::{uuid, Uuid};
-use fyrox::gui::inspector::editors::PropertyEditorDefinitionContainer;
-use fyrox::gui::inspector::{Inspector, InspectorContextArgs};
-use fyrox::gui::window::WindowAlignment;
 use std::{ops::Range, sync::Arc};
 
 #[derive(Reflect, Clone, Debug)]
@@ -182,8 +181,8 @@ struct BallJointLimits {
 }
 
 fn try_make_ball_joint(
-    body1: Handle<Node>,
-    body2: Handle<Node>,
+    body1: Handle<RigidBody>,
+    body2: Handle<RigidBody>,
     name: &str,
     limits: Option<BallJointLimits>,
     offset_radius: AxisOffset,
@@ -238,8 +237,8 @@ fn try_make_ball_joint(
             ),
         )
         .with_params(JointParams::BallJoint(joint))
-        .with_body1(body1.transmute())
-        .with_body2(body2.transmute())
+        .with_body1(body1)
+        .with_body2(body2)
         .with_auto_rebinding_enabled(false)
         .with_contacts_enabled(false)
         .build(graph);
@@ -253,8 +252,8 @@ fn try_make_ball_joint(
 }
 
 fn try_make_hinge_joint(
-    body1: Handle<Node>,
-    body2: Handle<Node>,
+    body1: Handle<RigidBody>,
+    body2: Handle<RigidBody>,
     name: &str,
     limits: Option<Range<f32>>,
     ragdoll: Handle<Node>,
@@ -282,8 +281,8 @@ fn try_make_hinge_joint(
             ),
         )
         .with_params(JointParams::RevoluteJoint(joint))
-        .with_body1(body1.transmute())
-        .with_body2(body2.transmute())
+        .with_body1(body1)
+        .with_body2(body2)
         .with_auto_rebinding_enabled(false)
         .with_contacts_enabled(false)
         .build(graph);
@@ -306,7 +305,7 @@ impl RagdollPreset {
         ragdoll: Handle<Node>,
         apply_offset: bool,
         graph: &mut Graph,
-    ) -> Handle<Node> {
+    ) -> Handle<RigidBody> {
         if let Ok(from_ref) = graph.try_get_node(from) {
             let offset = if apply_offset {
                 from_ref
@@ -349,7 +348,7 @@ impl RagdollPreset {
 
             graph.link_nodes(sphere, ragdoll);
 
-            sphere
+            sphere.to_variant()
         } else {
             Default::default()
         }
@@ -364,7 +363,7 @@ impl RagdollPreset {
         name: &str,
         ragdoll: Handle<Node>,
         graph: &mut Graph,
-    ) -> Handle<Node> {
+    ) -> Handle<RigidBody> {
         if let (Ok(from_ref), Ok(to_ref)) = (graph.try_get_node(from), graph.try_get_node(to)) {
             let pos_from = from_ref.global_position();
             let pos_to = to_ref.global_position();
@@ -404,7 +403,7 @@ impl RagdollPreset {
 
             graph.link_nodes(capsule, ragdoll);
 
-            capsule
+            capsule.to_variant()
         } else {
             Default::default()
         }
@@ -418,7 +417,7 @@ impl RagdollPreset {
         name: &str,
         ragdoll: Handle<Node>,
         graph: &mut Graph,
-    ) -> Handle<Node> {
+    ) -> Handle<RigidBody> {
         if let Ok(from_ref) = graph.try_get_node(from) {
             let cuboid = RigidBodyBuilder::new(
                 BaseBuilder::new()
@@ -445,7 +444,7 @@ impl RagdollPreset {
 
             graph.link_nodes(cuboid, ragdoll);
 
-            cuboid
+            cuboid.to_variant()
         } else {
             Default::default()
         }

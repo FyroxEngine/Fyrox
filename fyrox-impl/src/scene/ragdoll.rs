@@ -22,12 +22,12 @@
 //! of a mesh. Ragdolls are used mostly for body physics. See [`Ragdoll`] docs for more info and
 //! usage examples.
 
-use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
+        log::Log,
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
-        pool::Handle,
+        pool::{Handle, PoolError},
         reflect::prelude::*,
         type_traits::prelude::*,
         uuid::{uuid, Uuid},
@@ -40,12 +40,11 @@ use crate::{
         base::{Base, BaseBuilder},
         collider::Collider,
         graph::Graph,
-        node::{Node, NodeTrait, UpdateContext},
+        node::{constructor::NodeConstructor, Node, NodeTrait, UpdateContext},
         rigidbody::{RigidBody, RigidBodyType},
     },
 };
 use fyrox_graph::constructor::ConstructorProvider;
-use fyrox_graph::SceneGraphNode;
 use std::{
     any::{type_name, Any, TypeId},
     ops::{Deref, DerefMut},
@@ -58,7 +57,7 @@ pub struct Limb {
     /// A handle of a scene node, that is used as a bone in some other scene node (mesh).
     pub bone: Handle<Node>,
     /// A handle to a rigid body scene node.
-    pub physical_bone: Handle<Node>,
+    pub physical_bone: Handle<RigidBody>,
     /// A set of children limbs.
     pub children: Vec<Limb>,
 }
@@ -258,15 +257,17 @@ impl Visit for Limb {
 impl Limb {
     /// Iterates recursively across the entire tree of descendant limbs and does the specified action
     /// with every limb along the way.
-    pub fn iterate_recursive<F>(&self, func: &mut F)
+    pub fn iterate_recursive<F>(&self, func: &mut F) -> Result<(), PoolError>
     where
-        F: FnMut(&Self),
+        F: FnMut(&Self) -> Result<(), PoolError>,
     {
-        func(self);
+        func(self)?;
 
         for child in self.children.iter() {
-            child.iterate_recursive(func)
+            child.iterate_recursive(func)?
         }
+
+        Ok(())
     }
 }
 
@@ -361,104 +362,100 @@ impl NodeTrait for Ragdoll {
         }
         self.prev_enabled = *self.is_active;
 
-        self.root_limb.iterate_recursive(&mut |limb| {
+        Log::verify(self.root_limb.iterate_recursive(&mut |limb| {
             let mbc = ctx.nodes.begin_multi_borrow();
 
             let mut need_update_transform = false;
 
-            if let Ok(mut limb_body) =
-                mbc.try_get_component_of_type_mut::<RigidBody>(limb.physical_bone)
-            {
-                if *self.is_active {
-                    // Transfer linear and angular velocities to rag doll bodies.
-                    if let Some(lin_vel) = new_lin_vel {
-                        limb_body.set_lin_vel(lin_vel);
-                    }
-                    if let Some(ang_vel) = new_ang_vel {
-                        limb_body.set_ang_vel(ang_vel);
-                    }
+            let mut limb_body = mbc.try_get_mut(limb.physical_bone)?;
+            if *self.is_active {
+                // Transfer linear and angular velocities to rag doll bodies.
+                if let Some(lin_vel) = new_lin_vel {
+                    limb_body.set_lin_vel(lin_vel);
+                }
+                if let Some(ang_vel) = new_ang_vel {
+                    limb_body.set_ang_vel(ang_vel);
+                }
 
-                    if limb_body.body_type() != RigidBodyType::Dynamic {
-                        limb_body.set_body_type(RigidBodyType::Dynamic);
-                    }
+                if limb_body.body_type() != RigidBodyType::Dynamic {
+                    limb_body.set_body_type(RigidBodyType::Dynamic);
+                }
 
-                    if *self.deactivate_colliders {
-                        for child in limb_body.children() {
-                            if let Ok(mut collider) =
-                                mbc.try_get_component_of_type_mut::<Collider>(*child)
-                            {
-                                collider.set_is_sensor(false);
-                            }
+                if *self.deactivate_colliders {
+                    for child in limb_body.children() {
+                        if let Ok(mut collider) =
+                            mbc.try_get_component_of_type_mut::<Collider>(*child)
+                        {
+                            collider.set_is_sensor(false);
                         }
-                    }
-
-                    let body_transform = limb_body.global_transform();
-
-                    // Sync transform of the bone with respective body.
-                    let bone_parent = mbc.try_get(limb.bone).unwrap().parent();
-                    let transform: Matrix4<f32> = mbc
-                        .try_get(bone_parent)
-                        .unwrap()
-                        .global_transform()
-                        .try_inverse()
-                        .unwrap_or_else(Matrix4::identity)
-                        * body_transform;
-
-                    mbc.try_get_mut(limb.bone)
-                        .unwrap()
-                        .local_transform_mut()
-                        .set_position(Vector3::new(transform[12], transform[13], transform[14]))
-                        .set_pre_rotation(UnitQuaternion::identity())
-                        .set_post_rotation(UnitQuaternion::identity())
-                        .set_rotation(UnitQuaternion::from_matrix_eps(
-                            &transform.basis(),
-                            f32::EPSILON,
-                            16,
-                            Default::default(),
-                        ));
-
-                    need_update_transform = true;
-                } else {
-                    limb_body.set_body_type(RigidBodyType::KinematicPositionBased);
-                    limb_body.set_lin_vel(Default::default());
-                    limb_body.set_ang_vel(Default::default());
-
-                    if *self.deactivate_colliders {
-                        for child in limb_body.children() {
-                            if let Ok(mut collider) =
-                                mbc.try_get_component_of_type_mut::<Collider>(*child)
-                            {
-                                collider.set_is_sensor(true);
-                            }
-                        }
-                    }
-
-                    let self_transform_inverse =
-                        self.global_transform().try_inverse().unwrap_or_default();
-
-                    // Sync transform of the physical body with respective bone.
-                    if let Ok(bone) = mbc.try_get(limb.bone) {
-                        let relative_transform = self_transform_inverse * bone.global_transform();
-
-                        let position = Vector3::new(
-                            relative_transform[12],
-                            relative_transform[13],
-                            relative_transform[14],
-                        );
-                        let rotation = UnitQuaternion::from_matrix_eps(
-                            &relative_transform.basis(),
-                            f32::EPSILON,
-                            16,
-                            Default::default(),
-                        );
-                        limb_body
-                            .local_transform_mut()
-                            .set_position(position)
-                            .set_rotation(rotation);
                     }
                 }
-            };
 
+                let body_transform = limb_body.global_transform();
+
+                // Sync transform of the bone with respective body.
+                let bone_parent = mbc.try_get(limb.bone)?.parent();
+                let transform: Matrix4<f32> = mbc
+                    .try_get(bone_parent)?
+                    .global_transform()
+                    .try_inverse()
+                    .unwrap_or_else(Matrix4::identity)
+                    * body_transform;
+
+                mbc.try_get_mut(limb.bone)?
+                    .local_transform_mut()
+                    .set_position(Vector3::new(transform[12], transform[13], transform[14]))
+                    .set_pre_rotation(UnitQuaternion::identity())
+                    .set_post_rotation(UnitQuaternion::identity())
+                    .set_rotation(UnitQuaternion::from_matrix_eps(
+                        &transform.basis(),
+                        f32::EPSILON,
+                        16,
+                        Default::default(),
+                    ));
+
+                need_update_transform = true;
+            } else {
+                limb_body.set_body_type(RigidBodyType::KinematicPositionBased);
+                limb_body.set_lin_vel(Default::default());
+                limb_body.set_ang_vel(Default::default());
+
+                if *self.deactivate_colliders {
+                    for child in limb_body.children() {
+                        if let Ok(mut collider) =
+                            mbc.try_get_component_of_type_mut::<Collider>(*child)
+                        {
+                            collider.set_is_sensor(true);
+                        }
+                    }
+                }
+
+                let self_transform_inverse =
+                    self.global_transform().try_inverse().unwrap_or_default();
+
+                // Sync transform of the physical body with respective bone.
+                if let Ok(bone) = mbc.try_get(limb.bone) {
+                    let relative_transform = self_transform_inverse * bone.global_transform();
+
+                    let position = Vector3::new(
+                        relative_transform[12],
+                        relative_transform[13],
+                        relative_transform[14],
+                    );
+                    let rotation = UnitQuaternion::from_matrix_eps(
+                        &relative_transform.basis(),
+                        f32::EPSILON,
+                        16,
+                        Default::default(),
+                    );
+                    limb_body
+                        .local_transform_mut()
+                        .set_position(position)
+                        .set_rotation(rotation);
+                }
+            }
+
+            drop(limb_body);
             drop(mbc);
 
             if need_update_transform {
@@ -472,7 +469,9 @@ impl NodeTrait for Ragdoll {
                     limb.bone,
                 );
             }
-        });
+
+            Ok(())
+        }));
 
         if let Ok(root_limb_body) = ctx.nodes.try_borrow(self.root_limb.bone) {
             let position = root_limb_body.global_position();
