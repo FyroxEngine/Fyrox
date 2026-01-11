@@ -3504,7 +3504,6 @@ impl PrefabData for UserInterface {
 }
 
 impl SceneGraph for UserInterface {
-    type ObjectType = UiNode;
     type Prefab = Self;
     type NodeContainer = WidgetContainer;
     type Node = UiNode;

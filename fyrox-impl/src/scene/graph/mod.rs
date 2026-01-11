@@ -1912,7 +1912,6 @@ impl Visit for Graph {
 }
 
 impl SceneGraph for Graph {
-    type ObjectType = Node;
     type Prefab = Model;
     type NodeContainer = NodeContainer;
     type Node = Node;
