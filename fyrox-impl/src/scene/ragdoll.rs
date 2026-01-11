@@ -288,7 +288,7 @@ pub struct Ragdoll {
     base: Base,
     /// A handle to a main rigid body of the character to which this ragdoll belongs to. If set, the
     /// ragdoll will take control over the collider and will move it together with the root limb.
-    pub character_rigid_body: InheritableVariable<Handle<Node>>,
+    pub character_rigid_body: InheritableVariable<Handle<RigidBody>>,
     /// A flag, that defines whether the ragdoll is active or not. Active ragdoll enables limb rigid
     /// bodies and takes control over `character_rigid_body` (if set).
     pub is_active: InheritableVariable<bool>,
@@ -352,10 +352,7 @@ impl NodeTrait for Ragdoll {
         let mut new_lin_vel = None;
         let mut new_ang_vel = None;
         if *self.is_active && !self.prev_enabled {
-            if let Ok(character_rigid_body) = ctx
-                .nodes
-                .try_get_component_of_type::<RigidBody>(*self.character_rigid_body)
-            {
+            if let Ok(character_rigid_body) = ctx.nodes.try_get(*self.character_rigid_body) {
                 new_lin_vel = Some(character_rigid_body.lin_vel());
                 new_ang_vel = Some(character_rigid_body.ang_vel());
             }
@@ -434,25 +431,24 @@ impl NodeTrait for Ragdoll {
                     self.global_transform().try_inverse().unwrap_or_default();
 
                 // Sync transform of the physical body with respective bone.
-                if let Ok(bone) = mbc.try_get(limb.bone) {
-                    let relative_transform = self_transform_inverse * bone.global_transform();
+                let bone = mbc.try_get(limb.bone)?;
+                let relative_transform = self_transform_inverse * bone.global_transform();
 
-                    let position = Vector3::new(
-                        relative_transform[12],
-                        relative_transform[13],
-                        relative_transform[14],
-                    );
-                    let rotation = UnitQuaternion::from_matrix_eps(
-                        &relative_transform.basis(),
-                        f32::EPSILON,
-                        16,
-                        Default::default(),
-                    );
-                    limb_body
-                        .local_transform_mut()
-                        .set_position(position)
-                        .set_rotation(rotation);
-                }
+                let position = Vector3::new(
+                    relative_transform[12],
+                    relative_transform[13],
+                    relative_transform[14],
+                );
+                let rotation = UnitQuaternion::from_matrix_eps(
+                    &relative_transform.basis(),
+                    f32::EPSILON,
+                    16,
+                    Default::default(),
+                );
+                limb_body
+                    .local_transform_mut()
+                    .set_position(position)
+                    .set_rotation(rotation);
             }
 
             drop(limb_body);
@@ -475,10 +471,7 @@ impl NodeTrait for Ragdoll {
 
         if let Ok(root_limb_body) = ctx.nodes.try_borrow(self.root_limb.bone) {
             let position = root_limb_body.global_position();
-            if let Ok(character_rigid_body) = ctx
-                .nodes
-                .try_get_component_of_type_mut::<RigidBody>(*self.character_rigid_body)
-            {
+            if let Ok(character_rigid_body) = ctx.nodes.try_get_mut(*self.character_rigid_body) {
                 if *self.is_active {
                     character_rigid_body.set_lin_vel(Default::default());
                     character_rigid_body.set_ang_vel(Default::default());
@@ -497,7 +490,7 @@ impl NodeTrait for Ragdoll {
 /// Ragdoll builder creates [`Ragdoll`] scene nodes.
 pub struct RagdollBuilder {
     base_builder: BaseBuilder,
-    character_rigid_body: Handle<Node>,
+    character_rigid_body: Handle<RigidBody>,
     is_active: bool,
     deactivate_colliders: bool,
     root_limb: Limb,
@@ -516,7 +509,7 @@ impl RagdollBuilder {
     }
 
     /// Sets the desired character rigid body.
-    pub fn with_character_rigid_body(mut self, handle: Handle<Node>) -> Self {
+    pub fn with_character_rigid_body(mut self, handle: Handle<RigidBody>) -> Self {
         self.character_rigid_body = handle;
         self
     }
