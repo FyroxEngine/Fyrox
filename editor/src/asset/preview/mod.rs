@@ -139,7 +139,7 @@ pub trait AssetPreviewGenerator: Send + Sync + 'static {
         resource: &UntypedResource,
         resource_manager: &ResourceManager,
         scene: &mut Scene,
-        preview_camera: Handle<Node>,
+        preview_camera: Handle<Camera>,
     ) -> Handle<Node>;
 
     /// Generates a preview image for an asset. For example, in case of prefabs, it will be the
@@ -167,7 +167,7 @@ impl AssetPreviewGenerator for TexturePreview {
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         scene: &mut Scene,
-        _preview_camera: Handle<Node>,
+        _preview_camera: Handle<Camera>,
     ) -> Handle<Node> {
         if let Some(texture) = resource.try_cast::<Texture>() {
             let scale = if let Some(size) = texture.data_ref().kind().rectangle_size() {
@@ -196,6 +196,7 @@ impl AssetPreviewGenerator for TexturePreview {
                 .build()])
                 .with_render_path(RenderPath::Forward)
                 .build(&mut scene.graph)
+                .to_base()
         } else {
             Handle::NONE
         }
@@ -232,13 +233,14 @@ impl AssetPreviewGenerator for SoundPreview {
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         scene: &mut Scene,
-        _preview_camera: Handle<Node>,
+        _preview_camera: Handle<Camera>,
     ) -> Handle<Node> {
         if let Some(buffer) = resource.try_cast::<SoundBuffer>() {
             SoundBuilder::new(BaseBuilder::new())
                 .with_buffer(Some(buffer))
                 .with_status(Status::Playing)
                 .build(&mut scene.graph)
+                .to_base()
         } else {
             Handle::NONE
         }
@@ -348,7 +350,7 @@ fn render_scene_to_texture(
         .graph
         .aabb_of_descendants(scene.graph.root(), |_, _| true)
         .unwrap_or_default();
-    let camera = scene.graph[camera].as_camera_mut();
+    let camera = &mut scene.graph[camera];
     let aspect_ratio = 1.0;
     match camera.fit(&scene_aabb, aspect_ratio, 1.05) {
         FitParameters::Perspective { position, .. } => {
@@ -423,7 +425,7 @@ impl AssetPreviewGenerator for ModelPreview {
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         scene: &mut Scene,
-        preview_camera: Handle<Node>,
+        preview_camera: Handle<Camera>,
     ) -> Handle<Node> {
         if let Some(model) = resource.try_cast::<Model>() {
             let instance = model.instantiate(scene);
@@ -471,12 +473,13 @@ impl AssetPreviewGenerator for SurfaceDataPreview {
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         scene: &mut Scene,
-        _preview_camera: Handle<Node>,
+        _preview_camera: Handle<Camera>,
     ) -> Handle<Node> {
         if let Some(surface) = resource.try_cast::<SurfaceData>() {
             MeshBuilder::new(BaseBuilder::new())
                 .with_surfaces(vec![SurfaceBuilder::new(surface.clone()).build()])
                 .build(&mut scene.graph)
+                .to_base()
         } else {
             Handle::NONE
         }
@@ -512,7 +515,7 @@ impl AssetPreviewGenerator for ShaderPreview {
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         scene: &mut Scene,
-        _preview_camera: Handle<Node>,
+        _preview_camera: Handle<Camera>,
     ) -> Handle<Node> {
         if let Some(shader) = resource.try_cast::<Shader>() {
             let material = MaterialResource::new_embedded(Material::from_shader(shader));
@@ -524,6 +527,7 @@ impl AssetPreviewGenerator for ShaderPreview {
                 .with_material(material)
                 .build()])
                 .build(&mut scene.graph)
+                .to_base()
         } else {
             Handle::NONE
         }
@@ -556,7 +560,7 @@ impl AssetPreviewGenerator for MaterialPreview {
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         scene: &mut Scene,
-        _preview_camera: Handle<Node>,
+        _preview_camera: Handle<Camera>,
     ) -> Handle<Node> {
         if let Some(material) = resource.try_cast::<Material>() {
             MeshBuilder::new(BaseBuilder::new())
@@ -566,6 +570,7 @@ impl AssetPreviewGenerator for MaterialPreview {
                 .with_material(material)
                 .build()])
                 .build(&mut scene.graph)
+                .to_base()
         } else {
             Handle::NONE
         }
@@ -599,7 +604,7 @@ impl AssetPreviewGenerator for HrirPreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         _scene: &mut Scene,
-        _preview_camera: Handle<Node>,
+        _preview_camera: Handle<Camera>,
     ) -> Handle<Node> {
         Handle::NONE
     }
@@ -631,7 +636,7 @@ impl AssetPreviewGenerator for CurvePreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         _scene: &mut Scene,
-        _preview_camera: Handle<Node>,
+        _preview_camera: Handle<Camera>,
     ) -> Handle<Node> {
         Handle::NONE
     }
@@ -701,7 +706,7 @@ impl AssetPreviewGenerator for FontPreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         _scene: &mut Scene,
-        _preview_camera: Handle<Node>,
+        _preview_camera: Handle<Camera>,
     ) -> Handle<Node> {
         Handle::NONE
     }
@@ -749,7 +754,7 @@ impl AssetPreviewGenerator for UserInterfacePreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
         _scene: &mut Scene,
-        _preview_camera: Handle<Node>,
+        _preview_camera: Handle<Camera>,
     ) -> Handle<Node> {
         Handle::NONE
     }

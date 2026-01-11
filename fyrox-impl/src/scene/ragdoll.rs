@@ -550,7 +550,7 @@ impl RagdollBuilder {
     }
 
     /// Creates the ragdoll node and adds it to the given graph.
-    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
-        graph.add_node(self.build_node())
+    pub fn build(self, graph: &mut Graph) -> Handle<Ragdoll> {
+        graph.add_node(self.build_node()).to_variant()
     }
 }

@@ -28,14 +28,16 @@ use crate::{
         ShapeHandleValue,
     },
 };
+use fyrox::scene::pivot::Pivot;
+use fyrox::scene::sprite::Sprite;
 
 pub struct Segment2DShapeGizmo {
-    begin_handle: Handle<Node>,
-    end_handle: Handle<Node>,
+    begin_handle: Handle<Sprite>,
+    end_handle: Handle<Sprite>,
 }
 
 impl Segment2DShapeGizmo {
-    pub fn new(root: Handle<Node>, visible: bool, scene: &mut Scene) -> Self {
+    pub fn new(root: Handle<Pivot>, visible: bool, scene: &mut Scene) -> Self {
         Self {
             begin_handle: make_handle(scene, root, visible),
             end_handle: make_handle(scene, root, visible),
@@ -44,7 +46,7 @@ impl Segment2DShapeGizmo {
 }
 
 impl ShapeGizmoTrait for Segment2DShapeGizmo {
-    fn for_each_handle(&self, func: &mut dyn FnMut(Handle<Node>)) {
+    fn for_each_handle(&self, func: &mut dyn FnMut(Handle<Sprite>)) {
         for handle in [self.begin_handle, self.end_handle] {
             func(handle)
         }
@@ -52,7 +54,7 @@ impl ShapeGizmoTrait for Segment2DShapeGizmo {
 
     fn handle_local_position(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         collider: Handle<Node>,
         scene: &Scene,
     ) -> Option<Vector3<f32>> {
@@ -72,7 +74,7 @@ impl ShapeGizmoTrait for Segment2DShapeGizmo {
 
     fn value_by_handle(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         collider: Handle<Node>,
         scene: &Scene,
     ) -> Option<ShapeHandleValue> {
@@ -92,7 +94,7 @@ impl ShapeGizmoTrait for Segment2DShapeGizmo {
 
     fn set_value_by_handle(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         value: ShapeHandleValue,
         collider: Handle<Node>,
         scene: &mut Scene,
@@ -110,7 +112,7 @@ impl ShapeGizmoTrait for Segment2DShapeGizmo {
         }
     }
 
-    fn is_vector_handle(&self, handle: Handle<Node>) -> bool {
+    fn is_vector_handle(&self, handle: Handle<Sprite>) -> bool {
         handle == self.begin_handle || handle == self.end_handle
     }
 }

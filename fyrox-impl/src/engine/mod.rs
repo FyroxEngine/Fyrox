@@ -3208,6 +3208,7 @@ impl Drop for Engine {
 mod test {
     use crate::engine::ApplicationLoopController;
     use crate::plugin::error::GameResult;
+    use crate::scene::pivot::Pivot;
     use crate::{
         asset::manager::ResourceManager,
         core::{
@@ -3289,7 +3290,7 @@ mod test {
                 sender: self.sender.clone(),
             }))
             .build(&mut ctx.scene.graph);
-            assert_eq!(handle, Handle::<Node>::new(2, 1));
+            assert_eq!(handle, Handle::<Pivot>::new(2, 1));
 
             Ok(())
         }
@@ -3304,7 +3305,7 @@ mod test {
                 sender: self.sender.clone(),
             }))
             .build(&mut ctx.scene.graph);
-            assert_eq!(handle, Handle::<Node>::new(3, 1));
+            assert_eq!(handle, Handle::<Pivot>::new(3, 1));
 
             Ok(())
         }
@@ -3390,8 +3391,9 @@ mod test {
                 })
                 .with_script(MySubScript { sender: tx }),
         )
-        .build(&mut scene.graph);
-        assert_eq!(node_handle, Handle::<Node>::new(1, 1));
+        .build(&mut scene.graph)
+        .to_base();
+        assert_eq!(node_handle, Handle::<Pivot>::new(1, 1));
 
         let node_handle_0 = Source {
             node_handle,
@@ -3582,7 +3584,8 @@ mod test {
                 sender: tx,
                 index: 0,
             }))
-            .build(&mut scene.graph);
+            .build(&mut scene.graph)
+            .to_base();
         let receiver_messages_source = Source {
             node_handle: receiver_messages,
             script_index: 0,
@@ -3875,7 +3878,8 @@ mod test {
                 .with_script(ScriptThatDeletesItself { sender: tx.clone() })
                 .with_script(ScriptThatAddsScripts { num: 2, sender: tx }),
         )
-        .build(&mut scene.graph);
+        .build(&mut scene.graph)
+        .to_base();
         assert_eq!(node_handle, Handle::<Node>::new(1, 1));
 
         let mut scene_container = SceneContainer::new(Default::default());

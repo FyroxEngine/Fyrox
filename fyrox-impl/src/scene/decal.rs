@@ -304,7 +304,7 @@ impl DecalBuilder {
     }
 
     /// Creates new instance of Decal node and puts it in the given graph.
-    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
-        graph.add_node(self.build_node())
+    pub fn build(self, graph: &mut Graph) -> Handle<Decal> {
+        graph.add_node(self.build_node()).to_variant()
     }
 }

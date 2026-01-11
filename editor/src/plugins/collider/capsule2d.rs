@@ -28,15 +28,17 @@ use crate::{
         ShapeHandleValue,
     },
 };
+use fyrox::scene::pivot::Pivot;
+use fyrox::scene::sprite::Sprite;
 
 pub struct Capsule2DShapeGizmo {
-    radius_handle: Handle<Node>,
-    begin_handle: Handle<Node>,
-    end_handle: Handle<Node>,
+    radius_handle: Handle<Sprite>,
+    begin_handle: Handle<Sprite>,
+    end_handle: Handle<Sprite>,
 }
 
 impl Capsule2DShapeGizmo {
-    pub fn new(visible: bool, root: Handle<Node>, scene: &mut Scene) -> Self {
+    pub fn new(visible: bool, root: Handle<Pivot>, scene: &mut Scene) -> Self {
         Self {
             radius_handle: make_handle(scene, root, visible),
             begin_handle: make_handle(scene, root, visible),
@@ -46,7 +48,7 @@ impl Capsule2DShapeGizmo {
 }
 
 impl ShapeGizmoTrait for Capsule2DShapeGizmo {
-    fn for_each_handle(&self, func: &mut dyn FnMut(Handle<Node>)) {
+    fn for_each_handle(&self, func: &mut dyn FnMut(Handle<Sprite>)) {
         for handle in [self.radius_handle, self.begin_handle, self.end_handle] {
             func(handle)
         }
@@ -54,7 +56,7 @@ impl ShapeGizmoTrait for Capsule2DShapeGizmo {
 
     fn handle_local_position(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         collider: Handle<Node>,
         scene: &Scene,
     ) -> Option<Vector3<f32>> {
@@ -83,7 +85,7 @@ impl ShapeGizmoTrait for Capsule2DShapeGizmo {
 
     fn handle_major_axis(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         collider: Handle<Node>,
         scene: &Scene,
     ) -> Option<Vector3<f32>> {
@@ -107,7 +109,7 @@ impl ShapeGizmoTrait for Capsule2DShapeGizmo {
 
     fn value_by_handle(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         collider: Handle<Node>,
         scene: &Scene,
     ) -> Option<ShapeHandleValue> {
@@ -129,7 +131,7 @@ impl ShapeGizmoTrait for Capsule2DShapeGizmo {
 
     fn set_value_by_handle(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         value: ShapeHandleValue,
         collider: Handle<Node>,
         scene: &mut Scene,
@@ -149,7 +151,7 @@ impl ShapeGizmoTrait for Capsule2DShapeGizmo {
         }
     }
 
-    fn is_vector_handle(&self, handle: Handle<Node>) -> bool {
+    fn is_vector_handle(&self, handle: Handle<Sprite>) -> bool {
         handle == self.begin_handle || handle == self.end_handle
     }
 }

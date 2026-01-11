@@ -116,6 +116,7 @@ impl FbxLight {
                 )
                 .with_radius(self.radius)
                 .build(graph)
+                .to_base()
             }
             FbxLightType::Spot => SpotLightBuilder::new(
                 BaseLightBuilder::new(base).with_color(self.color.to_opaque()),
@@ -123,12 +124,14 @@ impl FbxLight {
             .with_distance(self.radius)
             .with_hotspot_cone_angle(self.hotspot_cone_angle)
             .with_falloff_angle_delta(self.falloff_cone_angle_delta)
-            .build(graph),
+            .build(graph)
+            .to_base(),
 
             FbxLightType::Directional => DirectionalLightBuilder::new(
                 BaseLightBuilder::new(base).with_color(self.color.to_opaque()),
             )
-            .build(graph),
+            .build(graph)
+            .to_base(),
         }
     }
 }

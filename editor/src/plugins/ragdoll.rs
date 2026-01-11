@@ -67,6 +67,8 @@ use crate::{
     world::selection::GraphSelection,
     Editor,
 };
+use fyrox::scene::joint::Joint;
+use fyrox::scene::ragdoll::Ragdoll;
 use std::{ops::Range, sync::Arc};
 
 #[derive(Reflect, Clone, Debug)]
@@ -186,9 +188,9 @@ fn try_make_ball_joint(
     name: &str,
     limits: Option<BallJointLimits>,
     offset_radius: AxisOffset,
-    ragdoll: Handle<Node>,
+    ragdoll: Handle<Ragdoll>,
     graph: &mut Graph,
-) -> Handle<Node> {
+) -> Handle<Joint> {
     if body1.is_some() && body2.is_some() {
         let mut joint = BallJoint::default();
 
@@ -256,9 +258,9 @@ fn try_make_hinge_joint(
     body2: Handle<RigidBody>,
     name: &str,
     limits: Option<Range<f32>>,
-    ragdoll: Handle<Node>,
+    ragdoll: Handle<Ragdoll>,
     graph: &mut Graph,
-) -> Handle<Node> {
+) -> Handle<Joint> {
     if body1.is_some() && body2.is_some() {
         let mut joint = RevoluteJoint::default();
 
@@ -302,7 +304,7 @@ impl RagdollPreset {
         radius: f32,
         mass: f32,
         name: &str,
-        ragdoll: Handle<Node>,
+        ragdoll: Handle<Ragdoll>,
         apply_offset: bool,
         graph: &mut Graph,
     ) -> Handle<RigidBody> {
@@ -331,14 +333,14 @@ impl RagdollPreset {
                             ))
                             .build(),
                     )
-                    .with_children(&[ColliderBuilder::new(
-                        BaseBuilder::new().with_name("SphereCollider"),
-                    )
-                    .with_collision_groups(self.collision_groups)
-                    .with_solver_groups(self.solver_groups)
-                    .with_friction(self.friction)
-                    .with_shape(ColliderShape::ball(radius))
-                    .build(graph)]),
+                    .with_child(
+                        ColliderBuilder::new(BaseBuilder::new().with_name("SphereCollider"))
+                            .with_collision_groups(self.collision_groups)
+                            .with_solver_groups(self.solver_groups)
+                            .with_friction(self.friction)
+                            .with_shape(ColliderShape::ball(radius))
+                            .build(graph),
+                    ),
             )
             .with_mass(mass)
             .with_can_sleep(self.can_sleep)
@@ -361,7 +363,7 @@ impl RagdollPreset {
         radius: f32,
         mass: f32,
         name: &str,
-        ragdoll: Handle<Node>,
+        ragdoll: Handle<Ragdoll>,
         graph: &mut Graph,
     ) -> Handle<RigidBody> {
         if let (Ok(from_ref), Ok(to_ref)) = (graph.try_get_node(from), graph.try_get_node(to)) {
@@ -382,18 +384,18 @@ impl RagdollPreset {
                             ))
                             .build(),
                     )
-                    .with_children(&[ColliderBuilder::new(
-                        BaseBuilder::new().with_name("CapsuleCollider"),
-                    )
-                    .with_shape(ColliderShape::capsule(
-                        Vector3::default(),
-                        Vector3::new(0.0, (pos_to - pos_from).norm() - 2.0 * radius, 0.0),
-                        radius,
-                    ))
-                    .with_collision_groups(self.collision_groups)
-                    .with_solver_groups(self.solver_groups)
-                    .with_friction(self.friction)
-                    .build(graph)]),
+                    .with_child(
+                        ColliderBuilder::new(BaseBuilder::new().with_name("CapsuleCollider"))
+                            .with_shape(ColliderShape::capsule(
+                                Vector3::default(),
+                                Vector3::new(0.0, (pos_to - pos_from).norm() - 2.0 * radius, 0.0),
+                                radius,
+                            ))
+                            .with_collision_groups(self.collision_groups)
+                            .with_solver_groups(self.solver_groups)
+                            .with_friction(self.friction)
+                            .build(graph),
+                    ),
             )
             .with_mass(mass)
             .with_can_sleep(self.can_sleep)
@@ -415,7 +417,7 @@ impl RagdollPreset {
         half_size: Vector3<f32>,
         mass: f32,
         name: &str,
-        ragdoll: Handle<Node>,
+        ragdoll: Handle<Ragdoll>,
         graph: &mut Graph,
     ) -> Handle<RigidBody> {
         if let Ok(from_ref) = graph.try_get_node(from) {
@@ -427,14 +429,18 @@ impl RagdollPreset {
                             .with_local_position(from_ref.global_position())
                             .build(),
                     )
-                    .with_children(&[ColliderBuilder::new(
-                        BaseBuilder::new().with_name("CuboidCollider"),
-                    )
-                    .with_collision_groups(self.collision_groups)
-                    .with_solver_groups(self.solver_groups)
-                    .with_shape(ColliderShape::cuboid(half_size.x, half_size.y, half_size.z))
-                    .with_friction(self.friction)
-                    .build(graph)]),
+                    .with_child(
+                        ColliderBuilder::new(BaseBuilder::new().with_name("CuboidCollider"))
+                            .with_collision_groups(self.collision_groups)
+                            .with_solver_groups(self.solver_groups)
+                            .with_shape(ColliderShape::cuboid(
+                                half_size.x,
+                                half_size.y,
+                                half_size.z,
+                            ))
+                            .with_friction(self.friction)
+                            .build(graph),
+                    ),
             )
             .with_mass(mass)
             .with_can_sleep(self.can_sleep)
@@ -893,101 +899,99 @@ impl RagdollPreset {
             graph,
         );
 
-        graph[ragdoll]
-            .as_ragdoll_mut()
-            .root_limb
-            .set_value_and_mark_modified(Limb {
-                bone: self.hips,
-                physical_bone: hips,
-                children: vec![
-                    Limb {
-                        bone: self.spine,
-                        physical_bone: spine,
+        graph[ragdoll].root_limb.set_value_and_mark_modified(Limb {
+            bone: self.hips,
+            physical_bone: hips,
+            children: vec![
+                Limb {
+                    bone: self.spine,
+                    physical_bone: spine,
+                    children: vec![Limb {
+                        bone: self.spine1,
+                        physical_bone: spine1,
                         children: vec![Limb {
-                            bone: self.spine1,
-                            physical_bone: spine1,
-                            children: vec![Limb {
-                                bone: self.spine2,
-                                physical_bone: spine2,
-                                children: vec![
-                                    Limb {
-                                        bone: self.left_shoulder,
-                                        physical_bone: left_shoulder,
+                            bone: self.spine2,
+                            physical_bone: spine2,
+                            children: vec![
+                                Limb {
+                                    bone: self.left_shoulder,
+                                    physical_bone: left_shoulder,
+                                    children: vec![Limb {
+                                        bone: self.left_arm,
+                                        physical_bone: left_arm,
                                         children: vec![Limb {
-                                            bone: self.left_arm,
-                                            physical_bone: left_arm,
+                                            bone: self.left_fore_arm,
+                                            physical_bone: left_fore_arm,
                                             children: vec![Limb {
-                                                bone: self.left_fore_arm,
-                                                physical_bone: left_fore_arm,
-                                                children: vec![Limb {
-                                                    bone: self.left_hand,
-                                                    physical_bone: left_hand,
-                                                    children: vec![],
-                                                }],
+                                                bone: self.left_hand,
+                                                physical_bone: left_hand,
+                                                children: vec![],
                                             }],
                                         }],
-                                    },
-                                    Limb {
-                                        bone: self.right_shoulder,
-                                        physical_bone: right_shoulder,
+                                    }],
+                                },
+                                Limb {
+                                    bone: self.right_shoulder,
+                                    physical_bone: right_shoulder,
+                                    children: vec![Limb {
+                                        bone: self.right_arm,
+                                        physical_bone: right_arm,
                                         children: vec![Limb {
-                                            bone: self.right_arm,
-                                            physical_bone: right_arm,
+                                            bone: self.right_fore_arm,
+                                            physical_bone: right_fore_arm,
                                             children: vec![Limb {
-                                                bone: self.right_fore_arm,
-                                                physical_bone: right_fore_arm,
-                                                children: vec![Limb {
-                                                    bone: self.right_hand,
-                                                    physical_bone: right_hand,
-                                                    children: vec![],
-                                                }],
+                                                bone: self.right_hand,
+                                                physical_bone: right_hand,
+                                                children: vec![],
                                             }],
                                         }],
-                                    },
-                                    Limb {
-                                        bone: self.neck,
-                                        physical_bone: neck,
-                                        children: vec![Limb {
-                                            bone: self.head,
-                                            physical_bone: head,
-                                            children: vec![],
-                                        }],
-                                    },
-                                ],
-                            }],
+                                    }],
+                                },
+                                Limb {
+                                    bone: self.neck,
+                                    physical_bone: neck,
+                                    children: vec![Limb {
+                                        bone: self.head,
+                                        physical_bone: head,
+                                        children: vec![],
+                                    }],
+                                },
+                            ],
                         }],
-                    },
-                    Limb {
-                        bone: self.left_up_leg,
-                        physical_bone: left_up_leg,
+                    }],
+                },
+                Limb {
+                    bone: self.left_up_leg,
+                    physical_bone: left_up_leg,
+                    children: vec![Limb {
+                        bone: self.left_leg,
+                        physical_bone: left_leg,
                         children: vec![Limb {
-                            bone: self.left_leg,
-                            physical_bone: left_leg,
-                            children: vec![Limb {
-                                bone: self.left_foot,
-                                physical_bone: left_foot,
-                                children: vec![],
-                            }],
+                            bone: self.left_foot,
+                            physical_bone: left_foot,
+                            children: vec![],
                         }],
-                    },
-                    Limb {
-                        bone: self.right_up_leg,
-                        physical_bone: right_up_leg,
+                    }],
+                },
+                Limb {
+                    bone: self.right_up_leg,
+                    physical_bone: right_up_leg,
+                    children: vec![Limb {
+                        bone: self.right_leg,
+                        physical_bone: right_leg,
                         children: vec![Limb {
-                            bone: self.right_leg,
-                            physical_bone: right_leg,
-                            children: vec![Limb {
-                                bone: self.right_foot,
-                                physical_bone: right_foot,
-                                children: vec![],
-                            }],
+                            bone: self.right_foot,
+                            physical_bone: right_foot,
+                            children: vec![],
                         }],
-                    },
-                ],
-            });
+                    }],
+                },
+            ],
+        });
 
         // Immediately after extract if from the scene to subgraph. This is required to not violate
         // the rule of one place of execution, only commands allowed to modify the scene.
+        let ragdoll = ragdoll.to_base();
         let sub_graph = graph.take_reserve_sub_graph(ragdoll);
 
         let group = vec![

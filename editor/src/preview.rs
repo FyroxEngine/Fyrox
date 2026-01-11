@@ -53,6 +53,9 @@ use crate::{
     load_image, Engine,
 };
 use fyrox::core::num_traits::Zero;
+use fyrox::core::pool::ObjectOrVariant;
+use fyrox::scene::camera::Camera;
+use fyrox::scene::pivot::Pivot;
 use std::path::Path;
 
 #[derive(Eq, PartialEq, Copy, Clone)]
@@ -66,10 +69,10 @@ pub struct PreviewPanel {
     scene: Handle<Scene>,
     pub root: Handle<UiNode>,
     frame: Handle<UiNode>,
-    camera_pivot: Handle<Node>,
+    camera_pivot: Handle<Pivot>,
     fit: Handle<UiNode>,
-    hinge: Handle<Node>,
-    pub camera: Handle<Node>,
+    hinge: Handle<Pivot>,
+    pub camera: Handle<Camera>,
     prev_mouse_pos: Vector2<f32>,
     yaw: f32,
     pitch: f32,
@@ -139,8 +142,8 @@ impl PreviewPanel {
 
         let camera;
         let hinge;
-        let camera_pivot = PivotBuilder::new(BaseBuilder::new().with_children(&[{
-            hinge = PivotBuilder::new(BaseBuilder::new().with_children(&[{
+        let camera_pivot = PivotBuilder::new(BaseBuilder::new().with_child({
+            hinge = PivotBuilder::new(BaseBuilder::new().with_child({
                 camera = CameraBuilder::new(
                     BaseBuilder::new().with_local_transform(
                         TransformBuilder::new()
@@ -154,10 +157,10 @@ impl PreviewPanel {
                 )
                 .build(&mut scene.graph);
                 camera
-            }]))
+            }))
             .build(&mut scene.graph);
             hinge
-        }]))
+        }))
         .build(&mut scene.graph);
 
         scene.graph.link_nodes(hinge, camera_pivot);
@@ -275,9 +278,8 @@ impl PreviewPanel {
             .and_then(|rt| rt.data_ref().kind().rectangle_size())
             .map(|rs| rs.x as f32 / rs.y as f32)
             .unwrap_or(1.0);
-        if let FitParameters::Perspective { distance, .. } = scene.graph[self.camera]
-            .as_camera()
-            .fit(&aabb, aspect_ratio, 1.1)
+        if let FitParameters::Perspective { distance, .. } =
+            scene.graph[self.camera].fit(&aabb, aspect_ratio, 1.1)
         {
             self.position = Default::default();
             self.distance = distance;
@@ -413,9 +415,9 @@ impl PreviewPanel {
         }
     }
 
-    pub fn set_model(&mut self, model: Handle<Node>, engine: &mut Engine) {
+    pub fn set_model(&mut self, model: Handle<impl ObjectOrVariant<Node>>, engine: &mut Engine) {
         self.clear(engine);
-        self.model = model;
+        self.model = model.to_base();
         self.fit_to_model(&mut engine.scenes[self.scene])
     }
 

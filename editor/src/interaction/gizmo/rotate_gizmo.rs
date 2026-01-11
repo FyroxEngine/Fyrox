@@ -46,6 +46,9 @@ use crate::{
     settings::Settings,
     Engine,
 };
+use fyrox::scene::camera::Camera;
+use fyrox::scene::mesh::Mesh;
+use fyrox::scene::pivot::Pivot;
 
 pub enum RotateGizmoMode {
     Pitch,
@@ -55,10 +58,10 @@ pub enum RotateGizmoMode {
 
 pub struct RotationGizmo {
     mode: RotateGizmoMode,
-    pub origin: Handle<Node>,
-    x_axis: Handle<Node>,
-    y_axis: Handle<Node>,
-    z_axis: Handle<Node>,
+    pub origin: Handle<Pivot>,
+    x_axis: Handle<Mesh>,
+    y_axis: Handle<Mesh>,
+    z_axis: Handle<Mesh>,
 }
 
 fn make_rotation_ribbon(
@@ -66,7 +69,7 @@ fn make_rotation_ribbon(
     rotation: UnitQuaternion<f32>,
     color: Color,
     name: &str,
-) -> Handle<Node> {
+) -> Handle<Mesh> {
     const RIBBON_THICKNESS: f32 = 0.015;
 
     MeshBuilder::new(
@@ -134,9 +137,9 @@ impl RotationGizmo {
     }
 
     pub fn reset_state(&self, graph: &mut Graph) {
-        set_mesh_diffuse_color(graph[self.x_axis].as_mesh_mut(), Color::RED);
-        set_mesh_diffuse_color(graph[self.y_axis].as_mesh_mut(), Color::GREEN);
-        set_mesh_diffuse_color(graph[self.z_axis].as_mesh_mut(), Color::BLUE);
+        set_mesh_diffuse_color(&mut graph[self.x_axis], Color::RED);
+        set_mesh_diffuse_color(&mut graph[self.y_axis], Color::GREEN);
+        set_mesh_diffuse_color(&mut graph[self.z_axis], Color::BLUE);
     }
 
     pub fn set_mode(&mut self, mode: RotateGizmoMode, graph: &mut Graph) {
@@ -148,13 +151,13 @@ impl RotationGizmo {
         let yellow = Color::opaque(255, 255, 0);
         match self.mode {
             RotateGizmoMode::Pitch => {
-                set_mesh_diffuse_color(graph[self.x_axis].as_mesh_mut(), yellow);
+                set_mesh_diffuse_color(&mut graph[self.x_axis], yellow);
             }
             RotateGizmoMode::Yaw => {
-                set_mesh_diffuse_color(graph[self.y_axis].as_mesh_mut(), yellow);
+                set_mesh_diffuse_color(&mut graph[self.y_axis], yellow);
             }
             RotateGizmoMode::Roll => {
-                set_mesh_diffuse_color(graph[self.z_axis].as_mesh_mut(), yellow);
+                set_mesh_diffuse_color(&mut graph[self.z_axis], yellow);
             }
         }
     }
@@ -176,13 +179,13 @@ impl RotationGizmo {
 
     pub fn calculate_rotation_delta(
         &self,
-        camera: Handle<Node>,
+        camera: Handle<Camera>,
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
         graph: &Graph,
         frame_size: Vector2<f32>,
     ) -> UnitQuaternion<f32> {
-        let camera = &graph[camera].as_camera();
+        let camera = &graph[camera];
         let transform = graph[self.origin].global_transform();
 
         let initial_ray = camera.make_ray(mouse_position, frame_size);
@@ -225,11 +228,11 @@ impl RotationGizmo {
     pub fn sync_with_selection(
         &self,
         graph: &mut Graph,
-        camera: Handle<Node>,
+        camera: Handle<Camera>,
         settings: &Settings,
         selection: &Selection,
     ) {
-        utils::sync_gizmo_with_selection(self.origin, graph, camera, settings, selection)
+        utils::sync_gizmo_with_selection(self.origin.to_base(), graph, camera, settings, selection)
     }
 
     pub fn set_visible(&self, graph: &mut Graph, visible: bool) {

@@ -50,7 +50,6 @@ use crate::{
         gui::{HorizontalAlignment, Thickness, VerticalAlignment},
         scene::{
             base::BaseBuilder,
-            camera::Camera,
             graph::Graph,
             mesh::{
                 surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
@@ -78,6 +77,7 @@ use crate::{
 
 use fyrox::gui::inspector::InspectorContextArgs;
 use fyrox::gui::window::WindowAlignment;
+use fyrox::scene::mesh::Mesh;
 use std::sync::mpsc::channel;
 use std::sync::Arc;
 
@@ -229,7 +229,7 @@ impl TerrainInteractionMode {
 }
 
 pub struct BrushGizmo {
-    brush: Handle<Node>,
+    brush: Handle<Mesh>,
 }
 
 impl BrushGizmo {
@@ -290,31 +290,27 @@ impl InteractionMode for TerrainInteractionMode {
                     .shift;
                 let graph = &mut engine.scenes[game_scene.scene].graph;
                 let handle = selection.nodes()[0];
-                let ray = graph[game_scene.camera_controller.camera]
-                    .cast::<Camera>()
-                    .map(|cam| cam.make_ray(mouse_pos, frame_size));
+                let ray =
+                    graph[game_scene.camera_controller.camera].make_ray(mouse_pos, frame_size);
                 if let Some(terrain) = graph[handle].cast_mut::<Terrain>() {
                     // Pick height value at the point of interaction.
                     if let BrushMode::Flatten = &mut self.brush.mode {
-                        if let Some(ray) = ray {
-                            let mut intersections = ArrayVec::<TerrainRayCastResult, 128>::new();
-                            terrain.raycast(ray, &mut intersections, true);
+                        let mut intersections = ArrayVec::<TerrainRayCastResult, 128>::new();
+                        terrain.raycast(ray, &mut intersections, true);
 
-                            let first = intersections.first();
-                            if let (Some(closest), BrushTarget::HeightMap) =
-                                (first, self.brush.target)
-                            {
-                                self.brush_value = closest.height;
-                            } else if let Some(closest) = first {
-                                let p = terrain.project(closest.position);
-                                self.brush_value = if let Some(position) = p {
-                                    terrain.interpolate_value(position, self.brush.target)
-                                } else {
-                                    0.0
-                                };
+                        let first = intersections.first();
+                        if let (Some(closest), BrushTarget::HeightMap) = (first, self.brush.target)
+                        {
+                            self.brush_value = closest.height;
+                        } else if let Some(closest) = first {
+                            let p = terrain.project(closest.position);
+                            self.brush_value = if let Some(position) = p {
+                                terrain.interpolate_value(position, self.brush.target)
                             } else {
-                                self.brush_value = 0.0;
-                            }
+                                0.0
+                            };
+                        } else {
+                            self.brush_value = 0.0;
                         }
                     }
                     if self.brush.target == BrushTarget::HoleMask && !terrain.holes_enabled() {
@@ -369,35 +365,34 @@ impl InteractionMode for TerrainInteractionMode {
                 let handle = selection.nodes()[0];
 
                 let camera = &graph[game_scene.camera_controller.camera];
-                if let Some(camera) = camera.cast::<Camera>() {
-                    let ray = camera.make_ray(mouse_position, frame_size);
-                    if let Some(terrain) = graph[handle].cast_mut::<Terrain>() {
-                        let mut intersections = ArrayVec::<TerrainRayCastResult, 128>::new();
-                        terrain.raycast(ray, &mut intersections, true);
 
-                        if let Some(closest) = intersections.first() {
-                            self.brush_position = closest.position;
-                            gizmo_visible = true;
+                let ray = camera.make_ray(mouse_position, frame_size);
+                if let Some(terrain) = graph[handle].cast_mut::<Terrain>() {
+                    let mut intersections = ArrayVec::<TerrainRayCastResult, 128>::new();
+                    terrain.raycast(ray, &mut intersections, true);
 
-                            if self.interacting {
-                                self.draw(terrain);
-                            }
+                    if let Some(closest) = intersections.first() {
+                        self.brush_position = closest.position;
+                        gizmo_visible = true;
 
-                            let scale = match self.brush.shape {
-                                BrushShape::Circle { radius } => {
-                                    Vector3::new(radius * 2.0, radius * 2.0, 1.0)
-                                }
-                                BrushShape::Rectangle { width, length } => {
-                                    Vector3::new(width, length, 1.0)
-                                }
-                            };
-
-                            graph[self.brush_gizmo.brush]
-                                .local_transform_mut()
-                                .set_position(closest.position)
-                                .set_scale(scale)
-                                .set_rotation(vector_to_quat(closest.normal));
+                        if self.interacting {
+                            self.draw(terrain);
                         }
+
+                        let scale = match self.brush.shape {
+                            BrushShape::Circle { radius } => {
+                                Vector3::new(radius * 2.0, radius * 2.0, 1.0)
+                            }
+                            BrushShape::Rectangle { width, length } => {
+                                Vector3::new(width, length, 1.0)
+                            }
+                        };
+
+                        graph[self.brush_gizmo.brush]
+                            .local_transform_mut()
+                            .set_position(closest.position)
+                            .set_scale(scale)
+                            .set_rotation(vector_to_quat(closest.normal));
                     }
                 }
             }

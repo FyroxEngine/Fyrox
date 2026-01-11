@@ -28,15 +28,17 @@ use crate::{
         ShapeHandleValue,
     },
 };
+use fyrox::scene::pivot::Pivot;
+use fyrox::scene::sprite::Sprite;
 
 pub struct TriangleShapeGizmo {
-    a_handle: Handle<Node>,
-    b_handle: Handle<Node>,
-    c_handle: Handle<Node>,
+    a_handle: Handle<Sprite>,
+    b_handle: Handle<Sprite>,
+    c_handle: Handle<Sprite>,
 }
 
 impl TriangleShapeGizmo {
-    pub fn new(root: Handle<Node>, visible: bool, scene: &mut Scene) -> Self {
+    pub fn new(root: Handle<Pivot>, visible: bool, scene: &mut Scene) -> Self {
         Self {
             a_handle: make_handle(scene, root, visible),
             b_handle: make_handle(scene, root, visible),
@@ -46,7 +48,7 @@ impl TriangleShapeGizmo {
 }
 
 impl ShapeGizmoTrait for TriangleShapeGizmo {
-    fn for_each_handle(&self, func: &mut dyn FnMut(Handle<Node>)) {
+    fn for_each_handle(&self, func: &mut dyn FnMut(Handle<Sprite>)) {
         for handle in [self.a_handle, self.b_handle, self.c_handle] {
             func(handle)
         }
@@ -54,7 +56,7 @@ impl ShapeGizmoTrait for TriangleShapeGizmo {
 
     fn handle_local_position(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         collider: Handle<Node>,
         scene: &Scene,
     ) -> Option<Vector3<f32>> {
@@ -76,7 +78,7 @@ impl ShapeGizmoTrait for TriangleShapeGizmo {
 
     fn value_by_handle(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         collider: Handle<Node>,
         scene: &Scene,
     ) -> Option<ShapeHandleValue> {
@@ -98,7 +100,7 @@ impl ShapeGizmoTrait for TriangleShapeGizmo {
 
     fn set_value_by_handle(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         value: ShapeHandleValue,
         collider: Handle<Node>,
         scene: &mut Scene,
@@ -118,7 +120,7 @@ impl ShapeGizmoTrait for TriangleShapeGizmo {
         }
     }
 
-    fn is_vector_handle(&self, handle: Handle<Node>) -> bool {
+    fn is_vector_handle(&self, handle: Handle<Sprite>) -> bool {
         handle == self.a_handle || handle == self.b_handle || handle == self.c_handle
     }
 }

@@ -2275,20 +2275,22 @@ mod test {
         let b;
         let c;
         let d;
-        let a = PivotBuilder::new(BaseBuilder::new().with_name("A").with_children(&[
-            {
-                b = PivotBuilder::new(BaseBuilder::new().with_name("B")).build(&mut graph);
-                b
-            },
-            {
-                c = PivotBuilder::new(BaseBuilder::new().with_name("C").with_children(&[{
-                    d = PivotBuilder::new(BaseBuilder::new().with_name("D")).build(&mut graph);
-                    d
-                }]))
-                .build(&mut graph);
-                c
-            },
-        ]))
+        let a = PivotBuilder::new(
+            BaseBuilder::new()
+                .with_name("A")
+                .with_child({
+                    b = PivotBuilder::new(BaseBuilder::new().with_name("B")).build(&mut graph);
+                    b
+                })
+                .with_child({
+                    c = PivotBuilder::new(BaseBuilder::new().with_name("C").with_child({
+                        d = PivotBuilder::new(BaseBuilder::new().with_name("D")).build(&mut graph);
+                        d
+                    }))
+                    .build(&mut graph);
+                    c
+                }),
+        )
         .build(&mut graph);
 
         // Test down search.
@@ -2319,7 +2321,7 @@ mod test {
 
         PivotBuilder::new(BaseBuilder::new().with_name("Pivot")).build(&mut scene.graph);
 
-        PivotBuilder::new(BaseBuilder::new().with_name("MeshPivot").with_children(&[{
+        PivotBuilder::new(BaseBuilder::new().with_name("MeshPivot").with_child({
             MeshBuilder::new(
                 BaseBuilder::new().with_name("Mesh").with_local_transform(
                     TransformBuilder::new()
@@ -2334,7 +2336,7 @@ mod test {
             ))
             .build()])
             .build(&mut scene.graph)
-        }]))
+        }))
         .build(&mut scene.graph);
 
         scene
@@ -2476,7 +2478,7 @@ mod test {
                         .with_local_scale(Vector3::new(1.0, 1.0, 2.0))
                         .build(),
                 )
-                .with_children(&[{
+                .with_child({
                     b = PivotBuilder::new(
                         BaseBuilder::new()
                             .with_local_transform(
@@ -2484,7 +2486,7 @@ mod test {
                                     .with_local_scale(Vector3::new(3.0, 2.0, 1.0))
                                     .build(),
                             )
-                            .with_children(&[{
+                            .with_child({
                                 c = PivotBuilder::new(
                                     BaseBuilder::new().with_local_transform(
                                         TransformBuilder::new()
@@ -2494,11 +2496,11 @@ mod test {
                                 )
                                 .build(&mut graph);
                                 c
-                            }]),
+                            }),
                     )
                     .build(&mut graph);
                     b
-                }]),
+                }),
         )
         .build(&mut graph);
 
@@ -2521,44 +2523,42 @@ mod test {
                         .with_local_position(Vector3::new(1.0, 0.0, 0.0))
                         .build(),
                 )
-                .with_children(&[
-                    {
-                        b = PivotBuilder::new(
-                            BaseBuilder::new()
-                                .with_visibility(false)
-                                .with_enabled(false)
-                                .with_local_transform(
-                                    TransformBuilder::new()
-                                        .with_local_position(Vector3::new(0.0, 1.0, 0.0))
-                                        .build(),
-                                )
-                                .with_children(&[{
-                                    c = PivotBuilder::new(
-                                        BaseBuilder::new().with_local_transform(
-                                            TransformBuilder::new()
-                                                .with_local_position(Vector3::new(0.0, 0.0, 1.0))
-                                                .build(),
-                                        ),
-                                    )
-                                    .build(&mut graph);
-                                    c
-                                }]),
-                        )
-                        .build(&mut graph);
-                        b
-                    },
-                    {
-                        d = PivotBuilder::new(
-                            BaseBuilder::new().with_local_transform(
+                .with_child({
+                    b = PivotBuilder::new(
+                        BaseBuilder::new()
+                            .with_visibility(false)
+                            .with_enabled(false)
+                            .with_local_transform(
                                 TransformBuilder::new()
-                                    .with_local_position(Vector3::new(1.0, 1.0, 1.0))
+                                    .with_local_position(Vector3::new(0.0, 1.0, 0.0))
                                     .build(),
-                            ),
-                        )
-                        .build(&mut graph);
-                        d
-                    },
-                ]),
+                            )
+                            .with_child({
+                                c = PivotBuilder::new(
+                                    BaseBuilder::new().with_local_transform(
+                                        TransformBuilder::new()
+                                            .with_local_position(Vector3::new(0.0, 0.0, 1.0))
+                                            .build(),
+                                    ),
+                                )
+                                .build(&mut graph);
+                                c
+                            }),
+                    )
+                    .build(&mut graph);
+                    b
+                })
+                .with_child({
+                    d = PivotBuilder::new(
+                        BaseBuilder::new().with_local_transform(
+                            TransformBuilder::new()
+                                .with_local_position(Vector3::new(1.0, 1.0, 1.0))
+                                .build(),
+                        ),
+                    )
+                    .build(&mut graph);
+                    d
+                }),
         )
         .build(&mut graph);
 

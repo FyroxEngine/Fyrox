@@ -488,7 +488,7 @@ fn convert_mesh(
     model: &FbxModel,
     graph: &mut Graph,
     materials: &MaterialMap,
-) -> Result<Handle<Node>, FbxError> {
+) -> Result<Handle<Mesh>, FbxError> {
     let geometric_transform = Matrix4::new_translation(&model.geometric_translation)
         * quat_from_euler(model.geometric_rotation).to_homogeneous()
         * Matrix4::new_nonuniform_scaling(&model.geometric_scale);
@@ -676,11 +676,11 @@ fn convert_model(
 
     // Create node with the correct kind.
     let node_handle = if !model.geoms.is_empty() {
-        convert_mesh(base, fbx_scene, model, graph, materials)?
+        convert_mesh(base, fbx_scene, model, graph, materials)?.to_base()
     } else if model.light.is_some() {
         fbx_scene.get(model.light).as_light()?.convert(base, graph)
     } else {
-        PivotBuilder::new(base).build(graph)
+        PivotBuilder::new(base).build(graph).to_base()
     };
 
     // Convert animations

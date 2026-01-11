@@ -42,7 +42,7 @@ use crate::{
             BuildContext, Orientation, Thickness, UiNode, UserInterface,
         },
         gui::{HorizontalAlignment, VerticalAlignment},
-        scene::{camera::Camera, navmesh::NavigationalMesh},
+        scene::navmesh::NavigationalMesh,
     },
     interaction::{
         calculate_gizmo_distance_scaling,
@@ -251,7 +251,7 @@ impl InteractionMode for EditNavmeshMode {
         };
 
         let scene = &mut engine.scenes[game_scene.scene];
-        let camera: &Camera = scene.graph[game_scene.camera_controller.camera].as_camera();
+        let camera = &scene.graph[game_scene.camera_controller.camera];
         let ray = camera.make_ray(mouse_pos, frame_size);
 
         let gizmo_origin = self.move_gizmo.origin;

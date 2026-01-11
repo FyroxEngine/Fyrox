@@ -1194,8 +1194,8 @@ impl ColliderBuilder {
     }
 
     /// Creates collider node and adds it to the graph.
-    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
-        graph.add_node(self.build_node())
+    pub fn build(self, graph: &mut Graph) -> Handle<Collider> {
+        graph.add_node(self.build_node()).to_variant()
     }
 }
 
@@ -1225,7 +1225,7 @@ mod test {
                 .with_sensor(is_sensor)
                 .build(&mut graph);
 
-            RigidBodyBuilder::new(BaseBuilder::new().with_children(&[collider_sensor]))
+            RigidBodyBuilder::new(BaseBuilder::new().with_child(collider_sensor))
                 .with_body_type(RigidBodyType::Static)
                 .build(&mut graph);
 
@@ -1240,33 +1240,17 @@ mod test {
         graph.update(Vector2::new(800.0, 600.0), 1.0, Default::default());
 
         // we don't expect contact between regular body and sensor
+        assert_eq!(0, graph[collider_sensor].contacts(&graph.physics).count());
         assert_eq!(
             0,
-            graph[collider_sensor]
-                .as_collider()
-                .contacts(&graph.physics)
-                .count()
-        );
-        assert_eq!(
-            0,
-            graph[collider_non_sensor]
-                .as_collider()
-                .contacts(&graph.physics)
-                .count()
+            graph[collider_non_sensor].contacts(&graph.physics).count()
         );
 
         // we expect intersection between regular body and sensor
-        assert_eq!(
-            1,
-            graph[collider_sensor]
-                .as_collider()
-                .intersects(&graph.physics)
-                .count()
-        );
+        assert_eq!(1, graph[collider_sensor].intersects(&graph.physics).count());
         assert_eq!(
             1,
             graph[collider_non_sensor]
-                .as_collider()
                 .intersects(&graph.physics)
                 .count()
         );

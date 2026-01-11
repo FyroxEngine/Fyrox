@@ -289,7 +289,7 @@ impl NavigationalMeshBuilder {
     }
 
     /// Creates new navigational mesh instance and adds it to the graph.
-    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
-        graph.add_node(self.build_node())
+    pub fn build(self, graph: &mut Graph) -> Handle<NavigationalMesh> {
+        graph.add_node(self.build_node()).to_variant()
     }
 }
