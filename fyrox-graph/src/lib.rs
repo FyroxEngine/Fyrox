@@ -705,7 +705,7 @@ pub trait SceneGraph: 'static {
     ) -> Result<&mut Self::Node, PoolError>;
 
     /// Checks whether the given node handle is valid or not.
-    fn is_valid_handle(&self, handle: Handle<Self::Node>) -> bool;
+    fn is_valid_handle(&self, handle: Handle<impl ObjectOrVariant<Self::Node>>) -> bool;
 
     /// Adds a new node to the graph.
     fn add_node(&mut self, node: Self::Node) -> Handle<Self::Node>;
@@ -1809,7 +1809,7 @@ mod test {
             self.root = root;
         }
 
-        fn is_valid_handle(&self, handle: Handle<Self::Node>) -> bool {
+        fn is_valid_handle(&self, handle: Handle<impl ObjectOrVariant<Self::Node>>) -> bool {
             self.nodes.is_valid_handle(handle)
         }
 

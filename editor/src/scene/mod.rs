@@ -475,13 +475,11 @@ impl GameScene {
     }
 
     fn select_object(&mut self, handle: ErasedHandle, engine: &Engine) {
-        if engine.scenes[self.scene]
-            .graph
-            .is_valid_handle(handle.into())
-        {
+        let handle = Handle::<Node>::from(handle);
+        if engine.scenes[self.scene].graph.is_valid_handle(handle) {
             self.sender
                 .do_command(ChangeSelectionCommand::new(Selection::new(
-                    GraphSelection::single_or_empty(handle.into()),
+                    GraphSelection::single_or_empty(handle),
                 )))
         }
     }

@@ -122,7 +122,7 @@ impl WorldViewerDataProvider for EditorSceneWrapper<'_> {
     }
 
     fn is_valid_handle(&self, node: ErasedHandle) -> bool {
-        self.scene.graph.is_valid_handle(node.into())
+        self.scene.graph.is_valid_handle(Handle::<Node>::from(node))
     }
 
     fn icon_of(&self, node: ErasedHandle) -> Option<TextureResource> {

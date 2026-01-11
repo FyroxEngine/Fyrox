@@ -1942,7 +1942,7 @@ impl SceneGraph for Graph {
     }
 
     #[inline]
-    fn is_valid_handle(&self, handle: Handle<Self::Node>) -> bool {
+    fn is_valid_handle(&self, handle: Handle<impl ObjectOrVariant<Self::Node>>) -> bool {
         self.pool.is_valid_handle(handle)
     }
 
