@@ -60,7 +60,7 @@ pub use fyrox_sound::{
 use crate::scene::node::constructor::NodeConstructor;
 use crate::scene::Scene;
 use fyrox_graph::constructor::ConstructorProvider;
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::SceneGraph;
 use fyrox_resource::state::ResourceState;
 use fyrox_sound::source::SoundSource;
 use std::{
@@ -606,7 +606,7 @@ impl SoundBuilder {
     }
 
     /// Create a new [`Sound`] node and adds it to the graph.
-    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
-        graph.add_node(self.build_node())
+    pub fn build(self, graph: &mut Graph) -> Handle<Sound> {
+        graph.add_node(self.build_node()).to_variant()
     }
 }

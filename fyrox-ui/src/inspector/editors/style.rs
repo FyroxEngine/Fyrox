@@ -55,7 +55,7 @@ use crate::{
     VerticalAlignment, Widget,
 };
 use fyrox_core::algebra::{Matrix3, Vector2};
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::SceneGraph;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},

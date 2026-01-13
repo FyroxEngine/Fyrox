@@ -25,7 +25,7 @@ use crate::fyrox::{
         futures::executor::block_on, make_pretty_type_name, make_relative_path, pool::ErasedHandle,
         pool::Handle, reflect::Reflect,
     },
-    graph::{BaseSceneGraph, SceneGraph},
+    graph::SceneGraph,
     gui::{
         border::Border, button::Button, canvas::Canvas, check_box::CheckBox,
         file_browser::FileBrowser, grid::Grid, image::Image, inspector::Inspector,

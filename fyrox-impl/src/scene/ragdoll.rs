@@ -22,12 +22,12 @@
 //! of a mesh. Ragdolls are used mostly for body physics. See [`Ragdoll`] docs for more info and
 //! usage examples.
 
-use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
+        log::Log,
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
-        pool::Handle,
+        pool::{Handle, PoolError},
         reflect::prelude::*,
         type_traits::prelude::*,
         uuid::{uuid, Uuid},
@@ -35,17 +35,16 @@ use crate::{
         variable::InheritableVariable,
         visitor::prelude::*,
     },
-    graph::BaseSceneGraph,
+    graph::SceneGraph,
     scene::{
         base::{Base, BaseBuilder},
         collider::Collider,
         graph::Graph,
-        node::{Node, NodeTrait, UpdateContext},
+        node::{constructor::NodeConstructor, Node, NodeTrait, UpdateContext},
         rigidbody::{RigidBody, RigidBodyType},
     },
 };
 use fyrox_graph::constructor::ConstructorProvider;
-use fyrox_graph::SceneGraphNode;
 use std::{
     any::{type_name, Any, TypeId},
     ops::{Deref, DerefMut},
@@ -58,7 +57,7 @@ pub struct Limb {
     /// A handle of a scene node, that is used as a bone in some other scene node (mesh).
     pub bone: Handle<Node>,
     /// A handle to a rigid body scene node.
-    pub physical_bone: Handle<Node>,
+    pub physical_bone: Handle<RigidBody>,
     /// A set of children limbs.
     pub children: Vec<Limb>,
 }
@@ -258,15 +257,17 @@ impl Visit for Limb {
 impl Limb {
     /// Iterates recursively across the entire tree of descendant limbs and does the specified action
     /// with every limb along the way.
-    pub fn iterate_recursive<F>(&self, func: &mut F)
+    pub fn iterate_recursive<F>(&self, func: &mut F) -> Result<(), PoolError>
     where
-        F: FnMut(&Self),
+        F: FnMut(&Self) -> Result<(), PoolError>,
     {
-        func(self);
+        func(self)?;
 
         for child in self.children.iter() {
-            child.iterate_recursive(func)
+            child.iterate_recursive(func)?
         }
+
+        Ok(())
     }
 }
 
@@ -287,7 +288,7 @@ pub struct Ragdoll {
     base: Base,
     /// A handle to a main rigid body of the character to which this ragdoll belongs to. If set, the
     /// ragdoll will take control over the collider and will move it together with the root limb.
-    pub character_rigid_body: InheritableVariable<Handle<Node>>,
+    pub character_rigid_body: InheritableVariable<Handle<RigidBody>>,
     /// A flag, that defines whether the ragdoll is active or not. Active ragdoll enables limb rigid
     /// bodies and takes control over `character_rigid_body` (if set).
     pub is_active: InheritableVariable<bool>,
@@ -351,114 +352,106 @@ impl NodeTrait for Ragdoll {
         let mut new_lin_vel = None;
         let mut new_ang_vel = None;
         if *self.is_active && !self.prev_enabled {
-            if let Ok(character_rigid_body) = ctx
-                .nodes
-                .try_get_component_of_type::<RigidBody>(*self.character_rigid_body)
-            {
+            if let Ok(character_rigid_body) = ctx.nodes.try_get(*self.character_rigid_body) {
                 new_lin_vel = Some(character_rigid_body.lin_vel());
                 new_ang_vel = Some(character_rigid_body.ang_vel());
             }
         }
         self.prev_enabled = *self.is_active;
 
-        self.root_limb.iterate_recursive(&mut |limb| {
+        Log::verify(self.root_limb.iterate_recursive(&mut |limb| {
             let mbc = ctx.nodes.begin_multi_borrow();
 
             let mut need_update_transform = false;
 
-            if let Ok(mut limb_body) =
-                mbc.try_get_component_of_type_mut::<RigidBody>(limb.physical_bone)
-            {
-                if *self.is_active {
-                    // Transfer linear and angular velocities to rag doll bodies.
-                    if let Some(lin_vel) = new_lin_vel {
-                        limb_body.set_lin_vel(lin_vel);
-                    }
-                    if let Some(ang_vel) = new_ang_vel {
-                        limb_body.set_ang_vel(ang_vel);
-                    }
+            let mut limb_body = mbc.try_get_mut(limb.physical_bone)?;
+            if *self.is_active {
+                // Transfer linear and angular velocities to rag doll bodies.
+                if let Some(lin_vel) = new_lin_vel {
+                    limb_body.set_lin_vel(lin_vel);
+                }
+                if let Some(ang_vel) = new_ang_vel {
+                    limb_body.set_ang_vel(ang_vel);
+                }
 
-                    if limb_body.body_type() != RigidBodyType::Dynamic {
-                        limb_body.set_body_type(RigidBodyType::Dynamic);
-                    }
+                if limb_body.body_type() != RigidBodyType::Dynamic {
+                    limb_body.set_body_type(RigidBodyType::Dynamic);
+                }
 
-                    if *self.deactivate_colliders {
-                        for child in limb_body.children() {
-                            if let Ok(mut collider) =
-                                mbc.try_get_component_of_type_mut::<Collider>(*child)
-                            {
-                                collider.set_is_sensor(false);
-                            }
+                if *self.deactivate_colliders {
+                    for child in limb_body.children() {
+                        if let Ok(mut collider) =
+                            mbc.try_get_component_of_type_mut::<Collider>(*child)
+                        {
+                            collider.set_is_sensor(false);
                         }
-                    }
-
-                    let body_transform = limb_body.global_transform();
-
-                    // Sync transform of the bone with respective body.
-                    let bone_parent = mbc.try_get(limb.bone).unwrap().parent();
-                    let transform: Matrix4<f32> = mbc
-                        .try_get(bone_parent)
-                        .unwrap()
-                        .global_transform()
-                        .try_inverse()
-                        .unwrap_or_else(Matrix4::identity)
-                        * body_transform;
-
-                    mbc.try_get_mut(limb.bone)
-                        .unwrap()
-                        .local_transform_mut()
-                        .set_position(Vector3::new(transform[12], transform[13], transform[14]))
-                        .set_pre_rotation(UnitQuaternion::identity())
-                        .set_post_rotation(UnitQuaternion::identity())
-                        .set_rotation(UnitQuaternion::from_matrix_eps(
-                            &transform.basis(),
-                            f32::EPSILON,
-                            16,
-                            Default::default(),
-                        ));
-
-                    need_update_transform = true;
-                } else {
-                    limb_body.set_body_type(RigidBodyType::KinematicPositionBased);
-                    limb_body.set_lin_vel(Default::default());
-                    limb_body.set_ang_vel(Default::default());
-
-                    if *self.deactivate_colliders {
-                        for child in limb_body.children() {
-                            if let Ok(mut collider) =
-                                mbc.try_get_component_of_type_mut::<Collider>(*child)
-                            {
-                                collider.set_is_sensor(true);
-                            }
-                        }
-                    }
-
-                    let self_transform_inverse =
-                        self.global_transform().try_inverse().unwrap_or_default();
-
-                    // Sync transform of the physical body with respective bone.
-                    if let Ok(bone) = mbc.try_get(limb.bone) {
-                        let relative_transform = self_transform_inverse * bone.global_transform();
-
-                        let position = Vector3::new(
-                            relative_transform[12],
-                            relative_transform[13],
-                            relative_transform[14],
-                        );
-                        let rotation = UnitQuaternion::from_matrix_eps(
-                            &relative_transform.basis(),
-                            f32::EPSILON,
-                            16,
-                            Default::default(),
-                        );
-                        limb_body
-                            .local_transform_mut()
-                            .set_position(position)
-                            .set_rotation(rotation);
                     }
                 }
-            };
 
+                let body_transform = limb_body.global_transform();
+
+                // Sync transform of the bone with respective body.
+                let bone_parent = mbc.try_get(limb.bone)?.parent();
+                let transform: Matrix4<f32> = mbc
+                    .try_get(bone_parent)?
+                    .global_transform()
+                    .try_inverse()
+                    .unwrap_or_else(Matrix4::identity)
+                    * body_transform;
+
+                mbc.try_get_mut(limb.bone)?
+                    .local_transform_mut()
+                    .set_position(Vector3::new(transform[12], transform[13], transform[14]))
+                    .set_pre_rotation(UnitQuaternion::identity())
+                    .set_post_rotation(UnitQuaternion::identity())
+                    .set_rotation(UnitQuaternion::from_matrix_eps(
+                        &transform.basis(),
+                        f32::EPSILON,
+                        16,
+                        Default::default(),
+                    ));
+
+                need_update_transform = true;
+            } else {
+                limb_body.set_body_type(RigidBodyType::KinematicPositionBased);
+                limb_body.set_lin_vel(Default::default());
+                limb_body.set_ang_vel(Default::default());
+
+                if *self.deactivate_colliders {
+                    for child in limb_body.children() {
+                        if let Ok(mut collider) =
+                            mbc.try_get_component_of_type_mut::<Collider>(*child)
+                        {
+                            collider.set_is_sensor(true);
+                        }
+                    }
+                }
+
+                let self_transform_inverse =
+                    self.global_transform().try_inverse().unwrap_or_default();
+
+                // Sync transform of the physical body with respective bone.
+                let bone = mbc.try_get(limb.bone)?;
+                let relative_transform = self_transform_inverse * bone.global_transform();
+
+                let position = Vector3::new(
+                    relative_transform[12],
+                    relative_transform[13],
+                    relative_transform[14],
+                );
+                let rotation = UnitQuaternion::from_matrix_eps(
+                    &relative_transform.basis(),
+                    f32::EPSILON,
+                    16,
+                    Default::default(),
+                );
+                limb_body
+                    .local_transform_mut()
+                    .set_position(position)
+                    .set_rotation(rotation);
+            }
+
+            drop(limb_body);
             drop(mbc);
 
             if need_update_transform {
@@ -472,14 +465,13 @@ impl NodeTrait for Ragdoll {
                     limb.bone,
                 );
             }
-        });
+
+            Ok(())
+        }));
 
         if let Ok(root_limb_body) = ctx.nodes.try_borrow(self.root_limb.bone) {
             let position = root_limb_body.global_position();
-            if let Ok(character_rigid_body) = ctx
-                .nodes
-                .try_get_component_of_type_mut::<RigidBody>(*self.character_rigid_body)
-            {
+            if let Ok(character_rigid_body) = ctx.nodes.try_get_mut(*self.character_rigid_body) {
                 if *self.is_active {
                     character_rigid_body.set_lin_vel(Default::default());
                     character_rigid_body.set_ang_vel(Default::default());
@@ -498,7 +490,7 @@ impl NodeTrait for Ragdoll {
 /// Ragdoll builder creates [`Ragdoll`] scene nodes.
 pub struct RagdollBuilder {
     base_builder: BaseBuilder,
-    character_rigid_body: Handle<Node>,
+    character_rigid_body: Handle<RigidBody>,
     is_active: bool,
     deactivate_colliders: bool,
     root_limb: Limb,
@@ -517,7 +509,7 @@ impl RagdollBuilder {
     }
 
     /// Sets the desired character rigid body.
-    pub fn with_character_rigid_body(mut self, handle: Handle<Node>) -> Self {
+    pub fn with_character_rigid_body(mut self, handle: Handle<RigidBody>) -> Self {
         self.character_rigid_body = handle;
         self
     }
@@ -558,7 +550,7 @@ impl RagdollBuilder {
     }
 
     /// Creates the ragdoll node and adds it to the given graph.
-    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
-        graph.add_node(self.build_node())
+    pub fn build(self, graph: &mut Graph) -> Handle<Ragdoll> {
+        graph.add_node(self.build_node()).to_variant()
     }
 }

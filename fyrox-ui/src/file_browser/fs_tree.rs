@@ -29,7 +29,7 @@ use crate::{
     widget::WidgetBuilder,
     BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
-use fyrox_graph::{BaseSceneGraph, SceneGraph};
+use fyrox_graph::SceneGraph;
 use std::{
     borrow::Cow,
     cmp::Ordering,

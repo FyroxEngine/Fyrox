@@ -24,7 +24,7 @@ use crate::{
         core::{color::Color, math::Rect, pool::Handle, uuid::Uuid},
         engine::Engine,
         fxhash::FxHashMap,
-        graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
+        graph::{SceneGraph, SceneGraphNode},
         graphics::PolygonFillMode,
         gui::{
             border::BorderBuilder,
@@ -641,10 +641,7 @@ impl SceneViewer {
             .downcast_ref::<GameScene>()
             .map(|game_scene| {
                 let scene = &engine.scenes[game_scene.scene];
-                match scene.graph[game_scene.camera_controller.camera]
-                    .as_camera()
-                    .projection()
-                {
+                match scene.graph[game_scene.camera_controller.camera].projection() {
                     Projection::Perspective(_) => 0,
                     Projection::Orthographic(_) => 1,
                 }
@@ -855,7 +852,6 @@ impl SceneViewer {
                                     SceneGizmoAction::SwitchProjection => {
                                         let graph = &engine.scenes[game_scene.scene].graph;
                                         match graph[game_scene.camera_controller.camera]
-                                            .as_camera()
                                             .projection()
                                         {
                                             Projection::Perspective(_) => {

@@ -25,15 +25,16 @@ use crate::{
     },
     plugins::collider::{ShapeGizmoTrait, ShapeHandleValue},
 };
+use fyrox::scene::sprite::Sprite;
 
 pub struct DummyShapeGizmo;
 
 impl ShapeGizmoTrait for DummyShapeGizmo {
-    fn for_each_handle(&self, _func: &mut dyn FnMut(Handle<Node>)) {}
+    fn for_each_handle(&self, _func: &mut dyn FnMut(Handle<Sprite>)) {}
 
     fn handle_local_position(
         &self,
-        _handle: Handle<Node>,
+        _handle: Handle<Sprite>,
         _collider: Handle<Node>,
         _scene: &Scene,
     ) -> Option<Vector3<f32>> {
@@ -42,7 +43,7 @@ impl ShapeGizmoTrait for DummyShapeGizmo {
 
     fn value_by_handle(
         &self,
-        _handle: Handle<Node>,
+        _handle: Handle<Sprite>,
         _collider: Handle<Node>,
         _scene: &Scene,
     ) -> Option<ShapeHandleValue> {
@@ -51,7 +52,7 @@ impl ShapeGizmoTrait for DummyShapeGizmo {
 
     fn set_value_by_handle(
         &self,
-        _handle: Handle<Node>,
+        _handle: Handle<Sprite>,
         _value: ShapeHandleValue,
         _collider: Handle<Node>,
         _scene: &mut Scene,

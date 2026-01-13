@@ -50,11 +50,11 @@ use crate::{
         instant,
         log::{Log, MessageKind},
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
-        pool::{ErasedHandle, Handle, MultiBorrowContext, Pool, Ticket},
+        pool::{Handle, MultiBorrowContext, Pool, Ticket},
         reflect::prelude::*,
         visitor::{Visit, VisitResult, Visitor},
     },
-    graph::{AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, SceneGraph},
+    graph::{NodeHandleMap, SceneGraph},
     material::{MaterialResourceBinding, MaterialTextureBinding},
     resource::model::{Model, ModelResource, ModelResourceExtension},
     scene::{
@@ -480,7 +480,13 @@ impl Graph {
         graph
     }
 
-    fn recursive_summary(&self, indent: usize, current: Handle<Node>, result: &mut String) {
+    fn recursive_summary(
+        &self,
+        indent: usize,
+        current: Handle<impl ObjectOrVariant<Node>>,
+        result: &mut String,
+    ) {
+        let current = current.to_base();
         for _ in 0..indent {
             result.push_str("  ");
         }
@@ -517,7 +523,10 @@ impl Graph {
     /// Tries to find references of the given node in other scene nodes. It could be used to check if the node is
     /// used by some other scene node or not. Returns an array of nodes, that references the given node. This method
     /// is reflection-based, so it is quite slow and should not be used every frame.
-    pub fn find_references_to(&self, target: Handle<Node>) -> Vec<Handle<Node>> {
+    pub fn find_references_to(
+        &self,
+        target: Handle<impl ObjectOrVariant<Node>>,
+    ) -> Vec<Handle<Node>> {
         let mut references = Vec::new();
         for (node_handle, node) in self.pair_iter() {
             (node as &dyn Reflect).apply_recursively(
@@ -549,7 +558,12 @@ impl Graph {
     /// to the end of the frame. If you want to ensure that everything works as expected, call
     /// [`Self::update_hierarchical_data`] before calling this method. It is not called automatically,
     /// because it is quite heavy, and in most cases this method works ok without it.
-    pub fn set_global_position(&mut self, node_handle: Handle<Node>, position: Vector3<f32>) {
+    pub fn set_global_position(
+        &mut self,
+        node_handle: Handle<impl ObjectOrVariant<Node>>,
+        position: Vector3<f32>,
+    ) {
+        let node_handle = node_handle.to_base();
         let (node, parent) = self
             .pool
             .try_borrow_dependant_mut(node_handle, |node| node.parent());
@@ -582,7 +596,12 @@ impl Graph {
     /// to the end of the frame. If you want to ensure that everything works as expected, call
     /// [`Self::update_hierarchical_data`] before calling this method. It is not called automatically,
     /// because it is quite heavy, and in most cases this method works ok without it.
-    pub fn set_global_rotation(&mut self, node: Handle<Node>, rotation: UnitQuaternion<f32>) {
+    pub fn set_global_rotation(
+        &mut self,
+        node: Handle<impl ObjectOrVariant<Node>>,
+        rotation: UnitQuaternion<f32>,
+    ) {
+        let node = node.to_base();
         let (node, parent) = self
             .pool
             .try_borrow_dependant_mut(node, |node| node.parent());
@@ -676,7 +695,13 @@ impl Graph {
     /// Links specified child with specified parent while keeping the
     /// child's global position and rotation.
     #[inline]
-    pub fn link_nodes_keep_global_transform(&mut self, child: Handle<Node>, parent: Handle<Node>) {
+    pub fn link_nodes_keep_global_transform(
+        &mut self,
+        child: Handle<impl ObjectOrVariant<Node>>,
+        parent: Handle<impl ObjectOrVariant<Node>>,
+    ) {
+        let child = child.to_base();
+        let parent = parent.to_base();
         let parent_global_transform_inv = self.pool[parent]
             .global_transform()
             .try_inverse()
@@ -700,7 +725,10 @@ impl Graph {
     /// Searches for a **first** node with a script of the given type `S` in the hierarchy starting from the
     /// given `root_node`.
     #[inline]
-    pub fn find_first_by_script<S>(&self, root_node: Handle<Node>) -> Option<(Handle<Node>, &Node)>
+    pub fn find_first_by_script<S>(
+        &self,
+        root_node: Handle<impl ObjectOrVariant<Node>>,
+    ) -> Option<(Handle<Node>, &Node)>
     where
         S: ScriptTrait,
     {
@@ -745,7 +773,7 @@ impl Graph {
     #[inline]
     pub fn copy_node<F, Pre, Post>(
         &self,
-        node_handle: Handle<Node>,
+        node_handle: Handle<impl ObjectOrVariant<Node>>,
         dest_graph: &mut Graph,
         filter: &mut F,
         pre_process_callback: &mut Pre,
@@ -863,7 +891,7 @@ impl Graph {
     ///   for its newly copied children, but no handle for its parent.
     fn copy_node_raw<F, Pre, Post>(
         &self,
-        root_handle: Handle<Node>,
+        root_handle: Handle<impl ObjectOrVariant<Node>>,
         dest_graph: &mut Graph,
         old_new_mapping: &mut NodeHandleMap<Node>,
         filter: &mut F,
@@ -875,6 +903,7 @@ impl Graph {
         Pre: FnMut(Handle<Node>, &mut Node),
         Post: FnMut(Handle<Node>, Handle<Node>, &mut Node),
     {
+        let root_handle = root_handle.to_base();
         let src_node = &self.pool[root_handle];
         let mut dest_node = clear_links(src_node.clone_box());
         pre_process_callback(root_handle, &mut dest_node);
@@ -1047,12 +1076,13 @@ impl Graph {
     /// all the nodes in the hierarchy.
     pub fn aabb_of_descendants<F>(
         &self,
-        root: Handle<Node>,
+        root: Handle<impl ObjectOrVariant<Node>>,
         mut filter: F,
     ) -> Option<AxisAlignedBoundingBox>
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
+        let root = root.to_base();
         fn aabb_of_descendants_recursive<F>(
             graph: &Graph,
             node: Handle<Node>,
@@ -1170,13 +1200,16 @@ impl Graph {
     ///
     /// This method could be slow for large hierarchies. You should call it only when absolutely needed.
     #[inline]
-    pub fn update_hierarchical_data_for_descendants(&mut self, node_handle: Handle<Node>) {
+    pub fn update_hierarchical_data_for_descendants(
+        &mut self,
+        node_handle: Handle<impl ObjectOrVariant<Node>>,
+    ) {
         Self::update_hierarchical_data_recursively(
             &self.pool,
             &mut self.sound_context,
             &mut self.physics,
             &mut self.physics2d,
-            node_handle,
+            node_handle.to_base(),
         );
     }
 
@@ -1429,7 +1462,7 @@ impl Graph {
     /// # use fyrox_impl::scene::node::Node;
     /// # use fyrox_impl::scene::graph::Graph;
     /// # use fyrox_impl::scene::pivot::Pivot;
-    /// # use fyrox_graph::BaseSceneGraph;
+    /// # use fyrox_graph::SceneGraph;
     /// let mut graph = Graph::new();
     /// graph.add_node(Node::new(Pivot::default()));
     /// graph.add_node(Node::new(Pivot::default()));
@@ -1453,7 +1486,7 @@ impl Graph {
     /// # use fyrox_impl::scene::node::Node;
     /// # use fyrox_impl::scene::graph::Graph;
     /// # use fyrox_impl::scene::pivot::Pivot;
-    /// # use fyrox_graph::BaseSceneGraph;
+    /// # use fyrox_graph::SceneGraph;
     /// let mut graph = Graph::new();
     /// graph.add_node(Node::new(Pivot::default()));
     /// graph.add_node(Node::new(Pivot::default()));
@@ -1649,15 +1682,22 @@ impl Graph {
 
     /// Returns local transformation matrix of a node without scale.
     #[inline]
-    pub fn local_transform_no_scale(&self, node: Handle<Node>) -> Matrix4<f32> {
-        let mut transform = self[node].local_transform().clone();
+    pub fn local_transform_no_scale(
+        &self,
+        node: Handle<impl ObjectOrVariant<Node>>,
+    ) -> Matrix4<f32> {
+        let mut transform = self[node.to_base()].local_transform().clone();
         transform.set_scale(Vector3::new(1.0, 1.0, 1.0));
         transform.matrix()
     }
 
     /// Returns world transformation matrix of a node without scale.
     #[inline]
-    pub fn global_transform_no_scale(&self, node: Handle<Node>) -> Matrix4<f32> {
+    pub fn global_transform_no_scale(
+        &self,
+        node: Handle<impl ObjectOrVariant<Node>>,
+    ) -> Matrix4<f32> {
+        let node = node.to_base();
         let parent = self[node].parent();
         if parent.is_some() {
             self.global_transform_no_scale(parent) * self.local_transform_no_scale(node)
@@ -1731,11 +1771,12 @@ impl Graph {
 
     /// Returns global scale of a node.
     #[inline]
-    pub fn global_scale(&self, mut node: Handle<Node>) -> Vector3<f32> {
+    pub fn global_scale(&self, handle: Handle<impl ObjectOrVariant<Node>>) -> Vector3<f32> {
+        let mut handle = handle.to_base();
         let mut global_scale = Vector3::repeat(1.0);
-        while let Ok(node_ref) = self.try_get_node(node) {
+        while let Ok(node_ref) = self.try_get_node(handle) {
             global_scale = global_scale.component_mul(node_ref.local_transform().scale());
-            node = node_ref.parent;
+            handle = node_ref.parent;
         }
         global_scale
     }
@@ -1743,10 +1784,14 @@ impl Graph {
     /// Tries to borrow a node using the given handle and searches the script buffer for a script
     /// of type T and cast the first script, that could be found to the specified type.
     #[inline]
-    pub fn try_get_script_of<T>(&self, handle: Handle<Node>) -> Result<&T, GraphError>
+    pub fn try_get_script_of<T>(
+        &self,
+        handle: Handle<impl ObjectOrVariant<Node>>,
+    ) -> Result<&T, GraphError>
     where
         T: ScriptTrait,
     {
+        let handle = handle.to_base();
         let node = self.try_get_node(handle)?;
         node.try_get_script::<T>()
             .ok_or_else(|| GraphError::NoScript {
@@ -1761,8 +1806,9 @@ impl Graph {
     #[inline]
     pub fn try_get_scripts_of<T: ScriptTrait>(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<impl ObjectOrVariant<Node>>,
     ) -> Result<impl Iterator<Item = &T>, GraphError> {
+        let handle = handle.to_base();
         let node = self.try_get_node(handle)?;
         Ok(node.try_get_scripts())
     }
@@ -1770,10 +1816,14 @@ impl Graph {
     /// Tries to borrow a node using the given handle and searches the script buffer for a script
     /// of type T and cast the first script, that could be found to the specified type.
     #[inline]
-    pub fn try_get_script_of_mut<T>(&mut self, handle: Handle<Node>) -> Result<&mut T, GraphError>
+    pub fn try_get_script_of_mut<T>(
+        &mut self,
+        handle: Handle<impl ObjectOrVariant<Node>>,
+    ) -> Result<&mut T, GraphError>
     where
         T: ScriptTrait,
     {
+        let handle = handle.to_base();
         let node = self.try_get_node_mut(handle)?;
         node.try_get_script_mut::<T>()
             .ok_or_else(|| GraphError::NoScript {
@@ -1788,11 +1838,12 @@ impl Graph {
     #[inline]
     pub fn try_get_scripts_of_mut<T>(
         &mut self,
-        handle: Handle<Node>,
+        handle: Handle<impl ObjectOrVariant<Node>>,
     ) -> Result<impl Iterator<Item = &mut T>, GraphError>
     where
         T: ScriptTrait,
     {
+        let handle = handle.to_base();
         let node = self.try_get_node_mut(handle)?;
         Ok(node.try_get_scripts_mut())
     }
@@ -1801,10 +1852,14 @@ impl Graph {
     /// scripts of the node. If you want to search a component `C` in a particular script, then use
     /// [`Self::try_get_script_of`] and then search for component in it.
     #[inline]
-    pub fn try_get_script_component_of<C>(&self, handle: Handle<Node>) -> Result<&C, GraphError>
+    pub fn try_get_script_component_of<C>(
+        &self,
+        handle: Handle<impl ObjectOrVariant<Node>>,
+    ) -> Result<&C, GraphError>
     where
         C: Any,
     {
+        let handle = handle.to_base();
         let node = self.try_get_node(handle)?;
         node.try_get_script_component()
             .ok_or_else(|| GraphError::NoScriptComponent {
@@ -1819,11 +1874,12 @@ impl Graph {
     #[inline]
     pub fn try_get_script_component_of_mut<C>(
         &mut self,
-        handle: Handle<Node>,
+        handle: Handle<impl ObjectOrVariant<Node>>,
     ) -> Result<&mut C, GraphError>
     where
         C: Any,
     {
+        let handle = handle.to_base();
         let node = self.try_get_node_mut(handle)?;
         node.try_get_script_component_mut()
             .ok_or_else(|| GraphError::NoScriptComponent {
@@ -1895,27 +1951,7 @@ impl Visit for Graph {
     }
 }
 
-impl AbstractSceneGraph for Graph {
-    fn try_get_node_untyped(
-        &self,
-        handle: ErasedHandle,
-    ) -> Result<&dyn AbstractSceneNode, PoolError> {
-        self.pool
-            .try_borrow(handle.into())
-            .map(|n| n as &dyn AbstractSceneNode)
-    }
-
-    fn try_get_node_untyped_mut(
-        &mut self,
-        handle: ErasedHandle,
-    ) -> Result<&mut dyn AbstractSceneNode, PoolError> {
-        self.pool
-            .try_borrow_mut(handle.into())
-            .map(|n| n as &mut dyn AbstractSceneNode)
-    }
-}
-
-impl BaseSceneGraph for Graph {
+impl SceneGraph for Graph {
     type Prefab = Model;
     type NodeContainer = NodeContainer;
     type Node = Node;
@@ -1945,7 +1981,7 @@ impl BaseSceneGraph for Graph {
     }
 
     #[inline]
-    fn is_valid_handle(&self, handle: Handle<Self::Node>) -> bool {
+    fn is_valid_handle(&self, handle: Handle<impl ObjectOrVariant<Self::Node>>) -> bool {
         self.pool.is_valid_handle(handle)
     }
 
@@ -1987,7 +2023,9 @@ impl BaseSceneGraph for Graph {
     }
 
     #[inline]
-    fn remove_node(&mut self, node_handle: Handle<Self::Node>) {
+    fn remove_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>) {
+        let node_handle = node_handle.to_base();
+
         self.isolate_node(node_handle);
 
         self.stack.clear();
@@ -2008,7 +2046,14 @@ impl BaseSceneGraph for Graph {
     }
 
     #[inline]
-    fn link_nodes(&mut self, child: Handle<Self::Node>, parent: Handle<Self::Node>) {
+    fn link_nodes(
+        &mut self,
+        child: Handle<impl ObjectOrVariant<Self::Node>>,
+        parent: Handle<impl ObjectOrVariant<Self::Node>>,
+    ) {
+        let child = child.to_base();
+        let parent = parent.to_base();
+
         self.isolate_node(child);
         self.pool[child].parent = parent;
         self.pool[parent].children.push(child);
@@ -2020,7 +2065,8 @@ impl BaseSceneGraph for Graph {
     }
 
     #[inline]
-    fn unlink_node(&mut self, node_handle: Handle<Node>) {
+    fn unlink_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>) {
+        let node_handle = node_handle.to_base();
         self.isolate_node(node_handle);
         self.link_nodes(node_handle, self.root);
         self.pool[node_handle]
@@ -2029,7 +2075,8 @@ impl BaseSceneGraph for Graph {
     }
 
     #[inline]
-    fn isolate_node(&mut self, node_handle: Handle<Self::Node>) {
+    fn isolate_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>) {
+        let node_handle = node_handle.to_base();
         // Replace parent handle of child
         let parent_handle = std::mem::replace(&mut self.pool[node_handle].parent, Handle::NONE);
 
@@ -2069,10 +2116,7 @@ impl BaseSceneGraph for Graph {
             .try_borrow(handle)
             .map(|n| n.0.deref().type_name())
     }
-}
 
-impl SceneGraph for Graph {
-    type ObjectType = Node;
     #[inline]
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
         self.pool.pair_iter()
@@ -2114,7 +2158,7 @@ mod test {
             visitor::prelude::*,
         },
         engine::{self, SerializationContext},
-        graph::{BaseSceneGraph, SceneGraph},
+        graph::SceneGraph,
         resource::model::{Model, ModelResourceExtension},
         scene::{
             base::BaseBuilder,
@@ -2271,20 +2315,22 @@ mod test {
         let b;
         let c;
         let d;
-        let a = PivotBuilder::new(BaseBuilder::new().with_name("A").with_children(&[
-            {
-                b = PivotBuilder::new(BaseBuilder::new().with_name("B")).build(&mut graph);
-                b
-            },
-            {
-                c = PivotBuilder::new(BaseBuilder::new().with_name("C").with_children(&[{
-                    d = PivotBuilder::new(BaseBuilder::new().with_name("D")).build(&mut graph);
-                    d
-                }]))
-                .build(&mut graph);
-                c
-            },
-        ]))
+        let a = PivotBuilder::new(
+            BaseBuilder::new()
+                .with_name("A")
+                .with_child({
+                    b = PivotBuilder::new(BaseBuilder::new().with_name("B")).build(&mut graph);
+                    b
+                })
+                .with_child({
+                    c = PivotBuilder::new(BaseBuilder::new().with_name("C").with_child({
+                        d = PivotBuilder::new(BaseBuilder::new().with_name("D")).build(&mut graph);
+                        d
+                    }))
+                    .build(&mut graph);
+                    c
+                }),
+        )
         .build(&mut graph);
 
         // Test down search.
@@ -2315,7 +2361,7 @@ mod test {
 
         PivotBuilder::new(BaseBuilder::new().with_name("Pivot")).build(&mut scene.graph);
 
-        PivotBuilder::new(BaseBuilder::new().with_name("MeshPivot").with_children(&[{
+        PivotBuilder::new(BaseBuilder::new().with_name("MeshPivot").with_child({
             MeshBuilder::new(
                 BaseBuilder::new().with_name("Mesh").with_local_transform(
                     TransformBuilder::new()
@@ -2330,7 +2376,7 @@ mod test {
             ))
             .build()])
             .build(&mut scene.graph)
-        }]))
+        }))
         .build(&mut scene.graph);
 
         scene
@@ -2472,7 +2518,7 @@ mod test {
                         .with_local_scale(Vector3::new(1.0, 1.0, 2.0))
                         .build(),
                 )
-                .with_children(&[{
+                .with_child({
                     b = PivotBuilder::new(
                         BaseBuilder::new()
                             .with_local_transform(
@@ -2480,7 +2526,7 @@ mod test {
                                     .with_local_scale(Vector3::new(3.0, 2.0, 1.0))
                                     .build(),
                             )
-                            .with_children(&[{
+                            .with_child({
                                 c = PivotBuilder::new(
                                     BaseBuilder::new().with_local_transform(
                                         TransformBuilder::new()
@@ -2490,11 +2536,11 @@ mod test {
                                 )
                                 .build(&mut graph);
                                 c
-                            }]),
+                            }),
                     )
                     .build(&mut graph);
                     b
-                }]),
+                }),
         )
         .build(&mut graph);
 
@@ -2517,44 +2563,42 @@ mod test {
                         .with_local_position(Vector3::new(1.0, 0.0, 0.0))
                         .build(),
                 )
-                .with_children(&[
-                    {
-                        b = PivotBuilder::new(
-                            BaseBuilder::new()
-                                .with_visibility(false)
-                                .with_enabled(false)
-                                .with_local_transform(
-                                    TransformBuilder::new()
-                                        .with_local_position(Vector3::new(0.0, 1.0, 0.0))
-                                        .build(),
-                                )
-                                .with_children(&[{
-                                    c = PivotBuilder::new(
-                                        BaseBuilder::new().with_local_transform(
-                                            TransformBuilder::new()
-                                                .with_local_position(Vector3::new(0.0, 0.0, 1.0))
-                                                .build(),
-                                        ),
-                                    )
-                                    .build(&mut graph);
-                                    c
-                                }]),
-                        )
-                        .build(&mut graph);
-                        b
-                    },
-                    {
-                        d = PivotBuilder::new(
-                            BaseBuilder::new().with_local_transform(
+                .with_child({
+                    b = PivotBuilder::new(
+                        BaseBuilder::new()
+                            .with_visibility(false)
+                            .with_enabled(false)
+                            .with_local_transform(
                                 TransformBuilder::new()
-                                    .with_local_position(Vector3::new(1.0, 1.0, 1.0))
+                                    .with_local_position(Vector3::new(0.0, 1.0, 0.0))
                                     .build(),
-                            ),
-                        )
-                        .build(&mut graph);
-                        d
-                    },
-                ]),
+                            )
+                            .with_child({
+                                c = PivotBuilder::new(
+                                    BaseBuilder::new().with_local_transform(
+                                        TransformBuilder::new()
+                                            .with_local_position(Vector3::new(0.0, 0.0, 1.0))
+                                            .build(),
+                                    ),
+                                )
+                                .build(&mut graph);
+                                c
+                            }),
+                    )
+                    .build(&mut graph);
+                    b
+                })
+                .with_child({
+                    d = PivotBuilder::new(
+                        BaseBuilder::new().with_local_transform(
+                            TransformBuilder::new()
+                                .with_local_position(Vector3::new(1.0, 1.0, 1.0))
+                                .build(),
+                        ),
+                    )
+                    .build(&mut graph);
+                    d
+                }),
         )
         .build(&mut graph);
 

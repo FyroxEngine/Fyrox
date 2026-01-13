@@ -28,7 +28,7 @@ use crate::fyrox::{
         machine::{MachineLayer, PoseNode, State},
         Animation,
     },
-    graph::{BaseSceneGraph, SceneGraph},
+    graph::SceneGraph,
     gui::{
         border::BorderBuilder,
         message::{MessageDirection, UiMessage},

@@ -44,7 +44,7 @@ use crate::{
     BuildContext, HorizontalAlignment, LayoutEvent, MouseButton, MouseState, RcUiNodeHandle,
     Thickness, UiNode, UserInterface, VerticalAlignment,
 };
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::SceneGraph;
 use fyrox_material::{Material, MaterialResource};
 use fyrox_resource::Resource;
 use std::{

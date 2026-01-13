@@ -25,7 +25,7 @@ use crate::fyrox::{
         node::{blendspace::BlendSpace, blendspace::BlendSpacePoint, BasePoseNode},
         BlendAnimations, BlendAnimationsByIndex, MachineLayer, PlayAnimation, PoseNode, State,
     },
-    graph::BaseSceneGraph,
+    graph::SceneGraph,
     gui::{
         menu::MenuItemMessage,
         message::UiMessage,

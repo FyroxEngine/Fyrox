@@ -47,6 +47,8 @@ use crate::{
     Engine, Message,
 };
 use fyrox::core::define_as_any_trait;
+use fyrox::core::pool::ObjectOrVariant;
+use fyrox::scene::camera::Camera;
 
 pub mod gizmo;
 pub mod move_mode;
@@ -248,13 +250,13 @@ pub fn make_interaction_mode_button(
 
 pub fn calculate_gizmo_distance_scaling(
     graph: &Graph,
-    camera: Handle<Node>,
-    gizmo_origin: Handle<Node>,
+    camera: Handle<Camera>,
+    gizmo_origin: Handle<impl ObjectOrVariant<Node>>,
 ) -> Vector3<f32> {
-    let s = match graph[camera].as_camera().projection() {
+    let s = match graph[camera].projection() {
         Projection::Perspective(proj) => {
             distance_scale_factor(proj.fov)
-                * graph[gizmo_origin]
+                * graph[gizmo_origin.to_base()]
                     .global_position()
                     .metric_distance(&graph[camera].global_position())
         }

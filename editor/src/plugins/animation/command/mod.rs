@@ -30,7 +30,7 @@ use crate::fyrox::{
         signal::AnimationSignal, track::Track, value::ValueBinding, Animation, AnimationContainer,
         RootMotionSettings,
     },
-    graph::{BaseSceneGraph, SceneGraphNode},
+    graph::{SceneGraph, SceneGraphNode},
 };
 use crate::plugins::animation::selection::AnimationSelection;
 use crate::{

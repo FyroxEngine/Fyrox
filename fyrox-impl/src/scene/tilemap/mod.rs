@@ -65,7 +65,7 @@ use crate::{
         visitor::prelude::*,
         ImmutableString, SafeLock,
     },
-    graph::{constructor::ConstructorProvider, BaseSceneGraph},
+    graph::{constructor::ConstructorProvider, SceneGraph},
     material::{Material, MaterialResource, STANDARD_2D},
     renderer::{self, bundle::RenderContext},
     scene::{
@@ -1546,7 +1546,7 @@ impl TileMapBuilder {
     }
 
     /// Finishes tile map building and adds it to the specified scene graph.
-    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
-        graph.add_node(self.build_node())
+    pub fn build(self, graph: &mut Graph) -> Handle<TileMap> {
+        graph.add_node(self.build_node()).to_variant()
     }
 }

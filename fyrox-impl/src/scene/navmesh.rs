@@ -46,7 +46,7 @@ use fyrox_core::algebra::Vector3;
 use fyrox_core::math::TriangleDefinition;
 use fyrox_core::parking_lot::{RwLockReadGuard, RwLockWriteGuard};
 use fyrox_graph::constructor::ConstructorProvider;
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::SceneGraph;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -289,7 +289,7 @@ impl NavigationalMeshBuilder {
     }
 
     /// Creates new navigational mesh instance and adds it to the graph.
-    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
-        graph.add_node(self.build_node())
+    pub fn build(self, graph: &mut Graph) -> Handle<NavigationalMesh> {
+        graph.add_node(self.build_node()).to_variant()
     }
 }

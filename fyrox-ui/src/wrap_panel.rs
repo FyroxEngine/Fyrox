@@ -39,7 +39,7 @@ use core::f32;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::SceneGraph;
 use std::{cell::RefCell, ops::Range};
 
 /// A set of possible [`WrapPanel`] widget messages.

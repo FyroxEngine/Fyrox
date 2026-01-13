@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::fyrox::core::pool::Handle;
-use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::graph::SceneGraph;
 use crate::fyrox::gui::{UiNode, UserInterface};
 use crate::ui_scene::selection::UiSelection;
 use std::collections::HashMap;

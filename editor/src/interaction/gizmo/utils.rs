@@ -27,11 +27,12 @@ use crate::{
     scene::{Selection, SelectionContainer},
     settings::Settings,
 };
+use fyrox::scene::camera::Camera;
 
 pub fn sync_gizmo_with_selection(
     gizmo_origin: Handle<Node>,
     graph: &mut Graph,
-    camera: Handle<Node>,
+    camera: Handle<Camera>,
     settings: &Settings,
     selection: &Selection,
 ) {

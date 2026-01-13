@@ -36,7 +36,7 @@ use crate::{
         variable::InheritableVariable,
         visitor::prelude::*,
     },
-    graph::{constructor::ConstructorProvider, BaseSceneGraph},
+    graph::{constructor::ConstructorProvider, SceneGraph},
     material::{Material, MaterialResource},
     renderer::{self, bundle::RenderContext},
     scene::{
@@ -480,7 +480,7 @@ impl RectangleBuilder {
     }
 
     /// Creates new [`Rectangle`] instance and adds it to the graph.
-    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
-        graph.add_node(self.build_node())
+    pub fn build(self, graph: &mut Graph) -> Handle<Rectangle> {
+        graph.add_node(self.build_node()).to_variant()
     }
 }

@@ -28,7 +28,7 @@ use crate::{
             make_relative_path,
             pool::{ErasedHandle, Handle},
         },
-        graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
+        graph::{SceneGraph, SceneGraphNode},
         resource::model::{Model, ModelResourceExtension},
         scene::{node::Node, Scene},
     },
@@ -122,7 +122,7 @@ impl WorldViewerDataProvider for EditorSceneWrapper<'_> {
     }
 
     fn is_valid_handle(&self, node: ErasedHandle) -> bool {
-        self.scene.graph.is_valid_handle(node.into())
+        self.scene.graph.is_valid_handle(Handle::<Node>::from(node))
     }
 
     fn icon_of(&self, node: ErasedHandle) -> Option<TextureResource> {

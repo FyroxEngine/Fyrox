@@ -41,7 +41,7 @@ use crate::{
     },
 };
 use fyrox_graph::constructor::ConstructorProvider;
-use fyrox_graph::{BaseSceneGraph, SceneGraph};
+use fyrox_graph::SceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// Scene specific root motion settings.
@@ -224,7 +224,7 @@ pub struct AnimationBlendingStateMachine {
     #[component(include)]
     machine: InheritableVariable<Machine>,
     #[component(include)]
-    animation_player: InheritableVariable<Handle<Node>>,
+    animation_player: InheritableVariable<Handle<AnimationPlayer>>,
 }
 
 impl AnimationBlendingStateMachine {
@@ -245,13 +245,13 @@ impl AnimationBlendingStateMachine {
 
     /// Sets new animation player of the node. The animation player is a source of animations for blending, the state
     /// machine node must have the animation player specified, otherwise it won't have any effect.
-    pub fn set_animation_player(&mut self, animation_player: Handle<Node>) {
+    pub fn set_animation_player(&mut self, animation_player: Handle<AnimationPlayer>) {
         self.animation_player
             .set_value_and_mark_modified(animation_player);
     }
 
     /// Returns an animation player used by the node.
-    pub fn animation_player(&self) -> Handle<Node> {
+    pub fn animation_player(&self) -> Handle<AnimationPlayer> {
         *self.animation_player
     }
 }
@@ -312,10 +312,7 @@ impl NodeTrait for AnimationBlendingStateMachine {
     }
 
     fn update(&mut self, context: &mut UpdateContext) {
-        if let Ok(animation_player) = context
-            .nodes
-            .try_get_component_of_type_mut::<AnimationPlayer>(*self.animation_player)
-        {
+        if let Ok(animation_player) = context.nodes.try_get_mut(*self.animation_player) {
             // Prevent animation player to apply animation to scene nodes. The animation will
             // do than instead.
             animation_player.set_auto_apply(false);
@@ -330,11 +327,7 @@ impl NodeTrait for AnimationBlendingStateMachine {
     }
 
     fn validate(&self, scene: &Scene) -> Result<(), String> {
-        if scene
-            .graph
-            .try_get_of_type::<AnimationPlayer>(*self.animation_player)
-            .is_err()
-        {
+        if scene.graph.try_get(*self.animation_player).is_err() {
             Err(
                 "Animation player is not set or invalid! Animation blending state \
             machine won't operate! Set the animation player handle in the Inspector."
@@ -350,7 +343,7 @@ impl NodeTrait for AnimationBlendingStateMachine {
 pub struct AnimationBlendingStateMachineBuilder {
     base_builder: BaseBuilder,
     machine: Machine,
-    animation_player: Handle<Node>,
+    animation_player: Handle<AnimationPlayer>,
 }
 
 impl AnimationBlendingStateMachineBuilder {
@@ -370,7 +363,7 @@ impl AnimationBlendingStateMachineBuilder {
     }
 
     /// Sets the animation player as a source of animations.
-    pub fn with_animation_player(mut self, animation_player: Handle<Node>) -> Self {
+    pub fn with_animation_player(mut self, animation_player: Handle<AnimationPlayer>) -> Self {
         self.animation_player = animation_player;
         self
     }

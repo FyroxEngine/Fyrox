@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::{
-    fyrox::graph::BaseSceneGraph,
+    fyrox::graph::SceneGraph,
     fyrox::{
         core::{
             algebra::Vector2,

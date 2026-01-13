@@ -22,6 +22,7 @@
 //!
 //! For more info see [`Base`]
 
+use super::collider::BitMask;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -35,12 +36,13 @@ use crate::{
         ImmutableString,
     },
     engine::SerializationContext,
-    graph::BaseSceneGraph,
+    graph::SceneGraph,
     resource::model::ModelResource,
     scene::{node::Node, transform::Transform},
     script::{Script, ScriptTrait},
 };
 use fyrox_core::algebra::UnitQuaternion;
+use fyrox_core::pool::ObjectOrVariant;
 use fyrox_core::visitor::error::VisitError;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -50,8 +52,6 @@ use std::{
     sync::mpsc::Sender,
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};
-
-use super::collider::BitMask;
 
 /// Level of detail is a collection of objects for given normalized distance range.
 /// Objects will be rendered **only** if they're in specified range.
@@ -1371,16 +1371,11 @@ impl BaseBuilder {
         self
     }
 
-    /// Sets desired list of children nodes.
-    #[inline]
-    pub fn with_children<'a, I: IntoIterator<Item = &'a Handle<Node>>>(
-        mut self,
-        children: I,
-    ) -> Self {
-        for &child in children.into_iter() {
-            if child.is_some() {
-                self.children.push(child)
-            }
+    /// Adds a new child to the node. If the given handle is [`Handle::NONE`], then the handle will
+    /// be ignored.
+    pub fn with_child(mut self, handle: Handle<impl ObjectOrVariant<Node>>) -> Self {
+        if handle.is_some() {
+            self.children.push(handle.to_base())
         }
         self
     }

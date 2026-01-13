@@ -34,7 +34,7 @@ use crate::{
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
-    graph::BaseSceneGraph,
+    graph::SceneGraph,
     resource::texture::{
         TextureKind, TexturePixelKind, TextureResource, TextureResourceExtension, TextureWrapMode,
     },
@@ -1143,7 +1143,7 @@ impl CameraBuilder {
     }
 
     /// Creates new instance of camera node and adds it to the graph.
-    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
-        graph.add_node(self.build_node())
+    pub fn build(self, graph: &mut Graph) -> Handle<Camera> {
+        graph.add_node(self.build_node()).to_variant()
     }
 }

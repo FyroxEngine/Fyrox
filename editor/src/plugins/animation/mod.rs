@@ -30,7 +30,7 @@ use crate::{
         engine::ApplicationLoopController,
         fxhash::FxHashSet,
         generic_animation::{signal::AnimationSignal, AnimationContainer},
-        graph::{BaseSceneGraph, PrefabData, SceneGraph, SceneGraphNode},
+        graph::{PrefabData, SceneGraph, SceneGraphNode},
         gui::{
             border::BorderBuilder,
             brush::Brush,

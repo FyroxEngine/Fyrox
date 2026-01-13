@@ -194,7 +194,7 @@ pub trait Control:
     /// #     ops::{Deref, DerefMut},
     /// # };
     /// # use fyrox_core::uuid_provider;
-    /// # use fyrox_graph::BaseSceneGraph;
+    /// # use fyrox_graph::SceneGraph;
     /// #
     /// #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
     /// #[reflect(derived_type = "UiNode")]

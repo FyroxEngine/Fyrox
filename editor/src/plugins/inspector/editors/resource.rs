@@ -29,7 +29,7 @@ use crate::{
             color::Color, log::Log, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
             type_traits::prelude::*, uuid::uuid, visitor::prelude::*, PhantomDataSendSync,
         },
-        graph::BaseSceneGraph,
+        graph::SceneGraph,
         gui::{
             brush::Brush,
             button::{ButtonBuilder, ButtonMessage},

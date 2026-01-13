@@ -40,7 +40,6 @@ use crate::{
     Message,
 };
 use fyrox::core::algebra::Vector2;
-use fyrox::graph::BaseSceneGraph;
 use fyrox::gui::widget::WidgetMessage;
 use fyrox::gui::window::WindowAlignment;
 use fyrox::scene::collider::BitMask;

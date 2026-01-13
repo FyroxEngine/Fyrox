@@ -88,7 +88,7 @@ use crate::fyrox::{
     },
     engine::Engine,
     fxhash::FxHashSet,
-    graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
+    graph::{SceneGraph, SceneGraphNode},
     gui::{
         border::BorderBuilder,
         brush::Brush,

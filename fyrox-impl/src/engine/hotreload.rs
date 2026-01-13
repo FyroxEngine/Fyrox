@@ -39,7 +39,7 @@ use crate::{
 };
 use fyrox_core::dyntype::DynTypeConstructorContainer;
 use fyrox_core::visitor::error::VisitError;
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::SceneGraph;
 use std::{
     ops::Deref,
     sync::{mpsc::Sender, Arc},

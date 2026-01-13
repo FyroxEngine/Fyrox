@@ -5,11 +5,10 @@ use crate::{
     ui_scene::{commands::UiSceneContext, UiScene},
     Message,
 };
-use fyrox::graph::SceneGraph;
 use fyrox::{
     core::{pool::Handle, variable::InheritableVariable},
     engine::Engine,
-    graph::BaseSceneGraph,
+    graph::SceneGraph,
     gui::{
         formatted_text::{RunSet, WrapMode},
         message::UiMessage,

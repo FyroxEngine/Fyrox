@@ -181,8 +181,8 @@ impl TileMapInteractionMode {
         let tile_map = scene.graph.try_get_of_type::<TileMap>(self.tile_map).ok()?;
         let global_transform = tile_map.global_transform();
 
-        let camera = scene.graph[game_scene.camera_controller.camera].as_camera();
-        let ray = camera.make_ray(mouse_position, frame_size);
+        let ray =
+            scene.graph[game_scene.camera_controller.camera].make_ray(mouse_position, frame_size);
 
         let plane =
             Plane::from_normal_and_point(&global_transform.look(), &global_transform.position())

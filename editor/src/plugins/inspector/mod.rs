@@ -30,7 +30,7 @@ use crate::{
             type_traits::prelude::*,
         },
         engine::SerializationContext,
-        graph::BaseSceneGraph,
+        graph::SceneGraph,
         gui::{
             border::BorderBuilder,
             button::ButtonMessage,

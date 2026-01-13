@@ -26,7 +26,7 @@ use crate::{
             uuid::{uuid, Uuid},
             TypeUuidProvider,
         },
-        graph::BaseSceneGraph,
+        graph::SceneGraph,
         gui::{BuildContext, UiNode},
         scene::node::Node,
     },
@@ -105,7 +105,7 @@ impl InteractionMode for SelectInteractionMode {
         };
 
         let scene = &engine.scenes[game_scene.scene];
-        let camera = scene.graph[game_scene.camera_controller.camera].as_camera();
+        let camera = &scene.graph[game_scene.camera_controller.camera];
         let preview_screen_bounds = engine
             .user_interfaces
             .first_mut()

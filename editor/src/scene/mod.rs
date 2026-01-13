@@ -39,7 +39,7 @@ use crate::{
         },
         engine::{Engine, SerializationContext},
         fxhash::FxHashSet,
-        graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
+        graph::{SceneGraph, SceneGraphNode},
         gui::{
             inspector::PropertyChanged,
             message::UiMessage,
@@ -99,6 +99,7 @@ use crate::{
 use fyrox::engine::GraphicsContext;
 use fyrox::gui::file_browser::FileType;
 use fyrox::scene::collider::BitMask;
+use fyrox::scene::pivot::Pivot;
 use std::{
     cell::RefCell,
     fmt::Debug,
@@ -132,7 +133,7 @@ pub struct PreviewInstance {
 pub struct GameScene {
     pub scene: Handle<Scene>,
     // Handle to a root for all editor nodes.
-    pub editor_objects_root: Handle<Node>,
+    pub editor_objects_root: Handle<Pivot>,
     pub scene_content_root: Handle<Node>,
     pub clipboard: Clipboard,
     pub camera_controller: CameraController,
@@ -145,7 +146,7 @@ pub struct GameScene {
     pub highlighter: Option<Rc<RefCell<HighlightRenderPass>>>,
     pub resource_manager: ResourceManager,
     pub serialization_context: Arc<SerializationContext>,
-    pub grid: Handle<Node>,
+    pub grid: Handle<Mesh>,
     pub grid_material: MaterialResource,
     pub settings_receiver: Receiver<SettingsMessage>,
 }
@@ -475,13 +476,11 @@ impl GameScene {
     }
 
     fn select_object(&mut self, handle: ErasedHandle, engine: &Engine) {
-        if engine.scenes[self.scene]
-            .graph
-            .is_valid_handle(handle.into())
-        {
+        let handle = Handle::<Node>::from(handle);
+        if engine.scenes[self.scene].graph.is_valid_handle(handle) {
             self.sender
                 .do_command(ChangeSelectionCommand::new(Selection::new(
-                    GraphSelection::single_or_empty(handle.into()),
+                    GraphSelection::single_or_empty(handle),
                 )))
         }
     }
@@ -643,9 +642,7 @@ impl SceneController for GameScene {
                     Some(result.position)
                 } else {
                     // In case of empty space, check intersection with oXZ plane (3D) or oXY (2D).
-                    let camera = graph[self.camera_controller.camera]
-                        .component_ref::<Camera>()
-                        .unwrap();
+                    let camera = &graph[self.camera_controller.camera];
 
                     let normal = match camera.projection() {
                         Projection::Perspective(_) => Vector3::new(0.0, 1.0, 0.0),
@@ -934,7 +931,7 @@ impl SceneController for GameScene {
             node_overrides.insert(handle);
         }
 
-        let camera = scene.graph[self.camera_controller.camera].as_camera_mut();
+        let camera = &mut scene.graph[self.camera_controller.camera];
 
         let projection = camera.projection_mut();
         projection.set_z_near(settings.graphics.z_near);

@@ -55,7 +55,7 @@ use crate::{
 use fxhash::FxHashSet;
 
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::SceneGraph;
 use std::{
     cell::{Cell, RefCell},
     sync::mpsc::Sender,

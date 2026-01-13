@@ -30,18 +30,20 @@ use crate::{
     },
     plugins::collider::{make_handle, try_get_collider_shape, ShapeGizmoTrait, ShapeHandleValue},
 };
+use fyrox::scene::pivot::Pivot;
+use fyrox::scene::sprite::Sprite;
 
 pub struct CuboidShapeGizmo {
-    pos_x_handle: Handle<Node>,
-    pos_y_handle: Handle<Node>,
-    pos_z_handle: Handle<Node>,
-    neg_x_handle: Handle<Node>,
-    neg_y_handle: Handle<Node>,
-    neg_z_handle: Handle<Node>,
+    pos_x_handle: Handle<Sprite>,
+    pos_y_handle: Handle<Sprite>,
+    pos_z_handle: Handle<Sprite>,
+    neg_x_handle: Handle<Sprite>,
+    neg_y_handle: Handle<Sprite>,
+    neg_z_handle: Handle<Sprite>,
 }
 
 impl CuboidShapeGizmo {
-    pub fn new(visible: bool, root: Handle<Node>, scene: &mut Scene) -> Self {
+    pub fn new(visible: bool, root: Handle<Pivot>, scene: &mut Scene) -> Self {
         Self {
             pos_x_handle: make_handle(scene, root, visible),
             pos_y_handle: make_handle(scene, root, visible),
@@ -54,7 +56,7 @@ impl CuboidShapeGizmo {
 }
 
 impl ShapeGizmoTrait for CuboidShapeGizmo {
-    fn for_each_handle(&self, func: &mut dyn FnMut(Handle<Node>)) {
+    fn for_each_handle(&self, func: &mut dyn FnMut(Handle<Sprite>)) {
         for handle in [
             self.pos_x_handle,
             self.pos_y_handle,
@@ -69,7 +71,7 @@ impl ShapeGizmoTrait for CuboidShapeGizmo {
 
     fn handle_local_position(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         collider: Handle<Node>,
         scene: &Scene,
     ) -> Option<Vector3<f32>> {
@@ -96,7 +98,7 @@ impl ShapeGizmoTrait for CuboidShapeGizmo {
 
     fn handle_major_axis(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         _collider: Handle<Node>,
         _scene: &Scene,
     ) -> Option<Vector3<f32>> {
@@ -119,7 +121,7 @@ impl ShapeGizmoTrait for CuboidShapeGizmo {
 
     fn value_by_handle(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         collider: Handle<Node>,
         scene: &Scene,
     ) -> Option<ShapeHandleValue> {
@@ -146,7 +148,7 @@ impl ShapeGizmoTrait for CuboidShapeGizmo {
 
     fn set_value_by_handle(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         value: ShapeHandleValue,
         collider: Handle<Node>,
         scene: &mut Scene,

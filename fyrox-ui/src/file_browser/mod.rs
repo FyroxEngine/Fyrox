@@ -50,7 +50,7 @@ use crate::{
 use core::time;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
-    BaseSceneGraph, SceneGraph,
+    SceneGraph,
 };
 use notify::{Event, Watcher};
 use std::{

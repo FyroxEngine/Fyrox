@@ -35,8 +35,7 @@ mod segment2d;
 mod triangle;
 mod triangle2d;
 
-use fyrox::gui::widget::WidgetMessage;
-
+use super::inspector::InspectorPlugin;
 use crate::{
     camera::PickingOptions,
     command::SetPropertyCommand,
@@ -52,7 +51,7 @@ use crate::{
             Uuid,
         },
         engine::Engine,
-        graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
+        graph::{SceneGraph, SceneGraphNode},
         gui::{message::UiMessage, BuildContext, UiNode},
         material::{
             shader::{ShaderResource, ShaderResourceExtension},
@@ -86,8 +85,9 @@ use crate::{
     settings::Settings,
     Editor, Message,
 };
-
-use super::inspector::InspectorPlugin;
+use fyrox::gui::widget::WidgetMessage;
+use fyrox::scene::camera::Camera;
+use fyrox::scene::pivot::Pivot;
 
 fn try_get_collider_shape(collider: Handle<Node>, scene: &Scene) -> Option<ColliderShape> {
     scene
@@ -131,18 +131,18 @@ fn try_get_collider_shape_mut_2d(
 }
 
 trait ShapeGizmoTrait {
-    fn for_each_handle(&self, func: &mut dyn FnMut(Handle<Node>));
+    fn for_each_handle(&self, func: &mut dyn FnMut(Handle<Sprite>));
 
     fn handle_local_position(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         collider: Handle<Node>,
         scene: &Scene,
     ) -> Option<Vector3<f32>>;
 
     fn handle_major_axis(
         &self,
-        _handle: Handle<Node>,
+        _handle: Handle<Sprite>,
         _collider: Handle<Node>,
         _scene: &Scene,
     ) -> Option<Vector3<f32>> {
@@ -151,27 +151,27 @@ trait ShapeGizmoTrait {
 
     fn value_by_handle(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         collider: Handle<Node>,
         scene: &Scene,
     ) -> Option<ShapeHandleValue>;
 
     fn set_value_by_handle(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         value: ShapeHandleValue,
         collider: Handle<Node>,
         scene: &mut Scene,
         initial_collider_local_position: Vector3<f32>,
     );
 
-    fn is_vector_handle(&self, _handle: Handle<Node>) -> bool {
+    fn is_vector_handle(&self, _handle: Handle<Sprite>) -> bool {
         false
     }
 
     fn reset_handles(&self, scene: &mut Scene) {
         self.for_each_handle(&mut |handle| {
-            scene.graph[handle].as_sprite_mut().set_color(Color::MAROON);
+            scene.graph[handle].set_color(Color::MAROON);
         });
     }
 
@@ -179,7 +179,7 @@ trait ShapeGizmoTrait {
         self.for_each_handle(&mut |handle| scene.graph.remove_node(handle));
     }
 
-    fn has_handle(&self, handle: Handle<Node>) -> bool {
+    fn has_handle(&self, handle: Handle<Sprite>) -> bool {
         let mut has_handle = false;
         self.for_each_handle(&mut |other_handle| {
             if other_handle == handle {
@@ -198,7 +198,7 @@ trait ShapeGizmoTrait {
     fn try_sync_to_collider(
         &self,
         collider: Handle<Node>,
-        camera: Handle<Node>,
+        camera: Handle<Camera>,
         scene: &mut Scene,
     ) -> bool {
         let mut is_ok = true;
@@ -207,8 +207,9 @@ trait ShapeGizmoTrait {
             if let Some(local_position) = self.handle_local_position(handle, collider, scene) {
                 let scale = calculate_gizmo_distance_scaling(&scene.graph, camera, handle);
 
-                let node = &mut scene.graph[handle];
-                node.local_transform_mut()
+                let sprite = &mut scene.graph[handle];
+                sprite
+                    .local_transform_mut()
                     .set_position(transform.transform_point(&local_position.into()).coords)
                     .set_scale(scale)
                     .set_rotation(UnitQuaternion::from_matrix_eps(
@@ -217,9 +218,7 @@ trait ShapeGizmoTrait {
                         16,
                         Default::default(),
                     ));
-                if let Some(sprite) = node.component_mut::<Sprite>() {
-                    sprite.set_size(0.05 * scale.x);
-                }
+                sprite.set_size(0.05 * scale.x);
             } else {
                 is_ok = false;
             }
@@ -231,7 +230,7 @@ trait ShapeGizmoTrait {
 fn make_shape_gizmo(
     collider: Handle<Node>,
     scene: &mut Scene,
-    root: Handle<Node>,
+    root: Handle<Pivot>,
     visible: bool,
 ) -> Box<dyn ShapeGizmoTrait> {
     if let Ok(collider) = scene.graph.try_get_of_type::<Collider>(collider) {
@@ -281,7 +280,7 @@ lazy_static! {
     };
 }
 
-fn make_handle(scene: &mut Scene, root: Handle<Node>, visible: bool) -> Handle<Node> {
+fn make_handle(scene: &mut Scene, root: Handle<Pivot>, visible: bool) -> Handle<Sprite> {
     let mut material = Material::from_shader(GIZMO_SHADER.clone());
 
     material.bind(
@@ -331,7 +330,7 @@ enum ColliderInitialShape {
 }
 
 struct DragContext {
-    handle: Handle<Node>,
+    handle: Handle<Sprite>,
     initial_handle_position: Vector3<f32>,
     plane: Plane,
     initial_value: ShapeHandleValue,
@@ -348,7 +347,7 @@ pub struct ColliderShapeInteractionMode {
     shape_gizmo: Box<dyn ShapeGizmoTrait>,
     move_gizmo: MoveGizmo,
     drag_context: Option<DragContext>,
-    selected_handle: Handle<Node>,
+    selected_handle: Handle<Sprite>,
     message_sender: MessageSender,
 }
 
@@ -417,18 +416,19 @@ impl InteractionMode for ColliderShapeInteractionMode {
                 unreachable!();
             };
 
+            let handle = result.node.to_variant();
             if let Some(handle_value) =
                 self.shape_gizmo
-                    .value_by_handle(result.node, self.collider, scene)
+                    .value_by_handle(handle, self.collider, scene)
             {
-                self.selected_handle = result.node;
+                self.selected_handle = handle;
 
                 self.drag_context = Some(DragContext {
-                    handle: result.node,
+                    handle: result.node.to_variant(),
                     initial_handle_position: initial_position,
                     plane,
                     handle_major_axis: self.shape_gizmo.handle_major_axis(
-                        result.node,
+                        self.selected_handle,
                         self.collider,
                         scene,
                     ),
@@ -536,7 +536,7 @@ impl InteractionMode for ColliderShapeInteractionMode {
                 settings: &settings.selection,
             },
         ) {
-            if self.shape_gizmo.has_handle(result.node) {
+            if self.shape_gizmo.has_handle(result.node.to_variant()) {
                 scene.graph[result.node]
                     .as_sprite_mut()
                     .set_color(Color::RED);
@@ -548,7 +548,7 @@ impl InteractionMode for ColliderShapeInteractionMode {
         if let Some(drag_context) = self.drag_context.as_ref() {
             match drag_context.initial_value {
                 ShapeHandleValue::Scalar(initial_value) => {
-                    let camera = scene.graph[game_scene.camera_controller.camera].as_camera();
+                    let camera = &scene.graph[game_scene.camera_controller.camera];
                     let ray = camera.make_ray(mouse_position, frame_size);
                     if let Some(intersection) = ray.plane_intersection_point(&drag_context.plane) {
                         let inv_transform = scene.graph[self.collider]

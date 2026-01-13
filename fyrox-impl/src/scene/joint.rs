@@ -44,7 +44,7 @@ use crate::{
 use fyrox_core::algebra::{Isometry3, Vector3};
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::ConstructorProvider;
-use fyrox_graph::{BaseSceneGraph, SceneGraph};
+use fyrox_graph::SceneGraph;
 use rapier2d::na::UnitQuaternion;
 use rapier3d::dynamics::ImpulseJointHandle;
 use std::cell::RefCell;
@@ -767,7 +767,7 @@ impl JointBuilder {
     }
 
     /// Creates new Joint node and adds it to the graph.
-    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
-        graph.add_node(self.build_node())
+    pub fn build(self, graph: &mut Graph) -> Handle<Joint> {
+        graph.add_node(self.build_node()).to_variant()
     }
 }

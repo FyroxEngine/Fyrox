@@ -1233,7 +1233,7 @@ where
     /// assert_eq!(pool.is_valid_handle(handle), true)
     /// ```
     #[inline]
-    pub fn is_valid_handle(&self, handle: Handle<T>) -> bool {
+    pub fn is_valid_handle(&self, handle: Handle<impl ObjectOrVariant<T>>) -> bool {
         if let Ok(record) = self.records_get(handle.index) {
             record.payload.is_some() && record.generation == handle.generation
         } else {

@@ -21,7 +21,7 @@
 use crate::{
     fyrox::{
         core::dyntype::{DynTypeConstructorContainer, DynTypeContainer},
-        graph::BaseSceneGraph,
+        graph::SceneGraph,
         gui::{
             core::{
                 parking_lot::Mutex, pool::Handle, reflect::prelude::*, type_traits::prelude::*,

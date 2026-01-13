@@ -33,12 +33,7 @@ use crate::{
         fxhash::FxHashSet,
         graph::SceneGraph,
         gui::{BuildContext, UiNode},
-        scene::{
-            camera::{Camera, Projection},
-            graph::Graph,
-            node::Node,
-            Scene,
-        },
+        scene::{camera::Projection, graph::Graph, node::Node, Scene},
     },
     interaction::{
         gizmo::move_gizmo::MoveGizmo, make_interaction_mode_button, plane::PlaneKind,
@@ -223,21 +218,18 @@ impl MoveContext {
             Some(result.position)
         } else {
             // In case of empty space, check intersection with oXZ plane (3D) or oXY (2D).
-            if let Some(camera) = graph[game_scene.camera_controller.camera].cast::<Camera>() {
-                let normal = match camera.projection() {
-                    Projection::Perspective(_) => Vector3::new(0.0, 1.0, 0.0),
-                    Projection::Orthographic(_) => Vector3::new(0.0, 0.0, 1.0),
-                };
+            let camera = &graph[game_scene.camera_controller.camera];
+            let normal = match camera.projection() {
+                Projection::Perspective(_) => Vector3::new(0.0, 1.0, 0.0),
+                Projection::Orthographic(_) => Vector3::new(0.0, 0.0, 1.0),
+            };
 
-                let plane =
-                    Plane::from_normal_and_point(&normal, &Default::default()).unwrap_or_default();
+            let plane =
+                Plane::from_normal_and_point(&normal, &Default::default()).unwrap_or_default();
 
-                let ray = camera.make_ray(mouse_position, frame_size);
+            let ray = camera.make_ray(mouse_position, frame_size);
 
-                ray.plane_intersection_point(&plane)
-            } else {
-                None
-            }
+            ray.plane_intersection_point(&plane)
         };
 
         if let Some(new_position) = new_position {

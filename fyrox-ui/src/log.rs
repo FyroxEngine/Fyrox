@@ -41,7 +41,7 @@ use crate::{
     BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
     UserInterface, VerticalAlignment,
 };
-use fyrox_graph::{BaseSceneGraph, SceneGraph, SceneGraphNode};
+use fyrox_graph::{SceneGraph, SceneGraphNode};
 use fyrox_texture::TextureResource;
 use std::sync::mpsc::Receiver;
 

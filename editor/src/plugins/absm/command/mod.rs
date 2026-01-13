@@ -20,7 +20,7 @@
 
 use crate::fyrox::core::pool::ErasedHandle;
 use crate::fyrox::core::variable::InheritableVariable;
-use crate::fyrox::graph::{BaseSceneGraph, SceneGraphNode};
+use crate::fyrox::graph::{SceneGraph, SceneGraphNode};
 use crate::fyrox::{
     core::{
         algebra::Vector2,

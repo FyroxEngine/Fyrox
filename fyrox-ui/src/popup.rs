@@ -37,7 +37,7 @@ use crate::{
 };
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
-    BaseSceneGraph,
+    SceneGraph,
 };
 
 /// A set of messages for [`Popup`] widget.

@@ -37,13 +37,15 @@ use crate::fyrox::{
             surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
             MeshBuilder,
         },
-        node::Node,
         pivot::PivotBuilder,
         transform::TransformBuilder,
         Scene,
     },
 };
 use crate::scene::GameScene;
+use fyrox::scene::camera::Camera;
+use fyrox::scene::mesh::Mesh;
+use fyrox::scene::pivot::Pivot;
 use fyrox::scene::{EnvironmentLightingSource, SceneContainer};
 
 pub struct CameraRotation {
@@ -64,20 +66,20 @@ pub struct DragContext {
 pub struct SceneGizmo {
     pub scene: Handle<Scene>,
     pub render_target: TextureResource,
-    pub camera_pivot: Handle<Node>,
-    pub camera_hinge: Handle<Node>,
-    pub camera: Handle<Node>,
-    pub pos_x: Handle<Node>,
-    pub neg_x: Handle<Node>,
-    pub pos_y: Handle<Node>,
-    pub neg_y: Handle<Node>,
-    pub pos_z: Handle<Node>,
-    pub neg_z: Handle<Node>,
-    pub center: Handle<Node>,
+    pub camera_pivot: Handle<Pivot>,
+    pub camera_hinge: Handle<Pivot>,
+    pub camera: Handle<Camera>,
+    pub pos_x: Handle<Mesh>,
+    pub neg_x: Handle<Mesh>,
+    pub pos_y: Handle<Mesh>,
+    pub neg_y: Handle<Mesh>,
+    pub pos_z: Handle<Mesh>,
+    pub neg_z: Handle<Mesh>,
+    pub center: Handle<Mesh>,
     pub drag_context: Option<DragContext>,
 }
 
-fn make_cone(transform: Matrix4<f32>, color: Color, graph: &mut Graph) -> Handle<Node> {
+fn make_cone(transform: Matrix4<f32>, color: Color, graph: &mut Graph) -> Handle<Mesh> {
     let mut material = Material::standard();
 
     material.set_property("diffuseColor", color);
@@ -114,17 +116,18 @@ impl SceneGizmo {
         let neg_y;
         let pos_z;
         let neg_z;
-        let center =
-            MeshBuilder::new(BaseBuilder::new().with_cast_shadows(false).with_children(&[
-                {
+        let center = MeshBuilder::new(
+            BaseBuilder::new()
+                .with_cast_shadows(false)
+                .with_child({
                     neg_y = make_cone(
                         Matrix4::new_translation(&Vector3::new(0.0, -1.50, 0.0)),
                         Color::WHITE,
                         &mut scene.graph,
                     );
                     neg_y
-                },
-                {
+                })
+                .with_child({
                     pos_y = make_cone(
                         Matrix4::new_translation(&Vector3::new(0.0, 1.50, 0.0))
                             * UnitQuaternion::from_axis_angle(
@@ -136,8 +139,8 @@ impl SceneGizmo {
                         &mut scene.graph,
                     );
                     pos_y
-                },
-                {
+                })
+                .with_child({
                     pos_x = make_cone(
                         Matrix4::new_translation(&Vector3::new(1.50, 0.0, 0.0))
                             * UnitQuaternion::from_axis_angle(
@@ -149,8 +152,8 @@ impl SceneGizmo {
                         &mut scene.graph,
                     );
                     pos_x
-                },
-                {
+                })
+                .with_child({
                     neg_x = make_cone(
                         Matrix4::new_translation(&Vector3::new(-1.50, 0.0, 0.0))
                             * UnitQuaternion::from_axis_angle(
@@ -162,8 +165,8 @@ impl SceneGizmo {
                         &mut scene.graph,
                     );
                     neg_x
-                },
-                {
+                })
+                .with_child({
                     pos_z = make_cone(
                         Matrix4::new_translation(&Vector3::new(0.0, 0.0, 1.50))
                             * UnitQuaternion::from_axis_angle(
@@ -175,8 +178,8 @@ impl SceneGizmo {
                         &mut scene.graph,
                     );
                     pos_z
-                },
-                {
+                })
+                .with_child({
                     neg_z = make_cone(
                         Matrix4::new_translation(&Vector3::new(0.0, 0.0, -1.50))
                             * UnitQuaternion::from_axis_angle(
@@ -188,18 +191,18 @@ impl SceneGizmo {
                         &mut scene.graph,
                     );
                     neg_z
-                },
-            ]))
-            .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
-                SurfaceData::make_cube(Matrix4::identity()),
-            ))
-            .build()])
-            .build(&mut scene.graph);
+                }),
+        )
+        .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
+            SurfaceData::make_cube(Matrix4::identity()),
+        ))
+        .build()])
+        .build(&mut scene.graph);
 
         let camera_hinge;
         let camera;
-        let camera_pivot = PivotBuilder::new(BaseBuilder::new().with_children(&[{
-            camera_hinge = PivotBuilder::new(BaseBuilder::new().with_children(&[{
+        let camera_pivot = PivotBuilder::new(BaseBuilder::new().with_child({
+            camera_hinge = PivotBuilder::new(BaseBuilder::new().with_child({
                 camera = CameraBuilder::new(
                     BaseBuilder::new().with_local_transform(
                         TransformBuilder::new()
@@ -209,10 +212,10 @@ impl SceneGizmo {
                 )
                 .build(&mut scene.graph);
                 camera
-            }]))
+            }))
             .build(&mut scene.graph);
             camera_hinge
-        }]))
+        }))
         .build(&mut scene.graph);
 
         scene.graph.update_hierarchical_data();
@@ -252,7 +255,7 @@ impl SceneGizmo {
             .set_rotation(pivot_rotation);
     }
 
-    fn parts(&self) -> [(Handle<Node>, Color); 7] {
+    fn parts(&self) -> [(Handle<Mesh>, Color); 7] {
         [
             (self.center, Color::WHITE),
             (self.pos_x, Color::RED),
@@ -264,9 +267,9 @@ impl SceneGizmo {
         ]
     }
 
-    fn pick(&self, pos: Vector2<f32>, scenes: &SceneContainer) -> Handle<Node> {
+    fn pick(&self, pos: Vector2<f32>, scenes: &SceneContainer) -> Handle<Mesh> {
         let graph = &scenes[self.scene].graph;
-        let ray = graph[self.camera].as_camera().make_ray(
+        let ray = graph[self.camera].make_ray(
             pos,
             self.render_target
                 .data_ref()
@@ -308,8 +311,8 @@ impl SceneGizmo {
         } else {
             let graph = &engine.scenes[self.scene].graph;
             let closest = self.pick(pos, &engine.scenes);
-            fn set_color(node: Handle<Node>, graph: &Graph, color: Color) {
-                graph[node].as_mesh().surfaces()[0]
+            fn set_color(node: Handle<Mesh>, graph: &Graph, color: Color) {
+                graph[node].surfaces()[0]
                     .material()
                     .data_ref()
                     .set_property("diffuseColor", color);

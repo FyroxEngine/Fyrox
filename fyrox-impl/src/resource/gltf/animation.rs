@@ -32,7 +32,7 @@ use crate::scene::graph::Graph;
 use crate::scene::mesh::Mesh;
 use crate::scene::node::Node;
 use fyrox_animation::track::TrackBinding;
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::SceneGraph;
 use gltf::animation::util::ReadOutputs;
 use gltf::animation::Channel;
 use gltf::animation::{Interpolation, Property};

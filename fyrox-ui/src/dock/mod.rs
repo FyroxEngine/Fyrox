@@ -38,7 +38,7 @@ use crate::{
 };
 
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_graph::{BaseSceneGraph, SceneGraph};
+use fyrox_graph::SceneGraph;
 use std::cell::RefCell;
 
 pub mod config;

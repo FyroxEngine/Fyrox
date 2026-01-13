@@ -25,7 +25,7 @@ use crate::{
             type_traits::prelude::*, visitor::prelude::*,
         },
         fxhash::FxHashSet,
-        graph::{BaseSceneGraph, SceneGraph, SceneGraphNode},
+        graph::{SceneGraph, SceneGraphNode},
         gui::{
             border::BorderBuilder,
             button::{ButtonBuilder, ButtonMessage},

@@ -44,7 +44,7 @@ use crate::message::MessageData;
 use crate::popup::Popup;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
-    BaseSceneGraph, SceneGraph,
+    SceneGraph,
 };
 use std::sync::mpsc::Sender;
 

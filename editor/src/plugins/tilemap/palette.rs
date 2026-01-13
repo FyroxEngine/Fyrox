@@ -38,7 +38,7 @@ use crate::{
             SafeLock,
         },
         fxhash::{FxHashMap, FxHashSet},
-        graph::BaseSceneGraph,
+        graph::SceneGraph,
         gui::{
             brush::Brush,
             define_widget_deref,

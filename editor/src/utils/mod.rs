@@ -23,7 +23,7 @@ use crate::{
         core::{
             algebra::Vector2, color::Color, pool::ErasedHandle, pool::Handle, visitor::Visitor,
         },
-        graph::BaseSceneGraph,
+        graph::SceneGraph,
         gui::{
             brush::Brush,
             button::ButtonBuilder,

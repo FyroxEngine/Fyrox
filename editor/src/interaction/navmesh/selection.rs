@@ -30,7 +30,7 @@ use crate::scene::{EntityInfo, GameScene, SelectionContainer};
 use fyrox::core::reflect::Reflect;
 use fyrox::core::some_or_return;
 use fyrox::engine::Engine;
-use fyrox::graph::BaseSceneGraph;
+use fyrox::graph::SceneGraph;
 use fyrox::gui::inspector::PropertyChanged;
 use fyrox::scene::SceneContainer;
 use std::{

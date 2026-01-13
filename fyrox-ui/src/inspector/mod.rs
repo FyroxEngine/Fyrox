@@ -54,7 +54,7 @@ use copypasta::ClipboardProvider;
 use fyrox_core::{err, log::Log};
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
-    BaseSceneGraph, SceneGraph,
+    SceneGraph,
 };
 use std::{
     any::{Any, TypeId},

@@ -48,7 +48,7 @@ use crate::{
 use fyrox_core::pool::ObjectOrVariant;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
-    BaseSceneGraph, SceneGraph, SceneGraphNode,
+    SceneGraph, SceneGraphNode,
 };
 use std::{
     any::TypeId,

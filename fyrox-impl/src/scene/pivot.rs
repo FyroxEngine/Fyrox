@@ -36,7 +36,7 @@ use crate::{
     },
 };
 use fyrox_graph::constructor::ConstructorProvider;
-use fyrox_graph::BaseSceneGraph;
+use fyrox_graph::SceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// A simplest possible node which represents point in space.
@@ -115,7 +115,7 @@ impl PivotBuilder {
     }
 
     /// Creates new Pivot node and adds it to the graph.
-    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
-        graph.add_node(self.build_node())
+    pub fn build(self, graph: &mut Graph) -> Handle<Pivot> {
+        graph.add_node(self.build_node()).to_variant()
     }
 }

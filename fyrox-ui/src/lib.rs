@@ -305,7 +305,7 @@ use crate::{
         log::Log,
         math::Rect,
         parking_lot::Mutex,
-        pool::{ErasedHandle, Handle, ObjectOrVariant, Pool, Ticket},
+        pool::{Handle, ObjectOrVariant, Pool, Ticket},
         reflect::prelude::*,
         uuid::{uuid, Uuid},
         uuid_provider,
@@ -329,10 +329,7 @@ use crate::{
 use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
 pub use fyrox_animation as generic_animation;
-use fyrox_graph::{
-    AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeHandleMap, NodeMapping, PrefabData,
-    SceneGraph, SceneGraphNode,
-};
+use fyrox_graph::{NodeHandleMap, NodeMapping, PrefabData, SceneGraph, SceneGraphNode};
 use fyrox_resource::{
     io::{FsResourceIo, ResourceIo},
     manager::ResourceManager,
@@ -3226,10 +3223,12 @@ impl UserInterface {
     #[inline]
     pub fn link_nodes(
         &mut self,
-        child_handle: Handle<UiNode>,
-        parent_handle: Handle<UiNode>,
+        child_handle: Handle<impl ObjectOrVariant<UiNode>>,
+        parent_handle: Handle<impl ObjectOrVariant<UiNode>>,
         in_front: bool,
     ) {
+        let child_handle = child_handle.to_base();
+        let parent_handle = parent_handle.to_base();
         assert_ne!(child_handle, parent_handle);
         self.isolate_node(child_handle);
         self.nodes[child_handle].set_parent(parent_handle);
@@ -3504,27 +3503,7 @@ impl PrefabData for UserInterface {
     }
 }
 
-impl AbstractSceneGraph for UserInterface {
-    fn try_get_node_untyped(
-        &self,
-        handle: ErasedHandle,
-    ) -> Result<&dyn AbstractSceneNode, PoolError> {
-        self.nodes
-            .try_borrow(handle.into())
-            .map(|n| n as &dyn AbstractSceneNode)
-    }
-
-    fn try_get_node_untyped_mut(
-        &mut self,
-        handle: ErasedHandle,
-    ) -> Result<&mut dyn AbstractSceneNode, PoolError> {
-        self.nodes
-            .try_borrow_mut(handle.into())
-            .map(|n| n as &mut dyn AbstractSceneNode)
-    }
-}
-
-impl BaseSceneGraph for UserInterface {
+impl SceneGraph for UserInterface {
     type Prefab = Self;
     type NodeContainer = WidgetContainer;
     type Node = UiNode;
@@ -3566,7 +3545,7 @@ impl BaseSceneGraph for UserInterface {
     }
 
     #[inline]
-    fn is_valid_handle(&self, handle: Handle<Self::Node>) -> bool {
+    fn is_valid_handle(&self, handle: Handle<impl ObjectOrVariant<Self::Node>>) -> bool {
         self.nodes.is_valid_handle(handle)
     }
 
@@ -3594,7 +3573,8 @@ impl BaseSceneGraph for UserInterface {
     }
 
     #[inline]
-    fn remove_node(&mut self, node: Handle<Self::Node>) {
+    fn remove_node(&mut self, node: Handle<impl ObjectOrVariant<Self::Node>>) {
+        let node = node.to_base();
         self.isolate_node(node);
 
         let sender = self.sender.clone();
@@ -3627,18 +3607,23 @@ impl BaseSceneGraph for UserInterface {
     }
 
     #[inline]
-    fn link_nodes(&mut self, child: Handle<Self::Node>, parent: Handle<Self::Node>) {
-        self.link_nodes(child, parent, false)
+    fn link_nodes(
+        &mut self,
+        child: Handle<impl ObjectOrVariant<Self::Node>>,
+        parent: Handle<impl ObjectOrVariant<Self::Node>>,
+    ) {
+        self.link_nodes(child.to_base(), parent.to_base(), false)
     }
 
     #[inline]
-    fn unlink_node(&mut self, node_handle: Handle<Self::Node>) {
+    fn unlink_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>) {
         self.isolate_node(node_handle);
         self.link_nodes(node_handle, self.root_canvas, false);
     }
 
     #[inline]
-    fn isolate_node(&mut self, node_handle: Handle<Self::Node>) {
+    fn isolate_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>) {
+        let node_handle = node_handle.to_base();
         let node = self.nodes.borrow_mut(node_handle);
         let parent_handle = node.parent();
         if parent_handle.is_some() {
@@ -3660,10 +3645,7 @@ impl BaseSceneGraph for UserInterface {
             .try_borrow(handle)
             .map(|n| Reflect::type_name(n.0.deref()))
     }
-}
 
-impl SceneGraph for UserInterface {
-    type ObjectType = UiNode;
     #[inline]
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
         self.nodes.pair_iter()
@@ -3932,7 +3914,7 @@ mod test_inner {
         widget::{WidgetBuilder, WidgetMessage},
         OsEvent, UserInterface,
     };
-    use fyrox_graph::BaseSceneGraph;
+    use fyrox_graph::SceneGraph;
 
     #[test]
     fn test_transform_size() {

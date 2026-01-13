@@ -22,7 +22,7 @@
 
 use crate::{
     core::{algebra::Vector3, pool::Handle},
-    graph::BaseSceneGraph,
+    graph::SceneGraph,
     graphics::{
         error::FrameworkError,
         query::{GpuQuery, QueryKind, QueryResult},

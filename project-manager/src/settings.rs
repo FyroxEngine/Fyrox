@@ -24,7 +24,7 @@ use fyrox::gui::window::WindowAlignment;
 use fyrox::{
     core::{log::Log, pool::Handle, reflect::prelude::*},
     fxhash::FxHashSet,
-    graph::BaseSceneGraph,
+    graph::SceneGraph,
     gui::{
         inspector::{
             editors::{

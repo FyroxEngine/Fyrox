@@ -24,7 +24,7 @@ use crate::fyrox::{
         TypeUuidProvider,
     },
     engine::Engine,
-    graph::BaseSceneGraph,
+    graph::SceneGraph,
     gui::{BuildContext, UiNode},
 };
 use crate::{

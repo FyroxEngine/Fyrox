@@ -32,16 +32,18 @@ use crate::{
         make_handle, try_get_collider_shape_2d, ShapeGizmoTrait, ShapeHandleValue,
     },
 };
+use fyrox::scene::pivot::Pivot;
+use fyrox::scene::sprite::Sprite;
 
 pub struct Cuboid2DShapeGizmo {
-    pos_x_handle: Handle<Node>,
-    pos_y_handle: Handle<Node>,
-    neg_x_handle: Handle<Node>,
-    neg_y_handle: Handle<Node>,
+    pos_x_handle: Handle<Sprite>,
+    pos_y_handle: Handle<Sprite>,
+    neg_x_handle: Handle<Sprite>,
+    neg_y_handle: Handle<Sprite>,
 }
 
 impl Cuboid2DShapeGizmo {
-    pub fn new(visible: bool, root: Handle<Node>, scene: &mut Scene) -> Self {
+    pub fn new(visible: bool, root: Handle<Pivot>, scene: &mut Scene) -> Self {
         Self {
             pos_x_handle: make_handle(scene, root, visible),
             pos_y_handle: make_handle(scene, root, visible),
@@ -52,7 +54,7 @@ impl Cuboid2DShapeGizmo {
 }
 
 impl ShapeGizmoTrait for Cuboid2DShapeGizmo {
-    fn for_each_handle(&self, func: &mut dyn FnMut(Handle<Node>)) {
+    fn for_each_handle(&self, func: &mut dyn FnMut(Handle<Sprite>)) {
         for handle in [
             self.pos_x_handle,
             self.pos_y_handle,
@@ -65,7 +67,7 @@ impl ShapeGizmoTrait for Cuboid2DShapeGizmo {
 
     fn handle_local_position(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         collider: Handle<Node>,
         scene: &Scene,
     ) -> Option<Vector3<f32>> {
@@ -88,7 +90,7 @@ impl ShapeGizmoTrait for Cuboid2DShapeGizmo {
 
     fn handle_major_axis(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         _collider: Handle<Node>,
         _scene: &Scene,
     ) -> Option<Vector3<f32>> {
@@ -107,7 +109,7 @@ impl ShapeGizmoTrait for Cuboid2DShapeGizmo {
 
     fn value_by_handle(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         collider: Handle<Node>,
         scene: &Scene,
     ) -> Option<ShapeHandleValue> {
@@ -130,7 +132,7 @@ impl ShapeGizmoTrait for Cuboid2DShapeGizmo {
 
     fn set_value_by_handle(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         value: ShapeHandleValue,
         collider: Handle<Node>,
         scene: &mut Scene,

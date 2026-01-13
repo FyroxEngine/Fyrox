@@ -25,7 +25,7 @@ use crate::{
             color::Color, pool::ErasedHandle, pool::Handle, reflect::prelude::*,
             type_traits::prelude::*, visitor::prelude::*, SafeLock,
         },
-        graph::BaseSceneGraph,
+        graph::SceneGraph,
         gui::{
             brush::Brush,
             button::{ButtonBuilder, ButtonMessage},

@@ -28,13 +28,15 @@ use crate::{
         ShapeHandleValue,
     },
 };
+use fyrox::scene::pivot::Pivot;
+use fyrox::scene::sprite::Sprite;
 
 pub struct BallShapeGizmo {
-    radius_handle: Handle<Node>,
+    radius_handle: Handle<Sprite>,
 }
 
 impl BallShapeGizmo {
-    pub fn new(root: Handle<Node>, visible: bool, scene: &mut Scene) -> Self {
+    pub fn new(root: Handle<Pivot>, visible: bool, scene: &mut Scene) -> Self {
         Self {
             radius_handle: make_handle(scene, root, visible),
         }
@@ -42,13 +44,13 @@ impl BallShapeGizmo {
 }
 
 impl ShapeGizmoTrait for BallShapeGizmo {
-    fn for_each_handle(&self, func: &mut dyn FnMut(Handle<Node>)) {
+    fn for_each_handle(&self, func: &mut dyn FnMut(Handle<Sprite>)) {
         func(self.radius_handle)
     }
 
     fn handle_local_position(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         collider: Handle<Node>,
         scene: &Scene,
     ) -> Option<Vector3<f32>> {
@@ -65,7 +67,7 @@ impl ShapeGizmoTrait for BallShapeGizmo {
 
     fn handle_major_axis(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         _collider: Handle<Node>,
         _scene: &Scene,
     ) -> Option<Vector3<f32>> {
@@ -78,7 +80,7 @@ impl ShapeGizmoTrait for BallShapeGizmo {
 
     fn value_by_handle(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         collider: Handle<Node>,
         scene: &Scene,
     ) -> Option<ShapeHandleValue> {
@@ -95,7 +97,7 @@ impl ShapeGizmoTrait for BallShapeGizmo {
 
     fn set_value_by_handle(
         &self,
-        handle: Handle<Node>,
+        handle: Handle<Sprite>,
         value: ShapeHandleValue,
         collider: Handle<Node>,
         scene: &mut Scene,

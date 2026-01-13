@@ -22,7 +22,6 @@ use crate::core::log::Log;
 use crate::core::pool::Handle;
 use crate::core::NameProvider;
 use crate::fxhash::{FxHashMap, FxHashSet};
-use crate::graph::BaseSceneGraph;
 use crate::graph::SceneGraph;
 use crate::scene::graph::Graph;
 use crate::scene::node::Node;

@@ -24,6 +24,7 @@
 
 #![warn(missing_docs)]
 
+use super::collider::BitMask;
 use crate::{
     asset::{untyped::UntypedResource, Resource},
     core::{
@@ -68,8 +69,6 @@ use std::{
     marker::PhantomData,
     ops::{Deref, DerefMut},
 };
-
-use super::collider::BitMask;
 
 pub mod constructor;
 pub mod container;
@@ -719,7 +718,7 @@ mod test {
                     some_field: "Foobar".to_string().into(),
                     some_collection: vec![1, 2, 3].into(),
                 })
-                .with_children(&[{
+                .with_child({
                     mesh = MeshBuilder::new(
                         BaseBuilder::new().with_name("Mesh").with_local_transform(
                             TransformBuilder::new()
@@ -735,11 +734,11 @@ mod test {
                     .build()])
                     .build(&mut scene.graph);
                     mesh
-                }]),
+                }),
         )
         .build(&mut scene.graph);
 
-        let mesh = scene.graph[mesh].as_mesh();
+        let mesh = &scene.graph[mesh];
         assert_eq!(mesh.surfaces().len(), 1);
         assert!(mesh.surfaces()[0].bones.is_modified());
         assert!(mesh.surfaces()[0].data.is_modified());

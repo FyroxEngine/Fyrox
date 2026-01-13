@@ -22,7 +22,7 @@ use crate::fyrox::{
     asset::manager::ResourceManager,
     core::{log::Log, pool::Handle, reflect::prelude::*, type_traits::prelude::*},
     engine::SerializationContext,
-    graph::{BaseSceneGraph, SceneGraphNode},
+    graph::{SceneGraph, SceneGraphNode},
     scene::{graph::SubGraph, node::Node, Scene},
 };
 use crate::{

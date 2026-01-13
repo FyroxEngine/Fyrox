@@ -43,7 +43,7 @@ use crate::{
 use crate::message::MessageData;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
-    BaseSceneGraph,
+    SceneGraph,
 };
 
 /// A set of messages that can be used to modify/fetch the state of a [`ListView`] widget at runtime.

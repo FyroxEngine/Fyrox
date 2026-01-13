@@ -23,7 +23,7 @@ use crate::{
     asset::item::AssetItem,
     fyrox::{
         core::pool::{ErasedHandle, Handle},
-        graph::{BaseSceneGraph, SceneGraph},
+        graph::SceneGraph,
         gui::{
             border::BorderBuilder,
             button::{ButtonBuilder, ButtonMessage},

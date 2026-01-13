@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::graph::BaseSceneGraph;
+use crate::fyrox::graph::SceneGraph;
 use crate::fyrox::{
     core::{
         algebra::Vector2, parking_lot::Mutex, pool::Handle, reflect::prelude::*,

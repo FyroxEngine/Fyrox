@@ -41,7 +41,7 @@ use crate::{
         },
         engine::Engine,
         fxhash::FxHashSet,
-        graph::{BaseSceneGraph, SceneGraph},
+        graph::SceneGraph,
         gui::{
             brush::Brush,
             draw::{CommandTexture, Draw},

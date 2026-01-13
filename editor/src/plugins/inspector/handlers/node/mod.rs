@@ -30,7 +30,7 @@ use crate::{
     scene::commands::terrain::{AddTerrainLayerCommand, DeleteTerrainLayerCommand},
     Command,
 };
-use fyrox::graph::BaseSceneGraph;
+use fyrox::graph::SceneGraph;
 
 pub struct SceneNodePropertyChangedHandler;
 
