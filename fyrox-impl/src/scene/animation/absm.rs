@@ -166,12 +166,12 @@ impl LayerMaskExt for LayerMask {
 /// # use fyrox_graph::SceneGraph;
 ///
 /// fn create_walk_idle_state_machine(
-///     animation_player_handle: Handle<Node>,
+///     animation_player_handle: Handle<AnimationPlayer>,
 ///     graph: &mut Graph,
-/// ) -> Handle<Node> {
+/// ) -> Handle<AnimationBlendingStateMachine> {
 ///     // Find idle and run animations first.
 ///     let animation_player = graph
-///         .try_get_of_type::<AnimationPlayer>(animation_player_handle)
+///         .try_get(animation_player_handle)
 ///         .unwrap();
 ///     let idle_animation = animation_player
 ///         .animations()
@@ -378,7 +378,7 @@ impl AnimationBlendingStateMachineBuilder {
     }
 
     /// Creates new node and adds it to the graph.
-    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
-        graph.add_node(self.build_node())
+    pub fn build(self, graph: &mut Graph) -> Handle<AnimationBlendingStateMachine> {
+        graph.add_node(self.build_node()).to_variant()
     }
 }

@@ -72,7 +72,7 @@ impl GraphEventBroadcaster {
     /// graph.event_broadcaster.subscribe(tx);
     ///
     /// // Add a node
-    /// let handle = PivotBuilder::new(BaseBuilder::new()).build(&mut graph);
+    /// let handle = PivotBuilder::new(BaseBuilder::new()).build(&mut graph).to_base();
     ///
     /// assert_eq!(rx.recv(), Ok(GraphEvent::Added(handle)));
     ///

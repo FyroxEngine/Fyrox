@@ -266,7 +266,7 @@ impl dyn Plugin {
 /// The following code snippet shows the most common use cases for error handling:
 ///
 /// ```rust
-/// # use crate::{
+/// # use fyrox_impl::{
 /// #     core::{err, pool::Handle, reflect::prelude::*, visitor::prelude::*},
 /// #     event::Event,
 /// #     graph::SceneGraph,

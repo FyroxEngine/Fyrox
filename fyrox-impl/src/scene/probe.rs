@@ -108,18 +108,18 @@ pub enum UpdateMode {
 /// at (0.0, 10.0, 0.0) point with a rendering position offset by 10 units along X axis.
 ///
 /// ```rust
-/// use fyrox_impl::{
-///     core::{algebra::Vector3, pool::Handle},
-///     scene::{
-///         base::BaseBuilder,
-///         graph::Graph,
-///         node::Node,
-///         probe::{ReflectionProbeBuilder, UpdateMode},
-///         transform::TransformBuilder,
-///     },
-/// };
-///
-/// fn create_probe(graph: &mut Graph) -> Handle<Node> {
+/// # use fyrox_impl::{
+/// #     core::{algebra::Vector3, pool::Handle},
+/// #     scene::{
+/// #         base::BaseBuilder,
+/// #         graph::Graph,
+/// #         node::Node,
+/// #         probe::{ReflectionProbeBuilder, UpdateMode},
+/// #         transform::TransformBuilder,
+/// #     },
+/// # };
+/// # use fyrox_impl::scene::probe::ReflectionProbe;
+/// fn create_probe(graph: &mut Graph) -> Handle<ReflectionProbe> {
 ///     ReflectionProbeBuilder::new(
 ///         BaseBuilder::new().with_local_transform(
 ///             TransformBuilder::new()

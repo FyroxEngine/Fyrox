@@ -302,8 +302,9 @@ impl RenderDataBundleStorageTrait for BatchContainer {
 /// #         node::Node,
 /// #     },
 /// # };
-/// use fyrox_resource::untyped::ResourceKind;
-/// fn create_cube_mesh(graph: &mut Graph) -> Handle<Node> {
+/// # use fyrox_impl::scene::mesh::Mesh;
+/// # use fyrox_resource::untyped::ResourceKind;
+/// fn create_cube_mesh(graph: &mut Graph) -> Handle<Mesh> {
 ///     let cube_surface_data = SurfaceData::make_cube(Matrix4::identity());
 ///
 ///     let cube_surface = SurfaceBuilder::new(SurfaceResource::new_embedded(cube_surface_data)).build();

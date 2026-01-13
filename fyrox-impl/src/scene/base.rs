@@ -426,9 +426,9 @@ impl<T> DerefMut for TrackedProperty<T> {
 /// # use fyrox_impl::scene::graph::Graph;
 /// # use fyrox_impl::scene::node::Node;
 /// # use fyrox_impl::core::pool::Handle;
-/// # use fyrox_impl::scene::pivot::PivotBuilder;
+/// # use fyrox_impl::scene::pivot::{Pivot, PivotBuilder};
 ///
-/// fn create_pivot_node(graph: &mut Graph) -> Handle<Node> {
+/// fn create_pivot_node(graph: &mut Graph) -> Handle<Pivot> {
 ///     PivotBuilder::new(BaseBuilder::new()
 ///         .with_name("BaseNode"))
 ///         .build(graph)

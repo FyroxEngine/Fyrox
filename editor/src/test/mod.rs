@@ -83,7 +83,7 @@ fn test_close_with_save() {
 #[test]
 fn test_exit_with_save() {
     utils::run_editor_test(
-        "Menu/File/CloseWithSave",
+        "Menu/File/ExitWithSave",
         TestPlugin::new(
             Macro::begin()
                 .click_at(FileMenu::FILE)

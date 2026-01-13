@@ -1584,6 +1584,7 @@ impl Engine {
     /// #     window::WindowAttributes,
     /// # };
     /// # use std::sync::Arc;
+    /// use fyrox_core::dyntype::DynTypeConstructorContainer;
     /// # use fyrox_core::task::TaskPool;
     /// # use fyrox_resource::io::FsResourceIo;
     /// # use fyrox_ui::constructor::new_widget_constructor_container;
@@ -1602,6 +1603,7 @@ impl Engine {
     /// Engine::new(EngineInitParams {
     ///     graphics_context_params,
     ///     resource_manager: ResourceManager::new(Arc::new(FsResourceIo), task_pool.clone()),
+    ///     dyn_type_constructors: Arc::new(DynTypeConstructorContainer::default()),
     ///     serialization_context: Arc::new(SerializationContext::new()),
     ///     task_pool,
     ///     widget_constructors: Arc::new(new_widget_constructor_container()),

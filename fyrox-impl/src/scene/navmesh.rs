@@ -85,7 +85,9 @@ impl Visit for Container {
 /// #     scene::{base::BaseBuilder, graph::Graph, navmesh::NavigationalMeshBuilder, node::Node},
 /// #     utils::navmesh::Navmesh,
 /// # };
-/// fn create_navmesh(graph: &mut Graph) -> Handle<Node> {
+/// # use fyrox_impl::scene::navmesh::NavigationalMesh;
+///
+/// fn create_navmesh(graph: &mut Graph) -> Handle<NavigationalMesh> {
 ///     // A simple navmesh with four vertices and two triangles.
 ///     let navmesh = Navmesh::new(
 ///         vec![TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])],

@@ -82,9 +82,9 @@ impl MessageData for ButtonMessage {}
 /// queue and check if there's [`ButtonMessage::Click`] message from your button:
 ///
 /// ```rust
-/// # use fyrox_ui::{button::ButtonMessage, core::pool::Handle, message::UiMessage};
+/// # use fyrox_ui::{button::ButtonMessage, core::pool::Handle, message::UiMessage, UiNode};
 /// fn on_ui_message(message: &UiMessage) {
-/// #   let your_button_handle = Handle::NONE;
+/// #   let your_button_handle = Handle::<UiNode>::NONE;
 ///     if let Some(ButtonMessage::Click) = message.data() {
 ///         if message.destination() == your_button_handle {
 ///             println!("{} button was clicked!", message.destination());

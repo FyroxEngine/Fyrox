@@ -94,8 +94,9 @@ use std::ops::{Deref, DerefMut};
 /// #     core::algebra::Vector3
 /// # };
 /// # use fyrox_impl::resource::texture::Texture;
+/// # use fyrox_impl::scene::decal::Decal;
 ///
-/// fn create_bullet_hole(resource_manager: ResourceManager, graph: &mut Graph) -> Handle<Node> {
+/// fn create_bullet_hole(resource_manager: ResourceManager, graph: &mut Graph) -> Handle<Decal> {
 ///     DecalBuilder::new(
 ///             BaseBuilder::new()
 ///                 .with_local_transform(

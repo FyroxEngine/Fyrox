@@ -135,8 +135,9 @@ impl VertexTrait for SpriteVertex {
 /// #     resource::texture::Texture,
 /// #     scene::{base::BaseBuilder, graph::Graph, node::Node, sprite::SpriteBuilder},
 /// # };
+/// # use fyrox_impl::scene::sprite::Sprite;
 /// #
-/// fn create_smoke(resource_manager: ResourceManager, graph: &mut Graph) -> Handle<Node> {
+/// fn create_smoke(resource_manager: ResourceManager, graph: &mut Graph) -> Handle<Sprite> {
 ///     let mut material = Material::standard_sprite();
 ///
 ///     material

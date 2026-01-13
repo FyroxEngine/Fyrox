@@ -130,9 +130,9 @@ impl MessageData for ExpanderMessage {}
 /// Use [`ExpanderMessage::Expand`] message to catch the moment when its state changes:
 ///
 /// ```rust
-/// # use fyrox_ui::{core::pool::Handle, expander::ExpanderMessage, message::{MessageDirection, UiMessage}};
+/// # use fyrox_ui::{core::pool::Handle, expander::ExpanderMessage, message::{MessageDirection, UiMessage}, UiNode};
 /// fn on_ui_message(message: &UiMessage) {
-///     let your_expander_handle = Handle::NONE;
+///     let your_expander_handle = Handle::<UiNode>::NONE;
 ///     if let Some(ExpanderMessage::Expand(expanded)) = message.data() {
 ///         if message.destination() == your_expander_handle && message.direction() == MessageDirection::FromWidget {
 ///             println!(
