@@ -480,7 +480,13 @@ impl Graph {
         graph
     }
 
-    fn recursive_summary(&self, indent: usize, current: Handle<Node>, result: &mut String) {
+    fn recursive_summary(
+        &self,
+        indent: usize,
+        current: Handle<impl ObjectOrVariant<Node>>,
+        result: &mut String,
+    ) {
+        let current = current.to_base();
         for _ in 0..indent {
             result.push_str("  ");
         }
@@ -517,7 +523,10 @@ impl Graph {
     /// Tries to find references of the given node in other scene nodes. It could be used to check if the node is
     /// used by some other scene node or not. Returns an array of nodes, that references the given node. This method
     /// is reflection-based, so it is quite slow and should not be used every frame.
-    pub fn find_references_to(&self, target: Handle<Node>) -> Vec<Handle<Node>> {
+    pub fn find_references_to(
+        &self,
+        target: Handle<impl ObjectOrVariant<Node>>,
+    ) -> Vec<Handle<Node>> {
         let mut references = Vec::new();
         for (node_handle, node) in self.pair_iter() {
             (node as &dyn Reflect).apply_recursively(
@@ -549,7 +558,12 @@ impl Graph {
     /// to the end of the frame. If you want to ensure that everything works as expected, call
     /// [`Self::update_hierarchical_data`] before calling this method. It is not called automatically,
     /// because it is quite heavy, and in most cases this method works ok without it.
-    pub fn set_global_position(&mut self, node_handle: Handle<Node>, position: Vector3<f32>) {
+    pub fn set_global_position(
+        &mut self,
+        node_handle: Handle<impl ObjectOrVariant<Node>>,
+        position: Vector3<f32>,
+    ) {
+        let node_handle = node_handle.to_base();
         let (node, parent) = self
             .pool
             .try_borrow_dependant_mut(node_handle, |node| node.parent());
@@ -582,7 +596,12 @@ impl Graph {
     /// to the end of the frame. If you want to ensure that everything works as expected, call
     /// [`Self::update_hierarchical_data`] before calling this method. It is not called automatically,
     /// because it is quite heavy, and in most cases this method works ok without it.
-    pub fn set_global_rotation(&mut self, node: Handle<Node>, rotation: UnitQuaternion<f32>) {
+    pub fn set_global_rotation(
+        &mut self,
+        node: Handle<impl ObjectOrVariant<Node>>,
+        rotation: UnitQuaternion<f32>,
+    ) {
+        let node = node.to_base();
         let (node, parent) = self
             .pool
             .try_borrow_dependant_mut(node, |node| node.parent());
@@ -676,7 +695,13 @@ impl Graph {
     /// Links specified child with specified parent while keeping the
     /// child's global position and rotation.
     #[inline]
-    pub fn link_nodes_keep_global_transform(&mut self, child: Handle<Node>, parent: Handle<Node>) {
+    pub fn link_nodes_keep_global_transform(
+        &mut self,
+        child: Handle<impl ObjectOrVariant<Node>>,
+        parent: Handle<impl ObjectOrVariant<Node>>,
+    ) {
+        let child = child.to_base();
+        let parent = parent.to_base();
         let parent_global_transform_inv = self.pool[parent]
             .global_transform()
             .try_inverse()
@@ -700,7 +725,10 @@ impl Graph {
     /// Searches for a **first** node with a script of the given type `S` in the hierarchy starting from the
     /// given `root_node`.
     #[inline]
-    pub fn find_first_by_script<S>(&self, root_node: Handle<Node>) -> Option<(Handle<Node>, &Node)>
+    pub fn find_first_by_script<S>(
+        &self,
+        root_node: Handle<impl ObjectOrVariant<Node>>,
+    ) -> Option<(Handle<Node>, &Node)>
     where
         S: ScriptTrait,
     {
@@ -745,7 +773,7 @@ impl Graph {
     #[inline]
     pub fn copy_node<F, Pre, Post>(
         &self,
-        node_handle: Handle<Node>,
+        node_handle: Handle<impl ObjectOrVariant<Node>>,
         dest_graph: &mut Graph,
         filter: &mut F,
         pre_process_callback: &mut Pre,
@@ -863,7 +891,7 @@ impl Graph {
     ///   for its newly copied children, but no handle for its parent.
     fn copy_node_raw<F, Pre, Post>(
         &self,
-        root_handle: Handle<Node>,
+        root_handle: Handle<impl ObjectOrVariant<Node>>,
         dest_graph: &mut Graph,
         old_new_mapping: &mut NodeHandleMap<Node>,
         filter: &mut F,
@@ -875,6 +903,7 @@ impl Graph {
         Pre: FnMut(Handle<Node>, &mut Node),
         Post: FnMut(Handle<Node>, Handle<Node>, &mut Node),
     {
+        let root_handle = root_handle.to_base();
         let src_node = &self.pool[root_handle];
         let mut dest_node = clear_links(src_node.clone_box());
         pre_process_callback(root_handle, &mut dest_node);
@@ -1047,12 +1076,13 @@ impl Graph {
     /// all the nodes in the hierarchy.
     pub fn aabb_of_descendants<F>(
         &self,
-        root: Handle<Node>,
+        root: Handle<impl ObjectOrVariant<Node>>,
         mut filter: F,
     ) -> Option<AxisAlignedBoundingBox>
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
+        let root = root.to_base();
         fn aabb_of_descendants_recursive<F>(
             graph: &Graph,
             node: Handle<Node>,
@@ -1170,13 +1200,16 @@ impl Graph {
     ///
     /// This method could be slow for large hierarchies. You should call it only when absolutely needed.
     #[inline]
-    pub fn update_hierarchical_data_for_descendants(&mut self, node_handle: Handle<Node>) {
+    pub fn update_hierarchical_data_for_descendants(
+        &mut self,
+        node_handle: Handle<impl ObjectOrVariant<Node>>,
+    ) {
         Self::update_hierarchical_data_recursively(
             &self.pool,
             &mut self.sound_context,
             &mut self.physics,
             &mut self.physics2d,
-            node_handle,
+            node_handle.to_base(),
         );
     }
 
@@ -1649,15 +1682,22 @@ impl Graph {
 
     /// Returns local transformation matrix of a node without scale.
     #[inline]
-    pub fn local_transform_no_scale(&self, node: Handle<Node>) -> Matrix4<f32> {
-        let mut transform = self[node].local_transform().clone();
+    pub fn local_transform_no_scale(
+        &self,
+        node: Handle<impl ObjectOrVariant<Node>>,
+    ) -> Matrix4<f32> {
+        let mut transform = self[node.to_base()].local_transform().clone();
         transform.set_scale(Vector3::new(1.0, 1.0, 1.0));
         transform.matrix()
     }
 
     /// Returns world transformation matrix of a node without scale.
     #[inline]
-    pub fn global_transform_no_scale(&self, node: Handle<Node>) -> Matrix4<f32> {
+    pub fn global_transform_no_scale(
+        &self,
+        node: Handle<impl ObjectOrVariant<Node>>,
+    ) -> Matrix4<f32> {
+        let node = node.to_base();
         let parent = self[node].parent();
         if parent.is_some() {
             self.global_transform_no_scale(parent) * self.local_transform_no_scale(node)
