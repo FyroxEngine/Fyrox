@@ -262,8 +262,11 @@ fn remap_handles(old_new_mapping: &NodeHandleMap<Node>, dest_graph: &mut Graph) 
 }
 
 /// Calculates local transform of a scene node without scaling.
-pub fn isometric_local_transform(nodes: &NodePool, node: Handle<Node>) -> Matrix4<f32> {
-    let transform = nodes[node].local_transform();
+pub fn isometric_local_transform(
+    nodes: &NodePool,
+    node: Handle<impl ObjectOrVariant<Node>>,
+) -> Matrix4<f32> {
+    let transform = nodes[node.to_base()].local_transform();
     TransformBuilder::new()
         .with_local_position(**transform.position())
         .with_local_rotation(**transform.rotation())
@@ -274,7 +277,11 @@ pub fn isometric_local_transform(nodes: &NodePool, node: Handle<Node>) -> Matrix
 }
 
 /// Calculates global transform of a scene node without scaling.
-pub fn isometric_global_transform(nodes: &NodePool, node: Handle<Node>) -> Matrix4<f32> {
+pub fn isometric_global_transform(
+    nodes: &NodePool,
+    node: Handle<impl ObjectOrVariant<Node>>,
+) -> Matrix4<f32> {
+    let node = node.to_base();
     let parent = nodes[node].parent();
     if parent.is_some() {
         isometric_global_transform(nodes, parent) * isometric_local_transform(nodes, node)
@@ -1624,7 +1631,7 @@ impl Graph {
     #[inline]
     pub fn clone_ex<F, Pre, Post>(
         &self,
-        root: Handle<Node>,
+        root: Handle<impl ObjectOrVariant<Node>>,
         filter: &mut F,
         pre_process_callback: &mut Pre,
         post_process_callback: &mut Post,
@@ -1634,6 +1641,8 @@ impl Graph {
         Pre: FnMut(Handle<Node>, &mut Node),
         Post: FnMut(Handle<Node>, Handle<Node>, &mut Node),
     {
+        let root = root.to_base();
+
         let mut copy = Self {
             sound_context: self.sound_context.deep_clone(),
             physics: self.physics.clone(),
@@ -1709,26 +1718,32 @@ impl Graph {
     /// Returns isometric local transformation matrix of a node. Such transform has
     /// only translation and rotation.
     #[inline]
-    pub fn isometric_local_transform(&self, node: Handle<Node>) -> Matrix4<f32> {
+    pub fn isometric_local_transform(
+        &self,
+        node: Handle<impl ObjectOrVariant<Node>>,
+    ) -> Matrix4<f32> {
         isometric_local_transform(&self.pool, node)
     }
 
     /// Returns world transformation matrix of a node only.  Such transform has
     /// only translation and rotation.
     #[inline]
-    pub fn isometric_global_transform(&self, node: Handle<Node>) -> Matrix4<f32> {
+    pub fn isometric_global_transform(
+        &self,
+        node: Handle<impl ObjectOrVariant<Node>>,
+    ) -> Matrix4<f32> {
         isometric_global_transform(&self.pool, node)
     }
 
     /// Returns global scale matrix of a node.
     #[inline]
-    pub fn global_scale_matrix(&self, node: Handle<Node>) -> Matrix4<f32> {
+    pub fn global_scale_matrix(&self, node: Handle<impl ObjectOrVariant<Node>>) -> Matrix4<f32> {
         Matrix4::new_nonuniform_scaling(&self.global_scale(node))
     }
 
     /// Returns rotation quaternion of a node in world coordinates.
     #[inline]
-    pub fn global_rotation(&self, node: Handle<Node>) -> UnitQuaternion<f32> {
+    pub fn global_rotation(&self, node: Handle<impl ObjectOrVariant<Node>>) -> UnitQuaternion<f32> {
         UnitQuaternion::from(Rotation3::from_matrix_eps(
             &self.global_transform_no_scale(node).basis(),
             f32::EPSILON,
@@ -1739,7 +1754,10 @@ impl Graph {
 
     /// Returns rotation quaternion of a node in world coordinates without pre- and post-rotations.
     #[inline]
-    pub fn isometric_global_rotation(&self, node: Handle<Node>) -> UnitQuaternion<f32> {
+    pub fn isometric_global_rotation(
+        &self,
+        node: Handle<impl ObjectOrVariant<Node>>,
+    ) -> UnitQuaternion<f32> {
         UnitQuaternion::from(Rotation3::from_matrix_eps(
             &self.isometric_global_transform(node).basis(),
             f32::EPSILON,
@@ -1752,8 +1770,9 @@ impl Graph {
     #[inline]
     pub fn global_rotation_position_no_scale(
         &self,
-        node: Handle<Node>,
+        node: Handle<impl ObjectOrVariant<Node>>,
     ) -> (UnitQuaternion<f32>, Vector3<f32>) {
+        let node = node.to_base();
         (self.global_rotation(node), self[node].global_position())
     }
 
@@ -1761,8 +1780,9 @@ impl Graph {
     #[inline]
     pub fn isometric_global_rotation_position(
         &self,
-        node: Handle<Node>,
+        node: Handle<impl ObjectOrVariant<Node>>,
     ) -> (UnitQuaternion<f32>, Vector3<f32>) {
+        let node = node.to_base();
         (
             self.isometric_global_rotation(node),
             self[node].global_position(),
