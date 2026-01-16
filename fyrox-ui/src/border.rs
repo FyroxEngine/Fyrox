@@ -122,6 +122,7 @@ impl ConstructorProvider<UiNode, UserInterface> for Border {
             .with_variant("Border", |ui| {
                 BorderBuilder::new(WidgetBuilder::new().with_name("Border"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Visual")
@@ -353,8 +354,9 @@ impl BorderBuilder {
     }
 
     /// Finishes border building and adds it to the user interface. See examples in [`Border`] docs.
-    pub fn build(self, ctx: &mut BuildContext<'_>) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext<'_>) -> Handle<Border> {
         ctx.add_node(UiNode::new(self.build_border(ctx)))
+            .to_variant()
     }
 }
 

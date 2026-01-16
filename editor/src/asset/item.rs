@@ -52,6 +52,7 @@ use crate::{
     Message,
 };
 use fyrox::core::ok_or_return;
+use fyrox::gui::border::Border;
 use fyrox::gui::message::MessageData;
 use std::{
     ops::{Deref, DerefMut},
@@ -85,7 +86,7 @@ pub struct AssetItem {
     pub path: PathBuf,
     preview: Handle<UiNode>,
     selected: bool,
-    text_border: Handle<UiNode>,
+    text_border: Handle<Border>,
     #[visit(skip)]
     #[reflect(hidden)]
     sender: Option<MessageSender>,
@@ -367,7 +368,7 @@ fn make_tooltip(ctx: &mut BuildContext, text: &str) -> RcUiNodeHandle {
             ),
     )
     .build(ctx);
-    RcUiNodeHandle::new(handle, ctx.sender())
+    RcUiNodeHandle::new(handle.to_base(), ctx.sender())
 }
 
 impl AssetItemBuilder {

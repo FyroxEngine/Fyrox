@@ -36,6 +36,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
+use fyrox_core::pool::ObjectOrVariant;
 
 use crate::message::MessageData;
 use fyrox_graph::{
@@ -373,8 +374,8 @@ impl ScrollViewerBuilder {
     }
 
     /// Sets the desired content of the scroll viewer.
-    pub fn with_content(mut self, content: Handle<UiNode>) -> Self {
-        self.content = content;
+    pub fn with_content(mut self, content: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        self.content = content.to_base();
         self
     }
 

@@ -46,6 +46,7 @@ use fyrox::{
 use super::*;
 use commands::*;
 use fyrox::core::pool::ObjectOrVariant;
+use fyrox::gui::border::Border;
 
 /// This is the tab of the tile set editor that allows the user to modify the property
 /// layers stored within the tile set. Layers can be created, deleted, renamed
@@ -67,7 +68,7 @@ pub struct PropertiesTab {
     name_add: Handle<Button>,
     name_remove: Handle<Button>,
     data_panel: Handle<UiNode>,
-    name_edit_panel: Handle<UiNode>,
+    name_edit_panel: Handle<Border>,
     value_name_field: Handle<UiNode>,
     color_field: Handle<UiNode>,
     i8_field: Handle<UiNode>,

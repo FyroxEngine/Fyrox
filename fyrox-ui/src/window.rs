@@ -43,6 +43,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, RestrictionEntry, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
+use fyrox_core::pool::ObjectOrVariant;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     SceneGraph,
@@ -1099,8 +1100,8 @@ impl WindowBuilder {
     }
 
     /// Sets a desired window content.
-    pub fn with_content(mut self, content: Handle<UiNode>) -> Self {
-        self.content = content;
+    pub fn with_content(mut self, content: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        self.content = content.to_base();
         self
     }
 
@@ -1271,7 +1272,8 @@ impl WindowBuilder {
         .with_pad_by_corner_radius(false)
         .with_corner_radius(4.0f32.into())
         .with_stroke_thickness(Thickness::uniform(0.0).into())
-        .build(ctx);
+        .build(ctx)
+        .to_base();
 
         let border = BorderBuilder::new(
             WidgetBuilder::new()

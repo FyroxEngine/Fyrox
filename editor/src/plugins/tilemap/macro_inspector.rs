@@ -159,7 +159,8 @@ impl ItemHeader {
                     .with_foreground(Brush::Solid(Color::BLACK).into())
                     .with_child(grid),
             )
-            .build(ctx),
+            .build(ctx)
+            .to_base(),
             label,
             button,
         }
@@ -289,7 +290,9 @@ impl MacroInspector {
         )
         .build(ctx);
         Self {
-            handle: BorderBuilder::new(WidgetBuilder::new().with_child(content)).build(ctx),
+            handle: BorderBuilder::new(WidgetBuilder::new().with_child(content))
+                .build(ctx)
+                .to_base(),
             content,
             macro_list,
             cell_sets,

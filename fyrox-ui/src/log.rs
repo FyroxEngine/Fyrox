@@ -325,7 +325,7 @@ impl LogPanel {
         if item_to_bring_into_view.is_some() {
             ui.send(
                 self.scroll_viewer,
-                ScrollViewerMessage::BringIntoView(item_to_bring_into_view),
+                ScrollViewerMessage::BringIntoView(item_to_bring_into_view.to_base()),
             );
         }
 

@@ -642,6 +642,7 @@ impl ScrollBarBuilder {
             )
             .with_stroke_thickness(Thickness::uniform(1.0).into())
             .build(ctx)
+            .to_base()
         });
         ctx.link(grid, body);
 

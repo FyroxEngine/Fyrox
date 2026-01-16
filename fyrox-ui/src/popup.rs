@@ -590,7 +590,8 @@ impl PopupBuilder {
                 .with_child(self.content),
         )
         .with_stroke_thickness(Thickness::uniform(1.0).into())
-        .build(ctx);
+        .build(ctx)
+        .to_base();
 
         Popup {
             widget: self

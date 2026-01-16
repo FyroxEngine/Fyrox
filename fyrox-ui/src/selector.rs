@@ -208,7 +208,7 @@ impl SelectorBuilder {
         let selector = Selector {
             widget: self.widget_builder.with_child(grid).build(ctx),
             items: self.items.into(),
-            items_panel: items_panel.into(),
+            items_panel: items_panel.to_base().into(),
             prev: prev.into(),
             next: next.into(),
             current: self.current.into(),

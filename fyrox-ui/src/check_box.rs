@@ -40,6 +40,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, MouseButton, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
+use fyrox_core::pool::ObjectOrVariant;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 
 /// A set of possible check box messages.
@@ -310,8 +311,8 @@ impl CheckBoxBuilder {
 
     /// Sets the desired background widget that will be used a container for check box contents. By
     /// default, it is a simple border.
-    pub fn with_background(mut self, background: Handle<UiNode>) -> Self {
-        self.background = Some(background);
+    pub fn with_background(mut self, background: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        self.background = Some(background.to_base());
         self
     }
 
@@ -355,6 +356,7 @@ impl CheckBoxBuilder {
             .with_corner_radius(ctx.style.property(CheckBox::CORNER_RADIUS))
             .with_stroke_thickness(Thickness::uniform(0.0).into())
             .build(ctx)
+            .to_base()
         });
         ctx[check_mark].set_visibility(self.checked.unwrap_or(false));
 
@@ -371,6 +373,7 @@ impl CheckBoxBuilder {
             .with_corner_radius(ctx.style.property(CheckBox::CORNER_RADIUS))
             .with_stroke_thickness(Thickness::uniform(0.0).into())
             .build(ctx)
+            .to_base()
         });
         ctx[uncheck_mark].set_visibility(!self.checked.unwrap_or(true));
 
@@ -384,6 +387,7 @@ impl CheckBoxBuilder {
             .with_pad_by_corner_radius(false)
             .with_corner_radius(ctx.style.property(CheckBox::CORNER_RADIUS))
             .build(ctx)
+            .to_base()
         });
         ctx[undefined_mark].set_visibility(self.checked.is_none());
 
@@ -402,6 +406,7 @@ impl CheckBoxBuilder {
             .with_corner_radius(ctx.style.property(CheckBox::CORNER_RADIUS))
             .with_stroke_thickness(ctx.style.property(CheckBox::BORDER_THICKNESS))
             .build(ctx)
+            .to_base()
         });
 
         let background_ref = &mut ctx[background];

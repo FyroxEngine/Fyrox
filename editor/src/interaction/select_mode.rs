@@ -37,12 +37,13 @@ use crate::{
     world::selection::GraphSelection,
     Engine,
 };
+use fyrox::gui::border::Border;
 use fyrox::gui::button::Button;
 use fyrox::gui::widget::WidgetMessage;
 
 pub struct SelectInteractionMode {
     preview: Handle<UiNode>,
-    selection_frame: Handle<UiNode>,
+    selection_frame: Handle<Border>,
     message_sender: MessageSender,
     stack: Vec<Handle<Node>>,
     click_pos: Vector2<f32>,
@@ -51,7 +52,7 @@ pub struct SelectInteractionMode {
 impl SelectInteractionMode {
     pub fn new(
         preview: Handle<UiNode>,
-        selection_frame: Handle<UiNode>,
+        selection_frame: Handle<Border>,
         message_sender: MessageSender,
     ) -> Self {
         Self {
@@ -112,11 +113,8 @@ impl InteractionMode for SelectInteractionMode {
             .first_mut()
             .node(self.preview)
             .screen_bounds();
-        let frame_screen_bounds = engine
-            .user_interfaces
-            .first_mut()
-            .node(self.selection_frame)
-            .screen_bounds();
+        let frame_screen_bounds =
+            engine.user_interfaces.first_mut()[self.selection_frame].screen_bounds();
         let frame_relative_bounds = frame_screen_bounds.translate(-preview_screen_bounds.position);
         self.stack.clear();
         self.stack.push(scene.graph.get_root());

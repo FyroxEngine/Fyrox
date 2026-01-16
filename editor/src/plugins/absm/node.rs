@@ -39,6 +39,7 @@ use crate::fyrox::{
 };
 use crate::plugins::absm::selectable::{Selectable, SelectableMessage};
 
+use fyrox::gui::border::Border;
 use fyrox::gui::button::Button;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
@@ -61,7 +62,7 @@ where
     T: Reflect,
 {
     widget: Widget,
-    background: Handle<UiNode>,
+    background: Handle<Border>,
     #[component(include)]
     selectable: Selectable,
     pub name_value: String,

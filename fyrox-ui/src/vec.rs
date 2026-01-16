@@ -32,6 +32,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface, Widget,
 };
 
+use crate::border::Border;
 use crate::message::MessageData;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
@@ -66,7 +67,7 @@ fn make_numeric_input<T: NumericType>(
     .build(ctx)
 }
 
-pub fn make_mark(ctx: &mut BuildContext, column: usize, color: Color) -> Handle<UiNode> {
+pub fn make_mark(ctx: &mut BuildContext, column: usize, color: Color) -> Handle<Border> {
     BorderBuilder::new(
         WidgetBuilder::new()
             .on_row(0)
@@ -316,11 +317,9 @@ where
         ];
 
         for i in 0..D {
-            children.push(make_mark(
-                ctx,
-                i * 2,
-                colors.get(i).cloned().unwrap_or(Color::ORANGE),
-            ));
+            children.push(
+                make_mark(ctx, i * 2, colors.get(i).cloned().unwrap_or(Color::ORANGE)).to_base(),
+            );
 
             let field = make_numeric_input(
                 ctx,

@@ -1262,7 +1262,8 @@ impl UserInterface {
     }
 
     #[inline]
-    pub fn capture_mouse(&mut self, node: Handle<UiNode>) -> bool {
+    pub fn capture_mouse(&mut self, node: Handle<impl ObjectOrVariant<UiNode>>) -> bool {
+        let node = node.to_base();
         if self.captured_node.is_none() {
             self.captured_node = node;
             true
@@ -1668,7 +1669,12 @@ impl UserInterface {
         self.clipboard.0.as_ref().map(|v| v.borrow_mut())
     }
 
-    pub fn arrange_node(&self, handle: Handle<UiNode>, final_rect: &Rect<f32>) -> bool {
+    pub fn arrange_node(
+        &self,
+        handle: Handle<impl ObjectOrVariant<UiNode>>,
+        final_rect: &Rect<f32>,
+    ) -> bool {
+        let handle = handle.to_base();
         let node = self.node(handle);
 
         if node.is_arrange_valid() && node.prev_arrange.get() == *final_rect {
@@ -1748,7 +1754,12 @@ impl UserInterface {
         true
     }
 
-    pub fn measure_node(&self, handle: Handle<UiNode>, available_size: Vector2<f32>) -> bool {
+    pub fn measure_node(
+        &self,
+        handle: Handle<impl ObjectOrVariant<UiNode>>,
+        available_size: Vector2<f32>,
+    ) -> bool {
+        let handle = handle.to_base();
         let node = self.node(handle);
 
         if node.is_measure_valid() && node.prev_measure.get() == available_size {
@@ -3914,7 +3925,6 @@ mod test_inner {
         widget::{WidgetBuilder, WidgetMessage},
         OsEvent, UserInterface,
     };
-    use fyrox_graph::SceneGraph;
 
     #[test]
     fn test_transform_size() {
@@ -3941,7 +3951,7 @@ mod test_inner {
         while ui.poll_message().is_some() {}
         ui.update(screen_size, 0.0, &Default::default());
         let expected_position = (screen_size - widget_size).scale(0.5);
-        let actual_position = ui.node(widget).actual_local_position();
+        let actual_position = ui[widget].actual_local_position();
         assert_eq!(actual_position, expected_position);
     }
 

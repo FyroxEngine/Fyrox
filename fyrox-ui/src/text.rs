@@ -150,8 +150,9 @@ impl MessageData for TextMessage {}
 /// #     border::BorderBuilder, brush::Brush, text::TextBuilder, widget::WidgetBuilder, UiNode,
 /// #     UserInterface,
 /// # };
+/// # use fyrox_ui::border::Border;
 /// #
-/// fn create_text_with_background(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
+/// fn create_text_with_background(ui: &mut UserInterface, text: &str) -> Handle<Border> {
 ///     let text_widget =
 ///         TextBuilder::new(WidgetBuilder::new().with_foreground(Brush::Solid(Color::RED).into()))
 ///             .with_text(text)

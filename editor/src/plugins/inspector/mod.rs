@@ -202,7 +202,9 @@ impl InspectorPlugin {
             Only common properties will be editable!";
 
         let head = StackPanelBuilder::new(WidgetBuilder::new()).build(ctx);
-        let footer = BorderBuilder::new(WidgetBuilder::new().on_row(3)).build(ctx);
+        let footer = BorderBuilder::new(WidgetBuilder::new().on_row(3))
+            .build(ctx)
+            .to_base();
         let inspector =
             InspectorBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(3.0)))
                 .build(ctx);

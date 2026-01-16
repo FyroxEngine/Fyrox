@@ -25,6 +25,7 @@
 use core::f32;
 
 use brush::{BrushMacroData, TileMapBrushResource};
+use fyrox::gui::border::Border;
 use fyrox::gui::button::Button;
 use fyrox::gui::{
     button::ButtonMessage,
@@ -50,7 +51,7 @@ pub struct MacroTab {
     handle: Handle<UiNode>,
     macros: BrushMacroListRef,
     current_macro_id: Option<Uuid>,
-    macro_panel: Handle<UiNode>,
+    macro_panel: Handle<Border>,
     list: Handle<UiNode>,
     up_button: Handle<Button>,
     down_button: Handle<Button>,

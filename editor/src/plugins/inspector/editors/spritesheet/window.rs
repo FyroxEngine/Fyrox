@@ -45,6 +45,7 @@ use crate::fyrox::{
 };
 use crate::plugins::inspector::editors::spritesheet::SpriteSheetFramesPropertyEditorMessage;
 
+use fyrox::gui::border::Border;
 use fyrox::gui::button::Button;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
@@ -64,7 +65,7 @@ pub struct SpriteSheetFramesEditorWindow {
     width: Handle<UiNode>,
     height: Handle<UiNode>,
     grid: Handle<UiNode>,
-    preview_container: Handle<UiNode>,
+    preview_container: Handle<Border>,
     cells: Vec<Handle<UiNode>>,
     animation: SpriteSheetAnimation,
     preview_image: Handle<UiNode>,
@@ -233,7 +234,10 @@ impl SpriteSheetFramesEditorWindow {
         self.grid = grid;
         self.cells = cells;
 
-        ui.send(self.grid, WidgetMessage::LinkWith(self.preview_container));
+        ui.send(
+            self.grid,
+            WidgetMessage::LinkWith(self.preview_container.to_base()),
+        );
     }
 
     pub fn build(

@@ -1303,6 +1303,7 @@ pub fn make_menu_splitter(ctx: &mut BuildContext) -> Handle<UiNode> {
             .with_foreground(ctx.style.property(Style::BRUSH_LIGHTEST)),
     )
     .build(ctx)
+    .to_base()
 }
 
 #[cfg(test)]

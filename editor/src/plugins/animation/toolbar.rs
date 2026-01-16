@@ -801,7 +801,8 @@ impl Toolbar {
                 ),
         )
         .with_stroke_thickness(Thickness::uniform(1.0).into())
-        .build(ctx);
+        .build(ctx)
+        .to_base();
 
         let import_file_selector = FileSelectorBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))

@@ -23,7 +23,9 @@
 //! a text box for editing custom colliders when appropriate.
 //! See [`TileColliderEditor`] for more information.
 
+use super::*;
 use commands::SetTileSetTilesCommand;
+use fyrox::gui::border::Border;
 use fyrox::{
     asset::Resource,
     core::{algebra::Vector2, color::Color, pool::Handle, type_traits::prelude::*},
@@ -47,8 +49,6 @@ use fyrox::{
     scene::tilemap::{tileset::*, CustomTileCollider, CustomTileColliderResource, TileSetUpdate},
 };
 use std::str::FromStr;
-
-use super::*;
 
 const COLLIDER_NAMES: &[&str] = &["None", "Full", "Custom"];
 
@@ -83,7 +83,7 @@ pub struct TileColliderEditor {
     /// The button which toggles the visibility of the collider layer.
     show_button: Handle<Button>,
     /// The widget that shows the color of the collider layer.
-    color_icon: Handle<UiNode>,
+    color_icon: Handle<Border>,
     /// The widget for the name of the collider layer.
     name_field: Handle<UiNode>,
     /// The dropdown list of collider types.

@@ -191,15 +191,18 @@ impl ProgressBarBuilder {
 
     /// Finishes progress bar creation and adds the new instance to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let body = self
-            .body
-            .unwrap_or_else(|| BorderBuilder::new(WidgetBuilder::new()).build(ctx));
+        let body = self.body.unwrap_or_else(|| {
+            BorderBuilder::new(WidgetBuilder::new())
+                .build(ctx)
+                .to_base()
+        });
 
         let indicator = self.indicator.unwrap_or_else(|| {
             BorderBuilder::new(
                 WidgetBuilder::new().with_background(ctx.style.property(Style::BRUSH_BRIGHTEST)),
             )
             .build(ctx)
+            .to_base()
         });
 
         let canvas = CanvasBuilder::new(WidgetBuilder::new().with_child(indicator)).build(ctx);

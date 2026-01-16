@@ -35,8 +35,10 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 
+use crate::border::Border;
 use crate::message::MessageData;
 use core::f32;
+use fyrox_core::pool::ObjectOrVariant;
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;
@@ -169,20 +171,17 @@ impl TileContent {
     }
 }
 
-fn send_visibility(ui: &UserInterface, destination: Handle<UiNode>, visible: bool) {
+fn send_visibility(
+    ui: &UserInterface,
+    destination: Handle<impl ObjectOrVariant<UiNode>>,
+    visible: bool,
+) {
     ui.send(destination, WidgetMessage::Visibility(visible));
 }
 
 fn send_size(ui: &UserInterface, destination: Handle<UiNode>, width: f32, height: f32) {
     ui.send(destination, WidgetMessage::Width(width));
     ui.send(destination, WidgetMessage::Height(height));
-}
-
-fn send_background(ui: &UserInterface, destination: Handle<UiNode>, color: Color) {
-    ui.send(
-        destination,
-        WidgetMessage::Background(Brush::Solid(color).into()),
-    );
 }
 
 /// The window contained by the tile at the given handle, if the handle points
@@ -262,16 +261,16 @@ fn deminimize_other_window(
 #[reflect(derived_type = "UiNode")]
 pub struct Tile {
     pub widget: Widget,
-    pub left_anchor: Handle<UiNode>,
-    pub right_anchor: Handle<UiNode>,
-    pub top_anchor: Handle<UiNode>,
-    pub bottom_anchor: Handle<UiNode>,
-    pub center_anchor: Handle<UiNode>,
+    pub left_anchor: Handle<Border>,
+    pub right_anchor: Handle<Border>,
+    pub top_anchor: Handle<Border>,
+    pub bottom_anchor: Handle<Border>,
+    pub center_anchor: Handle<Border>,
     pub tabs: Handle<UiNode>,
     pub content: TileContent,
-    pub splitter: Handle<UiNode>,
+    pub splitter: Handle<Border>,
     pub dragging_splitter: bool,
-    pub drop_anchor: Cell<Handle<UiNode>>,
+    pub drop_anchor: Cell<Handle<Border>>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for Tile {
@@ -377,7 +376,7 @@ impl Control for Tile {
     }
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
-        let splitter_size = ui.node(self.splitter).desired_size();
+        let splitter_size = ui[self.splitter].desired_size();
 
         if has_one_minimized(ui, &self.content) {
             return self.arrange_vertical_with_minimized(ui, final_size);
@@ -409,7 +408,7 @@ impl Control for Tile {
                             final_size.x,
                             final_size.y * (1.0 - splitter) - DEFAULT_SPLITTER_SIZE * 0.5,
                         )
-                    } else if self.splitter == child_handle {
+                    } else if child_handle == self.splitter {
                         Rect::new(
                             0.0,
                             final_size.y * splitter - DEFAULT_SPLITTER_SIZE * 0.5,
@@ -438,7 +437,7 @@ impl Control for Tile {
                             final_size.x * (1.0 - splitter) - DEFAULT_SPLITTER_SIZE * 0.5,
                             final_size.y,
                         )
-                    } else if self.splitter == child_handle {
+                    } else if child_handle == self.splitter {
                         Rect::new(
                             final_size.x * splitter - DEFAULT_SPLITTER_SIZE * 0.5,
                             0.0,
@@ -839,6 +838,17 @@ impl Control for Tile {
                 {
                     match msg {
                         &WindowMessage::Move(_) => {
+                            fn send_background(
+                                ui: &UserInterface,
+                                destination: Handle<Border>,
+                                color: Color,
+                            ) {
+                                ui.send(
+                                    destination,
+                                    WidgetMessage::Background(Brush::Solid(color).into()),
+                                );
+                            }
+
                             // Window can be docked only if current tile is not split already.
                             if self.content.can_dock() {
                                 // Show anchors.
@@ -850,21 +860,19 @@ impl Control for Tile {
                                 for &anchor in &self.anchors() {
                                     send_background(ui, anchor, DEFAULT_ANCHOR_COLOR);
                                 }
-                                if ui.node(self.left_anchor).screen_bounds().contains(pos) {
+                                if ui[self.left_anchor].screen_bounds().contains(pos) {
                                     send_background(ui, self.left_anchor, Color::WHITE);
                                     self.drop_anchor.set(self.left_anchor);
-                                } else if ui.node(self.right_anchor).screen_bounds().contains(pos) {
+                                } else if ui[self.right_anchor].screen_bounds().contains(pos) {
                                     send_background(ui, self.right_anchor, Color::WHITE);
                                     self.drop_anchor.set(self.right_anchor);
-                                } else if ui.node(self.top_anchor).screen_bounds().contains(pos) {
+                                } else if ui[self.top_anchor].screen_bounds().contains(pos) {
                                     send_background(ui, self.top_anchor, Color::WHITE);
                                     self.drop_anchor.set(self.top_anchor);
-                                } else if ui.node(self.bottom_anchor).screen_bounds().contains(pos)
-                                {
+                                } else if ui[self.bottom_anchor].screen_bounds().contains(pos) {
                                     send_background(ui, self.bottom_anchor, Color::WHITE);
                                     self.drop_anchor.set(self.bottom_anchor);
-                                } else if ui.node(self.center_anchor).screen_bounds().contains(pos)
-                                {
+                                } else if ui[self.center_anchor].screen_bounds().contains(pos) {
                                     send_background(ui, self.center_anchor, Color::WHITE);
                                     self.drop_anchor.set(self.center_anchor);
                                 } else {
@@ -1149,7 +1157,7 @@ impl Tile {
         final_size
     }
 
-    pub fn anchors(&self) -> [Handle<UiNode>; 5] {
+    pub fn anchors(&self) -> [Handle<Border>; 5] {
         [
             self.left_anchor,
             self.right_anchor,
@@ -1215,7 +1223,7 @@ pub struct TileBuilder {
 pub const DEFAULT_SPLITTER_SIZE: f32 = 5.0;
 pub const DEFAULT_ANCHOR_COLOR: Color = Color::opaque(150, 150, 150);
 
-pub fn make_default_anchor(ctx: &mut BuildContext, row: usize, column: usize) -> Handle<UiNode> {
+pub fn make_default_anchor(ctx: &mut BuildContext, row: usize, column: usize) -> Handle<Border> {
     let default_anchor_size = 30.0;
     BorderBuilder::new(
         WidgetBuilder::new()

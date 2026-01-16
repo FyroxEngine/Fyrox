@@ -40,6 +40,7 @@ use crate::{
     BuildContext, Control, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 
+use crate::border::Border;
 use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -772,7 +773,7 @@ pub struct ColorPicker {
     pub hue: Handle<UiNode>,
     pub saturation: Handle<UiNode>,
     pub brightness: Handle<UiNode>,
-    pub color_mark: Handle<UiNode>,
+    pub color_mark: Handle<Border>,
     pub color: Color,
     pub hsv: Hsv,
 }
