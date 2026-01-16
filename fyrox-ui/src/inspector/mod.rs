@@ -23,6 +23,7 @@
 //! See [`Inspector`] docs for more info and usage examples.
 
 use crate::message::{DeliveryMode, MessageData};
+use crate::text::Text;
 use crate::{
     border::BorderBuilder,
     check_box::CheckBoxBuilder,
@@ -957,7 +958,7 @@ pub fn make_expander_container(
         .build(ctx)
 }
 
-fn create_header(ctx: &mut BuildContext, text: &str, layer_index: usize) -> Handle<UiNode> {
+fn create_header(ctx: &mut BuildContext, text: &str, layer_index: usize) -> Handle<Text> {
     TextBuilder::new(WidgetBuilder::new().with_margin(make_property_margin(layer_index)))
         .with_text(text)
         .with_vertical_text_alignment(VerticalAlignment::Center)
@@ -973,13 +974,13 @@ fn make_tooltip(ctx: &mut BuildContext, text: &str) -> Option<RcUiNodeHandle> {
 }
 
 fn make_simple_property_container(
-    title: Handle<UiNode>,
-    editor: Handle<UiNode>,
+    title: Handle<Text>,
+    editor: Handle<impl ObjectOrVariant<UiNode>>,
     description: &str,
     width: f32,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
-    ctx[editor].set_row(0).set_column(1);
+    ctx[editor.to_base()].set_row(0).set_column(1);
 
     let tooltip = make_tooltip(ctx, description);
     ctx[title].set_tooltip(tooltip);

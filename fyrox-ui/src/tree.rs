@@ -44,6 +44,7 @@ use crate::{
 };
 
 use crate::message::MessageData;
+use fyrox_core::pool::ObjectOrVariant;
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::{SceneGraph, SceneGraphNode};
@@ -602,8 +603,8 @@ impl TreeBuilder {
     }
 
     /// Sets the desired content of the tree.
-    pub fn with_content(mut self, content: Handle<UiNode>) -> Self {
-        self.content = content;
+    pub fn with_content(mut self, content: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        self.content = content.to_base();
         self
     }
 

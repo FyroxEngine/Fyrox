@@ -346,6 +346,7 @@ impl ConstructorProvider<UiNode, UserInterface> for Text {
                 TextBuilder::new(WidgetBuilder::new().with_name("Text"))
                     .with_text("Text")
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Visual")
@@ -654,7 +655,7 @@ impl TextBuilder {
     }
 
     /// Finishes text widget creation and registers it in the user interface, returning its handle to you.
-    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<Text> {
         let font = if let Some(font) = self.font {
             font
         } else {
@@ -692,7 +693,7 @@ impl TextBuilder {
             bbcode: self.bbcode.unwrap_or_default().into(),
             formatted_text: RefCell::new(formatted_text),
         };
-        ctx.add_node(UiNode::new(text))
+        ctx.add_node(UiNode::new(text)).to_variant()
     }
 }
 

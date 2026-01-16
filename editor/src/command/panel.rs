@@ -170,6 +170,7 @@ impl CommandStackViewer {
                 )
                 .with_text(name)
                 .build(&mut ui.build_ctx())
+                .to_base()
             })
             .collect();
 

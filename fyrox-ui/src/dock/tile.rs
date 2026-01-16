@@ -989,6 +989,7 @@ fn create_tab_header(label: String, ctx: &mut BuildContext) -> Handle<UiNode> {
     )
     .with_text(label)
     .build(ctx)
+    .to_base()
 }
 
 impl Tile {

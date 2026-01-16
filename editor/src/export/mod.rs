@@ -65,6 +65,7 @@ use crate::{
 };
 use cargo_metadata::camino::Utf8Path;
 use fyrox::gui::button::Button;
+use fyrox::gui::text::Text;
 use fyrox::gui::window::WindowAlignment;
 use std::{
     io::{BufRead, BufReader},
@@ -313,7 +314,7 @@ fn export(
     Ok(BuildOutput { child_processes })
 }
 
-fn make_title_text(text: &str, row: usize, ctx: &mut BuildContext) -> Handle<UiNode> {
+fn make_title_text(text: &str, row: usize, ctx: &mut BuildContext) -> Handle<Text> {
     TextBuilder::new(
         WidgetBuilder::new()
             .on_row(row)

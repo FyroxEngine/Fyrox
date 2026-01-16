@@ -312,7 +312,7 @@ struct TrackView {
     target: ErasedHandle,
     track_enabled_switch: Handle<UiNode>,
     track_enabled: bool,
-    name_text: Handle<UiNode>,
+    name_text: Handle<Text>,
 }
 
 impl Deref for TrackView {

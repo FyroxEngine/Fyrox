@@ -1047,6 +1047,7 @@ impl MenuItemBuilder {
                     .with_horizontal_text_alignment(HorizontalAlignment::Center)
                     .with_vertical_text_alignment(VerticalAlignment::Center)
                     .build(ctx)
+                    .to_base()
             }
             Some(MenuItemContent::Node(node)) => *node,
         };

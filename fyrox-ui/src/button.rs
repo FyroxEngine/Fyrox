@@ -39,6 +39,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
+use fyrox_core::pool::ObjectOrVariant;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::cell::RefCell;
 
@@ -301,7 +302,8 @@ impl ButtonContent {
                     size.clone()
                         .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
                 )
-                .build(ctx),
+                .build(ctx)
+                .to_base(),
             Self::Node(node) => *node,
         }
     }
@@ -361,8 +363,8 @@ impl ButtonBuilder {
     }
 
     /// Sets the content of the button to be [`ButtonContent::Node`] (arbitrary widget handle).
-    pub fn with_content(mut self, node: Handle<UiNode>) -> Self {
-        self.content = Some(ButtonContent::Node(node));
+    pub fn with_content(mut self, node: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        self.content = Some(ButtonContent::Node(node.to_base()));
         self
     }
 

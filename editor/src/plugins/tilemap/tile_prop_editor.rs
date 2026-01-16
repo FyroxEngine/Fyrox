@@ -26,6 +26,7 @@
 //! to be applied to other tiles by clicking in the tile palette.
 
 use commands::SetTileSetTilesCommand;
+use fyrox::gui::text::Text;
 use fyrox::{
     core::{
         algebra::Vector2, color::Color, pool::Handle, type_traits::prelude::*, ImmutableString,
@@ -95,7 +96,7 @@ pub struct TilePropertyEditor {
     /// to be applied to other tiles.
     draw_button: Handle<Button>,
     /// The label showing the name of the layer.
-    name_field: Handle<UiNode>,
+    name_field: Handle<Text>,
     /// The field for editing the current value.
     /// This may be several different widgets, depending on the type of the layer.
     /// For [`TileSetPropertyType::I32`] it will be a [`NumericUpDown`](fyrox::gui::numeric::NumericUpDown) for i32.

@@ -48,6 +48,7 @@ use crate::{
 
 use fyrox::asset::manager::ResourceManager;
 use fyrox::gui::message::MessageData;
+use fyrox::gui::text::Text;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -58,7 +59,7 @@ use std::{
 #[reflect(derived_type = "UiNode")]
 pub struct FontField {
     widget: Widget,
-    text_preview: Handle<UiNode>,
+    text_preview: Handle<Text>,
     font: FontResource,
     #[reflect(hidden)]
     #[visit(skip)]

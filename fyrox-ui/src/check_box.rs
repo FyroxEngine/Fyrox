@@ -304,8 +304,8 @@ impl CheckBoxBuilder {
     }
 
     /// Sets the new content of the check box.
-    pub fn with_content(mut self, content: Handle<UiNode>) -> Self {
-        self.content = content;
+    pub fn with_content(mut self, content: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        self.content = content.to_base();
         self
     }
 

@@ -30,12 +30,13 @@ use crate::fyrox::{
         BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
 };
+use fyrox::gui::text::Text;
 use fyrox::gui::window::WindowAlignment;
 use fyrox::scene::Scene;
 
 pub struct StatisticsWindow {
     pub window: Handle<UiNode>,
-    text: Handle<UiNode>,
+    text: Handle<Text>,
 }
 
 pub enum StatisticsWindowAction {

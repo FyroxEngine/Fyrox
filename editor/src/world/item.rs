@@ -47,6 +47,7 @@ use crate::{
 };
 
 use fyrox::gui::message::MessageData;
+use fyrox::gui::text::Text;
 use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
@@ -73,7 +74,7 @@ pub enum DropAnchor {
 pub struct SceneItem {
     #[component(include)]
     pub tree: Tree,
-    text_name: Handle<UiNode>,
+    text_name: Handle<Text>,
     name_value: String,
     grid: Handle<UiNode>,
     pub entity_handle: ErasedHandle,

@@ -24,6 +24,7 @@
 #![warn(missing_docs)]
 
 use crate::message::MessageData;
+use crate::text::Text;
 use crate::{
     brush::Brush,
     core::{
@@ -172,7 +173,7 @@ impl MessageData for HotKeyEditorMessage {}
 #[reflect(derived_type = "UiNode")]
 pub struct HotKeyEditor {
     widget: Widget,
-    text: InheritableVariable<Handle<UiNode>>,
+    text: InheritableVariable<Handle<Text>>,
     value: InheritableVariable<HotKey>,
     editing: InheritableVariable<bool>,
 }
@@ -385,7 +386,7 @@ impl MessageData for KeyBindingEditorMessage {}
 #[reflect(derived_type = "UiNode")]
 pub struct KeyBindingEditor {
     widget: Widget,
-    text: InheritableVariable<Handle<UiNode>>,
+    text: InheritableVariable<Handle<Text>>,
     value: InheritableVariable<KeyBinding>,
     editing: InheritableVariable<bool>,
 }

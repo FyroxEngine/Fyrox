@@ -47,6 +47,7 @@ use super::*;
 use commands::*;
 use fyrox::core::pool::ObjectOrVariant;
 use fyrox::gui::border::Border;
+use fyrox::gui::text::Text;
 
 /// This is the tab of the tile set editor that allows the user to modify the property
 /// layers stored within the tile set. Layers can be created, deleted, renamed
@@ -113,7 +114,7 @@ fn make_button(
     .build(ctx)
 }
 
-fn make_type_widget(ctx: &mut BuildContext, prop_type: TileSetPropertyType) -> Handle<UiNode> {
+fn make_type_widget(ctx: &mut BuildContext, prop_type: TileSetPropertyType) -> Handle<Text> {
     let type_name = match prop_type {
         TileSetPropertyType::I32 => "INTEGER",
         TileSetPropertyType::F32 => "FLOAT",
@@ -164,7 +165,7 @@ fn make_items(ctx: &mut BuildContext, tile_set: &OptionTileSet) -> Vec<Handle<Ui
         .collect()
 }
 
-fn make_value_widget(ctx: &mut BuildContext, value: NamableValue) -> Handle<UiNode> {
+fn make_value_widget(ctx: &mut BuildContext, value: NamableValue) -> Handle<Text> {
     let text = match value {
         NamableValue::I8(x) => x.to_string(),
         NamableValue::I32(x) => x.to_string(),

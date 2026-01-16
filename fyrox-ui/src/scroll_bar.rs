@@ -24,6 +24,7 @@
 #![warn(missing_docs)]
 
 use crate::button::Button;
+use crate::text::Text;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -158,7 +159,7 @@ pub struct ScrollBar {
     /// A handle of the canvas that is used for the thumb.
     pub indicator_canvas: InheritableVariable<Handle<UiNode>>,
     /// A handle of the [`crate::text::Text`] widget that is used to show the current value of the scroll bar.
-    pub value_text: InheritableVariable<Handle<UiNode>>,
+    pub value_text: InheritableVariable<Handle<Text>>,
     /// Current value precision in decimal places.
     pub value_precision: InheritableVariable<usize>,
 }

@@ -69,6 +69,7 @@ use crate::{
         Selection,
     },
 };
+use fyrox::gui::text::Text;
 use std::any::TypeId;
 
 enum ImportMode {
@@ -115,7 +116,7 @@ struct RootMotionDropdownArea {
 
 impl RootMotionDropdownArea {
     fn new(ctx: &mut BuildContext) -> Self {
-        fn text(text: &str, row: usize, ctx: &mut BuildContext) -> Handle<UiNode> {
+        fn text(text: &str, row: usize, ctx: &mut BuildContext) -> Handle<Text> {
             TextBuilder::new(
                 WidgetBuilder::new()
                     .with_vertical_alignment(VerticalAlignment::Center)

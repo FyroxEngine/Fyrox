@@ -183,6 +183,7 @@ use fyrox::engine::GraphicsContext;
 use fyrox::event_loop::ActiveEventLoop;
 use fyrox::gui::file_browser::{FileSelectorMode, FileType, PathFilter};
 use fyrox::gui::inspector::editors::PropertyEditorDefinitionContainer;
+use fyrox::gui::text::Text;
 use fyrox::gui::window::WindowAlignment;
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
@@ -552,7 +553,7 @@ impl UpdateLoopState {
 
 pub struct SceneLoadingWindow {
     window: Handle<UiNode>,
-    scene_list_text: Handle<UiNode>,
+    scene_list_text: Handle<Text>,
 }
 
 impl SceneLoadingWindow {

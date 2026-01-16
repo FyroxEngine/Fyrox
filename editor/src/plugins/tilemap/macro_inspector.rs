@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use super::*;
+use fyrox::gui::text::Text;
 use fyrox::{
     asset::untyped::UntypedResource,
     gui::{
@@ -29,8 +31,6 @@ use fyrox::{
     },
     scene::tilemap::brush::TileMapBrushResource,
 };
-
-use super::*;
 
 const ADD_BUTTON_LABEL: &str = "+";
 const REMOVE_BUTTON_LABEL: &str = "-";
@@ -81,7 +81,7 @@ struct ItemEditor {
 #[derive(Clone)]
 struct ItemHeader {
     handle: Handle<UiNode>,
-    label: Handle<UiNode>,
+    label: Handle<Text>,
     button: Handle<Button>,
 }
 

@@ -54,7 +54,7 @@ use crate::{
     utils, Message,
 };
 use fyrox::gui::message::MessageData;
-use fyrox::gui::text::TextMessage;
+use fyrox::gui::text::{Text, TextMessage};
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -112,7 +112,7 @@ impl TextureContextMenu {
 pub struct TextureEditor {
     widget: Widget,
     image: Handle<UiNode>,
-    path: Handle<UiNode>,
+    path: Handle<Text>,
     texture: Option<TextureResource>,
     selector_mixin: AssetSelectorMixin<Texture>,
     #[visit(skip)]

@@ -42,6 +42,7 @@ use crate::{scene::GameScene, Engine};
 use fyrox::gui::button::Button;
 use fyrox::gui::inspector::editors::PropertyEditorDefinitionContainer;
 use fyrox::gui::inspector::{Inspector, InspectorContextArgs};
+use fyrox::gui::text::Text;
 use fyrox::gui::window::WindowAlignment;
 use std::{
     path::PathBuf,
@@ -85,7 +86,7 @@ struct ProgressWindow {
     window: Handle<UiNode>,
     progress_bar: Handle<UiNode>,
     cancel: Handle<Button>,
-    text: Handle<UiNode>,
+    text: Handle<Text>,
     progress_indicator: ProgressIndicator,
     cancellation_token: CancellationToken,
 }

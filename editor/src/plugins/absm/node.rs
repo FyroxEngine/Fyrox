@@ -44,6 +44,7 @@ use fyrox::gui::button::Button;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::{Style, StyledProperty};
+use fyrox::gui::text::Text;
 use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
@@ -73,7 +74,7 @@ where
     input_sockets_panel: Handle<UiNode>,
     normal_brush: StyledProperty<Brush>,
     selected_brush: StyledProperty<Brush>,
-    name: Handle<UiNode>,
+    name: Handle<Text>,
     edit: Handle<Button>,
 }
 

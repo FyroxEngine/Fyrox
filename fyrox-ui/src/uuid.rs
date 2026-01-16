@@ -36,6 +36,7 @@ use crate::{
 
 use crate::button::Button;
 use crate::message::MessageData;
+use crate::text::Text;
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 
@@ -70,7 +71,7 @@ impl MessageData for UuidEditorMessage {}
 pub struct UuidEditor {
     widget: Widget,
     value: Uuid,
-    text: Handle<UiNode>,
+    text: Handle<Text>,
     generate: Handle<Button>,
 }
 

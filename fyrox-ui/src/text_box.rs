@@ -1491,7 +1491,8 @@ impl<'a> EmptyTextPlaceholder<'a> {
             )
             .with_text(text)
             .with_vertical_text_alignment(VerticalAlignment::Center)
-            .build(ctx),
+            .build(ctx)
+            .to_base(),
             EmptyTextPlaceholder::Widget(widget) => widget,
         }
     }

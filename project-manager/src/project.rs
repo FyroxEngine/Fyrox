@@ -25,6 +25,7 @@ use crate::{
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::file_browser::PathFilter;
+use fyrox::gui::text::Text;
 use fyrox::gui::window::WindowAlignment;
 use fyrox::{
     core::pool::Handle,
@@ -113,10 +114,10 @@ pub struct ProjectWizard {
     style: Style,
     vcs: Vcs,
     path: PathBuf,
-    validation_text: Handle<UiNode>,
+    validation_text: Handle<Text>,
 }
 
-fn make_text(text: &str, row: usize, ctx: &mut BuildContext) -> Handle<UiNode> {
+fn make_text(text: &str, row: usize, ctx: &mut BuildContext) -> Handle<Text> {
     TextBuilder::new(
         WidgetBuilder::new()
             .with_vertical_alignment(VerticalAlignment::Center)

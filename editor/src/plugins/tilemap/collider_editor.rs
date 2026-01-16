@@ -25,7 +25,9 @@
 
 use super::*;
 use commands::SetTileSetTilesCommand;
+use fyrox::core::pool::ObjectOrVariant;
 use fyrox::gui::border::Border;
+use fyrox::gui::text::Text;
 use fyrox::{
     asset::Resource,
     core::{algebra::Vector2, color::Color, pool::Handle, type_traits::prelude::*},
@@ -61,7 +63,11 @@ fn collider_to_index(tile_collider: &TileCollider) -> Option<usize> {
     }
 }
 
-fn send_visibility(ui: &UserInterface, destination: Handle<UiNode>, visible: bool) {
+fn send_visibility(
+    ui: &UserInterface,
+    destination: Handle<impl ObjectOrVariant<UiNode>>,
+    visible: bool,
+) {
     ui.send(destination, WidgetMessage::Visibility(visible));
 }
 
@@ -85,13 +91,13 @@ pub struct TileColliderEditor {
     /// The widget that shows the color of the collider layer.
     color_icon: Handle<Border>,
     /// The widget for the name of the collider layer.
-    name_field: Handle<UiNode>,
+    name_field: Handle<Text>,
     /// The dropdown list of collider types.
     list: Handle<UiNode>,
     /// The textbox for editing a custom collider.
     custom_field: Handle<UiNode>,
     /// A text widget for showing an error in the custom collider text.
-    error_field: Handle<UiNode>,
+    error_field: Handle<Text>,
     /// True if the custom collider text actually has an error.
     has_error: bool,
 }

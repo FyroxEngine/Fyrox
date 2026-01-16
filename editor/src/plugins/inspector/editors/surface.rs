@@ -59,6 +59,7 @@ use crate::{
 use fyrox::gui::brush::Brush;
 use fyrox::gui::button::Button;
 use fyrox::gui::message::MessageData;
+use fyrox::gui::text::Text;
 use std::{any::TypeId, sync::mpsc::Sender};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -75,7 +76,7 @@ pub struct SurfaceDataPropertyEditor {
     widget: Widget,
     view: Handle<Button>,
     surface_resource: SurfaceResource,
-    text: Handle<UiNode>,
+    text: Handle<Text>,
     image: Handle<UiNode>,
     image_preview: Handle<UiNode>,
     #[visit(skip)]

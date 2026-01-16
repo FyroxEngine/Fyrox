@@ -55,6 +55,7 @@ use crate::{
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::message::MessageData;
+use fyrox::gui::text::Text;
 use fyrox::gui::utils::make_asset_preview_tooltip;
 use std::{
     any::TypeId,
@@ -122,7 +123,7 @@ where
     T: TypedResourceData,
 {
     widget: Widget,
-    name: Handle<UiNode>,
+    name: Handle<Text>,
     selector_mixin: AssetSelectorMixin<T>,
     #[visit(skip)]
     #[reflect(hidden)]

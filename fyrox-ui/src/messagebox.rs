@@ -44,6 +44,7 @@ use crate::{
 
 use crate::button::Button;
 use crate::message::MessageData;
+use crate::text::Text;
 use crate::window::WindowAlignment;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
@@ -179,7 +180,7 @@ pub struct MessageBox {
     /// A handle of `Cancel` button.
     pub cancel: InheritableVariable<Handle<Button>>,
     /// A handle of text widget.
-    pub text: InheritableVariable<Handle<UiNode>>,
+    pub text: InheritableVariable<Handle<Text>>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for MessageBox {

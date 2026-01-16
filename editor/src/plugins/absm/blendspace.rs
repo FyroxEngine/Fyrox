@@ -62,6 +62,7 @@ use fyrox::gui::menu::ContextMenuBuilder;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::text::Text;
 use fyrox::gui::window::WindowAlignment;
 use std::{
     cell::Cell,
@@ -643,12 +644,12 @@ impl BlendSpaceFieldPointBuilder {
 
 pub struct BlendSpaceEditor {
     pub window: Handle<UiNode>,
-    min_x: Handle<UiNode>,
-    max_x: Handle<UiNode>,
-    min_y: Handle<UiNode>,
-    max_y: Handle<UiNode>,
-    x_axis_name: Handle<UiNode>,
-    y_axis_name: Handle<UiNode>,
+    min_x: Handle<Text>,
+    max_x: Handle<Text>,
+    min_y: Handle<Text>,
+    max_y: Handle<Text>,
+    x_axis_name: Handle<Text>,
+    y_axis_name: Handle<Text>,
     field: Handle<UiNode>,
 }
 
@@ -830,7 +831,7 @@ impl BlendSpaceEditor {
     {
         if let Some(SelectedEntity::PoseNode(first)) = selection.entities.first() {
             if let PoseNode::BlendSpace(blend_space) = layer.node(*first) {
-                let sync_text = |destination: Handle<UiNode>, text: String| {
+                let sync_text = |destination: Handle<Text>, text: String| {
                     ui.send_sync(destination, TextMessage::Text(text));
                 };
 

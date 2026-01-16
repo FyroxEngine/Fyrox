@@ -20,6 +20,7 @@
 
 //! A widget for showing handles in the tile set editor.
 
+use super::*;
 use crate::fyrox::gui::{
     button::ButtonMessage,
     define_widget_deref,
@@ -31,8 +32,7 @@ use crate::fyrox::gui::{
     Control, Orientation,
 };
 use fyrox::gui::message::MessageData;
-
-use super::*;
+use fyrox::gui::text::Text;
 
 const BUTTON_SIZE: f32 = 12.0;
 
@@ -73,7 +73,7 @@ fn value_to_string(value: Option<TileDefinitionHandle>) -> String {
     }
 }
 
-fn make_label(name: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
+fn make_label(name: &str, ctx: &mut BuildContext) -> Handle<Text> {
     TextBuilder::new(WidgetBuilder::new())
         .with_text(name)
         .build(ctx)

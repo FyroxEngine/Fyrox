@@ -42,6 +42,7 @@ use crate::fyrox::{
 use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::text::Text;
 use fyrox::gui::utils::make_dropdown_list_option;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -61,7 +62,7 @@ pub struct AudioBusView {
     parent_bus_selector: Handle<UiNode>,
     possible_parent_buses: Vec<Handle<AudioBus>>,
     effect_names_list: Handle<UiNode>,
-    name: Handle<UiNode>,
+    name: Handle<Text>,
 }
 
 define_widget_deref!(AudioBusView);
@@ -118,7 +119,8 @@ fn make_effect_names(names: &[String], ctx: &mut BuildContext) -> Vec<Handle<UiN
         )
         .with_text("No Effects")
         .with_horizontal_text_alignment(HorizontalAlignment::Center)
-        .build(ctx)]
+        .build(ctx)
+        .to_base()]
     } else {
         names
             .iter()
@@ -127,6 +129,7 @@ fn make_effect_names(names: &[String], ctx: &mut BuildContext) -> Vec<Handle<UiN
                     .with_text(n)
                     .with_horizontal_text_alignment(HorizontalAlignment::Center)
                     .build(ctx)
+                    .to_base()
             })
             .collect::<Vec<_>>()
     }

@@ -53,6 +53,7 @@ use crate::{
     message::MessageSender,
     plugins::inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
 };
+use fyrox::gui::text::Text;
 use fyrox::gui::window::WindowAlignment;
 use fyrox::scene::tilemap::brush::TileMapBrushResource;
 use macro_tab::MacroTab;
@@ -84,7 +85,7 @@ pub struct TileSetEditor {
     /// This tint allows the background material to be visually distinguished from actual tiles.
     color_field: Handle<UiNode>,
     /// A text widget showing the coordinates of the currently selected cells.
-    cell_position: Handle<UiNode>,
+    cell_position: Handle<Text>,
     /// The control that allows the editor to switch between the tiles tab,
     /// the properties tab, and the colliders tabl.
     tab_control: Handle<UiNode>,
@@ -127,7 +128,8 @@ fn make_tab(name: &str, content: Handle<UiNode>, ctx: &mut BuildContext) -> TabD
     TabDefinition {
         header: TextBuilder::new(WidgetBuilder::new().with_margin(TAB_MARGIN))
             .with_text(name)
-            .build(ctx),
+            .build(ctx)
+            .to_base(),
         content,
         can_be_closed: false,
         user_data: None,
@@ -153,7 +155,7 @@ fn make_button(
     .build(ctx)
 }
 
-fn make_label(name: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
+fn make_label(name: &str, ctx: &mut BuildContext) -> Handle<Text> {
     TextBuilder::new(WidgetBuilder::new())
         .with_text(name)
         .build(ctx)

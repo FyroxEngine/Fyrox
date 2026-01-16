@@ -57,6 +57,7 @@ use super::*;
 use crate::asset::preview::cache::IconRequest;
 use commands::*;
 use fyrox::core::pool::ObjectOrVariant;
+use fyrox::gui::text::Text;
 use palette::*;
 
 pub const FIELD_LABEL_WIDTH: f32 = 100.0;
@@ -455,7 +456,7 @@ fn make_button(
     .build(ctx)
 }
 
-fn make_label(name: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
+fn make_label(name: &str, ctx: &mut BuildContext) -> Handle<Text> {
     TextBuilder::new(WidgetBuilder::new())
         .with_text(name)
         .build(ctx)

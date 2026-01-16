@@ -59,6 +59,7 @@ use crate::{
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::message::MessageData;
+use fyrox::gui::text::Text;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -79,7 +80,7 @@ pub struct MaterialFieldEditor {
     #[visit(skip)]
     #[reflect(hidden)]
     sender: MessageSender,
-    text: Handle<UiNode>,
+    text: Handle<Text>,
     edit: Handle<Button>,
     make_unique: Handle<Button>,
     material: MaterialResource,

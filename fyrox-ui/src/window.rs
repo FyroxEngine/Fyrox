@@ -726,7 +726,8 @@ impl Control for Window {
                                     font_size
                                         .clone()
                                         .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
-                                );
+                                )
+                                .to_base();
                                 ui.send(self.title, WidgetMessage::LinkWith(self.title_grid));
                             }
                         }
@@ -967,7 +968,7 @@ fn make_text_title(
     text: &str,
     font: FontResource,
     size: StyledProperty<f32>,
-) -> Handle<UiNode> {
+) -> Handle<Text> {
     TextBuilder::new(
         WidgetBuilder::new()
             .with_margin(Thickness::left(5.0))
@@ -1220,7 +1221,8 @@ impl WindowBuilder {
                                             font_size.unwrap_or_else(|| {
                                                 ctx.style.property(Style::FONT_SIZE)
                                             }),
-                                        ),
+                                        )
+                                        .to_base(),
                                     },
                                 };
                                 title

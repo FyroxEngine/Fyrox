@@ -61,6 +61,7 @@ use crate::{
     Editor, Message, WidgetMessage, WrapMode,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::text::Text;
 use std::{any::Any, sync::mpsc::Sender, sync::Arc};
 
 pub mod editors;
@@ -117,8 +118,8 @@ pub struct InspectorPlugin {
     pub inspector: Handle<UiNode>,
     pub head: Handle<UiNode>,
     pub footer: Handle<UiNode>,
-    warning_text: Handle<UiNode>,
-    type_name_text: Handle<UiNode>,
+    warning_text: Handle<Text>,
+    type_name_text: Handle<Text>,
     docs_button: Handle<Button>,
     clipboard: Option<Box<dyn Reflect>>,
 }

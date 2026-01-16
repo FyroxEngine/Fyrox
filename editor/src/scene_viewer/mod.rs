@@ -67,6 +67,7 @@ use crate::{
 };
 use fyrox::core::algebra::Vector2;
 use fyrox::gui::border::Border;
+use fyrox::gui::text::Text;
 use std::{
     ops::Deref,
     sync::mpsc::{self, Receiver},
@@ -273,7 +274,7 @@ pub struct SceneViewer {
     sender: MessageSender,
     interaction_mode_panel: Handle<UiNode>,
     contextual_actions: Handle<UiNode>,
-    no_scene_reminder: Handle<UiNode>,
+    no_scene_reminder: Handle<Text>,
     tab_control: Handle<UiNode>,
     scene_gizmo: SceneGizmo,
     scene_gizmo_image: Handle<UiNode>,
@@ -913,7 +914,8 @@ impl SceneViewer {
                     bottom: 2.0,
                 }))
                 .with_text(entry.name())
-                .build(&mut engine.user_interfaces.first_mut().build_ctx());
+                .build(&mut engine.user_interfaces.first_mut().build_ctx())
+                .to_base();
 
                 engine.user_interfaces.first().send_sync(
                     self.tab_control,

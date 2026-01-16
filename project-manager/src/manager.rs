@@ -26,6 +26,7 @@ use crate::{
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::file_browser::{FileSelectorMode, PathFilter};
+use fyrox::gui::text::Text;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
 use fyrox::gui::window::WindowAlignment;
 use fyrox::{
@@ -118,7 +119,7 @@ impl UpdateLoopState {
 }
 
 pub struct ProjectSize {
-    widget_handle: Handle<UiNode>,
+    widget_handle: Handle<Text>,
     size: u64,
 }
 
@@ -143,7 +144,7 @@ pub struct ProjectManager {
     search_text: String,
     log: LogPanel,
     open_log: Handle<Button>,
-    message_count: Handle<UiNode>,
+    message_count: Handle<Text>,
     deletion_confirmation_dialog: Handle<UiNode>,
     upgrade: Handle<Button>,
     locate: Handle<Button>,
@@ -152,7 +153,7 @@ pub struct ProjectManager {
     open_ide: Handle<Button>,
     upgrade_tool: Option<UpgradeTool>,
     settings_window: Option<SettingsWindow>,
-    no_projects_warning: Handle<UiNode>,
+    no_projects_warning: Handle<Text>,
     exclude_project: Handle<Button>,
     clean_project: Handle<Button>,
     project_size_receiver: Receiver<ProjectSize>,

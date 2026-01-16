@@ -70,6 +70,7 @@ mod selector;
 mod test;
 
 use crate::button::Button;
+use crate::text::Text;
 pub use field::*;
 pub use filter::*;
 pub use selector::*;
@@ -108,7 +109,7 @@ pub struct FileBrowser {
     pub desktop_dir: Handle<Button>,
     pub path_text: Handle<UiNode>,
     pub scroll_viewer: Handle<UiNode>,
-    pub no_items_message: Handle<UiNode>,
+    pub no_items_message: Handle<Text>,
     pub path: PathBuf,
     pub root: Option<PathBuf>,
     pub filter: PathFilter,

@@ -60,6 +60,7 @@ use crate::{
     },
 };
 use fyrox::asset::manager::ResourceManager;
+use fyrox::gui::text::Text;
 use fyrox::gui::window::WindowAlignment;
 
 const DEFAULT_PAGE: Vector2<i32> = Vector2::new(0, 0);
@@ -120,7 +121,7 @@ pub struct TileMapPanel {
     /// with an active brush, or by dragging a brush resource into the control panel window.
     brush: Option<TileMapBrushResource>,
     /// The name of the tile set or brush from which tiles are being displayed.
-    tile_set_name: Handle<UiNode>,
+    tile_set_name: Handle<Text>,
     /// The widget that displays a preview of the tiles that the selected tool will use.
     preview: Handle<UiNode>,
     /// The palette widget that allows the user to select the page.

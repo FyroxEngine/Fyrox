@@ -42,6 +42,7 @@ use crate::{
 
 use crate::border::Border;
 use crate::message::MessageData;
+use crate::text::Text;
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;
@@ -955,7 +956,7 @@ pub struct ColorPickerBuilder {
     color: Color,
 }
 
-fn make_text_mark(ctx: &mut BuildContext, text: &str, row: usize, column: usize) -> Handle<UiNode> {
+fn make_text_mark(ctx: &mut BuildContext, text: &str, row: usize, column: usize) -> Handle<Text> {
     TextBuilder::new(
         WidgetBuilder::new()
             .with_vertical_alignment(VerticalAlignment::Center)
