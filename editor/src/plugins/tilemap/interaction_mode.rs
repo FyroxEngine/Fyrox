@@ -20,7 +20,12 @@
 
 //! The [`InteractionMode`] for editing a tile map.
 
+use crate::{
+    command::{Command, CommandGroup},
+    make_color_material,
+};
 use commands::{MoveMapTileCommand, SetMapTilesCommand};
+use fyrox::gui::button::Button;
 use fyrox::{
     asset::untyped::UntypedResource,
     core::SafeLock,
@@ -32,11 +37,6 @@ use fyrox::{
         TileOverlayEffect, TileSelectionEffect, TileSource, TileUpdateEffect, TilesUpdate,
         TransTilesUpdate,
     },
-};
-
-use crate::{
-    command::{Command, CommandGroup},
-    make_color_material,
 };
 
 use super::*;
@@ -813,7 +813,7 @@ impl InteractionMode for TileMapInteractionMode {
         }
     }
 
-    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
+    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<Button> {
         make_interaction_mode_button(
             ctx,
             include_bytes!("../../../resources/tile.png"),

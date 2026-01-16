@@ -36,6 +36,7 @@ use crate::{
     },
     load_image,
 };
+use fyrox::gui::button::Button;
 use fyrox::gui::file_browser::{FileSelectorMode, FileType};
 use fyrox::gui::texture::TextureResource;
 use fyrox::gui::utils::make_image_button_with_tooltip;
@@ -43,7 +44,7 @@ use std::{fs::File, path::Path};
 
 pub mod doc;
 
-pub fn make_pick_button(column: usize, ctx: &mut BuildContext) -> Handle<UiNode> {
+pub fn make_pick_button(column: usize, ctx: &mut BuildContext) -> Handle<Button> {
     ButtonBuilder::new(
         WidgetBuilder::new()
             .with_width(20.0)
@@ -166,7 +167,7 @@ pub fn make_square_image_button_with_tooltip(
     image: Option<TextureResource>,
     tooltip: &str,
     tab_index: Option<usize>,
-) -> Handle<UiNode> {
+) -> Handle<Button> {
     make_image_button_with_tooltip(ctx, 18.0, 18.0, image, tooltip, tab_index)
 }
 

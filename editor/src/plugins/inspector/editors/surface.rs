@@ -57,6 +57,7 @@ use crate::{
     Message,
 };
 use fyrox::gui::brush::Brush;
+use fyrox::gui::button::Button;
 use fyrox::gui::message::MessageData;
 use std::{any::TypeId, sync::mpsc::Sender};
 
@@ -72,7 +73,7 @@ impl MessageData for SurfaceDataPropertyEditorMessage {}
 #[allow(dead_code)]
 pub struct SurfaceDataPropertyEditor {
     widget: Widget,
-    view: Handle<UiNode>,
+    view: Handle<Button>,
     surface_resource: SurfaceResource,
     text: Handle<UiNode>,
     image: Handle<UiNode>,

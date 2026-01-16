@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::button::Button;
 use crate::{
     border::BorderBuilder,
     button::ButtonMessage,
@@ -96,7 +97,7 @@ impl ContextMenu {
 pub struct LogPanel {
     pub window: Handle<UiNode>,
     messages: Handle<UiNode>,
-    clear: Handle<UiNode>,
+    clear: Handle<Button>,
     receiver: Receiver<LogMessage>,
     severity: MessageKind,
     severity_list: Handle<UiNode>,

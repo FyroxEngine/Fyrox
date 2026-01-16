@@ -44,6 +44,7 @@ use crate::fyrox::{
 };
 use crate::plugins::inspector::editors::spritesheet::window::SpriteSheetFramesEditorWindow;
 
+use fyrox::gui::button::Button;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::window::WindowAlignment;
 use std::any::TypeId;
@@ -63,7 +64,7 @@ impl MessageData for SpriteSheetFramesPropertyEditorMessage {}
 #[reflect(derived_type = "UiNode")]
 pub struct SpriteSheetFramesPropertyEditor {
     widget: Widget,
-    edit_button: Handle<UiNode>,
+    edit_button: Handle<Button>,
     container: SpriteSheetFramesContainer,
 }
 

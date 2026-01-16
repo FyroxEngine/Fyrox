@@ -59,8 +59,8 @@ pub struct TileHandleField {
     widget: Widget,
     value: Option<TileDefinitionHandle>,
     field: Handle<UiNode>,
-    palette_button: Handle<UiNode>,
-    goto_button: Handle<UiNode>,
+    palette_button: Handle<Button>,
+    goto_button: Handle<Button>,
 }
 
 define_widget_deref!(TileHandleField);

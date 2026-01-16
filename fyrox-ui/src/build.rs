@@ -25,7 +25,7 @@ use crate::{
     core::pool::Handle, font::FontResource, message::UiMessage, style::resource::StyleResource,
     Control, RestrictionEntry, UiNode, UserInterface,
 };
-use fyrox_core::pool::PoolError;
+use fyrox_core::pool::{ObjectOrVariant, PoolError};
 use fyrox_graph::SceneGraph;
 use std::{
     ops::{Index, IndexMut},
@@ -92,17 +92,17 @@ pub struct BuildContext<'a> {
     pub style: StyleResource,
 }
 
-impl Index<Handle<UiNode>> for BuildContext<'_> {
-    type Output = UiNode;
+impl<U: ObjectOrVariant<UiNode>> Index<Handle<U>> for BuildContext<'_> {
+    type Output = U;
 
-    fn index(&self, index: Handle<UiNode>) -> &Self::Output {
-        &self.ui.nodes[index]
+    fn index(&self, index: Handle<U>) -> &U {
+        self.ui.try_get(index).unwrap()
     }
 }
 
-impl IndexMut<Handle<UiNode>> for BuildContext<'_> {
-    fn index_mut(&mut self, index: Handle<UiNode>) -> &mut Self::Output {
-        &mut self.ui.nodes[index]
+impl<U: ObjectOrVariant<UiNode>> IndexMut<Handle<U>> for BuildContext<'_> {
+    fn index_mut(&mut self, index: Handle<U>) -> &mut Self::Output {
+        self.ui.try_get_mut(index).unwrap()
     }
 }
 

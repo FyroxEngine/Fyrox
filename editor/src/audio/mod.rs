@@ -63,6 +63,7 @@ use crate::{
     ChangeSelectionCommand, Command, GameScene, GridBuilder, MessageDirection, Mode, Selection,
     UserInterface,
 };
+use fyrox::gui::button::Button;
 use std::{cmp::Ordering, sync::mpsc::Sender};
 use strum::VariantNames;
 
@@ -178,8 +179,8 @@ impl SelectionContainer for AudioBusSelection {
 
 pub struct AudioPanel {
     pub window: Handle<UiNode>,
-    add_bus: Handle<UiNode>,
-    remove_bus: Handle<UiNode>,
+    add_bus: Handle<Button>,
+    remove_bus: Handle<Button>,
     audio_buses: Handle<UiNode>,
     distance_model: Handle<UiNode>,
     renderer: Handle<UiNode>,

@@ -21,6 +21,7 @@
 //! Property editor for [`StyledProperty`]. It acts like a proxy to inner property, but also
 //! adds a special "bind" button used to change style binding of the property.
 
+use crate::button::Button;
 use crate::message::MessageData;
 use crate::window::WindowAlignment;
 use crate::{
@@ -82,8 +83,8 @@ pub struct StyledPropertySelector {
     window: Window,
     properties: Handle<UiNode>,
     property_list: Vec<ImmutableString>,
-    ok: Handle<UiNode>,
-    cancel: Handle<UiNode>,
+    ok: Handle<Button>,
+    cancel: Handle<Button>,
     style_property_name: ImmutableString,
 }
 
@@ -307,7 +308,7 @@ impl StyledPropertySelectorBuilder {
 #[reflect(derived_type = "UiNode")]
 pub struct StyledPropertyEditor {
     widget: Widget,
-    bind: Handle<UiNode>,
+    bind: Handle<Button>,
     inner_editor: Handle<UiNode>,
     selector: Handle<UiNode>,
     target_style: Option<StyleResource>,

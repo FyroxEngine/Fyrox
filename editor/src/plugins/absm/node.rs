@@ -39,6 +39,7 @@ use crate::fyrox::{
 };
 use crate::plugins::absm::selectable::{Selectable, SelectableMessage};
 
+use fyrox::gui::button::Button;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::{Style, StyledProperty};
@@ -67,12 +68,12 @@ where
     pub model_handle: Handle<T>,
     #[component(include)]
     pub base: AbsmBaseNode,
-    pub add_input: Handle<UiNode>,
+    pub add_input: Handle<Button>,
     input_sockets_panel: Handle<UiNode>,
     normal_brush: StyledProperty<Brush>,
     selected_brush: StyledProperty<Brush>,
     name: Handle<UiNode>,
-    edit: Handle<UiNode>,
+    edit: Handle<Button>,
 }
 
 impl<T: Reflect> Debug for AbsmNode<T> {

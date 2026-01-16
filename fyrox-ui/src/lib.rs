@@ -1951,12 +1951,12 @@ impl UserInterface {
     /// is useful to understand if some event came from some node down by tree.
     pub fn is_node_child_of(
         &self,
-        node_handle: Handle<UiNode>,
-        root_handle: Handle<UiNode>,
+        node_handle: Handle<impl ObjectOrVariant<UiNode>>,
+        root_handle: Handle<impl ObjectOrVariant<UiNode>>,
     ) -> bool {
         self.nodes
-            .borrow(root_handle)
-            .has_descendant(node_handle, self)
+            .borrow(root_handle.to_base())
+            .has_descendant(node_handle.to_base(), self)
     }
 
     /// Checks if the specified node is a descendant of the hierarchy defined by a `root_handle` or

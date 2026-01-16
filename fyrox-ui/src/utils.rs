@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::button::Button;
 use crate::{
     border::BorderBuilder,
     button::ButtonBuilder,
@@ -304,7 +305,7 @@ pub fn make_image_button_with_tooltip(
     image: Option<TextureResource>,
     tooltip: &str,
     tab_index: Option<usize>,
-) -> Handle<UiNode> {
+) -> Handle<Button> {
     ButtonBuilder::new(
         WidgetBuilder::new()
             .with_tab_index(tab_index)
@@ -337,7 +338,7 @@ pub fn make_text_and_image_button_with_tooltip(
     tab_index: Option<usize>,
     color: Color,
     font_size: f32,
-) -> Handle<UiNode> {
+) -> Handle<Button> {
     let margin = 3.0;
     ButtonBuilder::new(
         WidgetBuilder::new()

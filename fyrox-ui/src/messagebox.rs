@@ -42,6 +42,7 @@ use crate::{
     UserInterface,
 };
 
+use crate::button::Button;
 use crate::message::MessageData;
 use crate::window::WindowAlignment;
 use fyrox_core::uuid_provider;
@@ -172,11 +173,11 @@ pub struct MessageBox {
     /// Current set of buttons of the message box.
     pub buttons: InheritableVariable<MessageBoxButtons>,
     /// A handle of `Ok`/`Yes` buttons.
-    pub ok_yes: InheritableVariable<Handle<UiNode>>,
+    pub ok_yes: InheritableVariable<Handle<Button>>,
     /// A handle of `No` button.
-    pub no: InheritableVariable<Handle<UiNode>>,
+    pub no: InheritableVariable<Handle<Button>>,
     /// A handle of `Cancel` button.
-    pub cancel: InheritableVariable<Handle<UiNode>>,
+    pub cancel: InheritableVariable<Handle<Button>>,
     /// A handle of text widget.
     pub text: InheritableVariable<Handle<UiNode>>,
 }

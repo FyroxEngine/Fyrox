@@ -97,6 +97,7 @@ use crate::{
     utils,
 };
 use fyrox::asset::Resource;
+use fyrox::gui::button::Button;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::window::WindowAlignment;
 use fyrox::resource::model::ModelResource;
@@ -505,9 +506,9 @@ impl TrackViewBuilder {
 struct Toolbar {
     panel: Handle<UiNode>,
     search_text: Handle<UiNode>,
-    clear_search_text: Handle<UiNode>,
-    collapse_all: Handle<UiNode>,
-    expand_all: Handle<UiNode>,
+    clear_search_text: Handle<Button>,
+    collapse_all: Handle<Button>,
+    expand_all: Handle<Button>,
 }
 
 impl Toolbar {
@@ -601,10 +602,10 @@ pub struct TrackList {
     toolbar: Toolbar,
     pub panel: Handle<UiNode>,
     tree_root: Handle<UiNode>,
-    add_track: Handle<UiNode>,
-    add_position_track: Handle<UiNode>,
-    add_rotation_track: Handle<UiNode>,
-    add_scale_track: Handle<UiNode>,
+    add_track: Handle<Button>,
+    add_position_track: Handle<Button>,
+    add_rotation_track: Handle<Button>,
+    add_scale_track: Handle<Button>,
     node_selector: Handle<UiNode>,
     property_selector: Handle<UiNode>,
     selected_node: ErasedHandle,

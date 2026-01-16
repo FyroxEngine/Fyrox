@@ -42,11 +42,12 @@ use crate::{
     scene::{commands::GameSceneContext, GameScene, Selection},
     Message,
 };
+use fyrox::gui::button::Button;
 
 pub struct ColliderControlPanel {
     pub root_widget: Handle<UiNode>,
-    fit: Handle<UiNode>,
-    edit: Handle<UiNode>,
+    fit: Handle<Button>,
+    edit: Handle<Button>,
 }
 
 fn set_property<T: Reflect>(

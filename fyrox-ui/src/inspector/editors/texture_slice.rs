@@ -57,6 +57,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 
+use crate::button::Button;
 use crate::message::MessageData;
 use crate::window::WindowAlignment;
 use fyrox_texture::TextureKind;
@@ -693,7 +694,7 @@ impl TextureSliceEditorWindowBuilder {
 pub struct TextureSliceFieldEditor {
     widget: Widget,
     texture_slice: TextureSlice,
-    edit: Handle<UiNode>,
+    edit: Handle<Button>,
     editor: Handle<UiNode>,
 }
 

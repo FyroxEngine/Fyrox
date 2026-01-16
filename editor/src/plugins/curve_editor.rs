@@ -50,6 +50,7 @@ use crate::{
 };
 use fyrox::asset::manager::ResourceManager;
 use fyrox::core::some_or_return;
+use fyrox::gui::button::Button;
 use fyrox::gui::file_browser::{FileSelectorMode, FileType};
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
@@ -106,8 +107,8 @@ struct Menu {
 pub struct CurveEditorWindow {
     window: Handle<UiNode>,
     curve_editor: Handle<UiNode>,
-    ok: Handle<UiNode>,
-    cancel: Handle<UiNode>,
+    ok: Handle<Button>,
+    cancel: Handle<Button>,
     curve_resource: Option<CurveResource>,
     command_stack: CommandStack,
     menu: Menu,

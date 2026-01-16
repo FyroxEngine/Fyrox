@@ -53,6 +53,7 @@ use crate::{
     plugins::inspector::EditorEnvironment,
     utils, Message,
 };
+use fyrox::gui::button::Button;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::utils::make_asset_preview_tooltip;
 use std::{
@@ -126,7 +127,7 @@ where
     #[visit(skip)]
     #[reflect(hidden)]
     resource: Option<Resource<T>>,
-    locate: Handle<UiNode>,
+    locate: Handle<Button>,
     #[visit(skip)]
     #[reflect(hidden)]
     sender: MessageSender,

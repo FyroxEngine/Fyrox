@@ -27,6 +27,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_core::err;
+use fyrox_core::pool::ObjectOrVariant;
 use fyrox_graph::{SceneGraph, SceneGraphNode};
 use uuid::Uuid;
 
@@ -213,7 +214,11 @@ impl UserInterfaceTestingExtension for UserInterface {
     }
 }
 
-pub fn test_widget_deletion(constructor: impl FnOnce(&mut BuildContext) -> Handle<UiNode>) {
+pub fn test_widget_deletion<F, U>(constructor: F)
+where
+    F: FnOnce(&mut BuildContext) -> Handle<U>,
+    U: ObjectOrVariant<UiNode>,
+{
     let screen_size = Vector2::new(100.0, 100.0);
     let mut ui = UserInterface::new(screen_size);
     let widget = constructor(&mut ui.build_ctx());

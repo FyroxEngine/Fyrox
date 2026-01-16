@@ -43,14 +43,15 @@ use crate::{
     message::MessageSender,
     Message,
 };
+use fyrox::gui::button::Button;
 use fyrox::gui::window::WindowAlignment;
 use std::path::{Path, PathBuf};
 
 pub struct ResourceCreator {
     pub window: Handle<UiNode>,
     resource_constructors_list: Handle<UiNode>,
-    ok: Handle<UiNode>,
-    cancel: Handle<UiNode>,
+    ok: Handle<Button>,
+    cancel: Handle<Button>,
     name: Handle<UiNode>,
     selected: Option<usize>,
     supported_resource_data_uuids: Vec<Uuid>,

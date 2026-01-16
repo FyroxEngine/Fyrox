@@ -33,6 +33,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 
+use crate::button::Button;
 use crate::message::MessageData;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 
@@ -56,8 +57,8 @@ pub struct Selector {
     items: InheritableVariable<Vec<Handle<UiNode>>>,
     items_panel: InheritableVariable<Handle<UiNode>>,
     current: InheritableVariable<Option<usize>>,
-    prev: InheritableVariable<Handle<UiNode>>,
-    next: InheritableVariable<Handle<UiNode>>,
+    prev: InheritableVariable<Handle<Button>>,
+    next: InheritableVariable<Handle<Button>>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for Selector {

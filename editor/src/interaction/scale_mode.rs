@@ -29,7 +29,7 @@ use crate::{
             uuid::{uuid, Uuid},
             TypeUuidProvider,
         },
-        gui::{BuildContext, UiNode},
+        gui::BuildContext,
     },
     interaction::{gizmo::scale_gizmo::ScaleGizmo, make_interaction_mode_button, InteractionMode},
     message::MessageSender,
@@ -42,6 +42,7 @@ use crate::{
     world::selection::GraphSelection,
     Engine,
 };
+use fyrox::gui::button::Button;
 
 pub struct ScaleInteractionMode {
     initial_scales: Vec<Vector3<f32>>,
@@ -263,7 +264,7 @@ impl InteractionMode for ScaleInteractionMode {
         self.scale_gizmo.set_visible(graph, false);
     }
 
-    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
+    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<Button> {
         let scale_mode_tooltip =
             "Scale Object(s) - Shortcut: [4]\n\nScaling interaction mode allows you to scale selected \
         objects. Keep in mind that scaling always works in local coordinates!\n\n\

@@ -35,6 +35,7 @@ use crate::{
     settings::Settings,
     ui_scene::{commands::widget::MoveWidgetCommand, UiScene},
 };
+use fyrox::gui::button::Button;
 
 struct Entry {
     widget: Handle<UiNode>,
@@ -197,7 +198,7 @@ impl InteractionMode for MoveWidgetsInteractionMode {
         }
     }
 
-    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
+    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<Button> {
         let move_mode_tooltip =
             "Move Object(s) - Shortcut: [2]\n\nMovement interaction mode allows you to move selected \
         objects. Keep in mind that movement always works in local coordinates!\n\n\

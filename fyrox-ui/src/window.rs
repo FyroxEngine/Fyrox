@@ -21,6 +21,7 @@
 //! The Window widget provides a standard window that can contain another widget. See [`Window`] docs
 //! for more info and usage examples.
 
+use crate::button::Button;
 use crate::message::MessageData;
 use crate::{
     border::BorderBuilder,
@@ -240,11 +241,11 @@ pub struct Window {
     /// Handle of a header widget.
     pub header: Handle<UiNode>,
     /// Handle of a minimize button.
-    pub minimize_button: Handle<UiNode>,
+    pub minimize_button: Handle<Button>,
     /// Handle of a maximize button.
-    pub maximize_button: Handle<UiNode>,
+    pub maximize_button: Handle<Button>,
     /// Handle of a close button.
-    pub close_button: Handle<UiNode>,
+    pub close_button: Handle<Button>,
     /// A distance per each axis when the dragging starts.
     pub drag_delta: Vector2<f32>,
     /// Handle of a current content.
@@ -882,11 +883,11 @@ pub struct WindowBuilder {
     /// Whether the window should be created open or not.
     pub open: bool,
     /// Optional custom closing button, if not specified, then a default button will be created.
-    pub close_button: Option<Handle<UiNode>>,
+    pub close_button: Option<Handle<Button>>,
     /// Optional custom minimization button, if not specified, then a default button will be created.
-    pub minimize_button: Option<Handle<UiNode>>,
+    pub minimize_button: Option<Handle<Button>>,
     /// Optional custom maximization button, if not specified, then a default button will be created.
-    pub maximize_button: Option<Handle<UiNode>>,
+    pub maximize_button: Option<Handle<Button>>,
     /// Whether the window should be created as modal or not. Warning: Any dependant builders must
     /// take this into account!
     pub modal: bool,
@@ -1056,7 +1057,7 @@ fn make_mark(ctx: &mut BuildContext, button: HeaderButton) -> Handle<UiNode> {
     .build(ctx)
 }
 
-fn make_header_button(ctx: &mut BuildContext, button: HeaderButton) -> Handle<UiNode> {
+fn make_header_button(ctx: &mut BuildContext, button: HeaderButton) -> Handle<Button> {
     ButtonBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
         .with_back(
             DecoratorBuilder::new(
@@ -1115,19 +1116,19 @@ impl WindowBuilder {
     }
 
     /// Sets a desired minimization button.
-    pub fn with_minimize_button(mut self, button: Handle<UiNode>) -> Self {
+    pub fn with_minimize_button(mut self, button: Handle<Button>) -> Self {
         self.minimize_button = Some(button);
         self
     }
 
     /// Sets a desired maximization button.
-    pub fn with_maximize_button(mut self, button: Handle<UiNode>) -> Self {
+    pub fn with_maximize_button(mut self, button: Handle<Button>) -> Self {
         self.minimize_button = Some(button);
         self
     }
 
     /// Sets a desired closing button.
-    pub fn with_close_button(mut self, button: Handle<UiNode>) -> Self {
+    pub fn with_close_button(mut self, button: Handle<Button>) -> Self {
         self.close_button = Some(button);
         self
     }

@@ -41,6 +41,7 @@ use crate::{
     VerticalAlignment,
 };
 
+use crate::button::Button;
 use crate::message::{DeliveryMode, MessageData};
 use fyrox_graph::SceneGraph;
 use std::{
@@ -54,7 +55,7 @@ use std::{
 #[derive(Clone, Debug, PartialEq, Default, Visit, Reflect)]
 pub struct Item {
     editor_instance: PropertyEditorInstance,
-    remove: Handle<UiNode>,
+    remove: Handle<Button>,
 }
 
 pub trait CollectionItem: Clone + Reflect + Default + TypeUuidProvider + Send + 'static {}
@@ -65,7 +66,7 @@ impl<T> CollectionItem for T where T: Clone + Reflect + Default + TypeUuidProvid
 #[reflect(derived_type = "UiNode")]
 pub struct CollectionEditor<T: CollectionItem> {
     pub widget: Widget,
-    pub add: Handle<UiNode>,
+    pub add: Handle<Button>,
     pub items: Vec<Item>,
     pub panel: Handle<UiNode>,
     #[visit(skip)]
@@ -127,7 +128,7 @@ impl<T: CollectionItem> Control for CollectionEditor<T> {
             if let Some(index) = self
                 .items
                 .iter()
-                .position(|i| i.remove == message.destination())
+                .position(|i| message.destination() == i.remove)
             {
                 ui.post(self.handle, CollectionChanged::Remove(index));
             }
@@ -185,7 +186,7 @@ where
     collection: Option<I>,
     environment: Option<Arc<dyn InspectorEnvironment>>,
     definition_container: Option<Arc<PropertyEditorDefinitionContainer>>,
-    add: Handle<UiNode>,
+    add: Handle<Button>,
     layer_index: usize,
     generate_property_string_values: bool,
     filter: PropertyFilter,
@@ -330,7 +331,7 @@ where
         self
     }
 
-    pub fn with_add(mut self, add: Handle<UiNode>) -> Self {
+    pub fn with_add(mut self, add: Handle<Button>) -> Self {
         self.add = add;
         self
     }

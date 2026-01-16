@@ -84,7 +84,7 @@ pub enum GraphicsDebugSwitches {
 
 struct GridSnappingMenu {
     menu: Handle<UiNode>,
-    button: Handle<UiNode>,
+    button: Handle<Button>,
     enabled: Handle<UiNode>,
     x_step: Handle<UiNode>,
     y_step: Handle<UiNode>,
@@ -111,7 +111,7 @@ impl GridSnappingMenu {
                     "Snapping Options",
                     None,
                 );
-                button
+                button.to_base()
             })
             .with_content(
                 GridBuilder::new(
@@ -207,17 +207,15 @@ impl GridSnappingMenu {
         for message in self.receiver.try_iter() {
             match message {
                 SettingsMessage::Changed => {
-                    if let Ok(button) = ui.try_get_of_type::<Button>(self.button) {
-                        ui.send_many(
-                            *button.decorator,
-                            [
-                                DecoratorMessage::SelectedBrush(
-                                    ui.style.property(Style::BRUSH_BRIGHT_BLUE),
-                                ),
-                                DecoratorMessage::Select(settings.move_mode_settings.grid_snapping),
-                            ],
-                        );
-                    }
+                    ui.send_many(
+                        *ui[self.button].decorator,
+                        [
+                            DecoratorMessage::SelectedBrush(
+                                ui.style.property(Style::BRUSH_BRIGHT_BLUE),
+                            ),
+                            DecoratorMessage::Select(settings.move_mode_settings.grid_snapping),
+                        ],
+                    );
 
                     ui.send(
                         self.enabled,
@@ -265,11 +263,11 @@ pub struct SceneViewer {
     frame: Handle<UiNode>,
     window: Handle<UiNode>,
     selection_frame: Handle<UiNode>,
-    interaction_modes: FxHashMap<Uuid, Handle<UiNode>>,
+    interaction_modes: FxHashMap<Uuid, Handle<Button>>,
     camera_projection: Handle<UiNode>,
-    play: Handle<UiNode>,
-    build: Handle<UiNode>,
-    stop: Handle<UiNode>,
+    play: Handle<Button>,
+    build: Handle<Button>,
+    stop: Handle<Button>,
     build_profile: Handle<UiNode>,
     sender: MessageSender,
     interaction_mode_panel: Handle<UiNode>,
@@ -595,14 +593,7 @@ impl SceneViewer {
         if let Message::SetInteractionMode(mode) = message {
             if let Some(&active_button) = self.interaction_modes.get(mode) {
                 for &mode_button in self.interaction_modes.values() {
-                    let decorator = *engine
-                        .user_interfaces
-                        .first_mut()
-                        .node(mode_button)
-                        .query_component::<Button>()
-                        .unwrap()
-                        .decorator;
-
+                    let decorator = *engine.user_interfaces.first_mut()[mode_button].decorator;
                     engine.user_interfaces.first().send(
                         decorator,
                         DecoratorMessage::Select(mode_button == active_button),

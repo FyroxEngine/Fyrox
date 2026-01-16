@@ -45,9 +45,9 @@ use crate::{
     VerticalAlignment,
 };
 
+use crate::button::Button;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_graph::SceneGraph;
 use std::{
     any::Any,
     cmp::Ordering,
@@ -122,11 +122,11 @@ pub struct Tab {
     /// Unique identifier of this tab.
     pub uuid: Uuid,
     /// A handle of the header button, that is used to switch tabs.
-    pub header_button: Handle<UiNode>,
+    pub header_button: Handle<Button>,
     /// Tab's content.
     pub content: Handle<UiNode>,
     /// A handle of a button, that is used to close the tab.
-    pub close_button: Handle<UiNode>,
+    pub close_button: Handle<Button>,
     /// A handle to a container widget, that holds the header.
     pub header_container: Handle<UiNode>,
     /// User-defined data.
@@ -266,7 +266,7 @@ impl TabControl {
         let mut dragged_index = None;
         let mut target_index = None;
         for (tab_index, tab) in self.tabs.iter().enumerate() {
-            let bounds = ui.node(tab.header_button).screen_bounds();
+            let bounds = ui[tab.header_button].screen_bounds();
             let node_x = bounds.center().x;
             if bounds.contains(position) {
                 if node_x < position.x {
@@ -482,7 +482,7 @@ impl Control for TabControl {
                         header_button: header.button,
                         content: definition.content,
                         close_button: header.close_button,
-                        header_container: header.button,
+                        header_container: header.button.to_base(),
                         user_data: definition.user_data.clone(),
                         decorator: header.decorator,
                         header_content: header.content,
@@ -516,8 +516,8 @@ pub struct TabDefinition {
 }
 
 struct Header {
-    button: Handle<UiNode>,
-    close_button: Handle<UiNode>,
+    button: Handle<Button>,
+    close_button: Handle<Button>,
     decorator: Handle<UiNode>,
     content: Handle<UiNode>,
 }
@@ -680,7 +680,7 @@ impl TabControlBuilder {
 
         let headers_container = WrapPanelBuilder::new(
             WidgetBuilder::new()
-                .with_children(tab_headers.iter().map(|h| h.button))
+                .with_children(tab_headers.iter().map(|h| h.button.to_base()))
                 .on_row(0),
         )
         .with_orientation(Orientation::Horizontal)
@@ -728,7 +728,7 @@ impl TabControlBuilder {
                     header_button: header.button,
                     content: tab.content,
                     close_button: header.close_button,
-                    header_container: header.button,
+                    header_container: header.button.to_base(),
                     user_data: tab.user_data,
                     decorator: header.decorator,
                     header_content: header.content,

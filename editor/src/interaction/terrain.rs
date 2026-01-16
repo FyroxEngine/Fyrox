@@ -75,6 +75,7 @@ use crate::{
     settings::Settings,
 };
 
+use fyrox::gui::button::Button;
 use fyrox::gui::inspector::InspectorContextArgs;
 use fyrox::gui::window::WindowAlignment;
 use fyrox::scene::mesh::Mesh;
@@ -531,7 +532,7 @@ impl InteractionMode for TerrainInteractionMode {
         processed
     }
 
-    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
+    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<Button> {
         let terrain_mode_tooltip =
             "Edit Terrain - Shortcut: [6]\n\nTerrain edit mode allows you to modify selected \
         terrain.";

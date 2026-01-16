@@ -36,7 +36,7 @@ use crate::{
             style::{resource::StyleResourceExt, Style},
             utils::make_simple_tooltip,
             widget::WidgetBuilder,
-            BuildContext, Thickness, UiNode,
+            BuildContext, Thickness,
         },
         scene::{camera::Projection, graph::Graph, node::Node},
     },
@@ -48,6 +48,7 @@ use crate::{
 };
 use fyrox::core::define_as_any_trait;
 use fyrox::core::pool::ObjectOrVariant;
+use fyrox::gui::button::Button;
 use fyrox::scene::camera::Camera;
 
 pub mod gizmo;
@@ -197,7 +198,7 @@ pub trait InteractionMode: InteractionModeAsAny {
         false
     }
 
-    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode>;
+    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<Button>;
 
     fn uuid(&self) -> Uuid;
 }
@@ -207,7 +208,7 @@ pub fn make_interaction_mode_button(
     image: &[u8],
     tooltip: &str,
     selected: bool,
-) -> Handle<UiNode> {
+) -> Handle<Button> {
     ButtonBuilder::new(
         WidgetBuilder::new()
             .with_tooltip(make_simple_tooltip(ctx, tooltip))

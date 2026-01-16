@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use fyrox::gui::button::Button;
 use fyrox::gui::widget::WidgetMessage;
 
 use crate::fyrox::graph::SceneGraph;
@@ -44,12 +45,12 @@ use crate::{
 pub struct ParticleSystemPreviewControlPanel {
     pub root_widget: Handle<UiNode>,
     preview: Handle<UiNode>,
-    play: Handle<UiNode>,
-    pause: Handle<UiNode>,
-    stop: Handle<UiNode>,
-    rewind: Handle<UiNode>,
+    play: Handle<Button>,
+    pause: Handle<Button>,
+    stop: Handle<Button>,
+    rewind: Handle<Button>,
     time: Handle<UiNode>,
-    set_time: Handle<UiNode>,
+    set_time: Handle<Button>,
     particle_systems_state: Vec<(Handle<Node>, Node)>,
     desired_playback_time: f32,
 }

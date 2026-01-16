@@ -45,13 +45,14 @@ use crate::{
     },
     Message,
 };
+use fyrox::gui::button::Button;
 use fyrox::gui::window::WindowAlignment;
 
 pub struct NodeRemovalDialog {
     pub window: Handle<UiNode>,
     info_text: Handle<UiNode>,
-    ok: Handle<UiNode>,
-    cancel: Handle<UiNode>,
+    ok: Handle<Button>,
+    cancel: Handle<Button>,
 }
 
 impl NodeRemovalDialog {

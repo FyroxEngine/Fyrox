@@ -41,14 +41,15 @@ use crate::{
     scene::{GameScene, Selection},
     Message,
 };
+use fyrox::gui::button::Button;
 
 pub struct AudioPreviewPanel {
     pub root_widget: Handle<UiNode>,
     preview: Handle<UiNode>,
-    play: Handle<UiNode>,
-    pause: Handle<UiNode>,
-    stop: Handle<UiNode>,
-    rewind: Handle<UiNode>,
+    play: Handle<Button>,
+    pause: Handle<Button>,
+    stop: Handle<Button>,
+    rewind: Handle<Button>,
     time: Handle<UiNode>,
     sounds_state: Vec<(Handle<Node>, Node)>,
 }

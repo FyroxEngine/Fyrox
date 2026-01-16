@@ -56,6 +56,7 @@ use std::sync::mpsc::Sender;
 use super::*;
 use crate::asset::preview::cache::IconRequest;
 use commands::*;
+use fyrox::core::pool::ObjectOrVariant;
 use palette::*;
 
 pub const FIELD_LABEL_WIDTH: f32 = 100.0;
@@ -441,7 +442,7 @@ fn make_button(
     row: usize,
     column: usize,
     ctx: &mut BuildContext,
-) -> Handle<UiNode> {
+) -> Handle<Button> {
     ButtonBuilder::new(
         WidgetBuilder::new()
             .on_row(row)
@@ -460,15 +461,19 @@ fn make_label(name: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
         .build(ctx)
 }
 
-fn highlight_tool_button(button: Handle<UiNode>, highlight: bool, ui: &UserInterface) {
+fn highlight_tool_button(button: Handle<Button>, highlight: bool, ui: &UserInterface) {
     if button.is_none() {
         return;
     }
-    let decorator = *ui.try_get_of_type::<Button>(button).unwrap().decorator;
+    let decorator = *ui[button].decorator;
     ui.send(decorator, DecoratorMessage::Select(highlight));
 }
 
-fn send_visibility(ui: &UserInterface, destination: Handle<UiNode>, visible: bool) {
+fn send_visibility(
+    ui: &UserInterface,
+    destination: Handle<impl ObjectOrVariant<UiNode>>,
+    visible: bool,
+) {
     ui.send(destination, WidgetMessage::Visibility(visible));
 }
 
@@ -734,17 +739,17 @@ pub struct TileInspector {
     /// The editor for changing the frame rate of an animation page.
     animation_speed_inspector: InspectorField,
     /// Button for creating a brush tile.
-    create_tile: Handle<UiNode>,
+    create_tile: Handle<Button>,
     /// Button for creating a brush page.
-    create_page: Handle<UiNode>,
+    create_page: Handle<Button>,
     /// Button for creating an atlas page in a tile set.
-    create_atlas: Handle<UiNode>,
+    create_atlas: Handle<Button>,
     /// Button for creating a freeform page in a tile set.
-    create_free: Handle<UiNode>,
+    create_free: Handle<Button>,
     /// Button for creating a transform set page in a tile set.
-    create_transform: Handle<UiNode>,
+    create_transform: Handle<Button>,
     /// Button for creating a animation page in a tile set.
-    create_animation: Handle<UiNode>,
+    create_animation: Handle<Button>,
     /// A list of tile editors.
     #[visit(skip)]
     #[reflect(hidden)]

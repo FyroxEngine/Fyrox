@@ -78,33 +78,33 @@ enum ImportMode {
 
 pub struct Toolbar {
     pub panel: Handle<UiNode>,
-    pub play_pause: Handle<UiNode>,
-    pub stop: Handle<UiNode>,
+    pub play_pause: Handle<Button>,
+    pub stop: Handle<Button>,
     pub speed: Handle<UiNode>,
     pub animations: Handle<UiNode>,
-    pub add_animation: Handle<UiNode>,
-    pub remove_current_animation: Handle<UiNode>,
-    pub rename_current_animation: Handle<UiNode>,
-    pub clone_current_animation: Handle<UiNode>,
+    pub add_animation: Handle<Button>,
+    pub remove_current_animation: Handle<Button>,
+    pub rename_current_animation: Handle<Button>,
+    pub clone_current_animation: Handle<Button>,
     pub animation_name: Handle<UiNode>,
     pub preview: Handle<UiNode>,
     pub time_slice_start: Handle<UiNode>,
     pub time_slice_end: Handle<UiNode>,
-    pub import: Handle<UiNode>,
-    pub reimport: Handle<UiNode>,
+    pub import: Handle<Button>,
+    pub reimport: Handle<Button>,
     pub node_selector: Handle<UiNode>,
     pub import_file_selector: Handle<UiNode>,
     pub selected_import_root: ErasedHandle,
     pub looping: Handle<UiNode>,
     pub enabled: Handle<UiNode>,
     root_motion_dropdown_area: RootMotionDropdownArea,
-    pub root_motion: Handle<UiNode>,
+    pub root_motion: Handle<Button>,
     import_mode: ImportMode,
 }
 
 struct RootMotionDropdownArea {
     popup: Handle<UiNode>,
-    select_node: Handle<UiNode>,
+    select_node: Handle<Button>,
     enabled: Handle<UiNode>,
     ignore_x: Handle<UiNode>,
     ignore_y: Handle<UiNode>,
@@ -357,7 +357,7 @@ impl RootMotionDropdownArea {
         sync_checked(ui, self.enabled, root_motion_enabled);
 
         for widget in [
-            self.select_node,
+            self.select_node.to_base(),
             self.ignore_x,
             self.ignore_y,
             self.ignore_z,
@@ -367,11 +367,7 @@ impl RootMotionDropdownArea {
         }
 
         if let Some(settings) = animation.root_motion_settings_ref() {
-            let content = *ui
-                .node(self.select_node)
-                .query_component::<Button>()
-                .unwrap()
-                .content;
+            let content = *ui[self.select_node].content;
             ui.send_sync(
                 content,
                 TextMessage::Text(
@@ -906,7 +902,7 @@ impl Toolbar {
             } else if message.destination() == self.root_motion {
                 ui.send(
                     self.root_motion_dropdown_area.popup,
-                    PopupMessage::Placement(Placement::LeftBottom(self.root_motion)),
+                    PopupMessage::Placement(Placement::LeftBottom(self.root_motion.to_base())),
                 );
                 ui.send(self.root_motion_dropdown_area.popup, PopupMessage::Open);
             } else if message.destination() == self.remove_current_animation {
@@ -1235,14 +1231,14 @@ impl Toolbar {
         for widget in [
             self.preview,
             self.speed,
-            self.rename_current_animation,
-            self.remove_current_animation,
+            self.rename_current_animation.to_base(),
+            self.remove_current_animation.to_base(),
             self.time_slice_start,
             self.time_slice_end,
-            self.clone_current_animation,
+            self.clone_current_animation.to_base(),
             self.looping,
             self.enabled,
-            self.root_motion,
+            self.root_motion.to_base(),
         ] {
             ui.send_sync(widget, WidgetMessage::Enabled(selected_animation_valid));
         }

@@ -54,19 +54,20 @@ use crate::{
     world::selection::GraphSelection,
     Message,
 };
+use fyrox::gui::button::Button;
 use fyrox::gui::widget::WidgetMessage;
 use fyrox::gui::window::WindowAlignment;
 
 pub struct MeshControlPanel {
     pub root_widget: Handle<UiNode>,
-    create_trimesh_collider: Handle<UiNode>,
-    create_convex_collider: Handle<UiNode>,
-    create_trimesh_rigid_body: Handle<UiNode>,
-    add_convex_collider: Handle<UiNode>,
-    add_trimesh_collider: Handle<UiNode>,
+    create_trimesh_collider: Handle<Button>,
+    create_convex_collider: Handle<Button>,
+    create_trimesh_rigid_body: Handle<Button>,
+    add_convex_collider: Handle<Button>,
+    add_trimesh_collider: Handle<Button>,
 }
 
-fn make_button(text: &str, tooltip: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
+fn make_button(text: &str, tooltip: &str, ctx: &mut BuildContext) -> Handle<Button> {
     ButtonBuilder::new(
         WidgetBuilder::new()
             .with_margin(Thickness::uniform(1.0))

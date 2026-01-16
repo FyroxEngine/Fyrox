@@ -54,6 +54,7 @@ use crate::{
 };
 use fyrox::core::num_traits::Zero;
 use fyrox::core::pool::ObjectOrVariant;
+use fyrox::gui::button::Button;
 use fyrox::scene::camera::Camera;
 use fyrox::scene::pivot::Pivot;
 use std::path::Path;
@@ -70,7 +71,7 @@ pub struct PreviewPanel {
     pub root: Handle<UiNode>,
     frame: Handle<UiNode>,
     camera_pivot: Handle<Pivot>,
-    fit: Handle<UiNode>,
+    fit: Handle<Button>,
     hinge: Handle<Pivot>,
     pub camera: Handle<Camera>,
     prev_mouse_pos: Vector2<f32>,

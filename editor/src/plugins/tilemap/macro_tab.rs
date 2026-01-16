@@ -25,6 +25,7 @@
 use core::f32;
 
 use brush::{BrushMacroData, TileMapBrushResource};
+use fyrox::gui::button::Button;
 use fyrox::gui::{
     button::ButtonMessage,
     grid::*,
@@ -36,7 +37,6 @@ use fyrox::gui::{
     utils::{make_arrow, ArrowDirection},
     HorizontalAlignment, VerticalAlignment,
 };
-
 use fyrox::scene::tilemap::*;
 
 use super::*;
@@ -52,9 +52,9 @@ pub struct MacroTab {
     current_macro_id: Option<Uuid>,
     macro_panel: Handle<UiNode>,
     list: Handle<UiNode>,
-    up_button: Handle<UiNode>,
-    down_button: Handle<UiNode>,
-    remove_button: Handle<UiNode>,
+    up_button: Handle<Button>,
+    down_button: Handle<Button>,
+    remove_button: Handle<Button>,
     add_buttons: Box<[Handle<UiNode>]>,
     data_panel: Handle<UiNode>,
     name_field: Handle<UiNode>,
@@ -65,7 +65,7 @@ fn make_arrow_button(
     dir: ArrowDirection,
     column: usize,
     row: usize,
-) -> Handle<UiNode> {
+) -> Handle<Button> {
     let arrow = make_arrow(ctx, dir, 16.0);
     ButtonBuilder::new(
         WidgetBuilder::new()
@@ -84,7 +84,7 @@ fn make_button(
     ctx: &mut BuildContext,
     column: usize,
     row: usize,
-) -> Handle<UiNode> {
+) -> Handle<Button> {
     ButtonBuilder::new(
         WidgetBuilder::new()
             .on_column(column)
@@ -159,7 +159,7 @@ fn make_instance_items(
         .collect()
 }
 
-fn make_add_button(title: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
+fn make_add_button(title: &str, ctx: &mut BuildContext) -> Handle<Button> {
     ButtonBuilder::new(
         WidgetBuilder::new()
             .with_height(24.0)
@@ -172,7 +172,7 @@ fn make_add_button(title: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
 fn make_add_buttons(ctx: &mut BuildContext, macros: &BrushMacroList) -> Box<[Handle<UiNode>]> {
     macros
         .iter()
-        .map(|m| make_add_button(m.name(), ctx))
+        .map(|m| make_add_button(m.name(), ctx).to_base())
         .collect()
 }
 

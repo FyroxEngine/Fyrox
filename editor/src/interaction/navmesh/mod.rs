@@ -68,6 +68,7 @@ use crate::{
     utils::window_content,
     Mode,
 };
+use fyrox::gui::button::Button;
 use fyrox::gui::window::WindowAlignment;
 use std::collections::HashMap;
 
@@ -75,7 +76,7 @@ pub mod selection;
 
 pub struct NavmeshPanel {
     pub window: Handle<UiNode>,
-    connect_edges: Handle<UiNode>,
+    connect_edges: Handle<Button>,
     sender: MessageSender,
     scene_frame: Handle<UiNode>,
 }
@@ -677,7 +678,7 @@ impl InteractionMode for EditNavmeshMode {
         }
     }
 
-    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
+    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<Button> {
         let navmesh_mode_tooltip =
             "Edit Navmesh - Shortcut: [5]\n\nNavmesh edit mode allows you to modify selected \
         navigational mesh.";

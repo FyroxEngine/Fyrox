@@ -41,6 +41,7 @@ use fyrox::scene::tilemap::{tileset::*, *};
 
 use super::*;
 use commands::*;
+use fyrox::gui::button::Button;
 
 /// This is the tab of the tile set editor that allows the user to modify the collider
 /// layers stored within the tile set. Layers can be created, deleted, renamed
@@ -48,10 +49,10 @@ use commands::*;
 pub struct CollidersTab {
     handle: Handle<UiNode>,
     list: Handle<UiNode>,
-    up_button: Handle<UiNode>,
-    down_button: Handle<UiNode>,
-    remove_button: Handle<UiNode>,
-    add_button: Handle<UiNode>,
+    up_button: Handle<Button>,
+    down_button: Handle<Button>,
+    remove_button: Handle<Button>,
+    add_button: Handle<Button>,
     data_panel: Handle<UiNode>,
     name_field: Handle<UiNode>,
     color_field: Handle<UiNode>,
@@ -62,7 +63,7 @@ fn make_arrow_button(
     dir: ArrowDirection,
     column: usize,
     row: usize,
-) -> Handle<UiNode> {
+) -> Handle<Button> {
     let arrow = make_arrow(ctx, dir, 16.0);
     ButtonBuilder::new(
         WidgetBuilder::new()
@@ -81,7 +82,7 @@ fn make_button(
     ctx: &mut BuildContext,
     column: usize,
     row: usize,
-) -> Handle<UiNode> {
+) -> Handle<Button> {
     ButtonBuilder::new(
         WidgetBuilder::new()
             .on_column(column)

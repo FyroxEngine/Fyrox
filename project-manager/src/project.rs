@@ -23,6 +23,7 @@ use crate::{
     settings::{Project, Settings},
     utils,
 };
+use fyrox::gui::button::Button;
 use fyrox::gui::file_browser::PathFilter;
 use fyrox::gui::window::WindowAlignment;
 use fyrox::{
@@ -102,8 +103,8 @@ impl Vcs {
 
 pub struct ProjectWizard {
     pub window: Handle<UiNode>,
-    create: Handle<UiNode>,
-    cancel: Handle<UiNode>,
+    create: Handle<Button>,
+    cancel: Handle<Button>,
     path_field: Handle<UiNode>,
     name_field: Handle<UiNode>,
     style_field: Handle<UiNode>,

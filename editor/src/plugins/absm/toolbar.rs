@@ -55,6 +55,7 @@ use crate::{
         Selection,
     },
 };
+use fyrox::gui::button::Button;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use fyrox::gui::utils::make_dropdown_list_option;
@@ -66,9 +67,9 @@ pub struct Toolbar {
     pub preview: Handle<UiNode>,
     pub layers: Handle<UiNode>,
     pub layer_name: Handle<UiNode>,
-    pub add_layer: Handle<UiNode>,
-    pub remove_layer: Handle<UiNode>,
-    pub edit_mask: Handle<UiNode>,
+    pub add_layer: Handle<Button>,
+    pub remove_layer: Handle<Button>,
+    pub edit_mask: Handle<Button>,
     pub node_selector: Handle<UiNode>,
 }
 

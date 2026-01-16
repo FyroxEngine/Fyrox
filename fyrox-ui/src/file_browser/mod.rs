@@ -69,6 +69,7 @@ mod selector;
 #[cfg(test)]
 mod test;
 
+use crate::button::Button;
 pub use field::*;
 pub use filter::*;
 pub use selector::*;
@@ -103,8 +104,8 @@ impl MessageData for FsEventMessage {}
 pub struct FileBrowser {
     pub widget: Widget,
     pub tree_root: Handle<UiNode>,
-    pub home_dir: Handle<UiNode>,
-    pub desktop_dir: Handle<UiNode>,
+    pub home_dir: Handle<Button>,
+    pub desktop_dir: Handle<Button>,
     pub path_text: Handle<UiNode>,
     pub scroll_viewer: Handle<UiNode>,
     pub no_items_message: Handle<UiNode>,

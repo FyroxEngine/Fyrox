@@ -33,6 +33,7 @@ use crate::{
     },
     message::{MessageDirection, UiMessage},
     widget::WidgetBuilder,
+    UiNode,
 };
 use fyrox_core::pool::Handle;
 use fyrox_core::PhantomDataSendSync;
@@ -107,7 +108,7 @@ where
             ctx.layer_index,
             ctx.property_info.display_name,
             ctx.property_info.doc,
-            Handle::NONE,
+            Handle::<UiNode>::NONE,
             {
                 editor = InspectorBuilder::new(WidgetBuilder::new())
                     .with_context(inspector_context)

@@ -576,7 +576,7 @@ impl<'a> AssetSelectorWindowBuilder<'a> {
 #[derive(Reflect, Visit, Debug)]
 pub struct AssetSelectorMixin<T: TypedResourceData> {
     pub selector: Cell<Handle<UiNode>>,
-    pub select: Handle<UiNode>,
+    pub select: Handle<Button>,
     #[visit(skip)]
     #[reflect(hidden)]
     pub icon_request_sender: Sender<IconRequest>,
@@ -602,7 +602,7 @@ impl<T: TypedResourceData> Clone for AssetSelectorMixin<T> {
 
 impl<T: TypedResourceData> AssetSelectorMixin<T> {
     pub fn new(
-        select: Handle<UiNode>,
+        select: Handle<Button>,
         icon_request_sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
     ) -> Self {

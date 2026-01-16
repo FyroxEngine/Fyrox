@@ -34,6 +34,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox_core::pool::ObjectOrVariant;
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -220,14 +221,14 @@ impl ExpanderBuilder {
     }
 
     /// Sets the desired header of the expander.
-    pub fn with_header(mut self, header: Handle<UiNode>) -> Self {
-        self.header = header;
+    pub fn with_header(mut self, header: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        self.header = header.to_base();
         self
     }
 
     /// Sets the desired content of the expander.
-    pub fn with_content(mut self, content: Handle<UiNode>) -> Self {
-        self.content = content;
+    pub fn with_content(mut self, content: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        self.content = content.to_base();
         self
     }
 

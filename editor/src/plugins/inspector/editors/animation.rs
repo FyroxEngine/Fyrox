@@ -185,7 +185,8 @@ where
         Ok(PropertyEditorInstance::Simple {
             editor: ButtonBuilder::new(WidgetBuilder::new())
                 .with_text("Open Animation Editor...")
-                .build(ctx.build_context),
+                .build(ctx.build_context)
+                .to_base(),
         })
     }
 
@@ -241,7 +242,8 @@ where
         Ok(PropertyEditorInstance::Simple {
             editor: ButtonBuilder::new(WidgetBuilder::new())
                 .with_text("Open ABSM Editor...")
-                .build(ctx.build_context),
+                .build(ctx.build_context)
+                .to_base(),
         })
     }
 

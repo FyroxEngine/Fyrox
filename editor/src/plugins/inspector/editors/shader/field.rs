@@ -42,6 +42,7 @@ use crate::{
         ShaderSourceCodeEditor, ShaderSourceCodeEditorBuilder, ShaderSourceCodeEditorMessage,
     },
 };
+use fyrox::gui::button::Button;
 use std::{any::TypeId, cell::RefCell};
 
 #[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider, ComponentProvider)]
@@ -49,7 +50,7 @@ use std::{any::TypeId, cell::RefCell};
 #[reflect(derived_type = "UiNode")]
 pub struct ShaderSourceCodeEditorField {
     widget: Widget,
-    button: Handle<UiNode>,
+    button: Handle<Button>,
     code: RefCell<ShaderSourceCode>,
     editor: Handle<ShaderSourceCodeEditor>,
 }

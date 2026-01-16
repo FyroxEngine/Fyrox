@@ -52,11 +52,12 @@ use crate::{
     Editor, Message,
 };
 use fyrox::core::reflect::Reflect;
+use fyrox::gui::button::Button;
 
 pub struct ReflectionProbePreviewControlPanel {
     pub root_widget: Handle<UiNode>,
-    update: Handle<UiNode>,
-    adjust: Handle<UiNode>,
+    update: Handle<Button>,
+    adjust: Handle<Button>,
 }
 
 impl ReflectionProbePreviewControlPanel {
@@ -301,7 +302,7 @@ impl InteractionMode for ReflectionProbeInteractionMode {
         self.set_visible(controller, engine, false);
     }
 
-    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
+    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<Button> {
         make_interaction_mode_button(
             ctx,
             include_bytes!("../../resources/triangle.png"),

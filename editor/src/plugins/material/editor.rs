@@ -57,6 +57,7 @@ use crate::{
     utils::make_pick_button,
     Message, MessageDirection,
 };
+use fyrox::gui::button::Button;
 use fyrox::gui::message::MessageData;
 use std::{
     any::TypeId,
@@ -79,8 +80,8 @@ pub struct MaterialFieldEditor {
     #[reflect(hidden)]
     sender: MessageSender,
     text: Handle<UiNode>,
-    edit: Handle<UiNode>,
-    make_unique: Handle<UiNode>,
+    edit: Handle<Button>,
+    make_unique: Handle<Button>,
     material: MaterialResource,
     image: Handle<UiNode>,
     image_preview: Handle<UiNode>,

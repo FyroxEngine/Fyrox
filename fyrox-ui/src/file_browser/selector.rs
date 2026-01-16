@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::button::Button;
 use crate::{
     border::BorderBuilder,
     button::{ButtonBuilder, ButtonMessage},
@@ -76,8 +77,8 @@ pub struct FileSelector {
     #[component(include)]
     pub window: Window,
     pub browser: Handle<UiNode>,
-    pub ok: Handle<UiNode>,
-    pub cancel: Handle<UiNode>,
+    pub ok: Handle<Button>,
+    pub cancel: Handle<Button>,
     pub selected_folder: PathBuf,
     pub mode: FileSelectorMode,
     pub file_name: Handle<UiNode>,

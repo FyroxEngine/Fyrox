@@ -39,6 +39,7 @@ use crate::fyrox::{
     },
 };
 use crate::{scene::GameScene, Engine};
+use fyrox::gui::button::Button;
 use fyrox::gui::inspector::editors::PropertyEditorDefinitionContainer;
 use fyrox::gui::inspector::{Inspector, InspectorContextArgs};
 use fyrox::gui::window::WindowAlignment;
@@ -83,7 +84,7 @@ impl Default for LightmapperSettings {
 struct ProgressWindow {
     window: Handle<UiNode>,
     progress_bar: Handle<UiNode>,
-    cancel: Handle<UiNode>,
+    cancel: Handle<Button>,
     text: Handle<UiNode>,
     progress_indicator: ProgressIndicator,
     cancellation_token: CancellationToken,
@@ -198,7 +199,7 @@ impl ProgressWindow {
 pub struct LightPanel {
     pub window: Handle<UiNode>,
     inspector: Handle<UiNode>,
-    generate: Handle<UiNode>,
+    generate: Handle<Button>,
     settings: LightmapperSettings,
     progress_window: Option<ProgressWindow>,
     sender: Sender<Result<Lightmap, LightmapGenerationError>>,

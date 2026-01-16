@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::button::Button;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     control_trait_proxy_impls,
@@ -46,8 +47,8 @@ pub struct FolderNameDialog {
     pub window: Window,
     pub folder_name_tb: Handle<UiNode>,
     pub folder_name: String,
-    pub ok: Handle<UiNode>,
-    pub cancel: Handle<UiNode>,
+    pub ok: Handle<Button>,
+    pub cancel: Handle<Button>,
 }
 
 define_widget_deref_proxy!(FolderNameDialog, window);

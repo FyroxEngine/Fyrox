@@ -55,10 +55,10 @@ pub struct TileBoundsEditor {
     pub left_bottom: Handle<UiNode>,
     pub right_top: Handle<UiNode>,
     pub right_bottom: Handle<UiNode>,
-    pub button_left: Handle<UiNode>,
-    pub button_right: Handle<UiNode>,
-    pub button_flip_x: Handle<UiNode>,
-    pub button_flip_y: Handle<UiNode>,
+    pub button_left: Handle<Button>,
+    pub button_right: Handle<Button>,
+    pub button_flip_x: Handle<Button>,
+    pub button_flip_y: Handle<Button>,
 }
 
 define_widget_deref!(TileBoundsEditor);

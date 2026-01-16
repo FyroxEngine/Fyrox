@@ -53,6 +53,7 @@ use crate::{
     DropdownListBuilder,
 };
 
+use fyrox::gui::button::Button;
 use fyrox::gui::inspector::InspectorContextArgs;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::utils::make_dropdown_list_option;
@@ -76,7 +77,7 @@ pub struct ScriptPropertyEditor {
     widget: Widget,
     inspector: Handle<UiNode>,
     variant_selector: Handle<UiNode>,
-    open_in_ide_button: Handle<UiNode>,
+    open_in_ide_button: Handle<Button>,
     selected_script_uuid: Option<Uuid>,
     need_context_update: Cell<bool>,
 }
@@ -213,7 +214,7 @@ impl ScriptPropertyEditorBuilder {
 
     pub fn build(
         self,
-        open_in_ide_button: Handle<UiNode>,
+        open_in_ide_button: Handle<Button>,
         variant_selector: Handle<UiNode>,
         script_uuid: Option<Uuid>,
         environment: Option<Arc<dyn InspectorEnvironment>>,

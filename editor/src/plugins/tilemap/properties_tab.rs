@@ -45,6 +45,7 @@ use fyrox::{
 
 use super::*;
 use commands::*;
+use fyrox::core::pool::ObjectOrVariant;
 
 /// This is the tab of the tile set editor that allows the user to modify the property
 /// layers stored within the tile set. Layers can be created, deleted, renamed
@@ -52,19 +53,19 @@ use commands::*;
 pub struct PropertiesTab {
     handle: Handle<UiNode>,
     list: Handle<UiNode>,
-    up_button: Handle<UiNode>,
-    down_button: Handle<UiNode>,
-    remove_button: Handle<UiNode>,
-    add_int_button: Handle<UiNode>,
-    add_float_button: Handle<UiNode>,
-    add_string_button: Handle<UiNode>,
-    add_nine_button: Handle<UiNode>,
+    up_button: Handle<Button>,
+    down_button: Handle<Button>,
+    remove_button: Handle<Button>,
+    add_int_button: Handle<Button>,
+    add_float_button: Handle<Button>,
+    add_string_button: Handle<Button>,
+    add_nine_button: Handle<Button>,
     name_field: Handle<UiNode>,
     name_list: Handle<UiNode>,
-    name_up: Handle<UiNode>,
-    name_down: Handle<UiNode>,
-    name_add: Handle<UiNode>,
-    name_remove: Handle<UiNode>,
+    name_up: Handle<Button>,
+    name_down: Handle<Button>,
+    name_add: Handle<Button>,
+    name_remove: Handle<Button>,
     data_panel: Handle<UiNode>,
     name_edit_panel: Handle<UiNode>,
     value_name_field: Handle<UiNode>,
@@ -79,7 +80,7 @@ fn make_arrow_button(
     dir: ArrowDirection,
     column: usize,
     row: usize,
-) -> Handle<UiNode> {
+) -> Handle<Button> {
     let arrow = make_arrow(ctx, dir, 16.0);
     ButtonBuilder::new(
         WidgetBuilder::new()
@@ -98,7 +99,7 @@ fn make_button(
     ctx: &mut BuildContext,
     column: usize,
     row: usize,
-) -> Handle<UiNode> {
+) -> Handle<Button> {
     ButtonBuilder::new(
         WidgetBuilder::new()
             .on_column(column)
@@ -228,7 +229,11 @@ fn send_visibility(ui: &UserInterface, destination: Handle<UiNode>, visible: boo
     ui.send(destination, WidgetMessage::Visibility(visible));
 }
 
-fn send_enabled(ui: &UserInterface, destination: Handle<UiNode>, enabled: bool) {
+fn send_enabled(
+    ui: &UserInterface,
+    destination: Handle<impl ObjectOrVariant<UiNode>>,
+    enabled: bool,
+) {
     ui.send(destination, WidgetMessage::Enabled(enabled));
 }
 

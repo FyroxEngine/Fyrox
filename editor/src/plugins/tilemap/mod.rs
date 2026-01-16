@@ -124,6 +124,7 @@ use crate::{
 };
 use fyrox::asset::manager::ResourceManager;
 use fyrox::engine::ApplicationLoopController;
+use fyrox::gui::button::Button;
 use fyrox::gui::message::MessageData;
 use std::{
     fmt::Debug,
@@ -224,7 +225,7 @@ fn make_drawing_mode_button(
     image: Option<TextureResource>,
     tooltip: &str,
     tab_index: Option<usize>,
-) -> Handle<UiNode> {
+) -> Handle<Button> {
     ButtonBuilder::new(
         WidgetBuilder::new()
             .with_tab_index(tab_index)

@@ -45,6 +45,7 @@ use crate::fyrox::{
 };
 use crate::plugins::inspector::editors::spritesheet::SpriteSheetFramesPropertyEditorMessage;
 
+use fyrox::gui::button::Button;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use std::{
@@ -58,8 +59,8 @@ pub struct SpriteSheetFramesEditorWindow {
     #[component(include)]
     window: Window,
     editor: Handle<UiNode>,
-    ok: Handle<UiNode>,
-    cancel: Handle<UiNode>,
+    ok: Handle<Button>,
+    cancel: Handle<Button>,
     width: Handle<UiNode>,
     height: Handle<UiNode>,
     grid: Handle<UiNode>,

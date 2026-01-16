@@ -82,7 +82,7 @@ struct ItemEditor {
 struct ItemHeader {
     handle: Handle<UiNode>,
     label: Handle<UiNode>,
-    button: Handle<UiNode>,
+    button: Handle<Button>,
 }
 
 impl ItemEditor {
@@ -99,12 +99,12 @@ impl ItemEditor {
         };
         Self { handle, header }
     }
-    fn button(&self) -> Handle<UiNode> {
+    fn button(&self) -> Handle<Button> {
         self.header.button
     }
 }
 
-fn make_button(title: &str, tooltip: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
+fn make_button(title: &str, tooltip: &str, ctx: &mut BuildContext) -> Handle<Button> {
     ButtonBuilder::new(
         WidgetBuilder::new()
             .on_column(1)
@@ -116,11 +116,11 @@ fn make_button(title: &str, tooltip: &str, ctx: &mut BuildContext) -> Handle<UiN
     .build(ctx)
 }
 
-fn make_add_button(ctx: &mut BuildContext) -> Handle<UiNode> {
+fn make_add_button(ctx: &mut BuildContext) -> Handle<Button> {
     make_button(ADD_BUTTON_LABEL, ADD_TOOLTIP, ctx)
 }
 
-fn make_remove_button(ctx: &mut BuildContext) -> Handle<UiNode> {
+fn make_remove_button(ctx: &mut BuildContext) -> Handle<Button> {
     make_button(REMOVE_BUTTON_LABEL, REMOVE_TOOLTIP, ctx)
 }
 
@@ -171,7 +171,7 @@ impl ItemHeader {
         } else {
             ADD_BUTTON_LABEL
         };
-        let button = ui.node(self.button).cast::<Button>().unwrap();
+        let button = &ui[self.button];
         ui.send(*button.content, TextMessage::Text(button_text.into()));
         let tooltip = if has_cell {
             REMOVE_TOOLTIP
@@ -390,7 +390,7 @@ impl MacroInspector {
                 let Some(cell_editor) = item.editor.as_ref() else {
                     continue;
                 };
-                if cell_editor.button() == message.destination() {
+                if message.destination() == cell_editor.button() {
                     let Some(brush_macro) = macro_list.get_by_uuid_mut(&item.macro_id) else {
                         continue;
                     };

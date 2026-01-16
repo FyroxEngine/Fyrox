@@ -34,6 +34,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 
+use crate::button::Button;
 use crate::message::MessageData;
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -70,7 +71,7 @@ pub struct UuidEditor {
     widget: Widget,
     value: Uuid,
     text: Handle<UiNode>,
-    generate: Handle<UiNode>,
+    generate: Handle<Button>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for UuidEditor {

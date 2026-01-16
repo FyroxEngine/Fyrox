@@ -53,6 +53,7 @@ use crate::{
 };
 use fyrox::core::{ok_or_return, uuid, Uuid};
 use fyrox::engine::GraphicsContext;
+use fyrox::gui::button::Button;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
 use fyrox::gui::window::WindowAlignment;
 use rust_fuzzy_search::fuzzy_compare;
@@ -63,8 +64,8 @@ struct GroupName(String);
 
 pub struct SettingsWindow {
     pub window: Handle<UiNode>,
-    ok: Handle<UiNode>,
-    default: Handle<UiNode>,
+    ok: Handle<Button>,
+    default: Handle<Button>,
     inspector: Handle<UiNode>,
     groups: Handle<UiNode>,
     scroll_viewer: Handle<UiNode>,
@@ -226,6 +227,7 @@ impl SettingsWindow {
                     ))))
                     .with_text(&entry.property_display_name)
                     .build(ctx)
+                    .to_base()
                 })
                 .collect::<Vec<_>>();
         ui.send(self.groups, WidgetMessage::ReplaceChildren(groups));

@@ -64,8 +64,8 @@ use fyrox::gui::window::WindowAlignment;
 
 const DEFAULT_PAGE: Vector2<i32> = Vector2::new(0, 0);
 
-fn highlight_tool_button(button: Handle<UiNode>, highlight: bool, ui: &UserInterface) {
-    let decorator = *ui.try_get_of_type::<Button>(button).unwrap().decorator;
+fn highlight_tool_button(button: Handle<Button>, highlight: bool, ui: &UserInterface) {
+    let decorator = *ui[button].decorator;
     ui.send(decorator, DecoratorMessage::Select(highlight));
 }
 
@@ -75,7 +75,7 @@ fn make_resource_chooser(
     tooltip: &str,
     tab_index: Option<usize>,
     column: usize,
-) -> Handle<UiNode> {
+) -> Handle<Button> {
     ButtonBuilder::new(
         WidgetBuilder::new()
             .on_column(column)
@@ -128,33 +128,33 @@ pub struct TileMapPanel {
     /// The palette widget that allows the user to select the tiles to draw with.
     palette: Handle<UiNode>,
     /// The button that switches the control to using the current brush, if there is one.
-    brush_button: Handle<UiNode>,
+    brush_button: Handle<Button>,
     /// The button that switches the control to using the current tile set.
-    tile_set_button: Handle<UiNode>,
+    tile_set_button: Handle<Button>,
     /// Tool selection button for the draw tool.
-    draw_button: Handle<UiNode>,
+    draw_button: Handle<Button>,
     /// Tool selection button for the erase tool.
-    erase_button: Handle<UiNode>,
+    erase_button: Handle<Button>,
     /// Tool selection button for the flood fill tool.
-    flood_fill_button: Handle<UiNode>,
+    flood_fill_button: Handle<Button>,
     /// Tool selection button for the pick tool.
-    pick_button: Handle<UiNode>,
+    pick_button: Handle<Button>,
     /// Tool selection button for the rectangle fill tool.
-    rect_fill_button: Handle<UiNode>,
+    rect_fill_button: Handle<Button>,
     /// Tool selection button for the nine slice fill tool.
-    nine_slice_button: Handle<UiNode>,
+    nine_slice_button: Handle<Button>,
     /// Tool selection button for the line tool.
-    line_button: Handle<UiNode>,
+    line_button: Handle<Button>,
     /// Button that toggles the tools into random mode.
-    random_button: Handle<UiNode>,
+    random_button: Handle<Button>,
     /// Button to rotate the selected tiles counter-clockwise by 90 degrees.
-    left_button: Handle<UiNode>,
+    left_button: Handle<Button>,
     /// Button to rotate the selected tiles clockwise by 90 degrees.
-    right_button: Handle<UiNode>,
+    right_button: Handle<Button>,
     /// Button to horizontally flip the selected tiles.
-    flip_x_button: Handle<UiNode>,
+    flip_x_button: Handle<Button>,
     /// Button to vertically flip the selected tiles.
-    flip_y_button: Handle<UiNode>,
+    flip_y_button: Handle<Button>,
 }
 
 impl TileMapPanel {
@@ -684,8 +684,8 @@ impl TileMapPanel {
     /// Use the given UI to update the panel after the data the [`TileDrawState`] may have changed.
     pub fn sync_to_state(&self, ui: &mut UserInterface) {
         fn highlight_all_except(
-            button: Handle<UiNode>,
-            buttons: &[Handle<UiNode>],
+            button: Handle<Button>,
+            buttons: &[Handle<Button>],
             highlight: bool,
             ui: &UserInterface,
         ) {
@@ -697,7 +697,7 @@ impl TileMapPanel {
                 }
             }
         }
-        fn highlight_all(buttons: &[Handle<UiNode>], highlight: bool, ui: &UserInterface) {
+        fn highlight_all(buttons: &[Handle<Button>], highlight: bool, ui: &UserInterface) {
             for button in buttons {
                 highlight_tool_button(*button, highlight, ui);
             }

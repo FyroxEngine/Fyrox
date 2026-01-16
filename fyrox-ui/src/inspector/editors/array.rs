@@ -331,7 +331,7 @@ where
             ctx.layer_index,
             ctx.property_info.display_name,
             ctx.property_info.doc,
-            Handle::NONE,
+            Handle::<UiNode>::NONE,
             {
                 editor = ArrayEditorBuilder::new(
                     WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),

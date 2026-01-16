@@ -30,7 +30,7 @@ use crate::{
             uuid::{uuid, Uuid},
             TypeUuidProvider,
         },
-        gui::{BuildContext, UiNode},
+        gui::BuildContext,
     },
     interaction::{
         gizmo::rotate_gizmo::RotationGizmo, make_interaction_mode_button, InteractionMode,
@@ -45,6 +45,7 @@ use crate::{
     world::selection::GraphSelection,
     Engine,
 };
+use fyrox::gui::button::Button;
 
 pub struct RotateInteractionMode {
     initial_rotations: Vec<UnitQuaternion<f32>>,
@@ -288,7 +289,7 @@ impl InteractionMode for RotateInteractionMode {
         self.rotation_gizmo.set_visible(graph, false);
     }
 
-    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
+    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<Button> {
         let rotate_mode_tooltip =
             "Rotate Object(s) - Shortcut: [3]\n\nRotation interaction mode allows you to rotate selected \
         objects. Keep in mind that rotation always works in local coordinates!\n\n\

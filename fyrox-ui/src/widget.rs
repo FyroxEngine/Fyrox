@@ -44,6 +44,7 @@ use crate::{
     BuildContext, HorizontalAlignment, LayoutEvent, MouseButton, MouseState, RcUiNodeHandle,
     Thickness, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox_core::pool::ObjectOrVariant;
 use fyrox_graph::SceneGraph;
 use fyrox_material::{Material, MaterialResource};
 use fyrox_resource::Resource;
@@ -1913,9 +1914,9 @@ impl WidgetBuilder {
     }
 
     /// Adds a child handle to the widget. [`Handle::NONE`] values are ignored.
-    pub fn with_child(mut self, handle: Handle<UiNode>) -> Self {
+    pub fn with_child(mut self, handle: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
         if handle.is_some() {
-            self.children.push(handle);
+            self.children.push(handle.to_base());
         }
         self
     }

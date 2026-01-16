@@ -23,6 +23,7 @@
 
 #![warn(missing_docs)]
 
+use crate::button::Button;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -149,9 +150,9 @@ pub struct ScrollBar {
     /// Internal mouse offset that is used for dragging purposes.
     pub offset: Vector2<f32>,
     /// A handle of the increase button.
-    pub increase: InheritableVariable<Handle<UiNode>>,
+    pub increase: InheritableVariable<Handle<Button>>,
     /// A handle of the decrease button.
-    pub decrease: InheritableVariable<Handle<UiNode>>,
+    pub decrease: InheritableVariable<Handle<Button>>,
     /// A handle of the indicator (thumb).
     pub indicator: InheritableVariable<Handle<UiNode>>,
     /// A handle of the canvas that is used for the thumb.
@@ -396,8 +397,8 @@ pub struct ScrollBarBuilder {
     value: Option<f32>,
     step: Option<f32>,
     orientation: Option<Orientation>,
-    increase: Option<Handle<UiNode>>,
-    decrease: Option<Handle<UiNode>>,
+    increase: Option<Handle<Button>>,
+    decrease: Option<Handle<Button>>,
     indicator: Option<Handle<UiNode>>,
     body: Option<Handle<UiNode>>,
     show_value: bool,
@@ -458,13 +459,13 @@ impl ScrollBarBuilder {
     }
 
     /// Sets the new handle to a button, that is used to increase values of the scroll bar.
-    pub fn with_increase(mut self, increase: Handle<UiNode>) -> Self {
+    pub fn with_increase(mut self, increase: Handle<Button>) -> Self {
         self.increase = Some(increase);
         self
     }
 
     /// Sets the new handle to a button, that is used to decrease values of the scroll bar.
-    pub fn with_decrease(mut self, decrease: Handle<UiNode>) -> Self {
+    pub fn with_decrease(mut self, decrease: Handle<Button>) -> Self {
         self.decrease = Some(decrease);
         self
     }

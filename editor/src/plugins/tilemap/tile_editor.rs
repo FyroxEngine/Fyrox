@@ -27,6 +27,7 @@ use std::sync::mpsc::Sender;
 use super::*;
 use crate::asset::preview::cache::IconRequest;
 use commands::*;
+use fyrox::gui::button::Button;
 use fyrox::{
     fxhash::FxHashMap,
     gui::{
@@ -48,7 +49,7 @@ pub trait TileEditor: Send {
     fn handle(&self) -> Handle<UiNode>;
     /// The handle of the button which actives this editor for drawing its value onto other
     /// tiles.
-    fn draw_button(&self) -> Handle<UiNode>;
+    fn draw_button(&self) -> Handle<Button>;
     /// Slice mode means that the tile set editor allows the user to click on one of nine
     /// areas within each tile, instead of just clicking on the whole of the tile.
     /// Normally slice mode is false, because most editors edit the whole of any tile,
@@ -112,7 +113,7 @@ fn make_draw_button(
     tooltip: &str,
     ctx: &mut BuildContext,
     tab_index: Option<usize>,
-) -> Handle<UiNode> {
+) -> Handle<Button> {
     ButtonBuilder::new(
         WidgetBuilder::new()
             .on_column(1)
@@ -149,7 +150,7 @@ fn make_draw_button(
 
 fn make_drawable_field(
     label: &str,
-    draw_button: Handle<UiNode>,
+    draw_button: Handle<Button>,
     field: Handle<UiNode>,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
@@ -177,7 +178,7 @@ pub struct TileMaterialEditor {
     material_line: Handle<UiNode>,
     material_field: Handle<UiNode>,
     bounds_field: Handle<UiNode>,
-    draw_button: Handle<UiNode>,
+    draw_button: Handle<Button>,
     material_bounds: TileMaterialBounds,
 }
 
@@ -339,7 +340,7 @@ impl TileEditor for TileMaterialEditor {
     fn handle(&self) -> Handle<UiNode> {
         self.handle
     }
-    fn draw_button(&self) -> Handle<UiNode> {
+    fn draw_button(&self) -> Handle<Button> {
         self.draw_button
     }
     fn sync_to_model(&mut self, _state: &TileEditorState, _ui: &mut UserInterface) {}
@@ -428,7 +429,7 @@ impl TileEditor for TileMaterialEditor {
 pub struct TileColorEditor {
     handle: Handle<UiNode>,
     field: Handle<UiNode>,
-    draw_button: Handle<UiNode>,
+    draw_button: Handle<Button>,
     color: Color,
 }
 
@@ -480,7 +481,7 @@ impl TileEditor for TileColorEditor {
     fn handle(&self) -> Handle<UiNode> {
         self.handle
     }
-    fn draw_button(&self) -> Handle<UiNode> {
+    fn draw_button(&self) -> Handle<Button> {
         self.draw_button
     }
     fn sync_to_model(&mut self, _state: &TileEditorState, _ui: &mut UserInterface) {}
@@ -588,7 +589,7 @@ impl TileEditor for TileHandleEditor {
     fn handle(&self) -> Handle<UiNode> {
         self.handle
     }
-    fn draw_button(&self) -> Handle<UiNode> {
+    fn draw_button(&self) -> Handle<Button> {
         Handle::NONE
     }
     fn sync_to_model(&mut self, _state: &TileEditorState, _ui: &mut UserInterface) {}

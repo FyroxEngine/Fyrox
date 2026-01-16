@@ -65,8 +65,8 @@ fn send_visibility(ui: &UserInterface, destination: Handle<UiNode>, visible: boo
     ui.send(destination, WidgetMessage::Visibility(visible));
 }
 
-fn highlight_tool_button(button: Handle<UiNode>, highlight: bool, ui: &UserInterface) {
-    let decorator = *ui.try_get_of_type::<Button>(button).unwrap().decorator;
+fn highlight_tool_button(button: Handle<Button>, highlight: bool, ui: &UserInterface) {
+    let decorator = *ui[button].decorator;
     ui.send(decorator, DecoratorMessage::Select(highlight));
 }
 
@@ -79,9 +79,9 @@ pub struct TileColliderEditor {
     value: TileCollider,
     /// The button which actives this editor as a draw tool
     /// and allows the user to apply this value to other tiles.
-    draw_button: Handle<UiNode>,
+    draw_button: Handle<Button>,
     /// The button which toggles the visibility of the collider layer.
-    show_button: Handle<UiNode>,
+    show_button: Handle<Button>,
     /// The widget that shows the color of the collider layer.
     color_icon: Handle<UiNode>,
     /// The widget for the name of the collider layer.
@@ -269,7 +269,7 @@ impl TileEditor for TileColliderEditor {
         self.handle
     }
 
-    fn draw_button(&self) -> Handle<UiNode> {
+    fn draw_button(&self) -> Handle<Button> {
         self.draw_button
     }
 
@@ -360,7 +360,7 @@ fn make_button(
     tooltip: &str,
     icon: Option<TextureResource>,
     ctx: &mut BuildContext,
-) -> Handle<UiNode> {
+) -> Handle<Button> {
     ButtonBuilder::new(
         WidgetBuilder::new()
             .with_tab_index(tab_index)
@@ -397,7 +397,7 @@ fn make_button(
     .build(ctx)
 }
 
-fn make_draw_button(tab_index: Option<usize>, ctx: &mut BuildContext) -> Handle<UiNode> {
+fn make_draw_button(tab_index: Option<usize>, ctx: &mut BuildContext) -> Handle<Button> {
     make_button(
         tab_index,
         0,
@@ -407,7 +407,7 @@ fn make_draw_button(tab_index: Option<usize>, ctx: &mut BuildContext) -> Handle<
     )
 }
 
-fn make_show_button(tab_index: Option<usize>, ctx: &mut BuildContext) -> Handle<UiNode> {
+fn make_show_button(tab_index: Option<usize>, ctx: &mut BuildContext) -> Handle<Button> {
     make_button(
         tab_index,
         1,

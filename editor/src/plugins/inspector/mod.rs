@@ -60,6 +60,7 @@ use crate::{
     utils::{make_square_image_button_with_tooltip, window_content},
     Editor, Message, WidgetMessage, WrapMode,
 };
+use fyrox::gui::button::Button;
 use std::{any::Any, sync::mpsc::Sender, sync::Arc};
 
 pub mod editors;
@@ -118,7 +119,7 @@ pub struct InspectorPlugin {
     pub footer: Handle<UiNode>,
     warning_text: Handle<UiNode>,
     type_name_text: Handle<UiNode>,
-    docs_button: Handle<UiNode>,
+    docs_button: Handle<Button>,
     clipboard: Option<Box<dyn Reflect>>,
 }
 

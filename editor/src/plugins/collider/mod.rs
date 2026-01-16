@@ -52,7 +52,7 @@ use crate::{
         },
         engine::Engine,
         graph::{SceneGraph, SceneGraphNode},
-        gui::{message::UiMessage, BuildContext, UiNode},
+        gui::{message::UiMessage, BuildContext},
         material::{
             shader::{ShaderResource, ShaderResourceExtension},
             Material, MaterialResource,
@@ -85,6 +85,7 @@ use crate::{
     settings::Settings,
     Editor, Message,
 };
+use fyrox::gui::button::Button;
 use fyrox::gui::widget::WidgetMessage;
 use fyrox::scene::camera::Camera;
 use fyrox::scene::pivot::Pivot;
@@ -669,7 +670,7 @@ impl InteractionMode for ColliderShapeInteractionMode {
         self.set_visibility(controller, engine, false)
     }
 
-    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
+    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<Button> {
         make_interaction_mode_button(
             ctx,
             include_bytes!("../../../resources/triangle.png"),

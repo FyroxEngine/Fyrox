@@ -21,6 +21,7 @@
 use fyrox_core::algebra::{Matrix3, Vector2};
 use fyrox_core::Uuid;
 use fyrox_resource::untyped::ResourceKind;
+use fyrox_ui::button::Button;
 use fyrox_ui::window::WindowAlignment;
 use fyrox_ui::{
     border::BorderBuilder,
@@ -56,7 +57,7 @@ pub struct BuildWindow {
     changed: Arc<AtomicBool>,
     log: Arc<Mutex<String>>,
     log_text: Handle<UiNode>,
-    stop: Handle<UiNode>,
+    stop: Handle<Button>,
     scroll_viewer: Handle<UiNode>,
     progress_indicator: Handle<UiNode>,
     angle: f32,

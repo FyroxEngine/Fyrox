@@ -41,6 +41,7 @@ use crate::fyrox::{
         BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     },
 };
+use fyrox::gui::button::Button;
 use fyrox::gui::control_trait_proxy_impls;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
@@ -486,8 +487,8 @@ pub struct PropertySelectorWindow {
     #[component(include)]
     window: Window,
     selector: Handle<UiNode>,
-    ok: Handle<UiNode>,
-    cancel: Handle<UiNode>,
+    ok: Handle<Button>,
+    cancel: Handle<Button>,
     #[reflect(hidden)]
     #[visit(skip)]
     allowed_types: Option<FxHashSet<TypeId>>,

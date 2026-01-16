@@ -55,6 +55,7 @@ use crate::{
     Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox::core::PhantomDataSendSync;
+use fyrox::gui::button::Button;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::window::WindowAlignment;
 use std::{
@@ -107,15 +108,15 @@ impl MessageData for HandlePropertyEditorHierarchyMessage {}
 pub struct HandlePropertyEditor<T: Reflect> {
     widget: Widget,
     text: Handle<UiNode>,
-    locate: Handle<UiNode>,
-    select: Handle<UiNode>,
-    make_unassigned: Handle<UiNode>,
+    locate: Handle<Button>,
+    select: Handle<Button>,
+    make_unassigned: Handle<Button>,
     value: Handle<T>,
     #[visit(skip)]
     #[reflect(hidden)]
     sender: MessageSender,
     selector: Handle<UiNode>,
-    pick: Handle<UiNode>,
+    pick: Handle<Button>,
 }
 
 impl<T: Reflect> Debug for HandlePropertyEditor<T> {

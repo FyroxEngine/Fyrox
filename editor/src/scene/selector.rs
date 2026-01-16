@@ -47,6 +47,7 @@ use crate::{
     },
     utils::make_node_name,
 };
+use fyrox::gui::button::Button;
 use fyrox::gui::control_trait_proxy_impls;
 use fyrox::gui::formatted_text::WrapMode;
 use fyrox::gui::message::{DeliveryMode, MessageData};
@@ -430,8 +431,8 @@ pub struct NodeSelectorWindow {
     #[component(include)]
     window: Window,
     selector: Handle<UiNode>,
-    ok: Handle<UiNode>,
-    cancel: Handle<UiNode>,
+    ok: Handle<Button>,
+    cancel: Handle<Button>,
     #[visit(skip)]
     #[reflect(hidden)]
     allowed_types: FxHashSet<AllowedType>,

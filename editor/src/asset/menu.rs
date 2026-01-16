@@ -59,6 +59,7 @@ use std::{
     ops::{Deref, DerefMut},
     path::PathBuf,
 };
+use fyrox::gui::button::Button;
 
 #[derive(Clone, Visit, Reflect, Debug, ComponentProvider, TypeUuidProvider)]
 #[reflect(derived_type = "UiNode")]
@@ -66,8 +67,8 @@ use std::{
 struct AssetRenameDialog {
     window: Window,
     name_field: Handle<UiNode>,
-    rename: Handle<UiNode>,
-    cancel: Handle<UiNode>,
+    rename: Handle<Button>,
+    cancel: Handle<Button>,
     old_file_name: String,
     new_file_name: String,
     extension: String,

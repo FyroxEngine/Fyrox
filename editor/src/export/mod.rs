@@ -64,6 +64,7 @@ use crate::{
     Message,
 };
 use cargo_metadata::camino::Utf8Path;
+use fyrox::gui::button::Button;
 use fyrox::gui::window::WindowAlignment;
 use std::{
     io::{BufRead, BufReader},
@@ -122,8 +123,8 @@ pub type BuildResult = Result<BuildOutput, String>;
 pub struct ExportWindow {
     pub window: Handle<UiNode>,
     log: Handle<UiNode>,
-    export: Handle<UiNode>,
-    cancel: Handle<UiNode>,
+    export: Handle<Button>,
+    cancel: Handle<Button>,
     log_scroll_viewer: Handle<UiNode>,
     cancel_flag: Arc<AtomicBool>,
     log_message_receiver: Option<Receiver<LogMessage>>,

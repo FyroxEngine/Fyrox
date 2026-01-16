@@ -51,6 +51,7 @@ use crate::{
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use copypasta::ClipboardProvider;
+use fyrox_core::pool::ObjectOrVariant;
 use fyrox_core::{err, log::Log};
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
@@ -937,8 +938,8 @@ pub fn make_expander_container(
     layer_index: usize,
     property_name: &str,
     description: &str,
-    header: Handle<UiNode>,
-    content: Handle<UiNode>,
+    header: Handle<impl ObjectOrVariant<UiNode>>,
+    content: Handle<impl ObjectOrVariant<UiNode>>,
     width: f32,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {

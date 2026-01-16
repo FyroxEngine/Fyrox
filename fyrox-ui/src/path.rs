@@ -23,6 +23,7 @@
 
 #![warn(missing_docs)]
 
+use crate::button::Button;
 use crate::file_browser::PathFilter;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
@@ -80,7 +81,7 @@ pub struct PathEditor {
     /// A handle of the text field, that is used to show current path.
     pub text_field: InheritableVariable<Handle<UiNode>>,
     /// A button, that opens a file selection.
-    pub select: InheritableVariable<Handle<UiNode>>,
+    pub select: InheritableVariable<Handle<Button>>,
     /// Current file selector instance, could be [`Handle::NONE`] if the selector is closed.
     pub selector: InheritableVariable<Handle<UiNode>>,
     /// Current path.

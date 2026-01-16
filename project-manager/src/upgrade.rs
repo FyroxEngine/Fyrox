@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{settings::Project, utils, utils::make_button};
+use fyrox::gui::button::Button;
 use fyrox::gui::window::WindowAlignment;
 use fyrox::{
     core::{log::Log, pool::Handle},
@@ -65,8 +66,8 @@ impl Version {
 pub struct UpgradeTool {
     window: Handle<UiNode>,
     version_type_selector: Handle<UiNode>,
-    upgrade: Handle<UiNode>,
-    cancel: Handle<UiNode>,
+    upgrade: Handle<Button>,
+    cancel: Handle<Button>,
     selected_version: Version,
     version_input_field: Handle<UiNode>,
 }

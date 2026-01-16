@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::button::Button;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
@@ -53,7 +54,7 @@ pub struct FileSelectorField {
     widget: Widget,
     path: PathBuf,
     path_field: Handle<UiNode>,
-    select: Handle<UiNode>,
+    select: Handle<Button>,
     file_selector: Handle<UiNode>,
 }
 

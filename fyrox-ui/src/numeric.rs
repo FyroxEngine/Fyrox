@@ -45,6 +45,7 @@ use crate::{
     VerticalAlignment,
 };
 
+use crate::button::Button;
 use crate::message::MessageData;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -235,9 +236,9 @@ pub struct NumericUpDown<T: NumericType> {
     /// A handle of the input field (usually a [`TextBox`] instance).
     pub field: InheritableVariable<Handle<UiNode>>,
     /// A handle of the increase button.
-    pub increase: InheritableVariable<Handle<UiNode>>,
+    pub increase: InheritableVariable<Handle<Button>>,
     /// A handle of the decrease button.
-    pub decrease: InheritableVariable<Handle<UiNode>>,
+    pub decrease: InheritableVariable<Handle<Button>>,
     /// Current value of the widget.
     pub value: InheritableVariable<T>,
     /// Value of the widget with formatting applied.
@@ -415,12 +416,8 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                 WidgetMessage::MouseDown { button, pos, .. } => {
                     // We can activate dragging either by clicking on increase or decrease buttons.
                     if *button == MouseButton::Left
-                        && (ui
-                            .node(*self.increase)
-                            .has_descendant(message.destination(), ui)
-                            || ui
-                                .node(*self.decrease)
-                                .has_descendant(message.destination(), ui))
+                        && (ui[*self.increase].has_descendant(message.destination(), ui)
+                            || ui[*self.decrease].has_descendant(message.destination(), ui))
                     {
                         self.drag_context = Some(DragContext::PreDrag {
                             start_mouse_pos: pos.y,
@@ -583,7 +580,7 @@ fn make_button(
     arrow: ArrowDirection,
     row: usize,
     editable: bool,
-) -> Handle<UiNode> {
+) -> Handle<Button> {
     let handle = ButtonBuilder::new(
         WidgetBuilder::new()
             .with_enabled(editable)

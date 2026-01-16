@@ -21,6 +21,7 @@
 //! Property editor for [`InheritableVariable`]. It acts like a proxy to inner property, but also
 //! adds special "revert" button that is used to revert value to its parent's value.
 
+use crate::button::Button;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
@@ -62,7 +63,7 @@ impl MessageData for InheritablePropertyEditorMessage {}
 #[reflect(derived_type = "UiNode")]
 pub struct InheritablePropertyEditor {
     widget: Widget,
-    revert: Handle<UiNode>,
+    revert: Handle<Button>,
     inner_editor: Handle<UiNode>,
 }
 

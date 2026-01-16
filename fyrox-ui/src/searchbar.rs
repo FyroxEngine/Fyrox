@@ -48,6 +48,7 @@ use crate::{
     VerticalAlignment,
 };
 
+use crate::button::Button;
 use crate::message::MessageData;
 use crate::text_box::EmptyTextPlaceholder;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -103,7 +104,7 @@ pub struct SearchBar {
     /// A handle of a text box widget used for text input.
     pub text_box: InheritableVariable<Handle<UiNode>>,
     /// A handle of a button, that is used to clear the text.
-    pub clear: InheritableVariable<Handle<UiNode>>,
+    pub clear: InheritableVariable<Handle<Button>>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for SearchBar {

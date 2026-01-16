@@ -67,6 +67,7 @@ use crate::{
     world::selection::GraphSelection,
     Editor,
 };
+use fyrox::gui::button::Button;
 use fyrox::scene::joint::Joint;
 use fyrox::scene::ragdoll::Ragdoll;
 use std::{ops::Range, sync::Arc};
@@ -1010,9 +1011,9 @@ pub struct RagdollWizard {
     pub window: Handle<UiNode>,
     pub preset: RagdollPreset,
     inspector: Handle<UiNode>,
-    ok: Handle<UiNode>,
-    cancel: Handle<UiNode>,
-    autofill: Handle<UiNode>,
+    ok: Handle<Button>,
+    cancel: Handle<Button>,
+    autofill: Handle<Button>,
     clipboard: Option<Box<dyn Reflect>>,
 }
 

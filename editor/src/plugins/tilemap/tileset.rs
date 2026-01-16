@@ -93,16 +93,16 @@ pub struct TileSetEditor {
     /// The palette widget for the actual tiles. This is the main work area of the editor.
     tiles_palette: Handle<UiNode>,
     /// A button to switch to the pick tool.
-    pick_button: Handle<UiNode>,
+    pick_button: Handle<Button>,
     /// A button to open the tile map control panel.
     /// It can sometimes be useful while editing a tile set or brush.
-    open_control: Handle<UiNode>,
+    open_control: Handle<Button>,
     /// A button to deleted the selected tiles or pages.
-    remove: Handle<UiNode>,
+    remove: Handle<Button>,
     /// A button to select all the pages of the current resource.
-    all_pages: Handle<UiNode>,
+    all_pages: Handle<Button>,
     /// A button to select all the tiles of the current page.
-    all_tiles: Handle<UiNode>,
+    all_tiles: Handle<Button>,
     /// When editing a brush, this is the area that allows the user to choose
     /// the tile set for the brush.
     tile_set_selector: Handle<UiNode>,
@@ -140,7 +140,7 @@ fn make_button(
     row: usize,
     column: usize,
     ctx: &mut BuildContext,
-) -> Handle<UiNode> {
+) -> Handle<Button> {
     ButtonBuilder::new(
         WidgetBuilder::new()
             .on_row(row)
@@ -568,10 +568,7 @@ impl TileSetEditor {
     /// Update the widgets of this editor after the shared [`TileDrawState`] may have changed.
     pub fn sync_to_state(&mut self, ui: &mut UserInterface) {
         self.tile_inspector.sync_to_state(ui);
-        let decorator = *ui
-            .try_get_of_type::<Button>(self.pick_button)
-            .unwrap()
-            .decorator;
+        let decorator = *ui[self.pick_button].decorator;
         ui.send(
             decorator,
             DecoratorMessage::Select(self.state.lock().drawing_mode == DrawingMode::Pick),

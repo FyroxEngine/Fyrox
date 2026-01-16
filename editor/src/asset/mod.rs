@@ -145,8 +145,8 @@ fn make_unique_path(parent: &Path, stem: &str, ext: &str) -> PathBuf {
 
 struct InspectorAddon {
     root: Handle<UiNode>,
-    apply: Handle<UiNode>,
-    revert: Handle<UiNode>,
+    apply: Handle<Button>,
+    revert: Handle<Button>,
     preview: PreviewPanel,
 }
 
@@ -157,8 +157,8 @@ pub struct AssetBrowser {
     folder_browser: Handle<UiNode>,
     scroll_panel: Handle<UiNode>,
     search_bar: Handle<UiNode>,
-    add_resource: Handle<UiNode>,
-    refresh: Handle<UiNode>,
+    add_resource: Handle<Button>,
+    refresh: Handle<Button>,
     items: Vec<Handle<UiNode>>,
     item_to_select: Option<PathBuf>,
     context_menu: AssetItemContextMenu,
@@ -173,7 +173,7 @@ pub struct AssetBrowser {
     pub preview_generators: AssetPreviewGeneratorsCollection,
     inspector_addon: Option<InspectorAddon>,
     resource_event_receiver: Receiver<ResourceEvent>,
-    resave_resources: Handle<UiNode>,
+    resave_resources: Handle<Button>,
 }
 
 fn is_path_in_registry(path: &Path, resource_manager: &ResourceManager) -> bool {

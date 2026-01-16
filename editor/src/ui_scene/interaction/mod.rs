@@ -37,6 +37,7 @@ use crate::{
     settings::Settings,
     ui_scene::{UiScene, UiSelection},
 };
+use fyrox::gui::button::Button;
 
 pub mod move_mode;
 
@@ -211,7 +212,7 @@ impl InteractionMode for UiSelectInteractionMode {
     ) {
     }
 
-    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
+    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<Button> {
         let select_mode_tooltip = "Select Object(s) - Shortcut: [1]\n\nSelection interaction mode \
         allows you to select an object by a single left mouse button click or multiple objects using either \
         frame selection (click and drag) or by holding Ctrl+Click";

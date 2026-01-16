@@ -93,7 +93,7 @@ pub struct TilePropertyEditor {
     value: TileSetPropertyOptionValue,
     /// The button to activate the editor draw tool that allows this property value
     /// to be applied to other tiles.
-    draw_button: Handle<UiNode>,
+    draw_button: Handle<Button>,
     /// The label showing the name of the layer.
     name_field: Handle<UiNode>,
     /// The field for editing the current value.
@@ -104,7 +104,7 @@ pub struct TilePropertyEditor {
     /// The dropdown list of pre-defined values.
     list: Handle<UiNode>,
     /// The handles of the buttons in the 9-button grid.
-    nine_buttons: Option<Box<[Handle<UiNode>; 9]>>,
+    nine_buttons: Option<Box<[Handle<Button>; 9]>>,
 }
 
 impl TilePropertyEditor {
@@ -334,7 +334,7 @@ impl TilePropertyEditor {
     /// One of the nine buttons has been clicked, so set the corresponding element of the value.
     fn handle_nine_click(
         &mut self,
-        handle: Handle<UiNode>,
+        handle: Handle<Button>,
         state: &TileEditorState,
         ui: &mut UserInterface,
         sender: &MessageSender,
@@ -452,7 +452,7 @@ impl TileEditor for TilePropertyEditor {
     fn handle(&self) -> Handle<UiNode> {
         self.handle
     }
-    fn draw_button(&self) -> Handle<UiNode> {
+    fn draw_button(&self) -> Handle<Button> {
         self.draw_button
     }
     fn slice_mode(&self) -> bool {
@@ -574,7 +574,13 @@ impl TileEditor for TilePropertyEditor {
             return;
         }
         if let Some(ButtonMessage::Click) = message.data() {
-            self.handle_nine_click(message.destination(), state, ui, sender, tile_book);
+            self.handle_nine_click(
+                message.destination().to_variant(),
+                state,
+                ui,
+                sender,
+                tile_book,
+            );
         } else if let Some(TextMessage::Text(v)) = message.data() {
             if message.destination() == self.value_field {
                 self.set_value_from_text(v.into());
@@ -661,7 +667,7 @@ impl NineButtonSpec {
 const DRAW_BUTTON_WIDTH: f32 = 20.0;
 const DRAW_BUTTON_HEIGHT: f32 = 20.0;
 
-fn make_draw_button(tab_index: Option<usize>, ctx: &mut BuildContext) -> Handle<UiNode> {
+fn make_draw_button(tab_index: Option<usize>, ctx: &mut BuildContext) -> Handle<Button> {
     ButtonBuilder::new(
         WidgetBuilder::new()
             .with_tab_index(tab_index)
@@ -725,8 +731,8 @@ fn create_nine_specs(
 }
 
 /// Send UI messages to update the one of nine buttons to match the given [`NineButtonSpec`].
-fn apply_specs_to_nine(specs: &NineButtonSpec, handle: Handle<UiNode>, ui: &mut UserInterface) {
-    let button = ui.try_get_of_type::<Button>(handle).unwrap();
+fn apply_specs_to_nine(specs: &NineButtonSpec, handle: Handle<Button>, ui: &mut UserInterface) {
+    let button = &ui[handle];
     let text = *button.content.clone();
     let decorator = *button.decorator.clone();
     ui.send(text, TextMessage::Text(specs.name.clone()));
@@ -753,7 +759,7 @@ fn build_nine_button(
     y: usize,
     tab_index: Option<usize>,
     ctx: &mut BuildContext,
-) -> Handle<UiNode> {
+) -> Handle<Button> {
     ButtonBuilder::new(
         WidgetBuilder::new()
             .on_column(x)
@@ -784,8 +790,8 @@ fn build_nine_button(
 fn build_nine(
     specs: [NineButtonSpec; 9],
     ctx: &mut BuildContext,
-) -> (Handle<UiNode>, Box<[Handle<UiNode>; 9]>) {
-    let mut buttons: Box<[Handle<UiNode>; 9]> = [Handle::NONE; 9].into();
+) -> (Handle<UiNode>, Box<[Handle<Button>; 9]>) {
+    let mut buttons: Box<[Handle<Button>; 9]> = [Handle::NONE; 9].into();
     let mut tab_index = 0;
     for y in 0..3 {
         for x in 0..3 {
@@ -794,13 +800,14 @@ fn build_nine(
             tab_index += 1;
         }
     }
-    let nine = GridBuilder::new(WidgetBuilder::new().with_children(buttons.iter().copied()))
-        .add_column(Column::stretch())
-        .add_column(Column::stretch())
-        .add_column(Column::stretch())
-        .add_row(Row::auto())
-        .add_row(Row::auto())
-        .add_row(Row::auto())
-        .build(ctx);
+    let nine =
+        GridBuilder::new(WidgetBuilder::new().with_children(buttons.iter().map(|h| h.to_base())))
+            .add_column(Column::stretch())
+            .add_column(Column::stretch())
+            .add_column(Column::stretch())
+            .add_row(Row::auto())
+            .add_row(Row::auto())
+            .add_row(Row::auto())
+            .build(ctx);
     (nine, buttons)
 }

@@ -23,6 +23,7 @@
 use std::any::TypeId;
 
 use super::*;
+use fyrox::gui::button::Button;
 use fyrox::gui::inspector::FieldKind;
 use fyrox::gui::message::MessageData;
 use fyrox::{
@@ -83,7 +84,7 @@ impl MessageData for TileDefinitionHandleEditorMessage {}
 pub struct TileDefinitionHandleEditor {
     widget: Widget,
     field: Handle<UiNode>,
-    button: Handle<UiNode>,
+    button: Handle<Button>,
     value: Option<TileDefinitionHandle>,
     allow_none: bool,
 }

@@ -69,9 +69,9 @@ impl MessageData for ButtonMessage {}
 /// ```rust
 /// # use fyrox_ui::{
 /// #     core::pool::Handle,
-/// #     button::ButtonBuilder, widget::WidgetBuilder, UiNode, UserInterface
+/// #     button::{ButtonBuilder, Button}, widget::WidgetBuilder, UiNode, UserInterface
 /// # };
-/// fn create_button(ui: &mut UserInterface) -> Handle<UiNode> {
+/// fn create_button(ui: &mut UserInterface) -> Handle<Button> {
 ///     ButtonBuilder::new(WidgetBuilder::new())
 ///         .with_text("Click me!")
 ///         .build(&mut ui.build_ctx())
@@ -141,6 +141,7 @@ impl ConstructorProvider<UiNode, UserInterface> for Button {
                         .with_name("Button"),
                 )
                 .build(&mut ui.build_ctx())
+                .to_base()
                 .into()
             })
             .with_group("Input")
@@ -433,9 +434,9 @@ impl ButtonBuilder {
     }
 
     /// Finishes button build and adds to the user interface and returns its handle.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<Button> {
         let node = self.build_node(ctx);
-        ctx.add_node(node)
+        ctx.add_node(node).to_variant()
     }
 }
 

@@ -19,12 +19,12 @@
 // SOFTWARE.
 
 use cargo_metadata::{semver::VersionReq, Dependency, Metadata};
+use fyrox::gui::button::Button;
 use fyrox::{
     core::pool::Handle,
     gui::{
         button::ButtonBuilder, text::TextBuilder, utils::make_simple_tooltip,
-        widget::WidgetBuilder, BuildContext, HorizontalAlignment, Thickness, UiNode,
-        VerticalAlignment,
+        widget::WidgetBuilder, BuildContext, HorizontalAlignment, Thickness, VerticalAlignment,
     },
 };
 use std::{
@@ -55,7 +55,7 @@ pub fn make_button(
     column: usize,
     tooltip: Option<&str>,
     ctx: &mut BuildContext,
-) -> Handle<UiNode> {
+) -> Handle<Button> {
     let mut widget_builder = WidgetBuilder::new()
         .on_row(row)
         .on_column(column)

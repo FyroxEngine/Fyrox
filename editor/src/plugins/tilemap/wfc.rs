@@ -65,7 +65,7 @@ pub struct WfcMacro {
     attempts_field: Handle<UiNode>,
     terrain_list: Vec<TerrainWidgets>,
     value_field: MacroPropertyValueField,
-    add_button: Handle<UiNode>,
+    add_button: Handle<Button>,
     terrain_stack: Handle<UiNode>,
     current_terrain: TileTerrainId,
 }
@@ -102,7 +102,7 @@ struct TerrainWidgets {
     color: Color,
     name: String,
     frequency_field: Handle<UiNode>,
-    delete_button: Handle<UiNode>,
+    delete_button: Handle<Button>,
 }
 
 fn terrain_list_needs_rebuild(

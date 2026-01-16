@@ -56,6 +56,7 @@ use crate::{
     world::item::{DropAnchor, SceneItem, SceneItemBuilder, SceneItemMessage},
     Mode, Settings,
 };
+use fyrox::gui::button::Button;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
 use rust_fuzzy_search::fuzzy_compare;
 use std::{
@@ -128,10 +129,10 @@ pub struct WorldViewer {
     /// this moment UI is completely built and we can do syncing.
     pub sync_selection: bool,
     node_path: Handle<UiNode>,
-    breadcrumbs: HashMap<Handle<UiNode>, Handle<UiNode>>,
-    collapse_all: Handle<UiNode>,
-    expand_all: Handle<UiNode>,
-    locate_selection: Handle<UiNode>,
+    breadcrumbs: HashMap<Handle<Button>, Handle<UiNode>>,
+    collapse_all: Handle<Button>,
+    expand_all: Handle<Button>,
+    locate_selection: Handle<Button>,
     scroll_view: Handle<UiNode>,
     pub item_context_menu: Option<Rc<RefCell<dyn WorldViewerItemContextMenu>>>,
     node_to_view_map: HashMap<ErasedHandle, Handle<UiNode>>,
@@ -660,7 +661,7 @@ impl WorldViewer {
         } else if let Some(&WidgetMessage::Drop(node)) = message.data::<WidgetMessage>() {
             self.handle_drop(ui, data_provider, message.destination(), node);
         } else if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
-            if let Some(&view) = self.breadcrumbs.get(&message.destination()) {
+            if let Some(&view) = self.breadcrumbs.get(&message.destination().to_variant()) {
                 if let Ok(graph_node) = ui.try_get_of_type::<SceneItem>(view) {
                     data_provider.on_selection_changed(&[graph_node.entity_handle]);
                 }

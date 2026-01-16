@@ -32,7 +32,7 @@ use crate::{
         },
         fxhash::FxHashSet,
         graph::SceneGraph,
-        gui::{BuildContext, UiNode},
+        gui::BuildContext,
         scene::{camera::Projection, graph::Graph, node::Node, Scene},
     },
     interaction::{
@@ -50,6 +50,7 @@ use crate::{
     Engine, Message,
 };
 use fyrox::core::some_or_return;
+use fyrox::gui::button::Button;
 
 struct Entry {
     node: Handle<Node>,
@@ -501,7 +502,7 @@ impl InteractionMode for MoveInteractionMode {
         self.move_gizmo.set_visible(graph, false);
     }
 
-    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
+    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<Button> {
         let move_mode_tooltip =
             "Move Object(s) - Shortcut: [2]\n\nMovement interaction mode allows you to move selected \
         objects. Keep in mind that movement always works in local coordinates!\n\n\
