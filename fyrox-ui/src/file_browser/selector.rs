@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::button::Button;
+use crate::text_box::TextBox;
 use crate::{
     border::BorderBuilder,
     button::{ButtonBuilder, ButtonMessage},
@@ -81,7 +82,7 @@ pub struct FileSelector {
     pub cancel: Handle<Button>,
     pub selected_folder: PathBuf,
     pub mode: FileSelectorMode,
-    pub file_name: Handle<UiNode>,
+    pub file_name: Handle<TextBox>,
     pub file_name_value: PathBuf,
     pub filter: PathFilter,
     pub file_type_selector: Handle<UiNode>,

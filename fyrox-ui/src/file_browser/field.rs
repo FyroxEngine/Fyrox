@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::button::Button;
+use crate::text_box::TextBox;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
@@ -53,7 +54,7 @@ uuid_provider!(FileSelectorField = "2dbda730-8a60-4f62-aee8-2ff0ccd15bf2");
 pub struct FileSelectorField {
     widget: Widget,
     path: PathBuf,
-    path_field: Handle<UiNode>,
+    path_field: Handle<TextBox>,
     select: Handle<Button>,
     file_selector: Handle<UiNode>,
 }

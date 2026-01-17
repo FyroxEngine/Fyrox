@@ -33,6 +33,7 @@ use crate::fyrox::gui::{
 };
 use fyrox::gui::message::MessageData;
 use fyrox::gui::text::Text;
+use fyrox::gui::text_box::TextBox;
 
 const BUTTON_SIZE: f32 = 12.0;
 
@@ -58,7 +59,7 @@ impl MessageData for TileHandleEditorMessage {}
 pub struct TileHandleField {
     widget: Widget,
     value: Option<TileDefinitionHandle>,
-    field: Handle<UiNode>,
+    field: Handle<TextBox>,
     palette_button: Handle<Button>,
     goto_button: Handle<Button>,
 }

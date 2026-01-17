@@ -112,6 +112,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_animation::machine::Parameter;
+use fyrox_core::pool::ObjectOrVariant;
 use fyrox_texture::TextureResource;
 use std::{
     any::{Any, TypeId},
@@ -290,6 +291,12 @@ impl Default for PropertyEditorInstance {
 }
 
 impl PropertyEditorInstance {
+    pub fn simple(editor: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        Self::Simple {
+            editor: editor.to_base(),
+        }
+    }
+
     pub fn editor(&self) -> Handle<UiNode> {
         match self {
             PropertyEditorInstance::Simple { editor }

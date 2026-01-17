@@ -82,10 +82,12 @@ impl MessageData for DropdownListMessage {}
 ///         .with_items(vec![
 ///             TextBuilder::new(WidgetBuilder::new())
 ///                 .with_text("Item 0")
-///                 .build(ctx),
+///                 .build(ctx)
+///                 .to_base(),
 ///             TextBuilder::new(WidgetBuilder::new())
 ///                 .with_text("Item 1")
-///                 .build(ctx),
+///                 .build(ctx)
+///                 .to_base(),
 ///         ])
 ///         .with_selected(1)
 ///         .build(ctx)

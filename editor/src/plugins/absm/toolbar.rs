@@ -66,7 +66,7 @@ pub struct Toolbar {
     pub panel: Handle<UiNode>,
     pub preview: Handle<UiNode>,
     pub layers: Handle<UiNode>,
-    pub layer_name: Handle<UiNode>,
+    pub layer_name: Handle<TextBox>,
     pub add_layer: Handle<Button>,
     pub remove_layer: Handle<Button>,
     pub edit_mask: Handle<Button>,
@@ -224,12 +224,7 @@ impl Toolbar {
             if message.destination() == self.add_layer {
                 let mut layer = MachineLayer::new();
 
-                layer.set_name(
-                    ui.node(self.layer_name)
-                        .query_component::<TextBox>()
-                        .unwrap()
-                        .text(),
-                );
+                layer.set_name(ui[self.layer_name].text());
 
                 sender.do_command(AddLayerCommand {
                     absm_node_handle: selection.absm_node_handle,

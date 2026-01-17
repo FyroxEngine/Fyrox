@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use fyrox::gui::formatted_text::WrapMode;
+use fyrox::gui::text_box::TextBox;
 use fyrox::{
     core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     gui::{
@@ -47,7 +48,7 @@ impl MessageData for ShaderSourceCodeEditorMessage {}
 #[reflect(derived_type = "UiNode")]
 pub struct ShaderSourceCodeEditor {
     window: Window,
-    text_box: Handle<UiNode>,
+    text_box: Handle<TextBox>,
 }
 
 define_widget_deref_proxy!(ShaderSourceCodeEditor, window);

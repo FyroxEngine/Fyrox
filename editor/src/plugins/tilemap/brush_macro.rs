@@ -720,7 +720,7 @@ impl MacroPropertyValueField {
             Element::I8(v) => NumericUpDownBuilder::<i8>::new(wb)
                 .with_value(*v)
                 .build(ctx),
-            Element::String(v) => TextBoxBuilder::new(wb).with_text(v).build(ctx),
+            Element::String(v) => TextBoxBuilder::new(wb).with_text(v).build(ctx).to_base(),
         };
         let list = if let Ok(value) = value.try_into() {
             let (index, items) = make_index_and_value_list(prop, value, ctx);

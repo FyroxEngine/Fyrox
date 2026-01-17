@@ -125,9 +125,9 @@ impl TilePropertyEditor {
             TileSetPropertyType::F32 => {
                 NumericUpDownBuilder::<f32>::new(WidgetBuilder::new().on_column(1)).build(ctx)
             }
-            TileSetPropertyType::String => {
-                TextBoxBuilder::new(WidgetBuilder::new().on_column(1)).build(ctx)
-            }
+            TileSetPropertyType::String => TextBoxBuilder::new(WidgetBuilder::new().on_column(1))
+                .build(ctx)
+                .to_base(),
             TileSetPropertyType::NineSlice => {
                 NumericUpDownBuilder::<i8>::new(WidgetBuilder::new().on_column(1)).build(ctx)
             }

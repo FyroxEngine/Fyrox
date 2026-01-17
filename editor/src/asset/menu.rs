@@ -50,8 +50,10 @@ use crate::{
     Message,
 };
 use fyrox::core::{ok_or_return, SafeLock};
+use fyrox::gui::button::Button;
 use fyrox::gui::control_trait_proxy_impls;
 use fyrox::gui::formatted_text::WrapMode;
+use fyrox::gui::text_box::TextBox;
 use fyrox::gui::window::WindowAlignment;
 use std::{
     fs::File,
@@ -59,14 +61,13 @@ use std::{
     ops::{Deref, DerefMut},
     path::PathBuf,
 };
-use fyrox::gui::button::Button;
 
 #[derive(Clone, Visit, Reflect, Debug, ComponentProvider, TypeUuidProvider)]
 #[reflect(derived_type = "UiNode")]
 #[type_uuid(id = "8c9934ad-b4e1-4c68-9876-f253e34c6667")]
 struct AssetRenameDialog {
     window: Window,
-    name_field: Handle<UiNode>,
+    name_field: Handle<TextBox>,
     rename: Handle<Button>,
     cancel: Handle<Button>,
     old_file_name: String,

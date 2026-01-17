@@ -44,6 +44,7 @@ use crate::{
     Message,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::text_box::TextBox;
 use fyrox::gui::window::WindowAlignment;
 use std::path::{Path, PathBuf};
 
@@ -52,7 +53,7 @@ pub struct ResourceCreator {
     resource_constructors_list: Handle<UiNode>,
     ok: Handle<Button>,
     cancel: Handle<Button>,
-    name: Handle<UiNode>,
+    name: Handle<TextBox>,
     selected: Option<usize>,
     supported_resource_data_uuids: Vec<Uuid>,
     name_str: String,

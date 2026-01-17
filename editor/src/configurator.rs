@@ -48,6 +48,7 @@ use crate::{
     Engine, Message,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::text_box::TextBox;
 use std::{env, path::PathBuf};
 
 #[derive(Default, Eq, PartialEq, Visit)]
@@ -64,7 +65,7 @@ pub struct Configurator {
     ok: Handle<Button>,
     sender: MessageSender,
     work_dir: PathBuf,
-    tb_work_dir: Handle<UiNode>,
+    tb_work_dir: Handle<TextBox>,
     lv_history: Handle<UiNode>,
     history: Vec<HistoryEntry>,
 }

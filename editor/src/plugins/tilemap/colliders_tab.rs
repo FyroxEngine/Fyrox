@@ -42,6 +42,7 @@ use fyrox::scene::tilemap::{tileset::*, *};
 use super::*;
 use commands::*;
 use fyrox::gui::button::Button;
+use fyrox::gui::text_box::TextBox;
 
 /// This is the tab of the tile set editor that allows the user to modify the collider
 /// layers stored within the tile set. Layers can be created, deleted, renamed
@@ -54,7 +55,7 @@ pub struct CollidersTab {
     remove_button: Handle<Button>,
     add_button: Handle<Button>,
     data_panel: Handle<UiNode>,
-    name_field: Handle<UiNode>,
+    name_field: Handle<TextBox>,
     color_field: Handle<UiNode>,
 }
 

@@ -201,9 +201,9 @@ pub type FilterCallback = dyn FnMut(char) -> bool + Send;
 /// ```rust,no_run
 /// # use fyrox_ui::{
 /// #     core::pool::Handle,
-/// #     text_box::TextBoxBuilder, widget::WidgetBuilder, UiNode, UserInterface
+/// #     text_box::{TextBox, TextBoxBuilder}, widget::WidgetBuilder, UiNode, UserInterface
 /// # };
-/// fn create_text_box(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
+/// fn create_text_box(ui: &mut UserInterface, text: &str) -> Handle<TextBox> {
 ///     TextBoxBuilder::new(WidgetBuilder::new())
 ///         .with_text(text)
 ///         .build(&mut ui.build_ctx())
@@ -220,10 +220,10 @@ pub type FilterCallback = dyn FnMut(char) -> bool + Send;
 /// ```rust,no_run
 /// # use fyrox_ui::{
 /// #     core::pool::Handle,
-/// #     text_box::TextBoxBuilder, widget::WidgetBuilder, HorizontalAlignment, UiNode, UserInterface,
+/// #     text_box::{TextBox, TextBoxBuilder}, widget::WidgetBuilder, HorizontalAlignment, UiNode, UserInterface,
 /// #     VerticalAlignment,
 /// # };
-/// fn create_centered_text(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
+/// fn create_centered_text(ui: &mut UserInterface, text: &str) -> Handle<TextBox> {
 ///     TextBoxBuilder::new(WidgetBuilder::new())
 ///         .with_horizontal_text_alignment(HorizontalAlignment::Center)
 ///         .with_vertical_text_alignment(VerticalAlignment::Center)
@@ -239,10 +239,10 @@ pub type FilterCallback = dyn FnMut(char) -> bool + Send;
 /// ```rust,no_run
 /// # use fyrox_ui::{
 /// #     core::pool::Handle,
-/// #     formatted_text::WrapMode, text_box::TextBoxBuilder, widget::WidgetBuilder, UiNode,
+/// #     formatted_text::WrapMode, text_box::{TextBox, TextBoxBuilder}, widget::WidgetBuilder, UiNode,
 /// #     UserInterface,
 /// # };
-/// fn create_text_with_word_wrap(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
+/// fn create_text_with_word_wrap(ui: &mut UserInterface, text: &str) -> Handle<TextBox> {
 ///     TextBoxBuilder::new(WidgetBuilder::new())
 ///         .with_wrap(WrapMode::Word)
 ///         .with_text(text)
@@ -257,9 +257,9 @@ pub type FilterCallback = dyn FnMut(char) -> bool + Send;
 /// ```rust,no_run
 /// # use fyrox_ui::{
 /// #     core::{color::Color, pool::Handle},
-/// #     brush::Brush, text_box::TextBoxBuilder, widget::WidgetBuilder, UiNode, UserInterface
+/// #     brush::Brush, text_box::{TextBox, TextBoxBuilder}, widget::WidgetBuilder, UiNode, UserInterface
 /// # };
-/// fn create_text(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
+/// fn create_text(ui: &mut UserInterface, text: &str) -> Handle<TextBox> {
 ///     //                  vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 ///     TextBoxBuilder::new(WidgetBuilder::new().with_foreground(Brush::Solid(Color::RED).into()))
 ///         .with_text(text)
@@ -273,13 +273,13 @@ pub type FilterCallback = dyn FnMut(char) -> bool + Send;
 /// # use fyrox_resource::manager::ResourceManager;
 /// # use fyrox_ui::{
 /// #     core::{futures::executor::block_on, pool::Handle},
-/// #     text_box::TextBoxBuilder,
+/// #     text_box::{TextBox, TextBoxBuilder},
 /// #     font::{Font},
 /// #     widget::WidgetBuilder,
 /// #     UiNode, UserInterface,
 /// # };
 ///
-/// fn create_text(ui: &mut UserInterface, resource_manager: &ResourceManager, text: &str) -> Handle<UiNode> {
+/// fn create_text(ui: &mut UserInterface, resource_manager: &ResourceManager, text: &str) -> Handle<TextBox> {
 ///     TextBoxBuilder::new(WidgetBuilder::new())
 ///         .with_font(resource_manager.request::<Font>("path/to/your/font.ttf"))
 ///         .with_text(text)
@@ -373,11 +373,11 @@ pub type FilterCallback = dyn FnMut(char) -> bool + Send;
 /// ```rust,no_run
 /// # use fyrox_ui::{
 /// #     core::pool::Handle,
-/// #     text_box::TextBoxBuilder, widget::WidgetBuilder, UiNode, UserInterface
+/// #     text_box::{TextBox, TextBoxBuilder}, widget::WidgetBuilder, UiNode, UserInterface
 /// # };
 /// # use std::sync::Arc;
 /// # use fyrox_core::parking_lot::Mutex;
-/// fn create_text_box(ui: &mut UserInterface) -> Handle<UiNode> {
+/// fn create_text_box(ui: &mut UserInterface) -> Handle<TextBox> {
 ///     TextBoxBuilder::new(WidgetBuilder::new())
 ///         // Specify a filter that will pass only digits.
 ///         .with_filter(Arc::new(Mutex::new(|c: char| c.is_ascii_digit())))
@@ -447,6 +447,7 @@ impl ConstructorProvider<UiNode, UserInterface> for TextBox {
                 TextBoxBuilder::new(WidgetBuilder::new().with_name("Text Box"))
                     .with_text("Text")
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Input")
@@ -1681,7 +1682,7 @@ impl<'a> TextBoxBuilder<'a> {
     }
 
     /// Creates a new [`TextBox`] instance and adds it to the user interface.
-    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<TextBox> {
         let style = &ctx.style;
 
         if self.widget_builder.foreground.is_none() {
@@ -1746,7 +1747,7 @@ impl<'a> TextBoxBuilder<'a> {
             placeholder,
         };
 
-        ctx.add_node(UiNode::new(text_box))
+        ctx.add_node(UiNode::new(text_box)).to_variant()
     }
 }
 

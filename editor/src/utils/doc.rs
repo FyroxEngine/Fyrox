@@ -30,11 +30,12 @@ use crate::fyrox::{
         BuildContext, Thickness, UiNode, UserInterface,
     },
 };
+use fyrox::gui::text_box::TextBox;
 use fyrox::gui::window::WindowAlignment;
 
 pub struct DocWindow {
     pub window: Handle<UiNode>,
-    text: Handle<UiNode>,
+    text: Handle<TextBox>,
 }
 
 impl DocWindow {

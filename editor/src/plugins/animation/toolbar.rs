@@ -87,7 +87,7 @@ pub struct Toolbar {
     pub remove_current_animation: Handle<Button>,
     pub rename_current_animation: Handle<Button>,
     pub clone_current_animation: Handle<Button>,
-    pub animation_name: Handle<UiNode>,
+    pub animation_name: Handle<TextBox>,
     pub preview: Handle<UiNode>,
     pub time_slice_start: Handle<UiNode>,
     pub time_slice_end: Handle<UiNode>,
@@ -929,20 +929,11 @@ impl Toolbar {
                 sender.do_command(SetAnimationNameCommand {
                     node_handle: animation_player_handle,
                     animation_handle: selection.animation,
-                    value: ui
-                        .node(self.animation_name)
-                        .query_component::<TextBox>()
-                        .unwrap()
-                        .text(),
+                    value: ui[self.animation_name].text(),
                 });
             } else if message.destination() == self.add_animation {
                 let mut animation = Animation::default();
-                animation.set_name(
-                    ui.node(self.animation_name)
-                        .query_component::<TextBox>()
-                        .unwrap()
-                        .text(),
-                );
+                animation.set_name(ui[self.animation_name].text());
                 sender.do_command(AddAnimationCommand::new(animation_player_handle, animation));
             } else if message.destination() == self.clone_current_animation {
                 if let Ok(animation) = animations.try_get(selection.animation) {

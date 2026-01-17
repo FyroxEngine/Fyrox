@@ -81,10 +81,12 @@ impl MessageData for ListViewMessage {}
 ///         .with_items(vec![
 ///             TextBuilder::new(WidgetBuilder::new())
 ///                 .with_text("Item0")
-///                 .build(ctx),
+///                 .build(ctx)
+///                 .to_base(),
 ///             TextBuilder::new(WidgetBuilder::new())
 ///                 .with_text("Item1")
-///                 .build(ctx),
+///                 .build(ctx)
+///                 .to_base(),
 ///         ])
 ///         .build(ctx)
 /// }
@@ -111,10 +113,12 @@ impl MessageData for ListViewMessage {}
 ///         .with_items(vec![
 ///             TextBuilder::new(WidgetBuilder::new())
 ///                 .with_text("Item0")
-///                 .build(ctx),
+///                 .build(ctx)
+///                 .to_base(),
 ///             TextBuilder::new(WidgetBuilder::new())
 ///                 .with_text("Item1")
-///                 .build(ctx),
+///                 .build(ctx)
+///                 .to_base(),
 ///         ])
 ///         .build(ctx)
 /// }
@@ -177,10 +181,12 @@ impl MessageData for ListViewMessage {}
 ///     let items = vec![
 ///         TextBuilder::new(WidgetBuilder::new())
 ///             .with_text("Item0")
-///             .build(ctx),
+///             .build(ctx)
+///             .to_base(),
 ///         TextBuilder::new(WidgetBuilder::new())
 ///             .with_text("Item1")
-///             .build(ctx),
+///             .build(ctx)
+///             .to_base(),
 ///     ];
 ///
 ///     // Then send the message with their handles to the list view.

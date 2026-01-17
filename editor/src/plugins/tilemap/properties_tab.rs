@@ -48,6 +48,7 @@ use commands::*;
 use fyrox::core::pool::ObjectOrVariant;
 use fyrox::gui::border::Border;
 use fyrox::gui::text::Text;
+use fyrox::gui::text_box::TextBox;
 
 /// This is the tab of the tile set editor that allows the user to modify the property
 /// layers stored within the tile set. Layers can be created, deleted, renamed
@@ -62,7 +63,7 @@ pub struct PropertiesTab {
     add_float_button: Handle<Button>,
     add_string_button: Handle<Button>,
     add_nine_button: Handle<Button>,
-    name_field: Handle<UiNode>,
+    name_field: Handle<TextBox>,
     name_list: Handle<UiNode>,
     name_up: Handle<Button>,
     name_down: Handle<Button>,
@@ -70,7 +71,7 @@ pub struct PropertiesTab {
     name_remove: Handle<Button>,
     data_panel: Handle<UiNode>,
     name_edit_panel: Handle<Border>,
-    value_name_field: Handle<UiNode>,
+    value_name_field: Handle<TextBox>,
     color_field: Handle<UiNode>,
     i8_field: Handle<UiNode>,
     i32_field: Handle<UiNode>,

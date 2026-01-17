@@ -50,7 +50,7 @@ use crate::{
 
 use crate::button::Button;
 use crate::message::MessageData;
-use crate::text_box::EmptyTextPlaceholder;
+use crate::text_box::{EmptyTextPlaceholder, TextBox};
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 
 /// A set of messages that can be used to get the state of a search bar.
@@ -102,7 +102,7 @@ pub struct SearchBar {
     /// Base widget of the search bar.
     pub widget: Widget,
     /// A handle of a text box widget used for text input.
-    pub text_box: InheritableVariable<Handle<UiNode>>,
+    pub text_box: InheritableVariable<Handle<TextBox>>,
     /// A handle of a button, that is used to clear the text.
     pub clear: InheritableVariable<Handle<Button>>,
 }

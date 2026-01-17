@@ -5,6 +5,7 @@ use crate::{
     ui_scene::{commands::UiSceneContext, UiScene},
     Message,
 };
+use fyrox::gui::text_box::TextBox;
 use fyrox::{
     core::{pool::Handle, variable::InheritableVariable},
     engine::Engine,
@@ -22,7 +23,7 @@ use fyrox::{
 
 pub struct BBCodePanel {
     pub root_widget: Handle<UiNode>,
-    pub text_box: Handle<UiNode>,
+    pub text_box: Handle<TextBox>,
 }
 
 impl BBCodePanel {

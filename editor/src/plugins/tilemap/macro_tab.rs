@@ -27,6 +27,7 @@ use core::f32;
 use brush::{BrushMacroData, TileMapBrushResource};
 use fyrox::gui::border::Border;
 use fyrox::gui::button::Button;
+use fyrox::gui::text_box::TextBox;
 use fyrox::gui::{
     button::ButtonMessage,
     grid::*,
@@ -58,7 +59,7 @@ pub struct MacroTab {
     remove_button: Handle<Button>,
     add_buttons: Box<[Handle<UiNode>]>,
     data_panel: Handle<UiNode>,
-    name_field: Handle<UiNode>,
+    name_field: Handle<TextBox>,
 }
 
 fn make_arrow_button(

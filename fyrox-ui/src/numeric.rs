@@ -234,7 +234,7 @@ pub struct NumericUpDown<T: NumericType> {
     /// Base widget of the [`NumericUpDown`] widget.
     pub widget: Widget,
     /// A handle of the input field (usually a [`TextBox`] instance).
-    pub field: InheritableVariable<Handle<UiNode>>,
+    pub field: InheritableVariable<Handle<TextBox>>,
     /// A handle of the increase button.
     pub increase: InheritableVariable<Handle<Button>>,
     /// A handle of the decrease button.
@@ -319,7 +319,7 @@ impl<T: NumericType> NumericUpDown<T> {
 
     fn try_parse_value(&mut self, ui: &UserInterface) {
         // Parse input only when focus is lost from text field.
-        if let Some(field) = ui.node(*self.field).cast::<TextBox>() {
+        if let Ok(field) = ui.try_get(*self.field) {
             if let Ok(value) = field.text().parse::<T>() {
                 // If the value we got from the text box has changed since the last time
                 // we parsed it, then the value has been edited through the text box,

@@ -25,6 +25,7 @@
 
 use crate::button::Button;
 use crate::file_browser::PathFilter;
+use crate::text_box::TextBox;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
@@ -79,7 +80,7 @@ pub struct PathEditor {
     /// Base widget of the editor.
     pub widget: Widget,
     /// A handle of the text field, that is used to show current path.
-    pub text_field: InheritableVariable<Handle<UiNode>>,
+    pub text_field: InheritableVariable<Handle<TextBox>>,
     /// A button, that opens a file selection.
     pub select: InheritableVariable<Handle<Button>>,
     /// Current file selector instance, could be [`Handle::NONE`] if the selector is closed.

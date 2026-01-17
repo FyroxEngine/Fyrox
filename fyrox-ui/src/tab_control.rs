@@ -158,11 +158,13 @@ pub struct Tab {
 ///             TabDefinition{
 ///                 header: TextBuilder::new(WidgetBuilder::new())
 ///                             .with_text("First")
-///                             .build(ctx),
+///                             .build(ctx)
+///                             .to_base(),
 ///
 ///                 content: TextBuilder::new(WidgetBuilder::new())
 ///                             .with_text("First tab's contents!")
-///                             .build(ctx),
+///                             .build(ctx)
+///                             .to_base(),
 ///                 can_be_closed: true,
 ///                 user_data: None
 ///             }
@@ -171,11 +173,13 @@ pub struct Tab {
 ///             TabDefinition{
 ///                 header: TextBuilder::new(WidgetBuilder::new())
 ///                             .with_text("Second")
-///                             .build(ctx),
+///                             .build(ctx)
+///                             .to_base(),
 ///
 ///                 content: TextBuilder::new(WidgetBuilder::new())
 ///                             .with_text("Second tab's contents!")
-///                             .build(ctx),
+///                             .build(ctx)
+///                             .to_base(),
 ///                 can_be_closed: true,
 ///                 user_data: None
 ///             }
@@ -218,7 +222,8 @@ pub struct Tab {
 ///                 .with_margin(Thickness::uniform(4.0))
 ///         )
 ///             .with_text("First")
-///             .build(ctx),
+///             .build(ctx)
+///             .to_base(),
 /// # content: Default::default(),
 /// # can_be_closed: true,
 /// # user_data: None

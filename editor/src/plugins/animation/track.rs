@@ -99,6 +99,7 @@ use crate::{
 use fyrox::asset::Resource;
 use fyrox::gui::button::Button;
 use fyrox::gui::message::MessageData;
+use fyrox::gui::text_box::TextBox;
 use fyrox::gui::window::WindowAlignment;
 use fyrox::resource::model::ModelResource;
 use std::{
@@ -505,7 +506,7 @@ impl TrackViewBuilder {
 
 struct Toolbar {
     panel: Handle<UiNode>,
-    search_text: Handle<UiNode>,
+    search_text: Handle<TextBox>,
     clear_search_text: Handle<Button>,
     collapse_all: Handle<Button>,
     expand_all: Handle<Button>,

@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::button::Button;
+use crate::text_box::TextBox;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     control_trait_proxy_impls,
@@ -45,7 +46,7 @@ impl MessageData for FolderNameDialogMessage {}
 #[reflect(derived_type = "UiNode")]
 pub struct FolderNameDialog {
     pub window: Window,
-    pub folder_name_tb: Handle<UiNode>,
+    pub folder_name_tb: Handle<TextBox>,
     pub folder_name: String,
     pub ok: Handle<Button>,
     pub cancel: Handle<Button>,

@@ -85,9 +85,9 @@ impl MessageData for TextMessage {}
 /// ```rust
 /// # use fyrox_ui::{
 /// #     core::pool::Handle,
-/// #     text::TextBuilder, widget::WidgetBuilder, UiNode, UserInterface
+/// #     text::{Text, TextBuilder}, widget::WidgetBuilder, UiNode, UserInterface
 /// # };
-/// fn create_text(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
+/// fn create_text(ui: &mut UserInterface, text: &str) -> Handle<Text> {
 ///     TextBuilder::new(WidgetBuilder::new())
 ///         .with_text(text)
 ///         .build(&mut ui.build_ctx())
@@ -104,10 +104,10 @@ impl MessageData for TextMessage {}
 /// ```rust,no_run
 /// # use fyrox_ui::{
 /// #     core::pool::Handle,
-/// #     text::TextBuilder, widget::WidgetBuilder, HorizontalAlignment, UiNode, UserInterface,
+/// #     text::{Text, TextBuilder}, widget::WidgetBuilder, HorizontalAlignment, UiNode, UserInterface,
 /// #     VerticalAlignment,
 /// # };
-/// fn create_centered_text(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
+/// fn create_centered_text(ui: &mut UserInterface, text: &str) -> Handle<Text> {
 ///     TextBuilder::new(WidgetBuilder::new())
 ///         .with_horizontal_text_alignment(HorizontalAlignment::Center)
 ///         .with_vertical_text_alignment(VerticalAlignment::Center)
@@ -128,10 +128,10 @@ impl MessageData for TextMessage {}
 /// ```rust,no_run
 /// # use fyrox_ui::{
 /// #     core::pool::Handle,
-/// #     formatted_text::WrapMode, text::TextBuilder, widget::WidgetBuilder, UiNode,
+/// #     formatted_text::WrapMode, text::{Text, TextBuilder}, widget::WidgetBuilder, UiNode,
 /// #     UserInterface,
 /// # };
-/// fn create_text_with_word_wrap(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
+/// fn create_text_with_word_wrap(ui: &mut UserInterface, text: &str) -> Handle<Text> {
 ///     TextBuilder::new(WidgetBuilder::new())
 ///         .with_wrap(WrapMode::Word)
 ///         .with_text(text)
@@ -176,9 +176,9 @@ impl MessageData for TextMessage {}
 /// ```rust,no_run
 /// # use fyrox_ui::{
 /// #     core::{color::Color, pool::Handle},
-/// #     brush::Brush, text::TextBuilder, widget::WidgetBuilder, UiNode, UserInterface
+/// #     brush::Brush, text::{Text, TextBuilder}, widget::WidgetBuilder, UiNode, UserInterface
 /// # };
-/// fn create_text(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
+/// fn create_text(ui: &mut UserInterface, text: &str) -> Handle<Text> {
 ///     //               vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 ///     TextBuilder::new(WidgetBuilder::new().with_foreground(Brush::Solid(Color::RED).into()))
 ///         .with_text(text)
@@ -192,13 +192,13 @@ impl MessageData for TextMessage {}
 /// # use fyrox_resource::manager::ResourceManager;
 /// # use fyrox_ui::{
 /// #     core::{futures::executor::block_on, pool::Handle},
-/// #     text::TextBuilder,
+/// #     text::{Text, TextBuilder},
 /// #     font::{Font, FontResource},
 /// #     widget::WidgetBuilder,
 /// #     UiNode, UserInterface,
 /// # };
 ///
-/// fn create_text(ui: &mut UserInterface, resource_manager: &ResourceManager, text: &str) -> Handle<UiNode> {
+/// fn create_text(ui: &mut UserInterface, resource_manager: &ResourceManager, text: &str) -> Handle<Text> {
 ///     TextBuilder::new(WidgetBuilder::new())
 ///         .with_font(resource_manager.request::<Font>("path/to/your/font.ttf"))
 ///         .with_text(text)
@@ -223,10 +223,10 @@ impl MessageData for TextMessage {}
 /// ```rust,no_run
 /// # use fyrox_ui::{
 /// #     core::{algebra::Vector2, color::Color, pool::Handle},
-/// #     brush::Brush, text::TextBuilder, widget::WidgetBuilder, UiNode, UserInterface
+/// #     brush::Brush, text::{Text, TextBuilder}, widget::WidgetBuilder, UiNode, UserInterface
 /// # };
 /// #
-/// fn create_red_text_with_black_shadows(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
+/// fn create_red_text_with_black_shadows(ui: &mut UserInterface, text: &str) -> Handle<Text> {
 ///     TextBuilder::new(WidgetBuilder::new().with_foreground(Brush::Solid(Color::RED).into()))
 ///         .with_text(text)
 ///         // Enable shadows.
@@ -250,11 +250,11 @@ impl MessageData for TextMessage {}
 /// ```rust,no_run
 /// # use fyrox_ui::{
 /// #     core::{algebra::Vector2, color::Color, pool::Handle},
-/// #     brush::Brush, text::TextBuilder, widget::WidgetBuilder, UiNode, UserInterface,
+/// #     brush::Brush, text::{Text, TextBuilder}, widget::WidgetBuilder, UiNode, UserInterface,
 /// #     formatted_text::Run,
 /// # };
 /// #
-/// fn create_text_with_red_run(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
+/// fn create_text_with_red_run(ui: &mut UserInterface, text: &str) -> Handle<Text> {
 ///     TextBuilder::new(WidgetBuilder::new())
 ///         .with_text(text)
 ///         .with_run(Run::new(5..22).with_brush(Brush::Solid(Color::RED)).with_shadow(true))
@@ -276,10 +276,10 @@ impl MessageData for TextMessage {}
 /// ```rust,no_run
 /// # use fyrox_ui::{
 /// #     core::{algebra::Vector2, color::Color, pool::Handle},
-/// #     brush::Brush, text::TextBuilder, widget::WidgetBuilder, UiNode, UserInterface
+/// #     brush::Brush, text::{Text, TextBuilder}, widget::WidgetBuilder, UiNode, UserInterface
 /// # };
 /// #
-/// fn create_text_with_bbcode(ui: &mut UserInterface) -> Handle<UiNode> {
+/// fn create_text_with_bbcode(ui: &mut UserInterface) -> Handle<Text> {
 ///     TextBuilder::new(WidgetBuilder::new())
 ///         .with_bbcode("BBCode example: [b][c=blue]bold and blue[/c][/b]")
 ///         .build(&mut ui.build_ctx())

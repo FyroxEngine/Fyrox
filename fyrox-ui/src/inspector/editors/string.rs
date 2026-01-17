@@ -49,8 +49,8 @@ impl PropertyEditorDefinition for StringPropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<String>()?;
-        Ok(PropertyEditorInstance::Simple {
-            editor: TextBoxBuilder::new(
+        Ok(PropertyEditorInstance::simple(
+            TextBoxBuilder::new(
                 WidgetBuilder::new()
                     .with_min_size(Vector2::new(0.0, 17.0))
                     .with_margin(Thickness::uniform(1.0)),
@@ -60,7 +60,7 @@ impl PropertyEditorDefinition for StringPropertyEditorDefinition {
             .with_text(value)
             .with_vertical_text_alignment(VerticalAlignment::Center)
             .build(ctx.build_context),
-        })
+        ))
     }
 
     fn create_message(

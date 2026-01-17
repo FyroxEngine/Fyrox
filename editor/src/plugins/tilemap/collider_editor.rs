@@ -28,6 +28,7 @@ use commands::SetTileSetTilesCommand;
 use fyrox::core::pool::ObjectOrVariant;
 use fyrox::gui::border::Border;
 use fyrox::gui::text::Text;
+use fyrox::gui::text_box::TextBox;
 use fyrox::{
     asset::Resource,
     core::{algebra::Vector2, color::Color, pool::Handle, type_traits::prelude::*},
@@ -95,7 +96,7 @@ pub struct TileColliderEditor {
     /// The dropdown list of collider types.
     list: Handle<UiNode>,
     /// The textbox for editing a custom collider.
-    custom_field: Handle<UiNode>,
+    custom_field: Handle<TextBox>,
     /// A text widget for showing an error in the custom collider text.
     error_field: Handle<Text>,
     /// True if the custom collider text actually has an error.

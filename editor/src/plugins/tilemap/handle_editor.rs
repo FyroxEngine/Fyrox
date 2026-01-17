@@ -26,6 +26,7 @@ use super::*;
 use fyrox::gui::button::Button;
 use fyrox::gui::inspector::FieldKind;
 use fyrox::gui::message::MessageData;
+use fyrox::gui::text_box::TextBox;
 use fyrox::{
     core::{
         color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
@@ -83,7 +84,7 @@ impl MessageData for TileDefinitionHandleEditorMessage {}
 #[type_uuid(id = "60146cf0-33e3-4757-8e66-e7196324271f")]
 pub struct TileDefinitionHandleEditor {
     widget: Widget,
-    field: Handle<UiNode>,
+    field: Handle<TextBox>,
     button: Handle<Button>,
     value: Option<TileDefinitionHandle>,
     allow_none: bool,
