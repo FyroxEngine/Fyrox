@@ -64,6 +64,7 @@ use std::{
     path::Path,
     sync::{mpsc::Sender, Arc},
 };
+use fyrox::gui::image::Image;
 
 fn resource_path<T>(resource_manager: &ResourceManager, resource: &Option<Resource<T>>) -> String
 where
@@ -132,8 +133,8 @@ where
     #[visit(skip)]
     #[reflect(hidden)]
     sender: MessageSender,
-    image: Handle<UiNode>,
-    image_preview: Handle<UiNode>,
+    image: Handle<Image>,
+    image_preview: Handle<Image>,
 }
 
 impl<T> Debug for ResourceField<T>

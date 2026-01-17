@@ -60,6 +60,7 @@ use crate::{
     },
 };
 use fyrox::asset::manager::ResourceManager;
+use fyrox::core::pool::ObjectOrVariant;
 use fyrox::gui::text::Text;
 use fyrox::gui::window::WindowAlignment;
 
@@ -413,7 +414,8 @@ impl TileMapPanel {
     }
 
     /// Bring the window to the front and move it to the top-right of the given node.
-    pub fn align(&self, relative_to: Handle<UiNode>, ui: &UserInterface) {
+    pub fn align(&self, relative_to: Handle<impl ObjectOrVariant<UiNode>>, ui: &UserInterface) {
+        let relative_to = relative_to.to_base();
         if ui.node(self.window).visibility() {
             ui.send(
                 self.window,

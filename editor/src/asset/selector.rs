@@ -54,6 +54,7 @@ use crate::{
     },
 };
 use fyrox::gui::control_trait_proxy_impls;
+use fyrox::gui::image::Image;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
 use fyrox::gui::window::WindowAlignment;
 use rust_fuzzy_search::fuzzy_compare;
@@ -75,7 +76,7 @@ impl MessageData for AssetSelectorMessage {}
 #[type_uuid(id = "aa4f0726-8d25-4c90-add1-92ba392310c6")]
 struct Item {
     pub widget: Widget,
-    image: Handle<UiNode>,
+    image: Handle<Image>,
     path: PathBuf,
     #[visit(skip)]
     #[reflect(hidden)]

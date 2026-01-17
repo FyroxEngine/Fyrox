@@ -69,7 +69,7 @@ enum Mode {
 pub struct PreviewPanel {
     scene: Handle<Scene>,
     pub root: Handle<UiNode>,
-    frame: Handle<UiNode>,
+    frame: Handle<Image>,
     camera_pivot: Handle<Pivot>,
     fit: Handle<Button>,
     hinge: Handle<Pivot>,
@@ -395,24 +395,18 @@ impl PreviewPanel {
         } else {
             unreachable!();
         };
-        if let Some(frame) = engine
-            .user_interfaces
-            .first_mut()
-            .node(self.frame)
-            .cast::<Image>()
+
+        let frame = &engine.user_interfaces.first_mut()[self.frame];
+        let frame_size = frame.actual_local_size();
+        if !frame_size.is_zero()
+            && (rt_width != frame_size.x as u32 || rt_height != frame_size.y as u32)
         {
-            let frame_size = frame.actual_local_size();
-            if !frame_size.is_zero()
-                && (rt_width != frame_size.x as u32 || rt_height != frame_size.y as u32)
-            {
-                let rt =
-                    TextureResource::new_render_target(frame_size.x as u32, frame_size.y as u32);
-                scene.rendering_options.render_target = Some(rt.clone());
-                engine
-                    .user_interfaces
-                    .first()
-                    .send(self.frame, ImageMessage::Texture(Some(rt)));
-            }
+            let rt = TextureResource::new_render_target(frame_size.x as u32, frame_size.y as u32);
+            scene.rendering_options.render_target = Some(rt.clone());
+            engine
+                .user_interfaces
+                .first()
+                .send(self.frame, ImageMessage::Texture(Some(rt)));
         }
     }
 

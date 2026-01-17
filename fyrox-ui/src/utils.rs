@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::button::Button;
+use crate::image::Image;
 use crate::{
     border::BorderBuilder,
     button::ButtonBuilder,
@@ -173,7 +174,7 @@ pub fn make_simple_tooltip(ctx: &mut BuildContext, text: &str) -> RcUiNodeHandle
 pub fn make_asset_preview_tooltip(
     texture: Option<TextureResource>,
     ctx: &mut BuildContext,
-) -> (RcUiNodeHandle, Handle<UiNode>) {
+) -> (RcUiNodeHandle, Handle<Image>) {
     let size = 120.0;
     let image_preview;
     let image_preview_tooltip = BorderBuilder::new(

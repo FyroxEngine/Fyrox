@@ -69,6 +69,7 @@ use crate::{
     Mode,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::image::Image;
 use fyrox::gui::window::WindowAlignment;
 use std::collections::HashMap;
 
@@ -78,7 +79,7 @@ pub struct NavmeshPanel {
     pub window: Handle<UiNode>,
     connect_edges: Handle<Button>,
     sender: MessageSender,
-    scene_frame: Handle<UiNode>,
+    scene_frame: Handle<Image>,
 }
 
 fn fetch_selection(editor_selection: &Selection) -> Option<NavmeshSelection> {
@@ -92,7 +93,7 @@ fn fetch_selection(editor_selection: &Selection) -> Option<NavmeshSelection> {
 }
 
 impl NavmeshPanel {
-    pub fn new(scene_frame: Handle<UiNode>, ctx: &mut BuildContext, sender: MessageSender) -> Self {
+    pub fn new(scene_frame: Handle<Image>, ctx: &mut BuildContext, sender: MessageSender) -> Self {
         let connect_edges;
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("NavmeshPanel"))
             .open(false)
@@ -172,7 +173,7 @@ impl NavmeshPanel {
                 self.window,
                 WindowMessage::Open {
                     alignment: WindowAlignment::Relative {
-                        relative_to: self.scene_frame,
+                        relative_to: self.scene_frame.to_base(),
                         horizontal_alignment: HorizontalAlignment::Right,
                         vertical_alignment: VerticalAlignment::Top,
                         margin: Thickness::uniform(1.0),

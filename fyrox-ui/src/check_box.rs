@@ -286,20 +286,23 @@ impl CheckBoxBuilder {
     }
 
     /// Sets the desired check mark when the state is `Some(true)`.
-    pub fn with_check_mark(mut self, check_mark: Handle<UiNode>) -> Self {
-        self.check_mark = Some(check_mark);
+    pub fn with_check_mark(mut self, check_mark: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        self.check_mark = Some(check_mark.to_base());
         self
     }
 
     /// Sets the desired check mark when the state is `Some(false)`.
-    pub fn with_uncheck_mark(mut self, uncheck_mark: Handle<UiNode>) -> Self {
-        self.uncheck_mark = Some(uncheck_mark);
+    pub fn with_uncheck_mark(mut self, uncheck_mark: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        self.uncheck_mark = Some(uncheck_mark.to_base());
         self
     }
 
     /// Sets the desired check mark when the state is `None`.
-    pub fn with_undefined_mark(mut self, undefined_mark: Handle<UiNode>) -> Self {
-        self.undefined_mark = Some(undefined_mark);
+    pub fn with_undefined_mark(
+        mut self,
+        undefined_mark: Handle<impl ObjectOrVariant<UiNode>>,
+    ) -> Self {
+        self.undefined_mark = Some(undefined_mark.to_base());
         self
     }
 

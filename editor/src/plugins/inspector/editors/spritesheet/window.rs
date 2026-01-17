@@ -53,6 +53,7 @@ use std::{
     ops::{Deref, DerefMut},
     sync::{mpsc::Sender, Arc},
 };
+use fyrox::gui::image::Image;
 
 #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]
@@ -68,7 +69,7 @@ pub struct SpriteSheetFramesEditorWindow {
     preview_container: Handle<Border>,
     cells: Vec<Handle<UiNode>>,
     animation: SpriteSheetAnimation,
-    preview_image: Handle<UiNode>,
+    preview_image: Handle<Image>,
 }
 
 impl Deref for SpriteSheetFramesEditorWindow {

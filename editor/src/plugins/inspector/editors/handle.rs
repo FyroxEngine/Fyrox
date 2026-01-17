@@ -65,6 +65,7 @@ use std::{
     ops::{Deref, DerefMut},
     sync::Mutex,
 };
+use fyrox::gui::image::Image;
 
 pub enum HandlePropertyEditorMessage<T: Reflect> {
     Value(Handle<T>),
@@ -320,7 +321,7 @@ struct HandlePropertyEditorBuilder<T: Reflect> {
     sender: MessageSender,
 }
 
-fn make_icon(data: &[u8], color: Color, ctx: &mut BuildContext) -> Handle<UiNode> {
+fn make_icon(data: &[u8], color: Color, ctx: &mut BuildContext) -> Handle<Image> {
     ImageBuilder::new(
         WidgetBuilder::new()
             .with_width(16.0)

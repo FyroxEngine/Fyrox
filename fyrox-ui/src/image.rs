@@ -66,10 +66,10 @@ impl MessageData for ImageMessage {}
 /// # use fyrox_texture::TextureResource;
 /// # use fyrox_ui::{
 /// #     core::pool::Handle,
-/// #     image::ImageBuilder, widget::WidgetBuilder, BuildContext, UiNode,
+/// #     image::{Image, ImageBuilder}, widget::WidgetBuilder, BuildContext, UiNode,
 /// # };
 ///
-/// fn create_image(ctx: &mut BuildContext, texture: TextureResource) -> Handle<UiNode> {
+/// fn create_image(ctx: &mut BuildContext, texture: TextureResource) -> Handle<Image> {
 ///     ImageBuilder::new(WidgetBuilder::new())
 ///         .with_texture(texture)
 ///         .build(ctx)
@@ -93,10 +93,10 @@ impl MessageData for ImageMessage {}
 /// # use fyrox_texture::TextureResource;
 /// # use fyrox_ui::{
 /// #     core::pool::Handle,
-/// #     image::ImageBuilder, widget::WidgetBuilder, BuildContext, UiNode
+/// #     image::{Image, ImageBuilder}, widget::WidgetBuilder, BuildContext, UiNode
 /// # };
 ///
-/// fn create_image(ctx: &mut BuildContext, texture: TextureResource) -> Handle<UiNode> {
+/// fn create_image(ctx: &mut BuildContext, texture: TextureResource) -> Handle<Image> {
 ///     ImageBuilder::new(WidgetBuilder::new().with_width(100.0).with_height(100.0))
 ///         .with_flip(true) // Flips an image vertically
 ///         .with_texture(texture)
@@ -139,10 +139,10 @@ impl MessageData for ImageMessage {}
 /// # use fyrox_texture::TextureResource;
 /// # use fyrox_ui::{
 /// #     core::{pool::Handle, math::Rect},
-/// #     image::ImageBuilder, widget::WidgetBuilder, BuildContext, UiNode
+/// #     image::{Image, ImageBuilder}, widget::WidgetBuilder, BuildContext, UiNode
 /// # };
 ///
-/// fn create_image(ctx: &mut BuildContext, texture: TextureResource) -> Handle<UiNode> {
+/// fn create_image(ctx: &mut BuildContext, texture: TextureResource) -> Handle<Image> {
 ///     ImageBuilder::new(WidgetBuilder::new().with_width(100.0).with_height(100.0))
 ///         .with_uv_rect(Rect::new(0.0, 0.0, 0.25, 0.25)) // Uses top-left quadrant of the texture.
 ///         .with_texture(texture)
@@ -189,6 +189,7 @@ impl ConstructorProvider<UiNode, UserInterface> for Image {
                         .with_name("Image"),
                 )
                 .build(&mut ui.build_ctx())
+                .to_base()
                 .into()
             })
             .with_group("Visual")
@@ -405,8 +406,8 @@ impl ImageBuilder {
     }
 
     /// Builds the [`Image`] widget and adds it to the UI and returns its handle.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        ctx.add_node(self.build_node(ctx))
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<Image> {
+        ctx.add_node(self.build_node(ctx)).to_variant()
     }
 }
 

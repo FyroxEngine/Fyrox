@@ -59,6 +59,7 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+use fyrox::gui::image::Image;
 
 pub const DEFAULT_SIZE: f32 = 60.0;
 pub const DEFAULT_VEC_SIZE: Vector2<f32> = Vector2::new(DEFAULT_SIZE, DEFAULT_SIZE);
@@ -84,7 +85,7 @@ impl MessageData for AssetItemMessage {}
 pub struct AssetItem {
     widget: Widget,
     pub path: PathBuf,
-    preview: Handle<UiNode>,
+    preview: Handle<Image>,
     selected: bool,
     text_border: Handle<Border>,
     #[visit(skip)]

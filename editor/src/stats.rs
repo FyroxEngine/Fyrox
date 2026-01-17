@@ -30,6 +30,7 @@ use crate::fyrox::{
         BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
 };
+use fyrox::core::pool::ObjectOrVariant;
 use fyrox::gui::text::Text;
 use fyrox::gui::window::WindowAlignment;
 use fyrox::scene::Scene;
@@ -45,7 +46,7 @@ pub enum StatisticsWindowAction {
 }
 
 impl StatisticsWindow {
-    pub fn new(ctx: &mut BuildContext, anchor: Handle<UiNode>) -> Self {
+    pub fn new(ctx: &mut BuildContext, anchor: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
         let text;
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(215.0).with_height(300.0))
             .open(false)
@@ -67,7 +68,7 @@ impl StatisticsWindow {
             window,
             WindowMessage::Open {
                 alignment: WindowAlignment::Relative {
-                    relative_to: anchor,
+                    relative_to: anchor.to_base(),
                     horizontal_alignment: HorizontalAlignment::Right,
                     vertical_alignment: VerticalAlignment::Top,
                     margin: Thickness::uniform(2.0),

@@ -88,7 +88,7 @@ impl EditorPlugin for UiStatisticsPlugin {
                     self.window,
                     WindowMessage::Open {
                         alignment: WindowAlignment::Relative {
-                            relative_to: editor.scene_viewer.frame(),
+                            relative_to: editor.scene_viewer.frame().to_base(),
                             horizontal_alignment: HorizontalAlignment::Right,
                             vertical_alignment: VerticalAlignment::Bottom,
                             margin: Thickness::uniform(1.0),

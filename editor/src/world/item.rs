@@ -52,6 +52,7 @@ use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
+use fyrox::gui::image::Image;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SceneItemMessage {
@@ -79,7 +80,7 @@ pub struct SceneItem {
     grid: Handle<UiNode>,
     pub entity_handle: ErasedHandle,
     // Can be unassigned if there's no warning.
-    pub warning_icon: Handle<UiNode>,
+    pub warning_icon: Handle<Image>,
     #[reflect(hidden)]
     #[visit(skip)]
     sender: MessageSender,

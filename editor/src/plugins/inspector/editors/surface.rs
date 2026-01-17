@@ -61,6 +61,7 @@ use fyrox::gui::button::Button;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::text::Text;
 use std::{any::TypeId, sync::mpsc::Sender};
+use fyrox::gui::image::Image;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum SurfaceDataPropertyEditorMessage {
@@ -77,8 +78,8 @@ pub struct SurfaceDataPropertyEditor {
     view: Handle<Button>,
     surface_resource: SurfaceResource,
     text: Handle<Text>,
-    image: Handle<UiNode>,
-    image_preview: Handle<UiNode>,
+    image: Handle<Image>,
+    image_preview: Handle<Image>,
     #[visit(skip)]
     #[reflect(hidden)]
     sender: Option<MessageSender>,

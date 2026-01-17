@@ -43,7 +43,7 @@ use crate::{
 use fyrox::asset::manager::ResourceManager;
 use fyrox::core::Uuid;
 use fyrox::gui::file_browser::FileType;
-use fyrox::gui::image::ImageBuilder;
+use fyrox::gui::image::{Image, ImageBuilder};
 use fyrox::gui::texture::TextureResource;
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
@@ -68,7 +68,7 @@ pub struct Menu {
 }
 
 pub struct Panels<'b> {
-    pub scene_frame: Handle<UiNode>,
+    pub scene_frame: Handle<Image>,
     pub light_panel: Handle<UiNode>,
     pub log_panel: Handle<UiNode>,
     pub navmesh_panel: Handle<UiNode>,

@@ -76,6 +76,7 @@ use crate::{
 };
 
 use fyrox::gui::button::Button;
+use fyrox::gui::image::Image;
 use fyrox::gui::inspector::InspectorContextArgs;
 use fyrox::gui::window::WindowAlignment;
 use fyrox::scene::mesh::Mesh;
@@ -114,7 +115,7 @@ pub struct TerrainInteractionMode {
     brush_value: f32,
     brush: Brush,
     brush_panel: BrushPanel,
-    scene_viewer_frame: Handle<UiNode>,
+    scene_viewer_frame: Handle<Image>,
 }
 
 impl TerrainInteractionMode {
@@ -122,7 +123,7 @@ impl TerrainInteractionMode {
         game_scene: &GameScene,
         engine: &mut Engine,
         message_sender: MessageSender,
-        scene_viewer_frame: Handle<UiNode>,
+        scene_viewer_frame: Handle<Image>,
     ) -> Self {
         let brush = Brush {
             shape: BrushShape::Circle { radius: 1.0 },
@@ -421,7 +422,7 @@ impl InteractionMode for TerrainInteractionMode {
             self.brush_panel.window,
             WindowMessage::Open {
                 alignment: WindowAlignment::Relative {
-                    relative_to: self.scene_viewer_frame,
+                    relative_to: self.scene_viewer_frame.to_base(),
                     horizontal_alignment: HorizontalAlignment::Right,
                     vertical_alignment: VerticalAlignment::Top,
                     margin: Thickness::top_right(5.0),

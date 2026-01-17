@@ -61,6 +61,7 @@ use std::{
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
+use fyrox::gui::image::Image;
 
 #[derive(Clone, Debug, PartialEq)]
 struct TextureContextMenu {
@@ -111,7 +112,7 @@ impl TextureContextMenu {
 #[reflect(derived_type = "UiNode")]
 pub struct TextureEditor {
     widget: Widget,
-    image: Handle<UiNode>,
+    image: Handle<Image>,
     path: Handle<Text>,
     texture: Option<TextureResource>,
     selector_mixin: AssetSelectorMixin<Texture>,

@@ -66,6 +66,7 @@ use std::{
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
+use fyrox::gui::image::Image;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MaterialFieldMessage {
@@ -84,8 +85,8 @@ pub struct MaterialFieldEditor {
     edit: Handle<Button>,
     make_unique: Handle<Button>,
     material: MaterialResource,
-    image: Handle<UiNode>,
-    image_preview: Handle<UiNode>,
+    image: Handle<Image>,
+    image_preview: Handle<Image>,
     asset_selector_mixin: AssetSelectorMixin<Material>,
 }
 

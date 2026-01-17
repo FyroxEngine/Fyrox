@@ -40,6 +40,7 @@ use crate::{
     Message,
 };
 use fyrox::core::algebra::Vector2;
+use fyrox::gui::image::Image;
 use fyrox::gui::widget::WidgetMessage;
 use fyrox::gui::window::WindowAlignment;
 use fyrox::scene::collider::BitMask;
@@ -48,12 +49,12 @@ pub struct CameraPreviewControlPanel {
     pub window: Handle<UiNode>,
     preview: Handle<UiNode>,
     camera_state: Option<(Handle<Node>, Node)>,
-    scene_viewer_frame: Handle<UiNode>,
-    preview_frame: Handle<UiNode>,
+    scene_viewer_frame: Handle<Image>,
+    preview_frame: Handle<Image>,
 }
 
 impl CameraPreviewControlPanel {
-    pub fn new(scene_viewer_frame: Handle<UiNode>, ctx: &mut BuildContext) -> Self {
+    pub fn new(scene_viewer_frame: Handle<Image>, ctx: &mut BuildContext) -> Self {
         let preview;
         let preview_frame;
         let window = WindowBuilder::new(
@@ -135,7 +136,7 @@ impl CameraPreviewControlPanel {
                     self.window,
                     WindowMessage::Open {
                         alignment: WindowAlignment::Relative {
-                            relative_to: self.scene_viewer_frame,
+                            relative_to: self.scene_viewer_frame.to_base(),
                             horizontal_alignment: HorizontalAlignment::Right,
                             vertical_alignment: VerticalAlignment::Top,
                             margin: Thickness::top_right(5.0),

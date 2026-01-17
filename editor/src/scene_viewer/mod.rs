@@ -67,6 +67,7 @@ use crate::{
 };
 use fyrox::core::algebra::Vector2;
 use fyrox::gui::border::Border;
+use fyrox::gui::image::Image;
 use fyrox::gui::text::Text;
 use std::{
     ops::Deref,
@@ -262,7 +263,7 @@ impl GridSnappingMenu {
 }
 
 pub struct SceneViewer {
-    frame: Handle<UiNode>,
+    frame: Handle<Image>,
     window: Handle<UiNode>,
     selection_frame: Handle<Border>,
     interaction_modes: FxHashMap<Uuid, Handle<Button>>,
@@ -277,7 +278,7 @@ pub struct SceneViewer {
     no_scene_reminder: Handle<Text>,
     tab_control: Handle<UiNode>,
     scene_gizmo: SceneGizmo,
-    scene_gizmo_image: Handle<UiNode>,
+    scene_gizmo_image: Handle<Image>,
     debug_switches: Handle<UiNode>,
     grid_snap_menu: GridSnappingMenu,
 }
@@ -583,7 +584,7 @@ impl SceneViewer {
         self.window
     }
 
-    pub fn frame(&self) -> Handle<UiNode> {
+    pub fn frame(&self) -> Handle<Image> {
         self.frame
     }
 
@@ -817,8 +818,7 @@ impl SceneViewer {
                     match *msg {
                         WidgetMessage::MouseDown { button, pos, .. } => {
                             if button == MouseButton::Left {
-                                let rel_pos =
-                                    pos - ui.node(self.scene_gizmo_image).screen_position();
+                                let rel_pos = pos - ui[self.scene_gizmo_image].screen_position();
                                 self.scene_gizmo.drag_context = Some(gizmo::DragContext {
                                     initial_click_pos: rel_pos,
                                     initial_rotation: gizmo::CameraRotation {
@@ -834,7 +834,7 @@ impl SceneViewer {
                                 self.scene_gizmo.drag_context = None;
                                 ui.release_mouse_capture();
                             }
-                            let rel_pos = pos - ui.node(self.scene_gizmo_image).screen_position();
+                            let rel_pos = pos - ui[self.scene_gizmo_image].screen_position();
                             if let Some(action) = self.scene_gizmo.on_click(rel_pos, &engine.scenes)
                             {
                                 match action {
@@ -866,10 +866,7 @@ impl SceneViewer {
                         }
                         WidgetMessage::MouseMove { pos, .. } => {
                             let rel_pos = pos
-                                - engine
-                                    .user_interfaces
-                                    .first()
-                                    .node(self.scene_gizmo_image)
+                                - engine.user_interfaces.first()[self.scene_gizmo_image]
                                     .screen_position();
                             self.scene_gizmo.on_mouse_move(
                                 rel_pos,
@@ -1006,7 +1003,7 @@ impl SceneViewer {
     }
 
     pub fn frame_bounds(&self, ui: &UserInterface) -> Rect<f32> {
-        ui.node(self.frame).screen_bounds()
+        ui[self.frame].screen_bounds()
     }
 
     pub fn pre_update(&self, settings: &Settings, engine: &mut Engine) {

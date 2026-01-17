@@ -39,11 +39,12 @@ use crate::{
 };
 use fyrox::gui::border::Border;
 use fyrox::gui::button::Button;
+use fyrox::gui::image::Image;
 
 pub mod move_mode;
 
 pub struct UiSelectInteractionMode {
-    preview: Handle<UiNode>,
+    preview: Handle<Image>,
     selection_frame: Handle<Border>,
     message_sender: MessageSender,
     stack: Vec<Handle<UiNode>>,
@@ -52,7 +53,7 @@ pub struct UiSelectInteractionMode {
 
 impl UiSelectInteractionMode {
     pub fn new(
-        preview: Handle<UiNode>,
+        preview: Handle<Image>,
         selection_frame: Handle<Border>,
         message_sender: MessageSender,
     ) -> Self {
@@ -106,11 +107,8 @@ impl InteractionMode for UiSelectInteractionMode {
             return;
         };
 
-        let preview_screen_bounds = engine
-            .user_interfaces
-            .first_mut()
-            .node(self.preview)
-            .screen_bounds();
+        let preview_screen_bounds =
+            engine.user_interfaces.first_mut()[self.preview].screen_bounds();
         let frame_screen_bounds =
             engine.user_interfaces.first_mut()[self.selection_frame].screen_bounds();
 

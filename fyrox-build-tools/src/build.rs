@@ -22,6 +22,7 @@ use fyrox_core::algebra::{Matrix3, Vector2};
 use fyrox_core::Uuid;
 use fyrox_resource::untyped::ResourceKind;
 use fyrox_ui::button::Button;
+use fyrox_ui::image::Image;
 use fyrox_ui::text::Text;
 use fyrox_ui::window::WindowAlignment;
 use fyrox_ui::{
@@ -60,7 +61,7 @@ pub struct BuildWindow {
     log_text: Handle<Text>,
     stop: Handle<Button>,
     scroll_viewer: Handle<UiNode>,
-    progress_indicator: Handle<UiNode>,
+    progress_indicator: Handle<Image>,
     angle: f32,
 }
 

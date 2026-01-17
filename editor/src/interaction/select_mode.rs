@@ -26,8 +26,7 @@ use crate::{
             uuid::{uuid, Uuid},
             TypeUuidProvider,
         },
-        graph::SceneGraph,
-        gui::{BuildContext, UiNode},
+        gui::BuildContext,
         scene::node::Node,
     },
     interaction::{make_interaction_mode_button, InteractionMode},
@@ -39,10 +38,11 @@ use crate::{
 };
 use fyrox::gui::border::Border;
 use fyrox::gui::button::Button;
+use fyrox::gui::image::Image;
 use fyrox::gui::widget::WidgetMessage;
 
 pub struct SelectInteractionMode {
-    preview: Handle<UiNode>,
+    preview: Handle<Image>,
     selection_frame: Handle<Border>,
     message_sender: MessageSender,
     stack: Vec<Handle<Node>>,
@@ -51,7 +51,7 @@ pub struct SelectInteractionMode {
 
 impl SelectInteractionMode {
     pub fn new(
-        preview: Handle<UiNode>,
+        preview: Handle<Image>,
         selection_frame: Handle<Border>,
         message_sender: MessageSender,
     ) -> Self {
@@ -108,11 +108,8 @@ impl InteractionMode for SelectInteractionMode {
 
         let scene = &engine.scenes[game_scene.scene];
         let camera = &scene.graph[game_scene.camera_controller.camera];
-        let preview_screen_bounds = engine
-            .user_interfaces
-            .first_mut()
-            .node(self.preview)
-            .screen_bounds();
+        let preview_screen_bounds =
+            engine.user_interfaces.first_mut()[self.preview].screen_bounds();
         let frame_screen_bounds =
             engine.user_interfaces.first_mut()[self.selection_frame].screen_bounds();
         let frame_relative_bounds = frame_screen_bounds.translate(-preview_screen_bounds.position);
