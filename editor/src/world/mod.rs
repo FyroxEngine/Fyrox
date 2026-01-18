@@ -58,6 +58,7 @@ use crate::{
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
+use fyrox::gui::window::Window;
 use rust_fuzzy_search::fuzzy_compare;
 use std::{
     borrow::Cow,
@@ -117,7 +118,7 @@ pub trait WorldViewerItemContextMenu {
 }
 
 pub struct WorldViewer {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     tree_root: Handle<UiNode>,
     sender: MessageSender,
     track_selection: Handle<UiNode>,

@@ -64,6 +64,7 @@ use crate::{
     UserInterface,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::window::Window;
 use std::{cmp::Ordering, sync::mpsc::Sender};
 use strum::VariantNames;
 
@@ -178,7 +179,7 @@ impl SelectionContainer for AudioBusSelection {
 }
 
 pub struct AudioPanel {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     add_bus: Handle<Button>,
     remove_bus: Handle<Button>,
     audio_buses: Handle<UiNode>,

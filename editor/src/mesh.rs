@@ -56,7 +56,7 @@ use crate::{
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::widget::WidgetMessage;
-use fyrox::gui::window::WindowAlignment;
+use fyrox::gui::window::{Window, WindowAlignment};
 
 pub struct MeshControlPanel {
     pub root_widget: Handle<UiNode>,
@@ -289,7 +289,7 @@ impl MeshControlPanel {
 }
 
 pub struct SurfaceDataViewer {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     preview_panel: PreviewPanel,
 }
 

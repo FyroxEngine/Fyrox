@@ -42,11 +42,11 @@ use crate::{
 use fyrox::core::algebra::Vector2;
 use fyrox::gui::image::Image;
 use fyrox::gui::widget::WidgetMessage;
-use fyrox::gui::window::WindowAlignment;
+use fyrox::gui::window::{Window, WindowAlignment};
 use fyrox::scene::collider::BitMask;
 
 pub struct CameraPreviewControlPanel {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     preview: Handle<UiNode>,
     camera_state: Option<(Handle<Node>, Node)>,
     scene_viewer_frame: Handle<Image>,

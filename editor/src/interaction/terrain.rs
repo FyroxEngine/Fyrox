@@ -78,7 +78,7 @@ use crate::{
 use fyrox::gui::button::Button;
 use fyrox::gui::image::Image;
 use fyrox::gui::inspector::InspectorContextArgs;
-use fyrox::gui::window::WindowAlignment;
+use fyrox::gui::window::{Window, WindowAlignment};
 use fyrox::scene::mesh::Mesh;
 use std::sync::mpsc::channel;
 use std::sync::Arc;
@@ -552,7 +552,7 @@ impl InteractionMode for TerrainInteractionMode {
 }
 
 struct BrushPanel {
-    window: Handle<UiNode>,
+    window: Handle<Window>,
     inspector: Handle<UiNode>,
 }
 

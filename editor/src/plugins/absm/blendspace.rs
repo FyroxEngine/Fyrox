@@ -63,7 +63,7 @@ use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use fyrox::gui::text::Text;
-use fyrox::gui::window::WindowAlignment;
+use fyrox::gui::window::{Window, WindowAlignment};
 use std::{
     cell::Cell,
     fmt::{Debug, Formatter},
@@ -643,7 +643,7 @@ impl BlendSpaceFieldPointBuilder {
 }
 
 pub struct BlendSpaceEditor {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     min_x: Handle<Text>,
     max_x: Handle<Text>,
     min_y: Handle<Text>,

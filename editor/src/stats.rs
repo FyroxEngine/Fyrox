@@ -32,11 +32,11 @@ use crate::fyrox::{
 };
 use fyrox::core::pool::ObjectOrVariant;
 use fyrox::gui::text::Text;
-use fyrox::gui::window::WindowAlignment;
+use fyrox::gui::window::{Window, WindowAlignment};
 use fyrox::scene::Scene;
 
 pub struct StatisticsWindow {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     text: Handle<Text>,
 }
 

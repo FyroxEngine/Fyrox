@@ -45,6 +45,7 @@ use fyrox::core::Uuid;
 use fyrox::gui::file_browser::FileType;
 use fyrox::gui::image::{Image, ImageBuilder};
 use fyrox::gui::texture::TextureResource;
+use fyrox::gui::window::Window;
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 
@@ -69,15 +70,15 @@ pub struct Menu {
 
 pub struct Panels<'b> {
     pub scene_frame: Handle<Image>,
-    pub light_panel: Handle<UiNode>,
-    pub log_panel: Handle<UiNode>,
-    pub navmesh_panel: Handle<UiNode>,
-    pub audio_panel: Handle<UiNode>,
-    pub command_stack_panel: Handle<UiNode>,
-    pub inspector_window: Handle<UiNode>,
-    pub world_outliner_window: Handle<UiNode>,
-    pub asset_window: Handle<UiNode>,
-    pub configurator_window: Handle<UiNode>,
+    pub light_panel: Handle<Window>,
+    pub log_panel: Handle<Window>,
+    pub navmesh_panel: Handle<Window>,
+    pub audio_panel: Handle<Window>,
+    pub command_stack_panel: Handle<Window>,
+    pub inspector_window: Handle<Window>,
+    pub world_outliner_window: Handle<Window>,
+    pub asset_window: Handle<Window>,
+    pub configurator_window: Handle<Window>,
     pub scene_settings: &'b SceneSettingsWindow,
     pub export_window: &'b mut Option<ExportWindow>,
     pub statistics_window: &'b mut Option<StatisticsWindow>,

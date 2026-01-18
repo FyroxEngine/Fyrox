@@ -38,13 +38,13 @@ use crate::{
 use fyrox::core::{uuid, Uuid};
 use fyrox::engine::ApplicationLoopController;
 use fyrox::gui::text::Text;
-use fyrox::gui::window::{WindowAlignment, WindowTitle};
+use fyrox::gui::window::{Window, WindowAlignment, WindowTitle};
 
 /// Editor UI statistics, useful to track number of active widgets and memory consumption.
 
 #[derive(Default)]
 pub struct UiStatisticsPlugin {
-    window: Handle<UiNode>,
+    window: Handle<Window>,
     text: Handle<Text>,
     open_ui_stats: Handle<UiNode>,
 }

@@ -21,7 +21,7 @@
 use crate::{settings::Project, utils, utils::make_button};
 use fyrox::gui::button::Button;
 use fyrox::gui::text_box::TextBox;
-use fyrox::gui::window::WindowAlignment;
+use fyrox::gui::window::{Window, WindowAlignment};
 use fyrox::{
     core::{log::Log, pool::Handle},
     gui::{
@@ -65,7 +65,7 @@ impl Version {
 }
 
 pub struct UpgradeTool {
-    window: Handle<UiNode>,
+    window: Handle<Window>,
     version_type_selector: Handle<UiNode>,
     upgrade: Handle<Button>,
     cancel: Handle<Button>,

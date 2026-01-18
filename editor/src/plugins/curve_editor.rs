@@ -54,7 +54,7 @@ use fyrox::gui::button::Button;
 use fyrox::gui::file_browser::{FileSelectorMode, FileType};
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
-use fyrox::gui::window::WindowAlignment;
+use fyrox::gui::window::{Window, WindowAlignment};
 use std::{fmt::Debug, path::PathBuf};
 
 #[derive(Debug, ComponentProvider)]
@@ -105,7 +105,7 @@ struct Menu {
 }
 
 pub struct CurveEditorWindow {
-    window: Handle<UiNode>,
+    window: Handle<Window>,
     curve_editor: Handle<UiNode>,
     ok: Handle<Button>,
     cancel: Handle<Button>,

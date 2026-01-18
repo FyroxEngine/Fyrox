@@ -48,10 +48,11 @@ use crate::{
     plugins::absm::command::fetch_machine,
     Message,
 };
+use fyrox::gui::window::Window;
 use std::sync::Arc;
 
 pub struct ParameterPanel {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     inspector: Handle<UiNode>,
     property_editors: Arc<PropertyEditorDefinitionContainer>,
 }

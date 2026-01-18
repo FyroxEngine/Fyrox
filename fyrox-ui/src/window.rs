@@ -275,6 +275,7 @@ impl ConstructorProvider<UiNode, UserInterface> for Window {
             .with_variant("Window", |ui| {
                 WindowBuilder::new(WidgetBuilder::new().with_name("Window"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Layout")
@@ -1345,7 +1346,7 @@ impl WindowBuilder {
     }
 
     /// Finishes window building and returns its handle.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<Window> {
         let modal = self.modal;
         let open = self.open;
 
@@ -1356,7 +1357,7 @@ impl WindowBuilder {
             ctx.push_picking_restriction(RestrictionEntry { handle, stop: true });
         }
 
-        handle
+        handle.to_variant()
     }
 }
 

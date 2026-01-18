@@ -42,9 +42,10 @@ use crate::{
     Message, Mode,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::window::Window;
 
 pub struct CommandStackViewer {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     list: Handle<UiNode>,
     sender: MessageSender,
     undo: Handle<Button>,

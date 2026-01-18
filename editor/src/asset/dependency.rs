@@ -41,10 +41,10 @@ use crate::fyrox::{
 };
 use fyrox::asset::manager::ResourceManager;
 use fyrox::gui::button::Button;
-use fyrox::gui::window::WindowAlignment;
+use fyrox::gui::window::{Window, WindowAlignment};
 
 pub struct DependencyViewer {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     tree_root: Handle<UiNode>,
     close: Handle<Button>,
     copy_to_clipboard: Handle<Button>,

@@ -119,10 +119,10 @@ impl MessageData for ImageMessage {}
 /// # use fyrox_texture::TextureResource;
 /// # use fyrox_ui::{
 /// #     core::pool::Handle,
-/// #     image::ImageBuilder, widget::WidgetBuilder, BuildContext, UiNode
+/// #     image::{Image, ImageBuilder}, widget::WidgetBuilder, BuildContext, UiNode
 /// # };
 ///
-/// fn create_image(ctx: &mut BuildContext, texture: TextureResource) -> Handle<UiNode> {
+/// fn create_image(ctx: &mut BuildContext, texture: TextureResource) -> Handle<Image> {
 ///     ImageBuilder::new(WidgetBuilder::new().with_width(100.0).with_height(100.0))
 ///         .with_checkerboard_background(true) // Turns on checkerboard background.
 ///         .with_texture(texture)

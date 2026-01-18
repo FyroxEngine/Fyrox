@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::window::Window;
 use crate::{
     core::{algebra::Vector2, log::Log, pool::Handle, visitor::prelude::*, ImmutableString},
     dock::{Tile, TileBuilder, TileContent},
@@ -74,7 +75,7 @@ impl TileContentDescriptor {
         match tile_content {
             TileContent::Empty => Self::Empty,
             TileContent::Window(window) => Self::Window(
-                ui.try_get_node(*window)
+                ui.try_get(*window)
                     .map(|w| w.name.clone())
                     .unwrap_or_default(),
             ),
@@ -84,7 +85,7 @@ impl TileContentDescriptor {
                     names: windows
                         .iter()
                         .map(|window| {
-                            ui.try_get_node(*window)
+                            ui.try_get(*window)
                                 .map(|w| w.name.clone())
                                 .unwrap_or_default()
                         })
@@ -135,8 +136,8 @@ impl TileContentDescriptor {
 fn find_window(
     window_name: &ImmutableString,
     ui: &mut UserInterface,
-    windows: &[Handle<UiNode>],
-) -> Handle<UiNode> {
+    windows: &[Handle<Window>],
+) -> Handle<Window> {
     if window_name.is_empty() {
         Log::warn(
             "Window name is empty, wrong widget will be used as a \
@@ -145,11 +146,15 @@ fn find_window(
         );
     }
 
-    let window_handle = ui.find_handle(ui.root(), &mut |n| n.name == *window_name);
+    let window_handle = ui
+        .find_handle(ui.root(), &mut |n| {
+            n.has_component::<Window>() && n.name == *window_name
+        })
+        .to_variant();
 
     if window_handle.is_none() {
         for other_window_handle in windows.iter().cloned() {
-            if let Ok(window_node) = ui.try_get_node(other_window_handle) {
+            if let Ok(window_node) = ui.try_get(other_window_handle) {
                 if &window_node.name == window_name {
                     return other_window_handle;
                 }
@@ -178,7 +183,7 @@ impl TileDescriptor {
     pub fn create_tile(
         &self,
         ui: &mut UserInterface,
-        windows: &[Handle<UiNode>],
+        windows: &[Handle<Window>],
     ) -> Handle<UiNode> {
         TileBuilder::new(WidgetBuilder::new())
             .with_content(match &self.content {

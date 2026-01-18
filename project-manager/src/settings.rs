@@ -20,7 +20,7 @@
 
 use directories::ProjectDirs;
 use fyrox::gui::inspector::InspectorContextArgs;
-use fyrox::gui::window::WindowAlignment;
+use fyrox::gui::window::{Window, WindowAlignment};
 use fyrox::{
     core::{log::Log, pool::Handle, reflect::prelude::*},
     fxhash::FxHashSet,
@@ -211,7 +211,7 @@ pub struct Project {
 }
 
 pub struct SettingsWindow {
-    window: Handle<UiNode>,
+    window: Handle<Window>,
     inspector: Handle<UiNode>,
     clipboard: Option<Box<dyn Reflect>>,
 }

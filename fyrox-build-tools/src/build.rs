@@ -24,7 +24,7 @@ use fyrox_resource::untyped::ResourceKind;
 use fyrox_ui::button::Button;
 use fyrox_ui::image::Image;
 use fyrox_ui::text::Text;
-use fyrox_ui::window::WindowAlignment;
+use fyrox_ui::window::{Window, WindowAlignment};
 use fyrox_ui::{
     border::BorderBuilder,
     button::{ButtonBuilder, ButtonMessage},
@@ -54,7 +54,7 @@ use std::{
 };
 
 pub struct BuildWindow {
-    window: Handle<UiNode>,
+    window: Handle<Window>,
     active: Arc<AtomicBool>,
     changed: Arc<AtomicBool>,
     log: Arc<Mutex<String>>,

@@ -68,6 +68,7 @@ use crate::{
     Editor,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::window::Window;
 use fyrox::scene::joint::Joint;
 use fyrox::scene::ragdoll::Ragdoll;
 use std::{ops::Range, sync::Arc};
@@ -1008,7 +1009,7 @@ impl RagdollPreset {
 }
 
 pub struct RagdollWizard {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     pub preset: RagdollPreset,
     inspector: Handle<UiNode>,
     ok: Handle<Button>,

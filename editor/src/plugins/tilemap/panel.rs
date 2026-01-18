@@ -117,7 +117,7 @@ pub struct TileMapPanel {
     /// The resource that is the source for the tiles that the user may select.
     pub tile_book: TileBook,
     /// The window that contains this control panel.
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     /// The currently selected brush. This brush can be set by choosing a tile map
     /// with an active brush, or by dragging a brush resource into the control panel window.
     brush: Option<TileMapBrushResource>,
@@ -416,7 +416,7 @@ impl TileMapPanel {
     /// Bring the window to the front and move it to the top-right of the given node.
     pub fn align(&self, relative_to: Handle<impl ObjectOrVariant<UiNode>>, ui: &UserInterface) {
         let relative_to = relative_to.to_base();
-        if ui.node(self.window).visibility() {
+        if ui[self.window].visibility() {
             ui.send(
                 self.window,
                 WidgetMessage::Align {
@@ -427,10 +427,7 @@ impl TileMapPanel {
                 },
             );
             ui.send(self.window, WidgetMessage::Topmost);
-            ui.send(
-                ui.node(self.window).cast::<Window>().unwrap().content,
-                WidgetMessage::Focus,
-            );
+            ui.send(ui[self.window].content, WidgetMessage::Focus);
         } else {
             ui.send(
                 self.window,
@@ -451,10 +448,7 @@ impl TileMapPanel {
     /// Bring the window to the top.
     pub fn to_top(&self, ui: &UserInterface) {
         ui.send(self.window, WidgetMessage::Topmost);
-        ui.send(
-            ui.node(self.window).cast::<Window>().unwrap().content,
-            WidgetMessage::Focus,
-        );
+        ui.send(ui[self.window].content, WidgetMessage::Focus);
         ui.send(self.window, WidgetMessage::Visibility(true));
     }
 

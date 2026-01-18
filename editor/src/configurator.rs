@@ -49,6 +49,7 @@ use crate::{
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::text_box::TextBox;
+use fyrox::gui::window::Window;
 use std::{env, path::PathBuf};
 
 #[derive(Default, Eq, PartialEq, Visit)]
@@ -59,7 +60,7 @@ struct HistoryEntry {
 pub const HISTORY_PATH: &str = "history.bin";
 
 pub struct Configurator {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     work_dir_browser: Handle<UiNode>,
     select_work_dir: Handle<Button>,
     ok: Handle<Button>,

@@ -66,7 +66,7 @@ use crate::{
 use cargo_metadata::camino::Utf8Path;
 use fyrox::gui::button::Button;
 use fyrox::gui::text::Text;
-use fyrox::gui::window::WindowAlignment;
+use fyrox::gui::window::{Window, WindowAlignment};
 use std::{
     io::{BufRead, BufReader},
     path::PathBuf,
@@ -122,7 +122,7 @@ pub struct BuildOutput {
 pub type BuildResult = Result<BuildOutput, String>;
 
 pub struct ExportWindow {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     log: Handle<UiNode>,
     export: Handle<Button>,
     cancel: Handle<Button>,

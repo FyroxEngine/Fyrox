@@ -89,6 +89,7 @@ use crate::{
     },
     Editor, Engine, Message,
 };
+use fyrox::gui::window::Window;
 use std::{
     path::PathBuf,
     sync::{mpsc::Receiver, mpsc::Sender, Arc},
@@ -111,7 +112,7 @@ struct ResourceView {
 }
 
 pub struct MaterialEditor {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     properties_panel: Handle<UiNode>,
     resource_views: Vec<ResourceView>,
     preview: PreviewPanel,

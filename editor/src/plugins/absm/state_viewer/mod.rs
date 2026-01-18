@@ -60,12 +60,13 @@ use crate::scene::{commands::ChangeSelectionCommand, Selection};
 use fyrox::core::reflect::Reflect;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::window::Window;
 use std::cmp::Ordering;
 
 mod context;
 
 pub struct StateViewer {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     canvas: Handle<UiNode>,
     state: ErasedHandle,
     canvas_context_menu: CanvasContextMenu,

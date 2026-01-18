@@ -45,11 +45,11 @@ use crate::{
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::text_box::TextBox;
-use fyrox::gui::window::WindowAlignment;
+use fyrox::gui::window::{Window, WindowAlignment};
 use std::path::{Path, PathBuf};
 
 pub struct ResourceCreator {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     resource_constructors_list: Handle<UiNode>,
     ok: Handle<Button>,
     cancel: Handle<Button>,

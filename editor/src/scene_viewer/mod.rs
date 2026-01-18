@@ -69,6 +69,7 @@ use fyrox::core::algebra::Vector2;
 use fyrox::gui::border::Border;
 use fyrox::gui::image::Image;
 use fyrox::gui::text::Text;
+use fyrox::gui::window::Window;
 use std::{
     ops::Deref,
     sync::mpsc::{self, Receiver},
@@ -264,7 +265,7 @@ impl GridSnappingMenu {
 
 pub struct SceneViewer {
     frame: Handle<Image>,
-    window: Handle<UiNode>,
+    window: Handle<Window>,
     selection_frame: Handle<Border>,
     interaction_modes: FxHashMap<Uuid, Handle<Button>>,
     camera_projection: Handle<UiNode>,
@@ -580,7 +581,7 @@ impl SceneViewer {
 }
 
 impl SceneViewer {
-    pub fn window(&self) -> Handle<UiNode> {
+    pub fn window(&self) -> Handle<Window> {
         self.window
     }
 

@@ -39,7 +39,7 @@ use crate::{
             stack_panel::StackPanelBuilder,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, Orientation, Thickness, UiNode, UserInterface,
+            BuildContext, Orientation, Thickness, UserInterface,
         },
         gui::{HorizontalAlignment, VerticalAlignment},
         scene::navmesh::NavigationalMesh,
@@ -70,13 +70,13 @@ use crate::{
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::image::Image;
-use fyrox::gui::window::WindowAlignment;
+use fyrox::gui::window::{Window, WindowAlignment};
 use std::collections::HashMap;
 
 pub mod selection;
 
 pub struct NavmeshPanel {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     connect_edges: Handle<Button>,
     sender: MessageSender,
     scene_frame: Handle<Image>,

@@ -55,7 +55,7 @@ use fyrox::core::{ok_or_return, uuid, Uuid};
 use fyrox::engine::GraphicsContext;
 use fyrox::gui::button::Button;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
-use fyrox::gui::window::WindowAlignment;
+use fyrox::gui::window::{Window, WindowAlignment};
 use rust_fuzzy_search::fuzzy_compare;
 use std::sync::Arc;
 
@@ -63,7 +63,7 @@ use std::sync::Arc;
 struct GroupName(String);
 
 pub struct SettingsWindow {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     ok: Handle<Button>,
     default: Handle<Button>,
     inspector: Handle<UiNode>,

@@ -21,7 +21,6 @@
 use crate::{
     fyrox::{
         core::pool::Handle,
-        graph::SceneGraph,
         gui::{
             menu::{self, MenuItemMessage},
             message::UiMessage,
@@ -34,7 +33,7 @@ use crate::{
     Message,
 };
 use fyrox::core::{uuid, Uuid};
-use fyrox::gui::window::WindowAlignment;
+use fyrox::gui::window::{Window, WindowAlignment};
 
 pub struct ViewMenu {
     pub menu: Handle<UiNode>,
@@ -51,8 +50,8 @@ pub struct ViewMenu {
     pub reset_layout: Handle<UiNode>,
 }
 
-fn switch_window_state(window: Handle<UiNode>, ui: &UserInterface, center: bool) {
-    let current_state = ui.node(window).visibility();
+fn switch_window_state(window: Handle<Window>, ui: &UserInterface, center: bool) {
+    let current_state = ui[window].visibility();
     if current_state {
         ui.send(window, WindowMessage::Close);
     } else {

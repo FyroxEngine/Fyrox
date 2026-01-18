@@ -45,15 +45,15 @@ pub mod config;
 mod tile;
 
 use crate::message::MessageData;
-use crate::window::WindowAlignment;
+use crate::window::{Window, WindowAlignment};
 pub use tile::*;
 
 /// Supported docking manager-specific messages.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DockingManagerMessage {
     Layout(DockingManagerLayoutDescriptor),
-    AddFloatingWindow(Handle<UiNode>),
-    RemoveFloatingWindow(Handle<UiNode>),
+    AddFloatingWindow(Handle<Window>),
+    RemoveFloatingWindow(Handle<Window>),
 }
 impl MessageData for DockingManagerMessage {}
 
@@ -166,7 +166,7 @@ impl MessageData for DockingManagerMessage {}
 #[reflect(derived_type = "UiNode")]
 pub struct DockingManager {
     pub widget: Widget,
-    pub floating_windows: RefCell<Vec<Handle<UiNode>>>,
+    pub floating_windows: RefCell<Vec<Handle<Window>>>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for DockingManager {
@@ -210,7 +210,7 @@ impl Control for DockingManager {
                 .floating_windows
                 .borrow()
                 .iter()
-                .position(|&i| i == message.destination());
+                .position(|&i| message.destination() == i);
             if let Some(pos) = pos {
                 self.floating_windows.borrow_mut().remove(pos);
             }
@@ -226,7 +226,7 @@ impl DockingManager {
                 .borrow()
                 .iter()
                 .filter_map(|h| {
-                    ui.try_get_node(*h).ok().map(|w| FloatingWindowDescriptor {
+                    ui.try_get(*h).ok().map(|w| FloatingWindowDescriptor {
                         name: w.name.clone(),
                         position: w.actual_local_position(),
                         size: w.actual_local_size(),
@@ -299,8 +299,11 @@ impl DockingManager {
                     );
                 }
 
-                let floating_window =
-                    ui.find_handle(ui.root(), &mut |n| n.name == floating_window_desc.name);
+                let floating_window = ui
+                    .find_handle(ui.root(), &mut |n| {
+                        n.has_component::<Window>() && n.name == floating_window_desc.name
+                    })
+                    .to_variant();
                 if floating_window.is_some() {
                     self.floating_windows.borrow_mut().push(floating_window);
 
@@ -340,14 +343,14 @@ impl DockingManager {
         }
     }
 
-    fn add_floating_window(&mut self, window: Handle<UiNode>) {
+    fn add_floating_window(&mut self, window: Handle<Window>) {
         let mut windows = self.floating_windows.borrow_mut();
         if !windows.contains(&window) {
             windows.push(window);
         }
     }
 
-    fn remove_floating_window(&mut self, window: Handle<UiNode>) {
+    fn remove_floating_window(&mut self, window: Handle<Window>) {
         let mut windows = self.floating_windows.borrow_mut();
         if let Some(position) = windows.iter().position(|&w| w == window) {
             windows.remove(position);
@@ -357,7 +360,7 @@ impl DockingManager {
 
 pub struct DockingManagerBuilder {
     widget_builder: WidgetBuilder,
-    floating_windows: Vec<Handle<UiNode>>,
+    floating_windows: Vec<Handle<Window>>,
 }
 
 impl DockingManagerBuilder {
@@ -368,7 +371,7 @@ impl DockingManagerBuilder {
         }
     }
 
-    pub fn with_floating_windows(mut self, windows: Vec<Handle<UiNode>>) -> Self {
+    pub fn with_floating_windows(mut self, windows: Vec<Handle<Window>>) -> Self {
         self.floating_windows = windows;
         self
     }

@@ -62,6 +62,7 @@ use crate::{
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::text::Text;
+use fyrox::gui::window::Window;
 use std::{any::Any, sync::mpsc::Sender, sync::Arc};
 
 pub mod editors;
@@ -114,7 +115,7 @@ impl InspectorEnvironment for EditorEnvironment {
 }
 
 pub struct InspectorPlugin {
-    pub(crate) window: Handle<UiNode>,
+    pub(crate) window: Handle<Window>,
     pub inspector: Handle<UiNode>,
     pub head: Handle<UiNode>,
     pub footer: Handle<UiNode>,

@@ -38,7 +38,7 @@ use crate::{
 use crate::border::Border;
 use crate::message::MessageData;
 use core::f32;
-use fyrox_core::pool::ObjectOrVariant;
+use fyrox_core::pool::{HandlesVecExtension, ObjectOrVariant};
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;
@@ -49,7 +49,7 @@ pub enum TileMessage {
     Content(TileContent),
     /// Internal. Do not use.
     Split {
-        window: Handle<UiNode>,
+        window: Handle<Window>,
         direction: SplitDirection,
         first: bool,
     },
@@ -60,10 +60,10 @@ impl MessageData for TileMessage {}
 pub enum TileContent {
     #[default]
     Empty,
-    Window(Handle<UiNode>),
+    Window(Handle<Window>),
     MultiWindow {
         index: u32,
-        windows: Vec<Handle<UiNode>>,
+        windows: Vec<Handle<Window>>,
     },
     VerticalTiles {
         splitter: f32,
@@ -92,7 +92,7 @@ impl TileContent {
             Self::Empty | Self::Window(_) | Self::MultiWindow { .. }
         )
     }
-    pub fn contains_window(&self, window: Handle<UiNode>) -> bool {
+    pub fn contains_window(&self, window: Handle<Window>) -> bool {
         match self {
             Self::Window(handle) => window == *handle,
             Self::MultiWindow { windows, .. } => windows.contains(&window),
@@ -101,7 +101,7 @@ impl TileContent {
     }
     /// Construct a new tile that adds the given window to this tile.
     /// This tile must be either empty, a window, or a multiwindow, or else panic.
-    pub fn plus_window(self, window: Handle<UiNode>) -> Self {
+    pub fn plus_window(self, window: Handle<Window>) -> Self {
         match self {
             Self::Empty => Self::Window(window),
             Self::Window(handle) => Self::MultiWindow {
@@ -121,7 +121,7 @@ impl TileContent {
     /// Construct a new tile that removes the given window from this tile.
     /// This tile must be either empty, a window, or a multiwindow, or else panic.
     /// If the window does not exist in this tile, then return self.
-    pub fn minus_window(self, window: Handle<UiNode>) -> Self {
+    pub fn minus_window(self, window: Handle<Window>) -> Self {
         match self {
             Self::Empty => Self::Empty,
             Self::Window(handle) => {
@@ -156,7 +156,7 @@ impl TileContent {
     /// Construct a new tile that makes the given window active.
     /// If this tile is not a multiwindow or this tile does not contain
     /// the given window, return self.
-    pub fn with_active(self, window: Handle<UiNode>) -> Self {
+    pub fn with_active(self, window: Handle<Window>) -> Self {
         match self {
             Self::MultiWindow { index, windows } => {
                 let index = if let Some(index) = windows.iter().position(|h| h == &window) {
@@ -179,7 +179,12 @@ fn send_visibility(
     ui.send(destination, WidgetMessage::Visibility(visible));
 }
 
-fn send_size(ui: &UserInterface, destination: Handle<UiNode>, width: f32, height: f32) {
+fn send_size(
+    ui: &UserInterface,
+    destination: Handle<impl ObjectOrVariant<UiNode>>,
+    width: f32,
+    height: f32,
+) {
     ui.send(destination, WidgetMessage::Width(width));
     ui.send(destination, WidgetMessage::Height(height));
 }
@@ -193,7 +198,7 @@ fn get_tile_window(ui: &UserInterface, tile: Handle<UiNode>) -> Option<&Window> 
         TileContent::MultiWindow { index, windows } => windows.get(*index as usize)?,
         _ => return None,
     };
-    ui.node(*handle).cast::<Window>()
+    ui.try_get(*handle).ok()
 }
 
 /// True if the the given handle points to a tile that has been minimized.
@@ -233,7 +238,7 @@ fn has_one_minimized(ui: &UserInterface, content: &TileContent) -> bool {
 /// that the other tile is not a minimized window. The idea is to ensure
 /// that at most one of the two tiles is minimized at any time.
 fn deminimize_other_window(
-    this_window: Handle<UiNode>,
+    this_window: Handle<Window>,
     tiles: &[Handle<UiNode>; 2],
     ui: &UserInterface,
 ) {
@@ -340,12 +345,12 @@ impl Control for Tile {
         }
         match &self.content {
             TileContent::Empty => Vector2::default(),
-            TileContent::Window(handle) => ui.node(*handle).desired_size(),
+            TileContent::Window(handle) => ui[*handle].desired_size(),
             TileContent::MultiWindow { index, windows } => {
                 let tabs = ui.node(self.tabs).desired_size();
                 let body = windows
                     .get(*index as usize)
-                    .map(|w| ui.node(*w).desired_size())
+                    .map(|w| ui[*w].desired_size())
                     .unwrap_or_default();
                 let y = if available_size.y.is_finite() {
                     (available_size.y - tabs.y).max(0.0)
@@ -492,7 +497,7 @@ impl Control for Tile {
                                 let tabs = ui.node(self.tabs).cast::<TabControl>().unwrap();
                                 for tab in tabs.tabs.iter() {
                                     let uuid = tab.uuid;
-                                    if !windows.iter().any(|&h| ui.node(h).id == uuid) {
+                                    if !windows.iter().any(|&h| ui[h].id == uuid) {
                                         ui.send(
                                             self.tabs,
                                             TabControlMessage::RemoveTabByUuid(uuid),
@@ -501,7 +506,7 @@ impl Control for Tile {
                                 }
                                 for (i, &w) in windows.iter().enumerate() {
                                     let is_active = i as u32 == *index;
-                                    let uuid = ui.node(w).id;
+                                    let uuid = ui[w].id;
                                     let tabs = ui.node(self.tabs).cast::<TabControl>().unwrap();
                                     if tabs.get_tab_by_uuid(uuid).is_none() {
                                         self.add_tab(w, ui);
@@ -510,7 +515,7 @@ impl Control for Tile {
                                     self.dock(w, ui);
                                 }
                                 if let Some(&w) = windows.get(*index as usize) {
-                                    let uuid = ui.node(w).id;
+                                    let uuid = ui[w].id;
                                     ui.send(
                                         self.tabs,
                                         TabControlMessage::ActiveTabUuid(Some(uuid)),
@@ -560,7 +565,7 @@ impl Control for Tile {
             match msg {
                 &WidgetMessage::Topmost => {
                     if let TileContent::MultiWindow { ref windows, .. } = self.content {
-                        if windows.contains(&message.destination()) {
+                        if windows.contains(&message.destination().to_variant()) {
                             let id = ui.node(message.destination()).id;
                             self.change_active_tab(&id, ui);
                         }
@@ -711,7 +716,9 @@ impl Control for Tile {
             match msg {
                 WindowMessage::Maximize(true) => {
                     // Check if we are maximizing the child window.
-                    let content_moved = self.content.contains_window(message.destination());
+                    let content_moved = self
+                        .content
+                        .contains_window(message.destination().to_variant());
                     if content_moved {
                         // Undock the window and re-maximize it, since maximization does nothing to a docked window
                         // because docked windows are not resizable.
@@ -728,12 +735,14 @@ impl Control for Tile {
                         _ => None,
                     };
                     if let Some(tiles) = tiles {
-                        deminimize_other_window(message.destination(), tiles, ui);
+                        deminimize_other_window(message.destination().to_variant(), tiles, ui);
                     }
                 }
                 WindowMessage::Move(_) => {
                     // Check if we dragging child window.
-                    let content_moved = self.content.contains_window(message.destination());
+                    let content_moved = self
+                        .content
+                        .contains_window(message.destination().to_variant());
 
                     if content_moved {
                         if let Some(window) = ui.node(message.destination()).cast::<Window>() {
@@ -745,7 +754,7 @@ impl Control for Tile {
                 }
                 WindowMessage::Close => match self.content {
                     TileContent::MultiWindow { ref windows, .. } => {
-                        if windows.contains(&message.destination()) {
+                        if windows.contains(&message.destination().to_variant()) {
                             let window = ui
                                 .node(message.destination())
                                 .cast::<Window>()
@@ -755,12 +764,12 @@ impl Control for Tile {
                     }
                     TileContent::VerticalTiles { tiles, .. }
                     | TileContent::HorizontalTiles { tiles, .. } => {
-                        let closed_window = message.destination();
+                        let closed_window = message.destination().to_variant();
 
                         fn tile_has_window(
                             tile: Handle<UiNode>,
                             ui: &UserInterface,
-                            window: Handle<UiNode>,
+                            window: Handle<Window>,
                         ) -> bool {
                             if let Some(tile_ref) = ui.node(tile).query_component::<Tile>() {
                                 if let TileContent::Window(tile_window) = tile_ref.content {
@@ -779,10 +788,7 @@ impl Control for Tile {
                             if tile_has_window(tile_a, ui, closed_window) {
                                 if let Some(tile_a_ref) = ui.node(tile_a).query_component::<Tile>()
                                 {
-                                    let window = ui
-                                        .node(closed_window)
-                                        .cast::<Window>()
-                                        .expect("must be window");
+                                    let window = &ui[closed_window];
                                     tile_a_ref.undock(window, ui);
                                 }
                                 if let Some(tile_b_ref) = ui.node(tile_b).query_component::<Tile>()
@@ -834,7 +840,7 @@ impl Control for Tile {
                     && docking_manager
                         .floating_windows
                         .borrow_mut()
-                        .contains(&message.destination())
+                        .contains(&message.destination().to_variant())
                 {
                     match msg {
                         &WindowMessage::Move(_) => {
@@ -894,7 +900,7 @@ impl Control for Tile {
                                             ui.send(
                                                 self.handle,
                                                 TileMessage::Content(TileContent::Window(
-                                                    message.destination(),
+                                                    message.destination().to_variant(),
                                                 )),
                                             );
                                             ui.send(
@@ -909,7 +915,7 @@ impl Control for Tile {
                                             ui.send(
                                                 self.handle,
                                                 TileMessage::Split {
-                                                    window: message.destination(),
+                                                    window: message.destination().to_variant(),
                                                     direction: SplitDirection::Horizontal,
                                                     first: true,
                                                 },
@@ -919,7 +925,7 @@ impl Control for Tile {
                                             ui.send(
                                                 self.handle,
                                                 TileMessage::Split {
-                                                    window: message.destination(),
+                                                    window: message.destination().to_variant(),
                                                     direction: SplitDirection::Horizontal,
                                                     first: false,
                                                 },
@@ -929,7 +935,7 @@ impl Control for Tile {
                                             ui.send(
                                                 self.handle,
                                                 TileMessage::Split {
-                                                    window: message.destination(),
+                                                    window: message.destination().to_variant(),
                                                     direction: SplitDirection::Vertical,
                                                     first: true,
                                                 },
@@ -939,7 +945,7 @@ impl Control for Tile {
                                             ui.send(
                                                 self.handle,
                                                 TileMessage::Split {
-                                                    window: message.destination(),
+                                                    window: message.destination().to_variant(),
                                                     direction: SplitDirection::Vertical,
                                                     first: false,
                                                 },
@@ -948,9 +954,9 @@ impl Control for Tile {
                                             ui.send(
                                                 self.handle,
                                                 TileMessage::Content(
-                                                    self.content
-                                                        .clone()
-                                                        .plus_window(message.destination()),
+                                                    self.content.clone().plus_window(
+                                                        message.destination().to_variant(),
+                                                    ),
                                                 ),
                                             );
                                         }
@@ -999,7 +1005,7 @@ impl Tile {
         };
         let mut window = None;
         for (i, w) in windows.iter().enumerate() {
-            let window_id = ui.node(*w).id;
+            let window_id = ui[*w].id;
             if &window_id == id {
                 if i as u32 == *index {
                     return;
@@ -1039,8 +1045,8 @@ impl Tile {
         }
     }
     /// Creates a tab for the window with the given handle.
-    fn add_tab(&self, window: Handle<UiNode>, ui: &mut UserInterface) {
-        let window = ui.node(window).cast::<Window>().expect("must be window");
+    fn add_tab(&self, window: Handle<Window>, ui: &mut UserInterface) {
+        let window = &ui[window];
         let uuid = window.id;
         let header = create_tab_header(window.tab_label().to_owned(), &mut ui.build_ctx());
         let definition = TabDefinition {
@@ -1053,7 +1059,7 @@ impl Tile {
     }
     /// Send messages to prepare the window at the given handle for being docked
     /// in this tile.
-    fn dock(&self, window: Handle<UiNode>, ui: &UserInterface) {
+    fn dock(&self, window: Handle<Window>, ui: &UserInterface) {
         ui.send(window, WidgetMessage::LinkWith(self.handle()));
         ui.send(window, WindowMessage::CanResize(false));
 
@@ -1068,7 +1074,11 @@ impl Tile {
     fn undock(&self, window: &Window, ui: &UserInterface) {
         ui.send(
             self.handle,
-            TileMessage::Content(self.content.clone().minus_window(window.handle())),
+            TileMessage::Content(
+                self.content
+                    .clone()
+                    .minus_window(window.handle().to_variant()),
+            ),
         );
 
         ui.send(window.handle(), WidgetMessage::Unlink);
@@ -1086,7 +1096,7 @@ impl Tile {
             docking_manager
                 .floating_windows
                 .borrow_mut()
-                .push(window.handle());
+                .push(window.handle().to_variant());
         }
     }
     /// Measure the tile in the special case where exactly one of the two child tiles
@@ -1171,7 +1181,7 @@ impl Tile {
     fn split(
         &mut self,
         ui: &mut UserInterface,
-        window: Handle<UiNode>,
+        window: Handle<Window>,
         direction: SplitDirection,
         first: bool,
     ) {
@@ -1301,7 +1311,7 @@ impl TileBuilder {
 
         match self.content {
             TileContent::Window(window) => {
-                if let Some(window) = ctx[window].cast_mut::<Window>() {
+                if let Ok(window) = ctx.inner_mut().try_get_mut(window) {
                     // Every docked window must be non-resizable (it means that it cannot be resized by user
                     // and it still can be resized by a proper message).
                     window.can_resize = false;
@@ -1314,7 +1324,7 @@ impl TileBuilder {
             }
             TileContent::MultiWindow { ref windows, index } => {
                 for (i, &window) in windows.iter().enumerate() {
-                    let window = ctx[window].cast_mut::<Window>().expect("must be window");
+                    let window = &mut ctx[window];
                     window.can_resize = false;
                     window.width.set_value_and_mark_modified(f32::NAN);
                     window.height.set_value_and_mark_modified(f32::NAN);
@@ -1337,8 +1347,8 @@ impl TileBuilder {
         let tabs = tabs.build(ctx);
 
         let children = match &self.content {
-            TileContent::Window(window) => vec![*window],
-            TileContent::MultiWindow { windows, .. } => windows.clone(),
+            TileContent::Window(window) => vec![window.to_base()],
+            TileContent::MultiWindow { windows, .. } => windows.clone().to_base(),
             TileContent::VerticalTiles { tiles, .. } => vec![tiles[0], tiles[1]],
             TileContent::HorizontalTiles { tiles, .. } => vec![tiles[0], tiles[1]],
             TileContent::Empty => vec![],

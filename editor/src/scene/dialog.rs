@@ -33,7 +33,7 @@ use crate::fyrox::{
         text_box::TextBoxBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowMessage},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode,
+        BuildContext, HorizontalAlignment, Orientation, Thickness,
     },
 };
 use crate::scene::Selection;
@@ -47,10 +47,10 @@ use crate::{
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::text_box::TextBox;
-use fyrox::gui::window::WindowAlignment;
+use fyrox::gui::window::{Window, WindowAlignment};
 
 pub struct NodeRemovalDialog {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     info_text: Handle<TextBox>,
     ok: Handle<Button>,
     cancel: Handle<Button>,

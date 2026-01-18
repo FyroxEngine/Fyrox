@@ -65,6 +65,7 @@ use crate::{
     ui_scene::UiScene,
     Editor, Message,
 };
+use fyrox::gui::window::Window;
 use std::any::{Any, TypeId};
 
 pub mod command;
@@ -83,7 +84,7 @@ struct PreviewModeData<N: 'static> {
 }
 
 pub struct AnimationEditor {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     animation_player: ErasedHandle,
     animation: ErasedHandle,
     track_list: TrackList,

@@ -27,14 +27,14 @@ use crate::fyrox::{
         text_box::TextBoxBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Thickness, UiNode, UserInterface,
+        BuildContext, Thickness, UserInterface,
     },
 };
 use fyrox::gui::text_box::TextBox;
-use fyrox::gui::window::WindowAlignment;
+use fyrox::gui::window::{Window, WindowAlignment};
 
 pub struct DocWindow {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     text: Handle<TextBox>,
 }
 

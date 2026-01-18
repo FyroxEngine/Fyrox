@@ -64,7 +64,7 @@ use crate::{
 use fyrox::core::{uuid, Uuid};
 use fyrox::engine::ApplicationLoopController;
 use fyrox::gui::inspector::editors::PropertyEditorDefinitionContainer;
-use fyrox::gui::window::WindowAlignment;
+use fyrox::gui::window::{Window, WindowAlignment};
 use std::any::Any;
 use std::sync::Arc;
 
@@ -198,7 +198,7 @@ where
 }
 
 pub struct AbsmEditor {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     state_graph_viewer: StateGraphViewer,
     state_viewer: StateViewer,
     parameter_panel: ParameterPanel,

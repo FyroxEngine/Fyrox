@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::button::Button;
+use crate::window::Window;
 use crate::{
     border::BorderBuilder,
     button::ButtonMessage,
@@ -95,7 +96,7 @@ impl ContextMenu {
 }
 
 pub struct LogPanel {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     messages: Handle<UiNode>,
     clear: Handle<Button>,
     receiver: Receiver<LogMessage>,

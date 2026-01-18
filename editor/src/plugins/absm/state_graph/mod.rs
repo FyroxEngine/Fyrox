@@ -50,12 +50,13 @@ use crate::{
 use fyrox::core::reflect::Reflect;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::window::Window;
 use std::cmp::Ordering;
 
 mod context;
 
 pub struct StateGraphViewer {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     pub canvas: Handle<UiNode>,
     canvas_context_menu: CanvasContextMenu,
     node_context_menu: NodeContextMenu,

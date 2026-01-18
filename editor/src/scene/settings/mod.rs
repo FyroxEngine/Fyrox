@@ -25,7 +25,6 @@ use crate::{
     fyrox::{
         core::{color::Color, pool::Handle, reflect::Reflect},
         engine::Engine,
-        graph::SceneGraph,
         gui::{
             inspector::{
                 editors::{
@@ -59,7 +58,7 @@ use crate::{
 use std::sync::{mpsc::Sender, Arc};
 
 pub struct SceneSettingsWindow {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     inspector: Handle<UiNode>,
     property_definitions: Arc<PropertyEditorDefinitionContainer>,
 }
@@ -131,12 +130,7 @@ impl SceneSettingsWindow {
         icon_request_sender: Sender<IconRequest>,
     ) {
         let ui = engine.user_interfaces.first_mut();
-        if !force
-            && !ui
-                .try_get_of_type::<Window>(self.window)
-                .unwrap()
-                .is_globally_visible()
-        {
+        if !force && !ui[self.window].is_globally_visible() {
             return;
         }
 

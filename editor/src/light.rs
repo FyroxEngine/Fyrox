@@ -43,7 +43,7 @@ use fyrox::gui::button::Button;
 use fyrox::gui::inspector::editors::PropertyEditorDefinitionContainer;
 use fyrox::gui::inspector::{Inspector, InspectorContextArgs};
 use fyrox::gui::text::Text;
-use fyrox::gui::window::WindowAlignment;
+use fyrox::gui::window::{Window, WindowAlignment};
 use std::{
     path::PathBuf,
     sync::mpsc::{Receiver, Sender},
@@ -83,7 +83,7 @@ impl Default for LightmapperSettings {
 }
 
 struct ProgressWindow {
-    window: Handle<UiNode>,
+    window: Handle<Window>,
     progress_bar: Handle<UiNode>,
     cancel: Handle<Button>,
     text: Handle<Text>,
@@ -198,7 +198,7 @@ impl ProgressWindow {
 }
 
 pub struct LightPanel {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     inspector: Handle<UiNode>,
     generate: Handle<Button>,
     settings: LightmapperSettings,

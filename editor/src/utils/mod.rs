@@ -89,9 +89,9 @@ pub fn is_slice_subset_permutation<T: PartialEq>(a: &[T], b: &[T]) -> bool {
     true
 }
 
-pub fn window_content(window: Handle<UiNode>, ui: &UserInterface) -> Handle<UiNode> {
-    ui.node(window)
-        .cast::<Window>()
+pub fn window_content(window: Handle<Window>, ui: &UserInterface) -> Handle<UiNode> {
+    ui.try_get(window)
+        .ok()
         .map(|w| w.content)
         .unwrap_or_default()
 }

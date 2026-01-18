@@ -27,7 +27,7 @@ use fyrox::gui::button::Button;
 use fyrox::gui::file_browser::PathFilter;
 use fyrox::gui::text::Text;
 use fyrox::gui::text_box::TextBox;
-use fyrox::gui::window::WindowAlignment;
+use fyrox::gui::window::{Window, WindowAlignment};
 use fyrox::{
     core::pool::Handle,
     gui::{
@@ -104,7 +104,7 @@ impl Vcs {
 }
 
 pub struct ProjectWizard {
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     create: Handle<Button>,
     cancel: Handle<Button>,
     path_field: Handle<UiNode>,

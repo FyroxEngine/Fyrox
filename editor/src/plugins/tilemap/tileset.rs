@@ -54,7 +54,7 @@ use crate::{
     plugins::inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
 };
 use fyrox::gui::text::Text;
-use fyrox::gui::window::WindowAlignment;
+use fyrox::gui::window::{Window, WindowAlignment};
 use fyrox::scene::tilemap::brush::TileMapBrushResource;
 use macro_tab::MacroTab;
 use palette::{PaletteWidgetBuilder, DEFAULT_MATERIAL_COLOR};
@@ -72,7 +72,7 @@ const DEFAULT_PAGE: Vector2<i32> = Vector2::new(0, 0);
 /// A window for editing tile sets and tile map brushes.
 pub struct TileSetEditor {
     /// The window that contains the tile set editor.
-    pub window: Handle<UiNode>,
+    pub window: Handle<Window>,
     /// The state that is shared by many tile editing objects,
     /// such as palette widgets that display the tiles,
     /// the tile map control panel that allows the user to switch
