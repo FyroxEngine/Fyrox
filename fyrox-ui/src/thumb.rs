@@ -117,6 +117,7 @@ impl ConstructorProvider<UiNode, UserInterface> for Thumb {
             .with_variant("Thumb", |ui| {
                 ThumbBuilder::new(WidgetBuilder::new().with_name("Thumb"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Input")
@@ -185,12 +186,12 @@ impl ThumbBuilder {
         Self { widget_builder }
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<Thumb> {
         let thumb = Thumb {
             widget: self.widget_builder.build(ctx),
             click_pos: Default::default(),
         };
-        ctx.add_node(UiNode::new(thumb))
+        ctx.add_node(UiNode::new(thumb)).to_variant()
     }
 }
 

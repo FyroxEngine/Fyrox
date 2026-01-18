@@ -58,6 +58,7 @@ use crate::{
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
+use fyrox::gui::toggle::ToggleButton;
 use fyrox::gui::window::Window;
 use fyrox::gui::wrap_panel::WrapPanel;
 use rust_fuzzy_search::fuzzy_compare;
@@ -122,7 +123,7 @@ pub struct WorldViewer {
     pub window: Handle<Window>,
     tree_root: Handle<UiNode>,
     sender: MessageSender,
-    track_selection: Handle<UiNode>,
+    track_selection: Handle<ToggleButton>,
     search_bar: Handle<UiNode>,
     filter: String,
     stack: Vec<(Handle<UiNode>, ErasedHandle)>,

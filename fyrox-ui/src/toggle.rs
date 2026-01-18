@@ -70,6 +70,7 @@ impl ConstructorProvider<UiNode, UserInterface> for ToggleButton {
             .with_variant("ToggleButton", |ui| {
                 ToggleButtonBuilder::new(WidgetBuilder::new().with_name("ToggleButton"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Input")
@@ -146,7 +147,7 @@ impl ToggleButtonBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<ToggleButton> {
         let decorator = DecoratorBuilder::new(
             BorderBuilder::new(WidgetBuilder::new().with_child(self.content))
                 .with_corner_radius(ctx.style.property(ToggleButton::CORNER_RADIUS))
@@ -164,7 +165,7 @@ impl ToggleButtonBuilder {
             is_toggled: self.is_toggled,
             content: self.content,
         };
-        ctx.add_node(UiNode::new(canvas))
+        ctx.add_node(UiNode::new(canvas)).to_variant()
     }
 }
 

@@ -59,6 +59,7 @@ use crate::{
 
 use crate::button::Button;
 use crate::message::MessageData;
+use crate::thumb::Thumb;
 use crate::window::WindowAlignment;
 use fyrox_texture::TextureKind;
 use std::{
@@ -89,10 +90,10 @@ pub struct TextureSliceEditor {
     widget: Widget,
     slice: TextureSlice,
     handle_size: f32,
-    region_min_thumb: Handle<UiNode>,
-    region_max_thumb: Handle<UiNode>,
-    slice_min_thumb: Handle<UiNode>,
-    slice_max_thumb: Handle<UiNode>,
+    region_min_thumb: Handle<Thumb>,
+    region_max_thumb: Handle<Thumb>,
+    slice_min_thumb: Handle<Thumb>,
+    slice_max_thumb: Handle<Thumb>,
     #[reflect(hidden)]
     #[visit(skip)]
     drag_context: Option<DragContext>,
@@ -396,7 +397,7 @@ pub struct TextureSliceEditorBuilder {
     handle_size: f32,
 }
 
-fn make_thumb(position: Vector2<u32>, handle_size: f32, ctx: &mut BuildContext) -> Handle<UiNode> {
+fn make_thumb(position: Vector2<u32>, handle_size: f32, ctx: &mut BuildContext) -> Handle<Thumb> {
     ThumbBuilder::new(
         WidgetBuilder::new()
             .with_desired_position(position.cast::<f32>())

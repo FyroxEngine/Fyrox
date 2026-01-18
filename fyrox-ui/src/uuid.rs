@@ -60,7 +60,9 @@ impl MessageData for UuidEditorMessage {}
 /// #     widget::WidgetBuilder,
 /// #     BuildContext, UiNode,
 /// # };
-/// fn create_uuid_editor(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// # use fyrox_ui::uuid::UuidEditor;
+///
+/// fn create_uuid_editor(ctx: &mut BuildContext) -> Handle<UuidEditor> {
 ///     UuidEditorBuilder::new(WidgetBuilder::new())
 ///         .with_value(Uuid::new_v4())
 ///         .build(ctx)
