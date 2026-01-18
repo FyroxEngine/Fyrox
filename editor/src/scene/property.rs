@@ -44,6 +44,7 @@ use crate::fyrox::{
 use fyrox::gui::button::Button;
 use fyrox::gui::control_trait_proxy_impls;
 use fyrox::gui::message::MessageData;
+use fyrox::gui::scroll_viewer::ScrollViewer;
 use fyrox::gui::searchbar::SearchBar;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
@@ -302,7 +303,7 @@ pub struct PropertySelector {
     selected_property_paths: Vec<PropertyDescriptorData>,
     tree_root: Handle<UiNode>,
     search_bar: Handle<SearchBar>,
-    scroll_viewer: Handle<UiNode>,
+    scroll_viewer: Handle<ScrollViewer>,
 }
 
 define_widget_deref!(PropertySelector);

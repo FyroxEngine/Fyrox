@@ -65,6 +65,7 @@ use crate::{
 };
 use cargo_metadata::camino::Utf8Path;
 use fyrox::gui::button::Button;
+use fyrox::gui::scroll_viewer::ScrollViewer;
 use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::text::Text;
 use fyrox::gui::window::{Window, WindowAlignment};
@@ -127,7 +128,7 @@ pub struct ExportWindow {
     log: Handle<StackPanel>,
     export: Handle<Button>,
     cancel: Handle<Button>,
-    log_scroll_viewer: Handle<UiNode>,
+    log_scroll_viewer: Handle<ScrollViewer>,
     cancel_flag: Arc<AtomicBool>,
     log_message_receiver: Option<Receiver<LogMessage>>,
     build_result_receiver: Option<Receiver<BuildResult>>,

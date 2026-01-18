@@ -51,6 +51,7 @@ use fyrox::gui::button::Button;
 use fyrox::gui::control_trait_proxy_impls;
 use fyrox::gui::formatted_text::WrapMode;
 use fyrox::gui::message::{DeliveryMode, MessageData};
+use fyrox::gui::scroll_viewer::ScrollViewer;
 use fyrox::gui::searchbar::SearchBar;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
 use std::hash::{Hash, Hasher};
@@ -212,7 +213,7 @@ pub struct NodeSelector {
     tree_root: Handle<UiNode>,
     search_bar: Handle<SearchBar>,
     selected: Vec<SelectedHandle>,
-    scroll_viewer: Handle<UiNode>,
+    scroll_viewer: Handle<ScrollViewer>,
     #[visit(skip)]
     #[reflect(hidden)]
     allowed_types: FxHashSet<AllowedType>,

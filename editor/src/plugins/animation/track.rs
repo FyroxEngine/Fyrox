@@ -99,6 +99,7 @@ use crate::{
 use fyrox::asset::Resource;
 use fyrox::gui::button::Button;
 use fyrox::gui::message::MessageData;
+use fyrox::gui::scroll_viewer::ScrollViewer;
 use fyrox::gui::text_box::TextBox;
 use fyrox::gui::window::WindowAlignment;
 use fyrox::resource::model::ModelResource;
@@ -615,7 +616,7 @@ pub struct TrackList {
     curve_views: FxHashMap<Uuid, Handle<UiNode>>,
     context_menu: TrackContextMenu,
     property_binding_mode: PropertyBindingMode,
-    scroll_viewer: Handle<UiNode>,
+    scroll_viewer: Handle<ScrollViewer>,
     selected_animation: ErasedHandle,
 }
 

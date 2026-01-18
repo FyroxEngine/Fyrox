@@ -75,8 +75,9 @@ impl MessageData for SearchBarMessage {}
 /// #     widget::WidgetBuilder,
 /// #     BuildContext, UiNode,
 /// # };
+/// # use fyrox_ui::searchbar::SearchBar;
 /// #
-/// fn create_search_bar(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// fn create_search_bar(ctx: &mut BuildContext) -> Handle<SearchBar> {
 ///     SearchBarBuilder::new(WidgetBuilder::new()).build(ctx)
 /// }
 ///

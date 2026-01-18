@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::button::Button;
+use crate::scroll_viewer::ScrollViewer;
 use crate::stack_panel::StackPanel;
 use crate::window::Window;
 use crate::{
@@ -104,7 +105,7 @@ pub struct LogPanel {
     severity: MessageKind,
     severity_list: Handle<UiNode>,
     context_menu: ContextMenu,
-    scroll_viewer: Handle<UiNode>,
+    scroll_viewer: Handle<ScrollViewer>,
     pub message_count: usize,
 }
 

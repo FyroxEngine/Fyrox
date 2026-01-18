@@ -229,7 +229,7 @@ pub struct ListView {
     pub items: InheritableVariable<Vec<Handle<UiNode>>>,
     /// Current scroll viewer instance that is used to provide scrolling functionality, when items does
     /// not fit in the view entirely.
-    pub scroll_viewer: InheritableVariable<Handle<UiNode>>,
+    pub scroll_viewer: InheritableVariable<Handle<ScrollViewer>>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for ListView {
@@ -491,7 +491,7 @@ pub struct ListViewBuilder {
     widget_builder: WidgetBuilder,
     items: Vec<Handle<UiNode>>,
     panel: Option<Handle<UiNode>>,
-    scroll_viewer: Option<Handle<UiNode>>,
+    scroll_viewer: Option<Handle<ScrollViewer>>,
     selection: Vec<usize>,
 }
 
@@ -520,7 +520,7 @@ impl ListViewBuilder {
     }
 
     /// Sets the desired scroll viewer.
-    pub fn with_scroll_viewer(mut self, sv: Handle<UiNode>) -> Self {
+    pub fn with_scroll_viewer(mut self, sv: Handle<ScrollViewer>) -> Self {
         self.scroll_viewer = Some(sv);
         self
     }
@@ -581,9 +581,7 @@ impl ListViewBuilder {
             ScrollViewerBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(0.0)))
                 .build(ctx)
         });
-        let scroll_viewer_ref = ctx[scroll_viewer]
-            .cast_mut::<ScrollViewer>()
-            .expect("ListView must have ScrollViewer");
+        let scroll_viewer_ref = &mut ctx[scroll_viewer];
         scroll_viewer_ref.content = panel;
         let content_presenter = scroll_viewer_ref.scroll_panel;
         ctx.link(panel, content_presenter);

@@ -57,6 +57,7 @@ use crate::{
     Mode, Settings,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::scroll_viewer::ScrollViewer;
 use fyrox::gui::searchbar::SearchBar;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
 use fyrox::gui::toggle::ToggleButton;
@@ -137,7 +138,7 @@ pub struct WorldViewer {
     collapse_all: Handle<Button>,
     expand_all: Handle<Button>,
     locate_selection: Handle<Button>,
-    scroll_view: Handle<UiNode>,
+    scroll_view: Handle<ScrollViewer>,
     pub item_context_menu: Option<Rc<RefCell<dyn WorldViewerItemContextMenu>>>,
     node_to_view_map: HashMap<ErasedHandle, Handle<UiNode>>,
 }

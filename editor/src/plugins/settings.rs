@@ -54,6 +54,7 @@ use crate::{
 use fyrox::core::{ok_or_return, uuid, Uuid};
 use fyrox::engine::GraphicsContext;
 use fyrox::gui::button::Button;
+use fyrox::gui::scroll_viewer::ScrollViewer;
 use fyrox::gui::searchbar::SearchBar;
 use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
@@ -70,7 +71,7 @@ pub struct SettingsWindow {
     default: Handle<Button>,
     inspector: Handle<UiNode>,
     groups: Handle<StackPanel>,
-    scroll_viewer: Handle<UiNode>,
+    scroll_viewer: Handle<ScrollViewer>,
     search_bar: Handle<SearchBar>,
     clipboard: Option<Box<dyn Reflect>>,
 }

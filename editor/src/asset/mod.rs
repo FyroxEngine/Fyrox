@@ -69,6 +69,7 @@ use crate::{
     Message, Mode,
 };
 use fyrox::asset::event::ResourceEvent;
+use fyrox::gui::scroll_viewer::ScrollViewer;
 use fyrox::gui::searchbar::SearchBar;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
 use fyrox::gui::window::Window;
@@ -158,7 +159,7 @@ pub struct AssetBrowser {
     pub docking_manager: Handle<UiNode>,
     content_panel: Handle<WrapPanel>,
     folder_browser: Handle<UiNode>,
-    scroll_panel: Handle<UiNode>,
+    scroll_viewer: Handle<ScrollViewer>,
     search_bar: Handle<SearchBar>,
     add_resource: Handle<Button>,
     refresh: Handle<Button>,
@@ -435,7 +436,7 @@ impl AssetBrowser {
             docking_manager,
             content_panel,
             folder_browser,
-            scroll_panel,
+            scroll_viewer: scroll_panel,
             search_bar,
             items: Default::default(),
             item_to_select: None,
@@ -651,7 +652,7 @@ impl AssetBrowser {
         if handle_to_select.is_some() {
             ui.send(handle_to_select, AssetItemMessage::Select(true));
             ui.send(
-                self.scroll_panel,
+                self.scroll_viewer,
                 ScrollViewerMessage::BringIntoView(handle_to_select),
             );
         }
@@ -909,7 +910,7 @@ impl AssetBrowser {
                 }
             }
         } else if let Some(WidgetMessage::MouseDown { button, .. }) = message.data() {
-            if ui.has_descendant_or_equal(message.destination(), self.scroll_panel)
+            if ui.has_descendant_or_equal(message.destination(), self.scroll_viewer)
                 && !message.handled()
             {
                 if let MouseButton::Back = *button {

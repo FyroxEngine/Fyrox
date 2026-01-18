@@ -23,6 +23,7 @@ use fyrox_core::Uuid;
 use fyrox_resource::untyped::ResourceKind;
 use fyrox_ui::button::Button;
 use fyrox_ui::image::Image;
+use fyrox_ui::scroll_viewer::ScrollViewer;
 use fyrox_ui::text::Text;
 use fyrox_ui::window::{Window, WindowAlignment};
 use fyrox_ui::{
@@ -42,7 +43,7 @@ use fyrox_ui::{
     },
     widget::{WidgetBuilder, WidgetMessage},
     window::{WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+    BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
 };
 use std::{
     io::{BufRead, BufReader, Read},
@@ -60,7 +61,7 @@ pub struct BuildWindow {
     log: Arc<Mutex<String>>,
     log_text: Handle<Text>,
     stop: Handle<Button>,
-    scroll_viewer: Handle<UiNode>,
+    scroll_viewer: Handle<ScrollViewer>,
     progress_indicator: Handle<Image>,
     angle: f32,
 }

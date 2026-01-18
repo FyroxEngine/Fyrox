@@ -89,8 +89,9 @@ impl MessageData for ScrollViewerMessage {
 /// #     stack_panel::StackPanelBuilder, text::TextBuilder, widget::WidgetBuilder, BuildContext,
 /// #     UiNode,
 /// # };
+/// # use fyrox_ui::scroll_viewer::ScrollViewer;
 /// #
-/// fn create_scroll_viewer(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// fn create_scroll_viewer(ctx: &mut BuildContext) -> Handle<ScrollViewer> {
 ///     ScrollViewerBuilder::new(WidgetBuilder::new())
 ///         .with_content(
 ///             StackPanelBuilder::new(
@@ -124,8 +125,9 @@ impl MessageData for ScrollViewerMessage {
 /// #     core::pool::Handle, scroll_viewer::ScrollViewerBuilder, widget::WidgetBuilder,
 /// #     BuildContext, UiNode,
 /// # };
+/// # use fyrox_ui::scroll_viewer::ScrollViewer;
 /// #
-/// fn create_scroll_viewer(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// fn create_scroll_viewer(ctx: &mut BuildContext) -> Handle<ScrollViewer> {
 ///     ScrollViewerBuilder::new(WidgetBuilder::new())
 ///         // Set vertical scrolling speed twice as fast as default scrolling speed.
 ///         .with_v_scroll_speed(60.0)
@@ -179,6 +181,7 @@ impl ConstructorProvider<UiNode, UserInterface> for ScrollViewer {
             .with_variant("Scroll Viewer", |ui| {
                 ScrollViewerBuilder::new(WidgetBuilder::new().with_name("Scroll Viewer"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Layout")
@@ -416,7 +419,7 @@ impl ScrollViewerBuilder {
     }
 
     /// Finishes widget building and adds it to the user interface.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<ScrollViewer> {
         let content_presenter = ScrollPanelBuilder::new(
             WidgetBuilder::new()
                 .with_child(self.content)
@@ -467,7 +470,7 @@ impl ScrollViewerBuilder {
             v_scroll_speed: self.v_scroll_speed,
             h_scroll_speed: self.h_scroll_speed,
         };
-        ctx.add_node(UiNode::new(sv))
+        ctx.add_node(UiNode::new(sv)).to_variant()
     }
 }
 
