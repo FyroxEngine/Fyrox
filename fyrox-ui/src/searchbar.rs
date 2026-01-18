@@ -113,6 +113,7 @@ impl ConstructorProvider<UiNode, UserInterface> for SearchBar {
             .with_variant("Search Bar", |ui| {
                 SearchBarBuilder::new(WidgetBuilder::new().with_name("Search Bar"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Input")
@@ -173,7 +174,7 @@ impl<'a> SearchBarBuilder<'a> {
     }
 
     /// Finishes search bar building and adds the new instance to the user interface.
-    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<SearchBar> {
         // Focusing the search bar itself is useless, so we're taking the tab index from the inner
         // widget builder and transfer it to the inner text box.
         let tab_index = self.widget_builder.tab_index.take();
@@ -282,7 +283,7 @@ impl<'a> SearchBarBuilder<'a> {
             clear: clear.into(),
         };
 
-        ctx.add_node(UiNode::new(search_bar))
+        ctx.add_node(UiNode::new(search_bar)).to_variant()
     }
 }
 

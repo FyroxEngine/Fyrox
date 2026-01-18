@@ -26,6 +26,7 @@ use crate::{
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::file_browser::{FileSelectorMode, PathFilter};
+use fyrox::gui::searchbar::SearchBar;
 use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::text::Text;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
@@ -132,7 +133,7 @@ pub struct ProjectManager {
     edit: Handle<Button>,
     run: Handle<Button>,
     delete: Handle<Button>,
-    search_bar: Handle<UiNode>,
+    search_bar: Handle<SearchBar>,
     project_controls: Handle<StackPanel>,
     hot_reload: Handle<UiNode>,
     download: Handle<Button>,

@@ -57,6 +57,7 @@ use crate::{
     Mode, Settings,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::searchbar::SearchBar;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
 use fyrox::gui::toggle::ToggleButton;
 use fyrox::gui::window::Window;
@@ -124,7 +125,7 @@ pub struct WorldViewer {
     tree_root: Handle<UiNode>,
     sender: MessageSender,
     track_selection: Handle<ToggleButton>,
-    search_bar: Handle<UiNode>,
+    search_bar: Handle<SearchBar>,
     filter: String,
     stack: Vec<(Handle<UiNode>, ErasedHandle)>,
     /// Hack. Due to delayed execution of UI code we can't sync immediately after we

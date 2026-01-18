@@ -69,6 +69,7 @@ use crate::{
     Message, Mode,
 };
 use fyrox::asset::event::ResourceEvent;
+use fyrox::gui::searchbar::SearchBar;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
 use fyrox::gui::window::Window;
 use fyrox::gui::wrap_panel::WrapPanel;
@@ -158,7 +159,7 @@ pub struct AssetBrowser {
     content_panel: Handle<WrapPanel>,
     folder_browser: Handle<UiNode>,
     scroll_panel: Handle<UiNode>,
-    search_bar: Handle<UiNode>,
+    search_bar: Handle<SearchBar>,
     add_resource: Handle<Button>,
     refresh: Handle<Button>,
     items: Vec<Handle<UiNode>>,

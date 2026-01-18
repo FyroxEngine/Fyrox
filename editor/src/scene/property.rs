@@ -44,6 +44,7 @@ use crate::fyrox::{
 use fyrox::gui::button::Button;
 use fyrox::gui::control_trait_proxy_impls;
 use fyrox::gui::message::MessageData;
+use fyrox::gui::searchbar::SearchBar;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
@@ -300,7 +301,7 @@ pub struct PropertySelector {
     #[visit(skip)]
     selected_property_paths: Vec<PropertyDescriptorData>,
     tree_root: Handle<UiNode>,
-    search_bar: Handle<UiNode>,
+    search_bar: Handle<SearchBar>,
     scroll_viewer: Handle<UiNode>,
 }
 

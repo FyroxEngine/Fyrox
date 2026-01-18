@@ -67,6 +67,7 @@ impl ConstructorProvider<UiNode, UserInterface> for Selector {
             .with_variant("Selector", |ui| {
                 SelectorBuilder::new(WidgetBuilder::new().with_name("Selector"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Input")
@@ -166,7 +167,7 @@ impl SelectorBuilder {
         }
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<Selector> {
         for (i, item) in self.items.iter().enumerate() {
             ctx[*item].set_visibility(self.current == Some(i));
         }
@@ -214,7 +215,7 @@ impl SelectorBuilder {
             current: self.current.into(),
         };
 
-        ctx.add_node(UiNode::new(selector))
+        ctx.add_node(UiNode::new(selector)).to_variant()
     }
 }
 

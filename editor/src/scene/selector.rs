@@ -51,6 +51,7 @@ use fyrox::gui::button::Button;
 use fyrox::gui::control_trait_proxy_impls;
 use fyrox::gui::formatted_text::WrapMode;
 use fyrox::gui::message::{DeliveryMode, MessageData};
+use fyrox::gui::searchbar::SearchBar;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
 use std::hash::{Hash, Hasher};
 use std::{
@@ -209,7 +210,7 @@ struct TreeData {
 pub struct NodeSelector {
     widget: Widget,
     tree_root: Handle<UiNode>,
-    search_bar: Handle<UiNode>,
+    search_bar: Handle<SearchBar>,
     selected: Vec<SelectedHandle>,
     scroll_viewer: Handle<UiNode>,
     #[visit(skip)]
