@@ -451,6 +451,33 @@ pub enum WidgetMessage {
     ResetVisual,
 }
 
+impl WidgetMessage {
+    /// Creates a [`Self::DragStarted`] message.
+    pub fn drag_started(handle: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        Self::DragStarted(handle.to_base())
+    }
+
+    /// Creates a [`Self::DragOver`] message.
+    pub fn drag_over(handle: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        Self::DragOver(handle.to_base())
+    }
+
+    /// Creates a [`Self::Drop`] message.
+    pub fn drop(handle: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        Self::Drop(handle.to_base())
+    }
+
+    /// Creates a [`Self::LinkWith`] message.
+    pub fn link_with(handle: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        Self::LinkWith(handle.to_base())
+    }
+
+    /// Creates a [`Self::LinkWithReverse`] message.
+    pub fn link_with_reverse(handle: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        Self::LinkWithReverse(handle.to_base())
+    }
+}
+
 impl MessageData for WidgetMessage {
     fn need_perform_layout(&self) -> bool {
         matches!(

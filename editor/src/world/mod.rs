@@ -59,6 +59,7 @@ use crate::{
 use fyrox::gui::button::Button;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
 use fyrox::gui::window::Window;
+use fyrox::gui::wrap_panel::WrapPanel;
 use rust_fuzzy_search::fuzzy_compare;
 use std::{
     borrow::Cow,
@@ -129,7 +130,7 @@ pub struct WorldViewer {
     /// did sync_to_model, instead we defer selection syncing to post_update() - at
     /// this moment UI is completely built and we can do syncing.
     pub sync_selection: bool,
-    node_path: Handle<UiNode>,
+    node_path: Handle<WrapPanel>,
     breadcrumbs: HashMap<Handle<Button>, Handle<UiNode>>,
     collapse_all: Handle<Button>,
     expand_all: Handle<Button>,
@@ -410,14 +411,14 @@ impl WorldViewer {
             )
             .build(ctx);
 
-        ui.send_sync(element, WidgetMessage::LinkWithReverse(self.node_path));
+        ui.send_sync(element, WidgetMessage::link_with_reverse(self.node_path));
 
         self.breadcrumbs.insert(element, associated_item);
     }
 
     fn clear_breadcrumbs(&mut self, ui: &UserInterface) {
         self.breadcrumbs.clear();
-        for &child in ui.node(self.node_path).children() {
+        for &child in ui[self.node_path].children() {
             ui.send_sync(child, WidgetMessage::Remove);
         }
     }

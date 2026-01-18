@@ -39,6 +39,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
+use fyrox_core::pool::ObjectOrVariant;
 
 use crate::message::MessageData;
 use fyrox_graph::{
@@ -513,8 +514,8 @@ impl ListViewBuilder {
     }
 
     /// Sets the desired item panel that will be used to arrange the items.
-    pub fn with_items_panel(mut self, panel: Handle<UiNode>) -> Self {
-        self.panel = Some(panel);
+    pub fn with_items_panel(mut self, panel: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        self.panel = Some(panel.to_base());
         self
     }
 

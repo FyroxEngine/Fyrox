@@ -63,8 +63,9 @@ impl MessageData for WrapPanelMessage {}
 /// #     core::pool::Handle,
 /// #     widget::WidgetBuilder, wrap_panel::WrapPanelBuilder, BuildContext, Orientation, UiNode,
 /// # };
+/// # use fyrox_ui::wrap_panel::WrapPanel;
 /// #
-/// fn create_wrap_panel(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// fn create_wrap_panel(ctx: &mut BuildContext) -> Handle<WrapPanel> {
 ///     WrapPanelBuilder::new(WidgetBuilder::new())
 ///         .with_orientation(Orientation::Horizontal)
 ///         .build(ctx)
@@ -97,6 +98,7 @@ impl ConstructorProvider<UiNode, UserInterface> for WrapPanel {
             .with_variant("Wrap Panel", |ui| {
                 WrapPanelBuilder::new(WidgetBuilder::new().with_name("Wrap Panel"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Layout")
@@ -306,8 +308,8 @@ impl WrapPanelBuilder {
     }
 
     /// Finishes wrap panel building, adds it to the user interface and returns its handle.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        ctx.add_node(self.build_node(ctx))
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<WrapPanel> {
+        ctx.add_node(self.build_node(ctx)).to_variant()
     }
 }
 

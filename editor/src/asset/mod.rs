@@ -71,6 +71,7 @@ use crate::{
 use fyrox::asset::event::ResourceEvent;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
 use fyrox::gui::window::Window;
+use fyrox::gui::wrap_panel::WrapPanel;
 use menu::AssetItemContextMenu;
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::sync::mpsc::Receiver;
@@ -154,7 +155,7 @@ struct InspectorAddon {
 pub struct AssetBrowser {
     pub window: Handle<Window>,
     pub docking_manager: Handle<UiNode>,
-    content_panel: Handle<UiNode>,
+    content_panel: Handle<WrapPanel>,
     folder_browser: Handle<UiNode>,
     scroll_panel: Handle<UiNode>,
     search_bar: Handle<UiNode>,
@@ -503,7 +504,7 @@ impl AssetBrowser {
 
         self.items.push(asset_item);
 
-        ui.send(asset_item, WidgetMessage::LinkWith(self.content_panel));
+        ui.send(asset_item, WidgetMessage::link_with(self.content_panel));
 
         asset_item
     }
@@ -592,7 +593,7 @@ impl AssetBrowser {
                     );
 
                     self.items.push(asset_item);
-                    ui.send(asset_item, WidgetMessage::LinkWith(self.content_panel));
+                    ui.send(asset_item, WidgetMessage::link_with(self.content_panel));
                 }
             }
         }

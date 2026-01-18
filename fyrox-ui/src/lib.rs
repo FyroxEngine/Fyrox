@@ -1974,10 +1974,11 @@ impl UserInterface {
     /// the given handles are equal.
     pub fn has_descendant_or_equal(
         &self,
-        node_handle: Handle<UiNode>,
-        root_handle: Handle<UiNode>,
+        node_handle: Handle<impl ObjectOrVariant<UiNode>>,
+        root_handle: Handle<impl ObjectOrVariant<UiNode>>,
     ) -> bool {
-        root_handle == node_handle || self.is_node_child_of(node_handle, root_handle)
+        root_handle.to_base() == node_handle.to_base()
+            || self.is_node_child_of(node_handle, root_handle)
     }
 
     /// Recursively calculates clipping bounds for every node.

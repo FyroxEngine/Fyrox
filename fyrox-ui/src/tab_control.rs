@@ -46,6 +46,7 @@ use crate::{
 };
 
 use crate::button::Button;
+use crate::wrap_panel::WrapPanel;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
@@ -245,7 +246,7 @@ pub struct TabControl {
     /// A handle of a widget, that holds content of every tab.
     pub content_container: Handle<UiNode>,
     /// A handle of a widget, that holds headers of every tab.
-    pub headers_container: Handle<UiNode>,
+    pub headers_container: Handle<WrapPanel>,
     /// A brush, that will be used to highlight active tab.
     pub active_tab_brush: InheritableVariable<StyledProperty<Brush>>,
 }
@@ -472,7 +473,7 @@ impl Control for TabControl {
 
                     ui.send(
                         header.button,
-                        WidgetMessage::LinkWith(self.headers_container),
+                        WidgetMessage::link_with(self.headers_container),
                     );
 
                     ui.send(

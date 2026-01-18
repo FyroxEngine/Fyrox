@@ -47,13 +47,13 @@ use crate::plugins::inspector::editors::spritesheet::SpriteSheetFramesPropertyEd
 
 use fyrox::gui::border::Border;
 use fyrox::gui::button::Button;
+use fyrox::gui::image::Image;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use std::{
     ops::{Deref, DerefMut},
     sync::{mpsc::Sender, Arc},
 };
-use fyrox::gui::image::Image;
 
 #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]
@@ -235,10 +235,7 @@ impl SpriteSheetFramesEditorWindow {
         self.grid = grid;
         self.cells = cells;
 
-        ui.send(
-            self.grid,
-            WidgetMessage::LinkWith(self.preview_container.to_base()),
-        );
+        ui.send(self.grid, WidgetMessage::link_with(self.preview_container));
     }
 
     pub fn build(

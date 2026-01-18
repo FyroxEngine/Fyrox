@@ -524,7 +524,7 @@ impl TileSetEditor {
     fn send_tabs_visible(&self, is_tile_set: bool, ui: &mut UserInterface) {
         let tab_control = ui.node(self.tab_control).cast::<TabControl>().unwrap();
         let tabs = tab_control.headers_container;
-        let children = ui.node(tabs).children();
+        let children = ui[tabs].children();
         for &tab in &children[1..3] {
             ui.send(tab, WidgetMessage::Visibility(is_tile_set));
         }
