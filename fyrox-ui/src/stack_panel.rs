@@ -58,7 +58,9 @@ impl MessageData for StackPanelMessage {}
 /// #     text::TextBuilder,
 /// #     stack_panel::StackPanelBuilder,
 /// # };
-/// fn create_stack_panel(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// # use fyrox_ui::stack_panel::StackPanel;
+///
+/// fn create_stack_panel(ctx: &mut BuildContext) -> Handle<StackPanel> {
 ///     StackPanelBuilder::new(
 ///         WidgetBuilder::new()
 ///             .with_child(
@@ -123,6 +125,7 @@ impl ConstructorProvider<UiNode, UserInterface> for StackPanel {
             .with_variant("Stack Panel", |ui| {
                 StackPanelBuilder::new(WidgetBuilder::new().with_name("Stack Panel"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Layout")
@@ -283,8 +286,8 @@ impl StackPanelBuilder {
 
     /// Finishes stack panel building and adds the new stack panel widget instance to the user interface and
     /// returns its handle.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        ctx.add_node(self.build_node(ctx))
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<StackPanel> {
+        ctx.add_node(self.build_node(ctx)).to_variant()
     }
 }
 

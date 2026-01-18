@@ -756,7 +756,7 @@ impl EditorPlugin for ColliderPlugin {
             let inspector = editor.plugins.get::<InspectorPlugin>();
             let ui = editor.engine.user_interfaces.first_mut();
             let panel = ColliderControlPanel::new(&mut ui.build_ctx());
-            ui.send(panel.root_widget, WidgetMessage::LinkWith(inspector.head));
+            ui.send(panel.root_widget, WidgetMessage::link_with(inspector.head));
             self.panel = Some(panel);
         } else if !needs_panel {
             if let Some(panel) = self.panel.take() {

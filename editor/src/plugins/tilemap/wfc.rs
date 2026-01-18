@@ -20,6 +20,8 @@
 
 use std::hash::Hash;
 
+use crate::command::{Command, CommandContext, CommandGroup, CommandTrait};
+use fyrox::gui::stack_panel::StackPanel;
 use fyrox::{
     asset::{untyped::UntypedResource, Resource, ResourceData},
     core::{swap_hash_map_entry, SafeLock},
@@ -43,8 +45,6 @@ use fyrox::{
     },
 };
 
-use crate::command::{Command, CommandContext, CommandGroup, CommandTrait};
-
 use super::*;
 
 const DEFAULT_MAX_ATTEMPTS: u32 = 300;
@@ -66,7 +66,7 @@ pub struct WfcMacro {
     terrain_list: Vec<TerrainWidgets>,
     value_field: MacroPropertyValueField,
     add_button: Handle<Button>,
-    terrain_stack: Handle<UiNode>,
+    terrain_stack: Handle<StackPanel>,
     current_terrain: TileTerrainId,
 }
 
@@ -620,7 +620,8 @@ impl BrushMacro for WfcMacro {
                 .with_child(add_row_field)
                 .with_child(self.terrain_stack),
         )
-        .build(ctx);
+        .build(ctx)
+        .to_base();
         Some(handle)
     }
 

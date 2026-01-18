@@ -558,9 +558,11 @@ impl ListViewBuilder {
             }
         }
 
-        let panel = self
-            .panel
-            .unwrap_or_else(|| StackPanelBuilder::new(WidgetBuilder::new()).build(ctx));
+        let panel = self.panel.unwrap_or_else(|| {
+            StackPanelBuilder::new(WidgetBuilder::new())
+                .build(ctx)
+                .to_base()
+        });
 
         for &item_container in item_containers.iter() {
             ctx.link(item_container, panel);

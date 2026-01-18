@@ -177,7 +177,8 @@ impl TileColliderEditor {
                 .with_child(custom_field)
                 .with_child(error_field),
         )
-        .build(ctx);
+        .build(ctx)
+        .to_base();
         Self {
             handle,
             collider_id: collider_layer.uuid,

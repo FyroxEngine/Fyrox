@@ -42,6 +42,7 @@ use crate::{
     Message,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::stack_panel::StackPanel;
 
 pub struct AudioPreviewPanel {
     pub root_widget: Handle<UiNode>,
@@ -55,7 +56,7 @@ pub struct AudioPreviewPanel {
 }
 
 impl AudioPreviewPanel {
-    pub fn new(inspector_head: Handle<UiNode>, ctx: &mut BuildContext) -> Self {
+    pub fn new(inspector_head: Handle<StackPanel>, ctx: &mut BuildContext) -> Self {
         let preview;
         let play;
         let pause;
@@ -166,7 +167,7 @@ impl AudioPreviewPanel {
         .build(ctx);
 
         ctx.inner()
-            .send(root_widget, WidgetMessage::LinkWith(inspector_head));
+            .send(root_widget, WidgetMessage::link_with(inspector_head));
 
         Self {
             root_widget,

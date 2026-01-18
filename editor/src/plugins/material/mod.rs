@@ -89,6 +89,7 @@ use crate::{
     },
     Editor, Engine, Message,
 };
+use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::window::Window;
 use std::{
     path::PathBuf,
@@ -113,7 +114,7 @@ struct ResourceView {
 
 pub struct MaterialEditor {
     pub window: Handle<Window>,
-    properties_panel: Handle<UiNode>,
+    properties_panel: Handle<StackPanel>,
     resource_views: Vec<ResourceView>,
     preview: PreviewPanel,
     material: Option<MaterialResource>,
@@ -473,7 +474,7 @@ impl MaterialEditor {
 
             ui.send_sync(
                 view.container,
-                WidgetMessage::LinkWith(self.properties_panel),
+                WidgetMessage::link_with(self.properties_panel),
             );
 
             self.resource_views.push(view);
@@ -526,7 +527,8 @@ impl MaterialEditor {
                 .with_margin(Thickness::uniform(2.0))
                 .with_children(property_containers.iter().cloned()),
         )
-        .build(ctx);
+        .build(ctx)
+        .to_base();
 
         ResourceView {
             container: make_item_container(ctx, name.as_str(), panel),

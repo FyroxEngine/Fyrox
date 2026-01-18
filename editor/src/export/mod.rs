@@ -65,6 +65,7 @@ use crate::{
 };
 use cargo_metadata::camino::Utf8Path;
 use fyrox::gui::button::Button;
+use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::text::Text;
 use fyrox::gui::window::{Window, WindowAlignment};
 use std::{
@@ -123,7 +124,7 @@ pub type BuildResult = Result<BuildOutput, String>;
 
 pub struct ExportWindow {
     pub window: Handle<Window>,
-    log: Handle<UiNode>,
+    log: Handle<StackPanel>,
     export: Handle<Button>,
     cancel: Handle<Button>,
     log_scroll_viewer: Handle<UiNode>,
@@ -589,7 +590,7 @@ impl ExportWindow {
     }
 
     fn clear_log(&self, ui: &UserInterface) {
-        for child in ui.node(self.log).children() {
+        for child in ui[self.log].children() {
             ui.send(*child, WidgetMessage::Remove);
         }
     }
@@ -721,7 +722,7 @@ impl ExportWindow {
                 .with_text(format!("> {}", message.content))
                 .build(ctx);
 
-                ui.send(entry, WidgetMessage::LinkWith(self.log));
+                ui.send(entry, WidgetMessage::link_with(self.log));
                 ui.send(self.log_scroll_viewer, ScrollViewerMessage::ScrollToEnd);
             }
         }

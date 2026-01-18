@@ -55,6 +55,7 @@ use crate::{
 use fyrox::core::num_traits::Zero;
 use fyrox::core::pool::ObjectOrVariant;
 use fyrox::gui::button::Button;
+use fyrox::gui::stack_panel::StackPanel;
 use fyrox::scene::camera::Camera;
 use fyrox::scene::pivot::Pivot;
 use std::path::Path;
@@ -81,7 +82,7 @@ pub struct PreviewPanel {
     mode: Mode,
     position: Vector3<f32>,
     model: Handle<Node>,
-    pub tools_panel: Handle<UiNode>,
+    pub tools_panel: Handle<StackPanel>,
 }
 
 impl PreviewPanel {

@@ -44,6 +44,7 @@ use crate::{
 };
 
 use crate::message::MessageData;
+use crate::stack_panel::StackPanel;
 use fyrox_core::pool::ObjectOrVariant;
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -299,7 +300,7 @@ pub struct Tree {
     /// Current content of the tree.
     pub content: Handle<UiNode>,
     /// Current layout panel, that used to arrange children items.
-    pub panel: Handle<UiNode>,
+    pub panel: Handle<StackPanel>,
     /// A flag, that indicates whether the tree is expanded or not.
     pub is_expanded: bool,
     /// Current background widget of the tree.
@@ -526,7 +527,7 @@ impl Control for Tree {
                         self.invalidate_arrange();
                     }
                     &TreeMessage::AddItem(item) => {
-                        ui.send(item, WidgetMessage::LinkWith(self.panel));
+                        ui.send(item, WidgetMessage::link_with(self.panel));
                         self.items.push(item);
                     }
                     &TreeMessage::RemoveItem(item) => {
@@ -545,7 +546,7 @@ impl Control for Tree {
                             }
                         }
                         for &item in items {
-                            ui.send(item, WidgetMessage::LinkWith(self.panel));
+                            ui.send(item, WidgetMessage::link_with(self.panel));
                         }
                         self.items.clone_from(items);
                     }
@@ -810,7 +811,7 @@ pub struct TreeRoot {
     /// Base widget of the tree root.
     pub widget: Widget,
     /// Current layout panel of the tree root, that is used to arrange children trees.
-    pub panel: Handle<UiNode>,
+    pub panel: Handle<StackPanel>,
     /// Current items of the tree root.
     pub items: Vec<Handle<UiNode>>,
     /// Selected items of the tree root.
@@ -840,7 +841,7 @@ impl Control for TreeRoot {
         if let Some(msg) = message.data_for::<TreeRootMessage>(self.handle()) {
             match msg {
                 &TreeRootMessage::AddItem(item) => {
-                    ui.send(item, WidgetMessage::LinkWith(self.panel));
+                    ui.send(item, WidgetMessage::link_with(self.panel));
                     self.items.push(item);
                     ui.post(self.handle, TreeRootMessage::ItemsChanged);
                 }
@@ -856,7 +857,7 @@ impl Control for TreeRoot {
                         ui.send(item, WidgetMessage::Remove);
                     }
                     for &item in items {
-                        ui.send(item, WidgetMessage::LinkWith(self.panel));
+                        ui.send(item, WidgetMessage::link_with(self.panel));
                     }
 
                     self.items = items.to_vec();

@@ -94,6 +94,7 @@ impl ItemEditor {
                     .with_child(content),
             )
             .build(ctx)
+            .to_base()
         } else {
             header.handle
         };
@@ -288,7 +289,8 @@ impl MacroInspector {
                         .map(|editor| editor.handle),
                 ),
         )
-        .build(ctx);
+        .build(ctx)
+        .to_base();
         Self {
             handle: BorderBuilder::new(WidgetBuilder::new().with_child(content))
                 .build(ctx)

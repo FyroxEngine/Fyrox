@@ -61,6 +61,7 @@ use crate::{
     Editor, Message, WidgetMessage, WrapMode,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::text::Text;
 use fyrox::gui::window::Window;
 use std::{any::Any, sync::mpsc::Sender, sync::Arc};
@@ -117,7 +118,7 @@ impl InspectorEnvironment for EditorEnvironment {
 pub struct InspectorPlugin {
     pub(crate) window: Handle<Window>,
     pub inspector: Handle<UiNode>,
-    pub head: Handle<UiNode>,
+    pub head: Handle<StackPanel>,
     pub footer: Handle<UiNode>,
     warning_text: Handle<Text>,
     type_name_text: Handle<Text>,
@@ -417,7 +418,7 @@ impl EditorPlugin for InspectorPlugin {
                     need_clear = false;
                 }
 
-                for widget in [self.inspector, self.head] {
+                for widget in [self.inspector, self.head.to_base()] {
                     ui.send(widget, WidgetMessage::Enabled(!read_only));
                 }
             },

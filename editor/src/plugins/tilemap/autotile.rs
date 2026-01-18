@@ -532,7 +532,8 @@ impl BrushMacro for AutoTileMacro {
                 .with_child(self.frequency_list.handle())
                 .with_child(failure_log_field),
         )
-        .build(ctx);
+        .build(ctx)
+        .to_base();
         Some(handle)
     }
 
@@ -604,7 +605,8 @@ impl BrushMacro for AutoTileMacro {
                 .with_child(adjacent_field)
                 .with_child(diagonal_field),
         )
-        .build(ctx);
+        .build(ctx)
+        .to_base();
         instance.widgets.handle = handle;
         instance.widgets.value_field = value_field;
         instance.widgets.adjacent_toggle = adjacent_toggle;

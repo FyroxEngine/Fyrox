@@ -176,6 +176,7 @@ impl TilePropertyEditor {
         let handle = if is_nine {
             StackPanelBuilder::new(WidgetBuilder::new().with_child(pair).with_child(nine))
                 .build(ctx)
+                .to_base()
         } else {
             pair
         };

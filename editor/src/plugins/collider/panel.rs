@@ -30,7 +30,7 @@ use crate::{
             stack_panel::StackPanelBuilder,
             utils::make_simple_tooltip,
             widget::{WidgetBuilder, WidgetMessage},
-            BuildContext, HorizontalAlignment, Orientation, UiNode, UserInterface,
+            BuildContext, HorizontalAlignment, Orientation, UserInterface,
         },
         scene::{
             collider::{Collider, ColliderShape},
@@ -43,9 +43,10 @@ use crate::{
     Message,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::stack_panel::StackPanel;
 
 pub struct ColliderControlPanel {
-    pub root_widget: Handle<UiNode>,
+    pub root_widget: Handle<StackPanel>,
     fit: Handle<Button>,
     edit: Handle<Button>,
 }

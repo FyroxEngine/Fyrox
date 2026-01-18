@@ -23,7 +23,6 @@ use crate::fyrox::{
         color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid::uuid,
         visitor::prelude::*,
     },
-    graph::SceneGraph,
     gui::{
         border::{BorderBuilder, BorderMessage},
         brush::Brush,
@@ -38,10 +37,10 @@ use crate::fyrox::{
     },
 };
 use crate::plugins::absm::selectable::{Selectable, SelectableMessage};
-
 use fyrox::gui::border::Border;
 use fyrox::gui::button::Button;
 use fyrox::gui::message::MessageData;
+use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::{Style, StyledProperty};
 use fyrox::gui::text::Text;
@@ -71,7 +70,7 @@ where
     #[component(include)]
     pub base: AbsmBaseNode,
     pub add_input: Handle<Button>,
-    input_sockets_panel: Handle<UiNode>,
+    input_sockets_panel: Handle<StackPanel>,
     normal_brush: StyledProperty<Brush>,
     selected_brush: StyledProperty<Brush>,
     name: Handle<Text>,
@@ -193,12 +192,12 @@ where
             match msg {
                 AbsmNodeMessage::InputSockets(input_sockets) => {
                     if input_sockets != &self.base.input_sockets {
-                        for &child in ui.node(self.input_sockets_panel).children() {
+                        for &child in ui[self.input_sockets_panel].children() {
                             ui.send(child, WidgetMessage::Remove);
                         }
 
                         for &socket in input_sockets {
-                            ui.send(socket, WidgetMessage::LinkWith(self.input_sockets_panel));
+                            ui.send(socket, WidgetMessage::link_with(self.input_sockets_panel));
                         }
 
                         self.base.input_sockets.clone_from(input_sockets);

@@ -31,7 +31,7 @@ use crate::{
             utils::make_simple_tooltip,
             widget::WidgetBuilder,
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, Thickness, UiNode,
+            BuildContext, Thickness,
         },
         scene::{
             base::BaseBuilder,
@@ -55,11 +55,12 @@ use crate::{
     Message,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::widget::WidgetMessage;
 use fyrox::gui::window::{Window, WindowAlignment};
 
 pub struct MeshControlPanel {
-    pub root_widget: Handle<UiNode>,
+    pub root_widget: Handle<StackPanel>,
     create_trimesh_collider: Handle<Button>,
     create_convex_collider: Handle<Button>,
     create_trimesh_rigid_body: Handle<Button>,
@@ -91,7 +92,7 @@ fn meshes_iter<'a>(
 }
 
 impl MeshControlPanel {
-    pub fn new(inspector_head: Handle<UiNode>, ctx: &mut BuildContext) -> Self {
+    pub fn new(inspector_head: Handle<StackPanel>, ctx: &mut BuildContext) -> Self {
         let create_trimesh_collider = make_button(
             "Create Trimesh Collider",
             "Creates a new trimesh collider and attaches it to the selected mesh(es)",
@@ -134,7 +135,7 @@ impl MeshControlPanel {
         .build(ctx);
 
         ctx.inner()
-            .send(root_widget, WidgetMessage::LinkWith(inspector_head));
+            .send(root_widget, WidgetMessage::link_with(inspector_head));
 
         Self {
             root_widget,

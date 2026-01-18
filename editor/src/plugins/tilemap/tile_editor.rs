@@ -208,7 +208,8 @@ impl TileMaterialEditor {
                     .with_child(material_line)
                     .with_child(bounds_field),
             )
-            .build(ctx),
+            .build(ctx)
+            .to_base(),
             material_line,
             material_field,
             bounds_field,

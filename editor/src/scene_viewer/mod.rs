@@ -68,6 +68,7 @@ use crate::{
 use fyrox::core::algebra::Vector2;
 use fyrox::gui::border::Border;
 use fyrox::gui::image::Image;
+use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::text::Text;
 use fyrox::gui::window::Window;
 use std::{
@@ -274,8 +275,8 @@ pub struct SceneViewer {
     stop: Handle<Button>,
     build_profile: Handle<UiNode>,
     sender: MessageSender,
-    interaction_mode_panel: Handle<UiNode>,
-    contextual_actions: Handle<UiNode>,
+    interaction_mode_panel: Handle<StackPanel>,
+    contextual_actions: Handle<StackPanel>,
     no_scene_reminder: Handle<Text>,
     tab_control: Handle<TabControl>,
     scene_gizmo: SceneGizmo,
@@ -620,7 +621,10 @@ impl SceneViewer {
                 &mut ui.build_ctx(),
                 scene_entry.current_interaction_mode.unwrap_or_default() == mode.uuid(),
             );
-            ui.send(button, WidgetMessage::LinkWith(self.interaction_mode_panel));
+            ui.send(
+                button,
+                WidgetMessage::link_with(self.interaction_mode_panel),
+            );
             self.interaction_modes.insert(mode.uuid(), button);
         }
     }

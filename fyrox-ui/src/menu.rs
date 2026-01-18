@@ -24,6 +24,7 @@
 #![warn(missing_docs)]
 
 use crate::message::MessageData;
+use crate::stack_panel::StackPanel;
 use crate::vector_image::VectorImage;
 use crate::{
     border::BorderBuilder,
@@ -415,7 +416,7 @@ pub struct MenuItem {
     /// A handle of a popup that holds the items of the menu item.
     pub items_panel: InheritableVariable<Handle<UiNode>>,
     /// A handle of a panel widget that arranges items of the menu item.
-    pub panel: InheritableVariable<Handle<UiNode>>,
+    pub panel: InheritableVariable<Handle<StackPanel>>,
     /// Current placement of the menu item.
     pub placement: InheritableVariable<MenuItemPlacement>,
     /// A flag, that defines whether the menu item is clickable when it has sub-items or not.
@@ -644,7 +645,7 @@ impl Control for MenuItem {
                 }
                 MenuItemMessage::Click => {}
                 MenuItemMessage::AddItem(item) => {
-                    ui.send(*item, WidgetMessage::LinkWith(*self.panel));
+                    ui.send(*item, WidgetMessage::link_with(*self.panel));
                     self.items_container.push(*item);
                     if self.items_container.len() == 1 {
                         self.sync_arrow_visibility(ui);
@@ -667,7 +668,7 @@ impl Control for MenuItem {
                     }
 
                     for &item in items {
-                        ui.send(item, WidgetMessage::LinkWith(*self.panel));
+                        ui.send(item, WidgetMessage::link_with(*self.panel));
                     }
 
                     self.items_container

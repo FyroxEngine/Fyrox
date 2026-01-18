@@ -43,6 +43,7 @@ use crate::{
 
 use crate::button::Button;
 use crate::message::{DeliveryMode, MessageData};
+use crate::stack_panel::StackPanel;
 use fyrox_graph::SceneGraph;
 use std::{
     any::TypeId,
@@ -68,7 +69,7 @@ pub struct CollectionEditor<T: CollectionItem> {
     pub widget: Widget,
     pub add: Handle<Button>,
     pub items: Vec<Item>,
-    pub panel: Handle<UiNode>,
+    pub panel: Handle<StackPanel>,
     #[visit(skip)]
     #[reflect(hidden)]
     pub layer_index: usize,
@@ -137,12 +138,12 @@ impl<T: CollectionItem> Control for CollectionEditor<T> {
                 if let CollectionEditorMessage::Items(items) = msg {
                     let views = create_item_views(items, &mut ui.build_ctx());
 
-                    for old_item in ui.node(self.panel).children() {
+                    for old_item in ui[self.panel].children() {
                         ui.send(*old_item, WidgetMessage::Remove);
                     }
 
                     for view in views {
-                        ui.send(view, WidgetMessage::LinkWith(self.panel));
+                        ui.send(view, WidgetMessage::link_with(self.panel));
                     }
 
                     self.items.clone_from(items);

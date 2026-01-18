@@ -36,6 +36,7 @@ use crate::{
     },
     load_image,
 };
+use fyrox::core::pool::ObjectOrVariant;
 use fyrox::gui::button::Button;
 use fyrox::gui::file_browser::{FileSelectorMode, FileType};
 use fyrox::gui::texture::TextureResource;
@@ -96,7 +97,11 @@ pub fn window_content(window: Handle<Window>, ui: &UserInterface) -> Handle<UiNo
         .unwrap_or_default()
 }
 
-pub fn enable_widget(handle: Handle<UiNode>, state: bool, ui: &UserInterface) {
+pub fn enable_widget(
+    handle: Handle<impl ObjectOrVariant<UiNode>>,
+    state: bool,
+    ui: &UserInterface,
+) {
     ui.send(handle, WidgetMessage::Enabled(state));
 }
 

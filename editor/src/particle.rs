@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use fyrox::gui::button::Button;
+use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::widget::WidgetMessage;
 
 use crate::fyrox::graph::SceneGraph;
@@ -56,7 +57,7 @@ pub struct ParticleSystemPreviewControlPanel {
 }
 
 impl ParticleSystemPreviewControlPanel {
-    pub fn new(inspector_head: Handle<UiNode>, ctx: &mut BuildContext) -> Self {
+    pub fn new(inspector_head: Handle<StackPanel>, ctx: &mut BuildContext) -> Self {
         let preview;
         let play;
         let pause;
@@ -196,7 +197,7 @@ impl ParticleSystemPreviewControlPanel {
         .build(ctx);
 
         ctx.inner()
-            .send(root_widget, WidgetMessage::LinkWith(inspector_head));
+            .send(root_widget, WidgetMessage::link_with(inspector_head));
 
         Self {
             root_widget,

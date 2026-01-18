@@ -596,7 +596,8 @@ impl PropertyEditors {
         let content = StackPanelBuilder::new(
             WidgetBuilder::new().with_children(editors.iter().map(|v| v.1.safe_lock().handle())),
         )
-        .build(ctx);
+        .build(ctx)
+        .to_base();
         Self {
             handle: ExpanderBuilder::new(WidgetBuilder::new())
                 .with_header(make_label("Properties", ctx))
@@ -667,7 +668,8 @@ impl ColliderEditors {
         let content = StackPanelBuilder::new(
             WidgetBuilder::new().with_children(editors.iter().map(|v| v.1.safe_lock().handle())),
         )
-        .build(ctx);
+        .build(ctx)
+        .to_base();
         Self {
             handle: ExpanderBuilder::new(WidgetBuilder::new())
                 .with_header(make_label("Colliders", ctx))
@@ -818,7 +820,8 @@ impl TileInspector {
                     create_page
                 }),
         )
-        .build(ctx);
+        .build(ctx)
+        .to_base();
         let create_tile = make_button("Create Tile", "Add a tile to this page.", 0, 0, ctx);
         let tile_set_page_creator =
             GridBuilder::new(WidgetBuilder::new()
@@ -902,7 +905,8 @@ impl TileInspector {
                 .with_child(collider_editors.handle)
                 .with_child(macro_inspector.handle()),
         )
-        .build(ctx);
+        .build(ctx)
+        .to_base();
         Self {
             handle,
             state,

@@ -23,6 +23,7 @@
 //! See [`Inspector`] docs for more info and usage examples.
 
 use crate::message::{DeliveryMode, MessageData};
+use crate::stack_panel::StackPanel;
 use crate::text::Text;
 use crate::{
     border::BorderBuilder,
@@ -805,7 +806,7 @@ pub struct InspectorContext {
     ///
     /// To ensure this, the widget should be composed of widgets produced by
     /// [PropertyEditorDefinition::create_instance](crate::inspector::editors::PropertyEditorDefinition::create_instance).
-    pub stack_panel: Handle<UiNode>,
+    pub stack_panel: Handle<StackPanel>,
     /// The context menu that opens when right-clicking on the inspector.
     pub menu: Menu,
     /// List of the editors in this inspector, in order, with each entry giving the editor widget handle, the name of the field being edited,
@@ -1012,7 +1013,7 @@ impl PropertyFilter {
     }
 }
 
-fn assign_tab_indices(container: Handle<UiNode>, ui: &mut UserInterface) {
+fn assign_tab_indices(container: Handle<impl ObjectOrVariant<UiNode>>, ui: &mut UserInterface) {
     let mut counter = 0;
     let mut widgets_list = Vec::new();
     for (descendant_handle, descendant_ref) in ui.traverse_iter(container) {

@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::button::Button;
+use crate::stack_panel::StackPanel;
 use crate::window::Window;
 use crate::{
     border::BorderBuilder,
@@ -43,7 +44,7 @@ use crate::{
     BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
     UserInterface, VerticalAlignment,
 };
-use fyrox_graph::{SceneGraph, SceneGraphNode};
+use fyrox_graph::SceneGraph;
 use fyrox_texture::TextureResource;
 use std::sync::mpsc::Receiver;
 
@@ -97,7 +98,7 @@ impl ContextMenu {
 
 pub struct LogPanel {
     pub window: Handle<Window>,
-    messages: Handle<UiNode>,
+    messages: Handle<StackPanel>,
     clear: Handle<Button>,
     receiver: Receiver<LogMessage>,
     severity: MessageKind,
@@ -249,7 +250,7 @@ impl LogPanel {
     }
 
     pub fn update(&mut self, max_log_entries: usize, ui: &mut UserInterface) -> bool {
-        let existing_items = ui.node(self.messages).children();
+        let existing_items = ui[self.messages].children();
 
         let mut count = existing_items.len();
 
@@ -316,7 +317,7 @@ impl LogPanel {
             )
             .build(ctx);
 
-            ui.send(item, WidgetMessage::LinkWith(self.messages));
+            ui.send(item, WidgetMessage::link_with(self.messages));
 
             item_to_bring_into_view = item;
 

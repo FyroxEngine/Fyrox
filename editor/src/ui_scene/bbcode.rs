@@ -5,6 +5,7 @@ use crate::{
     ui_scene::{commands::UiSceneContext, UiScene},
     Message,
 };
+use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::text_box::TextBox;
 use fyrox::{
     core::{pool::Handle, variable::InheritableVariable},
@@ -22,12 +23,12 @@ use fyrox::{
 };
 
 pub struct BBCodePanel {
-    pub root_widget: Handle<UiNode>,
+    pub root_widget: Handle<StackPanel>,
     pub text_box: Handle<TextBox>,
 }
 
 impl BBCodePanel {
-    pub fn new(inspector_head: Handle<UiNode>, ctx: &mut BuildContext) -> Self {
+    pub fn new(inspector_head: Handle<StackPanel>, ctx: &mut BuildContext) -> Self {
         let text_box = TextBoxBuilder::new(WidgetBuilder::new())
             .with_text_commit_mode(TextCommitMode::Changed)
             .with_multiline(true)
@@ -45,7 +46,7 @@ impl BBCodePanel {
         )
         .build(ctx);
         ctx.inner()
-            .send(root_widget, WidgetMessage::LinkWith(inspector_head));
+            .send(root_widget, WidgetMessage::link_with(inspector_head));
         Self {
             root_widget,
             text_box,

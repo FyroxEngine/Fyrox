@@ -54,6 +54,7 @@ use crate::{
 use fyrox::core::{ok_or_return, uuid, Uuid};
 use fyrox::engine::GraphicsContext;
 use fyrox::gui::button::Button;
+use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
 use fyrox::gui::window::{Window, WindowAlignment};
 use rust_fuzzy_search::fuzzy_compare;
@@ -67,7 +68,7 @@ pub struct SettingsWindow {
     ok: Handle<Button>,
     default: Handle<Button>,
     inspector: Handle<UiNode>,
-    groups: Handle<UiNode>,
+    groups: Handle<StackPanel>,
     scroll_viewer: Handle<UiNode>,
     search_bar: Handle<UiNode>,
     clipboard: Option<Box<dyn Reflect>>,
