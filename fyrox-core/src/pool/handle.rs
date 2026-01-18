@@ -554,6 +554,22 @@ impl<T> Debug for Handle<T> {
     }
 }
 
+pub trait HandlesVecExtension<T, B>: Sized
+where
+    T: ObjectOrVariant<B>,
+{
+    fn to_base(self) -> Vec<Handle<B>>;
+}
+
+impl<T, B> HandlesVecExtension<T, B> for Vec<Handle<T>>
+where
+    T: ObjectOrVariant<B>,
+{
+    fn to_base(self) -> Vec<Handle<B>> {
+        unsafe { std::mem::transmute(self) }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::{
