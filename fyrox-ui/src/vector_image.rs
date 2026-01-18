@@ -169,12 +169,13 @@ impl Primitive {
 /// # };
 /// # use fyrox_ui::style::resource::StyleResourceExt;
 /// # use fyrox_ui::style::Style;
+/// # use fyrox_ui::vector_image::VectorImage;
 /// #
 /// fn make_cross_vector_image(
 ///     ctx: &mut BuildContext,
 ///     size: f32,
 ///     thickness: f32,
-/// ) -> Handle<UiNode> {
+/// ) -> Handle<VectorImage> {
 ///     VectorImageBuilder::new(
 ///         WidgetBuilder::new()
 ///             // Color of the image is defined by the foreground brush of the base widget.
@@ -213,6 +214,7 @@ impl ConstructorProvider<UiNode, UserInterface> for VectorImage {
             .with_variant("Vector Image", |ui| {
                 VectorImageBuilder::new(WidgetBuilder::new())
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Visual")
@@ -338,8 +340,8 @@ impl VectorImageBuilder {
     }
 
     /// Finishes vector image building and adds it to the user interface.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        ctx.add_node(self.build_node(ctx))
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<VectorImage> {
+        ctx.add_node(self.build_node(ctx)).to_variant()
     }
 }
 

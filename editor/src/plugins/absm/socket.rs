@@ -39,6 +39,7 @@ use crate::fyrox::{
 use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::vector_image::VectorImage;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SocketMessage {
@@ -63,7 +64,7 @@ pub struct Socket {
     pub direction: SocketDirection,
     #[allow(dead_code)] // TODO
     editor: Handle<UiNode>,
-    pin: Handle<UiNode>,
+    pin: Handle<VectorImage>,
     pub index: usize,
 }
 

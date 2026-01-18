@@ -24,6 +24,7 @@
 #![warn(missing_docs)]
 
 use crate::message::MessageData;
+use crate::vector_image::VectorImage;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -424,7 +425,7 @@ pub struct MenuItem {
     /// Is this item selected or not.
     pub is_selected: InheritableVariable<bool>,
     /// An arrow primitive that is used to indicate that there's sub-items in the menu item.
-    pub arrow: InheritableVariable<Handle<UiNode>>,
+    pub arrow: InheritableVariable<Handle<VectorImage>>,
     /// Content of the menu item with which it was created.
     pub content: InheritableVariable<Option<MenuItemContent>>,
 }

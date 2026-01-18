@@ -23,6 +23,7 @@
 
 use crate::button::Button;
 use crate::message::MessageData;
+use crate::vector_image::VectorImage;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -990,7 +991,7 @@ enum HeaderButton {
     Maximize,
 }
 
-fn make_mark(ctx: &mut BuildContext, button: HeaderButton) -> Handle<UiNode> {
+fn make_mark(ctx: &mut BuildContext, button: HeaderButton) -> Handle<VectorImage> {
     let size = 12.0;
 
     VectorImageBuilder::new(

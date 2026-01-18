@@ -20,6 +20,7 @@
 
 use crate::button::Button;
 use crate::image::Image;
+use crate::vector_image::VectorImage;
 use crate::{
     border::BorderBuilder,
     button::ButtonBuilder,
@@ -94,7 +95,7 @@ pub fn make_arrow_non_uniform_size(
     orientation: ArrowDirection,
     width: f32,
     height: f32,
-) -> Handle<UiNode> {
+) -> Handle<VectorImage> {
     VectorImageBuilder::new(
         WidgetBuilder::new()
             .with_foreground(ctx.style.property(Style::BRUSH_BRIGHT))
@@ -115,7 +116,7 @@ pub fn make_arrow(
     ctx: &mut BuildContext,
     orientation: ArrowDirection,
     size: f32,
-) -> Handle<UiNode> {
+) -> Handle<VectorImage> {
     make_arrow_non_uniform_size(ctx, orientation, size, size)
 }
 
@@ -134,7 +135,7 @@ pub fn make_cross_primitive(size: f32, thickness: f32) -> Vec<Primitive> {
     ]
 }
 
-pub fn make_cross(ctx: &mut BuildContext, size: f32, thickness: f32) -> Handle<UiNode> {
+pub fn make_cross(ctx: &mut BuildContext, size: f32, thickness: f32) -> Handle<VectorImage> {
     VectorImageBuilder::new(
         WidgetBuilder::new()
             .with_horizontal_alignment(HorizontalAlignment::Center)
