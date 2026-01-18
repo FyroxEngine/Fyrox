@@ -81,6 +81,7 @@ impl ConstructorProvider<UiNode, UserInterface> for UuidEditor {
             .with_variant("Uuid Editor", |ui| {
                 UuidEditorBuilder::new(WidgetBuilder::new().with_name("Uuid Editor"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Input")
@@ -129,7 +130,7 @@ impl UuidEditorBuilder {
     }
 
     /// Finishes widget building.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UuidEditor> {
         let text;
         let generate;
         let grid = GridBuilder::new(
@@ -171,7 +172,7 @@ impl UuidEditorBuilder {
             generate,
         };
 
-        ctx.add_node(UiNode::new(uuid_editor))
+        ctx.add_node(UiNode::new(uuid_editor)).to_variant()
     }
 }
 

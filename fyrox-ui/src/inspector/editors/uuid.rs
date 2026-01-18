@@ -47,15 +47,15 @@ impl PropertyEditorDefinition for UuidPropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<Uuid>()?;
-        Ok(PropertyEditorInstance::Simple {
-            editor: UuidEditorBuilder::new(
+        Ok(PropertyEditorInstance::simple(
+            UuidEditorBuilder::new(
                 WidgetBuilder::new()
                     .with_margin(Thickness::uniform(1.0))
                     .with_vertical_alignment(VerticalAlignment::Center),
             )
             .with_value(*value)
             .build(ctx.build_context),
-        })
+        ))
     }
 
     fn create_message(
