@@ -239,9 +239,9 @@ pub fn make_interaction_mode_button(
         ImageBuilder::new(
             WidgetBuilder::new()
                 .with_background(ctx.style.property(Style::BRUSH_TEXT))
-                .with_margin(Thickness::uniform(2.0))
-                .with_width(23.0)
-                .with_height(23.0),
+                .with_margin(Thickness::uniform(4.0))
+                .with_width(19.0)
+                .with_height(19.0),
         )
         .with_opt_texture(load_image_internal(image))
         .build(ctx),

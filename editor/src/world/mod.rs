@@ -246,16 +246,16 @@ impl WorldViewer {
                 .with_tab_index(Some(3))
                 .with_vertical_alignment(VerticalAlignment::Center)
                 .with_margin(Thickness::uniform(1.0))
-                .with_width(22.0)
-                .with_height(22.0)
+                .with_width(26.0)
+                .with_height(26.0)
                 .with_tooltip(track_selection_tooltip),
         )
         .with_content(
             ImageBuilder::new(
                 WidgetBuilder::new()
                     .with_margin(Thickness::uniform(1.0))
-                    .with_width(10.0)
-                    .with_height(14.0)
+                    .with_width(13.0)
+                    .with_height(17.0)
                     .with_horizontal_alignment(HorizontalAlignment::Center)
                     .with_vertical_alignment(VerticalAlignment::Center),
             )

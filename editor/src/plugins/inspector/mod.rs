@@ -262,7 +262,7 @@ impl InspectorPlugin {
                                         docs_button
                                     }),
                             )
-                            .add_row(Row::strict(22.0))
+                            .add_row(Row::auto())
                             .add_column(Column::stretch())
                             .add_column(Column::auto())
                             .build(ctx),
