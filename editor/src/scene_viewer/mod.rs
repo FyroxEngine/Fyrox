@@ -277,7 +277,7 @@ pub struct SceneViewer {
     interaction_mode_panel: Handle<UiNode>,
     contextual_actions: Handle<UiNode>,
     no_scene_reminder: Handle<Text>,
-    tab_control: Handle<UiNode>,
+    tab_control: Handle<TabControl>,
     scene_gizmo: SceneGizmo,
     scene_gizmo_image: Handle<Image>,
     debug_switches: Handle<UiNode>,
@@ -885,12 +885,7 @@ impl SceneViewer {
     pub fn sync_to_model(&self, scenes: &SceneContainer, engine: &mut Engine) {
         // Sync tabs first.
 
-        let tabs = engine
-            .user_interfaces
-            .first_mut()
-            .node(self.tab_control)
-            .query_component::<TabControl>()
-            .expect("Must be TabControl!")
+        let tabs = engine.user_interfaces.first_mut()[self.tab_control]
             .tabs
             .clone();
         // Remove any excess tabs.

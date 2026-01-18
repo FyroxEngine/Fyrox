@@ -88,7 +88,7 @@ pub struct TileSetEditor {
     cell_position: Handle<Text>,
     /// The control that allows the editor to switch between the tiles tab,
     /// the properties tab, and the colliders tabl.
-    tab_control: Handle<UiNode>,
+    tab_control: Handle<TabControl>,
     /// The palette widget for the page icons. It is used to select which page to edit.
     pages_palette: Handle<UiNode>,
     /// The palette widget for the actual tiles. This is the main work area of the editor.
@@ -522,7 +522,7 @@ impl TileSetEditor {
     }
 
     fn send_tabs_visible(&self, is_tile_set: bool, ui: &mut UserInterface) {
-        let tab_control = ui.node(self.tab_control).cast::<TabControl>().unwrap();
+        let tab_control = &ui[self.tab_control];
         let tabs = tab_control.headers_container;
         let children = ui[tabs].children();
         for &tab in &children[1..3] {

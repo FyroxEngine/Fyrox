@@ -48,18 +48,19 @@ impl MessageData for ThumbMessage {}
 /// splitter in a docking manager's tile, etc.
 ///
 /// ```rust
-/// use fyrox_ui::{
-///     border::BorderBuilder,
-///     brush::Brush,
-///     core::{color::Color, pool::Handle},
-///     decorator::DecoratorBuilder,
-///     message::{CursorIcon, MessageDirection, UiMessage},
-///     thumb::{ThumbBuilder, ThumbMessage},
-///     widget::WidgetBuilder,
-///     BuildContext, UiNode,
-/// };
-///
-/// fn create_thumb(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// # use fyrox_ui::{
+/// #     border::BorderBuilder,
+/// #     brush::Brush,
+/// #     core::{color::Color, pool::Handle},
+/// #     decorator::DecoratorBuilder,
+/// #     message::{CursorIcon, MessageDirection, UiMessage},
+/// #     thumb::{ThumbBuilder, ThumbMessage},
+/// #     widget::WidgetBuilder,
+/// #     BuildContext, UiNode,
+/// # };
+/// # use fyrox_ui::thumb::Thumb;
+/// #
+/// fn create_thumb(ctx: &mut BuildContext) -> Handle<Thumb> {
 ///     ThumbBuilder::new(
 ///         WidgetBuilder::new().with_child(
 ///             DecoratorBuilder::new(BorderBuilder::new(
@@ -79,22 +80,19 @@ impl MessageData for ThumbMessage {}
 /// }
 ///
 /// fn process_thumb_messages(my_thumb: Handle<UiNode>, message: &UiMessage) {
-///     if message.destination() == my_thumb && message.direction() == MessageDirection::FromWidget
-///     {
-///         if let Some(msg) = message.data::<ThumbMessage>() {
-///             match msg {
-///                 ThumbMessage::DragStarted { position } => {
-///                     // Sent by a thumb when it just started dragging. The provided position
-///                     // expressed in local coordinates of the thumb.
-///                 }
-///                 ThumbMessage::DragDelta { offset } => {
-///                     // Sent by a thumb when it is being dragged. The provided offset
-///                     // expressed in local coordinates of the thumb.
-///                 }
-///                 ThumbMessage::DragCompleted { position } => {
-///                     // Sent by a thumb when it just stopped dragging. The provided position
-///                     // expressed in local coordinates of the thumb.
-///                 }
+///     if let Some(msg) = message.data_from::<ThumbMessage>(my_thumb) {
+///         match msg {
+///             ThumbMessage::DragStarted { position } => {
+///                 // Sent by a thumb when it just started dragging. The provided position
+///                 // expressed in local coordinates of the thumb.
+///             }
+///             ThumbMessage::DragDelta { offset } => {
+///                 // Sent by a thumb when it is being dragged. The provided offset
+///                 // expressed in local coordinates of the thumb.
+///             }
+///             ThumbMessage::DragCompleted { position } => {
+///                 // Sent by a thumb when it just stopped dragging. The provided position
+///                 // expressed in local coordinates of the thumb.
 ///             }
 ///         }
 ///     }

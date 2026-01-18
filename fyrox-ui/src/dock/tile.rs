@@ -271,7 +271,7 @@ pub struct Tile {
     pub top_anchor: Handle<Border>,
     pub bottom_anchor: Handle<Border>,
     pub center_anchor: Handle<Border>,
-    pub tabs: Handle<UiNode>,
+    pub tabs: Handle<TabControl>,
     pub content: TileContent,
     pub splitter: Handle<Border>,
     pub dragging_splitter: bool,
@@ -304,7 +304,7 @@ impl Control for Tile {
             return self.measure_vertical_with_minimized(ui, available_size);
         }
         ui.measure_node(self.tabs, Vector2::new(available_size.x, f32::INFINITY));
-        available_size.y -= ui.node(self.tabs).desired_size().y;
+        available_size.y -= ui[self.tabs].desired_size().y;
         for &child_handle in self.children() {
             if child_handle == self.tabs {
                 continue;
@@ -347,7 +347,7 @@ impl Control for Tile {
             TileContent::Empty => Vector2::default(),
             TileContent::Window(handle) => ui[*handle].desired_size(),
             TileContent::MultiWindow { index, windows } => {
-                let tabs = ui.node(self.tabs).desired_size();
+                let tabs = ui[self.tabs].desired_size();
                 let body = windows
                     .get(*index as usize)
                     .map(|w| ui[*w].desired_size())
@@ -387,7 +387,7 @@ impl Control for Tile {
             return self.arrange_vertical_with_minimized(ui, final_size);
         }
 
-        let tabs_height = ui.node(self.tabs).desired_size().y;
+        let tabs_height = ui[self.tabs].desired_size().y;
         ui.arrange_node(self.tabs, &Rect::new(0.0, 0.0, final_size.x, tabs_height));
         let full_bounds = Rect::new(0.0, tabs_height, final_size.x, final_size.y - tabs_height);
         for &child_handle in self.children() {
@@ -494,7 +494,7 @@ impl Control for Tile {
                             }
                             TileContent::MultiWindow { index, windows } => {
                                 send_visibility(ui, self.splitter, false);
-                                let tabs = ui.node(self.tabs).cast::<TabControl>().unwrap();
+                                let tabs = &ui[self.tabs];
                                 for tab in tabs.tabs.iter() {
                                     let uuid = tab.uuid;
                                     if !windows.iter().any(|&h| ui[h].id == uuid) {
@@ -507,7 +507,7 @@ impl Control for Tile {
                                 for (i, &w) in windows.iter().enumerate() {
                                     let is_active = i as u32 == *index;
                                     let uuid = ui[w].id;
-                                    let tabs = ui.node(self.tabs).cast::<TabControl>().unwrap();
+                                    let tabs = &ui[self.tabs];
                                     if tabs.get_tab_by_uuid(uuid).is_none() {
                                         self.add_tab(w, ui);
                                     }

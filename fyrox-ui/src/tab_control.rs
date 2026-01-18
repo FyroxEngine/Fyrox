@@ -257,6 +257,7 @@ impl ConstructorProvider<UiNode, UserInterface> for TabControl {
             .with_variant("Tab Control", |ui| {
                 TabControlBuilder::new(WidgetBuilder::new().with_name("Tab Control"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Layout")
@@ -657,7 +658,7 @@ impl TabControlBuilder {
     }
 
     /// Finishes [`TabControl`] building and adds it to the user interface and returns its handle.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<TabControl> {
         let tab_count = self.tabs.len();
         // Hide everything but initial tab content.
         for (i, (_, tab)) in self.tabs.iter().enumerate() {
@@ -745,7 +746,7 @@ impl TabControlBuilder {
             active_tab_brush: active_tab_brush.into(),
         };
 
-        ctx.add_node(UiNode::new(tc))
+        ctx.add_node(UiNode::new(tc)).to_variant()
     }
 }
 
