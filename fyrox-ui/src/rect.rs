@@ -38,6 +38,7 @@ use crate::{
 };
 
 use crate::message::MessageData;
+use crate::vec::VecEditor;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
@@ -124,9 +125,9 @@ where
     /// Base widget of the rect editor.
     pub widget: Widget,
     /// A handle to a widget, that is used to show/edit position part of the rect.
-    pub position: InheritableVariable<Handle<UiNode>>,
+    pub position: InheritableVariable<Handle<VecEditor<T, 2>>>,
     /// A handle to a widget, that is used to show/edit size part of the rect.
-    pub size: InheritableVariable<Handle<UiNode>>,
+    pub size: InheritableVariable<Handle<VecEditor<T, 2>>>,
     /// Current value of the rect editor.
     pub value: InheritableVariable<Rect<T>>,
 }
@@ -238,7 +239,7 @@ fn create_field<T: NumericType>(
     name: &str,
     value: Vector2<T>,
     row: usize,
-) -> (Handle<UiNode>, Handle<UiNode>) {
+) -> (Handle<UiNode>, Handle<VecEditor<T, 2>>) {
     let editor;
     let grid = GridBuilder::new(
         WidgetBuilder::new()

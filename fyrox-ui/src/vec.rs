@@ -122,6 +122,7 @@ impl<T: NumericType, const D: usize> ConstructorProvider<UiNode, UserInterface>
                 |ui| {
                     VecEditorBuilder::<T, D>::new(WidgetBuilder::new().with_name("Vec Editor"))
                         .build(&mut ui.build_ctx())
+                        .to_base()
                         .into()
                 },
             )
@@ -302,7 +303,7 @@ where
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<VecEditor<T, D>> {
         let mut fields = Vec::new();
         let mut children = Vec::new();
         let mut columns = Vec::new();
@@ -352,7 +353,7 @@ where
             step: self.step,
         };
 
-        ctx.add_node(UiNode::new(node))
+        ctx.add_node(UiNode::new(node)).to_variant()
     }
 }
 

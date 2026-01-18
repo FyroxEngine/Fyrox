@@ -20,6 +20,7 @@
 
 use super::*;
 
+use fyrox::gui::vec::VecEditor;
 use fyrox::{
     core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     gui::{
@@ -51,10 +52,10 @@ pub struct TileBoundsEditor {
     widget: Widget,
     pub value: Option<TileBounds>,
     pub value_area: Handle<UiNode>,
-    pub left_top: Handle<UiNode>,
-    pub left_bottom: Handle<UiNode>,
-    pub right_top: Handle<UiNode>,
-    pub right_bottom: Handle<UiNode>,
+    pub left_top: Handle<VecEditor<u32, 2>>,
+    pub left_bottom: Handle<VecEditor<u32, 2>>,
+    pub right_top: Handle<VecEditor<u32, 2>>,
+    pub right_bottom: Handle<VecEditor<u32, 2>>,
     pub button_left: Handle<Button>,
     pub button_right: Handle<Button>,
     pub button_flip_x: Handle<Button>,
@@ -64,7 +65,7 @@ pub struct TileBoundsEditor {
 define_widget_deref!(TileBoundsEditor);
 
 impl TileBoundsEditor {
-    fn get_field(&self, index: usize) -> Handle<UiNode> {
+    fn get_field(&self, index: usize) -> Handle<VecEditor<u32, 2>> {
         match index {
             0 => self.left_bottom,
             1 => self.right_bottom,
@@ -138,7 +139,7 @@ impl Control for TileBoundsEditor {
         if let Some(Vec2EditorMessage::<u32>::Value(v)) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
                 for i in 0..4 {
-                    if self.get_field(i) == message.destination() {
+                    if message.destination() == self.get_field(i) {
                         let mut value = self.value.clone().unwrap_or_default();
                         *value.get_mut(i) = *v;
                         // This does not trigger a Value FromWidget message from the VecEditor

@@ -206,6 +206,7 @@ macro_rules! vec_ui_view {
                 VecEditorBuilder::new(WidgetBuilder::new().with_height(24.0))
                     .with_value(self)
                     .build(ctx)
+                    .to_base()
             }
         })*
     };

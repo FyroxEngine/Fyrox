@@ -75,17 +75,15 @@ where
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<UnitQuaternion<T>>()?;
         let euler = value.euler_angles();
-        Ok(PropertyEditorInstance::Simple {
-            editor: VecEditorBuilder::new(
-                WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
-            )
-            .with_value(Vector3::new(
-                euler.0.to_degrees(),
-                euler.1.to_degrees(),
-                euler.2.to_degrees(),
-            ))
-            .build(ctx.build_context),
-        })
+        Ok(PropertyEditorInstance::simple(
+            VecEditorBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                .with_value(Vector3::new(
+                    euler.0.to_degrees(),
+                    euler.1.to_degrees(),
+                    euler.2.to_degrees(),
+                ))
+                .build(ctx.build_context),
+        ))
     }
 
     fn create_message(

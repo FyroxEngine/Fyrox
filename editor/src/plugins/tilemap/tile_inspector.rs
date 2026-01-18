@@ -860,8 +860,9 @@ impl TileInspector {
                 resource_manager,
             );
         let page_material_inspector = InspectorField::new("Material", page_material_field, ctx);
-        let tile_size_field =
-            Vec2EditorBuilder::<u32>::new(WidgetBuilder::new().on_column(1)).build(ctx);
+        let tile_size_field = Vec2EditorBuilder::<u32>::new(WidgetBuilder::new().on_column(1))
+            .build(ctx)
+            .to_base();
         let tile_size_inspector = InspectorField::new("Tile Size", tile_size_field, ctx);
         let frame_rate_field = NumericUpDownBuilder::<f32>::new(WidgetBuilder::new().on_column(1))
             .with_min_value(0.0)
