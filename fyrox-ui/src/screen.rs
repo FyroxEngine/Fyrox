@@ -53,17 +53,18 @@ use std::cell::Cell;
 /// will always be centered in the current screen bounds.
 ///
 /// ```rust
-/// use fyrox_ui::{
-///     core::pool::Handle,
-///     button::ButtonBuilder,
-///     grid::{Column, GridBuilder, Row},
-///     screen::ScreenBuilder,
-///     stack_panel::StackPanelBuilder,
-///     widget::WidgetBuilder,
-///     BuildContext, UiNode,
-/// };
-///
-/// fn create_always_centered_game_menu(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     button::ButtonBuilder,
+/// #     grid::{Column, GridBuilder, Row},
+/// #     screen::ScreenBuilder,
+/// #     stack_panel::StackPanelBuilder,
+/// #     widget::WidgetBuilder,
+/// #     BuildContext, UiNode,
+/// # };
+/// # use fyrox_ui::screen::Screen;
+/// #
+/// fn create_always_centered_game_menu(ctx: &mut BuildContext) -> Handle<Screen> {
 ///     // Screen widget will provide current screen size to its Grid widget as a layout constraint,
 ///     // thus making it fit to the current screen bounds.
 ///     ScreenBuilder::new(
@@ -130,6 +131,7 @@ impl ConstructorProvider<UiNode, UserInterface> for Screen {
             .with_variant("Screen", |ui| {
                 ScreenBuilder::new(WidgetBuilder::new().with_name("Screen"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Layout")
@@ -193,13 +195,13 @@ impl ScreenBuilder {
 
     /// Finishes building a [`Screen`] widget instance and adds it to the user interface, returning a
     /// handle to the instance.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<Screen> {
         let screen = Screen {
             last_visual_transform: Matrix3::default(),
             widget: self.widget_builder.with_need_update(true).build(ctx),
             last_screen_size: Cell::new(Default::default()),
         };
-        ctx.add_node(UiNode::new(screen))
+        ctx.add_node(UiNode::new(screen)).to_variant()
     }
 }
 

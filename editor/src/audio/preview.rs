@@ -42,6 +42,7 @@ use crate::{
     Message,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::scroll_bar::ScrollBar;
 use fyrox::gui::stack_panel::StackPanel;
 
 pub struct AudioPreviewPanel {
@@ -51,7 +52,7 @@ pub struct AudioPreviewPanel {
     pause: Handle<Button>,
     stop: Handle<Button>,
     rewind: Handle<Button>,
-    time: Handle<UiNode>,
+    time: Handle<ScrollBar>,
     sounds_state: Vec<(Handle<Node>, Node)>,
 }
 

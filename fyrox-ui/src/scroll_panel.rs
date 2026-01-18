@@ -75,8 +75,9 @@ impl MessageData for ScrollPanelMessage {
 /// #     widget::WidgetBuilder,
 /// #     BuildContext, UiNode,
 /// # };
+/// # use fyrox_ui::scroll_panel::ScrollPanel;
 /// #
-/// fn create_scroll_panel(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// fn create_scroll_panel(ctx: &mut BuildContext) -> Handle<ScrollPanel> {
 ///     ScrollPanelBuilder::new(
 ///         WidgetBuilder::new().with_child(
 ///             GridBuilder::new(
@@ -161,6 +162,7 @@ impl ConstructorProvider<UiNode, UserInterface> for ScrollPanel {
             .with_variant("Scroll Panel", |ui| {
                 ScrollPanelBuilder::new(WidgetBuilder::new().with_name("Scroll Panel"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Layout")
@@ -377,13 +379,14 @@ impl ScrollPanelBuilder {
     }
 
     /// Finishes scroll panel building and adds it to the user interface.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<ScrollPanel> {
         ctx.add_node(UiNode::new(ScrollPanel {
             widget: self.widget_builder.build(ctx),
             scroll: self.scroll_value,
             vertical_scroll_allowed: self.vertical_scroll_allowed.unwrap_or(true),
             horizontal_scroll_allowed: self.horizontal_scroll_allowed.unwrap_or(false),
         }))
+        .to_variant()
     }
 }
 

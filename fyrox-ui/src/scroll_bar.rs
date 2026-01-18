@@ -82,7 +82,9 @@ impl MessageData for ScrollBarMessage {}
 /// #     core::pool::Handle, scroll_bar::ScrollBarBuilder, widget::WidgetBuilder, BuildContext,
 /// #     UiNode,
 /// # };
-/// fn create_scroll_bar(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// # use fyrox_ui::scroll_bar::ScrollBar;
+///
+/// fn create_scroll_bar(ctx: &mut BuildContext) -> Handle<ScrollBar> {
 ///     ScrollBarBuilder::new(WidgetBuilder::new())
 ///         .with_min(0.0)
 ///         .with_max(200.0)
@@ -102,12 +104,8 @@ impl MessageData for ScrollBarMessage {}
 /// #     UiNode,
 /// # };
 /// # fn foo(scroll_bar: Handle<UiNode>, message: &mut UiMessage) {
-/// if message.destination() == scroll_bar
-///     && message.direction() == MessageDirection::FromWidget
-/// {
-///     if let Some(ScrollBarMessage::Value(value)) = message.data() {
-///         println!("{}", value);
-///     }
+/// if let Some(ScrollBarMessage::Value(value)) = message.data_from(scroll_bar) {
+///     println!("{}", value);
 /// }
 /// # }
 /// ```
@@ -170,6 +168,7 @@ impl ConstructorProvider<UiNode, UserInterface> for ScrollBar {
             .with_variant("Scroll Bar", |ui| {
                 ScrollBarBuilder::new(WidgetBuilder::new().with_name("Scroll Bar"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Input")
@@ -508,7 +507,7 @@ impl ScrollBarBuilder {
     }
 
     /// Creates new scroll bar instance and adds it to the user interface.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<ScrollBar> {
         let orientation = self.orientation.unwrap_or(Orientation::Horizontal);
 
         let increase = self.increase.unwrap_or_else(|| {
@@ -663,7 +662,7 @@ impl ScrollBarBuilder {
             value_text: value_text.into(),
             value_precision: self.value_precision.into(),
         });
-        ctx.add_node(node)
+        ctx.add_node(node).to_variant()
     }
 }
 
