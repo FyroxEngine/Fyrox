@@ -41,7 +41,7 @@ use syn::{parse_macro_input, DeriveInput};
 /// ```
 /// use fyrox_core::visitor::{Visit, VisitResult, Visitor};
 /// #[derive(Visit)]
-/// struct Foo<T> {
+/// struct Foo<T: Visit> {
 ///     example_one: String,
 ///     example_two: T,
 /// }

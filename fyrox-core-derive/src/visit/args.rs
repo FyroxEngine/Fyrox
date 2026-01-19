@@ -40,10 +40,7 @@ pub struct TypeArgs {
 #[darling(attributes(visit))]
 pub struct FieldArgs {
     pub ident: Option<Ident>,
-    // pub vis: Visibility,
-    pub ty: Type,
-    // pub attrs: Vec<Attribute>,
-    // ---
+
     /// `#[visit(skip)]`
     ///
     /// Skip on read and write

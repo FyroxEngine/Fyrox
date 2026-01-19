@@ -402,13 +402,19 @@ pub enum PageType {
 /// Both pages and tiles have a TileDefinitionHandle and are rendered using
 /// [`TileRenderData`]. For pages this is due to having an icon to allow the user to select the page.
 /// Both pages and tiles can be selected by the user, moved, and deleted.
-#[derive(Clone, Copy, Debug, PartialEq, Reflect)]
+#[derive(Clone, Copy, Debug, PartialEq, Visit, Reflect)]
 pub enum ResourceTilePosition {
     /// This position refers to some page, and so it lacks tile coordinates.
     Page(Vector2<i32>),
     /// This position refers to some tile, and so it has page coordinates and
     /// the coordinates of the tile within the page.
     Tile(Vector2<i32>, Vector2<i32>),
+}
+
+impl Default for ResourceTilePosition {
+    fn default() -> Self {
+        Self::Page(Default::default())
+    }
 }
 
 impl Display for ResourceTilePosition {

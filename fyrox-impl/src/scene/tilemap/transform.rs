@@ -54,7 +54,7 @@ pub struct OrthoTransformation(i8);
 
 /// A map from `Vector2<i32>` to values. It can be transformed to flip and rotate the positions of the values.
 #[derive(Clone, Debug, Visit)]
-pub struct OrthoTransformMap<V> {
+pub struct OrthoTransformMap<V: Visit + Default> {
     transform: OrthoTransformation,
     map: FxHashMap<Vector2<i32>, V>,
 }
@@ -249,7 +249,7 @@ impl<V: Number + SimdPartialOrd + Add + AddAssign + Neg<Output = V> + Scalar> Or
     }
 }
 
-impl<V> OrthoTransformMap<V> {
+impl<V: Visit + Default> OrthoTransformMap<V> {
     /// Bounding rectangle the contains the keys.
     pub fn bounding_rect(&self) -> OptionTileRect {
         let mut result = OptionTileRect::default();
@@ -316,7 +316,7 @@ impl<V> OrthoTransformMap<V> {
     }
 }
 
-impl<V> Default for OrthoTransformMap<V> {
+impl<V: Visit + Default> Default for OrthoTransformMap<V> {
     fn default() -> Self {
         Self {
             transform: Default::default(),
@@ -325,7 +325,7 @@ impl<V> Default for OrthoTransformMap<V> {
     }
 }
 
-impl<V> OrthoTransform for OrthoTransformMap<V> {
+impl<V: Visit + Default> OrthoTransform for OrthoTransformMap<V> {
     fn x_flipped(self) -> Self {
         Self {
             transform: self.transform.x_flipped(),

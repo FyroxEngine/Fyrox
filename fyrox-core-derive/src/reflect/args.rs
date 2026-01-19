@@ -92,19 +92,6 @@ impl TypeArgs {
             return generics;
         }
 
-        // Add where clause for every reflectable field
-        let fields: Box<dyn Iterator<Item = &FieldArgs>> = match &self.data {
-            ast::Data::Struct(data) => Box::new(data.fields.iter()),
-            ast::Data::Enum(variants) => Box::new(variants.iter().flat_map(|v| v.fields.iter())),
-        };
-
-        clause.predicates.extend(
-            fields
-                .filter(|f| !(f.hidden || f.deref || f.field.is_some()))
-                .map(|f| &f.ty)
-                .map::<WherePredicate, _>(|ty| parse_quote! { #ty: Reflect }),
-        );
-
         generics
     }
 

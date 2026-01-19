@@ -65,8 +65,12 @@ pub enum Status {
     Running,
 }
 
+/// Base trait for all behaviors. This trait has auto-impl.
+pub trait BaseBehavior: Visit + Default + PartialEq + Debug + Clone + 'static {}
+impl<T: Visit + Default + PartialEq + Debug + Clone + 'static> BaseBehavior for T {}
+
 /// A trait for user-defined actions for behavior tree.
-pub trait Behavior<'a>: Visit + Default + PartialEq + Debug + Clone {
+pub trait Behavior<'a>: BaseBehavior {
     /// A context in which the behavior will be performed.
     type Context;
 
@@ -80,14 +84,14 @@ pub trait Behavior<'a>: Visit + Default + PartialEq + Debug + Clone {
 #[derive(Debug, PartialEq, Visit, Eq, Clone)]
 pub struct RootNode<B>
 where
-    B: Clone,
+    B: BaseBehavior,
 {
     child: Handle<BehaviorNode<B>>,
 }
 
 impl<B> Default for RootNode<B>
 where
-    B: Clone,
+    B: BaseBehavior,
 {
     fn default() -> Self {
         Self {
@@ -100,7 +104,7 @@ where
 #[derive(Debug, PartialEq, Visit, Eq, Clone, Default)]
 pub enum BehaviorNode<B>
 where
-    B: Clone,
+    B: BaseBehavior,
 {
     #[doc(hidden)]
     #[default]
@@ -120,7 +124,7 @@ where
 #[derive(Debug, PartialEq, Visit, Clone)]
 pub struct BehaviorTree<B>
 where
-    B: Clone + 'static,
+    B: BaseBehavior,
 {
     nodes: Pool<BehaviorNode<B>>,
     root: Handle<BehaviorNode<B>>,
@@ -128,7 +132,7 @@ where
 
 impl<B> Default for BehaviorTree<B>
 where
-    B: Clone + 'static,
+    B: BaseBehavior,
 {
     fn default() -> Self {
         Self {
@@ -140,7 +144,7 @@ where
 
 impl<B> BehaviorTree<B>
 where
-    B: Clone + 'static,
+    B: BaseBehavior,
 {
     /// Creates new behavior tree with single root node.
     pub fn new() -> Self {
@@ -251,7 +255,7 @@ where
     }
 }
 
-impl<B: Clone + 'static> Index<Handle<BehaviorNode<B>>> for BehaviorTree<B> {
+impl<B: BaseBehavior> Index<Handle<BehaviorNode<B>>> for BehaviorTree<B> {
     type Output = BehaviorNode<B>;
 
     fn index(&self, index: Handle<BehaviorNode<B>>) -> &Self::Output {
@@ -259,7 +263,7 @@ impl<B: Clone + 'static> Index<Handle<BehaviorNode<B>>> for BehaviorTree<B> {
     }
 }
 
-impl<B: Clone + 'static> IndexMut<Handle<BehaviorNode<B>>> for BehaviorTree<B> {
+impl<B: BaseBehavior> IndexMut<Handle<BehaviorNode<B>>> for BehaviorTree<B> {
     fn index_mut(&mut self, index: Handle<BehaviorNode<B>>) -> &mut Self::Output {
         &mut self.nodes[index]
     }
@@ -271,7 +275,7 @@ pub fn sequence<B, const N: usize>(
     tree: &mut BehaviorTree<B>,
 ) -> Handle<BehaviorNode<B>>
 where
-    B: Clone + 'static,
+    B: BaseBehavior,
 {
     CompositeNode::new_sequence(children.to_vec()).add_to(tree)
 }
@@ -282,7 +286,7 @@ pub fn selector<B, const N: usize>(
     tree: &mut BehaviorTree<B>,
 ) -> Handle<BehaviorNode<B>>
 where
-    B: Clone + 'static,
+    B: BaseBehavior,
 {
     CompositeNode::new_selector(children.to_vec()).add_to(tree)
 }
@@ -290,7 +294,7 @@ where
 /// Creates a new leaf.
 pub fn leaf<B>(behavior: B, tree: &mut BehaviorTree<B>) -> Handle<BehaviorNode<B>>
 where
-    B: Clone + 'static,
+    B: BaseBehavior,
 {
     LeafNode::new(behavior).add_to(tree)
 }
@@ -301,7 +305,7 @@ pub fn inverter<B>(
     tree: &mut BehaviorTree<B>,
 ) -> Handle<BehaviorNode<B>>
 where
-    B: Clone + 'static,
+    B: BaseBehavior,
 {
     Inverter::new(child).add_to(tree)
 }

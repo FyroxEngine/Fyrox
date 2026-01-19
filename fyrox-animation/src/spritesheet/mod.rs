@@ -41,9 +41,9 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 pub mod signal;
 
 /// Trait for anything that can be used as a texture.
-pub trait SpriteSheetTexture: PartialEq + Clone + Visit + Reflect {}
+pub trait SpriteSheetTexture: PartialEq + Clone + Visit + Reflect + Default {}
 
-impl<T: PartialEq + Clone + Visit + Reflect> SpriteSheetTexture for T {}
+impl<T: PartialEq + Clone + Visit + Reflect + Default> SpriteSheetTexture for T {}
 
 /// Animation playback status.
 #[derive(
@@ -292,7 +292,7 @@ where
     /// # };
     /// # use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
     /// #
-    /// #[derive(PartialEq, Clone, Reflect, Visit, Debug)]
+    /// #[derive(PartialEq, Clone, Reflect, Visit, Debug, Default)]
     /// struct MyTexture {}
     ///
     /// fn extract_animations() {
@@ -595,7 +595,7 @@ mod test {
     };
     use fyrox_core::{algebra::Vector2, math::Rect, reflect::prelude::*, visitor::prelude::*};
 
-    #[derive(PartialEq, Clone, Reflect, Visit, Debug)]
+    #[derive(PartialEq, Clone, Reflect, Visit, Debug, Default)]
     struct MyTexture {}
 
     #[test]

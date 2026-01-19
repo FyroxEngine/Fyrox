@@ -21,6 +21,7 @@
 //! Leaf is a "final" node of a behavior tree. It contains user-defined action which
 //! is able to mutate given context.
 
+use crate::utils::behavior::BaseBehavior;
 use crate::{
     core::{pool::Handle, visitor::prelude::*},
     utils::behavior::{BehaviorNode, BehaviorTree},
@@ -31,7 +32,7 @@ use std::cell::RefCell;
 #[derive(Debug, PartialEq, Visit, Eq, Clone)]
 pub struct LeafNode<B>
 where
-    B: Clone,
+    B: BaseBehavior,
 {
     /// User-defined behavior.
     pub behavior: Option<RefCell<B>>,
@@ -39,7 +40,7 @@ where
 
 impl<B> Default for LeafNode<B>
 where
-    B: Clone,
+    B: BaseBehavior,
 {
     fn default() -> Self {
         Self { behavior: None }
@@ -48,7 +49,7 @@ where
 
 impl<B> LeafNode<B>
 where
-    B: Clone + 'static,
+    B: BaseBehavior,
 {
     /// Creates new leaf node with given action.
     pub fn new(behavior: B) -> Self {

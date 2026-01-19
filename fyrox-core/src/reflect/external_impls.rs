@@ -27,14 +27,14 @@ use std::fmt::Debug;
 use crate::reflect::prelude::*;
 
 impl_reflect! {
-    pub struct Matrix<T: Copy + 'static, R: Dim + 'static, C: Dim + 'static, S: Copy + 'static> {
+    pub struct Matrix<T: Copy + 'static, R: Dim + 'static, C: Dim + 'static, S: Copy + Debug + FieldValue + 'static> {
         pub data: S,
         // _phantoms: PhantomData<(T, R, C)>,
     }
 }
 
 impl_reflect! {
-    pub struct ArrayStorage<T: Copy + Debug, const R: usize, const C: usize>(pub [[T; R]; C]);
+    pub struct ArrayStorage<T: Copy + Debug + Reflect, const R: usize, const C: usize>(pub [[T; R]; C]);
 }
 
 impl_reflect! {
@@ -44,7 +44,7 @@ impl_reflect! {
 }
 
 impl_reflect! {
-    pub struct Quaternion<T: Copy + Debug> {
+    pub struct Quaternion<T: Copy + Debug + Reflect> {
         pub coords: Vector4<T>,
     }
 }

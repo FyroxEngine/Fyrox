@@ -83,7 +83,7 @@ fn impl_visit_struct(
         }
     };
 
-    utils::create_impl(ty_args, field_args.iter().cloned(), visit_fn_body)
+    utils::create_impl(ty_args, visit_fn_body)
 }
 
 /// impl `Visit` for `enum`
@@ -235,7 +235,6 @@ fn impl_visit_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs])
 
     utils::create_impl(
         ty_args,
-        variant_args.iter().flat_map(|v| v.fields.iter()).cloned(),
         quote! {
              let mut region = match visitor.enter_region(name) {
                  Ok(x) => x,

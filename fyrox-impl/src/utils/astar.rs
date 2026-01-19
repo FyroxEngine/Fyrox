@@ -75,7 +75,10 @@ impl VertexData {
 
 /// A trait, that describes and arbitrary vertex that could be used in a graph. It allows you to
 /// use your structure to store additional info in the graph.
-pub trait VertexDataProvider: Deref<Target = VertexData> + DerefMut + PositionProvider {}
+pub trait VertexDataProvider:
+    Deref<Target = VertexData> + DerefMut + PositionProvider + Default + Visit + 'static
+{
+}
 
 /// A default graph vertex with no additional data.
 #[derive(Default, PartialEq, Debug)]

@@ -45,7 +45,7 @@ struct SkipAttr {
 }
 
 #[derive(Debug, Clone, PartialEq, Visit)]
-struct Generics<T> {
+struct Generics<T: Visit + Default + 'static> {
     items: Vec<T>,
 }
 
@@ -75,7 +75,7 @@ enum ComplexEnum {
 #[derive(Debug, Clone, PartialEq, Visit)]
 enum GenericEnum<T>
 where
-    T: std::fmt::Debug,
+    T: std::fmt::Debug + Default + Visit + 'static,
 {
     UnitVariant,
     Tuple(i32, Vec<T>),
@@ -141,17 +141,6 @@ fn skip_attr() {
 
 #[test]
 fn generics() {
-    struct NotVisit;
-
-    #[allow(warnings)]
-    let mut not_compile = Generics {
-        items: vec![NotVisit],
-    };
-
-    // Compile error because `Generics<NotVisit> is not `Visit`:
-    // let mut visitor = Visitor::new();
-    // not_compile.visit("Data", &mut visitor).unwrap();
-
     // But `Generics<T: Visit` is `Visit`
     let mut data = Generics {
         items: vec![100u32],
@@ -198,16 +187,6 @@ fn complex_enum() {
 
 #[test]
 fn generic_enum() {
-    #[derive(Debug)]
-    struct NotVisit;
-
-    #[allow(warnings)]
-    let mut not_compile = GenericEnum::Tuple(1, vec![NotVisit]);
-
-    // Compile error because `Generics<NotVisit> is not `Visit`:
-    // let mut visitor = Visitor::new();
-    // not_compile.visit("Data", &mut visitor).unwrap();
-
     let mut data = GenericEnum::Tuple(1, vec![100u32]);
     let mut data_default = GenericEnum::UnitVariant;
 

@@ -58,22 +58,22 @@ fn position_to_vector(source: PalettePosition) -> Vector2<i32> {
 
 /// A 2D grid that contains tile data.
 #[derive(Default, Debug, Clone, PartialEq, Reflect)]
-pub struct TileGridMap<V: Debug + Clone>(FxHashMap<Vector2<i32>, V>);
+pub struct TileGridMap<V: Debug + Clone + Reflect>(FxHashMap<Vector2<i32>, V>);
 
-impl<V: Visit + Default + Debug + Clone> Visit for TileGridMap<V> {
+impl<V: Visit + Default + Debug + Clone + Reflect> Visit for TileGridMap<V> {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         self.0.visit(name, visitor)
     }
 }
 
-impl<V: Debug + Clone> Deref for TileGridMap<V> {
+impl<V: Debug + Clone + Reflect> Deref for TileGridMap<V> {
     type Target = FxHashMap<Vector2<i32>, V>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl<V: Debug + Clone> DerefMut for TileGridMap<V> {
+impl<V: Debug + Clone + Reflect> DerefMut for TileGridMap<V> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
@@ -382,7 +382,7 @@ pub struct Stamp {
 
 /// Each cell of a stamp must have a tile handle and it may optionally have
 /// the handle of a brush cell where the tile was taken from.
-#[derive(Clone, Debug, Reflect)]
+#[derive(Clone, Debug, Reflect, Visit, Default)]
 pub struct StampElement {
     /// The stamp cell's tile handle
     pub handle: TileDefinitionHandle,

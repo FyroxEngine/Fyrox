@@ -21,6 +21,7 @@
 //! A node, that inverts its child state ([`super::Status::Failure`] becomes [`super::Status::Success`] and vice versa, [`super::Status::Running`] remains
 //! unchanged)
 
+use crate::utils::behavior::BaseBehavior;
 use crate::{
     core::{pool::Handle, visitor::prelude::*},
     utils::behavior::{BehaviorNode, BehaviorTree},
@@ -30,7 +31,7 @@ use crate::{
 #[derive(Debug, PartialEq, Visit, Eq, Clone)]
 pub struct Inverter<B>
 where
-    B: Clone,
+    B: BaseBehavior,
 {
     /// A handle of child node, the state of which will be inverted.
     pub child: Handle<BehaviorNode<B>>,
@@ -38,7 +39,7 @@ where
 
 impl<B> Default for Inverter<B>
 where
-    B: Clone,
+    B: BaseBehavior,
 {
     fn default() -> Self {
         Self {
@@ -49,7 +50,7 @@ where
 
 impl<B> Inverter<B>
 where
-    B: Clone + 'static,
+    B: BaseBehavior,
 {
     /// Creates new inverter node with given action.
     pub fn new(child: Handle<BehaviorNode<B>>) -> Self {

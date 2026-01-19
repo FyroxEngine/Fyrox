@@ -282,14 +282,14 @@ impl_reflect! {
 }
 
 impl_reflect! {
-    pub enum Option<T: Clone> {
+    pub enum Option<T: Clone + Debug + Reflect> {
         Some(T),
         None
     }
 }
 
 impl_reflect! {
-    pub struct Range<Idx: Clone> {
+    pub struct Range<Idx: Clone + Debug + Reflect> {
         pub start: Idx,
         pub end: Idx,
     }

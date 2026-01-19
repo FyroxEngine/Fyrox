@@ -28,14 +28,9 @@ use convert_case::*;
 
 use crate::visit::args;
 
-pub fn create_impl(
-    ty_args: &args::TypeArgs,
-    field_args: impl Iterator<Item = args::FieldArgs>,
-    impl_body: TokenStream2,
-) -> TokenStream2 {
+pub fn create_impl(ty_args: &args::TypeArgs, impl_body: TokenStream2) -> TokenStream2 {
     let ty_ident = &ty_args.ident;
-    let generics = self::create_impl_generics(&ty_args.generics, field_args);
-    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+    let (impl_generics, ty_generics, where_clause) = ty_args.generics.split_for_impl();
 
     quote! {
         #[allow(clippy::question_mark)]
@@ -49,23 +44,6 @@ pub fn create_impl(
             }
         }
     }
-}
-
-fn create_impl_generics(
-    generics: &Generics,
-    field_args: impl Iterator<Item = args::FieldArgs>,
-) -> Generics {
-    let mut generics = generics.clone();
-
-    // Add where clause for every visited field
-    generics.make_where_clause().predicates.extend(
-        field_args
-            .filter(|f| !f.skip)
-            .map(|f| f.ty)
-            .map::<WherePredicate, _>(|ty| parse_quote! { #ty: Visit }),
-    );
-
-    generics
 }
 
 /// `<prefix>field.visit("name", visitor)?;`

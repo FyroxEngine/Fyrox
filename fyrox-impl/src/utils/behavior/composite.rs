@@ -25,6 +25,7 @@
 //! is returned from any descendant node. In other worlds `Selector` implement OR logical
 //! function.
 
+use crate::utils::behavior::BaseBehavior;
 use crate::{
     core::{pool::Handle, visitor::prelude::*},
     utils::behavior::{BehaviorNode, BehaviorTree},
@@ -48,7 +49,7 @@ pub enum CompositeNodeKind {
 #[derive(Debug, PartialEq, Visit, Eq, Clone)]
 pub struct CompositeNode<B>
 where
-    B: Clone,
+    B: BaseBehavior,
 {
     /// A set of children.
     pub children: Vec<Handle<BehaviorNode<B>>>,
@@ -58,7 +59,7 @@ where
 
 impl<B> Default for CompositeNode<B>
 where
-    B: Clone,
+    B: BaseBehavior,
 {
     fn default() -> Self {
         Self {
@@ -70,7 +71,7 @@ where
 
 impl<B> CompositeNode<B>
 where
-    B: Clone + 'static,
+    B: BaseBehavior,
 {
     /// Creates new composite node of given kind and set of children nodes.
     pub fn new(kind: CompositeNodeKind, children: Vec<Handle<BehaviorNode<B>>>) -> Self {
