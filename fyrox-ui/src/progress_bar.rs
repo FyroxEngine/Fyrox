@@ -60,7 +60,9 @@ impl MessageData for ProgressBarMessage {}
 /// #     core::pool::Handle, progress_bar::ProgressBarBuilder, widget::WidgetBuilder, BuildContext,
 /// #     UiNode,
 /// # };
-/// fn create_progress_bar(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// # use fyrox_ui::progress_bar::ProgressBar;
+///
+/// fn create_progress_bar(ctx: &mut BuildContext) -> Handle<ProgressBar> {
 ///     ProgressBarBuilder::new(WidgetBuilder::new())
 ///         // Keep mind, that the progress is "normalized", which means that it is defined on
 ///         // [0..1] range, where 0 - no progress at all, 1 - maximum progress.
@@ -108,6 +110,7 @@ impl ConstructorProvider<UiNode, UserInterface> for ProgressBar {
             .with_variant("Progress Bar", |ui| {
                 ProgressBarBuilder::new(WidgetBuilder::new().with_name("Progress Bar"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Visual")
@@ -190,7 +193,7 @@ impl ProgressBarBuilder {
     }
 
     /// Finishes progress bar creation and adds the new instance to the user interface.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<ProgressBar> {
         let body = self.body.unwrap_or_else(|| {
             BorderBuilder::new(WidgetBuilder::new())
                 .build(ctx)
@@ -216,7 +219,7 @@ impl ProgressBarBuilder {
             body: body.into(),
         };
 
-        ctx.add_node(UiNode::new(progress_bar))
+        ctx.add_node(UiNode::new(progress_bar)).to_variant()
     }
 }
 

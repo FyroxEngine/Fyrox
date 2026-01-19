@@ -59,6 +59,7 @@ use crate::{
 
 use crate::button::Button;
 use crate::message::MessageData;
+use crate::rect::RectEditor;
 use crate::thumb::Thumb;
 use crate::window::WindowAlignment;
 use fyrox_texture::TextureKind;
@@ -481,7 +482,7 @@ pub struct TextureSliceEditorWindow {
     right_margin: Handle<UiNode>,
     top_margin: Handle<UiNode>,
     bottom_margin: Handle<UiNode>,
-    region: Handle<UiNode>,
+    region: Handle<RectEditor<u32>>,
 }
 
 impl TextureSliceEditorWindow {

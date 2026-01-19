@@ -76,11 +76,11 @@ where
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<Rect<T>>()?;
 
-        Ok(PropertyEditorInstance::Simple {
-            editor: RectEditorBuilder::new(WidgetBuilder::new().with_height(36.0))
+        Ok(PropertyEditorInstance::simple(
+            RectEditorBuilder::new(WidgetBuilder::new().with_height(36.0))
                 .with_value(*value)
                 .build(ctx.build_context),
-        })
+        ))
     }
 
     fn create_message(

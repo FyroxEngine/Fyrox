@@ -42,6 +42,7 @@ use crate::{scene::GameScene, Engine};
 use fyrox::gui::button::Button;
 use fyrox::gui::inspector::editors::PropertyEditorDefinitionContainer;
 use fyrox::gui::inspector::{Inspector, InspectorContextArgs};
+use fyrox::gui::progress_bar::ProgressBar;
 use fyrox::gui::text::Text;
 use fyrox::gui::window::{Window, WindowAlignment};
 use std::{
@@ -84,7 +85,7 @@ impl Default for LightmapperSettings {
 
 struct ProgressWindow {
     window: Handle<Window>,
-    progress_bar: Handle<UiNode>,
+    progress_bar: Handle<ProgressBar>,
     cancel: Handle<Button>,
     text: Handle<Text>,
     progress_indicator: ProgressIndicator,

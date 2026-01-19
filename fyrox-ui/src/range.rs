@@ -60,7 +60,9 @@ impl<T: NumericType> MessageData for RangeEditorMessage<T> {}
 /// # use fyrox_ui::{
 /// #     core::pool::Handle, range::RangeEditorBuilder, widget::WidgetBuilder, BuildContext, UiNode,
 /// # };
-/// fn create_range_editor(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// # use fyrox_ui::range::RangeEditor;
+///
+/// fn create_range_editor(ctx: &mut BuildContext) -> Handle<RangeEditor<u32>> {
 ///     RangeEditorBuilder::new(WidgetBuilder::new())
 ///         .with_value(0u32..100u32)
 ///         .build(ctx)
@@ -95,12 +97,8 @@ impl<T: NumericType> MessageData for RangeEditorMessage<T> {}
 /// # };
 /// #
 /// fn fetch_value(range_editor: Handle<UiNode>, message: &UiMessage) {
-///     if let Some(RangeEditorMessage::Value(range)) = message.data::<RangeEditorMessage<u32>>() {
-///         if message.destination() == range_editor
-///             && message.direction() == MessageDirection::FromWidget
-///         {
-///             println!("The new value is: {:?}", range)
-///         }
+///     if let Some(RangeEditorMessage::Value(range)) = message.data_from::<RangeEditorMessage<u32>>(range_editor) {
+///         println!("The new value is: {:?}", range)
 ///     }
 /// }
 /// ```
@@ -131,6 +129,7 @@ impl<T: NumericType> ConstructorProvider<UiNode, UserInterface> for RangeEditor<
                 |ui| {
                     RangeEditorBuilder::<T>::new(WidgetBuilder::new().with_name("Range Editor"))
                         .build(&mut ui.build_ctx())
+                        .to_base()
                         .into()
                 },
             )
@@ -261,7 +260,7 @@ where
     }
 
     /// Finished widget building and adds the new instance to the user interface.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<RangeEditor<T>> {
         let start = NumericUpDownBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(1.0))
@@ -307,7 +306,7 @@ where
             end: end.into(),
         };
 
-        ctx.add_node(UiNode::new(editor))
+        ctx.add_node(UiNode::new(editor)).to_variant()
     }
 }
 

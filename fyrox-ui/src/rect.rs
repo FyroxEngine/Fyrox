@@ -71,8 +71,9 @@ impl<T: NumericType> MessageData for RectEditorMessage<T> {}
 /// #     widget::WidgetBuilder,
 /// #     BuildContext, UiNode,
 /// # };
+/// # use fyrox_ui::rect::RectEditor;
 /// #
-/// fn create_rect_editor(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// fn create_rect_editor(ctx: &mut BuildContext) -> Handle<RectEditor<u32>> {
 ///     RectEditorBuilder::new(WidgetBuilder::new())
 ///         .with_value(Rect::new(0, 0, 10, 20))
 ///         .build(ctx)
@@ -140,6 +141,7 @@ impl<T: NumericType> ConstructorProvider<UiNode, UserInterface> for RectEditor<T
                 |ui| {
                     RectEditorBuilder::<T>::new(WidgetBuilder::new())
                         .build(&mut ui.build_ctx())
+                        .to_base()
                         .into()
                 },
             )
@@ -284,7 +286,7 @@ where
     }
 
     /// Finished rect editor widget building and adds it to the user interface.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<RectEditor<T>> {
         let (position_grid, position) = create_field(ctx, "Position", self.value.position, 0);
         let (size_grid, size) = create_field(ctx, "Size", self.value.size, 1);
         let node = RectEditor {
@@ -307,7 +309,7 @@ where
             size: size.into(),
         };
 
-        ctx.add_node(UiNode::new(node))
+        ctx.add_node(UiNode::new(node)).to_variant()
     }
 }
 
