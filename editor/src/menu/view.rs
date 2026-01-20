@@ -25,7 +25,7 @@ use crate::{
             menu::{self, MenuItemMessage},
             message::UiMessage,
             window::WindowMessage,
-            BuildContext, UiNode, UserInterface,
+            BuildContext, UserInterface,
         },
     },
     menu::{create_menu_item, create_root_menu_item, Panels},
@@ -33,21 +33,22 @@ use crate::{
     Message,
 };
 use fyrox::core::{uuid, Uuid};
+use fyrox::gui::menu::MenuItem;
 use fyrox::gui::window::{Window, WindowAlignment};
 
 pub struct ViewMenu {
-    pub menu: Handle<UiNode>,
-    pub inspector: Handle<UiNode>,
-    pub world_viewer: Handle<UiNode>,
-    pub asset_browser: Handle<UiNode>,
-    pub light_panel: Handle<UiNode>,
-    pub log_panel: Handle<UiNode>,
-    pub nav_mesh: Handle<UiNode>,
-    pub audio: Handle<UiNode>,
-    pub command_stack: Handle<UiNode>,
-    pub save_layout: Handle<UiNode>,
-    pub load_layout: Handle<UiNode>,
-    pub reset_layout: Handle<UiNode>,
+    pub menu: Handle<MenuItem>,
+    pub inspector: Handle<MenuItem>,
+    pub world_viewer: Handle<MenuItem>,
+    pub asset_browser: Handle<MenuItem>,
+    pub light_panel: Handle<MenuItem>,
+    pub log_panel: Handle<MenuItem>,
+    pub nav_mesh: Handle<MenuItem>,
+    pub audio: Handle<MenuItem>,
+    pub command_stack: Handle<MenuItem>,
+    pub save_layout: Handle<MenuItem>,
+    pub load_layout: Handle<MenuItem>,
+    pub reset_layout: Handle<MenuItem>,
 }
 
 fn switch_window_state(window: Handle<Window>, ui: &UserInterface, center: bool) {
@@ -135,7 +136,7 @@ impl ViewMenu {
                         create_menu_item("Command Stack Panel", Self::COMMAND_STACK, vec![], ctx);
                     command_stack
                 },
-                menu::make_menu_splitter(ctx),
+                menu::make_menu_splitter(ctx).to_variant(),
                 {
                     save_layout = create_menu_item("Save Layout", Self::SAVE_LAYOUT, vec![], ctx);
                     save_layout

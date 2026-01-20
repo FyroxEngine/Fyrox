@@ -53,6 +53,8 @@ use crate::{
     plugins::inspector::EditorEnvironment,
     utils, Message,
 };
+use fyrox::gui::image::Image;
+use fyrox::gui::menu::MenuItem;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::text::{Text, TextMessage};
 use std::{
@@ -61,13 +63,12 @@ use std::{
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
-use fyrox::gui::image::Image;
 
 #[derive(Clone, Debug, PartialEq)]
 struct TextureContextMenu {
     popup: RcUiNodeHandle,
-    show_in_asset_browser: Handle<UiNode>,
-    unassign: Handle<UiNode>,
+    show_in_asset_browser: Handle<MenuItem>,
+    unassign: Handle<MenuItem>,
 }
 
 impl TextureContextMenu {

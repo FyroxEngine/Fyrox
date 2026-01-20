@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::button::Button;
+use crate::menu::MenuItem;
 use crate::scroll_viewer::ScrollViewer;
 use crate::stack_panel::StackPanel;
 use crate::window::Window;
@@ -51,7 +52,7 @@ use std::sync::mpsc::Receiver;
 
 struct ContextMenu {
     menu: RcUiNodeHandle,
-    copy: Handle<UiNode>,
+    copy: Handle<MenuItem>,
     placement_target: Handle<UiNode>,
 }
 

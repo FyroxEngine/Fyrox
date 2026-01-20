@@ -52,6 +52,8 @@ use fyrox::asset::manager::ResourceManager;
 use fyrox::core::some_or_return;
 use fyrox::gui::button::Button;
 use fyrox::gui::file_browser::{FileSelectorMode, FileType};
+use fyrox::gui::menu::MenuItem;
+use fyrox::gui::messagebox::MessageBox;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use fyrox::gui::window::{Window, WindowAlignment};
@@ -89,14 +91,14 @@ impl CommandTrait for ModifyCurveCommand {
 }
 
 struct FileMenu {
-    new: Handle<UiNode>,
-    save: Handle<UiNode>,
-    load: Handle<UiNode>,
+    new: Handle<MenuItem>,
+    save: Handle<MenuItem>,
+    load: Handle<MenuItem>,
 }
 
 struct EditMenu {
-    undo: Handle<UiNode>,
-    redo: Handle<UiNode>,
+    undo: Handle<MenuItem>,
+    redo: Handle<MenuItem>,
 }
 
 struct Menu {
@@ -115,8 +117,8 @@ pub struct CurveEditorWindow {
     load_file_selector: Handle<UiNode>,
     save_file_selector: Handle<UiNode>,
     path: PathBuf,
-    save_changes_message_box: Handle<UiNode>,
-    cancel_message_box: Handle<UiNode>,
+    save_changes_message_box: Handle<MessageBox>,
+    cancel_message_box: Handle<MessageBox>,
     modified: bool,
     backup: Curve,
 }
@@ -542,7 +544,7 @@ impl CurveEditorWindow {
 #[derive(Default)]
 pub struct CurveEditorPlugin {
     curve_editor_window: Option<CurveEditorWindow>,
-    open_curve_editor: Handle<UiNode>,
+    open_curve_editor: Handle<MenuItem>,
 }
 
 impl CurveEditorPlugin {

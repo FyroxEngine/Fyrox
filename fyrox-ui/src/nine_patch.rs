@@ -142,8 +142,9 @@ impl TextureSlice {
 /// #     UiNode, UserInterface,
 /// # };
 /// # use fyrox_texture::TextureResource;
+/// # use fyrox_ui::nine_patch::NinePatch;
 /// #
-/// fn create_nine_patch(texture: TextureResource, ui: &mut UserInterface) -> Handle<UiNode> {
+/// fn create_nine_patch(texture: TextureResource, ui: &mut UserInterface) -> Handle<NinePatch> {
 ///     NinePatchBuilder::new(WidgetBuilder::new())
 ///         // Specify margins for each side in pixels.
 ///         .with_left_margin(50)
@@ -187,6 +188,7 @@ impl ConstructorProvider<UiNode, UserInterface> for NinePatch {
                         .with_height(200.0),
                 )
                 .build(&mut ui.build_ctx())
+                .to_base()
                 .into()
             })
             .with_group("Visual")
@@ -628,7 +630,7 @@ impl NinePatchBuilder {
         self
     }
 
-    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<NinePatch> {
         if self.widget_builder.background.is_none() {
             self.widget_builder.background = Some(Brush::Solid(Color::WHITE).into())
         }
@@ -647,6 +649,7 @@ impl NinePatchBuilder {
             texture: self.texture.into(),
             stretch_mode: self.stretch_mode.into(),
         }))
+        .to_variant()
     }
 }
 

@@ -58,7 +58,7 @@ use crate::plugins::absm::{
 };
 use crate::{menu::create_menu_item, message::MessageSender};
 
-use fyrox::gui::menu::ContextMenuBuilder;
+use fyrox::gui::menu::{ContextMenuBuilder, MenuItem};
 use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
@@ -96,10 +96,10 @@ struct ContextMenu {
     #[visit(skip)]
     #[reflect(hidden)]
     menu: RcUiNodeHandle,
-    add_point: Handle<UiNode>,
+    add_point: Handle<MenuItem>,
     placement_target: Cell<Handle<UiNode>>,
     screen_position: Cell<Vector2<f32>>,
-    remove_point: Handle<UiNode>,
+    remove_point: Handle<MenuItem>,
 }
 
 #[derive(Clone)]

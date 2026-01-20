@@ -20,15 +20,16 @@
 
 use crate::fyrox::{
     core::{log::Log, pool::Handle},
-    gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
+    gui::{menu::MenuItemMessage, message::UiMessage, BuildContext},
 };
 use crate::menu::{create_menu_item, create_root_menu_item};
 use fyrox::core::{uuid, Uuid};
+use fyrox::gui::menu::MenuItem;
 
 pub struct HelpMenu {
-    pub menu: Handle<UiNode>,
-    pub open_book: Handle<UiNode>,
-    pub open_api_reference: Handle<UiNode>,
+    pub menu: Handle<MenuItem>,
+    pub open_book: Handle<MenuItem>,
+    pub open_api_reference: Handle<MenuItem>,
 }
 
 impl HelpMenu {

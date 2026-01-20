@@ -28,7 +28,7 @@ use crate::{
             text::{TextBuilder, TextMessage},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage},
-            HorizontalAlignment, Thickness, UiNode, VerticalAlignment,
+            HorizontalAlignment, Thickness, VerticalAlignment,
         },
     },
     menu::create_menu_item,
@@ -37,6 +37,7 @@ use crate::{
 };
 use fyrox::core::{uuid, Uuid};
 use fyrox::engine::ApplicationLoopController;
+use fyrox::gui::menu::MenuItem;
 use fyrox::gui::text::Text;
 use fyrox::gui::window::{Window, WindowAlignment, WindowTitle};
 
@@ -46,7 +47,7 @@ use fyrox::gui::window::{Window, WindowAlignment, WindowTitle};
 pub struct UiStatisticsPlugin {
     window: Handle<Window>,
     text: Handle<Text>,
-    open_ui_stats: Handle<UiNode>,
+    open_ui_stats: Handle<MenuItem>,
 }
 
 impl UiStatisticsPlugin {

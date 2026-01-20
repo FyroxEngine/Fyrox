@@ -98,6 +98,7 @@ use crate::{
 };
 use fyrox::asset::Resource;
 use fyrox::gui::button::Button;
+use fyrox::gui::menu::MenuItem;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::scroll_viewer::ScrollViewer;
 use fyrox::gui::text_box::TextBox;
@@ -122,12 +123,12 @@ enum PropertyBindingMode {
 
 struct TrackContextMenu {
     menu: RcUiNodeHandle,
-    remove_track: Handle<UiNode>,
-    set_target: Handle<UiNode>,
-    rebind: Handle<UiNode>,
+    remove_track: Handle<MenuItem>,
+    set_target: Handle<MenuItem>,
+    rebind: Handle<MenuItem>,
     target_node_selector: Handle<UiNode>,
     property_rebinding_selector: Handle<UiNode>,
-    duplicate: Handle<UiNode>,
+    duplicate: Handle<MenuItem>,
 }
 
 impl TrackContextMenu {

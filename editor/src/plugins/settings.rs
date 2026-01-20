@@ -54,6 +54,7 @@ use crate::{
 use fyrox::core::{ok_or_return, uuid, Uuid};
 use fyrox::engine::GraphicsContext;
 use fyrox::gui::button::Button;
+use fyrox::gui::menu::MenuItem;
 use fyrox::gui::scroll_viewer::ScrollViewer;
 use fyrox::gui::searchbar::SearchBar;
 use fyrox::gui::stack_panel::StackPanel;
@@ -365,7 +366,7 @@ impl SettingsWindow {
 #[derive(Default)]
 pub struct SettingsPlugin {
     window: Option<SettingsWindow>,
-    open_settings: Handle<UiNode>,
+    open_settings: Handle<MenuItem>,
 }
 
 impl SettingsPlugin {

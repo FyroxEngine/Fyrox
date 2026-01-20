@@ -26,6 +26,7 @@ use crate::{
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::file_browser::{FileSelectorMode, PathFilter};
+use fyrox::gui::messagebox::MessageBox;
 use fyrox::gui::searchbar::SearchBar;
 use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::text::Text;
@@ -147,7 +148,7 @@ pub struct ProjectManager {
     log: LogPanel,
     open_log: Handle<Button>,
     message_count: Handle<Text>,
-    deletion_confirmation_dialog: Handle<UiNode>,
+    deletion_confirmation_dialog: Handle<MessageBox>,
     upgrade: Handle<Button>,
     locate: Handle<Button>,
     open_settings: Handle<Button>,

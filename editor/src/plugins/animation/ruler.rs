@@ -45,7 +45,7 @@ use crate::fyrox::{
 use crate::menu::create_menu_item;
 
 use fyrox::gui::curve::{CurveTransformCell, STANDARD_GRID_SIZE};
-use fyrox::gui::menu::ContextMenuBuilder;
+use fyrox::gui::menu::{ContextMenuBuilder, MenuItem};
 use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
@@ -70,8 +70,8 @@ impl MessageData for RulerMessage {}
 #[derive(Clone)]
 struct ContextMenu {
     menu: RcUiNodeHandle,
-    add_signal: Handle<UiNode>,
-    remove_signal: Handle<UiNode>,
+    add_signal: Handle<MenuItem>,
+    remove_signal: Handle<MenuItem>,
     selected_position: Cell<f32>,
 }
 

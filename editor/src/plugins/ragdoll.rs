@@ -68,6 +68,7 @@ use crate::{
     Editor,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::menu::MenuItem;
 use fyrox::gui::window::Window;
 use fyrox::scene::joint::Joint;
 use fyrox::scene::ragdoll::Ragdoll;
@@ -1235,7 +1236,7 @@ impl RagdollWizard {
 #[derive(Default)]
 pub struct RagdollPlugin {
     ragdoll_wizard: Option<RagdollWizard>,
-    open_ragdoll_wizard: Handle<UiNode>,
+    open_ragdoll_wizard: Handle<MenuItem>,
 }
 
 impl RagdollPlugin {

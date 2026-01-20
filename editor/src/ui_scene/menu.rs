@@ -45,18 +45,18 @@ use crate::{
 use fyrox::asset::manager::ResourceManager;
 use fyrox::core::{uuid, Uuid};
 use fyrox::gui::constructor::WidgetConstructorContainer;
-use fyrox::gui::menu::ContextMenuBuilder;
+use fyrox::gui::menu::{ContextMenuBuilder, MenuItem};
 use std::path::PathBuf;
 
 pub struct WidgetContextMenu {
     menu: RcUiNodeHandle,
-    delete_selection: Handle<UiNode>,
-    copy_selection: Handle<UiNode>,
+    delete_selection: Handle<MenuItem>,
+    copy_selection: Handle<MenuItem>,
     widgets_menu: UiMenu,
     placement_target: Handle<UiNode>,
-    paste: Handle<UiNode>,
-    make_root: Handle<UiNode>,
-    open_asset: Handle<UiNode>,
+    paste: Handle<MenuItem>,
+    make_root: Handle<MenuItem>,
+    open_asset: Handle<MenuItem>,
 }
 
 impl WorldViewerItemContextMenu for WidgetContextMenu {

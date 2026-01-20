@@ -65,6 +65,7 @@ use crate::{
     ui_scene::UiScene,
     Editor, Message,
 };
+use fyrox::gui::menu::MenuItem;
 use fyrox::gui::window::Window;
 use std::any::{Any, TypeId};
 
@@ -857,7 +858,7 @@ impl AnimationEditor {
 #[derive(Default)]
 pub struct AnimationEditorPlugin {
     animation_editor: Option<AnimationEditor>,
-    open_animation_editor: Handle<UiNode>,
+    open_animation_editor: Handle<MenuItem>,
 }
 
 impl AnimationEditorPlugin {

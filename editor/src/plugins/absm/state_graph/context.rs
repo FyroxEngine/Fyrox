@@ -49,13 +49,14 @@ use crate::{
     scene::{commands::ChangeSelectionCommand, Selection},
 };
 
+use fyrox::core::pool::HandlesArrayExtension;
 use fyrox::core::reflect::Reflect;
 use fyrox::core::{uuid, Uuid};
-use fyrox::gui::menu::ContextMenuBuilder;
+use fyrox::gui::menu::{ContextMenuBuilder, MenuItem};
 
 pub struct CanvasContextMenu {
-    create_state: Handle<UiNode>,
-    connect_all_nodes: Handle<UiNode>,
+    create_state: Handle<MenuItem>,
+    connect_all_nodes: Handle<MenuItem>,
     pub menu: RcUiNodeHandle,
     pub canvas: Handle<UiNode>,
     pub node_context_menu: Option<RcUiNodeHandle>,
@@ -71,22 +72,31 @@ impl CanvasContextMenu {
         let menu = ContextMenuBuilder::new(
             PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
                 .with_content(
-                    StackPanelBuilder::new(WidgetBuilder::new().with_children([
-                        {
-                            create_state =
-                                create_menu_item("Create State", Self::CREATE_STATE, vec![], ctx);
-                            create_state
-                        },
-                        {
-                            connect_all_nodes = create_menu_item(
-                                "Connect all nodes",
-                                Self::CONNECT_ALL,
-                                vec![],
-                                ctx,
-                            );
-                            connect_all_nodes
-                        },
-                    ]))
+                    StackPanelBuilder::new(
+                        WidgetBuilder::new().with_children(
+                            [
+                                {
+                                    create_state = create_menu_item(
+                                        "Create State",
+                                        Self::CREATE_STATE,
+                                        vec![],
+                                        ctx,
+                                    );
+                                    create_state
+                                },
+                                {
+                                    connect_all_nodes = create_menu_item(
+                                        "Connect all nodes",
+                                        Self::CONNECT_ALL,
+                                        vec![],
+                                        ctx,
+                                    );
+                                    connect_all_nodes
+                                },
+                            ]
+                            .to_base(),
+                        ),
+                    )
                     .build(ctx),
                 )
                 .with_restrict_picking(false),
@@ -162,11 +172,11 @@ impl CanvasContextMenu {
 }
 
 pub struct NodeContextMenu {
-    create_transition: Handle<UiNode>,
-    remove: Handle<UiNode>,
-    set_as_entry_state: Handle<UiNode>,
-    enter_state: Handle<UiNode>,
-    connect_to_all_nodes: Handle<UiNode>,
+    create_transition: Handle<MenuItem>,
+    remove: Handle<MenuItem>,
+    set_as_entry_state: Handle<MenuItem>,
+    enter_state: Handle<MenuItem>,
+    connect_to_all_nodes: Handle<MenuItem>,
     pub menu: RcUiNodeHandle,
     pub canvas: Handle<UiNode>,
     placement_target: Handle<UiNode>,
@@ -362,7 +372,7 @@ impl NodeContextMenu {
 }
 
 pub struct TransitionContextMenu {
-    remove: Handle<UiNode>,
+    remove: Handle<MenuItem>,
     pub menu: RcUiNodeHandle,
     placement_target: Handle<UiNode>,
 }

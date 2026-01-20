@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::button::Button;
+use crate::messagebox::MessageBox;
 use crate::text_box::TextBox;
 use crate::{
     border::BorderBuilder,
@@ -87,7 +88,7 @@ pub struct FileSelector {
     pub filter: PathFilter,
     pub file_type_selector: Handle<UiNode>,
     pub selected_file_type: Option<usize>,
-    pub overwrite_message_box: Cell<Handle<UiNode>>,
+    pub overwrite_message_box: Cell<Handle<MessageBox>>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for FileSelector {

@@ -34,11 +34,11 @@ use crate::{
     ui_scene::{commands::graph::AddWidgetCommand, UiScene},
 };
 use fyrox::core::{uuid, Uuid};
-use fyrox::gui::menu::SortingPredicate;
+use fyrox::gui::menu::{MenuItem, SortingPredicate};
 
 pub struct UiMenu {
-    pub menu: Handle<UiNode>,
-    constructor_views: FxHashMap<Handle<UiNode>, VariantConstructor<UiNode, UserInterface>>,
+    pub menu: Handle<MenuItem>,
+    constructor_views: FxHashMap<Handle<MenuItem>, VariantConstructor<UiNode, UserInterface>>,
 }
 
 impl UiMenu {
@@ -94,7 +94,10 @@ impl UiMenu {
         selection: &Selection,
     ) {
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
-            if let Some(constructor) = self.constructor_views.get_mut(&message.destination()) {
+            if let Some(constructor) = self
+                .constructor_views
+                .get_mut(&message.destination().to_variant())
+            {
                 if let VariantResult::Handle(ui_node_handle) = constructor(&mut scene.ui) {
                     let sub_graph = scene.ui.take_reserve_sub_graph(ui_node_handle);
                     let parent = if let Some(selection) = selection.as_ui() {

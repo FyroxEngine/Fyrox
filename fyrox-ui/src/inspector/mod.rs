@@ -22,6 +22,7 @@
 //! structure or enumeration recursively. It's primary usage is provide unified and simple way of introspection.
 //! See [`Inspector`] docs for more info and usage examples.
 
+use crate::menu::MenuItem;
 use crate::message::{DeliveryMode, MessageData};
 use crate::stack_panel::StackPanel;
 use crate::text::Text;
@@ -788,9 +789,9 @@ impl PartialEq for ContextEntry {
 #[derive(Default, Clone)]
 pub struct Menu {
     /// The handle of the "Copy Value as String" menu item.
-    pub copy_value_as_string: Handle<UiNode>,
-    pub copy_value: Handle<UiNode>,
-    pub paste_value: Handle<UiNode>,
+    pub copy_value_as_string: Handle<MenuItem>,
+    pub copy_value: Handle<MenuItem>,
+    pub paste_value: Handle<MenuItem>,
     /// The reference-counted handle of the menu as a whole.
     pub menu: Option<RcUiNodeHandle>,
 }

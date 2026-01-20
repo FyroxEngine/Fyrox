@@ -64,6 +64,7 @@ use crate::{
 use fyrox::core::{uuid, Uuid};
 use fyrox::engine::ApplicationLoopController;
 use fyrox::gui::inspector::editors::PropertyEditorDefinitionContainer;
+use fyrox::gui::menu::MenuItem;
 use fyrox::gui::window::{Window, WindowAlignment};
 use std::any::Any;
 use std::sync::Arc;
@@ -714,7 +715,7 @@ impl AbsmEditor {
 #[derive(Default)]
 pub struct AbsmEditorPlugin {
     absm_editor: Option<AbsmEditor>,
-    open_absm_editor: Handle<UiNode>,
+    open_absm_editor: Handle<MenuItem>,
 }
 
 impl AbsmEditorPlugin {

@@ -21,7 +21,7 @@
 use crate::fyrox::{
     core::pool::Handle,
     gui::{
-        menu::MenuItemMessage, message::UiMessage, widget::WidgetMessage, BuildContext, UiNode,
+        menu::MenuItemMessage, message::UiMessage, widget::WidgetMessage, BuildContext,
         UserInterface,
     },
 };
@@ -35,13 +35,14 @@ use crate::{
 };
 use fyrox::core::{uuid, Uuid};
 use fyrox::gui::menu;
+use fyrox::gui::menu::MenuItem;
 
 pub struct EditMenu {
-    pub menu: Handle<UiNode>,
-    pub undo: Handle<UiNode>,
-    pub redo: Handle<UiNode>,
-    pub copy: Handle<UiNode>,
-    pub paste: Handle<UiNode>,
+    pub menu: Handle<MenuItem>,
+    pub undo: Handle<MenuItem>,
+    pub redo: Handle<MenuItem>,
+    pub copy: Handle<MenuItem>,
+    pub paste: Handle<MenuItem>,
 }
 
 impl EditMenu {
@@ -82,7 +83,7 @@ impl EditMenu {
                     );
                     redo
                 },
-                menu::make_menu_splitter(ctx),
+                menu::make_menu_splitter(ctx).to_variant(),
                 {
                     copy =
                         create_menu_item_shortcut("Copy", None, Self::COPY, "Ctrl+C", vec![], ctx);

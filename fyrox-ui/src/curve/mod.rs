@@ -54,6 +54,7 @@ use crate::{
 };
 use fxhash::FxHashSet;
 
+use crate::menu::MenuItem;
 use crate::numeric::NumericUpDown;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;
@@ -466,18 +467,18 @@ crate::define_widget_deref!(CurveEditor);
 #[derive(Default, Clone, Visit, Reflect, Debug)]
 struct ContextMenu {
     widget: RcUiNodeHandle,
-    add_key: Handle<UiNode>,
-    remove: Handle<UiNode>,
-    key: Handle<UiNode>,
-    make_constant: Handle<UiNode>,
-    make_linear: Handle<UiNode>,
-    make_cubic: Handle<UiNode>,
-    zoom_to_fit: Handle<UiNode>,
+    add_key: Handle<MenuItem>,
+    remove: Handle<MenuItem>,
+    key: Handle<MenuItem>,
+    make_constant: Handle<MenuItem>,
+    make_linear: Handle<MenuItem>,
+    make_cubic: Handle<MenuItem>,
+    zoom_to_fit: Handle<MenuItem>,
     key_properties: Handle<UiNode>,
     key_value: Handle<NumericUpDown<f32>>,
     key_location: Handle<NumericUpDown<f32>>,
-    copy_keys: Handle<UiNode>,
-    paste_keys: Handle<UiNode>,
+    copy_keys: Handle<MenuItem>,
+    paste_keys: Handle<MenuItem>,
 }
 
 #[derive(Clone, Debug)]

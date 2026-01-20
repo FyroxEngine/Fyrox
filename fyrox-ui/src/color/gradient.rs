@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::menu::ContextMenuBuilder;
+use crate::menu::{ContextMenuBuilder, MenuItem};
 use crate::{
     brush::Brush,
     color::{ColorFieldBuilder, ColorFieldMessage},
@@ -190,8 +190,8 @@ pub struct ColorGradientEditor {
     points_canvas: Handle<UiNode>,
     context_menu: RcUiNodeHandle,
     point_context_menu: RcUiNodeHandle,
-    add_point: Handle<UiNode>,
-    remove_point: Handle<UiNode>,
+    add_point: Handle<MenuItem>,
+    remove_point: Handle<MenuItem>,
     context_menu_target: Cell<Handle<UiNode>>,
     context_menu_open_position: Cell<Vector2<f32>>,
 }

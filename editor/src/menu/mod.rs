@@ -27,7 +27,7 @@ use crate::{
             menu::{MenuBuilder, MenuItemBuilder, MenuItemContent},
             message::UiMessage,
             widget::{WidgetBuilder, WidgetMessage},
-            BuildContext, Thickness, UiNode, UserInterface,
+            BuildContext, Thickness, UserInterface,
         },
     },
     menu::{
@@ -44,6 +44,7 @@ use fyrox::asset::manager::ResourceManager;
 use fyrox::core::Uuid;
 use fyrox::gui::file_browser::FileType;
 use fyrox::gui::image::{Image, ImageBuilder};
+use fyrox::gui::menu::MenuItem;
 use fyrox::gui::texture::TextureResource;
 use fyrox::gui::window::Window;
 use std::path::PathBuf;
@@ -58,7 +59,7 @@ pub mod utils;
 pub mod view;
 
 pub struct Menu {
-    pub menu: Handle<UiNode>,
+    pub menu: Handle<fyrox::gui::menu::Menu>,
     pub create_entity_menu: CreateEntityRootMenu,
     pub edit_menu: EditMenu,
     pub file_menu: FileMenu,
@@ -95,9 +96,9 @@ pub struct MenuContext<'a, 'b> {
 pub fn create_root_menu_item(
     text: &str,
     id: Uuid,
-    items: Vec<Handle<UiNode>>,
+    items: Vec<Handle<MenuItem>>,
     ctx: &mut BuildContext,
-) -> Handle<UiNode> {
+) -> Handle<MenuItem> {
     MenuItemBuilder::new(
         WidgetBuilder::new()
             .with_id(id)
@@ -112,9 +113,9 @@ pub fn create_root_menu_item(
 pub fn create_menu_item(
     text: &str,
     id: Uuid,
-    items: Vec<Handle<UiNode>>,
+    items: Vec<Handle<MenuItem>>,
     ctx: &mut BuildContext,
-) -> Handle<UiNode> {
+) -> Handle<MenuItem> {
     MenuItemBuilder::new(
         WidgetBuilder::new()
             .with_id(id)
@@ -130,9 +131,9 @@ pub fn create_menu_item_shortcut(
     icon: Option<TextureResource>,
     id: Uuid,
     shortcut: &str,
-    items: Vec<Handle<UiNode>>,
+    items: Vec<Handle<MenuItem>>,
     ctx: &mut BuildContext,
-) -> Handle<UiNode> {
+) -> Handle<MenuItem> {
     let icon = match icon {
         Some(icon) => MenuItemContent::text_with_shortcut_and_icon(
             text,

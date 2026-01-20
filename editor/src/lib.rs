@@ -183,6 +183,7 @@ use fyrox::engine::GraphicsContext;
 use fyrox::event_loop::ActiveEventLoop;
 use fyrox::gui::file_browser::{FileSelectorMode, FileType, PathFilter};
 use fyrox::gui::inspector::editors::PropertyEditorDefinitionContainer;
+use fyrox::gui::messagebox::MessageBox;
 use fyrox::gui::text::Text;
 use fyrox::gui::window::{Window, WindowAlignment};
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
@@ -380,7 +381,7 @@ pub enum SaveSceneConfirmationDialogAction {
 }
 
 pub struct SaveSceneConfirmationDialog {
-    save_message_box: Handle<UiNode>,
+    save_message_box: Handle<MessageBox>,
     action: SaveSceneConfirmationDialogAction,
     id: Uuid,
 }
@@ -628,14 +629,14 @@ pub struct Editor {
     pub root_grid: Handle<UiNode>,
     pub scene_viewer: SceneViewer,
     pub asset_browser: AssetBrowser,
-    pub exit_message_box: Handle<UiNode>,
+    pub exit_message_box: Handle<MessageBox>,
     pub save_scene_dialog: SaveSceneConfirmationDialog,
     pub light_panel: LightPanel,
     pub menu: Menu,
     pub configurator: Configurator,
     pub log: LogPanel,
     pub command_stack_viewer: CommandStackViewer,
-    pub validation_message_box: Handle<UiNode>,
+    pub validation_message_box: Handle<MessageBox>,
     pub navmesh_panel: NavmeshPanel,
     pub settings: Settings,
     pub audio_panel: AudioPanel,

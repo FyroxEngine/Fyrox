@@ -61,23 +61,24 @@ use crate::{
 };
 use fyrox::core::{uuid, Uuid};
 use fyrox::gui::file_browser::FileType;
+use fyrox::gui::menu::MenuItem;
 use fyrox::gui::window::WindowAlignment;
 use std::{any::TypeId, path::PathBuf};
 
 pub struct SceneNodeContextMenu {
     menu: RcUiNodeHandle,
-    delete_selection: Handle<UiNode>,
-    copy_selection: Handle<UiNode>,
+    delete_selection: Handle<MenuItem>,
+    copy_selection: Handle<MenuItem>,
     create_child_entity_menu: CreateEntityMenu,
     create_parent_entity_menu: CreateEntityMenu,
     replace_with_menu: CreateEntityMenu,
     placement_target: Handle<UiNode>,
-    save_as_prefab: Handle<UiNode>,
+    save_as_prefab: Handle<MenuItem>,
     save_as_prefab_dialog: Handle<UiNode>,
-    paste: Handle<UiNode>,
-    make_root: Handle<UiNode>,
-    open_asset: Handle<UiNode>,
-    reset_inheritable_properties: Handle<UiNode>,
+    paste: Handle<MenuItem>,
+    make_root: Handle<MenuItem>,
+    open_asset: Handle<MenuItem>,
+    reset_inheritable_properties: Handle<MenuItem>,
 }
 
 impl WorldViewerItemContextMenu for SceneNodeContextMenu {

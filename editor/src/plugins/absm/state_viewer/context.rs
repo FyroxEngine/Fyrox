@@ -54,13 +54,13 @@ use crate::{
     scene::{commands::ChangeSelectionCommand, Selection},
 };
 use fyrox::core::{uuid, Uuid};
-use fyrox::gui::menu::ContextMenuBuilder;
+use fyrox::gui::menu::{ContextMenuBuilder, MenuItem};
 
 pub struct CanvasContextMenu {
-    create_play_animation: Handle<UiNode>,
-    create_blend_animations: Handle<UiNode>,
-    create_blend_by_index: Handle<UiNode>,
-    create_blend_space: Handle<UiNode>,
+    create_play_animation: Handle<MenuItem>,
+    create_blend_animations: Handle<MenuItem>,
+    create_blend_by_index: Handle<MenuItem>,
+    create_blend_space: Handle<MenuItem>,
     pub menu: RcUiNodeHandle,
     pub canvas: Handle<UiNode>,
     pub node_context_menu: Option<RcUiNodeHandle>,
@@ -222,8 +222,8 @@ impl CanvasContextMenu {
 }
 
 pub struct NodeContextMenu {
-    remove: Handle<UiNode>,
-    set_as_root: Handle<UiNode>,
+    remove: Handle<MenuItem>,
+    set_as_root: Handle<MenuItem>,
     pub menu: RcUiNodeHandle,
     pub canvas: Handle<UiNode>,
     placement_target: Handle<UiNode>,
@@ -324,7 +324,7 @@ impl NodeContextMenu {
 }
 
 pub struct ConnectionContextMenu {
-    remove: Handle<UiNode>,
+    remove: Handle<MenuItem>,
     pub menu: RcUiNodeHandle,
     placement_target: Handle<UiNode>,
 }

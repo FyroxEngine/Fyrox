@@ -49,10 +49,13 @@ use crate::{
     },
     Message,
 };
+use fyrox::core::pool::HandlesVecExtension;
 use fyrox::core::{ok_or_return, SafeLock};
 use fyrox::gui::button::Button;
 use fyrox::gui::control_trait_proxy_impls;
 use fyrox::gui::formatted_text::WrapMode;
+use fyrox::gui::menu::MenuItem;
+use fyrox::gui::messagebox::MessageBox;
 use fyrox::gui::text_box::TextBox;
 use fyrox::gui::window::WindowAlignment;
 use std::{
@@ -237,23 +240,23 @@ impl AssetRenameDialogBuilder {
 
 pub struct AssetItemContextMenu {
     pub menu: RcUiNodeHandle,
-    pub open: Handle<UiNode>,
-    pub duplicate: Handle<UiNode>,
-    pub copy_path: Handle<UiNode>,
-    pub copy_file_name: Handle<UiNode>,
-    pub show_in_explorer: Handle<UiNode>,
-    pub delete: Handle<UiNode>,
-    pub rename: Handle<UiNode>,
+    pub open: Handle<MenuItem>,
+    pub duplicate: Handle<MenuItem>,
+    pub copy_path: Handle<MenuItem>,
+    pub copy_file_name: Handle<MenuItem>,
+    pub show_in_explorer: Handle<MenuItem>,
+    pub delete: Handle<MenuItem>,
+    pub rename: Handle<MenuItem>,
     pub placement_target: Handle<UiNode>,
-    pub dependencies: Handle<UiNode>,
-    pub delete_confirmation_dialog: Handle<UiNode>,
+    pub dependencies: Handle<MenuItem>,
+    pub delete_confirmation_dialog: Handle<MessageBox>,
     pub path_to_delete: PathBuf,
-    pub reload: Handle<UiNode>,
+    pub reload: Handle<MenuItem>,
 }
 
 impl AssetItemContextMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
-        fn item(text: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
+        fn item(text: &str, ctx: &mut BuildContext) -> Handle<MenuItem> {
             MenuItemBuilder::new(WidgetBuilder::new())
                 .with_content(MenuItemContent::text(text))
                 .build(ctx)
@@ -272,17 +275,22 @@ impl AssetItemContextMenu {
         let menu = ContextMenuBuilder::new(
             PopupBuilder::new(WidgetBuilder::new())
                 .with_content(
-                    StackPanelBuilder::new(WidgetBuilder::new().with_children(vec![
-                        open,
-                        duplicate,
-                        copy_path,
-                        copy_file_name,
-                        delete,
-                        show_in_explorer,
-                        dependencies,
-                        rename,
-                        reload,
-                    ]))
+                    StackPanelBuilder::new(
+                        WidgetBuilder::new().with_children(
+                            vec![
+                                open,
+                                duplicate,
+                                copy_path,
+                                copy_file_name,
+                                delete,
+                                show_in_explorer,
+                                dependencies,
+                                rename,
+                                reload,
+                            ]
+                            .to_base(),
+                        ),
+                    )
                     .build(ctx),
                 )
                 .with_restrict_picking(false),

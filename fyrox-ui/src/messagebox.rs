@@ -110,8 +110,9 @@ pub enum MessageBoxButtons {
 /// #     window::WindowBuilder,
 /// #     BuildContext, UiNode,
 /// # };
+/// # use fyrox_ui::messagebox::MessageBox;
 /// #
-/// fn create_message_box(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// fn create_message_box(ctx: &mut BuildContext) -> Handle<MessageBox> {
 ///     MessageBoxBuilder::new(WindowBuilder::new(WidgetBuilder::new()))
 ///         .with_buttons(MessageBoxButtons::YesNo)
 ///         .with_text("Do you want to save your changes?")
@@ -191,6 +192,7 @@ impl ConstructorProvider<UiNode, UserInterface> for MessageBox {
                     WidgetBuilder::new().with_name("Message Box"),
                 ))
                 .build(&mut ui.build_ctx())
+                .to_base()
                 .into()
             })
             .with_group("Input")
@@ -302,7 +304,7 @@ impl<'b> MessageBoxBuilder<'b> {
     }
 
     /// Finished message box building and adds it to the user interface.
-    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<MessageBox> {
         let ok_yes;
         let mut no = Default::default();
         let mut cancel = Default::default();
@@ -461,7 +463,7 @@ impl<'b> MessageBoxBuilder<'b> {
             ctx.push_picking_restriction(RestrictionEntry { handle, stop: true });
         }
 
-        handle
+        handle.to_variant()
     }
 }
 

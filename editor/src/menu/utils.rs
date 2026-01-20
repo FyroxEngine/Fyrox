@@ -21,16 +21,17 @@
 use crate::{
     fyrox::{
         asset::core::pool::Handle,
-        gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode, UserInterface},
+        gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UserInterface},
     },
     menu::{create_menu_item, create_root_menu_item, Panels},
     stats::StatisticsWindow,
 };
 use fyrox::core::{uuid, Uuid};
+use fyrox::gui::menu::MenuItem;
 
 pub struct UtilsMenu {
-    pub menu: Handle<UiNode>,
-    pub rendering_statistics: Handle<UiNode>,
+    pub menu: Handle<MenuItem>,
+    pub rendering_statistics: Handle<MenuItem>,
 }
 
 impl UtilsMenu {

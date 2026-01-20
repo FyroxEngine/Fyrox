@@ -41,32 +41,34 @@ use crate::{
     settings::{recent::RecentFiles, Settings},
     Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
 };
+use fyrox::gui::menu::MenuItem;
+use fyrox::gui::messagebox::MessageBox;
 use std::{path::PathBuf, sync::mpsc::Sender};
 
 pub struct FileMenu {
-    pub menu: Handle<UiNode>,
-    pub new_scene: Handle<UiNode>,
-    pub new_ui_scene: Handle<UiNode>,
-    pub save: Handle<UiNode>,
-    pub save_as: Handle<UiNode>,
-    pub save_all: Handle<UiNode>,
-    pub load: Handle<UiNode>,
-    pub close_scene: Handle<UiNode>,
-    pub exit: Handle<UiNode>,
-    pub configure: Handle<UiNode>,
+    pub menu: Handle<MenuItem>,
+    pub new_scene: Handle<MenuItem>,
+    pub new_ui_scene: Handle<MenuItem>,
+    pub save: Handle<MenuItem>,
+    pub save_as: Handle<MenuItem>,
+    pub save_all: Handle<MenuItem>,
+    pub load: Handle<MenuItem>,
+    pub close_scene: Handle<MenuItem>,
+    pub exit: Handle<MenuItem>,
+    pub configure: Handle<MenuItem>,
     pub save_file_selector: Handle<UiNode>,
     pub load_file_selector: Handle<UiNode>,
-    pub configure_message: Handle<UiNode>,
-    pub recent_files_container: Handle<UiNode>,
-    pub recent_files: Vec<Handle<UiNode>>,
-    pub open_scene_settings: Handle<UiNode>,
-    pub export_project: Handle<UiNode>,
+    pub configure_message: Handle<MessageBox>,
+    pub recent_files_container: Handle<MenuItem>,
+    pub recent_files: Vec<Handle<MenuItem>>,
+    pub open_scene_settings: Handle<MenuItem>,
+    pub export_project: Handle<MenuItem>,
 }
 
 fn make_recent_files_items(
     ctx: &mut BuildContext,
     recent_files: &RecentFiles,
-) -> Vec<Handle<UiNode>> {
+) -> Vec<Handle<MenuItem>> {
     recent_files
         .scenes
         .iter()
@@ -165,7 +167,7 @@ impl FileMenu {
                     );
                     recent_files_container
                 },
-                menu::make_menu_splitter(ctx),
+                menu::make_menu_splitter(ctx).to_variant(),
                 {
                     save = create_menu_item_shortcut(
                         "Save Scene",
@@ -199,7 +201,7 @@ impl FileMenu {
                     );
                     save_all
                 },
-                menu::make_menu_splitter(ctx),
+                menu::make_menu_splitter(ctx).to_variant(),
                 {
                     close_scene = create_menu_item_shortcut(
                         "Close Current Scene",
@@ -222,7 +224,7 @@ impl FileMenu {
                     );
                     open_scene_settings
                 },
-                menu::make_menu_splitter(ctx),
+                menu::make_menu_splitter(ctx).to_variant(),
                 {
                     configure =
                         create_menu_item("Configure Editor...", Self::CONFIGURE, vec![], ctx);
@@ -454,7 +456,7 @@ impl FileMenu {
             } else if let Some(recent_file) = self
                 .recent_files
                 .iter()
-                .position(|i| *i == message.destination())
+                .position(|i| message.destination() == *i)
             {
                 if let Some(recent_file_path) = settings.recent.scenes.get(recent_file) {
                     sender.send(Message::LoadScene(recent_file_path.clone()));

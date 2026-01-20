@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::menu::MenuItem;
+use crate::messagebox::MessageBox;
 use crate::{
     core::{
         algebra::Vector2, log::Log, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
@@ -49,9 +51,9 @@ use std::{
 pub struct ItemContextMenu {
     #[component(include)]
     pub base_menu: ContextMenu,
-    pub delete: Handle<UiNode>,
-    pub make_folder: Handle<UiNode>,
-    pub delete_message_box: Cell<Handle<UiNode>>,
+    pub delete: Handle<MenuItem>,
+    pub make_folder: Handle<MenuItem>,
+    pub delete_message_box: Cell<Handle<MessageBox>>,
     pub folder_name_dialog: Handle<FolderNameDialog>,
 }
 

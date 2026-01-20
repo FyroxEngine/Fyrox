@@ -25,7 +25,7 @@ use crate::{
         engine::{Engine, SerializationContext},
         fxhash::FxHashMap,
         gui::{
-            menu::MenuItemMessage, message::UiMessage, widget::WidgetMessage, BuildContext, UiNode,
+            menu::MenuItemMessage, message::UiMessage, widget::WidgetMessage, BuildContext,
             UserInterface,
         },
         scene::node::Node,
@@ -44,11 +44,11 @@ use fyrox::core::log::Log;
 use fyrox::core::{uuid, Uuid};
 use fyrox::graph::constructor::{VariantConstructor, VariantResult};
 use fyrox::gui::constructor::WidgetConstructorContainer;
-use fyrox::gui::menu::SortingPredicate;
+use fyrox::gui::menu::{MenuItem, SortingPredicate};
 use fyrox::scene::graph::Graph;
 
 pub struct CreateEntityRootMenu {
-    pub menu: Handle<UiNode>,
+    pub menu: Handle<MenuItem>,
     pub sub_menus: CreateEntityMenu,
 }
 
@@ -116,8 +116,8 @@ impl CreateEntityRootMenu {
 
 pub struct CreateEntityMenu {
     ui_menu: UiMenu,
-    pub root_items: Vec<Handle<UiNode>>,
-    constructor_views: FxHashMap<Handle<UiNode>, VariantConstructor<Node, Graph>>,
+    pub root_items: Vec<Handle<MenuItem>>,
+    constructor_views: FxHashMap<Handle<MenuItem>, VariantConstructor<Node, Graph>>,
 }
 
 impl CreateEntityMenu {
@@ -191,7 +191,10 @@ impl CreateEntityMenu {
         } else if let Some(game_scene) = controller.downcast_mut::<GameScene>() {
             let graph = &mut engine.scenes[game_scene.scene].graph;
             if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
-                if let Some(constructor) = self.constructor_views.get(&message.destination()) {
+                if let Some(constructor) = self
+                    .constructor_views
+                    .get(&message.destination().to_variant())
+                {
                     if let VariantResult::Owned(node) = constructor(graph) {
                         return Some(node);
                     } else {
