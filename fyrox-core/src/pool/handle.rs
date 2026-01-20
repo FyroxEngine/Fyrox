@@ -554,18 +554,25 @@ impl<T> Debug for Handle<T> {
     }
 }
 
-pub trait HandlesVecExtension<T, B>: Sized
-where
-    T: ObjectOrVariant<B>,
-{
-    fn to_base(self) -> Vec<Handle<B>>;
+pub trait HandlesVecExtension<T, B>: Sized {
+    fn to_base(self) -> Vec<Handle<B>>
+    where
+        T: ObjectOrVariant<B>;
+
+    fn to_any(self) -> Vec<Handle<B>>;
 }
 
-impl<T, B> HandlesVecExtension<T, B> for Vec<Handle<T>>
-where
-    T: ObjectOrVariant<B>,
-{
-    fn to_base(self) -> Vec<Handle<B>> {
+impl<T, B> HandlesVecExtension<T, B> for Vec<Handle<T>> {
+    fn to_base(self) -> Vec<Handle<B>>
+    where
+        T: ObjectOrVariant<B>,
+    {
+        // SAFETY: The handle does not store the data of its inner type, so Handle<A> is the
+        // equivalent of Handle<B>, thus the same is applied to Vec<Handle<..>>.
+        unsafe { std::mem::transmute(self) }
+    }
+
+    fn to_any(self) -> Vec<Handle<B>> {
         // SAFETY: The handle does not store the data of its inner type, so Handle<A> is the
         // equivalent of Handle<B>, thus the same is applied to Vec<Handle<..>>.
         unsafe { std::mem::transmute(self) }
