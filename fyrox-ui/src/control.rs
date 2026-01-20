@@ -458,9 +458,10 @@ pub trait Control:
 // See ObjectOrVariantHelper for the cause of the indirection.
 impl<T: Control> ObjectOrVariantHelper<UiNode, T> for PhantomData<T> {
     fn convert_to_dest_type_helper(node: &UiNode) -> Option<&T> {
-        ControlAsAny::as_any(node.0.deref()).downcast_ref()
+        (node.0.deref() as &dyn ComponentProvider).component_ref()
     }
+
     fn convert_to_dest_type_helper_mut(node: &mut UiNode) -> Option<&mut T> {
-        ControlAsAny::as_any_mut(node.0.deref_mut()).downcast_mut()
+        (node.0.deref_mut() as &mut dyn ComponentProvider).component_mut()
     }
 }

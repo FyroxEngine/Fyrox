@@ -269,10 +269,11 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + ComponentProvider {
 // See ObjectOrVariantHelper for the cause of the indirection.
 impl<T: NodeTrait> ObjectOrVariantHelper<Node, T> for PhantomData<T> {
     fn convert_to_dest_type_helper(node: &Node) -> Option<&T> {
-        NodeAsAny::as_any(node.0.deref()).downcast_ref()
+        (node.0.deref() as &dyn ComponentProvider).component_ref()
     }
+
     fn convert_to_dest_type_helper_mut(node: &mut Node) -> Option<&mut T> {
-        NodeAsAny::as_any_mut(node.0.deref_mut()).downcast_mut()
+        (node.0.deref_mut() as &mut dyn ComponentProvider).component_mut()
     }
 }
 
