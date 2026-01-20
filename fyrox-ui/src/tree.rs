@@ -220,8 +220,9 @@ impl MessageData for TreeRootMessage {}
 /// # use fyrox_ui::{
 /// #     core::pool::Handle, message::MessageDirection, tree::TreeMessage, UiNode, UserInterface,
 /// # };
+/// # use fyrox_ui::tree::Tree;
 /// #
-/// fn remove_item(tree: Handle<UiNode>, item_to_remove: Handle<UiNode>, ui: &UserInterface) {
+/// fn remove_item(tree: Handle<UiNode>, item_to_remove: Handle<Tree>, ui: &UserInterface) {
 ///     // Note that the `ui` is borrowed as immutable here, which means that the item will **not**
 ///     // be removed immediately, but on the next update call.
 ///     ui.send(tree, TreeMessage::RemoveItem(item_to_remove));
@@ -798,10 +799,11 @@ fn build_expander(
 /// # use fyrox_ui::{
 /// #     core::pool::Handle, message::MessageDirection, tree::TreeRootMessage, UiNode, UserInterface,
 /// # };
+/// # use fyrox_ui::tree::Tree;
 /// #
 /// fn change_selection(
 ///     tree: Handle<UiNode>,
-///     new_selection: Vec<Handle<UiNode>>,
+///     new_selection: Vec<Handle<Tree>>,
 ///     ui: &UserInterface,
 /// ) {
 ///     ui.send(tree, TreeRootMessage::Select(new_selection));

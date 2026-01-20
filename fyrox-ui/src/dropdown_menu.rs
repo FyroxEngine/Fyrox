@@ -21,6 +21,7 @@
 //! A simple widget that opens a popup when clicked. It could be used to create dropdown menus that
 //! consolidates content of a group.
 
+use crate::popup::Popup;
 use crate::{
     core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     message::{MouseButton, UiMessage},
@@ -39,7 +40,7 @@ pub struct DropdownMenu {
     /// Base widget of the dropdown menu.
     pub widget: Widget,
     /// A handle of the inner popup, that stores the content of the menu.
-    pub popup: Handle<UiNode>,
+    pub popup: Handle<Popup>,
 }
 
 crate::define_widget_deref!(DropdownMenu);

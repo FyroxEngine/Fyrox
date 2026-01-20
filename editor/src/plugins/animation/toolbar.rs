@@ -69,6 +69,7 @@ use crate::{
         Selection,
     },
 };
+use fyrox::gui::popup::Popup;
 use fyrox::gui::text::Text;
 use std::any::TypeId;
 
@@ -104,7 +105,7 @@ pub struct Toolbar {
 }
 
 struct RootMotionDropdownArea {
-    popup: Handle<UiNode>,
+    popup: Handle<Popup>,
     select_node: Handle<Button>,
     enabled: Handle<UiNode>,
     ignore_x: Handle<UiNode>,

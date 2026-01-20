@@ -42,6 +42,7 @@ use crate::{
 
 use crate::border::Border;
 use crate::message::MessageData;
+use crate::popup::Popup;
 use crate::text::Text;
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -1152,7 +1153,7 @@ impl ColorPickerBuilder {
 #[reflect(derived_type = "UiNode")]
 pub struct ColorField {
     pub widget: Widget,
-    pub popup: Handle<UiNode>,
+    pub popup: Handle<Popup>,
     pub picker: Handle<UiNode>,
     pub color: Color,
 }

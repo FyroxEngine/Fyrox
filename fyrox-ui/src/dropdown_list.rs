@@ -173,7 +173,7 @@ pub struct DropdownList {
     /// Base widget of the dropdown list.
     pub widget: Widget,
     /// A handle of the inner popup of the dropdown list. It holds the actual items of the list.
-    pub popup: InheritableVariable<Handle<UiNode>>,
+    pub popup: InheritableVariable<Handle<Popup>>,
     /// A list of handles of items of the dropdown list.
     pub items: InheritableVariable<Vec<Handle<UiNode>>>,
     /// A handle to the `ListView` widget, that holds the items of the dropdown list.
@@ -274,9 +274,7 @@ impl Control for DropdownList {
 
                         self.sync_selected_item_preview(ui);
 
-                        if *self.close_on_selection
-                            && *ui.try_get_of_type::<Popup>(*self.popup).unwrap().is_open
-                        {
+                        if *self.close_on_selection && *ui[*self.popup].is_open {
                             ui.send(*self.popup, PopupMessage::Close);
                         }
 

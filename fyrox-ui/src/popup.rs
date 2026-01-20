@@ -308,6 +308,7 @@ impl ConstructorProvider<UiNode, UserInterface> for Popup {
             .with_variant("Popup", |ui| {
                 PopupBuilder::new(WidgetBuilder::new().with_name("Popup"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Layout")
@@ -612,9 +613,9 @@ impl PopupBuilder {
     }
 
     /// Finishes building the [`Popup`] instance and adds to the user interface and returns its handle.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<Popup> {
         let popup = self.build_popup(ctx);
-        ctx.add_node(UiNode::new(popup))
+        ctx.add_node(UiNode::new(popup)).to_variant()
     }
 }
 
