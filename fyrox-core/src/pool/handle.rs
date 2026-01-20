@@ -566,6 +566,8 @@ where
     T: ObjectOrVariant<B>,
 {
     fn to_base(self) -> Vec<Handle<B>> {
+        // SAFETY: The handle does not store the data of its inner type, so Handle<A> is the
+        // equivalent of Handle<B>, thus the same is applied to Vec<Handle<..>>.
         unsafe { std::mem::transmute(self) }
     }
 }
