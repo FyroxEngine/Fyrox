@@ -579,6 +579,31 @@ impl<T, B> HandlesVecExtension<T, B> for Vec<Handle<T>> {
     }
 }
 
+pub trait HandlesArrayExtension<const N: usize, T, B>: Sized {
+    fn to_base(&self) -> [Handle<B>; N]
+    where
+        T: ObjectOrVariant<B>;
+
+    fn to_any(&self) -> [Handle<B>; N];
+}
+
+impl<const N: usize, T, B> HandlesArrayExtension<N, T, B> for [Handle<T>; N] {
+    fn to_base(&self) -> [Handle<B>; N]
+    where
+        T: ObjectOrVariant<B>,
+    {
+        // SAFETY: The handle does not store the data of its inner type, so Handle<A> is the
+        // equivalent of Handle<B>, thus the same is applied to [Handle<..>; N].
+        unsafe { std::mem::transmute_copy(self) }
+    }
+
+    fn to_any(&self) -> [Handle<B>; N] {
+        // SAFETY: The handle does not store the data of its inner type, so Handle<A> is the
+        // equivalent of Handle<B>, thus the same is applied to [Handle<..>; N].
+        unsafe { std::mem::transmute_copy(self) }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::{
