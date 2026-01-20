@@ -20,7 +20,9 @@
 
 use std::hash::Hash;
 
+use super::*;
 use crate::command::{Command, CommandContext, CommandGroup, CommandTrait};
+use fyrox::gui::numeric::NumericUpDown;
 use fyrox::gui::stack_panel::StackPanel;
 use fyrox::{
     asset::{untyped::UntypedResource, Resource, ResourceData},
@@ -45,8 +47,6 @@ use fyrox::{
     },
 };
 
-use super::*;
-
 const DEFAULT_MAX_ATTEMPTS: u32 = 300;
 const DEFAULT_CONSTRAIN_EDGES: bool = true;
 
@@ -62,7 +62,7 @@ pub struct WfcMacro {
     pattern_list: MacroPropertyField,
     frequency_list: MacroPropertyField,
     edges_toggle: Handle<UiNode>,
-    attempts_field: Handle<UiNode>,
+    attempts_field: Handle<NumericUpDown<u32>>,
     terrain_list: Vec<TerrainWidgets>,
     value_field: MacroPropertyValueField,
     add_button: Handle<Button>,
@@ -101,7 +101,7 @@ struct TerrainWidgets {
     terrain: TileTerrainId,
     color: Color,
     name: String,
-    frequency_field: Handle<UiNode>,
+    frequency_field: Handle<NumericUpDown<f32>>,
     delete_button: Handle<Button>,
 }
 

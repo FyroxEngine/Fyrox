@@ -48,6 +48,7 @@ use crate::plugins::inspector::editors::spritesheet::SpriteSheetFramesPropertyEd
 use fyrox::gui::border::Border;
 use fyrox::gui::button::Button;
 use fyrox::gui::image::Image;
+use fyrox::gui::numeric::NumericUpDown;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use std::{
@@ -63,8 +64,8 @@ pub struct SpriteSheetFramesEditorWindow {
     editor: Handle<UiNode>,
     ok: Handle<Button>,
     cancel: Handle<Button>,
-    width: Handle<UiNode>,
-    height: Handle<UiNode>,
+    width: Handle<NumericUpDown<u32>>,
+    height: Handle<NumericUpDown<u32>>,
     grid: Handle<UiNode>,
     preview_container: Handle<Border>,
     cells: Vec<Handle<UiNode>>,

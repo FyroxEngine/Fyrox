@@ -66,32 +66,30 @@ where
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<T>()?;
-        Ok(PropertyEditorInstance::Simple {
-            editor: NumericUpDownBuilder::new(
-                WidgetBuilder::new().with_margin(Thickness::top_bottom(1.0)),
-            )
-            .with_min_value(
-                ctx.property_info
-                    .min_value
-                    .and_then(NumCast::from)
-                    .unwrap_or_else(T::min_value),
-            )
-            .with_max_value(
-                ctx.property_info
-                    .max_value
-                    .and_then(NumCast::from)
-                    .unwrap_or_else(T::max_value),
-            )
-            .with_step(
-                ctx.property_info
-                    .step
-                    .and_then(NumCast::from)
-                    .unwrap_or_else(T::one),
-            )
-            .with_precision(ctx.property_info.precision.unwrap_or(3))
-            .with_value(*value)
-            .build(ctx.build_context),
-        })
+        Ok(PropertyEditorInstance::simple(
+            NumericUpDownBuilder::new(WidgetBuilder::new().with_margin(Thickness::top_bottom(1.0)))
+                .with_min_value(
+                    ctx.property_info
+                        .min_value
+                        .and_then(NumCast::from)
+                        .unwrap_or_else(T::min_value),
+                )
+                .with_max_value(
+                    ctx.property_info
+                        .max_value
+                        .and_then(NumCast::from)
+                        .unwrap_or_else(T::max_value),
+                )
+                .with_step(
+                    ctx.property_info
+                        .step
+                        .and_then(NumCast::from)
+                        .unwrap_or_else(T::one),
+                )
+                .with_precision(ctx.property_info.precision.unwrap_or(3))
+                .with_value(*value)
+                .build(ctx.build_context),
+        ))
     }
 
     fn create_message(

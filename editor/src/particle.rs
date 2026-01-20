@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use fyrox::gui::button::Button;
+use fyrox::gui::numeric::NumericUpDown;
 use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::widget::WidgetMessage;
 
@@ -50,7 +51,7 @@ pub struct ParticleSystemPreviewControlPanel {
     pause: Handle<Button>,
     stop: Handle<Button>,
     rewind: Handle<Button>,
-    time: Handle<UiNode>,
+    time: Handle<NumericUpDown<f32>>,
     set_time: Handle<Button>,
     particle_systems_state: Vec<(Handle<Node>, Node)>,
     desired_playback_time: f32,

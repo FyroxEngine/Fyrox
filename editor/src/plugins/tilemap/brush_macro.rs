@@ -713,13 +713,16 @@ impl MacroPropertyValueField {
         let textbox = match &value {
             Element::I32(v) => NumericUpDownBuilder::<i32>::new(wb)
                 .with_value(*v)
-                .build(ctx),
+                .build(ctx)
+                .to_base(),
             Element::F32(v) => NumericUpDownBuilder::<f32>::new(wb)
                 .with_value(*v)
-                .build(ctx),
+                .build(ctx)
+                .to_base(),
             Element::I8(v) => NumericUpDownBuilder::<i8>::new(wb)
                 .with_value(*v)
-                .build(ctx),
+                .build(ctx)
+                .to_base(),
             Element::String(v) => TextBoxBuilder::new(wb).with_text(v).build(ctx).to_base(),
         };
         let list = if let Ok(value) = value.try_into() {

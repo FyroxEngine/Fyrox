@@ -870,7 +870,8 @@ impl TileInspector {
         let frame_rate_field = NumericUpDownBuilder::<f32>::new(WidgetBuilder::new().on_column(1))
             .with_min_value(0.0)
             .build(ctx);
-        let animation_speed_inspector = InspectorField::new("Frame Rate", frame_rate_field, ctx);
+        let animation_speed_inspector =
+            InspectorField::new("Frame Rate", frame_rate_field.to_base(), ctx);
         let page_icon_field = TileHandleFieldBuilder::new(WidgetBuilder::new())
             .with_label("Page Icon")
             .build(ctx);

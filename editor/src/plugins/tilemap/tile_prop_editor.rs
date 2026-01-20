@@ -120,16 +120,22 @@ impl TilePropertyEditor {
             .build(ctx);
         let value_field = match prop_layer.prop_type {
             TileSetPropertyType::I32 => {
-                NumericUpDownBuilder::<i32>::new(WidgetBuilder::new().on_column(1)).build(ctx)
+                NumericUpDownBuilder::<i32>::new(WidgetBuilder::new().on_column(1))
+                    .build(ctx)
+                    .to_base()
             }
             TileSetPropertyType::F32 => {
-                NumericUpDownBuilder::<f32>::new(WidgetBuilder::new().on_column(1)).build(ctx)
+                NumericUpDownBuilder::<f32>::new(WidgetBuilder::new().on_column(1))
+                    .build(ctx)
+                    .to_base()
             }
             TileSetPropertyType::String => TextBoxBuilder::new(WidgetBuilder::new().on_column(1))
                 .build(ctx)
                 .to_base(),
             TileSetPropertyType::NineSlice => {
-                NumericUpDownBuilder::<i8>::new(WidgetBuilder::new().on_column(1)).build(ctx)
+                NumericUpDownBuilder::<i8>::new(WidgetBuilder::new().on_column(1))
+                    .build(ctx)
+                    .to_base()
             }
         };
         let index = prop_layer

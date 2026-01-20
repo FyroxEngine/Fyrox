@@ -59,6 +59,7 @@ use crate::{
 
 use crate::button::Button;
 use crate::message::MessageData;
+use crate::numeric::NumericUpDown;
 use crate::rect::RectEditor;
 use crate::thumb::Thumb;
 use crate::window::WindowAlignment;
@@ -478,10 +479,10 @@ pub struct TextureSliceEditorWindow {
     parent_editor: Handle<UiNode>,
     slice_editor: Handle<UiNode>,
     texture_slice: TextureSlice,
-    left_margin: Handle<UiNode>,
-    right_margin: Handle<UiNode>,
-    top_margin: Handle<UiNode>,
-    bottom_margin: Handle<UiNode>,
+    left_margin: Handle<NumericUpDown<u32>>,
+    right_margin: Handle<NumericUpDown<u32>>,
+    top_margin: Handle<NumericUpDown<u32>>,
+    bottom_margin: Handle<NumericUpDown<u32>>,
     region: Handle<RectEditor<u32>>,
 }
 

@@ -46,15 +46,15 @@ impl PropertyEditorDefinition for PathPropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<PathBuf>()?;
-        Ok(PropertyEditorInstance::Simple {
-            editor: PathEditorBuilder::new(
+        Ok(PropertyEditorInstance::simple(
+            PathEditorBuilder::new(
                 WidgetBuilder::new()
                     .with_margin(Thickness::top_bottom(1.0))
                     .with_vertical_alignment(VerticalAlignment::Center),
             )
             .with_path(value.clone())
             .build(ctx.build_context),
-        })
+        ))
     }
 
     fn create_message(

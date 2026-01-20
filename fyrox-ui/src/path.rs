@@ -61,11 +61,11 @@ impl MessageData for PathEditorMessage {}
 ///
 /// ```rust
 /// # use fyrox_ui::{
-/// #     core::pool::Handle, path::PathEditorBuilder, widget::WidgetBuilder, BuildContext, UiNode,
+/// #     core::pool::Handle, path::{PathEditor, PathEditorBuilder}, widget::WidgetBuilder, BuildContext, UiNode,
 /// # };
 /// # use std::path::PathBuf;
 /// #
-/// fn create_path_editor(path: PathBuf, ctx: &mut BuildContext) -> Handle<UiNode> {
+/// fn create_path_editor(path: PathBuf, ctx: &mut BuildContext) -> Handle<PathEditor> {
 ///     PathEditorBuilder::new(WidgetBuilder::new())
 ///         .with_path(path)
 ///         .build(ctx)
@@ -97,6 +97,7 @@ impl ConstructorProvider<UiNode, UserInterface> for PathEditor {
             .with_variant("Path Editor", |ui| {
                 PathEditorBuilder::new(WidgetBuilder::new().with_name("Path Editor"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Input")
@@ -192,7 +193,7 @@ impl PathEditorBuilder {
     }
 
     /// Finishes widget building and adds it to the user interface returning a handle to the instance.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<PathEditor> {
         let text_field;
         let select;
         let grid = GridBuilder::new(
@@ -225,7 +226,7 @@ impl PathEditorBuilder {
         .add_column(Column::auto())
         .build(ctx);
 
-        let canvas = PathEditor {
+        let path_editor = PathEditor {
             widget: self
                 .widget_builder
                 .with_child(grid)
@@ -237,7 +238,7 @@ impl PathEditorBuilder {
             path: self.path.into(),
             file_types: self.file_types,
         };
-        ctx.add_node(UiNode::new(canvas))
+        ctx.add_node(UiNode::new(path_editor)).to_variant()
     }
 }
 

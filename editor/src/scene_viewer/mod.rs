@@ -68,6 +68,7 @@ use crate::{
 use fyrox::core::algebra::Vector2;
 use fyrox::gui::border::Border;
 use fyrox::gui::image::Image;
+use fyrox::gui::numeric::NumericUpDown;
 use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::text::Text;
 use fyrox::gui::window::Window;
@@ -91,9 +92,9 @@ struct GridSnappingMenu {
     menu: Handle<UiNode>,
     button: Handle<Button>,
     enabled: Handle<UiNode>,
-    x_step: Handle<UiNode>,
-    y_step: Handle<UiNode>,
-    z_step: Handle<UiNode>,
+    x_step: Handle<NumericUpDown<f32>>,
+    y_step: Handle<NumericUpDown<f32>>,
+    z_step: Handle<NumericUpDown<f32>>,
     receiver: Receiver<SettingsMessage>,
 }
 

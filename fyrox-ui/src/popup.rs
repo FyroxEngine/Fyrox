@@ -134,10 +134,10 @@ impl Placement {
 ///
 /// ```rust
 /// # use fyrox_ui::{
-/// #     button::ButtonBuilder, core::pool::Handle, popup::PopupBuilder, widget::WidgetBuilder,
+/// #     button::ButtonBuilder, core::pool::Handle, popup::{Popup, PopupBuilder}, widget::WidgetBuilder,
 /// #     BuildContext, UiNode,
 /// # };
-/// fn create_popup_with_button(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// fn create_popup_with_button(ctx: &mut BuildContext) -> Handle<Popup> {
 ///     PopupBuilder::new(WidgetBuilder::new())
 ///         .with_content(
 ///             ButtonBuilder::new(WidgetBuilder::new())
@@ -160,7 +160,9 @@ impl Placement {
 /// #     widget::WidgetBuilder,
 /// #     UiNode, UserInterface,
 /// # };
-/// fn create_popup_with_button_and_open_it(ui: &mut UserInterface) -> Handle<UiNode> {
+/// # use fyrox_ui::popup::Popup;
+///
+/// fn create_popup_with_button_and_open_it(ui: &mut UserInterface) -> Handle<Popup> {
 ///     let popup = PopupBuilder::new(WidgetBuilder::new())
 ///         .with_content(
 ///             ButtonBuilder::new(WidgetBuilder::new())
@@ -190,7 +192,9 @@ impl Placement {
 /// #     widget::WidgetBuilder,
 /// #     UiNode, UserInterface,
 /// # };
-/// fn create_popup_with_button_and_open_it(ui: &mut UserInterface) -> Handle<UiNode> {
+/// # use fyrox_ui::popup::Popup;
+///
+/// fn create_popup_with_button_and_open_it(ui: &mut UserInterface) -> Handle<Popup> {
 ///     let popup = PopupBuilder::new(WidgetBuilder::new())
 ///         .with_content(
 ///             ButtonBuilder::new(WidgetBuilder::new())
@@ -223,10 +227,12 @@ impl Placement {
 /// #     widget::WidgetBuilder,
 /// #     UiNode, UserInterface,
 /// # };
+/// # use fyrox_ui::popup::Popup;
+///
 /// fn create_popup_with_button_and_open_it(
 ///     dropdown_list: Handle<UiNode>,
 ///     ui: &mut UserInterface,
-/// ) -> Handle<UiNode> {
+/// ) -> Handle<Popup> {
 ///     let popup = PopupBuilder::new(WidgetBuilder::new())
 ///         .with_content(
 ///             ButtonBuilder::new(WidgetBuilder::new())
@@ -261,7 +267,9 @@ impl Placement {
 /// #     button::ButtonBuilder, core::pool::Handle, popup::PopupBuilder, widget::WidgetBuilder,
 /// #     BuildContext, UiNode,
 /// # };
-/// fn create_popup_with_button(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// # use fyrox_ui::popup::Popup;
+///
+/// fn create_popup_with_button(ctx: &mut BuildContext) -> Handle<Popup> {
 ///     PopupBuilder::new(WidgetBuilder::new())
 ///         .with_content(
 ///             ButtonBuilder::new(WidgetBuilder::new())

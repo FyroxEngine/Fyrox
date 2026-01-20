@@ -191,6 +191,7 @@ macro_rules! numeric_ui_view {
                 NumericUpDownBuilder::new(WidgetBuilder::new().with_height(24.0))
                     .with_value(self)
                     .build(ctx)
+                    .to_base()
             }
         })*
     };

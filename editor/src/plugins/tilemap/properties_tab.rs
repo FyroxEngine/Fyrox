@@ -47,6 +47,7 @@ use super::*;
 use commands::*;
 use fyrox::core::pool::ObjectOrVariant;
 use fyrox::gui::border::Border;
+use fyrox::gui::numeric::NumericUpDown;
 use fyrox::gui::text::Text;
 use fyrox::gui::text_box::TextBox;
 
@@ -73,9 +74,9 @@ pub struct PropertiesTab {
     name_edit_panel: Handle<Border>,
     value_name_field: Handle<TextBox>,
     color_field: Handle<UiNode>,
-    i8_field: Handle<UiNode>,
-    i32_field: Handle<UiNode>,
-    f32_field: Handle<UiNode>,
+    i8_field: Handle<NumericUpDown<i8>>,
+    i32_field: Handle<NumericUpDown<i32>>,
+    f32_field: Handle<NumericUpDown<f32>>,
 }
 
 fn make_arrow_button(
@@ -228,7 +229,11 @@ fn make_name_items(ctx: &mut BuildContext, property: &TileSetPropertyLayer) -> V
         .collect()
 }
 
-fn send_visibility(ui: &UserInterface, destination: Handle<UiNode>, visible: bool) {
+fn send_visibility(
+    ui: &UserInterface,
+    destination: Handle<impl ObjectOrVariant<UiNode>>,
+    visible: bool,
+) {
     ui.send(destination, WidgetMessage::Visibility(visible));
 }
 

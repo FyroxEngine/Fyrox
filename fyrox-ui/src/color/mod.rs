@@ -42,6 +42,7 @@ use crate::{
 
 use crate::border::Border;
 use crate::message::MessageData;
+use crate::numeric::NumericUpDown;
 use crate::popup::Popup;
 use crate::text::Text;
 use fyrox_core::uuid_provider;
@@ -768,13 +769,13 @@ pub struct ColorPicker {
     pub hue_bar: Handle<UiNode>,
     pub alpha_bar: Handle<UiNode>,
     pub saturation_brightness_field: Handle<UiNode>,
-    pub red: Handle<UiNode>,
-    pub green: Handle<UiNode>,
-    pub blue: Handle<UiNode>,
-    pub alpha: Handle<UiNode>,
-    pub hue: Handle<UiNode>,
-    pub saturation: Handle<UiNode>,
-    pub brightness: Handle<UiNode>,
+    pub red: Handle<NumericUpDown<f32>>,
+    pub green: Handle<NumericUpDown<f32>>,
+    pub blue: Handle<NumericUpDown<f32>>,
+    pub alpha: Handle<NumericUpDown<f32>>,
+    pub hue: Handle<NumericUpDown<f32>>,
+    pub saturation: Handle<NumericUpDown<f32>>,
+    pub brightness: Handle<NumericUpDown<f32>>,
     pub color_mark: Handle<Border>,
     pub color: Color,
     pub hsv: Hsv,
@@ -974,7 +975,7 @@ fn make_input_field(
     max_value: f32,
     row: usize,
     column: usize,
-) -> Handle<UiNode> {
+) -> Handle<NumericUpDown<f32>> {
     NumericUpDownBuilder::new(
         WidgetBuilder::new()
             .with_margin(Thickness::uniform(1.0))

@@ -152,7 +152,9 @@ pub enum DragContext<T: NumericType> {
 /// #     core::pool::Handle, numeric::NumericUpDownBuilder, widget::WidgetBuilder, BuildContext,
 /// #     UiNode,
 /// # };
-/// fn create_numeric_widget(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// # use fyrox_ui::numeric::NumericUpDown;
+///
+/// fn create_numeric_widget(ctx: &mut BuildContext) -> Handle<NumericUpDown<f32>> {
 ///     NumericUpDownBuilder::new(WidgetBuilder::new())
 ///         .with_value(123.0f32)
 ///         .build(ctx)
@@ -170,11 +172,13 @@ pub enum DragContext<T: NumericType> {
 /// messages):
 ///
 /// ```rust
-/// use fyrox_ui::{
-///     core::pool::Handle, numeric::NumericUpDownBuilder, widget::WidgetBuilder, BuildContext,
-///     UiNode,
-/// };
-/// fn create_numeric_widget(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// # use fyrox_ui::{
+/// #     core::pool::Handle, numeric::NumericUpDownBuilder, widget::WidgetBuilder, BuildContext,
+/// #     UiNode,
+/// # };
+/// # use fyrox_ui::numeric::NumericUpDown;
+///
+/// fn create_numeric_widget(ctx: &mut BuildContext) -> Handle<NumericUpDown<f32>> {
 ///     NumericUpDownBuilder::new(WidgetBuilder::new())
 ///         .with_value(123.0f32)
 ///         .with_min_value(42.0)
@@ -198,7 +202,9 @@ pub enum DragContext<T: NumericType> {
 /// #     core::pool::Handle, numeric::NumericUpDownBuilder, widget::WidgetBuilder, BuildContext,
 /// #     UiNode,
 /// # };
-/// fn create_numeric_widget(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// # use fyrox_ui::numeric::NumericUpDown;
+///
+/// fn create_numeric_widget(ctx: &mut BuildContext) -> Handle<NumericUpDown<f32>> {
 ///     NumericUpDownBuilder::new(WidgetBuilder::new())
 ///         .with_value(125.0f32)
 ///         .with_step(5.0)
@@ -221,7 +227,9 @@ pub enum DragContext<T: NumericType> {
 /// #     core::pool::Handle, numeric::NumericUpDownBuilder, widget::WidgetBuilder, BuildContext,
 /// #     UiNode,
 /// # };
-/// fn create_numeric_widget(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// # use fyrox_ui::numeric::NumericUpDown;
+///
+/// fn create_numeric_widget(ctx: &mut BuildContext) -> Handle<NumericUpDown<f32>> {
 ///     NumericUpDownBuilder::new(WidgetBuilder::new())
 ///         .with_value(0.3333333f32)
 ///         .with_precision(2)
@@ -273,6 +281,7 @@ impl<T: NumericType> ConstructorProvider<UiNode, UserInterface> for NumericUpDow
                         WidgetBuilder::new().with_name("Numeric Up Down"),
                     )
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
                 },
             )
@@ -677,7 +686,7 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
     }
 
     /// Finishes [`NumericUpDown`] widget creation and adds the new instance to the user interface and returns a handle to it.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<NumericUpDown<T>> {
         let increase;
         let decrease;
         let field;
@@ -752,7 +761,7 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
             drag_value_scaling: self.drag_value_scaling.into(),
         };
 
-        ctx.add_node(UiNode::new(node))
+        ctx.add_node(UiNode::new(node)).to_variant()
     }
 }
 

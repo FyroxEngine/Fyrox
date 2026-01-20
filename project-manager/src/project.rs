@@ -25,6 +25,7 @@ use crate::{
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::file_browser::PathFilter;
+use fyrox::gui::path::PathEditor;
 use fyrox::gui::text::Text;
 use fyrox::gui::text_box::TextBox;
 use fyrox::gui::window::{Window, WindowAlignment};
@@ -107,7 +108,7 @@ pub struct ProjectWizard {
     pub window: Handle<Window>,
     create: Handle<Button>,
     cancel: Handle<Button>,
-    path_field: Handle<UiNode>,
+    path_field: Handle<PathEditor>,
     name_field: Handle<TextBox>,
     style_field: Handle<UiNode>,
     vcs_field: Handle<UiNode>,

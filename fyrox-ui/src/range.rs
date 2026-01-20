@@ -34,6 +34,7 @@ use crate::{
 };
 
 use crate::message::MessageData;
+use crate::numeric::NumericUpDown;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut, Range};
@@ -116,9 +117,9 @@ where
     /// Current value of the range editor.
     pub value: InheritableVariable<Range<T>>,
     /// A handle to numeric field that is used to show/modify start value of current range.
-    pub start: InheritableVariable<Handle<UiNode>>,
+    pub start: InheritableVariable<Handle<NumericUpDown<T>>>,
     /// A handle to numeric field that is used to show/modify end value of current range.
-    pub end: InheritableVariable<Handle<UiNode>>,
+    pub end: InheritableVariable<Handle<NumericUpDown<T>>>,
 }
 
 impl<T: NumericType> ConstructorProvider<UiNode, UserInterface> for RangeEditor<T> {

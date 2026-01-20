@@ -34,6 +34,7 @@ use crate::{
 
 use crate::border::Border;
 use crate::message::MessageData;
+use crate::numeric::NumericUpDown;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
@@ -46,7 +47,7 @@ fn make_numeric_input<T: NumericType>(
     step: T,
     editable: bool,
     precision: usize,
-) -> Handle<UiNode> {
+) -> Handle<NumericUpDown<T>> {
     NumericUpDownBuilder::new(
         WidgetBuilder::new()
             .on_row(0)
@@ -97,7 +98,7 @@ where
     T: NumericType,
 {
     pub widget: Widget,
-    pub fields: Vec<Handle<UiNode>>,
+    pub fields: Vec<Handle<NumericUpDown<T>>>,
     #[reflect(hidden)]
     #[visit(skip)]
     pub value: SVector<T, D>,
@@ -332,7 +333,7 @@ where
                 self.editable,
                 self.precision,
             );
-            children.push(field);
+            children.push(field.to_base());
             fields.push(field);
 
             columns.push(Column::auto());

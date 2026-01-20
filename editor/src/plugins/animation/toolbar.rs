@@ -69,6 +69,7 @@ use crate::{
         Selection,
     },
 };
+use fyrox::gui::numeric::NumericUpDown;
 use fyrox::gui::popup::Popup;
 use fyrox::gui::text::Text;
 use std::any::TypeId;
@@ -82,7 +83,7 @@ pub struct Toolbar {
     pub panel: Handle<UiNode>,
     pub play_pause: Handle<Button>,
     pub stop: Handle<Button>,
-    pub speed: Handle<UiNode>,
+    pub speed: Handle<NumericUpDown<f32>>,
     pub animations: Handle<UiNode>,
     pub add_animation: Handle<Button>,
     pub remove_current_animation: Handle<Button>,
@@ -90,8 +91,8 @@ pub struct Toolbar {
     pub clone_current_animation: Handle<Button>,
     pub animation_name: Handle<TextBox>,
     pub preview: Handle<UiNode>,
-    pub time_slice_start: Handle<UiNode>,
-    pub time_slice_end: Handle<UiNode>,
+    pub time_slice_start: Handle<NumericUpDown<f32>>,
+    pub time_slice_end: Handle<NumericUpDown<f32>>,
     pub import: Handle<Button>,
     pub reimport: Handle<Button>,
     pub node_selector: Handle<UiNode>,
@@ -1224,11 +1225,11 @@ impl Toolbar {
 
         for widget in [
             self.preview,
-            self.speed,
+            self.speed.to_base(),
             self.rename_current_animation.to_base(),
             self.remove_current_animation.to_base(),
-            self.time_slice_start,
-            self.time_slice_end,
+            self.time_slice_start.to_base(),
+            self.time_slice_end.to_base(),
             self.clone_current_animation.to_base(),
             self.looping,
             self.enabled,

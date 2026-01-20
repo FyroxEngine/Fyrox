@@ -54,6 +54,7 @@ use crate::{
 };
 use fxhash::FxHashSet;
 
+use crate::numeric::NumericUpDown;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;
 use std::{
@@ -473,8 +474,8 @@ struct ContextMenu {
     make_cubic: Handle<UiNode>,
     zoom_to_fit: Handle<UiNode>,
     key_properties: Handle<UiNode>,
-    key_value: Handle<UiNode>,
-    key_location: Handle<UiNode>,
+    key_value: Handle<NumericUpDown<f32>>,
+    key_location: Handle<NumericUpDown<f32>>,
     copy_keys: Handle<UiNode>,
     paste_keys: Handle<UiNode>,
 }

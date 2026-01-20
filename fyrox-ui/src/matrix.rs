@@ -31,6 +31,8 @@ use crate::{
 use fyrox_core::algebra::SMatrix;
 
 use crate::message::MessageData;
+use crate::numeric::NumericUpDown;
+use fyrox_core::pool::HandlesVecExtension;
 use std::ops::{Deref, DerefMut};
 
 fn make_numeric_input<T: NumericType>(
@@ -43,7 +45,7 @@ fn make_numeric_input<T: NumericType>(
     step: T,
     editable: bool,
     precision: usize,
-) -> Handle<UiNode> {
+) -> Handle<NumericUpDown<T>> {
     NumericUpDownBuilder::new(
         WidgetBuilder::new()
             .on_row(row)
@@ -80,7 +82,7 @@ where
     T: NumericType,
 {
     pub widget: Widget,
-    pub fields: Vec<Handle<UiNode>>,
+    pub fields: Vec<Handle<NumericUpDown<T>>>,
     #[reflect(hidden)]
     #[visit(skip)]
     pub value: SMatrix<T, R, C>,
@@ -273,7 +275,7 @@ where
             }
         }
 
-        let grid = GridBuilder::new(WidgetBuilder::new().with_children(children))
+        let grid = GridBuilder::new(WidgetBuilder::new().with_children(children.to_base()))
             .add_rows(vec![Row::stretch(); R])
             .add_columns(vec![Column::stretch(); C])
             .build(ctx);
