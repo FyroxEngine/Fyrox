@@ -56,11 +56,13 @@ use crate::{
     world::item::{DropAnchor, SceneItem, SceneItemBuilder, SceneItemMessage},
     Mode, Settings,
 };
+use fyrox::core::pool::HandlesVecExtension;
 use fyrox::gui::button::Button;
 use fyrox::gui::scroll_viewer::ScrollViewer;
 use fyrox::gui::searchbar::SearchBar;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
 use fyrox::gui::toggle::ToggleButton;
+use fyrox::gui::tree::Tree;
 use fyrox::gui::window::Window;
 use fyrox::gui::wrap_panel::WrapPanel;
 use rust_fuzzy_search::fuzzy_compare;
@@ -123,7 +125,7 @@ pub trait WorldViewerItemContextMenu {
 
 pub struct WorldViewer {
     pub window: Handle<Window>,
-    tree_root: Handle<UiNode>,
+    tree_root: Handle<TreeRoot>,
     sender: MessageSender,
     track_selection: Handle<ToggleButton>,
     search_bar: Handle<SearchBar>,
@@ -140,7 +142,7 @@ pub struct WorldViewer {
     locate_selection: Handle<Button>,
     scroll_view: Handle<ScrollViewer>,
     pub item_context_menu: Option<Rc<RefCell<dyn WorldViewerItemContextMenu>>>,
-    node_to_view_map: HashMap<ErasedHandle, Handle<UiNode>>,
+    node_to_view_map: HashMap<ErasedHandle, Handle<SceneItem>>,
 }
 
 fn make_graph_node_item(
@@ -152,7 +154,7 @@ fn make_graph_node_item(
     context_menu: RcUiNodeHandle,
     sender: MessageSender,
     is_expanded: bool,
-) -> Handle<UiNode> {
+) -> Handle<SceneItem> {
     SceneItemBuilder::new(
         TreeBuilder::new(
             WidgetBuilder::new()
@@ -172,11 +174,8 @@ fn make_graph_node_item(
     .build(ctx, sender)
 }
 
-fn tree_node(ui: &UserInterface, tree: Handle<UiNode>) -> ErasedHandle {
-    ui.node(tree)
-        .cast::<SceneItem>()
-        .expect("Malformed scene item!")
-        .entity_handle
+fn tree_node(ui: &UserInterface, tree: Handle<SceneItem>) -> ErasedHandle {
+    ui[tree].entity_handle
 }
 
 fn colorize(handle: Handle<UiNode>, ui: &UserInterface, index: &mut usize) {
@@ -466,12 +465,18 @@ impl WorldViewer {
     ) {
         // Sync tree structure with graph structure.
         self.stack.clear();
-        self.stack.push((self.tree_root, data_provider.root_node()));
+        self.stack
+            .push((self.tree_root.to_base(), data_provider.root_node()));
         while let Some((tree_handle, node_handle)) = self.stack.pop() {
             let ui_node = ui.node(tree_handle);
 
             if let Some(item) = ui_node.cast::<SceneItem>() {
-                let mut items = item.tree.items.clone();
+                let mut items = item
+                    .tree
+                    .items
+                    .iter()
+                    .map(|i| i.transmute::<SceneItem>())
+                    .collect::<Vec<_>>();
 
                 let mut i = 0;
                 while i < items.len() {
@@ -479,7 +484,7 @@ impl WorldViewer {
 
                     let child_node = tree_node(ui, item);
                     if !data_provider.is_node_has_child(node_handle, child_node) {
-                        ui.send_sync(tree_handle, TreeMessage::RemoveItem(item));
+                        ui.send_sync(tree_handle, TreeMessage::RemoveItem(item.transmute()));
                         if let Some(existing_view) = self.node_to_view_map.get(&child_node) {
                             if *existing_view == item {
                                 self.node_to_view_map.remove(&child_node);
@@ -516,7 +521,10 @@ impl WorldViewer {
                             fetch_expanded_state(child_handle, data_provider, settings),
                         );
 
-                        ui.send_sync(tree_handle, TreeMessage::AddItem(graph_node_item));
+                        ui.send_sync(
+                            tree_handle,
+                            TreeMessage::AddItem(graph_node_item.transmute()),
+                        );
                         items.push(graph_node_item);
                         self.node_to_view_map.insert(child_handle, graph_node_item);
                     }
@@ -524,7 +532,7 @@ impl WorldViewer {
 
                 for &tree in items.iter() {
                     let child = tree_node(ui, tree);
-                    self.stack.push((tree, child));
+                    self.stack.push((tree.to_base(), child));
                 }
 
                 // Check order
@@ -546,7 +554,8 @@ impl WorldViewer {
                                     .children_of(node_handle)
                                     .into_iter()
                                     .map(|c| self.node_to_view_map.get(&c).cloned().unwrap())
-                                    .collect(),
+                                    .collect::<Vec<_>>()
+                                    .to_any(),
                                 remove_previous: false,
                             },
                         );
@@ -554,7 +563,7 @@ impl WorldViewer {
                 }
             } else if let Some(tree_root) = ui_node.cast::<TreeRoot>() {
                 if tree_root.items.is_empty()
-                    || tree_node(ui, tree_root.items[0]) != data_provider.root_node()
+                    || tree_node(ui, tree_root.items[0].transmute()) != data_provider.root_node()
                 {
                     let menu = self.item_context_menu.as_ref().map_or(
                         RcUiNodeHandle::new(Default::default(), ui.sender()),
@@ -571,17 +580,21 @@ impl WorldViewer {
                         fetch_expanded_state(node_handle, data_provider, settings),
                     );
 
-                    ui.send_sync(tree_handle, TreeRootMessage::Items(vec![new_root_item]));
+                    ui.send_sync(
+                        tree_handle,
+                        TreeRootMessage::Items(vec![new_root_item.transmute()]),
+                    );
                     self.node_to_view_map.insert(node_handle, new_root_item);
-                    self.stack.push((new_root_item, node_handle));
+                    self.stack.push((new_root_item.transmute(), node_handle));
                 } else {
-                    self.stack.push((tree_root.items[0], node_handle));
+                    self.stack
+                        .push((tree_root.items[0].transmute(), node_handle));
                 }
             }
         }
 
         // Sync items data.
-        let mut stack = vec![self.tree_root];
+        let mut stack = vec![self.tree_root.to_base()];
         while let Some(handle) = stack.pop() {
             let ui_node = ui.node(handle);
 
@@ -590,22 +603,22 @@ impl WorldViewer {
                     if item.name() != name {
                         ui.send_sync(handle, SceneItemMessage::Name((*name).to_owned()));
                     }
-                    stack.extend_from_slice(&item.tree.items);
+                    stack.extend(item.tree.items.iter().map(|v| v.to_base()));
                 }
             } else if let Some(root) = ui_node.cast::<TreeRoot>() {
-                stack.extend_from_slice(&root.items)
+                stack.extend(root.items.iter().map(|v| v.to_base()))
             }
         }
 
         self.colorize(ui);
 
         self.node_to_view_map
-            .retain(|k, v| data_provider.is_valid_handle(*k) && ui.try_get_node(*v).is_ok());
+            .retain(|k, v| data_provider.is_valid_handle(*k) && ui.try_get(*v).is_ok());
     }
 
     pub fn colorize(&mut self, ui: &UserInterface) {
         let mut index = 0;
-        colorize(self.tree_root, ui, &mut index);
+        colorize(self.tree_root.to_base(), ui, &mut index);
     }
 
     fn apply_filter(&self, data_provider: &dyn WorldViewerDataProvider, ui: &UserInterface) {
@@ -629,12 +642,15 @@ impl WorldViewer {
             is_any_match
         }
 
-        apply_filter_recursive(self.tree_root, &self.filter.to_lowercase(), ui);
+        apply_filter_recursive(self.tree_root.to_base(), &self.filter.to_lowercase(), ui);
 
         if self.filter.is_empty() {
             if let Some(first) = data_provider.selection().first() {
                 if let Some(view) = self.node_to_view_map.get(first) {
-                    ui.send(self.scroll_view, ScrollViewerMessage::BringIntoView(*view));
+                    ui.send(
+                        self.scroll_view,
+                        ScrollViewerMessage::BringIntoView(view.to_base()),
+                    );
                 }
             }
         }
@@ -727,26 +743,21 @@ impl WorldViewer {
 
             ui.send(
                 self.scroll_view,
-                ScrollViewerMessage::BringIntoView(*tree_to_focus),
+                ScrollViewerMessage::BringIntoView(tree_to_focus.to_base()),
             );
         }
     }
 
     fn handle_selection(
         &self,
-        selection: &[Handle<UiNode>],
+        selection: &[Handle<Tree>],
         data_provider: &dyn WorldViewerDataProvider,
         ui: &UserInterface,
     ) {
         data_provider.on_selection_changed(
             &selection
                 .iter()
-                .map(|selected_item| {
-                    ui.node(*selected_item)
-                        .cast::<SceneItem>()
-                        .unwrap()
-                        .entity_handle
-                })
+                .map(|selected_item| ui[selected_item.transmute::<SceneItem>()].entity_handle)
                 .collect::<Vec<_>>(),
         );
     }
@@ -781,8 +792,12 @@ impl WorldViewer {
         }
     }
 
-    fn map_selection(&self, selection: &[ErasedHandle], ui: &UserInterface) -> Vec<Handle<UiNode>> {
-        map_selection(selection, self.tree_root, ui)
+    fn map_selection(
+        &self,
+        selection: &[ErasedHandle],
+        ui: &UserInterface,
+    ) -> Vec<Handle<SceneItem>> {
+        map_selection(selection, self.tree_root.to_base(), ui)
     }
 
     pub fn post_update(
@@ -793,7 +808,7 @@ impl WorldViewer {
     ) {
         // Hack. See `self.sync_selection` for details.
         if self.sync_selection {
-            let trees = self.map_selection(&data_provider.selection(), ui);
+            let trees = self.map_selection(&data_provider.selection(), ui).to_any();
             ui.send_sync(self.tree_root, TreeRootMessage::Select(trees));
             self.update_breadcrumbs(ui, data_provider);
             if settings.selection.track_selection {
@@ -827,8 +842,7 @@ impl WorldViewer {
     pub fn validate(&self, data_provider: &dyn WorldViewerDataProvider, ui: &UserInterface) {
         for (node_handle, result) in data_provider.validate() {
             if let Some(view) = self.node_to_view_map.get(&node_handle) {
-                let view_ref = ui.node(*view).query_component::<SceneItem>().unwrap();
-
+                let view_ref = &ui[*view];
                 if view_ref.warning_icon.is_none() && result.is_err()
                     || view_ref.warning_icon.is_some() && result.is_ok()
                 {
@@ -843,15 +857,16 @@ fn map_selection(
     selection: &[ErasedHandle],
     root_node: Handle<UiNode>,
     ui: &UserInterface,
-) -> Vec<Handle<UiNode>> {
+) -> Vec<Handle<SceneItem>> {
     selection
         .iter()
         .filter_map(|&handle| {
-            let item = ui.find_handle(root_node, &mut |n| {
-                n.cast::<SceneItem>()
-                    .map(|n| n.entity_handle == handle)
-                    .unwrap_or_default()
-            });
+            let item = ui
+                .find_handle(root_node, &mut |n| {
+                    n.cast::<SceneItem>()
+                        .is_some_and(|n| n.entity_handle == handle)
+                })
+                .to_variant();
             if item.is_some() {
                 Some(item)
             } else {

@@ -106,7 +106,7 @@ impl MessageData for FsEventMessage {}
 #[reflect(derived_type = "UiNode")]
 pub struct FileBrowser {
     pub widget: Widget,
-    pub tree_root: Handle<UiNode>,
+    pub tree_root: Handle<TreeRoot>,
     pub home_dir: Handle<Button>,
     pub desktop_dir: Handle<Button>,
     pub path_text: Handle<TextBox>,
@@ -174,9 +174,12 @@ fn parent_path(path: &Path) -> PathBuf {
 }
 
 impl FileBrowser {
-    fn select_and_bring_into_view(&self, item: Handle<UiNode>, ui: &UserInterface) {
+    fn select_and_bring_into_view(&self, item: Handle<Tree>, ui: &UserInterface) {
         ui.send(self.tree_root, TreeRootMessage::Select(vec![item]));
-        ui.send(self.scroll_viewer, ScrollViewerMessage::BringIntoView(item));
+        ui.send(
+            self.scroll_viewer,
+            ScrollViewerMessage::BringIntoView(item.to_base()),
+        );
     }
 
     fn rebuild_fs_tree(&mut self, ui: &mut UserInterface) {
@@ -251,7 +254,7 @@ impl FileBrowser {
         }
         let existing_item = fs_tree::find_tree_item(self.tree_root, &self.path, ui);
         if existing_item.is_some() {
-            self.select_and_bring_into_view(existing_item, ui)
+            self.select_and_bring_into_view(existing_item.to_variant(), ui)
         } else {
             self.rebuild_fs_tree(ui)
         }
@@ -329,11 +332,7 @@ impl FileBrowser {
     }
 
     fn on_items_changed(&self, ui: &UserInterface) {
-        let show_no_items_message = ui
-            .try_get_of_type::<TreeRoot>(self.tree_root)
-            .unwrap()
-            .items
-            .is_empty();
+        let show_no_items_message = ui[self.tree_root].items.is_empty();
         ui.send(
             self.no_items_message,
             WidgetMessage::Visibility(show_no_items_message),
@@ -347,9 +346,12 @@ impl FileBrowser {
             let parent_tree = fs_tree::find_tree_item(self.tree_root, &parent_path, ui);
             if let Ok(parent_tree_node) = ui.try_get(parent_tree) {
                 if parent_tree_node.has_component::<TreeRoot>() {
-                    ui.send(parent_tree, TreeRootMessage::RemoveItem(tree_item))
+                    ui.send(
+                        parent_tree,
+                        TreeRootMessage::RemoveItem(tree_item.to_variant()),
+                    )
                 } else {
-                    ui.send(parent_tree, TreeMessage::RemoveItem(tree_item))
+                    ui.send(parent_tree, TreeMessage::RemoveItem(tree_item.to_variant()))
                 }
             }
         }
@@ -396,7 +398,10 @@ impl FileBrowser {
                 let item = fs_tree::find_tree_item(self.tree_root, &self.path, ui);
                 if item.is_some() {
                     // Select item of new path.
-                    ui.send(self.tree_root, TreeRootMessage::Select(vec![item]));
+                    ui.send(
+                        self.tree_root,
+                        TreeRootMessage::Select(vec![item.to_variant()]),
+                    );
                     ui.send(self.scroll_viewer, ScrollViewerMessage::BringIntoView(item));
                 }
             }
@@ -405,7 +410,7 @@ impl FileBrowser {
 
     fn on_sub_tree_expanded(
         &mut self,
-        sub_tree: Handle<UiNode>,
+        sub_tree: Handle<Tree>,
         expand: bool,
         ui: &mut UserInterface,
     ) {
@@ -433,7 +438,7 @@ impl FileBrowser {
         }
     }
 
-    fn on_sub_tree_selected(&mut self, sub_tree: Handle<UiNode>, ui: &UserInterface) {
+    fn on_sub_tree_selected(&mut self, sub_tree: Handle<Tree>, ui: &UserInterface) {
         let path = some_or_return!(fs_tree::tree_path(sub_tree, ui)).into_path();
         if self.path != path {
             // Here we trust the content of the tree items.
@@ -462,8 +467,9 @@ impl FileBrowser {
         where_dropped: Handle<UiNode>,
         ui: &UserInterface,
     ) {
-        let path = some_or_return!(fs_tree::tree_path(where_dropped, ui)).into_path();
-        let dropped_path = some_or_return!(fs_tree::tree_path(what_dropped, ui)).into_path();
+        let path = some_or_return!(fs_tree::tree_path(where_dropped.to_variant(), ui)).into_path();
+        let dropped_path =
+            some_or_return!(fs_tree::tree_path(what_dropped.to_variant(), ui)).into_path();
         ui.post(
             self.handle,
             FileBrowserMessage::Drop {
@@ -523,7 +529,7 @@ impl Control for FileBrowser {
         } else if let Some(message_data) = message.data_for::<FileBrowserMessage>(self.handle) {
             self.on_file_browser_message(message, message_data, ui)
         } else if let Some(TreeMessage::Expand { expand, .. }) = message.data() {
-            self.on_sub_tree_expanded(message.destination(), *expand, ui)
+            self.on_sub_tree_expanded(message.destination().to_variant(), *expand, ui)
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
             if !message.handled() {
                 self.on_drop(*dropped, message.destination(), ui);

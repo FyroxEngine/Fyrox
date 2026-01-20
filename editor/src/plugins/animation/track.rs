@@ -101,6 +101,7 @@ use fyrox::gui::button::Button;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::scroll_viewer::ScrollViewer;
 use fyrox::gui::text_box::TextBox;
+use fyrox::gui::tree::TreeRoot;
 use fyrox::gui::window::WindowAlignment;
 use fyrox::resource::model::ModelResource;
 use std::{
@@ -309,7 +310,7 @@ impl MessageData for TrackViewMessage {}
 #[reflect(derived_type = "UiNode")]
 struct TrackView {
     #[component(include)]
-    tree: Tree,
+    pub tree: Tree,
     id: Uuid,
     target: ErasedHandle,
     track_enabled_switch: Handle<UiNode>,
@@ -458,7 +459,7 @@ impl TrackViewBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<TrackView> {
         let name_text;
         let track_enabled_switch;
         let grid = GridBuilder::new(
@@ -501,7 +502,7 @@ impl TrackViewBuilder {
             name_text,
         };
 
-        ctx.add_node(UiNode::new(track_view))
+        ctx.add_node(UiNode::new(track_view)).to_variant()
     }
 }
 
@@ -603,7 +604,7 @@ impl Toolbar {
 pub struct TrackList {
     toolbar: Toolbar,
     pub panel: Handle<UiNode>,
-    tree_root: Handle<UiNode>,
+    tree_root: Handle<TreeRoot>,
     add_track: Handle<Button>,
     add_position_track: Handle<Button>,
     add_rotation_track: Handle<Button>,
@@ -611,9 +612,9 @@ pub struct TrackList {
     node_selector: Handle<UiNode>,
     property_selector: Handle<UiNode>,
     selected_node: ErasedHandle,
-    group_views: FxHashMap<ErasedHandle, Handle<UiNode>>,
-    track_views: FxHashMap<Uuid, Handle<UiNode>>,
-    curve_views: FxHashMap<Uuid, Handle<UiNode>>,
+    group_views: FxHashMap<ErasedHandle, Handle<Tree>>,
+    track_views: FxHashMap<Uuid, Handle<TrackView>>,
+    curve_views: FxHashMap<Uuid, Handle<Tree>>,
     context_menu: TrackContextMenu,
     property_binding_mode: PropertyBindingMode,
     scroll_viewer: Handle<ScrollViewer>,
@@ -817,7 +818,7 @@ impl TrackList {
             }
         } else if let Some(TextMessage::Text(text)) = message.data_from(self.toolbar.search_text) {
             let filter_text = text.to_lowercase();
-            utils::apply_visibility_filter(self.tree_root, ui, |node| {
+            utils::apply_visibility_filter(self.tree_root.to_base(), ui, |node| {
                 if let Some(tree) = node.query_component::<Tree>() {
                     if let Some(tree_text) = ui.node(tree.content).query_component::<Text>() {
                         return Some(tree_text.text().to_lowercase().contains(&filter_text));
@@ -831,12 +832,18 @@ impl TrackList {
                 // Focus currently selected entity when clearing the filter.
                 if let Some(first) = selection.entities.first() {
                     let ui_node = match first {
-                        SelectedEntity::Track(id) => {
-                            self.track_views.get(id).cloned().unwrap_or_default()
-                        }
-                        SelectedEntity::Curve(id) => {
-                            self.curve_views.get(id).cloned().unwrap_or_default()
-                        }
+                        SelectedEntity::Track(id) => self
+                            .track_views
+                            .get(id)
+                            .cloned()
+                            .unwrap_or_default()
+                            .to_base(),
+                        SelectedEntity::Curve(id) => self
+                            .curve_views
+                            .get(id)
+                            .cloned()
+                            .unwrap_or_default()
+                            .to_base(),
                         _ => Default::default(),
                     };
                     if ui_node.is_some() {
@@ -964,7 +971,7 @@ impl TrackList {
                 entities: tree_selection
                     .iter()
                     .filter_map(|s| {
-                        let selected_widget = ui.node(*s);
+                        let selected_widget = ui.node(s.to_base());
                         if let Some(track_data) = selected_widget.query_component::<TrackView>() {
                             Some(SelectedEntity::Track(track_data.id))
                         } else if let Some(curve_data) =
@@ -1275,43 +1282,27 @@ impl TrackList {
         match tracks_data.tracks().len().cmp(&self.track_views.len()) {
             Ordering::Less => {
                 for track_view in self.track_views.clone().values() {
-                    let track_view_ref = ui.node(*track_view);
-                    let track_view_data = track_view_ref.query_component::<TrackView>().unwrap();
+                    let track_view_ref = &ui[*track_view];
                     if tracks_data
                         .tracks()
                         .iter()
-                        .all(|t| t.id() != track_view_data.id)
+                        .all(|t| t.id() != track_view_ref.id)
                     {
-                        for curve_item in track_view_ref
-                            .query_component::<Tree>()
-                            .unwrap()
-                            .items
-                            .iter()
-                            .cloned()
-                        {
-                            let curve_item_ref = ui
-                                .node(curve_item)
-                                .user_data_cloned::<CurveViewData>()
-                                .unwrap();
+                        for curve_item in track_view_ref.tree.items.iter().cloned() {
+                            let curve_item_ref =
+                                ui[curve_item].user_data_cloned::<CurveViewData>().unwrap();
                             assert!(self.curve_views.remove(&curve_item_ref.id).is_some());
                         }
 
-                        assert!(self.track_views.remove(&track_view_data.id).is_some());
+                        assert!(self.track_views.remove(&track_view_ref.id).is_some());
 
                         // Remove group if it is empty.
-                        if let Some(group) = self.group_views.get(&track_view_data.target) {
-                            ui.send_sync(*group, TreeMessage::RemoveItem(*track_view));
+                        if let Some(group) = self.group_views.get(&track_view_ref.target) {
+                            ui.send_sync(*group, TreeMessage::RemoveItem(track_view.transmute()));
 
-                            if ui
-                                .node(*group)
-                                .query_component::<Tree>()
-                                .unwrap()
-                                .items
-                                .len()
-                                <= 1
-                            {
+                            if ui[*group].items.len() <= 1 {
                                 ui.send_sync(self.tree_root, TreeRootMessage::RemoveItem(*group));
-                                assert!(self.group_views.remove(&track_view_data.target).is_some());
+                                assert!(self.group_views.remove(&track_view_ref.target).is_some());
                             }
                         }
                     }
@@ -1331,8 +1322,7 @@ impl TrackList {
                     if self
                         .track_views
                         .values()
-                        .map(|v| ui.node(*v))
-                        .all(|v| v.query_component::<TrackView>().unwrap().id != model_track.id())
+                        .all(|v| ui[*v].id != model_track.id())
                     {
                         let parent_group =
                             match self.group_views.entry(model_track_binding.target().into()) {
@@ -1459,7 +1449,7 @@ impl TrackList {
                         .with_name(format!("{}", model_track.value_binding()))
                         .build(ctx);
 
-                        ui.send_sync(parent_group, TreeMessage::AddItem(track_view));
+                        ui.send_sync(parent_group, TreeMessage::AddItem(track_view.transmute()));
 
                         assert!(self
                             .track_views
@@ -1477,7 +1467,7 @@ impl TrackList {
             .filter_map(|e| match e {
                 SelectedEntity::Track(id) => {
                     any_track_selected = true;
-                    self.track_views.get(id).cloned()
+                    self.track_views.get(id).cloned().map(|v| v.transmute())
                 }
                 SelectedEntity::Curve(id) => self.curve_views.get(id).cloned(),
                 SelectedEntity::Signal(_) => None,
@@ -1502,7 +1492,7 @@ impl TrackList {
             };
 
             if let Some(track_view) = self.track_views.get(&model_track.id()) {
-                let track_view_ref = ui.node(*track_view).query_component::<TrackView>().unwrap();
+                let track_view_ref = &ui[*track_view];
                 if track_view_ref.track_enabled != model_track_binding.is_enabled() {
                     ui.send_sync(
                         *track_view,
@@ -1515,11 +1505,7 @@ impl TrackList {
                     if let Some(parent_group) =
                         self.group_views.get(&model_track_binding.target().into())
                     {
-                        let content = ui
-                            .node(*parent_group)
-                            .query_component::<Tree>()
-                            .unwrap()
-                            .content;
+                        let content = ui[*parent_group].content;
                         ui.send_sync(
                             content,
                             TextMessage::Text(format!(

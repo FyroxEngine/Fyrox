@@ -29,6 +29,7 @@ use crate::{
     widget::WidgetBuilder,
     BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox_core::pool::ObjectOrVariant;
 use fyrox_graph::SceneGraph;
 use std::{
     borrow::Cow,
@@ -71,8 +72,13 @@ impl TreeItemPath {
     }
 }
 
-pub fn find_tree_item(node: Handle<UiNode>, path: &Path, ui: &UserInterface) -> Handle<UiNode> {
+pub fn find_tree_item(
+    node: Handle<impl ObjectOrVariant<UiNode>>,
+    path: &Path,
+    ui: &UserInterface,
+) -> Handle<UiNode> {
     let mut tree_handle = Handle::NONE;
+    let node = node.to_base();
     let node_ref = ui.node(node);
 
     if let Some(tree) = node_ref.cast::<Tree>() {
@@ -114,7 +120,7 @@ pub fn build_tree_item<P: AsRef<Path>>(
     expanded: bool,
     filter: &PathFilter,
     ctx: &mut BuildContext,
-) -> Handle<UiNode> {
+) -> Handle<Tree> {
     let content = GridBuilder::new(
         WidgetBuilder::new()
             .with_child(if path.as_ref().is_dir() {
@@ -178,7 +184,7 @@ pub fn build_tree<P: AsRef<Path>>(
     menu: RcUiNodeHandle,
     filter: &PathFilter,
     ui: &mut UserInterface,
-) -> Handle<UiNode> {
+) -> Handle<Tree> {
     let subtree = build_tree_item(path, parent_path, menu, false, filter, &mut ui.build_ctx());
     if ui[parent].has_component::<TreeRoot>() {
         ui.send(parent, TreeRootMessage::AddItem(subtree));
@@ -313,8 +319,8 @@ impl DisksProvider {
 }
 
 struct RootsCollection {
-    items: Vec<Handle<UiNode>>,
-    root_item: Handle<UiNode>,
+    items: Vec<Handle<Tree>>,
+    root_item: Handle<Tree>,
 }
 
 impl RootsCollection {
@@ -373,7 +379,7 @@ impl RootsCollection {
 
 pub fn build_single_folder(
     parent_path: &Path,
-    tree_item: Handle<UiNode>,
+    tree_item: Handle<Tree>,
     menu: RcUiNodeHandle,
     filter: &PathFilter,
     ui: &mut UserInterface,
@@ -388,7 +394,7 @@ pub fn build_single_folder(
 
     for path in entries {
         build_tree(
-            tree_item,
+            tree_item.to_base(),
             path.as_path(),
             parent_path,
             menu.clone(),
@@ -398,15 +404,15 @@ pub fn build_single_folder(
     }
 }
 
-pub fn tree_path(tree_handle: Handle<UiNode>, ui: &UserInterface) -> Option<TreeItemPath> {
+pub fn tree_path(tree_handle: Handle<Tree>, ui: &UserInterface) -> Option<TreeItemPath> {
     ui.try_get(tree_handle)
         .ok()
         .and_then(|n| n.user_data_cloned::<TreeItemPath>())
 }
 
 pub struct FsTree {
-    pub root_items: Vec<Handle<UiNode>>,
-    pub path_item: Handle<UiNode>,
+    pub root_items: Vec<Handle<Tree>>,
+    pub path_item: Handle<Tree>,
     pub items_count: usize,
     pub sanitized_root: Option<PathBuf>,
 }

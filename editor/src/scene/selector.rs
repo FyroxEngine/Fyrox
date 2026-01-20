@@ -54,6 +54,7 @@ use fyrox::gui::message::{DeliveryMode, MessageData};
 use fyrox::gui::scroll_viewer::ScrollViewer;
 use fyrox::gui::searchbar::SearchBar;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
+use fyrox::gui::tree::TreeRoot;
 use std::hash::{Hash, Hasher};
 use std::{
     any::{Any, TypeId},
@@ -122,7 +123,7 @@ impl HierarchyNode {
         &self,
         allowed_types: &FxHashSet<AllowedType>,
         ctx: &mut BuildContext,
-    ) -> Handle<UiNode> {
+    ) -> Handle<Tree> {
         let brush = if allowed_types.contains(&AllowedType::unnamed(self.inner_type_id))
             || self
                 .derived_type_ids
@@ -210,7 +211,7 @@ struct TreeData {
 #[type_uuid(id = "1d718f90-323c-492d-b057-98d47495900a")]
 pub struct NodeSelector {
     widget: Widget,
-    tree_root: Handle<UiNode>,
+    tree_root: Handle<TreeRoot>,
     search_bar: Handle<SearchBar>,
     selected: Vec<SelectedHandle>,
     scroll_viewer: Handle<ScrollViewer>,
@@ -265,7 +266,7 @@ impl Control for NodeSelector {
             }
         } else if let Some(SearchBarMessage::Text(filter_text)) = message.data_from(self.search_bar)
         {
-            apply_filter_recursive(self.tree_root, &filter_text.to_lowercase(), ui);
+            apply_filter_recursive(self.tree_root.to_base(), &filter_text.to_lowercase(), ui);
 
             // Bring first item of current selection in the view when clearing the filter.
             if filter_text.is_empty() {
@@ -274,7 +275,7 @@ impl Control for NodeSelector {
                 if let Some(first) = selected_trees.first() {
                     ui.send(
                         self.scroll_viewer,
-                        ScrollViewerMessage::BringIntoView(*first),
+                        ScrollViewerMessage::BringIntoView(first.to_base()),
                     );
                 }
             }
@@ -306,8 +307,8 @@ impl Control for NodeSelector {
 }
 
 impl NodeSelector {
-    fn find_selected_tree_items(&self, ui: &UserInterface) -> Vec<Handle<UiNode>> {
-        let mut stack = vec![self.tree_root];
+    fn find_selected_tree_items(&self, ui: &UserInterface) -> Vec<Handle<Tree>> {
+        let mut stack = vec![self.tree_root.to_base()];
         let mut selected_trees = Vec::new();
 
         while let Some(node_handle) = stack.pop() {
@@ -319,7 +320,7 @@ impl NodeSelector {
                     tree_data.handle == selected.handle
                         && tree_data.inner_type_id == selected.inner_type_id
                 }) {
-                    selected_trees.push(node_handle);
+                    selected_trees.push(node_handle.to_variant());
                 }
             }
 
@@ -335,7 +336,7 @@ impl NodeSelector {
         if let Some(first) = selected_trees.first() {
             ui.send(
                 self.scroll_viewer,
-                ScrollViewerMessage::BringIntoView(*first),
+                ScrollViewerMessage::BringIntoView(first.to_base()),
             )
         }
 

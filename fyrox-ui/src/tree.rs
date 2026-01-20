@@ -45,10 +45,10 @@ use crate::{
 
 use crate::message::MessageData;
 use crate::stack_panel::StackPanel;
-use fyrox_core::pool::ObjectOrVariant;
+use fyrox_core::pool::{HandlesVecExtension, ObjectOrVariant};
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_graph::{SceneGraph, SceneGraphNode};
+use fyrox_graph::SceneGraph;
 use std::collections::VecDeque;
 
 /// Opaque selection state of a tree.
@@ -78,16 +78,16 @@ pub enum TreeMessage {
         expansion_strategy: TreeExpansionStrategy,
     },
     /// A message, that is used to add an item to a tree.
-    AddItem(Handle<UiNode>),
+    AddItem(Handle<Tree>),
     /// A message, that is used to remove an item from a tree.
-    RemoveItem(Handle<UiNode>),
+    RemoveItem(Handle<Tree>),
     /// A message, that is used to prevent expander from being hidden when a tree does not have
     /// any child items.
     ExpanderVisible(bool),
     /// A message, that is used to specify a new set of children items of a tree.
     SetItems {
         /// A set of handles to new tree items.
-        items: Vec<Handle<UiNode>>,
+        items: Vec<Handle<Tree>>,
         /// A flag, that defines whether the previous items should be deleted or not. `false` is
         /// usually used to reorder existing items.
         remove_previous: bool,
@@ -102,13 +102,13 @@ impl MessageData for TreeMessage {}
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TreeRootMessage {
     /// A message, that is used to add a child item to a tree root.
-    AddItem(Handle<UiNode>),
+    AddItem(Handle<Tree>),
     /// A message, that is used to remove a child item from a tree root.
-    RemoveItem(Handle<UiNode>),
+    RemoveItem(Handle<Tree>),
     /// A message, that is used to specify a new set of children items of a tree root.
-    Items(Vec<Handle<UiNode>>),
+    Items(Vec<Handle<Tree>>),
     /// A message, that it is used to fetch or set current selection of a tree root.
-    Select(Vec<Handle<UiNode>>),
+    Select(Vec<Handle<Tree>>),
     /// A message, that is used to expand all descendant trees in the hierarchy.
     ExpandAll,
     /// A message, that is used to collapse all descendant trees in the hierarchy.
@@ -133,8 +133,9 @@ impl MessageData for TreeRootMessage {}
 /// #     widget::WidgetBuilder,
 /// #     BuildContext, UiNode,
 /// # };
+/// # use fyrox_ui::tree::TreeRoot;
 /// #
-/// fn create_tree(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// fn create_tree(ctx: &mut BuildContext) -> Handle<TreeRoot> {
 ///     // Note, that `TreeRoot` widget is mandatory here. Otherwise some functionality of
 ///     // descendant trees won't work.
 ///     TreeRootBuilder::new(WidgetBuilder::new())
@@ -306,7 +307,7 @@ pub struct Tree {
     /// Current background widget of the tree.
     pub background: Handle<UiNode>,
     /// Current set of items of the tree.
-    pub items: Vec<Handle<UiNode>>,
+    pub items: Vec<Handle<Tree>>,
     /// A flag, that defines whether the tree is selected or not.
     pub is_selected: bool,
     /// A flag, that defines whether the tree should always show its expander, even if there's no
@@ -320,6 +321,7 @@ impl ConstructorProvider<UiNode, UserInterface> for Tree {
             .with_variant("Tree", |ui| {
                 TreeBuilder::new(WidgetBuilder::new().with_name("Tree"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Visual")
@@ -371,45 +373,45 @@ impl Control for Tree {
                                 let selection = if keyboard_modifiers.control {
                                     let mut selection = tree_root.selected.clone();
                                     if let Some(existing) =
-                                        selection.iter().position(|&h| h == self.handle)
+                                        selection.iter().position(|&h| self.handle == h)
                                     {
                                         selection.remove(existing);
                                     } else {
-                                        selection.push(self.handle);
+                                        selection.push(self.handle.to_variant());
                                     }
                                     Some(selection)
                                 } else if keyboard_modifiers.shift {
                                     // Select range.
                                     let mut first_position = None;
                                     let mut this_position = None;
-                                    let mut flat_hierarchy = Vec::new();
+                                    let mut flat_hierarchy = Vec::<Handle<Tree>>::new();
 
                                     fn visit_widget(
                                         this_tree: &Tree,
                                         handle: Handle<UiNode>,
                                         ui: &UserInterface,
-                                        selection: &[Handle<UiNode>],
-                                        hierarchy: &mut Vec<Handle<UiNode>>,
+                                        selection: &[Handle<Tree>],
+                                        hierarchy: &mut Vec<Handle<Tree>>,
                                         first_position: &mut Option<usize>,
                                         this_position: &mut Option<usize>,
                                     ) {
                                         let node = if handle == this_tree.handle {
                                             *this_position = Some(hierarchy.len());
 
-                                            hierarchy.push(handle);
+                                            hierarchy.push(handle.to_variant());
 
                                             &this_tree.widget
                                         } else {
                                             let node = ui.node(handle);
 
                                             if let Some(first) = selection.first() {
-                                                if *first == handle {
+                                                if handle == *first {
                                                     *first_position = Some(hierarchy.len());
                                                 }
                                             }
 
                                             if node.query_component::<Tree>().is_some() {
-                                                hierarchy.push(handle);
+                                                hierarchy.push(handle.to_variant());
                                             }
 
                                             node
@@ -450,7 +452,7 @@ impl Control for Tree {
                                         Some(vec![])
                                     }
                                 } else if !self.is_selected {
-                                    Some(vec![self.handle()])
+                                    Some(vec![self.handle().to_variant()])
                                 } else {
                                     None
                                 };
@@ -565,8 +567,8 @@ impl Control for Tree {
 impl Tree {
     /// Adds new item to given tree. This method is meant to be used only on widget build stage,
     /// any runtime actions should be done via messages.
-    pub fn add_item(tree: Handle<UiNode>, item: Handle<UiNode>, ctx: &mut BuildContext) {
-        if let Some(tree) = ctx[tree].cast_mut::<Tree>() {
+    pub fn add_item(tree: Handle<Tree>, item: Handle<Tree>, ctx: &mut BuildContext) {
+        if let Ok(tree) = ctx.inner_mut().try_get_mut(tree) {
             tree.items.push(item);
             let panel = tree.panel;
             ctx.link(item, panel);
@@ -577,7 +579,7 @@ impl Tree {
 /// Tree builder creates [`Tree`] widget instances and adds them to the user interface.
 pub struct TreeBuilder {
     widget_builder: WidgetBuilder,
-    items: Vec<Handle<UiNode>>,
+    items: Vec<Handle<Tree>>,
     content: Handle<UiNode>,
     is_expanded: bool,
     always_show_expander: bool,
@@ -598,7 +600,7 @@ impl TreeBuilder {
     }
 
     /// Sets the desired children items of the tree.
-    pub fn with_items(mut self, items: Vec<Handle<UiNode>>) -> Self {
+    pub fn with_items(mut self, items: Vec<Handle<Tree>>) -> Self {
         self.items = items;
         self
     }
@@ -686,7 +688,7 @@ impl TreeBuilder {
                             .on_column(0)
                             .with_margin(Thickness::left(15.0))
                             .with_visibility(self.is_expanded)
-                            .with_children(self.items.iter().cloned()),
+                            .with_children(self.items.clone().to_base()),
                     )
                     .build(ctx);
                     panel
@@ -717,9 +719,9 @@ impl TreeBuilder {
 
     /// Finishes widget building and adds it to the user interface, returning a handle to the new
     /// instance.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<Tree> {
         let tree = self.build_tree(ctx);
-        ctx.add_node(UiNode::new(tree))
+        ctx.add_node(UiNode::new(tree)).to_variant()
     }
 }
 
@@ -813,9 +815,9 @@ pub struct TreeRoot {
     /// Current layout panel of the tree root, that is used to arrange children trees.
     pub panel: Handle<StackPanel>,
     /// Current items of the tree root.
-    pub items: Vec<Handle<UiNode>>,
+    pub items: Vec<Handle<Tree>>,
     /// Selected items of the tree root.
-    pub selected: Vec<Handle<UiNode>>,
+    pub selected: Vec<Handle<Tree>>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for TreeRoot {
@@ -824,6 +826,7 @@ impl ConstructorProvider<UiNode, UserInterface> for TreeRoot {
             .with_variant("Tree Root", |ui| {
                 TreeRootBuilder::new(WidgetBuilder::new().with_name("Tree Root"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Visual")
@@ -867,7 +870,7 @@ impl Control for TreeRoot {
                     if &self.selected != selected {
                         let mut items = self.items.clone();
                         while let Some(handle) = items.pop() {
-                            if let Ok(tree_ref) = ui.try_get_of_type::<Tree>(handle) {
+                            if let Ok(tree_ref) = ui.try_get(handle) {
                                 items.extend_from_slice(&tree_ref.items);
 
                                 let new_selection_state = if selected.contains(&handle) {
@@ -905,7 +908,7 @@ impl Control for TreeRoot {
                     }
                     KeyCode::ArrowLeft => {
                         if let Some(selection) = self.selected.first() {
-                            if let Ok(item) = ui.try_get_of_type::<Tree>(*selection) {
+                            if let Ok(item) = ui.try_get(*selection) {
                                 if item.is_expanded {
                                     ui.send(
                                         *selection,
@@ -920,7 +923,7 @@ impl Control for TreeRoot {
                                 {
                                     ui.send(
                                         self.handle,
-                                        TreeRootMessage::Select(vec![parent_handle]),
+                                        TreeRootMessage::Select(vec![parent_handle.to_variant()]),
                                     );
                                     message.set_handled(true);
                                 }
@@ -960,13 +963,13 @@ impl TreeRoot {
         }
     }
 
-    fn select(&self, ui: &UserInterface, item: Handle<UiNode>) {
+    fn select(&self, ui: &UserInterface, item: Handle<Tree>) {
         ui.send(self.handle, TreeRootMessage::Select(vec![item]));
     }
 
     fn move_selection(&self, ui: &UserInterface, direction: Direction, expand: bool) {
         if let Some(selected_item) = self.selected.first() {
-            let Ok(item) = ui.try_get_of_type::<Tree>(*selected_item) else {
+            let Ok(item) = ui.try_get(*selected_item) else {
                 return;
             };
 
@@ -983,8 +986,22 @@ impl TreeRoot {
 
             let (parent_handle, parent_items, parent_ancestor, is_parent_root) = ui
                 .find_component_up::<Tree>(item.parent())
-                .map(|(tree_handle, tree)| (tree_handle, &tree.items, tree.parent, false))
-                .unwrap_or_else(|| (self.handle, &self.items, self.parent, true));
+                .map(|(tree_handle, tree)| {
+                    (
+                        tree_handle.to_variant::<Tree>(),
+                        &tree.items,
+                        tree.parent,
+                        false,
+                    )
+                })
+                .unwrap_or_else(|| {
+                    (
+                        self.handle.to_variant::<Tree>(),
+                        &self.items,
+                        self.parent,
+                        true,
+                    )
+                });
 
             let Some(selected_item_position) =
                 parent_items.iter().position(|c| *c == *selected_item)
@@ -1002,7 +1019,7 @@ impl TreeRoot {
                         let mut queue = VecDeque::new();
                         queue.push_back(*prev);
                         while let Some(item) = queue.pop_front() {
-                            if let Some(item_ref) = ui.node(item).component_ref::<Tree>() {
+                            if let Ok(item_ref) = ui.try_get(item) {
                                 if item_ref.is_expanded {
                                     queue.extend(item_ref.items.iter());
                                 }
@@ -1045,7 +1062,7 @@ impl TreeRoot {
                             }
 
                             current_ancestor_parent = ancestor.parent();
-                            current_ancestor = ancestor_handle;
+                            current_ancestor = ancestor_handle.to_variant();
                         }
                     }
                 }
@@ -1059,7 +1076,7 @@ impl TreeRoot {
 /// Tree root builder creates [`TreeRoot`] instances and adds them to the user interface.
 pub struct TreeRootBuilder {
     widget_builder: WidgetBuilder,
-    items: Vec<Handle<UiNode>>,
+    items: Vec<Handle<Tree>>,
 }
 
 impl TreeRootBuilder {
@@ -1072,16 +1089,17 @@ impl TreeRootBuilder {
     }
 
     /// Sets the desired items of the tree root.
-    pub fn with_items(mut self, items: Vec<Handle<UiNode>>) -> Self {
+    pub fn with_items(mut self, items: Vec<Handle<Tree>>) -> Self {
         self.items = items;
         self
     }
 
     /// Finishes widget building and adds the new instance to the user interface, returning its handle.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let panel =
-            StackPanelBuilder::new(WidgetBuilder::new().with_children(self.items.iter().cloned()))
-                .build(ctx);
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<TreeRoot> {
+        let panel = StackPanelBuilder::new(
+            WidgetBuilder::new().with_children(self.items.clone().to_base()),
+        )
+        .build(ctx);
 
         let tree = TreeRoot {
             widget: self.widget_builder.with_child(panel).build(ctx),
@@ -1090,7 +1108,7 @@ impl TreeRootBuilder {
             selected: Default::default(),
         };
 
-        ctx.add_node(UiNode::new(tree))
+        ctx.add_node(UiNode::new(tree)).to_variant()
     }
 }
 

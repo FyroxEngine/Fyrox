@@ -35,17 +35,18 @@ use crate::fyrox::{
         tree::{TreeBuilder, TreeRootBuilder, TreeRootMessage},
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
         VerticalAlignment,
     },
 };
 use fyrox::asset::manager::ResourceManager;
 use fyrox::gui::button::Button;
+use fyrox::gui::tree::{Tree, TreeRoot};
 use fyrox::gui::window::{Window, WindowAlignment};
 
 pub struct DependencyViewer {
     pub window: Handle<Window>,
-    tree_root: Handle<UiNode>,
+    tree_root: Handle<TreeRoot>,
     close: Handle<Button>,
     copy_to_clipboard: Handle<Button>,
     resource_graph: Option<ResourceDependencyGraph>,
@@ -55,7 +56,7 @@ fn build_tree_recursively(
     node: &ResourceGraphNode,
     resource_manager: &ResourceManager,
     ctx: &mut BuildContext,
-) -> Handle<UiNode> {
+) -> Handle<Tree> {
     let children = node
         .children
         .iter()

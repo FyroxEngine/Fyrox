@@ -49,6 +49,7 @@ use fyrox::gui::searchbar::SearchBar;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
+use fyrox::gui::tree::TreeRoot;
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
@@ -82,7 +83,7 @@ fn make_views_for_property_descriptor_collection(
     ctx: &mut BuildContext,
     collection: &[PropertyDescriptor],
     allowed_types: Option<&FxHashSet<TypeId>>,
-) -> Vec<Handle<UiNode>> {
+) -> Vec<Handle<Tree>> {
     collection
         .iter()
         .filter_map(|p| {
@@ -121,7 +122,7 @@ impl PropertyDescriptor {
         &self,
         ctx: &mut BuildContext,
         allowed_types: Option<&FxHashSet<TypeId>>,
-    ) -> Handle<UiNode> {
+    ) -> Handle<Tree> {
         if self.read_only {
             return Handle::NONE;
         }
@@ -301,7 +302,7 @@ pub struct PropertySelector {
     #[reflect(hidden)]
     #[visit(skip)]
     selected_property_paths: Vec<PropertyDescriptorData>,
-    tree_root: Handle<UiNode>,
+    tree_root: Handle<TreeRoot>,
     search_bar: Handle<SearchBar>,
     scroll_viewer: Handle<ScrollViewer>,
 }
@@ -311,8 +312,8 @@ define_widget_deref!(PropertySelector);
 uuid_provider!(PropertySelector = "8e58e123-48a1-4e18-9e90-fd35a1669bdc");
 
 impl PropertySelector {
-    fn find_selected_tree_items(&self, ui: &UserInterface) -> Vec<Handle<UiNode>> {
-        let mut stack = vec![self.tree_root];
+    fn find_selected_tree_items(&self, ui: &UserInterface) -> Vec<Handle<Tree>> {
+        let mut stack = vec![self.tree_root.to_base()];
         let mut selected_trees = Vec::new();
 
         while let Some(node_handle) = stack.pop() {
@@ -326,7 +327,7 @@ impl PropertySelector {
                             .unwrap()
                             .path
                 }) {
-                    selected_trees.push(node_handle);
+                    selected_trees.push(node_handle.to_variant());
                 }
             }
 
@@ -342,7 +343,7 @@ impl PropertySelector {
         if let Some(first) = selected_trees.first() {
             ui.send(
                 self.scroll_viewer,
-                ScrollViewerMessage::BringIntoView(*first),
+                ScrollViewerMessage::BringIntoView(first.to_base()),
             )
         }
 
@@ -361,7 +362,7 @@ impl Control for PropertySelector {
                     selection
                         .iter()
                         .map(|s| {
-                            ui.node(*s)
+                            ui[*s]
                                 .user_data_cloned::<PropertyDescriptorData>()
                                 .unwrap()
                                 .clone()
@@ -384,7 +385,7 @@ impl Control for PropertySelector {
             }
         } else if let Some(SearchBarMessage::Text(filter_text)) = message.data_from(self.search_bar)
         {
-            apply_filter_recursive(self.tree_root, &filter_text.to_lowercase(), ui);
+            apply_filter_recursive(self.tree_root.to_base(), &filter_text.to_lowercase(), ui);
         }
     }
 }

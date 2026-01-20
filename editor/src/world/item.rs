@@ -46,13 +46,13 @@ use crate::{
     Message,
 };
 
+use fyrox::gui::image::Image;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::text::Text;
 use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
-use fyrox::gui::image::Image;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SceneItemMessage {
@@ -295,7 +295,7 @@ impl SceneItemBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext, sender: MessageSender) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext, sender: MessageSender) -> Handle<SceneItem> {
         let text_name;
         let content = GridBuilder::new(
             WidgetBuilder::new()
@@ -352,7 +352,7 @@ impl SceneItemBuilder {
             drop_anchor: DropAnchor::OnTop,
         };
 
-        ctx.add_node(UiNode::new(item))
+        ctx.add_node(UiNode::new(item)).to_variant()
     }
 }
 

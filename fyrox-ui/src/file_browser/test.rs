@@ -126,7 +126,8 @@ fn test_find_tree() {
     let root = TreeRootBuilder::new(
         WidgetBuilder::new().with_user_data(Arc::new(Mutex::new(PathBuf::from("test")))),
     )
-    .build(&mut ui.build_ctx());
+    .build(&mut ui.build_ctx())
+    .to_base();
 
     let path = fs_tree::build_tree(
         root,
