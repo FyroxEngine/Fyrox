@@ -50,8 +50,9 @@ use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 /// #     button::ButtonBuilder, canvas::CanvasBuilder, core::pool::Handle, text::TextBuilder,
 /// #     widget::WidgetBuilder, BuildContext, UiNode,
 /// # };
+/// # use fyrox_ui::canvas::Canvas;
 /// #
-/// fn create_canvas(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// fn create_canvas(ctx: &mut BuildContext) -> Handle<Canvas> {
 ///     CanvasBuilder::new(
 ///         WidgetBuilder::new()
 ///             .with_child(

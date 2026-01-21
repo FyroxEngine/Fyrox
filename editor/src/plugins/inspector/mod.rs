@@ -117,7 +117,7 @@ impl InspectorEnvironment for EditorEnvironment {
 
 pub struct InspectorPlugin {
     pub(crate) window: Handle<Window>,
-    pub inspector: Handle<UiNode>,
+    pub inspector: Handle<fyrox::gui::inspector::Inspector>,
     pub head: Handle<StackPanel>,
     pub footer: Handle<UiNode>,
     warning_text: Handle<Text>,
@@ -301,13 +301,7 @@ impl InspectorPlugin {
         obj: &dyn Reflect,
         ui: &mut UserInterface,
     ) -> Result<(), Vec<InspectorError>> {
-        let ctx = ui
-            .node(self.inspector)
-            .cast::<fyrox::gui::inspector::Inspector>()
-            .unwrap()
-            .context()
-            .clone();
-
+        let ctx = ui[self.inspector].context().clone();
         ctx.sync(obj, ui, 0, true, Default::default(), Default::default())
     }
 
@@ -418,7 +412,7 @@ impl EditorPlugin for InspectorPlugin {
                     need_clear = false;
                 }
 
-                for widget in [self.inspector, self.head.to_base()] {
+                for widget in [self.inspector.to_base::<UiNode>(), self.head.to_base()] {
                     ui.send(widget, WidgetMessage::Enabled(!read_only));
                 }
             },

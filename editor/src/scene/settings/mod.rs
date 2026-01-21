@@ -37,7 +37,7 @@ use crate::{
             scroll_viewer::ScrollViewerBuilder,
             widget::WidgetBuilder,
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, UiNode, WidgetPool,
+            BuildContext, WidgetPool,
         },
         scene::{
             dim2,
@@ -55,11 +55,12 @@ use crate::{
     ui_scene::UiScene,
     GameScene, Message,
 };
+use fyrox::gui::inspector::Inspector;
 use std::sync::{mpsc::Sender, Arc};
 
 pub struct SceneSettingsWindow {
     pub window: Handle<Window>,
-    inspector: Handle<UiNode>,
+    inspector: Handle<Inspector>,
     property_definitions: Arc<PropertyEditorDefinitionContainer>,
 }
 

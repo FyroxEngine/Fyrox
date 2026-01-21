@@ -24,7 +24,6 @@ use fyrox::gui::window::{Window, WindowAlignment};
 use fyrox::{
     core::{log::Log, pool::Handle, reflect::prelude::*},
     fxhash::FxHashSet,
-    graph::SceneGraph,
     gui::{
         inspector::{
             editors::{
@@ -38,7 +37,7 @@ use fyrox::{
         scroll_viewer::ScrollViewerBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, UiNode, UserInterface,
+        BuildContext, UserInterface,
     },
 };
 use fyrox_build_tools::{CommandDescriptor, EnvironmentVariable};
@@ -212,7 +211,7 @@ pub struct Project {
 
 pub struct SettingsWindow {
     window: Handle<Window>,
-    inspector: Handle<UiNode>,
+    inspector: Handle<Inspector>,
     clipboard: Option<Box<dyn Reflect>>,
 }
 
@@ -296,13 +295,7 @@ impl SettingsWindow {
                 },
             );
 
-            let ctx = ui
-                .node(self.inspector)
-                .cast::<Inspector>()
-                .unwrap()
-                .context()
-                .clone();
-
+            let ctx = ui[self.inspector].context().clone();
             if let Err(errs) = ctx.sync(
                 &**settings,
                 ui,

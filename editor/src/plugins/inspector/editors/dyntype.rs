@@ -68,7 +68,7 @@ impl MessageData for DynTypePropertyEditorMessage {}
 #[reflect(derived_type = "UiNode")]
 pub struct DynTypePropertyEditor {
     widget: Widget,
-    inspector: Handle<UiNode>,
+    inspector: Handle<Inspector>,
     variant_selector: Handle<UiNode>,
     selected_dyn_type_uuid: Option<Uuid>,
     need_context_update: Cell<bool>,
@@ -246,7 +246,8 @@ impl PropertyEditorDefinition for DynTypePropertyEditorDefinition {
                 selected_dyn_type(environment.dyn_type_constructors.clone(), value).unwrap_or(0),
             )
             .with_items(items)
-            .build(ctx.build_context).to_base();
+            .build(ctx.build_context)
+            .to_base();
 
         let dyn_type_selector_panel =
             GridBuilder::new(WidgetBuilder::new().with_child(variant_selector))
@@ -363,14 +364,7 @@ impl PropertyEditorDefinition for DynTypePropertyEditorDefinition {
             )))
         } else {
             let layer_index = ctx.layer_index;
-            let inspector_ctx = ctx
-                .ui
-                .node(instance_ref.inspector)
-                .cast::<Inspector>()
-                .expect("Must be Inspector!")
-                .context()
-                .clone();
-
+            let inspector_ctx = ctx.ui[instance_ref.inspector].context().clone();
             if let Some(value) = value.value_ref() {
                 if let Err(e) = inspector_ctx.sync(
                     value,

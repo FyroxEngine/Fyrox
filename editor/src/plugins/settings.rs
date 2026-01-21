@@ -70,7 +70,7 @@ pub struct SettingsWindow {
     pub window: Handle<Window>,
     ok: Handle<Button>,
     default: Handle<Button>,
-    inspector: Handle<UiNode>,
+    inspector: Handle<Inspector>,
     groups: Handle<StackPanel>,
     scroll_viewer: Handle<ScrollViewer>,
     search_bar: Handle<SearchBar>,
@@ -273,7 +273,7 @@ impl SettingsWindow {
             is_any_match
         }
 
-        apply_recursive(filter_text, self.inspector, ui);
+        apply_recursive(filter_text, self.inspector.to_base(), ui);
     }
 
     pub fn handle_ui_message(
@@ -310,8 +310,7 @@ impl SettingsWindow {
 
             if let Ok(node) = ui.try_get_node(message.destination()) {
                 if let Some(user_data) = node.user_data_cloned::<GroupName>() {
-                    let inspector = ui.try_get_of_type::<Inspector>(self.inspector).unwrap();
-
+                    let inspector = &ui[self.inspector];
                     if let Some(entry) = inspector.context.find_property_editor_by_tag(&user_data.0)
                     {
                         ui.send(

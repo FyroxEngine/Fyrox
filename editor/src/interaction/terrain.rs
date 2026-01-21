@@ -45,7 +45,7 @@ use crate::{
             message::UiMessage,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, UiNode, UserInterface,
+            BuildContext, UserInterface,
         },
         gui::{HorizontalAlignment, Thickness, VerticalAlignment},
         scene::{
@@ -553,7 +553,7 @@ impl InteractionMode for TerrainInteractionMode {
 
 struct BrushPanel {
     window: Handle<Window>,
-    inspector: Handle<UiNode>,
+    inspector: Handle<Inspector>,
 }
 
 fn make_brush_mode_enum_property_editor_definition() -> EnumPropertyEditorDefinition<BrushMode> {
@@ -662,13 +662,7 @@ impl BrushPanel {
     }
 
     fn sync_to_model(&self, ui: &mut UserInterface, brush: &Brush) {
-        let ctx = ui
-            .node(self.inspector)
-            .cast::<Inspector>()
-            .expect("Must be Inspector!")
-            .context()
-            .clone();
-
+        let ctx = ui[self.inspector].context().clone();
         if let Err(e) = ctx.sync(brush, ui, 0, true, Default::default(), Default::default()) {
             Log::writeln(
                 MessageKind::Error,

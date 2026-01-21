@@ -75,7 +75,7 @@ impl MessageData for ScriptPropertyEditorMessage {}
 #[reflect(derived_type = "UiNode")]
 pub struct ScriptPropertyEditor {
     widget: Widget,
-    inspector: Handle<UiNode>,
+    inspector: Handle<Inspector>,
     variant_selector: Handle<UiNode>,
     open_in_ide_button: Handle<Button>,
     selected_script_uuid: Option<Uuid>,
@@ -466,14 +466,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
             )))
         } else {
             let layer_index = ctx.layer_index;
-            let inspector_ctx = ctx
-                .ui
-                .node(instance_ref.inspector)
-                .cast::<Inspector>()
-                .expect("Must be Inspector!")
-                .context()
-                .clone();
-
+            let inspector_ctx = ctx.ui[instance_ref.inspector].context().clone();
             if let Some(value) = value.as_ref() {
                 if let Err(e) = inspector_ctx.sync(
                     value,

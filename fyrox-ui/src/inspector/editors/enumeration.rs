@@ -71,7 +71,7 @@ impl MessageData for EnumPropertyEditorMessage {}
 pub struct EnumPropertyEditor<T: InspectableEnum> {
     pub widget: Widget,
     pub variant_selector: Handle<UiNode>,
-    pub inspector: Handle<UiNode>,
+    pub inspector: Handle<Inspector>,
     #[visit(skip)]
     #[reflect(hidden)]
     pub definition: EnumPropertyEditorDefinition<T>,
@@ -449,15 +449,7 @@ where
 
         let variant_index = (self.index_generator)(value);
         if Some(variant_index) != *variant_selector_ref.selection {
-            let environment = ctx
-                .ui
-                .node(instance_ref.inspector)
-                .cast::<Inspector>()
-                .expect("Must be Inspector!")
-                .context()
-                .environment
-                .clone();
-
+            let environment = ctx.ui[instance_ref.inspector].context().environment.clone();
             let mut selection_message = UiMessage::for_widget(
                 instance_ref.variant_selector,
                 DropdownListMessage::Selection(Some(variant_index)),
@@ -486,14 +478,7 @@ where
             )))
         } else {
             let layer_index = ctx.layer_index;
-            let inspector_ctx = ctx
-                .ui
-                .node(instance_ref.inspector)
-                .cast::<Inspector>()
-                .expect("Must be Inspector!")
-                .context()
-                .clone();
-
+            let inspector_ctx = ctx.ui[instance_ref.inspector].context().clone();
             if let Err(e) = inspector_ctx.sync(
                 value,
                 ctx.ui,

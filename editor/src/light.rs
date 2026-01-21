@@ -32,7 +32,7 @@ use crate::fyrox::{
         text::TextMessage,
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
+        BuildContext, HorizontalAlignment, Thickness, UserInterface, VerticalAlignment,
     },
     utils::lightmap::{
         CancellationToken, Lightmap, LightmapGenerationError, LightmapInputData, ProgressIndicator,
@@ -200,7 +200,7 @@ impl ProgressWindow {
 
 pub struct LightPanel {
     pub window: Handle<Window>,
-    inspector: Handle<UiNode>,
+    inspector: Handle<Inspector>,
     generate: Handle<Button>,
     settings: LightmapperSettings,
     progress_window: Option<ProgressWindow>,

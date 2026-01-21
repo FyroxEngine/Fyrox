@@ -460,7 +460,7 @@ pub trait InspectorEnvironment: Any + Send + Sync + ComponentProvider {
 /// # use std::sync::Arc;
 /// # use strum_macros::{AsRefStr, EnumString, VariantNames};
 /// # use fyrox_core::uuid_provider;
-/// # use fyrox_ui::inspector::InspectorContextArgs;
+/// # use fyrox_ui::inspector::{Inspector, InspectorContextArgs};
 ///
 /// #[derive(Reflect, Debug, Clone)]
 /// struct MyObject {
@@ -481,7 +481,7 @@ pub trait InspectorEnvironment: Any + Send + Sync + ComponentProvider {
 ///
 /// uuid_provider!(MyEnum = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd");
 ///
-/// fn create_inspector(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// fn create_inspector(ctx: &mut BuildContext) -> Handle<Inspector> {
 ///     // Initialize an object first.
 ///     let my_object = MyObject {
 ///         foo: "Some string".to_string(),
@@ -531,6 +531,7 @@ impl ConstructorProvider<UiNode, UserInterface> for Inspector {
         GraphNodeConstructor::new::<Self>().with_variant("Inspector", |ui| {
             InspectorBuilder::new(WidgetBuilder::new().with_name("Inspector"))
                 .build(&mut ui.build_ctx())
+                .to_base()
                 .into()
         })
     }
@@ -540,7 +541,7 @@ crate::define_widget_deref!(Inspector);
 
 impl Inspector {
     pub fn handle_context_menu_message(
-        inspector: Handle<UiNode>,
+        inspector: Handle<Inspector>,
         message: &UiMessage,
         ui: &mut UserInterface,
         object: &mut dyn Reflect,
@@ -560,7 +561,7 @@ impl Inspector {
     }
 
     pub fn handle_context_menu_message_ex(
-        inspector: Handle<UiNode>,
+        inspector: Handle<Inspector>,
         msg: &InspectorMessage,
         ui: &mut UserInterface,
         object: &mut dyn Reflect,
@@ -655,7 +656,7 @@ impl Inspector {
                 }
 
                 if pasted {
-                    if let Ok(inspector) = ui.try_get_of_type::<Inspector>(inspector) {
+                    if let Ok(inspector) = ui.try_get(inspector) {
                         let ctx = inspector.context.clone();
 
                         if let Err(errs) =
@@ -1518,7 +1519,7 @@ impl InspectorBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<Inspector> {
         let canvas = Inspector {
             widget: self
                 .widget_builder
@@ -1527,7 +1528,7 @@ impl InspectorBuilder {
                 .build(ctx),
             context: self.context,
         };
-        ctx.add_node(UiNode::new(canvas))
+        ctx.add_node(UiNode::new(canvas)).to_variant()
     }
 }
 

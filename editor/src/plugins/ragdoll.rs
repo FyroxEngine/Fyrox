@@ -44,7 +44,7 @@ use crate::{
             utils::make_simple_tooltip,
             widget::WidgetBuilder,
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
         },
         scene::{
             base::BaseBuilder,
@@ -1012,7 +1012,7 @@ impl RagdollPreset {
 pub struct RagdollWizard {
     pub window: Handle<Window>,
     pub preset: RagdollPreset,
-    inspector: Handle<UiNode>,
+    inspector: Handle<Inspector>,
     ok: Handle<Button>,
     cancel: Handle<Button>,
     autofill: Handle<Button>,
@@ -1209,13 +1209,7 @@ impl RagdollWizard {
                 self.preset.neck = find_by_pattern(graph, "Neck");
                 self.preset.head = find_by_pattern(graph, "Head");
 
-                let ctx = ui
-                    .node(self.inspector)
-                    .cast::<fyrox::gui::inspector::Inspector>()
-                    .unwrap()
-                    .context()
-                    .clone();
-
+                let ctx = ui[self.inspector].context().clone();
                 if let Err(sync_errors) = ctx.sync(
                     &self.preset,
                     ui,

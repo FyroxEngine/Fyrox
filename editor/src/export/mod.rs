@@ -56,7 +56,7 @@ use crate::{
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
-            BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
             VerticalAlignment,
         },
     },
@@ -136,7 +136,7 @@ pub struct ExportWindow {
     build_result_receiver: Option<Receiver<BuildResult>>,
     target_platform_list: Handle<ListView>,
     export_options: ExportOptions,
-    inspector: Handle<UiNode>,
+    inspector: Handle<Inspector>,
     build_targets_selector: Handle<DropdownList>,
     child_processes: Vec<std::process::Child>,
 }
@@ -691,7 +691,7 @@ impl ExportWindow {
     }
 
     pub fn sync_to_model(&self, ui: &mut UserInterface) {
-        if let Ok(inspector) = ui.try_get_of_type::<Inspector>(self.inspector) {
+        if let Ok(inspector) = ui.try_get(self.inspector) {
             let ctx = inspector.context().clone();
             if let Err(sync_errors) = ctx.sync(
                 &self.export_options,

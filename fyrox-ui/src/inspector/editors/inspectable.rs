@@ -112,7 +112,8 @@ where
             {
                 editor = InspectorBuilder::new(WidgetBuilder::new())
                     .with_context(inspector_context)
-                    .build(ctx.build_context);
+                    .build(ctx.build_context)
+                    .to_base();
                 editor
             },
             ctx.name_column_width,

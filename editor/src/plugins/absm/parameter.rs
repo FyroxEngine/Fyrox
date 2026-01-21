@@ -41,19 +41,20 @@ use crate::{
             scroll_viewer::ScrollViewerBuilder,
             widget::WidgetBuilder,
             window::{WindowBuilder, WindowTitle},
-            BuildContext, UiNode, UserInterface,
+            BuildContext, UserInterface,
         },
     },
     message::MessageSender,
     plugins::absm::command::fetch_machine,
     Message,
 };
+use fyrox::gui::inspector::Inspector;
 use fyrox::gui::window::Window;
 use std::sync::Arc;
 
 pub struct ParameterPanel {
     pub window: Handle<Window>,
-    inspector: Handle<UiNode>,
+    inspector: Handle<Inspector>,
     property_editors: Arc<PropertyEditorDefinitionContainer>,
 }
 
@@ -122,13 +123,7 @@ impl ParameterPanel {
     }
 
     pub fn sync_to_model(&mut self, ui: &mut UserInterface, parameters: &ParameterContainer) {
-        let ctx = ui
-            .node(self.inspector)
-            .cast::<fyrox::gui::inspector::Inspector>()
-            .unwrap()
-            .context()
-            .clone();
-
+        let ctx = ui[self.inspector].context().clone();
         if let Err(sync_errors) = ctx.sync(
             parameters,
             ui,
