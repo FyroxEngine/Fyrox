@@ -301,6 +301,7 @@ impl ConstructorProvider<UiNode, UserInterface> for AbsmEventProvider {
             .with_variant("Absm Event Provider", |ui| {
                 AbsmEventProviderBuilder::new(WidgetBuilder::new().with_name("Absm Event Provider"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Animation")
@@ -379,14 +380,14 @@ impl AbsmEventProviderBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<AnimationBlendingStateMachine> {
         let provider = AbsmEventProvider {
             widget: self.widget_builder.build(ctx),
             actions: self.actions.into(),
             absm: self.absm.into(),
         };
 
-        ctx.add_node(UiNode::new(provider))
+        ctx.add_node(UiNode::new(provider)).to_variant()
     }
 }
 

@@ -65,13 +65,11 @@ where
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<T>()?;
-        Ok(PropertyEditorInstance::Simple {
-            editor: BitFieldBuilder::new(
-                WidgetBuilder::new().with_margin(Thickness::top_bottom(1.0)),
-            )
-            .with_value(*value)
-            .build(ctx.build_context),
-        })
+        Ok(PropertyEditorInstance::simple(
+            BitFieldBuilder::new(WidgetBuilder::new().with_margin(Thickness::top_bottom(1.0)))
+                .with_value(*value)
+                .build(ctx.build_context),
+        ))
     }
 
     fn create_message(

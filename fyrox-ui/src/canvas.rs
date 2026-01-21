@@ -82,6 +82,7 @@ impl ConstructorProvider<UiNode, UserInterface> for Canvas {
             .with_variant("Canvas", |ui| {
                 CanvasBuilder::new(WidgetBuilder::new().with_name("Canvas"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Layout")
@@ -135,11 +136,11 @@ impl CanvasBuilder {
     }
 
     /// Finishes canvas widget building and adds the instance to the user interface and returns its handle.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<Canvas> {
         let canvas = Canvas {
             widget: self.widget_builder.build(ctx),
         };
-        ctx.add_node(UiNode::new(canvas))
+        ctx.add_node(UiNode::new(canvas)).to_variant()
     }
 }
 

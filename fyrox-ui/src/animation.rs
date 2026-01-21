@@ -159,6 +159,7 @@ impl ConstructorProvider<UiNode, UserInterface> for AnimationPlayer {
             .with_variant("Animation Player", |ui| {
                 AnimationPlayerBuilder::new(WidgetBuilder::new().with_name("Animation Player"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Animation")
@@ -297,8 +298,8 @@ impl AnimationPlayerBuilder {
     }
 
     /// Creates an instance of [`AnimationPlayer`] node and adds it to the given user interface.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        ctx.add_node(self.build_node(ctx))
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<AnimationPlayer> {
+        ctx.add_node(self.build_node(ctx)).to_variant()
     }
 }
 

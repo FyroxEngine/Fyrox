@@ -109,6 +109,7 @@ impl<T: BitContainer> ConstructorProvider<UiNode, UserInterface> for BitField<T>
             .with_variant(format!("Bit Field<{}>", std::any::type_name::<T>()), |ui| {
                 BitFieldBuilder::<T>::new(WidgetBuilder::new())
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Bit")
@@ -472,7 +473,7 @@ where
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<BitField<T>> {
         let canvas = BitField {
             widget: self.widget_builder.build(ctx),
             value: self.value,
@@ -480,7 +481,7 @@ where
             bit_state: BitState::Normal,
             current_value: false,
         };
-        ctx.add_node(UiNode::new(canvas))
+        ctx.add_node(UiNode::new(canvas)).to_variant()
     }
 }
 

@@ -24,6 +24,7 @@
 #![warn(missing_docs)]
 
 use crate::button::Button;
+use crate::canvas::Canvas;
 use crate::text::Text;
 use crate::{
     border::BorderBuilder,
@@ -155,7 +156,7 @@ pub struct ScrollBar {
     /// A handle of the indicator (thumb).
     pub indicator: InheritableVariable<Handle<UiNode>>,
     /// A handle of the canvas that is used for the thumb.
-    pub indicator_canvas: InheritableVariable<Handle<UiNode>>,
+    pub indicator_canvas: InheritableVariable<Handle<Canvas>>,
     /// A handle of the [`crate::text::Text`] widget that is used to show the current value of the scroll bar.
     pub value_text: InheritableVariable<Handle<Text>>,
     /// Current value precision in decimal places.
@@ -186,7 +187,7 @@ impl Control for ScrollBar {
         // Adjust indicator position according to current value
         let percent = (*self.value - *self.min) / (*self.max - *self.min);
 
-        let field_size = ui.node(*self.indicator_canvas).actual_local_size();
+        let field_size = ui[*self.indicator_canvas].actual_local_size();
 
         let indicator = ui.node(*self.indicator);
         match *self.orientation {
@@ -298,7 +299,7 @@ impl Control for ScrollBar {
                     }
                 }
                 ScrollBarMessage::SizeRatio(size_ratio) => {
-                    let field_size = ui.node(*self.indicator_canvas).actual_global_size();
+                    let field_size = ui[*self.indicator_canvas].actual_global_size();
                     let indicator_size = ui.node(*self.indicator).actual_global_size();
 
                     match *self.orientation {
@@ -342,7 +343,7 @@ impl Control for ScrollBar {
                     }
                     WidgetMessage::MouseMove { pos: mouse_pos, .. } => {
                         if self.indicator.is_some() {
-                            let indicator_canvas = ui.node(*self.indicator_canvas);
+                            let indicator_canvas = &ui[*self.indicator_canvas];
                             let indicator_size =
                                 ui.nodes.borrow(*self.indicator).actual_global_size();
                             if self.is_dragging {
