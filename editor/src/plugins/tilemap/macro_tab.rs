@@ -140,6 +140,7 @@ pub fn make_list_item(
             .with_pad_by_corner_radius(false),
     )
     .build(ctx)
+    .to_base()
 }
 
 fn make_instance_items(

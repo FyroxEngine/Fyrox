@@ -559,6 +559,7 @@ impl ScrollBarBuilder {
             .with_hover_brush(ctx.style.property(Style::BRUSH_LIGHTER))
             .with_pressed_brush(ctx.style.property(Style::BRUSH_LIGHTEST))
             .build(ctx)
+            .to_base()
         });
 
         match orientation {

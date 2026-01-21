@@ -921,6 +921,7 @@ pub fn make_named_value_list_option(
             .with_pad_by_corner_radius(false),
     )
     .build(ctx)
+    .to_base()
 }
 
 /// Create the items for the dropdown list list that lets the user select a named value.

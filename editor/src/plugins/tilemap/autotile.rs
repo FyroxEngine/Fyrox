@@ -103,6 +103,7 @@ fn make_list_item(text: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
             .with_pad_by_corner_radius(false),
     )
     .build(ctx)
+    .to_base()
 }
 
 #[derive(Default)]

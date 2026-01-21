@@ -112,6 +112,7 @@ impl ConstructorProvider<UiNode, UserInterface> for Decorator {
                     WidgetBuilder::new().with_name("Decorator"),
                 ))
                 .build(&mut ui.build_ctx())
+                .to_base()
                 .into()
             })
             .with_group("Visual")
@@ -352,7 +353,7 @@ impl DecoratorBuilder {
     }
 
     /// Finishes decorator instance building.
-    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<Decorator> {
         let normal_brush = self
             .normal_brush
             .unwrap_or_else(|| ctx.style.property::<Brush>(Style::BRUSH_LIGHT));
@@ -388,7 +389,7 @@ impl DecoratorBuilder {
             is_selected: self.selected.into(),
             is_pressable: self.pressable.into(),
         });
-        ctx.add_node(node)
+        ctx.add_node(node).to_variant()
     }
 }
 

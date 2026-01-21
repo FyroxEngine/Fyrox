@@ -888,6 +888,7 @@ fn make_item(text: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
         ),
     ))
     .build(ctx)
+    .to_base()
 }
 
 /// A field that allows the user to choose a property from a [`TileSet`].

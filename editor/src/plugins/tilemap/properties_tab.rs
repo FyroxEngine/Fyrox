@@ -157,6 +157,7 @@ fn make_list_item(ctx: &mut BuildContext, property: &TileSetPropertyLayer) -> Ha
             .with_pad_by_corner_radius(false),
     )
     .build(ctx)
+    .to_base()
 }
 
 fn make_items(ctx: &mut BuildContext, tile_set: &OptionTileSet) -> Vec<Handle<UiNode>> {
@@ -219,6 +220,7 @@ fn make_name_list_item(ctx: &mut BuildContext, named_value: &NamedValue) -> Hand
             .with_pad_by_corner_radius(false),
     )
     .build(ctx)
+    .to_base()
 }
 
 fn make_name_items(ctx: &mut BuildContext, property: &TileSetPropertyLayer) -> Vec<Handle<UiNode>> {

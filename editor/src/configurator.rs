@@ -90,6 +90,7 @@ fn make_history_entry_widget(ctx: &mut BuildContext, entry: &HistoryEntry) -> Ha
             ),
     ))
     .build(ctx)
+    .to_base()
 }
 
 impl Configurator {

@@ -1071,6 +1071,7 @@ impl MenuItemBuilder {
             .with_pressed_brush(Brush::Solid(Color::TRANSPARENT).into())
             .with_pressable(false)
             .build(ctx)
+            .to_base()
         });
 
         if content.is_some() {

@@ -116,6 +116,7 @@ pub fn make_list_option(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
             .with_pad_by_corner_radius(false),
     )
     .build(ctx)
+    .to_base()
 }
 
 fn build_list(ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {

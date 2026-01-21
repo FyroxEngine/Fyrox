@@ -24,7 +24,9 @@ use crate::{
     upgrade::UpgradeTool,
     utils::{self, is_production_ready},
 };
+use fyrox::core::pool::HandlesVecExtension;
 use fyrox::gui::button::Button;
+use fyrox::gui::decorator::Decorator;
 use fyrox::gui::file_browser::{FileSelectorMode, PathFilter};
 use fyrox::gui::grid::Grid;
 use fyrox::gui::list_view::ListView;
@@ -175,7 +177,7 @@ fn make_project_item(
     engine_version: &str,
     project_size_sender: Sender<ProjectSize>,
     ctx: &mut BuildContext,
-) -> Handle<UiNode> {
+) -> Handle<Decorator> {
     let icon = ImageBuilder::new(
         WidgetBuilder::new()
             .with_margin(Thickness::uniform(4.0))
@@ -302,7 +304,7 @@ fn make_project_items(
     search_text: &str,
     project_size_sender: &Sender<ProjectSize>,
     ctx: &mut BuildContext,
-) -> Vec<Handle<UiNode>> {
+) -> Vec<Handle<Decorator>> {
     settings
         .projects
         .iter()
@@ -657,7 +659,7 @@ impl ProjectManager {
                 .with_tab_index(Some(3))
                 .with_margin(Thickness::uniform(1.0)),
         )
-        .with_items(make_project_items(&settings, "", &project_size_sender, ctx))
+        .with_items(make_project_items(&settings, "", &project_size_sender, ctx).to_base())
         .build(ctx);
 
         let no_projects_warning =
@@ -767,7 +769,8 @@ impl ProjectManager {
             &self.search_text,
             &self.project_size_sender,
             &mut ui.build_ctx(),
-        );
+        )
+        .to_base();
         ui.send(
             self.no_projects_warning,
             WidgetMessage::Visibility(items.is_empty()),

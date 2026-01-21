@@ -46,6 +46,7 @@ use crate::{
 };
 
 use crate::button::Button;
+use crate::decorator::Decorator;
 use crate::grid::Grid;
 use crate::wrap_panel::WrapPanel;
 use fyrox_core::variable::InheritableVariable;
@@ -136,7 +137,7 @@ pub struct Tab {
     #[reflect(hidden)]
     pub user_data: Option<TabUserData>,
     /// A handle of a node that is used to highlight tab's state.
-    pub decorator: Handle<UiNode>,
+    pub decorator: Handle<Decorator>,
     /// Content of the tab-switching (header) button.
     pub header_content: Handle<UiNode>,
 }
@@ -526,7 +527,7 @@ pub struct TabDefinition {
 struct Header {
     button: Handle<Button>,
     close_button: Handle<Button>,
-    decorator: Handle<UiNode>,
+    decorator: Handle<Decorator>,
     content: Handle<UiNode>,
 }
 

@@ -371,14 +371,19 @@ impl ButtonBuilder {
     /// Specifies the widget that will be used as a content holder of the button. By default it is an
     /// instance of [`crate::decorator::Decorator`] widget. Usually, this widget should respond to mouse
     /// events to highlight button state (hovered, pressed, etc.)
-    pub fn with_back(mut self, decorator: Handle<UiNode>) -> Self {
-        self.back = Some(decorator);
+    pub fn with_back(mut self, decorator: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        self.back = Some(decorator.to_base());
         self
     }
 
     /// Sets a new decorator background with `ok` style (green color by default).
     pub fn with_ok_back(mut self, ctx: &mut BuildContext) -> Self {
-        self.back = Some(make_decorator_builder(ctx).with_ok_style(ctx).build(ctx));
+        self.back = Some(
+            make_decorator_builder(ctx)
+                .with_ok_style(ctx)
+                .build(ctx)
+                .to_base(),
+        );
         self
     }
 
@@ -387,7 +392,8 @@ impl ButtonBuilder {
         self.back = Some(
             make_decorator_builder(ctx)
                 .with_cancel_style(ctx)
-                .build(ctx),
+                .build(ctx)
+                .to_base(),
         );
         self
     }
@@ -414,6 +420,7 @@ impl ButtonBuilder {
                 .with_hover_brush(ctx.style.property(Style::BRUSH_LIGHTER))
                 .with_pressed_brush(ctx.style.property(Style::BRUSH_LIGHTEST))
                 .build(ctx)
+                .to_base()
         });
 
         if content.is_some() {

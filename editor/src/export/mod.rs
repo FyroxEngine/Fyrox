@@ -384,6 +384,7 @@ impl ExportWindow {
                                 ))
                                 .with_selected(i == 0)
                                 .build(ctx)
+                                .to_base()
                             })
                             .collect::<Vec<_>>(),
                     )

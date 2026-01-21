@@ -132,6 +132,7 @@ pub fn make_list_item(ctx: &mut BuildContext, collider: &TileSetColliderLayer) -
             .with_pad_by_corner_radius(false),
     )
     .build(ctx)
+    .to_base()
 }
 
 fn make_items(ctx: &mut BuildContext, tile_set: &OptionTileSet) -> Vec<Handle<UiNode>> {

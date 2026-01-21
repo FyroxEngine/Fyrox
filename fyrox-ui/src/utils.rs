@@ -252,6 +252,7 @@ pub fn make_dropdown_list_option_universal<T: Send + 'static>(
         ctx,
     )
     .build(ctx)
+    .to_base()
 }
 
 pub fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
@@ -276,6 +277,7 @@ pub fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<U
         ctx,
     )
     .build(ctx)
+    .to_base()
 }
 
 pub fn make_dropdown_list_option_with_height(
@@ -300,6 +302,7 @@ pub fn make_dropdown_list_option_with_height(
         ctx,
     )
     .build(ctx)
+    .to_base()
 }
 
 pub fn make_image_button_with_tooltip(

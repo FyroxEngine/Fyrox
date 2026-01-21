@@ -157,7 +157,8 @@ impl ToggleButtonBuilder {
         .with_pressable(true)
         .with_selected_brush(ctx.style.property(Style::BRUSH_BRIGHT_BLUE))
         .with_selected(self.is_toggled)
-        .build(ctx);
+        .build(ctx)
+        .to_base();
 
         let canvas = ToggleButton {
             widget: self.widget_builder.with_child(decorator).build(ctx),
