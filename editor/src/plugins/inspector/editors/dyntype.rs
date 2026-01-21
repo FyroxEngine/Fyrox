@@ -246,7 +246,7 @@ impl PropertyEditorDefinition for DynTypePropertyEditorDefinition {
                 selected_dyn_type(environment.dyn_type_constructors.clone(), value).unwrap_or(0),
             )
             .with_items(items)
-            .build(ctx.build_context);
+            .build(ctx.build_context).to_base();
 
         let dyn_type_selector_panel =
             GridBuilder::new(WidgetBuilder::new().with_child(variant_selector))

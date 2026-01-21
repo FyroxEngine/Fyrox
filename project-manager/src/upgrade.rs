@@ -20,6 +20,7 @@
 
 use crate::{settings::Project, utils, utils::make_button};
 use fyrox::gui::button::Button;
+use fyrox::gui::dropdown_list::DropdownList;
 use fyrox::gui::text_box::TextBox;
 use fyrox::gui::window::{Window, WindowAlignment};
 use fyrox::{
@@ -35,7 +36,7 @@ use fyrox::{
         utils::make_dropdown_list_option,
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
         VerticalAlignment,
     },
 };
@@ -66,7 +67,7 @@ impl Version {
 
 pub struct UpgradeTool {
     window: Handle<Window>,
-    version_type_selector: Handle<UiNode>,
+    version_type_selector: Handle<DropdownList>,
     upgrade: Handle<Button>,
     cancel: Handle<Button>,
     selected_version: Version,

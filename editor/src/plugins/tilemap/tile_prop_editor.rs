@@ -26,6 +26,7 @@
 //! to be applied to other tiles by clicking in the tile palette.
 
 use commands::SetTileSetTilesCommand;
+use fyrox::gui::dropdown_list::DropdownList;
 use fyrox::gui::grid::Grid;
 use fyrox::gui::text::Text;
 use fyrox::{
@@ -104,7 +105,7 @@ pub struct TilePropertyEditor {
     /// For [`TileSetPropertyType::String`] it will be a [`TextBox`](fyrox::gui::text_box::TextBox), and so on.
     value_field: Handle<UiNode>,
     /// The dropdown list of pre-defined values.
-    list: Handle<UiNode>,
+    list: Handle<DropdownList>,
     /// The handles of the buttons in the 9-button grid.
     nine_buttons: Option<Box<[Handle<Button>; 9]>>,
 }

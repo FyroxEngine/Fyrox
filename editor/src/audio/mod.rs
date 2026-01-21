@@ -64,6 +64,7 @@ use crate::{
     UserInterface,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::dropdown_list::DropdownList;
 use fyrox::gui::window::Window;
 use std::{cmp::Ordering, sync::mpsc::Sender};
 use strum::VariantNames;
@@ -183,8 +184,8 @@ pub struct AudioPanel {
     add_bus: Handle<Button>,
     remove_bus: Handle<Button>,
     audio_buses: Handle<ListView>,
-    distance_model: Handle<UiNode>,
-    renderer: Handle<UiNode>,
+    distance_model: Handle<DropdownList>,
+    renderer: Handle<DropdownList>,
     hrir_resource: Handle<UiNode>,
 }
 

@@ -331,7 +331,8 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                 selected_script(environment.serialization_context.clone(), value).unwrap_or(0),
             )
             .with_items(items)
-            .build(ctx.build_context);
+            .build(ctx.build_context)
+            .to_base();
 
         let open_in_ide = ButtonBuilder::new(
             WidgetBuilder::new()

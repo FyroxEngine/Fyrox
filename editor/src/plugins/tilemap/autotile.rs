@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::command::{Command, CommandContext, CommandGroup, CommandTrait};
+use fyrox::gui::dropdown_list::DropdownList;
 use fyrox::{
     asset::{untyped::UntypedResource, Resource, ResourceData},
     autotile::{ConstraintFillRules, NeededTerrain, TerrainSource},
@@ -40,8 +42,6 @@ use fyrox::{
         TileSetConstraintMap, TileSetPatternSource, TileTerrainId,
     },
 };
-
-use crate::command::{Command, CommandContext, CommandGroup, CommandTrait};
 
 use super::*;
 
@@ -78,7 +78,7 @@ fn make_failure_log_list(
     widget_builder: WidgetBuilder,
     log_kind: Option<MessageKind>,
     ctx: &mut BuildContext,
-) -> Handle<UiNode> {
+) -> Handle<DropdownList> {
     let items = vec![
         make_list_item("None", ctx),
         make_list_item("Info", ctx),
@@ -109,7 +109,7 @@ fn make_list_item(text: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
 pub struct AutoTileMacro {
     pattern_list: MacroPropertyField,
     frequency_list: MacroPropertyField,
-    failure_log_list: Handle<UiNode>,
+    failure_log_list: Handle<DropdownList>,
     context: TileSetAutoTileContext,
     constraints: TileSetConstraintMap,
     autotiler: TileSetAutoTiler,

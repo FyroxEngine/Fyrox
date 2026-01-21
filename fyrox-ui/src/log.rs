@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::button::Button;
+use crate::dropdown_list::DropdownList;
 use crate::menu::MenuItem;
 use crate::scroll_viewer::ScrollViewer;
 use crate::stack_panel::StackPanel;
@@ -104,7 +105,7 @@ pub struct LogPanel {
     clear: Handle<Button>,
     receiver: Receiver<LogMessage>,
     severity: MessageKind,
-    severity_list: Handle<UiNode>,
+    severity_list: Handle<DropdownList>,
     context_menu: ContextMenu,
     scroll_viewer: Handle<ScrollViewer>,
     pub message_count: usize,

@@ -27,6 +27,7 @@ use super::*;
 use commands::SetTileSetTilesCommand;
 use fyrox::core::pool::ObjectOrVariant;
 use fyrox::gui::border::Border;
+use fyrox::gui::dropdown_list::DropdownList;
 use fyrox::gui::text::Text;
 use fyrox::gui::text_box::TextBox;
 use fyrox::{
@@ -94,7 +95,7 @@ pub struct TileColliderEditor {
     /// The widget for the name of the collider layer.
     name_field: Handle<Text>,
     /// The dropdown list of collider types.
-    list: Handle<UiNode>,
+    list: Handle<DropdownList>,
     /// The textbox for editing a custom collider.
     custom_field: Handle<TextBox>,
     /// A text widget for showing an error in the custom collider text.

@@ -24,6 +24,7 @@ use crate::{
     utils,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::dropdown_list::DropdownList;
 use fyrox::gui::file_browser::PathFilter;
 use fyrox::gui::path::PathEditor;
 use fyrox::gui::text::Text;
@@ -45,7 +46,7 @@ use fyrox::{
         utils::make_dropdown_list_option,
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
         VerticalAlignment,
     },
 };
@@ -110,8 +111,8 @@ pub struct ProjectWizard {
     cancel: Handle<Button>,
     path_field: Handle<PathEditor>,
     name_field: Handle<TextBox>,
-    style_field: Handle<UiNode>,
-    vcs_field: Handle<UiNode>,
+    style_field: Handle<DropdownList>,
+    vcs_field: Handle<DropdownList>,
     name: String,
     style: Style,
     vcs: Vcs,

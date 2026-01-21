@@ -78,8 +78,9 @@ impl MessageData for DropdownListMessage {}
 /// #     core::pool::Handle, dropdown_list::DropdownListBuilder, text::TextBuilder,
 /// #     widget::WidgetBuilder, BuildContext, UiNode,
 /// # };
+/// # use fyrox_ui::dropdown_list::DropdownList;
 /// #
-/// fn create_drop_down_list(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// fn create_drop_down_list(ctx: &mut BuildContext) -> Handle<DropdownList> {
 ///     DropdownListBuilder::new(WidgetBuilder::new())
 ///         .with_items(vec![
 ///             TextBuilder::new(WidgetBuilder::new())
@@ -106,6 +107,7 @@ impl MessageData for DropdownListMessage {}
 /// #     dropdown_list::DropdownListBuilder, text::TextBuilder, widget::WidgetBuilder, BuildContext,
 /// #     UiNode,
 /// # };
+/// # use fyrox_ui::dropdown_list::DropdownList;
 /// #
 /// fn make_item(text: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
 ///     DecoratorBuilder::new(BorderBuilder::new(
@@ -118,7 +120,7 @@ impl MessageData for DropdownListMessage {}
 ///     .build(ctx)
 /// }
 ///
-/// fn create_drop_down_list_with_decorators(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// fn create_drop_down_list_with_decorators(ctx: &mut BuildContext) -> Handle<DropdownList> {
 ///     DropdownListBuilder::new(WidgetBuilder::new())
 ///         .with_items(vec![make_item("Item 0", ctx), make_item("Item 1", ctx)])
 ///         .with_selected(1)
@@ -196,6 +198,7 @@ impl ConstructorProvider<UiNode, UserInterface> for DropdownList {
             .with_variant("Dropdown List", |ui| {
                 DropdownListBuilder::new(WidgetBuilder::new().with_name("Dropdown List"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Input")
@@ -394,7 +397,7 @@ impl DropdownListBuilder {
     }
 
     /// Finishes list building and adds it to the given user interface.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode>
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<DropdownList>
     where
         Self: Sized,
     {
@@ -453,7 +456,7 @@ impl DropdownListBuilder {
             main_grid: main_grid.into(),
         });
 
-        ctx.add_node(dropdown_list)
+        ctx.add_node(dropdown_list).to_variant()
     }
 }
 

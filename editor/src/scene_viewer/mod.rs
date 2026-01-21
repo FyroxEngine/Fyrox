@@ -24,7 +24,7 @@ use crate::{
         core::{color::Color, math::Rect, pool::Handle, uuid::Uuid},
         engine::Engine,
         fxhash::FxHashMap,
-        graph::{SceneGraph, SceneGraphNode},
+        graph::SceneGraph,
         graphics::PolygonFillMode,
         gui::{
             border::BorderBuilder,
@@ -67,6 +67,7 @@ use crate::{
 };
 use fyrox::core::algebra::Vector2;
 use fyrox::gui::border::Border;
+use fyrox::gui::dropdown_menu::DropdownMenu;
 use fyrox::gui::image::Image;
 use fyrox::gui::numeric::NumericUpDown;
 use fyrox::gui::stack_panel::StackPanel;
@@ -89,7 +90,7 @@ pub enum GraphicsDebugSwitches {
 }
 
 struct GridSnappingMenu {
-    menu: Handle<UiNode>,
+    menu: Handle<DropdownMenu>,
     button: Handle<Button>,
     enabled: Handle<UiNode>,
     x_step: Handle<NumericUpDown<f32>>,
@@ -270,11 +271,11 @@ pub struct SceneViewer {
     window: Handle<Window>,
     selection_frame: Handle<Border>,
     interaction_modes: FxHashMap<Uuid, Handle<Button>>,
-    camera_projection: Handle<UiNode>,
+    camera_projection: Handle<DropdownList>,
     play: Handle<Button>,
     build: Handle<Button>,
     stop: Handle<Button>,
-    build_profile: Handle<UiNode>,
+    build_profile: Handle<DropdownList>,
     sender: MessageSender,
     interaction_mode_panel: Handle<StackPanel>,
     contextual_actions: Handle<StackPanel>,
@@ -282,7 +283,7 @@ pub struct SceneViewer {
     tab_control: Handle<TabControl>,
     scene_gizmo: SceneGizmo,
     scene_gizmo_image: Handle<Image>,
-    debug_switches: Handle<UiNode>,
+    debug_switches: Handle<DropdownList>,
     grid_snap_menu: GridSnappingMenu,
 }
 
@@ -717,12 +718,7 @@ impl SceneViewer {
                 } else if message.destination() == self.build_profile {
                     settings.build.selected_profile = *index;
                 } else if message.destination() == self.debug_switches {
-                    let items = ui
-                        .node(self.debug_switches)
-                        .component_ref::<DropdownList>()
-                        .unwrap()
-                        .items
-                        .deref();
+                    let items = ui[self.debug_switches].items.deref();
                     if let Some(item) = items.get(*index) {
                         if let Some(variant) =
                             ui.node(*item).user_data_cloned::<GraphicsDebugSwitches>()

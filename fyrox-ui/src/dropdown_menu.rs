@@ -100,7 +100,7 @@ impl DropdownMenuBuilder {
 
     /// Finishes dropdown menu widget building and adds the instance to the user interface and
     /// returns its handle.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<DropdownMenu> {
         let popup = PopupBuilder::new(WidgetBuilder::new())
             .stays_open(false)
             .with_content(self.content)
@@ -110,7 +110,7 @@ impl DropdownMenuBuilder {
             widget: self.widget_builder.with_child(self.header).build(ctx),
             popup,
         };
-        ctx.add_node(UiNode::new(dropdown_menu))
+        ctx.add_node(UiNode::new(dropdown_menu)).to_variant()
     }
 }
 

@@ -395,7 +395,8 @@ where
                 .collect::<Vec<_>>(),
         )
         .with_close_on_selection(true)
-        .build(ctx.build_context);
+        .build(ctx.build_context)
+        .to_base();
 
         let editor;
         let container = make_expander_container(

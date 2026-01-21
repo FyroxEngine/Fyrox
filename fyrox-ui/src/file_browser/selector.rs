@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::button::Button;
+use crate::dropdown_list::DropdownList;
 use crate::messagebox::MessageBox;
 use crate::text_box::TextBox;
 use crate::{
@@ -86,7 +87,7 @@ pub struct FileSelector {
     pub file_name: Handle<TextBox>,
     pub file_name_value: PathBuf,
     pub filter: PathFilter,
-    pub file_type_selector: Handle<UiNode>,
+    pub file_type_selector: Handle<DropdownList>,
     pub selected_file_type: Option<usize>,
     pub overwrite_message_box: Cell<Handle<MessageBox>>,
 }

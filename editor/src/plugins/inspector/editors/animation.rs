@@ -81,8 +81,8 @@ where
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<Handle<T>>()?;
         let environment = EditorEnvironment::try_get_from(&ctx.environment)?;
-        Ok(PropertyEditorInstance::Simple {
-            editor: DropdownListBuilder::new(WidgetBuilder::new())
+        Ok(PropertyEditorInstance::simple(
+            DropdownListBuilder::new(WidgetBuilder::new())
                 .with_items(
                     environment
                         .available_animations
@@ -111,7 +111,7 @@ where
                         }),
                 )
                 .build(ctx.build_context),
-        })
+        ))
     }
 
     fn create_message(

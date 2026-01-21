@@ -56,6 +56,7 @@ use crate::{
     },
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::dropdown_list::DropdownList;
 use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
@@ -66,7 +67,7 @@ use std::any::TypeId;
 pub struct Toolbar {
     pub panel: Handle<StackPanel>,
     pub preview: Handle<UiNode>,
-    pub layers: Handle<UiNode>,
+    pub layers: Handle<DropdownList>,
     pub layer_name: Handle<TextBox>,
     pub add_layer: Handle<Button>,
     pub remove_layer: Handle<Button>,

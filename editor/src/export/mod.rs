@@ -65,6 +65,7 @@ use crate::{
 };
 use cargo_metadata::camino::Utf8Path;
 use fyrox::gui::button::Button;
+use fyrox::gui::dropdown_list::DropdownList;
 use fyrox::gui::list_view::ListView;
 use fyrox::gui::scroll_viewer::ScrollViewer;
 use fyrox::gui::stack_panel::StackPanel;
@@ -136,7 +137,7 @@ pub struct ExportWindow {
     target_platform_list: Handle<ListView>,
     export_options: ExportOptions,
     inspector: Handle<UiNode>,
-    build_targets_selector: Handle<UiNode>,
+    build_targets_selector: Handle<DropdownList>,
     child_processes: Vec<std::process::Child>,
 }
 

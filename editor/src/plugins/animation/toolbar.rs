@@ -84,7 +84,7 @@ pub struct Toolbar {
     pub play_pause: Handle<Button>,
     pub stop: Handle<Button>,
     pub speed: Handle<NumericUpDown<f32>>,
-    pub animations: Handle<UiNode>,
+    pub animations: Handle<DropdownList>,
     pub add_animation: Handle<Button>,
     pub remove_current_animation: Handle<Button>,
     pub rename_current_animation: Handle<Button>,
@@ -881,11 +881,7 @@ impl Toolbar {
         if let Some(DropdownListMessage::Selection(Some(index))) =
             message.data_from(self.animations)
         {
-            let item = ui
-                .node(self.animations)
-                .query_component::<DropdownList>()
-                .unwrap()
-                .items[*index];
+            let item = ui[self.animations].items[*index];
             let animation = ui
                 .node(item)
                 .user_data_cloned::<Handle<Animation<Handle<N>>>>()

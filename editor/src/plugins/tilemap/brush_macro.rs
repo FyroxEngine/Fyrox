@@ -18,7 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use super::*;
 use crate::command::{Command, CommandContext, CommandTrait};
+use fyrox::gui::dropdown_list::DropdownList;
 use fyrox::gui::message::{DeliveryMode, MessageData};
 use fyrox::{
     asset::{untyped::UntypedResource, Resource, ResourceData, ResourceDataRef},
@@ -42,8 +44,6 @@ use fyrox::{
         MacroTilesUpdate,
     },
 };
-
-use super::*;
 
 const PROPERTY_LABEL_WIDTH: f32 = 150.0;
 const UNKNOWN_PROPERTY: &str = "UNKNOWN PROPERTY";
@@ -655,7 +655,7 @@ impl TileSetPropertyMessage {
 pub struct MacroPropertyValueField {
     handle: Handle<UiNode>,
     textbox: Handle<UiNode>,
-    list: Handle<UiNode>,
+    list: Handle<DropdownList>,
 }
 
 fn make_index_and_value_list(
@@ -897,7 +897,7 @@ fn make_item(text: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
 pub struct MacroPropertyField {
     prop_type: TileSetPropertyType,
     handle: Handle<UiNode>,
-    list: Handle<UiNode>,
+    list: Handle<DropdownList>,
 }
 
 fn make_index_and_items(
