@@ -182,7 +182,7 @@ pub struct AudioPanel {
     pub window: Handle<Window>,
     add_bus: Handle<Button>,
     remove_bus: Handle<Button>,
-    audio_buses: Handle<UiNode>,
+    audio_buses: Handle<ListView>,
     distance_model: Handle<UiNode>,
     renderer: Handle<UiNode>,
     hrir_resource: Handle<UiNode>,
@@ -409,13 +409,7 @@ impl AudioPanel {
             let mut selection = Vec::new();
 
             for bus_index in selected_indices {
-                let bus = item_bus(
-                    ui.node(self.audio_buses)
-                        .cast::<ListView>()
-                        .expect("Must be ListView")
-                        .items()[*bus_index],
-                    ui,
-                );
+                let bus = item_bus(ui[self.audio_buses].items()[*bus_index], ui);
 
                 selection.push(bus);
             }
@@ -477,12 +471,7 @@ impl AudioPanel {
         let context_state = engine.scenes[game_scene.scene].graph.sound_context.state();
         let ui = &mut engine.user_interfaces.first_mut();
 
-        let items = ui
-            .node(self.audio_buses)
-            .cast::<ListView>()
-            .expect("Must be ListView!")
-            .items()
-            .to_vec();
+        let items = ui[self.audio_buses].items().to_vec();
 
         match (context_state.bus_graph_ref().len()).cmp(&items.len()) {
             Ordering::Less => {
@@ -549,12 +538,7 @@ impl AudioPanel {
 
         ui.send_sync(self.audio_buses, ListViewMessage::Selection(selected_buses));
 
-        for audio_bus_view in ui
-            .node(self.audio_buses)
-            .cast::<ListView>()
-            .expect("Must be ListView!")
-            .items()
-        {
+        for audio_bus_view in ui[self.audio_buses].items() {
             let audio_bus_view_ref = ui
                 .node(*audio_bus_view)
                 .query_component::<AudioBusView>()

@@ -39,6 +39,7 @@ use crate::fyrox::{
     },
     scene::sound::{AudioBus, AudioBusGraph},
 };
+use fyrox::gui::list_view::ListView;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
@@ -61,7 +62,7 @@ pub struct AudioBusView {
     pub bus: Handle<AudioBus>,
     parent_bus_selector: Handle<UiNode>,
     possible_parent_buses: Vec<Handle<AudioBus>>,
-    effect_names_list: Handle<UiNode>,
+    effect_names_list: Handle<ListView>,
     name: Handle<Text>,
 }
 

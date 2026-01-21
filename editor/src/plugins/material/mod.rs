@@ -158,6 +158,7 @@ fn make_array_view(
     ListViewBuilder::new(WidgetBuilder::new())
         .with_items(value.into_iter().map(|v| v.make_view(ctx)).collect())
         .build(ctx)
+        .to_base()
 }
 
 fn sync_array(ui: &UserInterface, handle: Handle<UiNode>, array: &[impl UiView]) {

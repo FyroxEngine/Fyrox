@@ -53,7 +53,7 @@ pub struct MacroTab {
     macros: BrushMacroListRef,
     current_macro_id: Option<Uuid>,
     macro_panel: Handle<Border>,
-    list: Handle<UiNode>,
+    list: Handle<ListView>,
     up_button: Handle<Button>,
     down_button: Handle<Button>,
     remove_button: Handle<Button>,
@@ -437,11 +437,7 @@ impl MacroTab {
         }
     }
     fn selection_index(&self, ui: &UserInterface) -> Option<usize> {
-        ui.node(self.list)
-            .cast::<ListView>()?
-            .selection
-            .last()
-            .copied()
+        ui.try_get(self.list).ok()?.selection.last().copied()
     }
     fn update_name(
         &self,

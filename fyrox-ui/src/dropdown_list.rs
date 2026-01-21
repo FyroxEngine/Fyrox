@@ -40,6 +40,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 
+use crate::list_view::ListView;
 use crate::message::MessageData;
 use crate::popup::Popup;
 use fyrox_graph::{
@@ -177,7 +178,7 @@ pub struct DropdownList {
     /// A list of handles of items of the dropdown list.
     pub items: InheritableVariable<Vec<Handle<UiNode>>>,
     /// A handle to the `ListView` widget, that holds the items of the dropdown list.
-    pub list_view: InheritableVariable<Handle<UiNode>>,
+    pub list_view: InheritableVariable<Handle<ListView>>,
     /// A handle to a currently selected item.
     pub current: InheritableVariable<Handle<UiNode>>,
     /// An index of currently selected item (or [`None`] if there's nothing selected).

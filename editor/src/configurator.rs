@@ -48,6 +48,7 @@ use crate::{
     Engine, Message,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::list_view::ListView;
 use fyrox::gui::text_box::TextBox;
 use fyrox::gui::window::Window;
 use std::{env, path::PathBuf};
@@ -67,7 +68,7 @@ pub struct Configurator {
     sender: MessageSender,
     work_dir: PathBuf,
     tb_work_dir: Handle<TextBox>,
-    lv_history: Handle<UiNode>,
+    lv_history: Handle<ListView>,
     history: Vec<HistoryEntry>,
 }
 

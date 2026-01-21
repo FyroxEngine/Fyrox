@@ -56,7 +56,7 @@ use fyrox::gui::text_box::TextBox;
 /// and pre-defined values can be edited.
 pub struct PropertiesTab {
     handle: Handle<UiNode>,
-    list: Handle<UiNode>,
+    list: Handle<ListView>,
     up_button: Handle<Button>,
     down_button: Handle<Button>,
     remove_button: Handle<Button>,
@@ -65,7 +65,7 @@ pub struct PropertiesTab {
     add_string_button: Handle<Button>,
     add_nine_button: Handle<Button>,
     name_field: Handle<TextBox>,
-    name_list: Handle<UiNode>,
+    name_list: Handle<ListView>,
     name_up: Handle<Button>,
     name_down: Handle<Button>,
     name_add: Handle<Button>,
@@ -643,11 +643,7 @@ impl PropertiesTab {
         }
     }
     fn selection_index(&self, ui: &UserInterface) -> Option<usize> {
-        ui.node(self.list)
-            .cast::<ListView>()?
-            .selection
-            .last()
-            .copied()
+        ui.try_get(self.list).ok()?.selection.last().copied()
     }
     fn property<'a>(
         &self,
@@ -658,11 +654,7 @@ impl PropertiesTab {
         tile_set.properties().get(sel_index)
     }
     fn name_selection_index(&self, ui: &UserInterface) -> Option<usize> {
-        ui.node(self.name_list)
-            .cast::<ListView>()?
-            .selection
-            .last()
-            .copied()
+        ui.try_get(self.name_list).ok()?.selection.last().copied()
     }
     fn update_name(
         &self,

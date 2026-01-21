@@ -37,20 +37,21 @@ use crate::{
             utils::make_dropdown_list_option,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
         },
     },
     message::MessageSender,
     Message,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::list_view::ListView;
 use fyrox::gui::text_box::TextBox;
 use fyrox::gui::window::{Window, WindowAlignment};
 use std::path::{Path, PathBuf};
 
 pub struct ResourceCreator {
     pub window: Handle<Window>,
-    resource_constructors_list: Handle<UiNode>,
+    resource_constructors_list: Handle<ListView>,
     ok: Handle<Button>,
     cancel: Handle<Button>,
     name: Handle<TextBox>,

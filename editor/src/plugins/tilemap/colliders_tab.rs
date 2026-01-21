@@ -49,7 +49,7 @@ use fyrox::gui::text_box::TextBox;
 /// and their colors can be modified.
 pub struct CollidersTab {
     handle: Handle<UiNode>,
-    list: Handle<UiNode>,
+    list: Handle<ListView>,
     up_button: Handle<Button>,
     down_button: Handle<Button>,
     remove_button: Handle<Button>,
@@ -323,11 +323,7 @@ impl CollidersTab {
         }
     }
     fn selection_index(&self, ui: &UserInterface) -> Option<usize> {
-        ui.node(self.list)
-            .cast::<ListView>()?
-            .selection
-            .last()
-            .copied()
+        ui.try_get(self.list).ok()?.selection.last().copied()
     }
     fn update_name(
         &self,

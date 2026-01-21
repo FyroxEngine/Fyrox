@@ -22,6 +22,7 @@
 //! adds a special "bind" button used to change style binding of the property.
 
 use crate::button::Button;
+use crate::list_view::ListView;
 use crate::message::MessageData;
 use crate::window::WindowAlignment;
 use crate::{
@@ -81,7 +82,7 @@ impl MessageData for StyledPropertyEditorMessage {}
 #[reflect(derived_type = "UiNode")]
 pub struct StyledPropertySelector {
     window: Window,
-    properties: Handle<UiNode>,
+    properties: Handle<ListView>,
     property_list: Vec<ImmutableString>,
     ok: Handle<Button>,
     cancel: Handle<Button>,

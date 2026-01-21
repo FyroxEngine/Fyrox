@@ -33,7 +33,7 @@ use crate::{
             text::TextBuilder,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowTitle},
-            BuildContext, Thickness, UiNode, UserInterface,
+            BuildContext, Thickness, UserInterface,
         },
     },
     load_image,
@@ -42,11 +42,12 @@ use crate::{
     Message, Mode,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::list_view::ListView;
 use fyrox::gui::window::Window;
 
 pub struct CommandStackViewer {
     pub window: Handle<Window>,
-    list: Handle<UiNode>,
+    list: Handle<ListView>,
     sender: MessageSender,
     undo: Handle<Button>,
     redo: Handle<Button>,

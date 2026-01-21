@@ -39,7 +39,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
-use fyrox_core::pool::ObjectOrVariant;
+use fyrox_core::pool::{HandlesVecExtension, ObjectOrVariant};
 
 use crate::message::MessageData;
 use fyrox_graph::{
@@ -76,8 +76,9 @@ impl MessageData for ListViewMessage {}
 /// #     core::pool::Handle, list_view::ListViewBuilder, text::TextBuilder, widget::WidgetBuilder,
 /// #     BuildContext, UiNode,
 /// # };
+/// # use fyrox_ui::list_view::ListView;
 /// #
-/// fn create_list(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// fn create_list(ctx: &mut BuildContext) -> Handle<ListView> {
 ///     ListViewBuilder::new(WidgetBuilder::new())
 ///         .with_items(vec![
 ///             TextBuilder::new(WidgetBuilder::new())
@@ -107,7 +108,9 @@ impl MessageData for ListViewMessage {}
 /// #     core::pool::Handle, list_view::ListViewBuilder, text::TextBuilder, widget::WidgetBuilder,
 /// #     wrap_panel::WrapPanelBuilder, BuildContext, UiNode,
 /// # };
-/// fn create_list(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// # use fyrox_ui::list_view::ListView;
+///
+/// fn create_list(ctx: &mut BuildContext) -> Handle<ListView> {
 ///     ListViewBuilder::new(WidgetBuilder::new())
 ///         // Using WrapPanel instead of StackPanel:
 ///         .with_items_panel(WrapPanelBuilder::new(WidgetBuilder::new()).build(ctx))
@@ -222,7 +225,7 @@ pub struct ListView {
     /// Current selection.
     pub selection: Vec<usize>,
     /// An array of handle of item containers, which wraps the actual items.
-    pub item_containers: InheritableVariable<Vec<Handle<UiNode>>>,
+    pub item_containers: InheritableVariable<Vec<Handle<ListViewItem>>>,
     /// Current panel widget that is used to arrange the items.
     pub panel: InheritableVariable<Handle<UiNode>>,
     /// Current items of the list view.
@@ -238,6 +241,7 @@ impl ConstructorProvider<UiNode, UserInterface> for ListView {
             .with_variant("List View", |ui| {
                 ListViewBuilder::new(WidgetBuilder::new().with_name("List View"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Input")
@@ -282,7 +286,7 @@ impl ListView {
     fn sync_decorators(&self, ui: &UserInterface) {
         for (i, &container) in self.item_containers.iter().enumerate() {
             let select = self.selection.contains(&i);
-            if let Some(container) = ui.node(container).cast::<ListViewItem>() {
+            if let Ok(container) = ui.try_get(container) {
                 let mut stack = container.children().to_vec();
                 while let Some(handle) = stack.pop() {
                     let node = ui.node(handle);
@@ -356,7 +360,7 @@ impl Control for ListViewItem {
                 let self_index = list_view
                     .item_containers
                     .iter()
-                    .position(|c| *c == self.handle)
+                    .position(|c| self.handle == *c)
                     .expect("ListViewItem must be used as a child of ListView");
 
                 let new_selection = if ui.keyboard_modifiers.control {
@@ -390,7 +394,7 @@ impl Control for ListView {
 
                     ui.send(
                         *self.panel,
-                        WidgetMessage::ReplaceChildren(item_containers.clone()),
+                        WidgetMessage::ReplaceChildren(item_containers.clone().to_base()),
                     );
 
                     self.item_containers
@@ -532,13 +536,13 @@ impl ListViewBuilder {
     }
 
     /// Finishes list view building and adds it to the user interface.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<ListView> {
         let item_containers = generate_item_containers(ctx, &self.items);
 
         // Sync the decorators to the actual state of items.
         for (i, &container) in item_containers.iter().enumerate() {
             let select = self.selection.contains(&i);
-            if let Some(container) = ctx[container].cast::<ListViewItem>() {
+            if let Ok(container) = ctx.inner().try_get(container) {
                 let mut stack = container.children().to_vec();
                 while let Some(handle) = stack.pop() {
                     let node = &mut ctx[handle];
@@ -601,22 +605,22 @@ impl ListViewBuilder {
             scroll_viewer: scroll_viewer.into(),
         };
 
-        ctx.add_node(UiNode::new(list_box))
+        ctx.add_node(UiNode::new(list_box)).to_variant()
     }
 }
 
-fn generate_item_container(ctx: &mut BuildContext, item: Handle<UiNode>) -> Handle<UiNode> {
+fn generate_item_container(ctx: &mut BuildContext, item: Handle<UiNode>) -> Handle<ListViewItem> {
     let item = ListViewItem {
         widget: WidgetBuilder::new().with_child(item).build(ctx),
     };
 
-    ctx.add_node(UiNode::new(item))
+    ctx.add_node(UiNode::new(item)).to_variant()
 }
 
 fn generate_item_containers(
     ctx: &mut BuildContext,
     items: &[Handle<UiNode>],
-) -> Vec<Handle<UiNode>> {
+) -> Vec<Handle<ListViewItem>> {
     items
         .iter()
         .map(|&item| generate_item_container(ctx, item))
