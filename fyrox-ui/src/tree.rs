@@ -43,6 +43,7 @@ use crate::{
     BuildContext, Control, MouseButton, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 
+use crate::check_box::CheckBox;
 use crate::message::MessageData;
 use crate::stack_panel::StackPanel;
 use fyrox_core::pool::{HandlesVecExtension, ObjectOrVariant};
@@ -298,7 +299,7 @@ pub struct Tree {
     /// Base widget of the tree.
     pub widget: Widget,
     /// Current expander of the tree. Usually, it is just a handle of CheckBox widget.
-    pub expander: Handle<UiNode>,
+    pub expander: Handle<CheckBox>,
     /// Current content of the tree.
     pub content: Handle<UiNode>,
     /// Current layout panel, that used to arrange children items.
@@ -732,7 +733,7 @@ fn build_expander(
     items_populated: bool,
     is_expanded: bool,
     ctx: &mut BuildContext,
-) -> Handle<UiNode> {
+) -> Handle<CheckBox> {
     let down_arrow = make_arrow(ctx, ArrowDirection::Bottom, 8.0);
     ctx[down_arrow].set_vertical_alignment(VerticalAlignment::Center);
 

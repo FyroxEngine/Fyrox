@@ -64,7 +64,9 @@ impl MessageData for CheckBoxMessage {}
 /// #     core::pool::Handle,
 /// #     check_box::CheckBoxBuilder, widget::WidgetBuilder, UiNode, UserInterface
 /// # };
-/// fn create_checkbox(ui: &mut UserInterface) -> Handle<UiNode> {
+/// # use fyrox_ui::check_box::CheckBox;
+///
+/// fn create_checkbox(ui: &mut UserInterface) -> Handle<CheckBox> {
 ///     CheckBoxBuilder::new(WidgetBuilder::new())
 ///         // A custom value can be set during initialization.
 ///         .checked(Some(true))
@@ -85,7 +87,9 @@ impl MessageData for CheckBoxMessage {}
 /// #     check_box::CheckBoxBuilder, text::TextBuilder, widget::WidgetBuilder, UiNode,
 /// #     UserInterface,
 /// # };
-/// fn create_checkbox(ui: &mut UserInterface) -> Handle<UiNode> {
+/// # use fyrox_ui::check_box::CheckBox;
+///
+/// fn create_checkbox(ui: &mut UserInterface) -> Handle<CheckBox> {
 ///     let ctx = &mut ui.build_ctx();
 ///
 ///     CheckBoxBuilder::new(WidgetBuilder::new())
@@ -182,6 +186,7 @@ impl ConstructorProvider<UiNode, UserInterface> for CheckBox {
             .with_variant("CheckBox", |ui| {
                 CheckBoxBuilder::new(WidgetBuilder::new().with_name("CheckBox"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Input")
@@ -320,7 +325,7 @@ impl CheckBoxBuilder {
     }
 
     /// Finishes check box building and adds it to the user interface.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<CheckBox> {
         let check_mark = self.check_mark.unwrap_or_else(|| {
             let size = *ctx.style.property(CheckBox::CHECK_MARK_SIZE);
             let half_size = size * 0.5;
@@ -446,7 +451,7 @@ impl CheckBoxBuilder {
             uncheck_mark: uncheck_mark.into(),
             undefined_mark: undefined_mark.into(),
         };
-        ctx.add_node(UiNode::new(cb))
+        ctx.add_node(UiNode::new(cb)).to_variant()
     }
 }
 

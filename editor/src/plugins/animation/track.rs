@@ -98,6 +98,7 @@ use crate::{
 };
 use fyrox::asset::Resource;
 use fyrox::gui::button::Button;
+use fyrox::gui::check_box::CheckBox;
 use fyrox::gui::grid::Grid;
 use fyrox::gui::menu::MenuItem;
 use fyrox::gui::message::MessageData;
@@ -315,7 +316,7 @@ struct TrackView {
     pub tree: Tree,
     id: Uuid,
     target: ErasedHandle,
-    track_enabled_switch: Handle<UiNode>,
+    track_enabled_switch: Handle<CheckBox>,
     track_enabled: bool,
     name_text: Handle<Text>,
 }

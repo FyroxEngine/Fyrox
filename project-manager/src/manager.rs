@@ -26,6 +26,7 @@ use crate::{
 };
 use fyrox::core::pool::HandlesVecExtension;
 use fyrox::gui::button::Button;
+use fyrox::gui::check_box::CheckBox;
 use fyrox::gui::decorator::Decorator;
 use fyrox::gui::file_browser::{FileSelectorMode, PathFilter};
 use fyrox::gui::grid::Grid;
@@ -140,7 +141,7 @@ pub struct ProjectManager {
     delete: Handle<Button>,
     search_bar: Handle<SearchBar>,
     project_controls: Handle<StackPanel>,
-    hot_reload: Handle<UiNode>,
+    hot_reload: Handle<CheckBox>,
     download: Handle<Button>,
     selection: Option<usize>,
     pub settings: Settings,

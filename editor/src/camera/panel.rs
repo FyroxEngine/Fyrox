@@ -31,7 +31,7 @@ use crate::{
             text::TextBuilder,
             widget::WidgetBuilder,
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, VerticalAlignment,
+            BuildContext, HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
         },
         resource::texture::{TextureResource, TextureResourceExtension},
         scene::{camera::Camera, node::Node},
@@ -40,6 +40,7 @@ use crate::{
     Message,
 };
 use fyrox::core::algebra::Vector2;
+use fyrox::gui::check_box::CheckBox;
 use fyrox::gui::image::Image;
 use fyrox::gui::widget::WidgetMessage;
 use fyrox::gui::window::{Window, WindowAlignment};
@@ -47,7 +48,7 @@ use fyrox::scene::collider::BitMask;
 
 pub struct CameraPreviewControlPanel {
     pub window: Handle<Window>,
-    preview: Handle<UiNode>,
+    preview: Handle<CheckBox>,
     camera_state: Option<(Handle<Node>, Node)>,
     scene_viewer_frame: Handle<Image>,
     preview_frame: Handle<Image>,

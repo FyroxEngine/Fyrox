@@ -118,6 +118,7 @@ impl MessageData for DropdownListMessage {}
 ///         ),
 ///     ))
 ///     .build(ctx)
+///     .to_base()
 /// }
 ///
 /// fn create_drop_down_list_with_decorators(ctx: &mut BuildContext) -> Handle<DropdownList> {

@@ -47,15 +47,15 @@ impl PropertyEditorDefinition for BoolPropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<bool>()?;
-        Ok(PropertyEditorInstance::Simple {
-            editor: CheckBoxBuilder::new(
+        Ok(PropertyEditorInstance::simple(
+            CheckBoxBuilder::new(
                 WidgetBuilder::new()
                     .with_margin(Thickness::top_bottom(1.0))
                     .with_vertical_alignment(VerticalAlignment::Center),
             )
             .checked(Some(*value))
             .build(ctx.build_context),
-        })
+        ))
     }
 
     fn create_message(

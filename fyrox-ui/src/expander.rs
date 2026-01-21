@@ -23,6 +23,7 @@
 
 #![warn(missing_docs)]
 
+use crate::check_box::CheckBox;
 use crate::message::MessageData;
 use crate::{
     check_box::{CheckBoxBuilder, CheckBoxMessage},
@@ -156,7 +157,7 @@ pub struct Expander {
     /// Current content of the expander.
     pub content: InheritableVariable<Handle<UiNode>>,
     /// Current expander check box of the expander.
-    pub expander: InheritableVariable<Handle<UiNode>>,
+    pub expander: InheritableVariable<Handle<CheckBox>>,
     /// A flag, that indicates whether the expander is expanded or collapsed.
     pub is_expanded: InheritableVariable<bool>,
 }
@@ -202,7 +203,7 @@ pub struct ExpanderBuilder {
     pub widget_builder: WidgetBuilder,
     header: Handle<UiNode>,
     content: Handle<UiNode>,
-    check_box: Handle<UiNode>,
+    check_box: Handle<CheckBox>,
     is_expanded: bool,
     expander_column: Option<Column>,
 }
@@ -239,7 +240,7 @@ impl ExpanderBuilder {
     }
 
     /// Sets the desired check box (arrow part) of the expander.
-    pub fn with_checkbox(mut self, check_box: Handle<UiNode>) -> Self {
+    pub fn with_checkbox(mut self, check_box: Handle<CheckBox>) -> Self {
         self.check_box = check_box;
         self
     }

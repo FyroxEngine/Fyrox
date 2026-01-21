@@ -50,7 +50,7 @@ use crate::{
             },
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
             VerticalAlignment,
         },
         resource::texture::TextureResource,
@@ -67,6 +67,7 @@ use crate::{
 };
 use fyrox::core::algebra::Vector2;
 use fyrox::gui::border::Border;
+use fyrox::gui::check_box::CheckBox;
 use fyrox::gui::dropdown_menu::DropdownMenu;
 use fyrox::gui::image::Image;
 use fyrox::gui::numeric::NumericUpDown;
@@ -92,7 +93,7 @@ pub enum GraphicsDebugSwitches {
 struct GridSnappingMenu {
     menu: Handle<DropdownMenu>,
     button: Handle<Button>,
-    enabled: Handle<UiNode>,
+    enabled: Handle<CheckBox>,
     x_step: Handle<NumericUpDown<f32>>,
     y_step: Handle<NumericUpDown<f32>>,
     z_step: Handle<NumericUpDown<f32>>,

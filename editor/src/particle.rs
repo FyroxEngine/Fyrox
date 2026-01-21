@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use fyrox::gui::button::Button;
+use fyrox::gui::check_box::CheckBox;
 use fyrox::gui::grid::Grid;
 use fyrox::gui::numeric::NumericUpDown;
 use fyrox::gui::stack_panel::StackPanel;
@@ -36,7 +37,7 @@ use crate::fyrox::{
         numeric::{NumericUpDownBuilder, NumericUpDownMessage},
         text::TextBuilder,
         widget::WidgetBuilder,
-        BuildContext, Thickness, UiNode, VerticalAlignment,
+        BuildContext, Thickness, VerticalAlignment,
     },
     scene::{node::Node, particle_system::ParticleSystem},
 };
@@ -47,7 +48,7 @@ use crate::{
 
 pub struct ParticleSystemPreviewControlPanel {
     pub root_widget: Handle<Grid>,
-    preview: Handle<UiNode>,
+    preview: Handle<CheckBox>,
     play: Handle<Button>,
     pause: Handle<Button>,
     stop: Handle<Button>,

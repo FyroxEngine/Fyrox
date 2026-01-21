@@ -31,7 +31,7 @@ use crate::{
             scroll_bar::{ScrollBarBuilder, ScrollBarMessage},
             text::TextBuilder,
             widget::{WidgetBuilder, WidgetMessage},
-            BuildContext, Thickness, UiNode, VerticalAlignment,
+            BuildContext, Thickness, VerticalAlignment,
         },
         scene::{
             node::Node,
@@ -42,13 +42,14 @@ use crate::{
     Message,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::check_box::CheckBox;
 use fyrox::gui::grid::Grid;
 use fyrox::gui::scroll_bar::ScrollBar;
 use fyrox::gui::stack_panel::StackPanel;
 
 pub struct AudioPreviewPanel {
     pub root_widget: Handle<Grid>,
-    preview: Handle<UiNode>,
+    preview: Handle<CheckBox>,
     play: Handle<Button>,
     pause: Handle<Button>,
     stop: Handle<Button>,

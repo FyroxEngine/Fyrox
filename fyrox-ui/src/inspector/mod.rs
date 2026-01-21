@@ -22,6 +22,7 @@
 //! structure or enumeration recursively. It's primary usage is provide unified and simple way of introspection.
 //! See [`Inspector`] docs for more info and usage examples.
 
+use crate::check_box::CheckBox;
 use crate::menu::MenuItem;
 use crate::message::{DeliveryMode, MessageData};
 use crate::stack_panel::StackPanel;
@@ -887,7 +888,7 @@ fn make_expander_check_box(
     property_name: &str,
     property_description: &str,
     ctx: &mut BuildContext,
-) -> Handle<UiNode> {
+) -> Handle<CheckBox> {
     let description = if property_description.is_empty() {
         property_name.to_string()
     } else {

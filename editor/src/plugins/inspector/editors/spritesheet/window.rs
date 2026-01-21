@@ -45,8 +45,10 @@ use crate::fyrox::{
 };
 use crate::plugins::inspector::editors::spritesheet::SpriteSheetFramesPropertyEditorMessage;
 
+use fyrox::core::pool::HandlesVecExtension;
 use fyrox::gui::border::Border;
 use fyrox::gui::button::Button;
+use fyrox::gui::check_box::CheckBox;
 use fyrox::gui::grid::Grid;
 use fyrox::gui::image::Image;
 use fyrox::gui::numeric::NumericUpDown;
@@ -69,7 +71,7 @@ pub struct SpriteSheetFramesEditorWindow {
     height: Handle<NumericUpDown<u32>>,
     grid: Handle<Grid>,
     preview_container: Handle<Border>,
-    cells: Vec<Handle<UiNode>>,
+    cells: Vec<Handle<CheckBox>>,
     animation: SpriteSheetAnimation,
     preview_image: Handle<Image>,
 }
@@ -145,7 +147,7 @@ impl Control for SpriteSheetFramesEditorWindow {
                 self.resize(Vector2::new(width, *value), ui);
             }
         } else if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
-            if self.cells.contains(&message.destination())
+            if self.cells.contains(&message.destination().to_variant())
                 && message.direction == MessageDirection::FromWidget
             {
                 let cell_position = ui
@@ -188,7 +190,7 @@ impl Control for SpriteSheetFramesEditorWindow {
 fn make_grid(
     ctx: &mut BuildContext,
     container: &SpriteSheetFramesContainer,
-) -> (Handle<Grid>, Vec<Handle<UiNode>>) {
+) -> (Handle<Grid>, Vec<Handle<CheckBox>>) {
     let mut cells = Vec::new();
     for i in 0..container.size().y {
         for j in 0..container.size().x {
@@ -216,7 +218,7 @@ fn make_grid(
         WidgetBuilder::new()
             .with_margin(Thickness::uniform(1.0))
             .with_foreground(ctx.style.property(Style::BRUSH_BRIGHT))
-            .with_children(cells.clone()),
+            .with_children(cells.clone().to_base()),
     )
     .add_columns((0..container.size().x).map(|_| Column::stretch()).collect())
     .add_rows((0..container.size().y).map(|_| Row::stretch()).collect())

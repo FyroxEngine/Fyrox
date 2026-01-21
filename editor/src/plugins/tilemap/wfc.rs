@@ -22,6 +22,7 @@ use std::hash::Hash;
 
 use super::*;
 use crate::command::{Command, CommandContext, CommandGroup, CommandTrait};
+use fyrox::gui::check_box::CheckBox;
 use fyrox::gui::numeric::NumericUpDown;
 use fyrox::gui::stack_panel::StackPanel;
 use fyrox::{
@@ -61,7 +62,7 @@ const FREQUENCY_PROP_DESC: &str = concat!("Choose a float property from the tile
 pub struct WfcMacro {
     pattern_list: MacroPropertyField,
     frequency_list: MacroPropertyField,
-    edges_toggle: Handle<UiNode>,
+    edges_toggle: Handle<CheckBox>,
     attempts_field: Handle<NumericUpDown<u32>>,
     terrain_list: Vec<TerrainWidgets>,
     value_field: MacroPropertyValueField,

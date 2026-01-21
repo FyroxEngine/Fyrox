@@ -78,7 +78,9 @@ impl MessageData for DecoratorMessage {}
 /// #     widget::WidgetBuilder,
 /// #     BuildContext, UiNode,
 /// # };
-/// fn create_decorator(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// # use fyrox_ui::decorator::Decorator;
+///
+/// fn create_decorator(ctx: &mut BuildContext) -> Handle<Decorator> {
 ///     DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new()))
 ///         .with_hover_brush(Brush::Solid(Color::opaque(0, 255, 0)).into())
 ///         .build(ctx)

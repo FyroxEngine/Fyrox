@@ -69,6 +69,7 @@ use crate::{
         Selection,
     },
 };
+use fyrox::gui::check_box::CheckBox;
 use fyrox::gui::numeric::NumericUpDown;
 use fyrox::gui::popup::Popup;
 use fyrox::gui::text::Text;
@@ -90,7 +91,7 @@ pub struct Toolbar {
     pub rename_current_animation: Handle<Button>,
     pub clone_current_animation: Handle<Button>,
     pub animation_name: Handle<TextBox>,
-    pub preview: Handle<UiNode>,
+    pub preview: Handle<CheckBox>,
     pub time_slice_start: Handle<NumericUpDown<f32>>,
     pub time_slice_end: Handle<NumericUpDown<f32>>,
     pub import: Handle<Button>,
@@ -98,8 +99,8 @@ pub struct Toolbar {
     pub node_selector: Handle<UiNode>,
     pub import_file_selector: Handle<UiNode>,
     pub selected_import_root: ErasedHandle,
-    pub looping: Handle<UiNode>,
-    pub enabled: Handle<UiNode>,
+    pub looping: Handle<CheckBox>,
+    pub enabled: Handle<CheckBox>,
     root_motion_dropdown_area: RootMotionDropdownArea,
     pub root_motion: Handle<Button>,
     import_mode: ImportMode,
@@ -108,11 +109,11 @@ pub struct Toolbar {
 struct RootMotionDropdownArea {
     popup: Handle<Popup>,
     select_node: Handle<Button>,
-    enabled: Handle<UiNode>,
-    ignore_x: Handle<UiNode>,
-    ignore_y: Handle<UiNode>,
-    ignore_z: Handle<UiNode>,
-    ignore_rotation: Handle<UiNode>,
+    enabled: Handle<CheckBox>,
+    ignore_x: Handle<CheckBox>,
+    ignore_y: Handle<CheckBox>,
+    ignore_z: Handle<CheckBox>,
+    ignore_rotation: Handle<CheckBox>,
     node_selector: Handle<UiNode>,
 }
 
@@ -129,7 +130,7 @@ impl RootMotionDropdownArea {
             .build(ctx)
         }
 
-        fn check_box(row: usize, ctx: &mut BuildContext) -> Handle<UiNode> {
+        fn check_box(row: usize, ctx: &mut BuildContext) -> Handle<CheckBox> {
             CheckBoxBuilder::new(
                 WidgetBuilder::new()
                     .with_width(18.0)
@@ -351,7 +352,7 @@ impl RootMotionDropdownArea {
         G: SceneGraph<Node = N>,
         N: SceneGraphNode,
     {
-        fn sync_checked(ui: &UserInterface, check_box: Handle<UiNode>, checked: bool) {
+        fn sync_checked(ui: &UserInterface, check_box: Handle<CheckBox>, checked: bool) {
             ui.send_sync(check_box, CheckBoxMessage::Check(Some(checked)));
         }
 
@@ -360,11 +361,11 @@ impl RootMotionDropdownArea {
         sync_checked(ui, self.enabled, root_motion_enabled);
 
         for widget in [
-            self.select_node.to_base(),
-            self.ignore_x,
-            self.ignore_y,
-            self.ignore_z,
-            self.ignore_rotation,
+            self.select_node.to_base::<UiNode>(),
+            self.ignore_x.to_base(),
+            self.ignore_y.to_base(),
+            self.ignore_z.to_base(),
+            self.ignore_rotation.to_base(),
         ] {
             ui.send_sync(widget, WidgetMessage::Enabled(root_motion_enabled));
         }
@@ -1220,15 +1221,15 @@ impl Toolbar {
         }
 
         for widget in [
-            self.preview,
+            self.preview.to_base::<UiNode>(),
             self.speed.to_base(),
             self.rename_current_animation.to_base(),
             self.remove_current_animation.to_base(),
             self.time_slice_start.to_base(),
             self.time_slice_end.to_base(),
             self.clone_current_animation.to_base(),
-            self.looping,
-            self.enabled,
+            self.looping.to_base(),
+            self.enabled.to_base(),
             self.root_motion.to_base(),
         ] {
             ui.send_sync(widget, WidgetMessage::Enabled(selected_animation_valid));

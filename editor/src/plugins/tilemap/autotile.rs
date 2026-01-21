@@ -18,7 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use super::*;
 use crate::command::{Command, CommandContext, CommandGroup, CommandTrait};
+use fyrox::gui::check_box::CheckBox;
 use fyrox::gui::dropdown_list::DropdownList;
 use fyrox::{
     asset::{untyped::UntypedResource, Resource, ResourceData},
@@ -42,8 +44,6 @@ use fyrox::{
         TileSetConstraintMap, TileSetPatternSource, TileTerrainId,
     },
 };
-
-use super::*;
 
 const PATTERN_PROP_DESC: &str = concat!("Choose a nine-slice property from the tile set. ",
     "This property will provide the pattern that the autotiler uses to know whether two tiles match along each edge. ",
@@ -154,8 +154,8 @@ pub(super) struct AutoTileInstance {
 struct InstanceCellWidgets {
     handle: Handle<UiNode>,
     value_field: MacroPropertyValueField,
-    adjacent_toggle: Handle<UiNode>,
-    diagonal_toggle: Handle<UiNode>,
+    adjacent_toggle: Handle<CheckBox>,
+    diagonal_toggle: Handle<CheckBox>,
 }
 
 impl ResourceData for AutoTileInstance {

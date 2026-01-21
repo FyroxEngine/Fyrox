@@ -241,6 +241,7 @@ impl UiView for bool {
         CheckBoxBuilder::new(WidgetBuilder::new())
             .checked(Some(self))
             .build(ctx)
+            .to_base()
     }
 }
 
