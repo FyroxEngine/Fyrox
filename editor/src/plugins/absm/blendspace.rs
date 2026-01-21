@@ -112,7 +112,7 @@ enum DragContext {
 #[reflect(derived_type = "UiNode")]
 struct BlendSpaceField {
     widget: Widget,
-    points: Vec<Handle<UiNode>>,
+    points: Vec<Handle<BlendSpaceFieldPoint>>,
     min_values: Vector2<f32>,
     max_values: Vector2<f32>,
     snap_step: Vector2<f32>,
@@ -163,7 +163,7 @@ fn make_points<P: Iterator<Item = Vector2<f32>>>(
     points: P,
     context_menu: RcUiNodeHandle,
     ctx: &mut BuildContext,
-) -> Vec<Handle<UiNode>> {
+) -> Vec<Handle<BlendSpaceFieldPoint>> {
     points
         .enumerate()
         .map(|(i, p)| {
@@ -376,7 +376,7 @@ impl Control for BlendSpaceField {
                 WidgetMessage::MouseDown { button, .. } => {
                     if *button == MouseButton::Left {
                         if let Some(pos) =
-                            self.points.iter().position(|p| *p == message.destination())
+                            self.points.iter().position(|p| message.destination() == *p)
                         {
                             self.drag_context = Some(DragContext::Point { point: pos });
 
@@ -446,7 +446,7 @@ impl Control for BlendSpaceField {
 
                 ui.send(
                     self.field_context_menu.remove_point,
-                    WidgetMessage::Enabled(self.points.contains(target)),
+                    WidgetMessage::Enabled(self.points.contains(&target.to_variant())),
                 );
 
                 self.field_context_menu
@@ -466,7 +466,7 @@ impl Control for BlendSpaceField {
                 if let Some(pos) = self
                     .points
                     .iter()
-                    .position(|p| *p == self.field_context_menu.placement_target.get())
+                    .position(|p| self.field_context_menu.placement_target.get() == *p)
                 {
                     ui.post(self.handle, BlendSpaceFieldMessage::RemovePoint(pos));
                 }
@@ -495,7 +495,7 @@ impl BlendSpaceFieldBuilder {
         }
     }
 
-    fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    fn build(self, ctx: &mut BuildContext) -> Handle<BlendSpaceField> {
         let add_point;
         let remove_point;
         let menu = ContextMenuBuilder::new(
@@ -550,7 +550,7 @@ impl BlendSpaceFieldBuilder {
             },
         };
 
-        ctx.add_node(UiNode::new(field))
+        ctx.add_node(UiNode::new(field)).to_variant()
     }
 }
 
@@ -617,7 +617,7 @@ impl BlendSpaceFieldPointBuilder {
         }
     }
 
-    fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    fn build(self, ctx: &mut BuildContext) -> Handle<BlendSpaceFieldPoint> {
         let point = BlendSpaceFieldPoint {
             widget: self
                 .widget_builder
@@ -638,7 +638,7 @@ impl BlendSpaceFieldPointBuilder {
             selected: false,
         };
 
-        ctx.add_node(UiNode::new(point))
+        ctx.add_node(UiNode::new(point)).to_variant()
     }
 }
 
@@ -650,7 +650,7 @@ pub struct BlendSpaceEditor {
     max_y: Handle<Text>,
     x_axis_name: Handle<Text>,
     y_axis_name: Handle<Text>,
-    field: Handle<UiNode>,
+    field: Handle<BlendSpaceField>,
 }
 
 impl BlendSpaceEditor {

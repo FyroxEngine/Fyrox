@@ -150,7 +150,7 @@ impl AssetRenameDialogBuilder {
         old_path: PathBuf,
         resource_manager: ResourceManager,
         ctx: &mut BuildContext,
-    ) -> Handle<UiNode> {
+    ) -> Handle<AssetRenameDialog> {
         let rename;
         let cancel;
         let name_field;
@@ -234,7 +234,7 @@ impl AssetRenameDialogBuilder {
             resource_manager,
         };
 
-        ctx.add_node(UiNode::new(dialog))
+        ctx.add_node(UiNode::new(dialog)).to_variant()
     }
 }
 

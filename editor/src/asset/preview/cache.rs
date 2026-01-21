@@ -32,6 +32,7 @@ use crate::{
     },
     load_image,
 };
+use fyrox::core::pool::ObjectOrVariant;
 use std::{
     collections::VecDeque,
     sync::{mpsc::Receiver, Arc},
@@ -41,6 +42,20 @@ pub struct IconRequest {
     pub widget_handle: Handle<UiNode>,
     pub resource: UntypedResource,
     pub force_update: bool,
+}
+
+impl IconRequest {
+    pub fn new(
+        widget: Handle<impl ObjectOrVariant<UiNode>>,
+        resource: UntypedResource,
+        force_update: bool,
+    ) -> Self {
+        Self {
+            widget_handle: widget.to_base(),
+            resource,
+            force_update,
+        }
+    }
 }
 
 pub struct AssetPreviewCache {

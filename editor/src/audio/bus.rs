@@ -186,7 +186,7 @@ impl AudioBusViewBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<AudioBusView> {
         let effect_names_list;
         let name;
         let parent_bus_selector;
@@ -274,7 +274,7 @@ impl AudioBusViewBuilder {
             effect_names_list,
             name,
         };
-        ctx.add_node(UiNode::new(view))
+        ctx.add_node(UiNode::new(view)).to_variant()
     }
 }
 

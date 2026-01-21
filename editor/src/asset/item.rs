@@ -53,13 +53,13 @@ use crate::{
 };
 use fyrox::core::ok_or_return;
 use fyrox::gui::border::Border;
+use fyrox::gui::image::Image;
 use fyrox::gui::message::MessageData;
 use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::Arc,
 };
-use fyrox::gui::image::Image;
 
 pub const DEFAULT_SIZE: f32 = 60.0;
 pub const DEFAULT_VEC_SIZE: Vector2<f32> = Vector2::new(DEFAULT_SIZE, DEFAULT_SIZE);
@@ -396,7 +396,7 @@ impl AssetItemBuilder {
         resource_manager: ResourceManager,
         message_sender: MessageSender,
         ctx: &mut BuildContext,
-    ) -> Handle<UiNode> {
+    ) -> Handle<AssetItem> {
         let preview = ImageBuilder::new(
             WidgetBuilder::new()
                 .with_background(ctx.style.property(AssetItem::DESELECTED_PREVIEW))
@@ -463,7 +463,7 @@ impl AssetItemBuilder {
             sender: Some(message_sender),
             resource_manager: Some(resource_manager),
         };
-        ctx.add_node(UiNode::new(item))
+        ctx.add_node(UiNode::new(item)).to_variant()
     }
 }
 

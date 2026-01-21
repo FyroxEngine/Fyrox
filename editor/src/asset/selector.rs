@@ -53,6 +53,7 @@ use crate::{
         },
     },
 };
+use fyrox::core::pool::HandlesVecExtension;
 use fyrox::gui::control_trait_proxy_impls;
 use fyrox::gui::image::Image;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
@@ -162,7 +163,7 @@ impl ItemBuilder {
         self
     }
 
-    fn build(self, resource_manager: ResourceManager, ctx: &mut BuildContext) -> Handle<UiNode> {
+    fn build(self, resource_manager: ResourceManager, ctx: &mut BuildContext) -> Handle<Item> {
         let image = ImageBuilder::new(
             WidgetBuilder::new()
                 .with_vertical_alignment(VerticalAlignment::Top)
@@ -215,7 +216,7 @@ impl ItemBuilder {
             need_request_preview: Cell::new(true),
             resource_manager,
         };
-        ctx.add_node(UiNode::new(item))
+        ctx.add_node(UiNode::new(item)).to_variant()
     }
 }
 
@@ -277,7 +278,7 @@ impl<'a> AssetSelectorBuilder<'a> {
         icon_request_sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
         ctx: &mut BuildContext,
-    ) -> Handle<UiNode> {
+    ) -> Handle<AssetSelector> {
         let state = resource_manager.state();
         let loaders = state.loaders.safe_lock();
         let registry = state.resource_registry.safe_lock();
@@ -353,12 +354,14 @@ impl<'a> AssetSelectorBuilder<'a> {
                 .build(ctx),
             )
             .with_selection(selection_index.map(|i| vec![i]).unwrap_or_default())
-            .with_items(items)
+            .with_items(items.to_base())
             .build(ctx);
 
         if let Some(selected_item) = selected_item {
-            ctx.inner()
-                .send(list_view, ListViewMessage::BringItemIntoView(selected_item));
+            ctx.inner().send(
+                list_view,
+                ListViewMessage::BringItemIntoView(selected_item.to_base()),
+            );
         }
 
         let selector = AssetSelector {
@@ -367,7 +370,7 @@ impl<'a> AssetSelectorBuilder<'a> {
             resources: supported_resource_paths,
             resource_manager: resource_manager.clone(),
         };
-        ctx.add_node(UiNode::new(selector))
+        ctx.add_node(UiNode::new(selector)).to_variant()
     }
 }
 
@@ -464,7 +467,7 @@ impl<'a> AssetSelectorWindowBuilder<'a> {
         sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
         ctx: &mut BuildContext,
-    ) -> Handle<UiNode> {
+    ) -> Handle<AssetSelectorWindow> {
         let search_bar = SearchBarBuilder::new(
             WidgetBuilder::new()
                 .on_row(0)
@@ -537,7 +540,7 @@ impl<'a> AssetSelectorWindowBuilder<'a> {
             search_bar: search_bar.transmute(),
         };
 
-        ctx.add_node(UiNode::new(window))
+        ctx.add_node(UiNode::new(window)).to_variant()
     }
 
     pub fn build_for_type_and_open<T: TypedResourceData>(
@@ -545,7 +548,7 @@ impl<'a> AssetSelectorWindowBuilder<'a> {
         icon_request_sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
         ui: &mut UserInterface,
-    ) -> Handle<UiNode> {
+    ) -> Handle<AssetSelectorWindow> {
         let selector = AssetSelectorWindowBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                 .with_title(WindowTitle::text("Select a Resource"))
@@ -576,7 +579,7 @@ impl<'a> AssetSelectorWindowBuilder<'a> {
 
 #[derive(Reflect, Visit, Debug)]
 pub struct AssetSelectorMixin<T: TypedResourceData> {
-    pub selector: Cell<Handle<UiNode>>,
+    pub selector: Cell<Handle<AssetSelectorWindow>>,
     pub select: Handle<Button>,
     #[visit(skip)]
     #[reflect(hidden)]

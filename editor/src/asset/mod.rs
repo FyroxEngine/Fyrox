@@ -164,7 +164,7 @@ pub struct AssetBrowser {
     search_bar: Handle<SearchBar>,
     add_resource: Handle<Button>,
     refresh: Handle<Button>,
-    items: Vec<Handle<UiNode>>,
+    items: Vec<Handle<AssetItem>>,
     item_to_select: Option<PathBuf>,
     context_menu: AssetItemContextMenu,
     current_path: PathBuf,
@@ -479,7 +479,7 @@ impl AssetBrowser {
         ui: &mut UserInterface,
         resource_manager: &ResourceManager,
         message_sender: &MessageSender,
-    ) -> Handle<UiNode> {
+    ) -> Handle<AssetItem> {
         let is_dir = path.is_dir();
 
         let asset_item = AssetItemBuilder::new(
@@ -498,11 +498,11 @@ impl AssetBrowser {
         );
 
         if !is_dir {
-            Log::verify(self.preview_sender.send(IconRequest {
-                resource: resource_manager.request_untyped(path),
-                widget_handle: asset_item,
-                force_update: false,
-            }));
+            Log::verify(self.preview_sender.send(IconRequest::new(
+                asset_item,
+                resource_manager.request_untyped(path),
+                false,
+            )));
         }
 
         self.items.push(asset_item);
@@ -654,7 +654,7 @@ impl AssetBrowser {
             ui.send(handle_to_select, AssetItemMessage::Select(true));
             ui.send(
                 self.scroll_viewer,
-                ScrollViewerMessage::BringIntoView(handle_to_select),
+                ScrollViewerMessage::bring_into_view(handle_to_select),
             );
         }
     }
@@ -950,15 +950,11 @@ impl AssetBrowser {
                     some_or_continue!(engine.resource_manager.resource_path(&resource));
                 let canonical_resource_path = ok_or_continue!(resource_path.canonicalize());
                 for item in self.items.iter() {
-                    if let Ok(asset_item) = ui.try_get_of_type::<AssetItem>(*item) {
+                    if let Ok(asset_item) = ui.try_get(*item) {
                         let asset_item_path = ok_or_continue!(asset_item.path.canonicalize());
                         if asset_item_path == canonical_resource_path {
                             self.preview_sender
-                                .send(IconRequest {
-                                    widget_handle: *item,
-                                    resource,
-                                    force_update: true,
-                                })
+                                .send(IconRequest::new(*item, resource, true))
                                 .unwrap();
                             break;
                         }
@@ -1004,7 +1000,7 @@ impl AssetBrowser {
             if let Some(selection) = entry.selection.as_ref::<AssetSelection>() {
                 // Deselect other items.
                 for &item_handle in self.items.iter() {
-                    let item = ok_or_continue!(ui.try_get_of_type::<AssetItem>(item_handle));
+                    let item = ok_or_continue!(ui.try_get(item_handle));
 
                     ui.send(
                         item_handle,
