@@ -63,6 +63,23 @@ pub enum ListViewMessage {
 }
 impl MessageData for ListViewMessage {}
 
+impl ListViewMessage {
+    /// Creates [`Self::AddItem`] message.
+    pub fn add_item(handle: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        Self::AddItem(handle.to_base())
+    }
+
+    /// Creates [`Self::RemoveItem`] message.
+    pub fn remove_item(handle: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        Self::RemoveItem(handle.to_base())
+    }
+
+    /// Creates [`Self::BringItemIntoView`] message.
+    pub fn bring_item_into_view(handle: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        Self::BringItemIntoView(handle.to_base())
+    }
+}
+
 /// List view is used to display lists with arbitrary items. It supports multiple selection and by
 /// default, it stacks the items vertically (this can be changed by providing a custom panel for the
 /// items, see the section below).

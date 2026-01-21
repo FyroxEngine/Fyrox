@@ -76,6 +76,18 @@ impl MessageData for ScrollViewerMessage {
     }
 }
 
+impl ScrollViewerMessage {
+    /// Creates [`Self::Content`] message.
+    pub fn content(handle: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        Self::Content(handle.to_base())
+    }
+
+    /// Creates [`Self::BringIntoView`] message.
+    pub fn bring_into_view(handle: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        Self::BringIntoView(handle.to_base())
+    }
+}
+
 /// Scroll viewer is a scrollable region with two scroll bars for each axis. It is used to wrap a content of unknown
 /// size to ensure that all of it will be accessible in a parent widget bounds. For example, it could be used in a
 /// Window widget to allow a content of the window to be accessible, even if the window is smaller than the content.
