@@ -1047,7 +1047,8 @@ impl MenuItemBuilder {
             .add_column(Column::auto())
             .add_column(Column::strict(10.0))
             .add_column(Column::strict(5.0))
-            .build(ctx),
+            .build(ctx)
+            .to_base(),
             Some(MenuItemContent::TextCentered(text)) => {
                 TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::left_right(5.0)))
                     .with_text(text)

@@ -182,6 +182,7 @@ use fyrox::core::{info, uuid};
 use fyrox::engine::GraphicsContext;
 use fyrox::event_loop::ActiveEventLoop;
 use fyrox::gui::file_browser::{FileSelectorMode, FileType, PathFilter};
+use fyrox::gui::grid::Grid;
 use fyrox::gui::inspector::editors::PropertyEditorDefinitionContainer;
 use fyrox::gui::messagebox::MessageBox;
 use fyrox::gui::text::Text;
@@ -626,7 +627,7 @@ pub struct Editor {
     pub message_sender: MessageSender,
     pub message_receiver: Receiver<Message>,
     pub world_viewer: WorldViewer,
-    pub root_grid: Handle<UiNode>,
+    pub root_grid: Handle<Grid>,
     pub scene_viewer: SceneViewer,
     pub asset_browser: AssetBrowser,
     pub exit_message_box: Handle<MessageBox>,

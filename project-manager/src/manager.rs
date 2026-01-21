@@ -26,6 +26,7 @@ use crate::{
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::file_browser::{FileSelectorMode, PathFilter};
+use fyrox::gui::grid::Grid;
 use fyrox::gui::list_view::ListView;
 use fyrox::gui::messagebox::MessageBox;
 use fyrox::gui::searchbar::SearchBar;
@@ -128,7 +129,7 @@ pub struct ProjectSize {
 }
 
 pub struct ProjectManager {
-    pub root_grid: Handle<UiNode>,
+    pub root_grid: Handle<Grid>,
     create: Handle<Button>,
     import: Handle<Button>,
     projects: Handle<ListView>,

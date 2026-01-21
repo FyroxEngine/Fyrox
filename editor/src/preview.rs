@@ -33,7 +33,7 @@ use crate::{
             message::{CursorIcon, MouseButton, UiMessage},
             stack_panel::StackPanelBuilder,
             widget::{WidgetBuilder, WidgetMessage},
-            HorizontalAlignment, Orientation, Thickness, UiNode, VerticalAlignment,
+            HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
         },
         resource::{
             model::{Model, ModelResourceExtension},
@@ -55,6 +55,7 @@ use crate::{
 use fyrox::core::num_traits::Zero;
 use fyrox::core::pool::ObjectOrVariant;
 use fyrox::gui::button::Button;
+use fyrox::gui::grid::Grid;
 use fyrox::gui::stack_panel::StackPanel;
 use fyrox::scene::camera::Camera;
 use fyrox::scene::pivot::Pivot;
@@ -69,7 +70,7 @@ enum Mode {
 
 pub struct PreviewPanel {
     scene: Handle<Scene>,
-    pub root: Handle<UiNode>,
+    pub root: Handle<Grid>,
     frame: Handle<Image>,
     camera_pivot: Handle<Pivot>,
     fit: Handle<Button>,

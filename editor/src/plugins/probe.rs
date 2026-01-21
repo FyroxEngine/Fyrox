@@ -36,7 +36,7 @@ use crate::{
             grid::{Column, GridBuilder, Row},
             message::UiMessage,
             widget::{WidgetBuilder, WidgetMessage},
-            BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
+            BuildContext, Thickness, UserInterface, VerticalAlignment,
         },
         scene::{probe::ReflectionProbe, Scene},
     },
@@ -53,9 +53,10 @@ use crate::{
 };
 use fyrox::core::reflect::Reflect;
 use fyrox::gui::button::Button;
+use fyrox::gui::grid::Grid;
 
 pub struct ReflectionProbePreviewControlPanel {
-    pub root_widget: Handle<UiNode>,
+    pub root_widget: Handle<Grid>,
     update: Handle<Button>,
     adjust: Handle<Button>,
 }

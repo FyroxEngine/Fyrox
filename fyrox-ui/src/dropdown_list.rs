@@ -40,6 +40,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 
+use crate::grid::Grid;
 use crate::list_view::ListView;
 use crate::message::MessageData;
 use crate::popup::Popup;
@@ -186,7 +187,7 @@ pub struct DropdownList {
     /// A flag, that defines whether the dropdown list's popup should close after selection or not.
     pub close_on_selection: InheritableVariable<bool>,
     /// A handle to an inner Grid widget, that holds currently selected item and other decorators.
-    pub main_grid: InheritableVariable<Handle<UiNode>>,
+    pub main_grid: InheritableVariable<Handle<Grid>>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for DropdownList {
@@ -333,7 +334,7 @@ impl DropdownList {
             if let Some(item) = self.items.get(index) {
                 self.current
                     .set_value_and_mark_modified(ui.copy_node(*item));
-                ui.send(*self.current, WidgetMessage::LinkWith(*self.main_grid));
+                ui.send(*self.current, WidgetMessage::link_with(*self.main_grid));
                 ui.node(*self.current).request_update_visibility();
                 ui.send(
                     *self.current,

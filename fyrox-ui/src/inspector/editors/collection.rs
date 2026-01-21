@@ -210,6 +210,7 @@ fn create_item_views(items: &[Item], ctx: &mut BuildContext) -> Vec<Handle<UiNod
             .add_column(Column::stretch())
             .add_column(Column::auto())
             .build(ctx)
+            .to_base()
         })
         .collect::<Vec<_>>()
 }

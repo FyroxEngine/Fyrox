@@ -144,13 +144,13 @@ impl MessageData for HotKeyEditorMessage {}
 /// ```rust
 /// # use fyrox_ui::{
 /// #     core::pool::Handle,
-/// #     key::{HotKey, HotKeyEditorBuilder},
+/// #     key::{HotKey, HotKeyEditor, HotKeyEditorBuilder},
 /// #     message::{KeyCode, KeyboardModifiers},
 /// #     widget::WidgetBuilder,
 /// #     BuildContext, UiNode,
 /// # };
 /// #
-/// fn create_hot_key_editor(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// fn create_hot_key_editor(ctx: &mut BuildContext) -> Handle<HotKeyEditor> {
 ///     HotKeyEditorBuilder::new(WidgetBuilder::new())
 ///         .with_value(
 ///             // Ctrl+C hot key.
@@ -184,6 +184,7 @@ impl ConstructorProvider<UiNode, UserInterface> for HotKeyEditor {
             .with_variant("Hot Key Editor", |ui| {
                 HotKeyEditorBuilder::new(WidgetBuilder::new().with_name("Hot Key Editor"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Input")
@@ -297,7 +298,7 @@ impl HotKeyEditorBuilder {
     }
 
     /// Finishes widget building and adds it to the user interface, returning a handle to the new instance.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<HotKeyEditor> {
         let text = TextBuilder::new(WidgetBuilder::new())
             .with_text(format!("{}", self.value))
             .build(ctx);
@@ -309,7 +310,7 @@ impl HotKeyEditorBuilder {
             value: self.value.into(),
         };
 
-        ctx.add_node(UiNode::new(editor))
+        ctx.add_node(UiNode::new(editor)).to_variant()
     }
 }
 
@@ -366,13 +367,13 @@ impl MessageData for KeyBindingEditorMessage {}
 /// ```rust
 /// # use fyrox_ui::{
 /// #     core::pool::Handle,
-/// #     key::{KeyBinding, KeyBindingEditorBuilder},
+/// #     key::{KeyBinding, KeyBindingEditor, KeyBindingEditorBuilder},
 /// #     message::KeyCode,
 /// #     widget::WidgetBuilder,
 /// #     BuildContext, UiNode,
 /// # };
 /// #
-/// fn create_key_binding_editor(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// fn create_key_binding_editor(ctx: &mut BuildContext) -> Handle<KeyBindingEditor> {
 ///     KeyBindingEditorBuilder::new(WidgetBuilder::new())
 ///         .with_value(KeyBinding::Some(KeyCode::KeyW))
 ///         .build(ctx)
@@ -397,6 +398,7 @@ impl ConstructorProvider<UiNode, UserInterface> for KeyBindingEditor {
             .with_variant("Key Binding Editor", |ui| {
                 KeyBindingEditorBuilder::new(WidgetBuilder::new().with_name("Key Binding Editor"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Input")
@@ -497,7 +499,7 @@ impl KeyBindingEditorBuilder {
     }
 
     /// Finishes widget building and adds the new widget instance to the user interface, returning a handle of it.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<KeyBindingEditor> {
         let text = TextBuilder::new(WidgetBuilder::new())
             .with_text(format!("{}", self.value))
             .build(ctx);
@@ -509,7 +511,7 @@ impl KeyBindingEditorBuilder {
             value: self.value.into(),
         };
 
-        ctx.add_node(UiNode::new(editor))
+        ctx.add_node(UiNode::new(editor)).to_variant()
     }
 }
 

@@ -46,6 +46,7 @@ use crate::{
 };
 
 use crate::button::Button;
+use crate::grid::Grid;
 use crate::wrap_panel::WrapPanel;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -244,7 +245,7 @@ pub struct TabControl {
     /// Active tab of the tab control.
     pub active_tab: Option<usize>,
     /// A handle of a widget, that holds content of every tab.
-    pub content_container: Handle<UiNode>,
+    pub content_container: Handle<Grid>,
     /// A handle of a widget, that holds headers of every tab.
     pub headers_container: Handle<WrapPanel>,
     /// A brush, that will be used to highlight active tab.
@@ -479,7 +480,7 @@ impl Control for TabControl {
 
                     ui.send(
                         definition.content,
-                        WidgetMessage::LinkWith(self.content_container),
+                        WidgetMessage::link_with(self.content_container),
                     );
 
                     ui.send_message(message.reverse());

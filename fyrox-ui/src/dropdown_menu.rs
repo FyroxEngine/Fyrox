@@ -29,6 +29,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_core::pool::ObjectOrVariant;
 use std::sync::mpsc::Sender;
 
 /// A simple widget that opens a popup when clicked. It could be used to create dropdown menus that
@@ -92,8 +93,8 @@ impl DropdownMenuBuilder {
     }
 
     /// Sets the content of the menu.
-    pub fn with_content(mut self, content: Handle<UiNode>) -> Self {
-        self.content = content;
+    pub fn with_content(mut self, content: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
+        self.content = content.to_base();
         self
     }
 

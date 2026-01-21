@@ -167,6 +167,7 @@ fn make_drawable_field(
     .add_column(Column::auto())
     .add_column(Column::stretch())
     .build(ctx)
+    .to_base()
 }
 
 fn send_visibility(ui: &UserInterface, destination: Handle<UiNode>, visible: bool) {

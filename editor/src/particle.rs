@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use fyrox::gui::button::Button;
+use fyrox::gui::grid::Grid;
 use fyrox::gui::numeric::NumericUpDown;
 use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::widget::WidgetMessage;
@@ -45,7 +46,7 @@ use crate::{
 };
 
 pub struct ParticleSystemPreviewControlPanel {
-    pub root_widget: Handle<UiNode>,
+    pub root_widget: Handle<Grid>,
     preview: Handle<UiNode>,
     play: Handle<Button>,
     pause: Handle<Button>,

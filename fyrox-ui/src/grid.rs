@@ -164,7 +164,9 @@ pub type Row = GridDimension;
 /// #     text::TextBuilder,
 /// #     grid::{GridBuilder, GridDimension},
 /// # };
-/// fn create_text_grid(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// # use fyrox_ui::grid::Grid;
+///
+/// fn create_text_grid(ctx: &mut BuildContext) -> Handle<Grid> {
 ///     GridBuilder::new(
 ///         WidgetBuilder::new()
 ///             .with_child(
@@ -246,6 +248,7 @@ impl ConstructorProvider<UiNode, UserInterface> for Grid {
             .with_variant("Grid", |ui| {
                 GridBuilder::new(WidgetBuilder::new().with_name("Grid"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Layout")
@@ -768,7 +771,7 @@ impl GridBuilder {
     }
 
     /// Creates new [`Grid`] widget instance and adds it to the user interface.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<Grid> {
         let grid = Grid {
             widget: self.widget_builder.build(ctx),
             rows: RefCell::new(self.rows).into(),
@@ -778,7 +781,7 @@ impl GridBuilder {
             cells: Default::default(),
             groups: Default::default(),
         };
-        ctx.add_node(UiNode::new(grid))
+        ctx.add_node(UiNode::new(grid)).to_variant()
     }
 }
 

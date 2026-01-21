@@ -54,6 +54,7 @@ use crate::{
 };
 use fxhash::FxHashSet;
 
+use crate::grid::Grid;
 use crate::menu::MenuItem;
 use crate::numeric::NumericUpDown;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -474,7 +475,7 @@ struct ContextMenu {
     make_linear: Handle<MenuItem>,
     make_cubic: Handle<MenuItem>,
     zoom_to_fit: Handle<MenuItem>,
-    key_properties: Handle<UiNode>,
+    key_properties: Handle<Grid>,
     key_value: Handle<NumericUpDown<f32>>,
     key_location: Handle<NumericUpDown<f32>>,
     copy_keys: Handle<MenuItem>,

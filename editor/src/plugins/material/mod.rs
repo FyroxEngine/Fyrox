@@ -139,6 +139,7 @@ fn make_item_container(ctx: &mut BuildContext, name: &str, item: Handle<UiNode>)
     .add_column(Column::strict(150.0))
     .add_column(Column::stretch())
     .build(ctx)
+    .to_base()
 }
 
 fn pad_vec<T: UiView>(v: &[T], max_len: usize) -> Vec<T> {

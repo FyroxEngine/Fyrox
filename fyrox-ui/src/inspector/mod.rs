@@ -991,6 +991,7 @@ fn make_simple_property_container(
         .add_row(Row::auto())
         .add_columns(vec![Column::strict(width), Column::stretch()])
         .build(ctx)
+        .to_base()
 }
 
 /// Filter function for determining which fields of an object should be included in an Inspector.

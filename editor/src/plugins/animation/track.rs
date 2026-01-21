@@ -98,6 +98,7 @@ use crate::{
 };
 use fyrox::asset::Resource;
 use fyrox::gui::button::Button;
+use fyrox::gui::grid::Grid;
 use fyrox::gui::menu::MenuItem;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::scroll_viewer::ScrollViewer;
@@ -508,7 +509,7 @@ impl TrackViewBuilder {
 }
 
 struct Toolbar {
-    panel: Handle<UiNode>,
+    panel: Handle<Grid>,
     search_text: Handle<TextBox>,
     clear_search_text: Handle<Button>,
     collapse_all: Handle<Button>,
@@ -604,7 +605,7 @@ impl Toolbar {
 
 pub struct TrackList {
     toolbar: Toolbar,
-    pub panel: Handle<UiNode>,
+    pub panel: Handle<Grid>,
     tree_root: Handle<TreeRoot>,
     add_track: Handle<Button>,
     add_position_track: Handle<Button>,

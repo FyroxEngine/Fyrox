@@ -48,13 +48,13 @@ use fyrox::gui::text_box::TextBox;
 /// layers stored within the tile set. Layers can be created, deleted, renamed
 /// and their colors can be modified.
 pub struct CollidersTab {
-    handle: Handle<UiNode>,
+    handle: Handle<Grid>,
     list: Handle<ListView>,
     up_button: Handle<Button>,
     down_button: Handle<Button>,
     remove_button: Handle<Button>,
     add_button: Handle<Button>,
-    data_panel: Handle<UiNode>,
+    data_panel: Handle<Grid>,
     name_field: Handle<TextBox>,
     color_field: Handle<UiNode>,
 }
@@ -259,7 +259,7 @@ impl CollidersTab {
         }
     }
     pub fn handle(&self) -> Handle<UiNode> {
-        self.handle
+        self.handle.to_base()
     }
     pub fn sync_to_model(&mut self, tile_set: &OptionTileSet, ui: &mut UserInterface) {
         let items = make_items(&mut ui.build_ctx(), tile_set);

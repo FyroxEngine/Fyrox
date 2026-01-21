@@ -26,6 +26,7 @@
 //! to be applied to other tiles by clicking in the tile palette.
 
 use commands::SetTileSetTilesCommand;
+use fyrox::gui::grid::Grid;
 use fyrox::gui::text::Text;
 use fyrox::{
     core::{
@@ -171,7 +172,8 @@ impl TilePropertyEditor {
         .add_column(Column::auto())
         .add_column(Column::stretch())
         .add_row(Row::auto())
-        .build(ctx);
+        .build(ctx)
+        .to_base();
         let is_nine = matches!(prop_layer.prop_type, TileSetPropertyType::NineSlice);
         let (nine, nine_buttons) = if is_nine {
             let (nine, nine_buttons) = build_nine(create_nine_specs(value, prop_layer), ctx);
@@ -798,7 +800,7 @@ fn build_nine_button(
 fn build_nine(
     specs: [NineButtonSpec; 9],
     ctx: &mut BuildContext,
-) -> (Handle<UiNode>, Box<[Handle<Button>; 9]>) {
+) -> (Handle<Grid>, Box<[Handle<Button>; 9]>) {
     let mut buttons: Box<[Handle<Button>; 9]> = [Handle::NONE; 9].into();
     let mut tab_index = 0;
     for y in 0..3 {

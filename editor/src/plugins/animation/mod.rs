@@ -65,6 +65,7 @@ use crate::{
     ui_scene::UiScene,
     Editor, Message,
 };
+use fyrox::gui::grid::Grid;
 use fyrox::gui::menu::MenuItem;
 use fyrox::gui::window::Window;
 use std::any::{Any, TypeId};
@@ -91,7 +92,7 @@ pub struct AnimationEditor {
     track_list: TrackList,
     curve_editor: Handle<UiNode>,
     toolbar: Toolbar,
-    content: Handle<UiNode>,
+    content: Handle<Grid>,
     ruler: Handle<UiNode>,
     preview_mode_data: Option<Box<dyn Any>>,
     thumb: Handle<UiNode>,

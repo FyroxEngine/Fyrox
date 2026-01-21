@@ -49,13 +49,11 @@ impl PropertyEditorDefinition for HotKeyPropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<HotKey>()?;
-        Ok(PropertyEditorInstance::Simple {
-            editor: HotKeyEditorBuilder::new(
-                WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
-            )
-            .with_value(value.clone())
-            .build(ctx.build_context),
-        })
+        Ok(PropertyEditorInstance::simple(
+            HotKeyEditorBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                .with_value(value.clone())
+                .build(ctx.build_context),
+        ))
     }
 
     fn create_message(
@@ -96,13 +94,11 @@ impl PropertyEditorDefinition for KeyBindingPropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<KeyBinding>()?;
-        Ok(PropertyEditorInstance::Simple {
-            editor: KeyBindingEditorBuilder::new(
-                WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
-            )
-            .with_value(value.clone())
-            .build(ctx.build_context),
-        })
+        Ok(PropertyEditorInstance::simple(
+            KeyBindingEditorBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                .with_value(value.clone())
+                .build(ctx.build_context),
+        ))
     }
 
     fn create_message(

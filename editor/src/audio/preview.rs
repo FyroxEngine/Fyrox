@@ -42,11 +42,12 @@ use crate::{
     Message,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::grid::Grid;
 use fyrox::gui::scroll_bar::ScrollBar;
 use fyrox::gui::stack_panel::StackPanel;
 
 pub struct AudioPreviewPanel {
-    pub root_widget: Handle<UiNode>,
+    pub root_widget: Handle<Grid>,
     preview: Handle<UiNode>,
     play: Handle<Button>,
     pause: Handle<Button>,

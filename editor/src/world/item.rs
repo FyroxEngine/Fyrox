@@ -46,6 +46,7 @@ use crate::{
     Message,
 };
 
+use fyrox::gui::grid::Grid;
 use fyrox::gui::image::Image;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::text::Text;
@@ -77,7 +78,7 @@ pub struct SceneItem {
     pub tree: Tree,
     text_name: Handle<Text>,
     name_value: String,
-    grid: Handle<UiNode>,
+    grid: Handle<Grid>,
     pub entity_handle: ErasedHandle,
     // Can be unassigned if there's no warning.
     pub warning_icon: Handle<Image>,
@@ -196,7 +197,7 @@ impl Control for SceneItem {
                         .with_opt_texture(load_image!("../../resources/warning.png"))
                         .build(&mut ui.build_ctx());
 
-                        ui.send(self.warning_icon, WidgetMessage::LinkWith(self.grid));
+                        ui.send(self.warning_icon, WidgetMessage::link_with(self.grid));
                     }
                 }
             }

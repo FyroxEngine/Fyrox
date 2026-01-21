@@ -53,6 +53,7 @@ use crate::{
     message::MessageSender,
     plugins::inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
 };
+use fyrox::gui::grid::Grid;
 use fyrox::gui::text::Text;
 use fyrox::gui::window::{Window, WindowAlignment};
 use fyrox::scene::tilemap::brush::TileMapBrushResource;
@@ -106,7 +107,7 @@ pub struct TileSetEditor {
     all_tiles: Handle<Button>,
     /// When editing a brush, this is the area that allows the user to choose
     /// the tile set for the brush.
-    tile_set_selector: Handle<UiNode>,
+    tile_set_selector: Handle<Grid>,
     /// This is the resource field that lets the user select the tile set for a brush.
     tile_set_field: Handle<UiNode>,
     /// This is the area that shows the data for the currently selected tiles.
@@ -411,7 +412,7 @@ impl TileSetEditor {
         let colliders_tab = CollidersTab::new(tile_book.clone(), ctx);
         let macros_tab = MacroTab::new(macro_list.clone(), tile_book.clone(), ctx);
         let tab_control = TabControlBuilder::new(WidgetBuilder::new())
-            .with_tab(make_tab("Tiles", tile_tab, ctx))
+            .with_tab(make_tab("Tiles", tile_tab.to_base(), ctx))
             .with_tab(make_tab("Properties", properties_tab.handle(), ctx))
             .with_tab(make_tab("Collision", colliders_tab.handle(), ctx))
             .with_tab(make_tab("Macros", macros_tab.handle(), ctx))

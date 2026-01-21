@@ -37,6 +37,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 
+use crate::grid::Grid;
 use crate::message::MessageData;
 use crate::vec::VecEditor;
 use fyrox_core::variable::InheritableVariable;
@@ -241,7 +242,7 @@ fn create_field<T: NumericType>(
     name: &str,
     value: Vector2<T>,
     row: usize,
-) -> (Handle<UiNode>, Handle<VecEditor<T, 2>>) {
+) -> (Handle<Grid>, Handle<VecEditor<T, 2>>) {
     let editor;
     let grid = GridBuilder::new(
         WidgetBuilder::new()

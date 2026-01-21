@@ -20,6 +20,7 @@
 
 use super::*;
 
+use fyrox::gui::grid::Grid;
 use fyrox::gui::vec::VecEditor;
 use fyrox::{
     core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
@@ -51,7 +52,7 @@ impl MessageData for TileBoundsMessage {}
 pub struct TileBoundsEditor {
     widget: Widget,
     pub value: Option<TileBounds>,
-    pub value_area: Handle<UiNode>,
+    pub value_area: Handle<Grid>,
     pub left_top: Handle<VecEditor<u32, 2>>,
     pub left_bottom: Handle<VecEditor<u32, 2>>,
     pub right_top: Handle<VecEditor<u32, 2>>,

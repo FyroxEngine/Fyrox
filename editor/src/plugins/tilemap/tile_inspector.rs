@@ -57,6 +57,7 @@ use super::*;
 use crate::asset::preview::cache::IconRequest;
 use commands::*;
 use fyrox::core::pool::ObjectOrVariant;
+use fyrox::gui::grid::Grid;
 use fyrox::gui::text::Text;
 use palette::*;
 
@@ -547,7 +548,7 @@ fn find_collider_value(
 
 #[derive(Clone, Default, Debug, Visit, Reflect)]
 struct InspectorField {
-    handle: Handle<UiNode>,
+    handle: Handle<Grid>,
     field: Handle<UiNode>,
 }
 
@@ -734,7 +735,7 @@ pub struct TileInspector {
     /// The current resource to be edited.
     tile_book: TileBook,
     /// The collection of buttons for creating a new tile set page.
-    tile_set_page_creator: Handle<UiNode>,
+    tile_set_page_creator: Handle<Grid>,
     /// The panel containing the button for creating a new brush page.
     brush_page_creator: Handle<UiNode>,
     /// The editor for changing the size of tiles in a tile atlas page.

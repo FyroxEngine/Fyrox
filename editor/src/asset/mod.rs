@@ -69,6 +69,7 @@ use crate::{
     Message, Mode,
 };
 use fyrox::asset::event::ResourceEvent;
+use fyrox::gui::grid::Grid;
 use fyrox::gui::scroll_viewer::ScrollViewer;
 use fyrox::gui::searchbar::SearchBar;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
@@ -148,7 +149,7 @@ fn make_unique_path(parent: &Path, stem: &str, ext: &str) -> PathBuf {
 }
 
 struct InspectorAddon {
-    root: Handle<UiNode>,
+    root: Handle<Grid>,
     apply: Handle<Button>,
     revert: Handle<Button>,
     preview: PreviewPanel,

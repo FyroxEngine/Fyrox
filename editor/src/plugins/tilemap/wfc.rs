@@ -224,7 +224,7 @@ fn make_terrain_list_element(
         frequency_field,
         delete_button,
     };
-    (handle, widgets)
+    (handle.to_base(), widgets)
 }
 
 impl WfcInstance {

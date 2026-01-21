@@ -47,6 +47,7 @@ use crate::plugins::inspector::editors::spritesheet::SpriteSheetFramesPropertyEd
 
 use fyrox::gui::border::Border;
 use fyrox::gui::button::Button;
+use fyrox::gui::grid::Grid;
 use fyrox::gui::image::Image;
 use fyrox::gui::numeric::NumericUpDown;
 use fyrox::gui::style::resource::StyleResourceExt;
@@ -66,7 +67,7 @@ pub struct SpriteSheetFramesEditorWindow {
     cancel: Handle<Button>,
     width: Handle<NumericUpDown<u32>>,
     height: Handle<NumericUpDown<u32>>,
-    grid: Handle<UiNode>,
+    grid: Handle<Grid>,
     preview_container: Handle<Border>,
     cells: Vec<Handle<UiNode>>,
     animation: SpriteSheetAnimation,
@@ -187,7 +188,7 @@ impl Control for SpriteSheetFramesEditorWindow {
 fn make_grid(
     ctx: &mut BuildContext,
     container: &SpriteSheetFramesContainer,
-) -> (Handle<UiNode>, Vec<Handle<UiNode>>) {
+) -> (Handle<Grid>, Vec<Handle<UiNode>>) {
     let mut cells = Vec::new();
     for i in 0..container.size().y {
         for j in 0..container.size().x {

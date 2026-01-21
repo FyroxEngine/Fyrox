@@ -744,7 +744,8 @@ impl MacroPropertyValueField {
         .add_column(Column::stretch())
         .add_row(Row::auto())
         .add_row(Row::auto())
-        .build(ctx);
+        .build(ctx)
+        .to_base();
         Self {
             handle,
             textbox,
@@ -956,7 +957,8 @@ impl MacroPropertyField {
             .add_column(Column::strict(PROPERTY_LABEL_WIDTH))
             .add_column(Column::stretch())
             .add_row(Row::auto())
-            .build(ctx);
+            .build(ctx)
+            .to_base();
         Self {
             prop_type,
             handle,

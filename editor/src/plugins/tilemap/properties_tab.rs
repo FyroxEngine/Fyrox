@@ -55,7 +55,7 @@ use fyrox::gui::text_box::TextBox;
 /// layers stored within the tile set. Layers can be created, deleted, renamed
 /// and pre-defined values can be edited.
 pub struct PropertiesTab {
-    handle: Handle<UiNode>,
+    handle: Handle<Grid>,
     list: Handle<ListView>,
     up_button: Handle<Button>,
     down_button: Handle<Button>,
@@ -70,7 +70,7 @@ pub struct PropertiesTab {
     name_down: Handle<Button>,
     name_add: Handle<Button>,
     name_remove: Handle<Button>,
-    data_panel: Handle<UiNode>,
+    data_panel: Handle<Grid>,
     name_edit_panel: Handle<Border>,
     value_name_field: Handle<TextBox>,
     color_field: Handle<UiNode>,
@@ -495,7 +495,7 @@ impl PropertiesTab {
         }
     }
     pub fn handle(&self) -> Handle<UiNode> {
-        self.handle
+        self.handle.to_base()
     }
     pub fn sync_to_model(&mut self, tile_set: &OptionTileSet, ui: &mut UserInterface) {
         let items = make_items(&mut ui.build_ctx(), tile_set);

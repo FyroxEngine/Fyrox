@@ -49,7 +49,7 @@ const MISSING_MACRO: &str = "UNKNOWN MACRO";
 /// stored within the brush. Macro instances can be created, deleted, renamed
 /// and their settings can be modified.
 pub struct MacroTab {
-    handle: Handle<UiNode>,
+    handle: Handle<Grid>,
     macros: BrushMacroListRef,
     current_macro_id: Option<Uuid>,
     macro_panel: Handle<Border>,
@@ -58,7 +58,7 @@ pub struct MacroTab {
     down_button: Handle<Button>,
     remove_button: Handle<Button>,
     add_buttons: Box<[Handle<UiNode>]>,
-    data_panel: Handle<UiNode>,
+    data_panel: Handle<Grid>,
     name_field: Handle<TextBox>,
 }
 
@@ -331,7 +331,7 @@ impl MacroTab {
         }
     }
     pub fn handle(&self) -> Handle<UiNode> {
-        self.handle
+        self.handle.to_base()
     }
     pub fn sync_to_model(&mut self, brush: TileMapBrushResource, ui: &mut UserInterface) {
         let items = make_instance_items(&mut ui.build_ctx(), brush.clone(), &self.macros.lock());

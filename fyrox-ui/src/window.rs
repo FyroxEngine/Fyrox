@@ -22,6 +22,7 @@
 //! for more info and usage examples.
 
 use crate::button::Button;
+use crate::grid::Grid;
 use crate::message::MessageData;
 use crate::vector_image::VectorImage;
 use crate::{
@@ -257,7 +258,7 @@ pub struct Window {
     /// Handle of a title widget of the window.
     pub title: Handle<UiNode>,
     /// Handle of a container widget of the title.
-    pub title_grid: Handle<UiNode>,
+    pub title_grid: Handle<Grid>,
     /// Optional size of the border around the screen in which the window will be forced to stay.
     pub safe_border_size: Option<Vector2<f32>>,
     /// Bounds of the window before maximization, it is used to return the window to previous
@@ -730,7 +731,7 @@ impl Control for Window {
                                         .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
                                 )
                                 .to_base();
-                                ui.send(self.title, WidgetMessage::LinkWith(self.title_grid));
+                                ui.send(self.title, WidgetMessage::link_with(self.title_grid));
                             }
                         }
                         WindowTitle::Node(node) => {
@@ -743,7 +744,7 @@ impl Control for Window {
                                 self.title = *node;
 
                                 // Attach new one.
-                                ui.send(self.title, WidgetMessage::LinkWith(self.title_grid));
+                                ui.send(self.title, WidgetMessage::link_with(self.title_grid));
                             }
                         }
                     }
