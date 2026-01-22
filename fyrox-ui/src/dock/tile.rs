@@ -67,17 +67,11 @@ pub enum TileContent {
     },
     VerticalTiles {
         splitter: f32,
-        /// Docking system requires tiles to be handles to Tile instances.
-        /// However any node handle is acceptable, but in this case docking
-        /// will most likely not work.
-        tiles: [Handle<UiNode>; 2],
+        tiles: [Handle<Tile>; 2],
     },
     HorizontalTiles {
         splitter: f32,
-        /// Docking system requires tiles to be handles to Tile instances.
-        /// However any node handle is acceptable, but in this case docking
-        /// will most likely not work.
-        tiles: [Handle<UiNode>; 2],
+        tiles: [Handle<Tile>; 2],
     },
 }
 
@@ -191,8 +185,8 @@ fn send_size(
 
 /// The window contained by the tile at the given handle, if the handle points
 /// to a tile and the tile has [`TileContent::Window`].
-fn get_tile_window(ui: &UserInterface, tile: Handle<UiNode>) -> Option<&Window> {
-    let tile = ui.node(tile).cast::<Tile>()?;
+fn get_tile_window(ui: &UserInterface, tile: Handle<Tile>) -> Option<&Window> {
+    let tile = ui.try_get(tile).ok()?;
     let handle = match &tile.content {
         TileContent::Window(handle) => handle,
         TileContent::MultiWindow { index, windows } => windows.get(*index as usize)?,
@@ -202,7 +196,7 @@ fn get_tile_window(ui: &UserInterface, tile: Handle<UiNode>) -> Option<&Window> 
 }
 
 /// True if the the given handle points to a tile that has been minimized.
-fn is_minimized_window(ui: &UserInterface, tile: Handle<UiNode>) -> bool {
+fn is_minimized_window(ui: &UserInterface, tile: Handle<Tile>) -> bool {
     let Some(window) = get_tile_window(ui, tile) else {
         return false;
     };
@@ -239,7 +233,7 @@ fn has_one_minimized(ui: &UserInterface, content: &TileContent) -> bool {
 /// that at most one of the two tiles is minimized at any time.
 fn deminimize_other_window(
     this_window: Handle<Window>,
-    tiles: &[Handle<UiNode>; 2],
+    tiles: &[Handle<Tile>; 2],
     ui: &UserInterface,
 ) {
     let mut has_this_window = false;
@@ -284,6 +278,7 @@ impl ConstructorProvider<UiNode, UserInterface> for Tile {
             .with_variant("Tile", |ui| {
                 TileBuilder::new(WidgetBuilder::new().with_name("Tile"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Layout")
@@ -318,9 +313,9 @@ impl Control for Tile {
                     splitter,
                     ref tiles,
                 } => {
-                    if tiles[0] == child_handle {
+                    if child_handle == tiles[0] {
                         Vector2::new(available_size.x, available_size.y * splitter)
-                    } else if tiles[1] == child_handle {
+                    } else if child_handle == tiles[1] {
                         Vector2::new(available_size.x, available_size.y * (1.0 - splitter))
                     } else {
                         available_size
@@ -330,9 +325,9 @@ impl Control for Tile {
                     splitter,
                     ref tiles,
                 } => {
-                    if tiles[0] == child_handle {
+                    if child_handle == tiles[0] {
                         Vector2::new(available_size.x * splitter, available_size.y)
-                    } else if tiles[1] == child_handle {
+                    } else if child_handle == tiles[1] {
                         Vector2::new(available_size.x * (1.0 - splitter), available_size.y)
                     } else {
                         available_size
@@ -362,7 +357,7 @@ impl Control for Tile {
             TileContent::VerticalTiles { tiles, .. } => {
                 let mut w = 0.0f32;
                 let mut h = DEFAULT_SPLITTER_SIZE;
-                for size in tiles.map(|c| ui.node(c).desired_size()) {
+                for size in tiles.map(|c| ui[c].desired_size()) {
                     w = w.max(size.x);
                     h += size.y;
                 }
@@ -371,7 +366,7 @@ impl Control for Tile {
             TileContent::HorizontalTiles { tiles, .. } => {
                 let mut w = DEFAULT_SPLITTER_SIZE;
                 let mut h = 0.0f32;
-                for size in tiles.map(|c| ui.node(c).desired_size()) {
+                for size in tiles.map(|c| ui[c].desired_size()) {
                     w += size.x;
                     h = h.max(size.y);
                 }
@@ -399,14 +394,14 @@ impl Control for Tile {
                     splitter,
                     ref tiles,
                 } => {
-                    if tiles[0] == child_handle {
+                    if child_handle == tiles[0] {
                         Rect::new(
                             0.0,
                             0.0,
                             final_size.x,
                             final_size.y * splitter - DEFAULT_SPLITTER_SIZE * 0.5,
                         )
-                    } else if tiles[1] == child_handle {
+                    } else if child_handle == tiles[1] {
                         Rect::new(
                             0.0,
                             final_size.y * splitter + splitter_size.y * 0.5,
@@ -428,14 +423,14 @@ impl Control for Tile {
                     splitter,
                     ref tiles,
                 } => {
-                    if tiles[0] == child_handle {
+                    if child_handle == tiles[0] {
                         Rect::new(
                             0.0,
                             0.0,
                             final_size.x * splitter - DEFAULT_SPLITTER_SIZE * 0.5,
                             final_size.y,
                         )
-                    } else if tiles[1] == child_handle {
+                    } else if child_handle == tiles[1] {
                         Rect::new(
                             final_size.x * splitter + DEFAULT_SPLITTER_SIZE * 0.5,
                             0.0,
@@ -615,7 +610,7 @@ impl Control for Tile {
                         | TileContent::HorizontalTiles { tiles, .. } => {
                             let mut has_empty_sub_tile = false;
                             for &tile in &tiles {
-                                if let Some(sub_tile) = ui.node(tile).cast::<Tile>() {
+                                if let Ok(sub_tile) = ui.try_get(tile) {
                                     if let TileContent::Empty = sub_tile.content {
                                         has_empty_sub_tile = true;
                                         break;
@@ -624,7 +619,7 @@ impl Control for Tile {
                             }
                             if has_empty_sub_tile {
                                 for &tile in &tiles {
-                                    if let Some(sub_tile) = ui.node(tile).cast::<Tile>() {
+                                    if let Ok(sub_tile) = ui.try_get(tile) {
                                         match sub_tile.content {
                                             TileContent::Window(sub_tile_wnd) => {
                                                 // If we have only a tile with a window, then detach window and schedule
@@ -767,11 +762,11 @@ impl Control for Tile {
                         let closed_window = message.destination().to_variant();
 
                         fn tile_has_window(
-                            tile: Handle<UiNode>,
+                            tile: Handle<Tile>,
                             ui: &UserInterface,
                             window: Handle<Window>,
                         ) -> bool {
-                            if let Some(tile_ref) = ui.node(tile).query_component::<Tile>() {
+                            if let Ok(tile_ref) = ui.try_get(tile) {
                                 if let TileContent::Window(tile_window) = tile_ref.content {
                                     tile_window == window
                                 } else {
@@ -786,13 +781,11 @@ impl Control for Tile {
                             let tile_a = tiles[tile_a_index];
                             let tile_b = tiles[tile_b_index];
                             if tile_has_window(tile_a, ui, closed_window) {
-                                if let Some(tile_a_ref) = ui.node(tile_a).query_component::<Tile>()
-                                {
+                                if let Ok(tile_a_ref) = ui.try_get(tile_a) {
                                     let window = &ui[closed_window];
                                     tile_a_ref.undock(window, ui);
                                 }
-                                if let Some(tile_b_ref) = ui.node(tile_b).query_component::<Tile>()
-                                {
+                                if let Ok(tile_b_ref) = ui.try_get(tile_b) {
                                     ui.send(closed_window, WidgetMessage::Unlink);
 
                                     tile_b_ref.unlink_content(ui);
@@ -1119,13 +1112,13 @@ impl Tile {
         let minimized_handle = tiles[minimized_index];
         let mut size = Vector2::new(available_size.x, f32::INFINITY);
         ui.measure_node(minimized_handle, size);
-        let d_1 = ui.node(minimized_handle).desired_size();
+        let d_1 = ui[minimized_handle].desired_size();
         size.y = available_size.y - d_1.y;
         let other_index = if minimized_index == 0 { 1 } else { 0 };
         ui.measure_node(tiles[other_index], size);
         size.y = 0.0;
         ui.measure_node(self.splitter, size);
-        let d_2 = ui.node(tiles[other_index]).desired_size();
+        let d_2 = ui[tiles[other_index]].desired_size();
         Vector2::new(d_1.x.max(d_2.x), d_1.y + d_2.y)
     }
     /// Arrange the tile in the special case where exactly one of the two child tiles
@@ -1146,7 +1139,7 @@ impl Tile {
             .position(|h| is_minimized_window(ui, *h))
             .unwrap();
         let minimized_handle = tiles[minimized_index];
-        let height = ui.node(minimized_handle).desired_size().y;
+        let height = ui[minimized_handle].desired_size().y;
         let mut bounds = if minimized_index == 0 {
             Rect::new(0.0, 0.0, final_size.x, height)
         } else {
@@ -1262,7 +1255,7 @@ impl TileBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<Tile> {
         let left_anchor = make_default_anchor(ctx, 2, 1);
         let right_anchor = make_default_anchor(ctx, 2, 3);
         let dock_anchor = make_default_anchor(ctx, 2, 2);
@@ -1349,8 +1342,8 @@ impl TileBuilder {
         let children = match &self.content {
             TileContent::Window(window) => vec![window.to_base()],
             TileContent::MultiWindow { windows, .. } => windows.clone().to_base(),
-            TileContent::VerticalTiles { tiles, .. } => vec![tiles[0], tiles[1]],
-            TileContent::HorizontalTiles { tiles, .. } => vec![tiles[0], tiles[1]],
+            TileContent::VerticalTiles { tiles, .. } => vec![tiles[0], tiles[1]].to_base(),
+            TileContent::HorizontalTiles { tiles, .. } => vec![tiles[0], tiles[1]].to_base(),
             TileContent::Empty => vec![],
         };
 
@@ -1375,7 +1368,7 @@ impl TileBuilder {
             drop_anchor: Default::default(),
         };
 
-        ctx.add_node(UiNode::new(tile))
+        ctx.add(tile)
     }
 }
 

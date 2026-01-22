@@ -37,6 +37,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 
+use fyrox_core::pool::HandlesArrayExtension;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;
 use std::cell::RefCell;
@@ -237,7 +238,7 @@ impl DockingManager {
             root_tile_descriptor: self
                 .children()
                 .first()
-                .map(|c| TileDescriptor::from_tile_handle(*c, ui)),
+                .map(|c| TileDescriptor::from_tile_handle(c.to_variant(), ui)),
         }
     }
 
@@ -272,7 +273,7 @@ impl DockingManager {
                         }
                         TileContent::VerticalTiles { tiles, .. }
                         | TileContent::HorizontalTiles { tiles, .. } => {
-                            stack.extend_from_slice(&tiles);
+                            stack.extend_from_slice(&tiles.to_base());
                         }
                         TileContent::Empty => (),
                     }

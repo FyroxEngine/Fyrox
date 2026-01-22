@@ -23,7 +23,7 @@ use crate::{
     core::{algebra::Vector2, log::Log, pool::Handle, visitor::prelude::*, ImmutableString},
     dock::{Tile, TileBuilder, TileContent},
     widget::{WidgetBuilder, WidgetMessage},
-    Orientation, UiNode, UserInterface,
+    Orientation, UserInterface,
 };
 use fyrox_graph::SceneGraph;
 use serde::{Deserialize, Serialize};
@@ -165,26 +165,22 @@ fn find_window(
 }
 
 impl TileDescriptor {
-    pub(super) fn from_tile_handle(handle: Handle<UiNode>, ui: &UserInterface) -> Self {
-        ui.try_get_of_type::<Tile>(handle)
+    pub(super) fn from_tile_handle(handle: Handle<Tile>, ui: &UserInterface) -> Self {
+        ui.try_get(handle)
             .map(|t| Self {
                 content: TileContentDescriptor::from_tile(&t.content, ui),
             })
             .unwrap_or_default()
     }
 
-    fn from_tile_handle_slice(slice: &[Handle<UiNode>; 2], ui: &UserInterface) -> [Box<Self>; 2] {
+    fn from_tile_handle_slice(slice: &[Handle<Tile>; 2], ui: &UserInterface) -> [Box<Self>; 2] {
         [
             Box::new(Self::from_tile_handle(slice[0], ui)),
             Box::new(Self::from_tile_handle(slice[1], ui)),
         ]
     }
 
-    pub fn create_tile(
-        &self,
-        ui: &mut UserInterface,
-        windows: &[Handle<Window>],
-    ) -> Handle<UiNode> {
+    pub fn create_tile(&self, ui: &mut UserInterface, windows: &[Handle<Window>]) -> Handle<Tile> {
         TileBuilder::new(WidgetBuilder::new())
             .with_content(match &self.content {
                 TileContentDescriptor::Empty => TileContent::Empty,
