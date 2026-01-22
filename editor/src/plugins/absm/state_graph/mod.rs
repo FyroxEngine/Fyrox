@@ -57,7 +57,7 @@ mod context;
 
 pub struct StateGraphViewer {
     pub window: Handle<Window>,
-    pub canvas: Handle<UiNode>,
+    pub canvas: Handle<AbsmCanvas>,
     canvas_context_menu: CanvasContextMenu,
     node_context_menu: NodeContextMenu,
     transition_context_menu: TransitionContextMenu,
@@ -120,7 +120,7 @@ impl StateGraphViewer {
     }
 
     pub fn clear(&self, ui: &UserInterface) {
-        for &child in ui.node(self.canvas).children() {
+        for &child in ui[self.canvas].children() {
             ui.send(child, WidgetMessage::Remove);
         }
     }
@@ -132,7 +132,7 @@ impl StateGraphViewer {
     ) where
         N: Reflect,
     {
-        if let Some(view_handle) = ui.node(self.canvas).children().iter().cloned().find(|c| {
+        if let Some(view_handle) = ui[self.canvas].children().iter().cloned().find(|c| {
             ui.node(*c)
                 .query_component::<TransitionView>()
                 .is_some_and(|transition_view_ref| {
@@ -148,12 +148,8 @@ impl StateGraphViewer {
     where
         N: Reflect,
     {
-        for (state_view_handle, state_view_ref) in ui
-            .node(self.canvas)
-            .children()
-            .iter()
-            .cloned()
-            .filter_map(|c| {
+        for (state_view_handle, state_view_ref) in
+            ui[self.canvas].children().iter().cloned().filter_map(|c| {
                 ui.node(c)
                     .query_component::<AbsmNode<State<Handle<N>>>>()
                     .map(|state_view_ref| (c, state_view_ref))
@@ -310,11 +306,7 @@ impl StateGraphViewer {
         G: SceneGraph<Node = N, Prefab = P>,
         N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
     {
-        let canvas = ui
-            .node(self.canvas)
-            .cast::<AbsmCanvas>()
-            .expect("Must be AbsmCanvas!");
-
+        let canvas = &ui[self.canvas];
         let current_selection = fetch_selection(editor_selection);
 
         let mut states = Vec::new();
@@ -376,7 +368,7 @@ impl StateGraphViewer {
 
                         states.push(state_view_handle.to_base());
 
-                        ui.send_sync(state_view_handle, WidgetMessage::LinkWith(self.canvas));
+                        ui.send_sync(state_view_handle, WidgetMessage::link_with(self.canvas));
                     }
                 }
             }
@@ -479,7 +471,7 @@ impl StateGraphViewer {
                         .with_dest(find_state_view(transition.dest(), &states, ui).to_base())
                         .build(transition_handle.into(), &mut ui.build_ctx());
 
-                        ui.send_sync(transition_view, WidgetMessage::LinkWith(self.canvas));
+                        ui.send_sync(transition_view, WidgetMessage::link_with(self.canvas));
                         ui.send_sync(transition_view, WidgetMessage::Lowermost);
 
                         transitions.push(transition_view);

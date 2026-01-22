@@ -186,15 +186,12 @@ impl UiNode {
     /// }
     ///
     /// impl MyWidgetBuilder {
-    ///     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    ///     pub fn build(self, ctx: &mut BuildContext) -> Handle<MyWidget> {
     ///         let my_widget = MyWidget {
     ///             widget: self.widget_builder.build(ctx),
     ///         };
     ///
-    ///         // Wrap your widget in the type-agnostic wrapper so it can be placed in the UI.
-    ///         let node = UiNode::new(my_widget);
-    ///
-    ///         ctx.add_node(node)
+    ///         ctx.add(my_widget)
     ///     }
     /// }
     /// ```

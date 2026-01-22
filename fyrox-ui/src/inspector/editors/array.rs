@@ -246,7 +246,7 @@ where
         name_column_width: f32,
         base_path: String,
         has_parent_object: bool,
-    ) -> Result<Handle<UiNode>, InspectorError> {
+    ) -> Result<Handle<ArrayEditor>, InspectorError> {
         let definition_container = self
             .definition_container
             .unwrap_or_else(|| Arc::new(PropertyEditorDefinitionContainer::with_default_editors()));
@@ -279,7 +279,7 @@ where
             items,
         };
 
-        Ok(ctx.add_node(UiNode::new(ce)))
+        Ok(ctx.add(ce))
     }
 }
 
@@ -355,7 +355,10 @@ where
             ctx.build_context,
         );
 
-        Ok(PropertyEditorInstance::Custom { container, editor })
+        Ok(PropertyEditorInstance::Custom {
+            container,
+            editor: editor.to_base(),
+        })
     }
 
     fn create_message(

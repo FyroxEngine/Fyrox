@@ -57,6 +57,7 @@ use crate::plugins::absm::{
 };
 use crate::scene::{commands::ChangeSelectionCommand, Selection};
 
+use crate::plugins::absm::canvas::AbsmCanvas;
 use fyrox::core::reflect::Reflect;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
@@ -67,7 +68,7 @@ mod context;
 
 pub struct StateViewer {
     pub window: Handle<Window>,
-    canvas: Handle<UiNode>,
+    canvas: Handle<AbsmCanvas>,
     state: ErasedHandle,
     canvas_context_menu: CanvasContextMenu,
     node_context_menu: NodeContextMenu,
@@ -253,7 +254,7 @@ impl StateViewer {
     pub fn clear(&mut self, ui: &UserInterface) {
         self.state = Default::default();
 
-        for &child in ui.node(self.canvas).children() {
+        for &child in ui[self.canvas].children() {
             ui.send(child, WidgetMessage::Remove);
         }
 
@@ -431,8 +432,7 @@ impl StateViewer {
                 self.prev_absm = current_selection.absm_node_handle.into();
                 self.clear(ui);
             } else {
-                views = ui
-                    .node(self.canvas)
+                views = ui[self.canvas]
                     .children()
                     .iter()
                     .cloned()
@@ -547,7 +547,7 @@ impl StateViewer {
                             .with_model_handle(pose_definition)
                             .build(&mut ui.build_ctx());
 
-                            ui.send_sync(node_view, WidgetMessage::LinkWith(self.canvas));
+                            ui.send_sync(node_view, WidgetMessage::link_with(self.canvas));
 
                             views.push(node_view.to_base());
                         }
@@ -632,7 +632,7 @@ impl StateViewer {
             // Sync connections - remove old ones and create new. Since there is no separate data model
             // for connection we can't find which connection has changed and sync only it, instead we
             // removing every connection and create new.
-            for child in ui.node(self.canvas).children().iter().cloned() {
+            for child in ui[self.canvas].children().iter().cloned() {
                 if ui.node(child).has_component::<Connection>() {
                     ui.send_sync(child, WidgetMessage::Remove);
                 }
@@ -675,7 +675,7 @@ impl StateViewer {
                         .with_dest_node(dest_handle)
                         .build(self.canvas, &mut ui.build_ctx());
 
-                        ui.send_sync(connection, WidgetMessage::LinkWith(self.canvas));
+                        ui.send_sync(connection, WidgetMessage::link_with(self.canvas));
                         ui.send_sync(connection, WidgetMessage::Lowermost);
                     }
                 }
@@ -707,7 +707,7 @@ impl StateViewer {
             ui.send_sync(self.canvas, AbsmCanvasMessage::ForceSyncDependentObjects);
         } else {
             // Clean the canvas.
-            for child in ui.node(self.canvas).children() {
+            for child in ui[self.canvas].children() {
                 ui.send_sync(*child, WidgetMessage::Remove);
             }
         }

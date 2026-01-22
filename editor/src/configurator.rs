@@ -48,6 +48,7 @@ use crate::{
     Engine, Message,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::file_browser::FileSelector;
 use fyrox::gui::list_view::ListView;
 use fyrox::gui::text_box::TextBox;
 use fyrox::gui::window::Window;
@@ -62,7 +63,7 @@ pub const HISTORY_PATH: &str = "history.bin";
 
 pub struct Configurator {
     pub window: Handle<Window>,
-    work_dir_browser: Handle<UiNode>,
+    work_dir_selector: Handle<FileSelector>,
     select_work_dir: Handle<Button>,
     ok: Handle<Button>,
     sender: MessageSender,
@@ -101,7 +102,7 @@ impl Configurator {
 
         let current_path = env::current_dir().unwrap();
 
-        let folder_browser = FileSelectorBuilder::new(
+        let work_dir_selector = FileSelectorBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                 .open(false)
                 .with_title(WindowTitle::text("Select Working Directory")),
@@ -258,7 +259,7 @@ impl Configurator {
 
         Self {
             window,
-            work_dir_browser: folder_browser,
+            work_dir_selector,
             select_work_dir,
             ok,
             sender,
@@ -302,7 +303,7 @@ impl Configurator {
         } else if let Some(FileSelectorMessage::Commit(path)) =
             message.data::<FileSelectorMessage>()
         {
-            if message.destination() == self.work_dir_browser {
+            if message.destination() == self.work_dir_selector {
                 if let Ok(work_dir) = path.clone().canonicalize() {
                     self.work_dir = work_dir;
                     engine.user_interfaces.first().send(
@@ -342,7 +343,7 @@ impl Configurator {
                     .send(self.window, WindowMessage::Close);
             } else if message.destination() == self.select_work_dir {
                 engine.user_interfaces.first().send(
-                    self.work_dir_browser,
+                    self.work_dir_selector,
                     WindowMessage::Open {
                         alignment: WindowAlignment::Center,
                         modal: true,

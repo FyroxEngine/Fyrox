@@ -28,7 +28,7 @@ use fyrox::core::pool::HandlesVecExtension;
 use fyrox::gui::button::Button;
 use fyrox::gui::check_box::CheckBox;
 use fyrox::gui::decorator::Decorator;
-use fyrox::gui::file_browser::{FileSelectorMode, PathFilter};
+use fyrox::gui::file_browser::{FileSelector, FileSelectorMode, PathFilter};
 use fyrox::gui::grid::Grid;
 use fyrox::gui::list_view::ListView;
 use fyrox::gui::messagebox::MessageBox;
@@ -147,7 +147,7 @@ pub struct ProjectManager {
     pub settings: Settings,
     project_wizard: Option<ProjectWizard>,
     build_window: Option<BuildWindow>,
-    import_project_dialog: Handle<UiNode>,
+    import_project_dialog: Handle<FileSelector>,
     pub mode: Mode,
     search_text: String,
     log: LogPanel,

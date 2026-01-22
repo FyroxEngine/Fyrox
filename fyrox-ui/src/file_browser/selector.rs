@@ -20,6 +20,7 @@
 
 use crate::button::Button;
 use crate::dropdown_list::DropdownList;
+use crate::file_browser::FileBrowser;
 use crate::messagebox::MessageBox;
 use crate::text_box::TextBox;
 use crate::{
@@ -79,7 +80,7 @@ impl MessageData for FileSelectorMessage {}
 pub struct FileSelector {
     #[component(include)]
     pub window: Window,
-    pub browser: Handle<UiNode>,
+    pub browser: Handle<FileBrowser>,
     pub ok: Handle<Button>,
     pub cancel: Handle<Button>,
     pub selected_folder: PathBuf,
@@ -100,6 +101,7 @@ impl ConstructorProvider<UiNode, UserInterface> for FileSelector {
                     WidgetBuilder::new().with_name("File Selector"),
                 ))
                 .build(&mut ui.build_ctx())
+                .to_base()
                 .into()
             })
             .with_group("File System")
@@ -355,7 +357,7 @@ impl FileSelectorBuilder {
         self
     }
 
-    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<FileSelector> {
         let browser;
         let ok;
         let cancel;
@@ -561,7 +563,7 @@ impl FileSelectorBuilder {
             overwrite_message_box: Default::default(),
         };
 
-        ctx.add_node(UiNode::new(file_selector))
+        ctx.add(file_selector)
     }
 }
 

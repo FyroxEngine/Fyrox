@@ -38,7 +38,7 @@ use crate::{
 };
 use fyrox::core::pool::ObjectOrVariant;
 use fyrox::gui::button::Button;
-use fyrox::gui::file_browser::{FileSelectorMode, FileType};
+use fyrox::gui::file_browser::{FileSelector, FileSelectorMode, FileType};
 use fyrox::gui::texture::TextureResource;
 use fyrox::gui::utils::make_image_button_with_tooltip;
 use std::{fs::File, path::Path};
@@ -109,7 +109,7 @@ pub fn create_file_selector(
     ctx: &mut BuildContext,
     file_type: FileType,
     mode: FileSelectorMode,
-) -> Handle<UiNode> {
+) -> Handle<FileSelector> {
     FileSelectorBuilder::new(
         WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0)).open(false),
     )

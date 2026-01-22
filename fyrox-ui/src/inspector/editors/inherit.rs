@@ -142,7 +142,7 @@ impl InheritablePropertyEditorBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<InheritablePropertyEditor> {
         let revert;
         let grid = GridBuilder::new(WidgetBuilder::new().with_child(self.container).with_child({
             revert = ButtonBuilder::new(
@@ -174,11 +174,11 @@ impl InheritablePropertyEditorBuilder {
         .add_column(Column::auto())
         .build(ctx);
 
-        ctx.add_node(UiNode::new(InheritablePropertyEditor {
+        ctx.add(InheritablePropertyEditor {
             widget: self.widget_builder.with_child(grid).build(ctx),
             revert,
             inner_editor: self.inner_editor,
-        }))
+        })
     }
 }
 
@@ -279,7 +279,8 @@ where
                             .cast_value::<InheritableVariable<T>>()?
                             .is_modified(),
                 )
-                .build(ctx.build_context);
+                .build(ctx.build_context)
+                .to_base();
 
             Ok(match instance {
                 PropertyEditorInstance::Simple { .. } => {

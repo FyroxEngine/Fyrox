@@ -34,7 +34,9 @@ use crate::fyrox::{
 };
 use crate::plugins::absm::segment::Segment;
 use crate::utils::fetch_node_screen_center;
+use fyrox::graph::SceneGraph;
 
+use crate::plugins::absm::canvas::AbsmCanvas;
 use crate::plugins::absm::socket::Socket;
 use fyrox::material::MaterialResource;
 
@@ -151,8 +153,8 @@ impl ConnectionBuilder {
         self
     }
 
-    pub fn build(self, canvas: Handle<UiNode>, ctx: &mut BuildContext) -> Handle<Connection> {
-        let canvas_ref = ctx.try_get_node(canvas);
+    pub fn build(self, canvas: Handle<AbsmCanvas>, ctx: &mut BuildContext) -> Handle<Connection> {
+        let canvas_ref = ctx.inner().try_get(canvas).ok();
 
         let connection = Connection {
             widget: self

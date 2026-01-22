@@ -58,7 +58,7 @@ pub struct CanvasContextMenu {
     create_state: Handle<MenuItem>,
     connect_all_nodes: Handle<MenuItem>,
     pub menu: RcUiNodeHandle,
-    pub canvas: Handle<UiNode>,
+    pub canvas: Handle<AbsmCanvas>,
     pub node_context_menu: Option<RcUiNodeHandle>,
 }
 
@@ -129,7 +129,7 @@ impl CanvasContextMenu {
                     absm_node_handle,
                     layer_index,
                     State {
-                        position: ui.node(self.canvas).screen_to_local(screen_position),
+                        position: ui[self.canvas].screen_to_local(screen_position),
                         name: "New State".to_string(),
                         on_enter_actions: Default::default(),
                         on_leave_actions: Default::default(),
@@ -137,10 +137,7 @@ impl CanvasContextMenu {
                     },
                 ));
             } else if message.destination() == self.connect_all_nodes {
-                let canvas = ui
-                    .node(self.canvas)
-                    .query_component::<AbsmCanvas>()
-                    .unwrap();
+                let canvas = &ui[self.canvas];
                 let state_nodes = canvas.children();
                 let mut states = Vec::default();
                 for source in state_nodes {
@@ -178,7 +175,7 @@ pub struct NodeContextMenu {
     enter_state: Handle<MenuItem>,
     connect_to_all_nodes: Handle<MenuItem>,
     pub menu: RcUiNodeHandle,
-    pub canvas: Handle<UiNode>,
+    pub canvas: Handle<AbsmCanvas>,
     placement_target: Handle<UiNode>,
 }
 
@@ -273,7 +270,7 @@ impl NodeContextMenu {
                     AbsmCanvasMessage::SwitchMode(Mode::CreateTransition {
                         source: self.placement_target,
                         source_pos: ui.node(self.placement_target).center(),
-                        dest_pos: ui.node(self.canvas).screen_to_local(ui.cursor_position()),
+                        dest_pos: ui[self.canvas].screen_to_local(ui.cursor_position()),
                     }),
                 )
             } else if message.destination == self.remove {
@@ -344,11 +341,7 @@ impl NodeContextMenu {
             } else if message.destination == self.enter_state {
                 ui.post(self.placement_target, AbsmNodeMessage::Enter);
             } else if message.destination == self.connect_to_all_nodes {
-                let canvas = ui
-                    .node(self.canvas)
-                    .cast::<AbsmCanvas>()
-                    .expect("Must be absm canvas");
-
+                let canvas = &ui[self.canvas];
                 let state_nodes = canvas
                     .children()
                     .iter()

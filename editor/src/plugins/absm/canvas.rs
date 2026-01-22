@@ -615,7 +615,7 @@ impl AbsmCanvasBuilder {
         Self { widget_builder }
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<AbsmCanvas> {
         let canvas = AbsmCanvas {
             widget: self
                 .widget_builder
@@ -632,7 +632,7 @@ impl AbsmCanvasBuilder {
             lmb_released_node: Default::default(),
         };
 
-        ctx.add_node(UiNode::new(canvas))
+        ctx.add(canvas)
     }
 }
 

@@ -440,7 +440,7 @@ impl TextureSliceEditorBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<TextureSliceEditor> {
         let region_min_thumb =
             make_thumb(self.slice.texture_region.position, self.handle_size, ctx);
         let region_max_thumb = make_thumb(
@@ -451,7 +451,7 @@ impl TextureSliceEditorBuilder {
         let slice_min_thumb = make_thumb(self.slice.margin_min(), self.handle_size, ctx);
         let slice_max_thumb = make_thumb(self.slice.margin_max(), self.handle_size, ctx);
 
-        ctx.add_node(UiNode::new(TextureSliceEditor {
+        ctx.add(TextureSliceEditor {
             widget: self
                 .widget_builder
                 .with_child(region_min_thumb)
@@ -467,7 +467,7 @@ impl TextureSliceEditorBuilder {
             slice_max_thumb,
             drag_context: None,
             scale: 1.0,
-        }))
+        })
     }
 }
 
@@ -477,7 +477,7 @@ impl TextureSliceEditorBuilder {
 pub struct TextureSliceEditorWindow {
     window: Window,
     parent_editor: Handle<UiNode>,
-    slice_editor: Handle<UiNode>,
+    slice_editor: Handle<TextureSliceEditor>,
     texture_slice: TextureSlice,
     left_margin: Handle<NumericUpDown<u32>>,
     right_margin: Handle<NumericUpDown<u32>>,
@@ -595,7 +595,11 @@ impl TextureSliceEditorWindowBuilder {
         self
     }
 
-    pub fn build(self, parent_editor: Handle<UiNode>, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(
+        self,
+        parent_editor: Handle<UiNode>,
+        ctx: &mut BuildContext,
+    ) -> Handle<TextureSliceEditorWindow> {
         let region_text = TextBuilder::new(WidgetBuilder::new())
             .with_text("Texture Region")
             .build(ctx);
@@ -675,7 +679,7 @@ impl TextureSliceEditorWindowBuilder {
         .add_row(Row::stretch())
         .build(ctx);
 
-        let node = UiNode::new(TextureSliceEditorWindow {
+        let node = TextureSliceEditorWindow {
             window: self.window_builder.with_content(content).build_window(ctx),
             parent_editor,
             slice_editor,
@@ -685,9 +689,9 @@ impl TextureSliceEditorWindowBuilder {
             top_margin,
             bottom_margin,
             region,
-        });
+        };
 
-        ctx.add_node(node)
+        ctx.add(node)
     }
 }
 
@@ -698,7 +702,7 @@ pub struct TextureSliceFieldEditor {
     widget: Widget,
     texture_slice: TextureSlice,
     edit: Handle<Button>,
-    editor: Handle<UiNode>,
+    editor: Handle<TextureSliceEditorWindow>,
 }
 
 define_widget_deref!(TextureSliceFieldEditor);
@@ -759,18 +763,18 @@ impl TextureSliceFieldEditorBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<TextureSliceFieldEditor> {
         let edit = ButtonBuilder::new(WidgetBuilder::new())
             .with_text("Edit...")
             .build(ctx);
 
-        let node = UiNode::new(TextureSliceFieldEditor {
+        let node = TextureSliceFieldEditor {
             widget: self.widget_builder.with_child(edit).build(ctx),
             texture_slice: self.texture_slice,
             edit,
             editor: Default::default(),
-        });
-        ctx.add_node(node)
+        };
+        ctx.add(node)
     }
 }
 
@@ -787,15 +791,15 @@ impl PropertyEditorDefinition for TextureSlicePropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<TextureSlice>()?;
-        Ok(PropertyEditorInstance::Simple {
-            editor: TextureSliceFieldEditorBuilder::new(
+        Ok(PropertyEditorInstance::simple(
+            TextureSliceFieldEditorBuilder::new(
                 WidgetBuilder::new()
                     .with_margin(Thickness::top_bottom(1.0))
                     .with_vertical_alignment(VerticalAlignment::Center),
             )
             .with_texture_slice(value.clone())
             .build(ctx.build_context),
-        })
+        ))
     }
 
     fn create_message(

@@ -246,7 +246,7 @@ impl SpriteSheetFramesEditorWindow {
         ctx: &mut BuildContext,
         container: SpriteSheetFramesContainer,
         editor: Handle<UiNode>,
-    ) -> Handle<UiNode> {
+    ) -> Handle<SpriteSheetFramesEditorWindow> {
         let ok;
         let cancel;
         let width;
@@ -415,6 +415,6 @@ impl SpriteSheetFramesEditorWindow {
             preview_image,
         };
 
-        ctx.add_node(UiNode::new(editor))
+        ctx.add(editor)
     }
 }

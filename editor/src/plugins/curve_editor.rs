@@ -51,7 +51,7 @@ use crate::{
 use fyrox::asset::manager::ResourceManager;
 use fyrox::core::some_or_return;
 use fyrox::gui::button::Button;
-use fyrox::gui::file_browser::{FileSelectorMode, FileType};
+use fyrox::gui::file_browser::{FileSelector, FileSelectorMode, FileType};
 use fyrox::gui::menu::MenuItem;
 use fyrox::gui::messagebox::MessageBox;
 use fyrox::gui::style::resource::StyleResourceExt;
@@ -114,8 +114,8 @@ pub struct CurveEditorWindow {
     curve_resource: Option<CurveResource>,
     command_stack: CommandStack,
     menu: Menu,
-    load_file_selector: Handle<UiNode>,
-    save_file_selector: Handle<UiNode>,
+    load_file_selector: Handle<FileSelector>,
+    save_file_selector: Handle<FileSelector>,
     path: PathBuf,
     save_changes_message_box: Handle<MessageBox>,
     cancel_message_box: Handle<MessageBox>,

@@ -284,15 +284,15 @@ impl SurfaceDataPropertyEditor {
             image_preview,
         };
 
-        let handle = ctx.add_node(UiNode::new(editor));
+        let handle = ctx.add(editor);
 
         Log::verify(icon_request_sender.send(IconRequest {
-            widget_handle: handle,
+            widget_handle: handle.to_base(),
             resource: surface_resource.into_untyped(),
             force_update: false,
         }));
 
-        handle.to_variant()
+        handle
     }
 }
 

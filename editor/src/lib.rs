@@ -181,7 +181,7 @@ use crate::{
 use fyrox::core::{info, uuid};
 use fyrox::engine::GraphicsContext;
 use fyrox::event_loop::ActiveEventLoop;
-use fyrox::gui::file_browser::{FileSelectorMode, FileType, PathFilter};
+use fyrox::gui::file_browser::{FileSelector, FileSelectorMode, FileType, PathFilter};
 use fyrox::gui::grid::Grid;
 use fyrox::gui::inspector::editors::PropertyEditorDefinitionContainer;
 use fyrox::gui::messagebox::MessageBox;
@@ -313,7 +313,7 @@ pub fn make_save_file_selector(
     default_file_name: PathBuf,
     file_type: FileType,
     id: Uuid,
-) -> Handle<UiNode> {
+) -> Handle<FileSelector> {
     FileSelectorBuilder::new(
         WindowBuilder::new(
             WidgetBuilder::new()

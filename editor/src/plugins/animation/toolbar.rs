@@ -70,6 +70,7 @@ use crate::{
     },
 };
 use fyrox::gui::check_box::CheckBox;
+use fyrox::gui::file_browser::FileSelector;
 use fyrox::gui::numeric::NumericUpDown;
 use fyrox::gui::popup::Popup;
 use fyrox::gui::text::Text;
@@ -97,7 +98,7 @@ pub struct Toolbar {
     pub import: Handle<Button>,
     pub reimport: Handle<Button>,
     pub node_selector: Handle<UiNode>,
-    pub import_file_selector: Handle<UiNode>,
+    pub import_file_selector: Handle<FileSelector>,
     pub selected_import_root: ErasedHandle,
     pub looping: Handle<CheckBox>,
     pub enabled: Handle<CheckBox>,

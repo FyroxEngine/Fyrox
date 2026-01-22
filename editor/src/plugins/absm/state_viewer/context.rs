@@ -35,6 +35,7 @@ use crate::fyrox::{
         BuildContext, RcUiNodeHandle, UiNode, UserInterface,
     },
 };
+use crate::plugins::absm::canvas::AbsmCanvas;
 use crate::plugins::absm::{
     command::{
         blend::{
@@ -62,7 +63,7 @@ pub struct CanvasContextMenu {
     create_blend_by_index: Handle<MenuItem>,
     create_blend_space: Handle<MenuItem>,
     pub menu: RcUiNodeHandle,
-    pub canvas: Handle<UiNode>,
+    pub canvas: Handle<AbsmCanvas>,
     pub node_context_menu: Option<RcUiNodeHandle>,
 }
 
@@ -147,9 +148,8 @@ impl CanvasContextMenu {
         layer_index: usize,
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
-            let position = ui
-                .node(self.canvas)
-                .screen_to_local(ui.node(self.menu.handle()).screen_position());
+            let position =
+                ui[self.canvas].screen_to_local(ui.node(self.menu.handle()).screen_position());
 
             let pose_node = if message.destination() == self.create_play_animation {
                 Some(PoseNode::PlayAnimation(PlayAnimation {
@@ -225,7 +225,7 @@ pub struct NodeContextMenu {
     remove: Handle<MenuItem>,
     set_as_root: Handle<MenuItem>,
     pub menu: RcUiNodeHandle,
-    pub canvas: Handle<UiNode>,
+    pub canvas: Handle<AbsmCanvas>,
     placement_target: Handle<UiNode>,
 }
 

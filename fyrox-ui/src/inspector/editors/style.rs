@@ -190,7 +190,7 @@ impl StyledPropertySelectorBuilder {
         target_type: TypeId,
         style_property_name: ImmutableString,
         ctx: &mut BuildContext,
-    ) -> Handle<UiNode> {
+    ) -> Handle<StyledPropertySelector> {
         let style_data = target_style.data_ref();
         let (items, property_list): (Vec<_>, Vec<_>) = style_data
             .all_properties()
@@ -274,7 +274,7 @@ impl StyledPropertySelectorBuilder {
             );
         }
 
-        ctx.add_node(UiNode::new(selector))
+        ctx.add(selector)
     }
 
     pub fn build_and_open_window(
@@ -282,7 +282,7 @@ impl StyledPropertySelectorBuilder {
         target_type: TypeId,
         style_property_name: ImmutableString,
         ctx: &mut BuildContext,
-    ) -> Handle<UiNode> {
+    ) -> Handle<StyledPropertySelector> {
         let window = StyledPropertySelectorBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(200.0))
                 .with_title(WindowTitle::text("Select A Style Property"))
@@ -311,7 +311,7 @@ pub struct StyledPropertyEditor {
     widget: Widget,
     bind: Handle<Button>,
     inner_editor: Handle<UiNode>,
-    selector: Handle<UiNode>,
+    selector: Handle<StyledPropertySelector>,
     target_style: Option<StyleResource>,
     style_property_name: ImmutableString,
     #[visit(skip)]
@@ -408,7 +408,7 @@ impl StyledPropertyEditorBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<StyledPropertyEditor> {
         let is_bound = !self.style_property_name.is_empty();
         let brush = if is_bound {
             ctx.style.property(Style::BRUSH_BRIGHT_BLUE)
@@ -452,7 +452,7 @@ impl StyledPropertyEditorBuilder {
         .add_column(Column::auto())
         .build(ctx);
 
-        ctx.add_node(UiNode::new(StyledPropertyEditor {
+        ctx.add(StyledPropertyEditor {
             widget: self
                 .widget_builder
                 .with_preview_messages(true)
@@ -464,7 +464,7 @@ impl StyledPropertyEditorBuilder {
             target_style: self.target_style,
             style_property_name: self.style_property_name,
             target_type_id: self.target_type_id,
-        }))
+        })
     }
 }
 
@@ -565,7 +565,8 @@ where
                         .flatten()
                 }))
                 .with_style_property_name(value.name.clone())
-                .build(ctx.build_context);
+                .build(ctx.build_context)
+                .to_base();
 
             Ok(match instance {
                 PropertyEditorInstance::Simple { .. } => {

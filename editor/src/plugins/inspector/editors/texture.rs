@@ -72,7 +72,7 @@ struct TextureContextMenu {
 }
 
 impl TextureContextMenu {
-    fn new(owner: Handle<UiNode>, ctx: &mut BuildContext) -> Self {
+    fn new(owner: Handle<TextureEditor>, ctx: &mut BuildContext) -> Self {
         let show_in_asset_browser;
         let unassign;
         let popup = ContextMenuBuilder::new(
@@ -96,7 +96,7 @@ impl TextureContextMenu {
                     .build(ctx),
                 )
                 .with_restrict_picking(false)
-                .with_owner(owner),
+                .with_owner(owner.to_base()),
         )
         .build(ctx);
         let popup = RcUiNodeHandle::new(popup, ctx.sender());
@@ -312,13 +312,10 @@ impl TextureEditorBuilder {
             texture_context_menu: None,
         };
 
-        let editor = ctx.add_node(UiNode::new(editor));
+        let editor = ctx.add(editor);
 
         let texture_context_menu = TextureContextMenu::new(editor, ctx);
-        let editor_mut = ctx
-            .inner_mut()
-            .try_get_mut_of_type::<TextureEditor>(editor)
-            .unwrap();
+        let editor_mut = &mut ctx.inner_mut()[editor];
         editor_mut.context_menu = Some(texture_context_menu.popup.clone());
         editor_mut.texture_context_menu = Some(texture_context_menu);
 

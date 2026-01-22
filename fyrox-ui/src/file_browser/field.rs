@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::button::Button;
+use crate::file_browser::FileSelector;
 use crate::text_box::TextBox;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
@@ -56,7 +57,7 @@ pub struct FileSelectorField {
     path: PathBuf,
     path_field: Handle<TextBox>,
     select: Handle<Button>,
-    file_selector: Handle<UiNode>,
+    file_selector: Handle<FileSelector>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for FileSelectorField {

@@ -133,6 +133,7 @@ impl ConstructorProvider<UiNode, UserInterface> for FileBrowser {
             .with_variant("File Browser", |ui| {
                 FileBrowserBuilder::new(WidgetBuilder::new().with_name("File Browser"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("File System")
@@ -623,7 +624,7 @@ impl FileBrowserBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<FileBrowser> {
         let item_context_menu = RcUiNodeHandle::new(ItemContextMenu::build(ctx), ctx.sender());
 
         let fs_tree::FsTree {
@@ -769,18 +770,16 @@ impl FileBrowserBuilder {
             no_items_message,
             fs_events: Default::default(),
         };
-        let file_browser_handle = ctx.add_node(UiNode::new(browser));
+        let file_browser_handle = ctx.add(browser);
         let sender = ctx.sender();
-        ctx[file_browser_handle]
-            .cast_mut::<FileBrowser>()
-            .unwrap()
-            .watcher = setup_file_browser_fs_watcher(sender, file_browser_handle, the_path);
+        ctx[file_browser_handle].watcher =
+            setup_file_browser_fs_watcher(sender, file_browser_handle, the_path);
         file_browser_handle
     }
 }
 
 struct EventReceiver {
-    file_browser_handle: Handle<UiNode>,
+    file_browser_handle: Handle<FileBrowser>,
     sender: Sender<UiMessage>,
 }
 
@@ -820,7 +819,7 @@ impl notify::EventHandler for EventReceiver {
 
 fn setup_file_browser_fs_watcher(
     sender: Sender<UiMessage>,
-    file_browser_handle: Handle<UiNode>,
+    file_browser_handle: Handle<FileBrowser>,
     the_path: PathBuf,
 ) -> Option<notify::RecommendedWatcher> {
     let handler = EventReceiver {

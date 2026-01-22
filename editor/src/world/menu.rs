@@ -60,7 +60,7 @@ use crate::{
     Engine, Message, PasteCommand,
 };
 use fyrox::core::{uuid, Uuid};
-use fyrox::gui::file_browser::FileType;
+use fyrox::gui::file_browser::{FileSelector, FileType};
 use fyrox::gui::menu::MenuItem;
 use fyrox::gui::window::WindowAlignment;
 use std::{any::TypeId, path::PathBuf};
@@ -74,7 +74,7 @@ pub struct SceneNodeContextMenu {
     replace_with_menu: CreateEntityMenu,
     placement_target: Handle<UiNode>,
     save_as_prefab: Handle<MenuItem>,
-    save_as_prefab_dialog: Handle<UiNode>,
+    save_as_prefab_dialog: Handle<FileSelector>,
     paste: Handle<MenuItem>,
     make_root: Handle<MenuItem>,
     open_asset: Handle<MenuItem>,

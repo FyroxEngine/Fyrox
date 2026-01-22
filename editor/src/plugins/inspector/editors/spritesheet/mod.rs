@@ -102,7 +102,10 @@ impl Control for SpriteSheetFramesPropertyEditor {
 }
 
 impl SpriteSheetFramesPropertyEditor {
-    pub fn build(ctx: &mut BuildContext, container: SpriteSheetFramesContainer) -> Handle<UiNode> {
+    pub fn build(
+        ctx: &mut BuildContext,
+        container: SpriteSheetFramesContainer,
+    ) -> Handle<SpriteSheetFramesPropertyEditor> {
         let edit_button;
         let grid = GridBuilder::new(
             WidgetBuilder::new()
@@ -132,11 +135,11 @@ impl SpriteSheetFramesPropertyEditor {
         .add_column(Column::auto())
         .build(ctx);
 
-        ctx.add_node(UiNode::new(Self {
+        ctx.add(Self {
             widget: WidgetBuilder::new().with_child(grid).build(ctx),
             edit_button,
             container,
-        }))
+        })
     }
 }
 
@@ -155,7 +158,7 @@ impl PropertyEditorDefinition for SpriteSheetFramesContainerEditorDefinition {
 
         let editor = SpriteSheetFramesPropertyEditor::build(ctx.build_context, value.clone());
 
-        Ok(PropertyEditorInstance::Simple { editor })
+        Ok(PropertyEditorInstance::simple(editor))
     }
 
     fn create_message(

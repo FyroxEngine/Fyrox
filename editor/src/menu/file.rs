@@ -31,7 +31,7 @@ use crate::{
             messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, UiNode, UserInterface,
+            BuildContext, UserInterface,
         },
     },
     load_image, make_save_file_selector,
@@ -41,6 +41,7 @@ use crate::{
     settings::{recent::RecentFiles, Settings},
     Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
 };
+use fyrox::gui::file_browser::FileSelector;
 use fyrox::gui::menu::MenuItem;
 use fyrox::gui::messagebox::MessageBox;
 use std::{path::PathBuf, sync::mpsc::Sender};
@@ -56,8 +57,8 @@ pub struct FileMenu {
     pub close_scene: Handle<MenuItem>,
     pub exit: Handle<MenuItem>,
     pub configure: Handle<MenuItem>,
-    pub save_file_selector: Handle<UiNode>,
-    pub load_file_selector: Handle<UiNode>,
+    pub save_file_selector: Handle<FileSelector>,
+    pub load_file_selector: Handle<FileSelector>,
     pub configure_message: Handle<MessageBox>,
     pub recent_files_container: Handle<MenuItem>,
     pub recent_files: Vec<Handle<MenuItem>>,
