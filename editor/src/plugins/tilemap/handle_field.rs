@@ -133,7 +133,7 @@ impl TileHandleFieldBuilder {
         self.value = value;
         self
     }
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<TileHandleField> {
         let field = TextBoxBuilder::new(WidgetBuilder::new().on_column(1))
             .with_text(value_to_string(self.value))
             .build(ctx);
@@ -173,12 +173,12 @@ impl TileHandleFieldBuilder {
         .add_column(Column::auto())
         .build(ctx);
 
-        ctx.add_node(UiNode::new(TileHandleField {
+        ctx.add(TileHandleField {
             widget: self.widget_builder.with_child(content).build(ctx),
             value: self.value,
             field,
             goto_button,
             palette_button,
-        }))
+        })
     }
 }

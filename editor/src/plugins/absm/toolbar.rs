@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::scene::selector::NodeSelectorWindow;
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
@@ -37,7 +38,7 @@ use crate::{
             utils::{make_cross, make_simple_tooltip},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
+            BuildContext, Orientation, Thickness, UserInterface, VerticalAlignment,
         },
     },
     load_image,
@@ -73,7 +74,7 @@ pub struct Toolbar {
     pub add_layer: Handle<Button>,
     pub remove_layer: Handle<Button>,
     pub edit_mask: Handle<Button>,
-    pub node_selector: Handle<UiNode>,
+    pub node_selector: Handle<NodeSelectorWindow>,
 }
 
 pub enum ToolbarAction {

@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::scene::selector::{AllowedType, SelectedHandle};
+use crate::scene::selector::{AllowedType, NodeSelectorWindow, SelectedHandle};
 use crate::{
     fyrox::{
         core::{
@@ -117,7 +117,7 @@ pub struct HandlePropertyEditor<T: Reflect> {
     #[visit(skip)]
     #[reflect(hidden)]
     sender: MessageSender,
-    selector: Handle<UiNode>,
+    selector: Handle<NodeSelectorWindow>,
     pick: Handle<Button>,
 }
 

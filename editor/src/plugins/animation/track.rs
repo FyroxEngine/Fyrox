@@ -20,6 +20,8 @@
 
 #![allow(clippy::manual_map)]
 
+use crate::scene::property::PropertySelectorWindow;
+use crate::scene::selector::NodeSelectorWindow;
 use crate::utils::make_square_image_button_with_tooltip;
 use crate::{
     command::{Command, CommandGroup},
@@ -128,8 +130,8 @@ struct TrackContextMenu {
     remove_track: Handle<MenuItem>,
     set_target: Handle<MenuItem>,
     rebind: Handle<MenuItem>,
-    target_node_selector: Handle<UiNode>,
-    property_rebinding_selector: Handle<UiNode>,
+    target_node_selector: Handle<NodeSelectorWindow>,
+    property_rebinding_selector: Handle<PropertySelectorWindow>,
     duplicate: Handle<MenuItem>,
 }
 
@@ -612,8 +614,8 @@ pub struct TrackList {
     add_position_track: Handle<Button>,
     add_rotation_track: Handle<Button>,
     add_scale_track: Handle<Button>,
-    node_selector: Handle<UiNode>,
-    property_selector: Handle<UiNode>,
+    node_selector: Handle<NodeSelectorWindow>,
+    property_selector: Handle<PropertySelectorWindow>,
     selected_node: ErasedHandle,
     group_views: FxHashMap<ErasedHandle, Handle<Tree>>,
     track_views: FxHashMap<Uuid, Handle<TrackView>>,
@@ -1094,7 +1096,7 @@ impl TrackList {
         node: Handle<N>,
         existing_binding: Option<&ValueBinding>,
         ui: &mut UserInterface,
-    ) -> Handle<UiNode>
+    ) -> Handle<PropertySelectorWindow>
     where
         G: SceneGraph<Node = N>,
         N: SceneGraphNode,

@@ -64,8 +64,9 @@ impl MessageData for ExpanderMessage {}
 /// #     stack_panel::StackPanelBuilder, text::TextBuilder, widget::WidgetBuilder, BuildContext,
 /// #     UiNode,
 /// # };
+/// # use fyrox_ui::expander::Expander;
 /// #
-/// fn create_expander(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// fn create_expander(ctx: &mut BuildContext) -> Handle<Expander> {
 ///     ExpanderBuilder::new(WidgetBuilder::new())
 ///         // Header is visible all the time.
 ///         .with_header(
@@ -105,8 +106,9 @@ impl MessageData for ExpanderMessage {}
 /// #     check_box::CheckBoxBuilder, core::pool::Handle, expander::ExpanderBuilder,
 /// #     image::ImageBuilder, widget::WidgetBuilder, BuildContext, UiNode,
 /// # };
+/// # use fyrox_ui::expander::Expander;
 /// #
-/// fn create_expander(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// fn create_expander(ctx: &mut BuildContext) -> Handle<Expander> {
 ///     ExpanderBuilder::new(WidgetBuilder::new())
 ///         .with_checkbox(
 ///             CheckBoxBuilder::new(WidgetBuilder::new())
@@ -168,6 +170,7 @@ impl ConstructorProvider<UiNode, UserInterface> for Expander {
             .with_variant("Expander", |ui| {
                 ExpanderBuilder::new(WidgetBuilder::new().with_name("Expander"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Visual")
@@ -252,7 +255,7 @@ impl ExpanderBuilder {
     }
 
     /// Finishes widget building and adds it to the user interface, returning a handle to the new instance.
-    pub fn build(self, ctx: &mut BuildContext<'_>) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext<'_>) -> Handle<Expander> {
         let expander = if self.check_box.is_some() {
             self.check_box
         } else {
@@ -288,7 +291,7 @@ impl ExpanderBuilder {
                 .set_visibility(self.is_expanded);
         }
 
-        let e = UiNode::new(Expander {
+        let e = Expander {
             widget: self
                 .widget_builder
                 .with_child(
@@ -306,8 +309,8 @@ impl ExpanderBuilder {
             content: self.content.into(),
             expander: expander.into(),
             is_expanded: self.is_expanded.into(),
-        });
-        ctx.add_node(e)
+        };
+        ctx.add(e)
     }
 }
 

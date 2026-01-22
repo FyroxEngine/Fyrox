@@ -92,9 +92,9 @@ pub struct TileSetEditor {
     /// the properties tab, and the colliders tabl.
     tab_control: Handle<TabControl>,
     /// The palette widget for the page icons. It is used to select which page to edit.
-    pages_palette: Handle<UiNode>,
+    pages_palette: Handle<PaletteWidget>,
     /// The palette widget for the actual tiles. This is the main work area of the editor.
-    tiles_palette: Handle<UiNode>,
+    tiles_palette: Handle<PaletteWidget>,
     /// A button to switch to the pick tool.
     pick_button: Handle<Button>,
     /// A button to open the tile map control panel.
@@ -669,7 +669,7 @@ impl TileSetEditor {
                 ui.send_message(
                     message
                         .clone()
-                        .with_destination(self.tiles_palette)
+                        .with_destination(self.tiles_palette.to_base())
                         .with_direction(MessageDirection::ToWidget),
                 );
                 self.sync_to_state(ui);

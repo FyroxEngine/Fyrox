@@ -21,12 +21,15 @@
 //! A tile editor is one of the various fields that may appear along the side
 //! of the tile set editor. See the [`TileEditor`] trait for more information.
 
-use crate::plugins::material::editor::{MaterialFieldEditorBuilder, MaterialFieldMessage};
+use crate::plugins::material::editor::{
+    MaterialFieldEditor, MaterialFieldEditorBuilder, MaterialFieldMessage,
+};
 use std::sync::mpsc::Sender;
 
 use super::*;
 use crate::asset::preview::cache::IconRequest;
 use commands::*;
+use fyrox::core::pool::ObjectOrVariant;
 use fyrox::gui::button::Button;
 use fyrox::gui::text::Text;
 use fyrox::{
@@ -152,7 +155,7 @@ fn make_draw_button(
 fn make_drawable_field(
     label: &str,
     draw_button: Handle<Button>,
-    field: Handle<UiNode>,
+    field: Handle<impl ObjectOrVariant<UiNode>>,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
     let label = make_label(label, ctx);
@@ -170,7 +173,11 @@ fn make_drawable_field(
     .to_base()
 }
 
-fn send_visibility(ui: &UserInterface, destination: Handle<UiNode>, visible: bool) {
+fn send_visibility(
+    ui: &UserInterface,
+    destination: Handle<impl ObjectOrVariant<UiNode>>,
+    visible: bool,
+) {
     ui.send(destination, WidgetMessage::Visibility(visible));
 }
 
@@ -178,8 +185,8 @@ fn send_visibility(ui: &UserInterface, destination: Handle<UiNode>, visible: boo
 pub struct TileMaterialEditor {
     handle: Handle<UiNode>,
     material_line: Handle<UiNode>,
-    material_field: Handle<UiNode>,
-    bounds_field: Handle<UiNode>,
+    material_field: Handle<MaterialFieldEditor>,
+    bounds_field: Handle<TileBoundsEditor>,
     draw_button: Handle<Button>,
     material_bounds: TileMaterialBounds,
 }
@@ -532,7 +539,7 @@ impl TileEditor for TileColorEditor {
 /// a transform set tile, where the only data associated with the tile is
 /// its reference to some other tile.
 pub struct TileHandleEditor {
-    handle: Handle<UiNode>,
+    handle: Handle<TileHandleField>,
     value: Option<TileDefinitionHandle>,
 }
 
@@ -590,7 +597,7 @@ impl TileHandleEditor {
 
 impl TileEditor for TileHandleEditor {
     fn handle(&self) -> Handle<UiNode> {
-        self.handle
+        self.handle.to_base()
     }
     fn draw_button(&self) -> Handle<Button> {
         Handle::NONE

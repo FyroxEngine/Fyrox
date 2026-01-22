@@ -960,6 +960,7 @@ pub fn make_expander_container(
         .with_header(header)
         .with_content(content)
         .build(ctx)
+        .to_base()
 }
 
 fn create_header(ctx: &mut BuildContext, text: &str, layer_index: usize) -> Handle<Text> {

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::scene::selector::NodeSelectorWindow;
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
@@ -97,7 +98,7 @@ pub struct Toolbar {
     pub time_slice_end: Handle<NumericUpDown<f32>>,
     pub import: Handle<Button>,
     pub reimport: Handle<Button>,
-    pub node_selector: Handle<UiNode>,
+    pub node_selector: Handle<NodeSelectorWindow>,
     pub import_file_selector: Handle<FileSelector>,
     pub selected_import_root: ErasedHandle,
     pub looping: Handle<CheckBox>,
@@ -115,7 +116,7 @@ struct RootMotionDropdownArea {
     ignore_y: Handle<CheckBox>,
     ignore_z: Handle<CheckBox>,
     ignore_rotation: Handle<CheckBox>,
-    node_selector: Handle<UiNode>,
+    node_selector: Handle<NodeSelectorWindow>,
 }
 
 impl RootMotionDropdownArea {

@@ -58,6 +58,7 @@ use crate::{
     Message, MessageDirection,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::image::Image;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::text::Text;
 use std::{
@@ -66,7 +67,6 @@ use std::{
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
-use fyrox::gui::image::Image;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MaterialFieldMessage {
@@ -245,7 +245,7 @@ impl MaterialFieldEditorBuilder {
         material: MaterialResource,
         icon_request_sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
-    ) -> Handle<UiNode> {
+    ) -> Handle<MaterialFieldEditor> {
         let edit;
         let text;
         let select;
@@ -346,10 +346,10 @@ impl MaterialFieldEditorBuilder {
             image_preview,
         };
 
-        let handle = ctx.add_node(UiNode::new(editor));
+        let handle = ctx.add(editor);
 
         Log::verify(icon_request_sender.send(IconRequest {
-            widget_handle: handle,
+            widget_handle: handle.to_base(),
             resource: material.into_untyped(),
             force_update: false,
         }));
@@ -374,15 +374,15 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<MaterialResource>()?;
         let environment = EditorEnvironment::try_get_from(&ctx.environment)?;
-        Ok(PropertyEditorInstance::Simple {
-            editor: MaterialFieldEditorBuilder::new(WidgetBuilder::new()).build(
+        Ok(PropertyEditorInstance::simple(
+            MaterialFieldEditorBuilder::new(WidgetBuilder::new()).build(
                 ctx.build_context,
                 self.sender.safe_lock().clone(),
                 value.clone(),
                 environment.icon_request_sender.clone(),
                 environment.resource_manager.clone(),
             ),
-        })
+        ))
     }
 
     fn create_message(

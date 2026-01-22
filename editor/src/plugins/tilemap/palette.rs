@@ -2052,8 +2052,8 @@ impl PaletteWidgetBuilder {
     }
 
     /// Build the [`PaletteWidget`].
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        ctx.add_node(UiNode::new(PaletteWidget {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<PaletteWidget> {
+        ctx.add(PaletteWidget {
             widget: self
                 .widget_builder
                 .with_allow_drop(true)
@@ -2086,7 +2086,7 @@ impl PaletteWidgetBuilder {
             tile_size: Vector2::repeat(32.0),
             mode: MouseMode::None,
             collider_triangles: RefCell::default(),
-        }))
+        })
     }
 }
 

@@ -160,7 +160,7 @@ impl TileDefinitionHandleEditorBuilder {
         self
     }
     /// Build the widgets for the [`TileDefinitionHandleEditor`].
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<TileDefinitionHandleEditor> {
         let text = value_to_string(self.value);
         let field = TextBoxBuilder::new(WidgetBuilder::new())
             .with_text(text)
@@ -184,13 +184,13 @@ impl TileDefinitionHandleEditorBuilder {
             .add_column(Column::auto())
             .add_row(Row::auto())
             .build(ctx);
-        ctx.add_node(UiNode::new(TileDefinitionHandleEditor {
+        ctx.add(TileDefinitionHandleEditor {
             widget: self.widget_builder.with_child(grid).build(ctx),
             field,
             button,
             allow_none: self.allow_none,
             value: self.value,
-        }))
+        })
     }
 }
 
@@ -208,8 +208,8 @@ impl PropertyEditorDefinition for TileDefinitionHandlePropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = *ctx.property_info.cast_value::<TileDefinitionHandle>()?;
-        Ok(PropertyEditorInstance::Simple {
-            editor: TileDefinitionHandleEditorBuilder::new(
+        Ok(PropertyEditorInstance::simple(
+            TileDefinitionHandleEditorBuilder::new(
                 WidgetBuilder::new()
                     .with_min_size(Vector2::new(0.0, 17.0))
                     .with_margin(Thickness::uniform(1.0)),
@@ -217,7 +217,7 @@ impl PropertyEditorDefinition for TileDefinitionHandlePropertyEditorDefinition {
             .with_allow_none(false)
             .with_value(Some(value))
             .build(ctx.build_context),
-        })
+        ))
     }
 
     fn create_message(
@@ -261,15 +261,15 @@ impl PropertyEditorDefinition for OptionTileDefinitionHandlePropertyEditorDefini
         let value = *ctx
             .property_info
             .cast_value::<Option<TileDefinitionHandle>>()?;
-        Ok(PropertyEditorInstance::Simple {
-            editor: TileDefinitionHandleEditorBuilder::new(
+        Ok(PropertyEditorInstance::simple(
+            TileDefinitionHandleEditorBuilder::new(
                 WidgetBuilder::new()
                     .with_min_size(Vector2::new(0.0, 17.0))
                     .with_margin(Thickness::uniform(1.0)),
             )
             .with_value(value)
             .build(ctx.build_context),
-        })
+        ))
     }
 
     fn create_message(

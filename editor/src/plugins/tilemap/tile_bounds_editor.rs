@@ -175,7 +175,7 @@ impl TileBoundsEditorBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self { widget_builder }
     }
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<TileBoundsEditor> {
         let left_top = VecEditorBuilder::<u32, 2>::new(WidgetBuilder::new()).build(ctx);
         let right_top =
             VecEditorBuilder::<u32, 2>::new(WidgetBuilder::new().on_column(1)).build(ctx);
@@ -245,7 +245,7 @@ impl TileBoundsEditorBuilder {
                 .with_child(buttons),
         )
         .build(ctx);
-        ctx.add_node(UiNode::new(TileBoundsEditor {
+        ctx.add(TileBoundsEditor {
             widget: self.widget_builder.with_child(content).build(ctx),
             value: None,
             value_area,
@@ -257,6 +257,6 @@ impl TileBoundsEditorBuilder {
             button_right: right_button,
             button_flip_x: flip_x_button,
             button_flip_y: flip_y_button,
-        }))
+        })
     }
 }

@@ -272,8 +272,8 @@ impl PanelPreviewBuilder {
         }
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        ctx.add_node(UiNode::new(PanelPreview {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<PanelPreview> {
+        ctx.add(PanelPreview {
             widget: self.widget_builder.with_clip_to_bounds(false).build(ctx),
             state: self.state,
             tile_size: Vector2::repeat(32.0),
@@ -283,6 +283,6 @@ impl PanelPreviewBuilder {
                 .with_brush(Brush::Solid(Color::WHITE))
                 .build(),
             handle_text_size: Vector2::default(),
-        }))
+        })
     }
 }

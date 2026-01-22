@@ -369,7 +369,7 @@ impl NodeSelectorBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<NodeSelector> {
         let items = self
             .hierarchy
             .map(|h| vec![h.make_view(&self.allowed_types, ctx)])
@@ -423,7 +423,7 @@ impl NodeSelectorBuilder {
             allowed_types: self.allowed_types,
         };
 
-        ctx.add_node(UiNode::new(selector))
+        ctx.add(selector)
     }
 }
 
@@ -433,7 +433,7 @@ impl NodeSelectorBuilder {
 pub struct NodeSelectorWindow {
     #[component(include)]
     window: Window,
-    selector: Handle<UiNode>,
+    selector: Handle<NodeSelector>,
     ok: Handle<Button>,
     cancel: Handle<Button>,
     #[visit(skip)]
@@ -459,13 +459,7 @@ impl NodeSelectorWindow {
     fn confirm(&self, ui: &UserInterface) {
         ui.post(
             self.handle,
-            NodeSelectorMessage::Selection(
-                ui.node(self.selector)
-                    .query_component::<NodeSelector>()
-                    .unwrap()
-                    .selected
-                    .clone(),
-            ),
+            NodeSelectorMessage::Selection(ui[self.selector].selected.clone()),
         );
 
         ui.send(self.handle, WindowMessage::Close);
@@ -488,7 +482,7 @@ impl Control for NodeSelectorWindow {
             if message.is_for(self.handle) {
                 // Dispatch to inner selector.
                 let mut msg = message.clone();
-                msg.destination = self.selector;
+                msg.destination = self.selector.to_base();
                 ui.send_message(msg);
             } else if message.destination() == self.selector
                 && message.direction() == MessageDirection::FromWidget
@@ -576,7 +570,7 @@ impl NodeSelectorWindowBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<NodeSelectorWindow> {
         let ok;
         let cancel;
         let selector;
@@ -660,7 +654,7 @@ impl NodeSelectorWindowBuilder {
             allowed_types: self.allowed_types,
         };
 
-        ctx.add_node(UiNode::new(window))
+        ctx.add(window)
     }
 }
 

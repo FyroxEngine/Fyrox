@@ -422,7 +422,7 @@ impl PropertySelectorBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<PropertySelector> {
         let tree_root;
         let search_bar;
 
@@ -480,7 +480,7 @@ impl PropertySelectorBuilder {
             scroll_viewer,
         };
 
-        ctx.add_node(UiNode::new(selector))
+        ctx.add(selector)
     }
 }
 
@@ -489,7 +489,7 @@ impl PropertySelectorBuilder {
 pub struct PropertySelectorWindow {
     #[component(include)]
     window: Window,
-    selector: Handle<UiNode>,
+    selector: Handle<PropertySelector>,
     ok: Handle<Button>,
     cancel: Handle<Button>,
     #[reflect(hidden)]
@@ -515,13 +515,7 @@ impl PropertySelectorWindow {
     pub fn confirm(&self, ui: &UserInterface) {
         ui.post(
             self.handle,
-            PropertySelectorMessage::Selection(
-                ui.node(self.selector)
-                    .query_component::<PropertySelector>()
-                    .unwrap()
-                    .selected_property_paths
-                    .clone(),
-            ),
+            PropertySelectorMessage::Selection(ui[self.selector].selected_property_paths.clone()),
         );
         ui.send(self.handle, WindowMessage::Close);
     }
@@ -598,7 +592,7 @@ impl PropertySelectorWindowBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<PropertySelectorWindow> {
         let selector;
         let ok;
         let cancel;
@@ -665,7 +659,7 @@ impl PropertySelectorWindowBuilder {
             allowed_types: self.allowed_types,
         };
 
-        ctx.add_node(UiNode::new(window))
+        ctx.add(window)
     }
 }
 

@@ -124,11 +124,11 @@ pub struct TileMapPanel {
     /// The name of the tile set or brush from which tiles are being displayed.
     tile_set_name: Handle<Text>,
     /// The widget that displays a preview of the tiles that the selected tool will use.
-    preview: Handle<UiNode>,
+    preview: Handle<PanelPreview>,
     /// The palette widget that allows the user to select the page.
-    pages: Handle<UiNode>,
+    pages: Handle<PaletteWidget>,
     /// The palette widget that allows the user to select the tiles to draw with.
-    palette: Handle<UiNode>,
+    palette: Handle<PaletteWidget>,
     /// The button that switches the control to using the current brush, if there is one.
     brush_button: Handle<Button>,
     /// The button that switches the control to using the current tile set.
@@ -552,7 +552,7 @@ impl TileMapPanel {
     /// Open the page of the given handle and center the view on the tile.
     pub fn set_focus(&mut self, handle: TileDefinitionHandle, ui: &mut UserInterface) {
         let mut state = self.state.lock_mut("set_focus");
-        state.selection.source = SelectionSource::Widget(self.palette);
+        state.selection.source = SelectionSource::Widget(self.palette.to_base());
         let sel = state.selection_positions_mut();
         sel.clear();
         sel.insert(handle.tile());
@@ -636,7 +636,7 @@ impl TileMapPanel {
                 ui.send_message(
                     message
                         .clone()
-                        .with_destination(self.palette)
+                        .with_destination(self.palette.to_base())
                         .with_direction(MessageDirection::ToWidget),
                 );
             }
@@ -736,7 +736,11 @@ impl TileMapPanel {
                 highlight_all(&buttons, false, ui);
             }
         }
-        for destination in [self.preview, self.pages, self.palette] {
+        for destination in [
+            self.preview.to_base::<UiNode>(),
+            self.pages.to_base(),
+            self.palette.to_base(),
+        ] {
             ui.send(destination, PaletteMessage::SyncToState);
         }
     }

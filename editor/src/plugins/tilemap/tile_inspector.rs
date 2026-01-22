@@ -55,6 +55,7 @@ use std::sync::mpsc::Sender;
 
 use super::*;
 use crate::asset::preview::cache::IconRequest;
+use crate::plugins::material::editor::MaterialFieldEditor;
 use commands::*;
 use fyrox::core::pool::ObjectOrVariant;
 use fyrox::gui::grid::Grid;
@@ -75,8 +76,8 @@ impl<I: Iterator> Iterator for OptionIterator<I> {
 
 pub struct TileEditorStateRef {
     pub page: Option<Vector2<i32>>,
-    pub pages_palette: Handle<UiNode>,
-    pub tiles_palette: Handle<UiNode>,
+    pub pages_palette: Handle<PaletteWidget>,
+    pub tiles_palette: Handle<PaletteWidget>,
     pub state: TileDrawStateRef,
     pub tile_book: TileBook,
 }
@@ -101,10 +102,10 @@ pub struct TileEditorState<'a> {
     page: Option<Vector2<i32>>,
     /// The handle of the palette widget for pages. This is used with `state` to determine whether
     /// the current selection is a page.
-    pages_palette: Handle<UiNode>,
+    pages_palette: Handle<PaletteWidget>,
     /// The handle of the palette widget for tiles. This is used with `state` to determine whether
     /// the current selection is a tile.
-    tiles_palette: Handle<UiNode>,
+    tiles_palette: Handle<PaletteWidget>,
     /// The [`TileDrawState`] that contains the currently selected tiles.
     /// It is Option so that it can be briefly taken and then returned as needed,
     /// but otherwise it can always be safely assumed to be `Some`.
@@ -603,7 +604,8 @@ impl PropertyEditors {
             handle: ExpanderBuilder::new(WidgetBuilder::new())
                 .with_header(make_label("Properties", ctx))
                 .with_content(content)
-                .build(ctx),
+                .build(ctx)
+                .to_base(),
             content,
             editors,
         }
@@ -675,7 +677,8 @@ impl ColliderEditors {
             handle: ExpanderBuilder::new(WidgetBuilder::new())
                 .with_header(make_label("Colliders", ctx))
                 .with_content(content)
-                .build(ctx),
+                .build(ctx)
+                .to_base(),
             content,
             editors,
         }
@@ -727,11 +730,11 @@ pub struct TileInspector {
     /// The tile set editor palette widget that allows the user to select a page.
     /// This is *not* a widget within the TileInspector, but the TileInspector needs to have
     /// the handle in order to determine where the user is selecting.
-    pages_palette: Handle<UiNode>,
+    pages_palette: Handle<PaletteWidget>,
     /// The tile set editor palette widget that allows the user to select a tile.
     /// This is *not* a widget within the TileInspector, but the TileInspector needs to have
     /// the handle in order to determine where the user is selecting.
-    tiles_palette: Handle<UiNode>,
+    tiles_palette: Handle<PaletteWidget>,
     /// The current resource to be edited.
     tile_book: TileBook,
     /// The collection of buttons for creating a new tile set page.
@@ -761,9 +764,9 @@ pub struct TileInspector {
     /// Inspector for setting the material of an atlas page.
     page_material_inspector: InspectorField,
     /// Handle of the material field of an atlas page.
-    page_material_field: Handle<UiNode>,
+    page_material_field: Handle<MaterialFieldEditor>,
     /// Field for setting the icon of a page.
-    page_icon_field: Handle<UiNode>,
+    page_icon_field: Handle<TileHandleField>,
     /// Editors for every property layer.
     property_editors: PropertyEditors,
     /// Editors for every collider layer.
@@ -783,8 +786,8 @@ impl TileInspector {
         state: TileDrawStateRef,
         macro_list: BrushMacroListRef,
         cell_sets: MacroCellSetListRef,
-        pages_palette: Handle<UiNode>,
-        tiles_palette: Handle<UiNode>,
+        pages_palette: Handle<PaletteWidget>,
+        tiles_palette: Handle<PaletteWidget>,
         tile_book: TileBook,
         sender: MessageSender,
         icon_request_sender: Sender<IconRequest>,
@@ -863,7 +866,8 @@ impl TileInspector {
                 icon_request_sender,
                 resource_manager,
             );
-        let page_material_inspector = InspectorField::new("Material", page_material_field, ctx);
+        let page_material_inspector =
+            InspectorField::new("Material", page_material_field.to_base(), ctx);
         let tile_size_field = Vec2EditorBuilder::<u32>::new(WidgetBuilder::new().on_column(1))
             .build(ctx)
             .to_base();
@@ -945,10 +949,7 @@ impl TileInspector {
         let page = if self.state.lock().selection_palette() != self.tiles_palette {
             None
         } else {
-            ui.node(self.tiles_palette)
-                .cast::<PaletteWidget>()
-                .unwrap()
-                .page
+            ui[self.tiles_palette].page
         };
         TileEditorStateRef {
             page,
