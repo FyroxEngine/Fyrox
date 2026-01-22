@@ -724,7 +724,7 @@ impl TreeBuilder {
     /// instance.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<Tree> {
         let tree = self.build_tree(ctx);
-        ctx.add_node(UiNode::new(tree)).to_variant()
+        ctx.add(tree)
     }
 }
 
@@ -1112,7 +1112,7 @@ impl TreeRootBuilder {
             selected: Default::default(),
         };
 
-        ctx.add_node(UiNode::new(tree)).to_variant()
+        ctx.add(tree)
     }
 }
 

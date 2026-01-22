@@ -192,7 +192,7 @@ impl FontFieldBuilder {
             resource_manager,
         };
 
-        ctx.add_node(UiNode::new(editor)).to_variant()
+        ctx.add(editor)
     }
 }
 

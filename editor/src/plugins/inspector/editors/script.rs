@@ -246,7 +246,7 @@ impl ScriptPropertyEditorBuilder {
             .with_opt_context(context)
             .build(ctx);
 
-        ctx.add_node(UiNode::new(ScriptPropertyEditor {
+        ctx.add(ScriptPropertyEditor {
             widget: self
                 .widget_builder
                 .with_preview_messages(true)
@@ -257,8 +257,7 @@ impl ScriptPropertyEditorBuilder {
             open_in_ide_button,
             inspector,
             need_context_update: Cell::new(false),
-        }))
-        .to_variant()
+        })
     }
 }
 

@@ -172,7 +172,7 @@ impl DynTypePropertyEditorBuilder {
             .with_opt_context(context)
             .build(ctx);
 
-        ctx.add_node(UiNode::new(DynTypePropertyEditor {
+        ctx.add(DynTypePropertyEditor {
             widget: self
                 .widget_builder
                 .with_preview_messages(true)
@@ -182,8 +182,7 @@ impl DynTypePropertyEditorBuilder {
             variant_selector,
             inspector,
             need_context_update: Cell::new(false),
-        }))
-        .to_variant()
+        })
     }
 }
 

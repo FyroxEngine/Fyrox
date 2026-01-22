@@ -495,7 +495,7 @@ where
             edit,
         };
 
-        ctx.add_node(UiNode::new(node)).to_variant()
+        ctx.add(node)
     }
 }
 

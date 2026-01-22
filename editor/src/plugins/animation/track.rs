@@ -505,7 +505,7 @@ impl TrackViewBuilder {
             name_text,
         };
 
-        ctx.add_node(UiNode::new(track_view)).to_variant()
+        ctx.add(track_view)
     }
 }
 

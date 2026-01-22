@@ -460,7 +460,7 @@ impl<T: Reflect> HandlePropertyEditorBuilder<T> {
             pick,
         };
 
-        ctx.add_node(UiNode::new(editor)).to_variant()
+        ctx.add(editor)
     }
 }
 

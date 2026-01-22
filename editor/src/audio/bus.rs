@@ -274,7 +274,7 @@ impl AudioBusViewBuilder {
             effect_names_list,
             name,
         };
-        ctx.add_node(UiNode::new(view)).to_variant()
+        ctx.add(view)
     }
 }
 

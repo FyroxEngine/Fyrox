@@ -441,7 +441,7 @@ impl DropdownListBuilder {
         .with_corner_radius(ctx.style.property(DropdownList::CORNER_RADIUS))
         .build(ctx);
 
-        let dropdown_list = UiNode::new(DropdownList {
+        let dropdown_list = DropdownList {
             widget: self
                 .widget_builder
                 .with_accepts_input(true)
@@ -455,9 +455,9 @@ impl DropdownListBuilder {
             selection: self.selected.into(),
             close_on_selection: self.close_on_selection.into(),
             main_grid: main_grid.into(),
-        });
+        };
 
-        ctx.add_node(dropdown_list).to_variant()
+        ctx.add(dropdown_list)
     }
 }
 

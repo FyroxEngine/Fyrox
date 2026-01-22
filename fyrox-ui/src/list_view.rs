@@ -622,7 +622,7 @@ impl ListViewBuilder {
             scroll_viewer: scroll_viewer.into(),
         };
 
-        ctx.add_node(UiNode::new(list_box)).to_variant()
+        ctx.add(list_box)
     }
 }
 
@@ -631,7 +631,7 @@ fn generate_item_container(ctx: &mut BuildContext, item: Handle<UiNode>) -> Hand
         widget: WidgetBuilder::new().with_child(item).build(ctx),
     };
 
-    ctx.add_node(UiNode::new(item)).to_variant()
+    ctx.add(item)
 }
 
 fn generate_item_containers(

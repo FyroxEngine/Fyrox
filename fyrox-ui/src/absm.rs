@@ -140,6 +140,7 @@ impl ConstructorProvider<UiNode, UserInterface> for AnimationBlendingStateMachin
                     WidgetBuilder::new().with_name("Animation Blending State Machine"),
                 )
                 .build(&mut ui.build_ctx())
+                .to_base()
                 .into()
             })
             .with_group("Animation")
@@ -231,17 +232,22 @@ impl AnimationBlendingStateMachineBuilder {
     }
 
     /// Creates new node.
-    pub fn build_node(self, ctx: &BuildContext) -> UiNode {
-        UiNode::new(AnimationBlendingStateMachine {
+    pub fn build_absm(self, ctx: &BuildContext) -> AnimationBlendingStateMachine {
+        AnimationBlendingStateMachine {
             widget: self.widget_builder.with_need_update(true).build(ctx),
             machine: self.machine.into(),
             animation_player: self.animation_player.into(),
-        })
+        }
+    }
+
+    /// Creates new node.
+    pub fn build_node(self, ctx: &BuildContext) -> UiNode {
+        UiNode::new(self.build_absm(ctx))
     }
 
     /// Creates new node and adds it to the user interface.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        ctx.add_node(self.build_node(ctx))
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<AnimationBlendingStateMachine> {
+        ctx.add(self.build_absm(ctx))
     }
 }
 
@@ -380,14 +386,14 @@ impl AbsmEventProviderBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<AnimationBlendingStateMachine> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<AbsmEventProvider> {
         let provider = AbsmEventProvider {
             widget: self.widget_builder.build(ctx),
             actions: self.actions.into(),
             absm: self.absm.into(),
         };
 
-        ctx.add_node(UiNode::new(provider)).to_variant()
+        ctx.add(provider)
     }
 }
 

@@ -297,19 +297,22 @@ impl WrapPanelBuilder {
     }
 
     /// Finishes wrap panel building and returns its instance.
-    pub fn build_node(self, ctx: &BuildContext) -> UiNode {
-        let stack_panel = WrapPanel {
+    pub fn build_wrap_panel(self, ctx: &BuildContext) -> WrapPanel {
+        WrapPanel {
             widget: self.widget_builder.build(ctx),
             orientation: self.orientation.unwrap_or(Orientation::Vertical).into(),
             lines: Default::default(),
-        };
+        }
+    }
 
-        UiNode::new(stack_panel)
+    /// Finishes wrap panel building and returns its instance.
+    pub fn build_node(self, ctx: &BuildContext) -> UiNode {
+        UiNode::new(self.build_wrap_panel(ctx))
     }
 
     /// Finishes wrap panel building, adds it to the user interface and returns its handle.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<WrapPanel> {
-        ctx.add_node(self.build_node(ctx)).to_variant()
+        ctx.add(self.build_wrap_panel(ctx))
     }
 }
 

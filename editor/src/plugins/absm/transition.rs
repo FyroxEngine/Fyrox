@@ -213,7 +213,7 @@ impl TransitionBuilder {
             activity_factor: 0.0,
         };
 
-        ctx.add_node(UiNode::new(transition)).to_variant()
+        ctx.add(transition)
     }
 }
 

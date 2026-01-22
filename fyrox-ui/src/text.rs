@@ -693,7 +693,7 @@ impl TextBuilder {
             bbcode: self.bbcode.unwrap_or_default().into(),
             formatted_text: RefCell::new(formatted_text),
         };
-        ctx.add_node(UiNode::new(text)).to_variant()
+        ctx.add(text)
     }
 }
 

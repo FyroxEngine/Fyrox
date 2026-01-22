@@ -307,7 +307,7 @@ where
             end: end.into(),
         };
 
-        ctx.add_node(UiNode::new(editor)).to_variant()
+        ctx.add(editor)
     }
 }
 

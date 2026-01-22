@@ -238,7 +238,7 @@ impl PathEditorBuilder {
             path: self.path.into(),
             file_types: self.file_types,
         };
-        ctx.add_node(UiNode::new(path_editor)).to_variant()
+        ctx.add(path_editor)
     }
 }
 

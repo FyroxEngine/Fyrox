@@ -216,7 +216,7 @@ impl ItemBuilder {
             need_request_preview: Cell::new(true),
             resource_manager,
         };
-        ctx.add_node(UiNode::new(item)).to_variant()
+        ctx.add(item)
     }
 }
 
@@ -370,7 +370,7 @@ impl<'a> AssetSelectorBuilder<'a> {
             resources: supported_resource_paths,
             resource_manager: resource_manager.clone(),
         };
-        ctx.add_node(UiNode::new(selector)).to_variant()
+        ctx.add(selector)
     }
 }
 
@@ -540,7 +540,7 @@ impl<'a> AssetSelectorWindowBuilder<'a> {
             search_bar: search_bar.transmute(),
         };
 
-        ctx.add_node(UiNode::new(window)).to_variant()
+        ctx.add(window)
     }
 
     pub fn build_for_type_and_open<T: TypedResourceData>(

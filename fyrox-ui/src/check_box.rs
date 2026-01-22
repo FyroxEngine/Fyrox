@@ -451,7 +451,7 @@ impl CheckBoxBuilder {
             uncheck_mark: uncheck_mark.into(),
             undefined_mark: undefined_mark.into(),
         };
-        ctx.add_node(UiNode::new(cb)).to_variant()
+        ctx.add(cb)
     }
 }
 

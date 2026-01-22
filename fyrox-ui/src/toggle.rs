@@ -166,7 +166,7 @@ impl ToggleButtonBuilder {
             is_toggled: self.is_toggled,
             content: self.content,
         };
-        ctx.add_node(UiNode::new(canvas)).to_variant()
+        ctx.add(canvas)
     }
 }
 

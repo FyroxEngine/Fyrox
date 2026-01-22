@@ -382,7 +382,7 @@ impl DecoratorBuilder {
             *border.background = normal_brush.clone();
         }
 
-        let node = UiNode::new(Decorator {
+        let node = Decorator {
             border,
             normal_brush: normal_brush.into(),
             hover_brush: hover_brush.into(),
@@ -390,8 +390,8 @@ impl DecoratorBuilder {
             selected_brush: selected_brush.into(),
             is_selected: self.selected.into(),
             is_pressable: self.pressable.into(),
-        });
-        ctx.add_node(node).to_variant()
+        };
+        ctx.add(node)
     }
 }
 

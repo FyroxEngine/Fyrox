@@ -228,7 +228,7 @@ impl SocketBuilder {
             index: self.index,
         };
 
-        ctx.add_node(UiNode::new(socket)).to_variant()
+        ctx.add(socket)
     }
 }
 

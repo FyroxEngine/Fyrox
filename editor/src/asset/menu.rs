@@ -234,7 +234,7 @@ impl AssetRenameDialogBuilder {
             resource_manager,
         };
 
-        ctx.add_node(UiNode::new(dialog)).to_variant()
+        ctx.add(dialog)
     }
 }
 

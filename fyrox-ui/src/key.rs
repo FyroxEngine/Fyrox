@@ -310,7 +310,7 @@ impl HotKeyEditorBuilder {
             value: self.value.into(),
         };
 
-        ctx.add_node(UiNode::new(editor)).to_variant()
+        ctx.add(editor)
     }
 }
 
@@ -511,7 +511,7 @@ impl KeyBindingEditorBuilder {
             value: self.value.into(),
         };
 
-        ctx.add_node(UiNode::new(editor)).to_variant()
+        ctx.add(editor)
     }
 }
 

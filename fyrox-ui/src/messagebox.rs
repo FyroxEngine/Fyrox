@@ -456,11 +456,14 @@ impl<'b> MessageBoxBuilder<'b> {
             text: text.into(),
         };
 
-        let handle = ctx.add_node(UiNode::new(message_box));
+        let handle = ctx.add(message_box);
 
         if is_open {
             // We must restrict picking because message box is modal.
-            ctx.push_picking_restriction(RestrictionEntry { handle, stop: true });
+            ctx.push_picking_restriction(RestrictionEntry {
+                handle: handle.to_base(),
+                stop: true,
+            });
         }
 
         handle.to_variant()

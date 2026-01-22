@@ -174,7 +174,7 @@ impl ConnectionBuilder {
             dest_node: self.dest_node,
         };
 
-        ctx.add_node(UiNode::new(connection)).to_variant()
+        ctx.add(connection)
     }
 }
 

@@ -481,7 +481,7 @@ impl ScrollViewerBuilder {
             v_scroll_speed: self.v_scroll_speed,
             h_scroll_speed: self.h_scroll_speed,
         };
-        ctx.add_node(UiNode::new(sv)).to_variant()
+        ctx.add(sv)
     }
 }
 

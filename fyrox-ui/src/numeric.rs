@@ -761,7 +761,7 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
             drag_value_scaling: self.drag_value_scaling.into(),
         };
 
-        ctx.add_node(UiNode::new(node)).to_variant()
+        ctx.add(node)
     }
 }
 

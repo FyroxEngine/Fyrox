@@ -623,7 +623,7 @@ impl PopupBuilder {
     /// Finishes building the [`Popup`] instance and adds to the user interface and returns its handle.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<Popup> {
         let popup = self.build_popup(ctx);
-        ctx.add_node(UiNode::new(popup)).to_variant()
+        ctx.add(popup)
     }
 }
 

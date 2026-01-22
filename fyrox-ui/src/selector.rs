@@ -215,7 +215,7 @@ impl SelectorBuilder {
             current: self.current.into(),
         };
 
-        ctx.add_node(UiNode::new(selector)).to_variant()
+        ctx.add(selector)
     }
 }
 

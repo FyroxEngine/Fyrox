@@ -78,12 +78,12 @@ use std::{
 /// }
 ///
 /// impl MyWidgetBuilder {
-///     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+///     pub fn build(self, ctx: &mut BuildContext) -> Handle<MyWidget> {
 ///         let my_widget = MyWidget {
 ///             widget: self.widget_builder.build(ctx),
 ///         };
 ///
-///         ctx.add_node(UiNode::new(my_widget))
+///         ctx.add(my_widget)
 ///     }
 /// }
 /// ```

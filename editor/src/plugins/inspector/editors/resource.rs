@@ -382,17 +382,17 @@ where
             image_preview,
         };
 
-        let handle = ctx.add_node(UiNode::new(field));
+        let handle = ctx.add(field);
 
         if let Some(resource) = self.resource.as_ref() {
             Log::verify(icon_request_sender.send(IconRequest {
-                widget_handle: handle,
+                widget_handle: handle.to_base(),
                 resource: resource.clone().into_untyped(),
                 force_update: false,
             }));
         }
 
-        handle.to_variant()
+        handle
     }
 }
 

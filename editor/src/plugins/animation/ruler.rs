@@ -477,7 +477,7 @@ impl RulerBuilder {
             context_menu,
         };
 
-        ctx.add_node(UiNode::new(ruler)).to_variant()
+        ctx.add(ruler)
     }
 }
 

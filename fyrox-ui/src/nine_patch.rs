@@ -635,7 +635,7 @@ impl NinePatchBuilder {
             self.widget_builder.background = Some(Brush::Solid(Color::WHITE).into())
         }
 
-        ctx.add_node(UiNode::new(NinePatch {
+        ctx.add(NinePatch {
             widget: self.widget_builder.build(ctx),
             texture_slice: TextureSlice {
                 texture_source: self.texture.clone(),
@@ -648,8 +648,7 @@ impl NinePatchBuilder {
             draw_center: self.draw_center.into(),
             texture: self.texture.into(),
             stretch_mode: self.stretch_mode.into(),
-        }))
-        .to_variant()
+        })
     }
 }
 

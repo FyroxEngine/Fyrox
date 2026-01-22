@@ -550,7 +550,7 @@ impl BlendSpaceFieldBuilder {
             },
         };
 
-        ctx.add_node(UiNode::new(field)).to_variant()
+        ctx.add(field)
     }
 }
 
@@ -638,7 +638,7 @@ impl BlendSpaceFieldPointBuilder {
             selected: false,
         };
 
-        ctx.add_node(UiNode::new(point)).to_variant()
+        ctx.add(point)
     }
 }
 

@@ -201,7 +201,7 @@ impl ScreenBuilder {
             widget: self.widget_builder.with_need_update(true).build(ctx),
             last_screen_size: Cell::new(Default::default()),
         };
-        ctx.add_node(UiNode::new(screen)).to_variant()
+        ctx.add(screen)
     }
 }
 

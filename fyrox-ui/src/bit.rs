@@ -481,7 +481,7 @@ where
             bit_state: BitState::Normal,
             current_value: false,
         };
-        ctx.add_node(UiNode::new(canvas)).to_variant()
+        ctx.add(canvas)
     }
 }
 

@@ -141,7 +141,7 @@ impl CanvasBuilder {
         let canvas = Canvas {
             widget: self.widget_builder.build(ctx),
         };
-        ctx.add_node(UiNode::new(canvas)).to_variant()
+        ctx.add(canvas)
     }
 }
 

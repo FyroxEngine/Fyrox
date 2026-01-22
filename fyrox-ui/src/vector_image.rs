@@ -331,17 +331,21 @@ impl VectorImageBuilder {
     }
 
     /// Builds the vector image widget.
-    pub fn build_node(self, ctx: &BuildContext) -> UiNode {
-        let image = VectorImage {
+    pub fn build_vector_image(self, ctx: &BuildContext) -> VectorImage {
+        VectorImage {
             widget: self.widget_builder.build(ctx),
             primitives: self.primitives.into(),
-        };
-        UiNode::new(image)
+        }
+    }
+
+    /// Builds the vector image widget.
+    pub fn build_node(self, ctx: &BuildContext) -> UiNode {
+        UiNode::new(self.build_vector_image(ctx))
     }
 
     /// Finishes vector image building and adds it to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<VectorImage> {
-        ctx.add_node(self.build_node(ctx)).to_variant()
+        ctx.add(self.build_vector_image(ctx))
     }
 }
 

@@ -189,7 +189,7 @@ impl ThumbBuilder {
             widget: self.widget_builder.build(ctx),
             click_pos: Default::default(),
         };
-        ctx.add_node(UiNode::new(thumb)).to_variant()
+        ctx.add(thumb)
     }
 }
 

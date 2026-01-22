@@ -289,17 +289,22 @@ impl AnimationPlayerBuilder {
     }
 
     /// Creates an instance of [`AnimationPlayer`] node.
-    pub fn build_node(self, ctx: &BuildContext) -> UiNode {
-        UiNode::new(AnimationPlayer {
+    pub fn build_animation_player(self, ctx: &BuildContext) -> AnimationPlayer {
+        AnimationPlayer {
             widget: self.widget_builder.with_need_update(true).build(ctx),
             animations: self.animations.into(),
             auto_apply: self.auto_apply,
-        })
+        }
+    }
+
+    /// Creates an instance of [`AnimationPlayer`] node.
+    pub fn build_node(self, ctx: &BuildContext) -> UiNode {
+        UiNode::new(self.build_animation_player(ctx))
     }
 
     /// Creates an instance of [`AnimationPlayer`] node and adds it to the given user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<AnimationPlayer> {
-        ctx.add_node(self.build_node(ctx)).to_variant()
+        ctx.add(self.build_animation_player(ctx))
     }
 }
 

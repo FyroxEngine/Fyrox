@@ -463,7 +463,7 @@ impl AssetItemBuilder {
             sender: Some(message_sender),
             resource_manager: Some(resource_manager),
         };
-        ctx.add_node(UiNode::new(item)).to_variant()
+        ctx.add(item)
     }
 }
 

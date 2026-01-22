@@ -174,7 +174,7 @@ impl UuidEditorBuilder {
             generate,
         };
 
-        ctx.add_node(UiNode::new(uuid_editor)).to_variant()
+        ctx.add(uuid_editor)
     }
 }
 

@@ -648,7 +648,7 @@ impl ScrollBarBuilder {
         });
         ctx.link(grid, body);
 
-        let node = UiNode::new(ScrollBar {
+        let node = ScrollBar {
             widget: self.widget_builder.with_child(body).build(ctx),
             min: min.into(),
             max: max.into(),
@@ -663,8 +663,8 @@ impl ScrollBarBuilder {
             indicator_canvas: indicator_canvas.into(),
             value_text: value_text.into(),
             value_precision: self.value_precision.into(),
-        });
-        ctx.add_node(node).to_variant()
+        };
+        ctx.add(node)
     }
 }
 

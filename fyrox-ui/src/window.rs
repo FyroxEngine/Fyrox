@@ -1353,10 +1353,13 @@ impl WindowBuilder {
         let open = self.open;
 
         let node = self.build_window(ctx);
-        let handle = ctx.add_node(UiNode::new(node));
+        let handle = ctx.add(node);
 
         if modal && open {
-            ctx.push_picking_restriction(RestrictionEntry { handle, stop: true });
+            ctx.push_picking_restriction(RestrictionEntry {
+                handle: handle.to_base(),
+                stop: true,
+            });
         }
 
         handle.to_variant()

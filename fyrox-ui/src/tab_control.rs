@@ -748,7 +748,7 @@ impl TabControlBuilder {
             active_tab_brush: active_tab_brush.into(),
         };
 
-        ctx.add_node(UiNode::new(tc)).to_variant()
+        ctx.add(tc)
     }
 }
 

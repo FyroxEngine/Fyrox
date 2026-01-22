@@ -219,7 +219,7 @@ impl ProgressBarBuilder {
             body: body.into(),
         };
 
-        ctx.add_node(UiNode::new(progress_bar)).to_variant()
+        ctx.add(progress_bar)
     }
 }
 

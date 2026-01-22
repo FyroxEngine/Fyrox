@@ -353,7 +353,7 @@ impl SceneItemBuilder {
             drop_anchor: DropAnchor::OnTop,
         };
 
-        ctx.add_node(UiNode::new(item)).to_variant()
+        ctx.add(item)
     }
 }
 

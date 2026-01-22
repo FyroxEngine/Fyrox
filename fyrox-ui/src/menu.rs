@@ -835,7 +835,7 @@ impl MenuBuilder {
             restrict_picking: self.restrict_picking.into(),
         };
 
-        ctx.add_node(UiNode::new(menu)).to_variant()
+        ctx.add(menu)
     }
 }
 
@@ -1115,14 +1115,14 @@ impl MenuItemBuilder {
             content: self.content.into(),
         };
 
-        let handle = ctx.add_node(UiNode::new(menu));
+        let handle = ctx.add(menu);
 
         // "Link" popup with its parent menu item.
         if let Some(popup) = ctx[items_panel].cast_mut::<ContextMenu>() {
-            popup.parent_menu_item = handle;
+            popup.parent_menu_item = handle.to_base();
         }
 
-        handle.to_variant()
+        handle
     }
 }
 

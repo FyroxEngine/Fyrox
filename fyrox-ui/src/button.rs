@@ -412,7 +412,7 @@ impl ButtonBuilder {
     }
 
     /// Finishes building a button.
-    pub fn build_node(self, ctx: &mut BuildContext) -> UiNode {
+    pub fn build_button(self, ctx: &mut BuildContext) -> Button {
         let content = self.content.map(|c| c.build(ctx)).unwrap_or_default();
         let back = self.back.unwrap_or_else(|| {
             make_decorator_builder(ctx)
@@ -427,7 +427,7 @@ impl ButtonBuilder {
             ctx.link(content, back);
         }
 
-        UiNode::new(Button {
+        Button {
             widget: self
                 .widget_builder
                 .with_accepts_input(true)
@@ -439,13 +439,18 @@ impl ButtonBuilder {
             repeat_interval: self.repeat_interval.into(),
             repeat_clicks_on_hold: self.repeat_clicks_on_hold.into(),
             repeat_timer: Default::default(),
-        })
+        }
+    }
+
+    /// Finishes building a button.
+    pub fn build_node(self, ctx: &mut BuildContext) -> UiNode {
+        UiNode::new(self.build_button(ctx))
     }
 
     /// Finishes button build and adds to the user interface and returns its handle.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<Button> {
-        let node = self.build_node(ctx);
-        ctx.add_node(node).to_variant()
+        let node = self.build_button(ctx);
+        ctx.add(node)
     }
 }
 

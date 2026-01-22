@@ -287,7 +287,7 @@ impl StackPanelBuilder {
     /// Finishes stack panel building and adds the new stack panel widget instance to the user interface and
     /// returns its handle.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<StackPanel> {
-        ctx.add_node(self.build_node(ctx)).to_variant()
+        ctx.add(self.build_stack_panel(ctx))
     }
 }
 

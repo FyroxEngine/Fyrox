@@ -284,7 +284,7 @@ impl<'a> SearchBarBuilder<'a> {
             clear: clear.into(),
         };
 
-        ctx.add_node(UiNode::new(search_bar)).to_variant()
+        ctx.add(search_bar)
     }
 }
 

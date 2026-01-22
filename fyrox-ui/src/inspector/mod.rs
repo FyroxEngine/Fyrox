@@ -1528,7 +1528,7 @@ impl InspectorBuilder {
                 .build(ctx),
             context: self.context,
         };
-        ctx.add_node(UiNode::new(canvas)).to_variant()
+        ctx.add(canvas)
     }
 }
 

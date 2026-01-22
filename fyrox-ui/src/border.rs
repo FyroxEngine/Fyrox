@@ -355,8 +355,7 @@ impl BorderBuilder {
 
     /// Finishes border building and adds it to the user interface. See examples in [`Border`] docs.
     pub fn build(self, ctx: &mut BuildContext<'_>) -> Handle<Border> {
-        ctx.add_node(UiNode::new(self.build_border(ctx)))
-            .to_variant()
+        ctx.add(self.build_border(ctx))
     }
 }
 

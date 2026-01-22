@@ -1747,7 +1747,7 @@ impl<'a> TextBoxBuilder<'a> {
             placeholder,
         };
 
-        ctx.add_node(UiNode::new(text_box)).to_variant()
+        ctx.add(text_box)
     }
 }
 

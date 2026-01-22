@@ -781,7 +781,7 @@ impl GridBuilder {
             cells: Default::default(),
             groups: Default::default(),
         };
-        ctx.add_node(UiNode::new(grid)).to_variant()
+        ctx.add(grid)
     }
 }
 
