@@ -82,7 +82,7 @@ fn create_socket<N: Reflect>(
     show_index: bool,
     parent_node: Handle<PoseNode<Handle<N>>>,
     ui: &mut UserInterface,
-) -> Handle<UiNode> {
+) -> Handle<Socket> {
     SocketBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
         .with_direction(direction)
         .with_parent_node(parent_node.into())
@@ -96,7 +96,7 @@ fn create_sockets<N: Reflect>(
     direction: SocketDirection,
     parent_node: Handle<PoseNode<Handle<N>>>,
     ui: &mut UserInterface,
-) -> Vec<Handle<UiNode>> {
+) -> Vec<Handle<Socket>> {
     (0..count)
         .map(|index| create_socket(direction, index, true, parent_node, ui))
         .collect::<Vec<_>>()
@@ -549,7 +549,7 @@ impl StateViewer {
 
                             ui.send_sync(node_view, WidgetMessage::LinkWith(self.canvas));
 
-                            views.push(node_view);
+                            views.push(node_view.to_base());
                         }
                     }
                 }

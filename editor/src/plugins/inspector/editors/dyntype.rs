@@ -152,7 +152,7 @@ impl DynTypePropertyEditorBuilder {
         name_column_width: f32,
         has_parent_object: bool,
         ctx: &mut BuildContext,
-    ) -> Handle<UiNode> {
+    ) -> Handle<DynTypePropertyEditor> {
         let context = dyntype_container.value_ref().as_ref().map(|dyn_type| {
             InspectorContext::from_object(InspectorContextArgs {
                 object: *dyn_type,
@@ -183,6 +183,7 @@ impl DynTypePropertyEditorBuilder {
             inspector,
             need_context_update: Cell::new(false),
         }))
+        .to_variant()
     }
 }
 
@@ -282,7 +283,10 @@ impl PropertyEditorDefinition for DynTypePropertyEditorDefinition {
             ctx.build_context,
         );
 
-        Ok(PropertyEditorInstance::Custom { container, editor })
+        Ok(PropertyEditorInstance::Custom {
+            container,
+            editor: editor.to_base(),
+        })
     }
 
     fn create_message(

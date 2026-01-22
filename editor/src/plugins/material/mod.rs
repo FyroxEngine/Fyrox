@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::plugins::inspector::editors::resource::ResourceField;
 use crate::{
     asset::preview::cache::IconRequest,
     fyrox::{
@@ -118,7 +119,7 @@ pub struct MaterialEditor {
     resource_views: Vec<ResourceView>,
     preview: PreviewPanel,
     material: Option<MaterialResource>,
-    shader: Handle<UiNode>,
+    shader: Handle<ResourceField<Shader>>,
 }
 
 fn make_item_container(ctx: &mut BuildContext, name: &str, item: Handle<UiNode>) -> Handle<UiNode> {
@@ -461,7 +462,8 @@ impl MaterialEditor {
                         sender.clone(),
                         icon_request_sender.clone(),
                         resource_manager.clone(),
-                    );
+                    )
+                    .to_base();
                     ResourceView {
                         name: resource.name.clone(),
                         container: make_item_container(ctx, resource.name.as_str(), editor),

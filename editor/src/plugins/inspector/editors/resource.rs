@@ -54,6 +54,7 @@ use crate::{
     utils, Message,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::image::Image;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::text::Text;
 use fyrox::gui::utils::make_asset_preview_tooltip;
@@ -64,7 +65,6 @@ use std::{
     path::Path,
     sync::{mpsc::Sender, Arc},
 };
-use fyrox::gui::image::Image;
 
 fn resource_path<T>(resource_manager: &ResourceManager, resource: &Option<Resource<T>>) -> String
 where
@@ -306,7 +306,7 @@ where
         ctx: &mut BuildContext,
         icon_request_sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
-    ) -> Handle<UiNode> {
+    ) -> Handle<ResourceField<T>> {
         let (image_preview_tooltip, image_preview) = make_asset_preview_tooltip(None, ctx);
 
         let name;
@@ -392,7 +392,7 @@ where
             }));
         }
 
-        handle
+        handle.to_variant()
     }
 }
 
@@ -440,15 +440,15 @@ where
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<Option<Resource<T>>>()?;
         let environment = EditorEnvironment::try_get_from(&ctx.environment)?;
-        Ok(PropertyEditorInstance::Simple {
-            editor: ResourceFieldBuilder::new(WidgetBuilder::new(), self.sender.clone())
+        Ok(PropertyEditorInstance::simple(
+            ResourceFieldBuilder::new(WidgetBuilder::new(), self.sender.clone())
                 .with_resource(value.clone())
                 .build(
                     ctx.build_context,
                     environment.icon_request_sender.clone(),
                     environment.resource_manager.clone(),
                 ),
-        })
+        ))
     }
 
     fn create_message(

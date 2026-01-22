@@ -170,7 +170,7 @@ impl FontFieldBuilder {
         self,
         resource_manager: ResourceManager,
         ctx: &mut BuildContext,
-    ) -> Handle<UiNode> {
+    ) -> Handle<FontField> {
         let text_preview;
         let widget = self
             .widget_builder
@@ -192,7 +192,7 @@ impl FontFieldBuilder {
             resource_manager,
         };
 
-        ctx.add_node(UiNode::new(editor))
+        ctx.add_node(UiNode::new(editor)).to_variant()
     }
 }
 
@@ -212,13 +212,11 @@ impl PropertyEditorDefinition for FontPropertyEditorDefinition {
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<FontResource>()?;
 
-        Ok(PropertyEditorInstance::Simple {
-            editor: FontFieldBuilder::new(
-                WidgetBuilder::new().with_min_size(Vector2::new(0.0, 17.0)),
-            )
-            .with_font(value.clone())
-            .build(self.resource_manager.clone(), ctx.build_context),
-        })
+        Ok(PropertyEditorInstance::simple(
+            FontFieldBuilder::new(WidgetBuilder::new().with_min_size(Vector2::new(0.0, 17.0)))
+                .with_font(value.clone())
+                .build(self.resource_manager.clone(), ctx.build_context),
+        ))
     }
 
     fn create_message(

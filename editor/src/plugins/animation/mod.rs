@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::plugins::animation::ruler::Ruler;
+use crate::plugins::animation::thumb::Thumb;
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
@@ -93,9 +95,9 @@ pub struct AnimationEditor {
     curve_editor: Handle<UiNode>,
     toolbar: Toolbar,
     content: Handle<Grid>,
-    ruler: Handle<UiNode>,
+    ruler: Handle<Ruler>,
     preview_mode_data: Option<Box<dyn Any>>,
-    thumb: Handle<UiNode>,
+    thumb: Handle<Thumb>,
 }
 
 fn fetch_selection<G, N>(

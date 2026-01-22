@@ -35,6 +35,7 @@ use crate::fyrox::{
 use crate::plugins::absm::segment::Segment;
 use crate::utils::fetch_node_screen_center;
 
+use crate::plugins::absm::socket::Socket;
 use fyrox::material::MaterialResource;
 
 const PICKED_BRUSH: Brush = Brush::Solid(Color::opaque(100, 100, 100));
@@ -113,9 +114,9 @@ impl Control for Connection {
 
 pub struct ConnectionBuilder {
     widget_builder: WidgetBuilder,
-    source_socket: Handle<UiNode>,
+    source_socket: Handle<Socket>,
     source_node: Handle<UiNode>,
-    dest_socket: Handle<UiNode>,
+    dest_socket: Handle<Socket>,
     dest_node: Handle<UiNode>,
 }
 
@@ -130,12 +131,12 @@ impl ConnectionBuilder {
         }
     }
 
-    pub fn with_source_socket(mut self, source: Handle<UiNode>) -> Self {
+    pub fn with_source_socket(mut self, source: Handle<Socket>) -> Self {
         self.source_socket = source;
         self
     }
 
-    pub fn with_dest_socket(mut self, dest: Handle<UiNode>) -> Self {
+    pub fn with_dest_socket(mut self, dest: Handle<Socket>) -> Self {
         self.dest_socket = dest;
         self
     }
@@ -150,7 +151,7 @@ impl ConnectionBuilder {
         self
     }
 
-    pub fn build(self, canvas: Handle<UiNode>, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, canvas: Handle<UiNode>, ctx: &mut BuildContext) -> Handle<Connection> {
         let canvas_ref = ctx.try_get_node(canvas);
 
         let connection = Connection {
@@ -160,11 +161,11 @@ impl ConnectionBuilder {
                 .with_clip_to_bounds(false)
                 .build(ctx),
             segment: Segment {
-                source: self.source_socket,
+                source: self.source_socket.to_base(),
                 source_pos: canvas_ref
                     .map(|c| c.screen_to_local(fetch_node_screen_center(self.source_socket, ctx)))
                     .unwrap_or_default(),
-                dest: self.dest_socket,
+                dest: self.dest_socket.to_base(),
                 dest_pos: canvas_ref
                     .map(|c| c.screen_to_local(fetch_node_screen_center(self.dest_socket, ctx)))
                     .unwrap_or_default(),
@@ -173,7 +174,7 @@ impl ConnectionBuilder {
             dest_node: self.dest_node,
         };
 
-        ctx.add_node(UiNode::new(connection))
+        ctx.add_node(UiNode::new(connection)).to_variant()
     }
 }
 

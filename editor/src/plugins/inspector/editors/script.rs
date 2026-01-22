@@ -226,7 +226,7 @@ impl ScriptPropertyEditorBuilder {
         name_column_width: f32,
         has_parent_object: bool,
         ctx: &mut BuildContext,
-    ) -> Handle<UiNode> {
+    ) -> Handle<ScriptPropertyEditor> {
         let context = script.as_ref().map(|script| {
             InspectorContext::from_object(InspectorContextArgs {
                 object: script,
@@ -258,6 +258,7 @@ impl ScriptPropertyEditorBuilder {
             inspector,
             need_context_update: Cell::new(false),
         }))
+        .to_variant()
     }
 }
 
@@ -383,7 +384,10 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
             ctx.build_context,
         );
 
-        Ok(PropertyEditorInstance::Custom { container, editor })
+        Ok(PropertyEditorInstance::Custom {
+            container,
+            editor: editor.to_base(),
+        })
     }
 
     fn create_message(

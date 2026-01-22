@@ -171,7 +171,7 @@ impl SocketBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<Socket> {
         if let Ok(editor) = ctx.try_get_node_mut(self.editor) {
             editor.set_row(0).set_column(1);
         }
@@ -228,7 +228,7 @@ impl SocketBuilder {
             index: self.index,
         };
 
-        ctx.add_node(UiNode::new(socket))
+        ctx.add_node(UiNode::new(socket)).to_variant()
     }
 }
 

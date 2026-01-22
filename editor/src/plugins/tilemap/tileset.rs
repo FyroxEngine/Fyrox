@@ -24,6 +24,7 @@
 
 use super::{commands::*, *};
 use crate::asset::preview::cache::IconRequest;
+use crate::plugins::inspector::editors::resource::ResourceField;
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
@@ -109,7 +110,7 @@ pub struct TileSetEditor {
     /// the tile set for the brush.
     tile_set_selector: Handle<Grid>,
     /// This is the resource field that lets the user select the tile set for a brush.
-    tile_set_field: Handle<UiNode>,
+    tile_set_field: Handle<ResourceField<TileSet>>,
     /// This is the area that shows the data for the currently selected tiles.
     tile_inspector: TileInspector,
     /// The tab that allows users to add, remove, and edit property layers.

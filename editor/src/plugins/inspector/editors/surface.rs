@@ -58,10 +58,10 @@ use crate::{
 };
 use fyrox::gui::brush::Brush;
 use fyrox::gui::button::Button;
+use fyrox::gui::image::Image;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::text::Text;
 use std::{any::TypeId, sync::mpsc::Sender};
-use fyrox::gui::image::Image;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum SurfaceDataPropertyEditorMessage {
@@ -209,7 +209,7 @@ impl SurfaceDataPropertyEditor {
         sender: MessageSender,
         icon_request_sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
-    ) -> Handle<UiNode> {
+    ) -> Handle<SurfaceDataPropertyEditor> {
         let view = ButtonBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(1.0))
@@ -292,7 +292,7 @@ impl SurfaceDataPropertyEditor {
             force_update: false,
         }));
 
-        handle
+        handle.to_variant()
     }
 }
 
@@ -313,15 +313,15 @@ impl PropertyEditorDefinition for SurfaceDataPropertyEditorDefinition {
         let value = ctx.property_info.cast_value::<SurfaceResource>()?;
         let environment = EditorEnvironment::try_get_from(&ctx.environment)?;
 
-        Ok(PropertyEditorInstance::Simple {
-            editor: SurfaceDataPropertyEditor::build(
+        Ok(PropertyEditorInstance::simple(
+            SurfaceDataPropertyEditor::build(
                 ctx.build_context,
                 value.clone(),
                 self.sender.clone(),
                 environment.icon_request_sender.clone(),
                 environment.resource_manager.clone(),
             ),
-        })
+        ))
     }
 
     fn create_message(

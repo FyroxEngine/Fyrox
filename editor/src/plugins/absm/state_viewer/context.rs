@@ -385,7 +385,7 @@ impl ConnectionContextMenu {
                     .base
                     .input_sockets
                     .iter()
-                    .position(|s| *s == connection_ref.segment.dest)
+                    .position(|s| connection_ref.segment.dest == *s)
                     .unwrap();
 
                 let model_handle = dest_node_ref.model_handle;

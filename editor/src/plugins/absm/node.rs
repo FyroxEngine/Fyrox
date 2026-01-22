@@ -37,6 +37,8 @@ use crate::fyrox::{
     },
 };
 use crate::plugins::absm::selectable::{Selectable, SelectableMessage};
+use crate::plugins::absm::socket::Socket;
+use fyrox::core::pool::HandlesVecExtension;
 use fyrox::gui::border::Border;
 use fyrox::gui::button::Button;
 use fyrox::gui::message::MessageData;
@@ -51,8 +53,8 @@ use std::{
 
 #[derive(Clone, Debug, Visit, Reflect)]
 pub struct AbsmBaseNode {
-    pub input_sockets: Vec<Handle<UiNode>>,
-    pub output_socket: Handle<UiNode>,
+    pub input_sockets: Vec<Handle<Socket>>,
+    pub output_socket: Handle<Socket>,
 }
 
 #[derive(Visit, Reflect, ComponentProvider)]
@@ -146,7 +148,7 @@ pub enum AbsmNodeMessage {
     Name(String),
     Enter,
     AddInput,
-    InputSockets(Vec<Handle<UiNode>>),
+    InputSockets(Vec<Handle<Socket>>),
     NormalBrush(StyledProperty<Brush>),
     SelectedBrush(StyledProperty<Brush>),
     SetActive(bool),
@@ -260,8 +262,8 @@ where
     widget_builder: WidgetBuilder,
     name: String,
     model_handle: Handle<T>,
-    input_sockets: Vec<Handle<UiNode>>,
-    output_socket: Handle<UiNode>,
+    input_sockets: Vec<Handle<Socket>>,
+    output_socket: Handle<Socket>,
     can_add_sockets: bool,
     title: Option<String>,
     normal_brush: Option<StyledProperty<Brush>>,
@@ -298,12 +300,12 @@ where
         self
     }
 
-    pub fn with_input_sockets(mut self, sockets: Vec<Handle<UiNode>>) -> Self {
+    pub fn with_input_sockets(mut self, sockets: Vec<Handle<Socket>>) -> Self {
         self.input_sockets = sockets;
         self
     }
 
-    pub fn with_output_socket(mut self, socket: Handle<UiNode>) -> Self {
+    pub fn with_output_socket(mut self, socket: Handle<Socket>) -> Self {
         self.output_socket = socket;
         self
     }
@@ -333,7 +335,7 @@ where
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<AbsmNode<T>> {
         let input_sockets_panel;
         let add_input;
         let name;
@@ -352,7 +354,7 @@ where
                                         .on_column(0)
                                         .with_margin(Thickness::uniform(2.0))
                                         .with_vertical_alignment(VerticalAlignment::Center)
-                                        .with_children(self.input_sockets.iter().cloned())
+                                        .with_children(self.input_sockets.clone().to_base())
                                         .on_column(0),
                                 )
                                 .build(ctx);
@@ -493,7 +495,7 @@ where
             edit,
         };
 
-        ctx.add_node(UiNode::new(node))
+        ctx.add_node(UiNode::new(node)).to_variant()
     }
 }
 

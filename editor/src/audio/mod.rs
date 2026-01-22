@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::plugins::inspector::editors::resource::ResourceField;
 use crate::scene::EntityInfo;
 use crate::{
     asset::preview::cache::IconRequest,
@@ -186,7 +187,7 @@ pub struct AudioPanel {
     audio_buses: Handle<ListView>,
     distance_model: Handle<DropdownList>,
     renderer: Handle<DropdownList>,
-    hrir_resource: Handle<UiNode>,
+    hrir_resource: Handle<ResourceField<HrirSphereResourceData>>,
 }
 
 fn item_bus(item: Handle<UiNode>, ui: &UserInterface) -> Handle<AudioBus> {

@@ -256,7 +256,7 @@ impl TextureEditorBuilder {
         sender: MessageSender,
         icon_request_sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
-    ) -> Handle<UiNode> {
+    ) -> Handle<TextureEditor> {
         let image = ImageBuilder::new(
             WidgetBuilder::new()
                 .on_column(0)
@@ -322,7 +322,7 @@ impl TextureEditorBuilder {
         editor_mut.context_menu = Some(texture_context_menu.popup.clone());
         editor_mut.texture_context_menu = Some(texture_context_menu);
 
-        editor
+        editor.to_variant()
     }
 }
 
@@ -359,18 +359,16 @@ impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
         let value = self.value(ctx.property_info)?;
         let environment = EditorEnvironment::try_get_from(&ctx.environment)?;
 
-        Ok(PropertyEditorInstance::Simple {
-            editor: TextureEditorBuilder::new(
-                WidgetBuilder::new().with_min_size(Vector2::new(0.0, 17.0)),
-            )
-            .with_texture(value.clone())
-            .build(
-                ctx.build_context,
-                environment.sender.clone(),
-                environment.icon_request_sender.clone(),
-                environment.resource_manager.clone(),
-            ),
-        })
+        Ok(PropertyEditorInstance::simple(
+            TextureEditorBuilder::new(WidgetBuilder::new().with_min_size(Vector2::new(0.0, 17.0)))
+                .with_texture(value.clone())
+                .build(
+                    ctx.build_context,
+                    environment.sender.clone(),
+                    environment.icon_request_sender.clone(),
+                    environment.resource_manager.clone(),
+                ),
+        ))
     }
 
     fn create_message(

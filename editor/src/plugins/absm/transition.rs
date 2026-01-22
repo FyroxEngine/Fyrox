@@ -190,7 +190,11 @@ impl TransitionBuilder {
         self
     }
 
-    pub fn build(self, model_handle: ErasedHandle, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(
+        self,
+        model_handle: ErasedHandle,
+        ctx: &mut BuildContext,
+    ) -> Handle<TransitionView> {
         let transition = TransitionView {
             widget: self
                 .widget_builder
@@ -209,7 +213,7 @@ impl TransitionBuilder {
             activity_factor: 0.0,
         };
 
-        ctx.add_node(UiNode::new(transition))
+        ctx.add_node(UiNode::new(transition)).to_variant()
     }
 }
 

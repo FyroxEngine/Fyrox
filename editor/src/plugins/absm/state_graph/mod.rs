@@ -332,6 +332,7 @@ impl StateGraphViewer {
                 .iter()
                 .cloned()
                 .filter(|c| ui.node(*c).has_component::<AbsmNode<State<Handle<N>>>>())
+                .map(|c| c.to_variant::<AbsmNode<State<Handle<N>>>>())
                 .collect::<Vec<_>>();
 
             transitions = canvas
@@ -339,6 +340,7 @@ impl StateGraphViewer {
                 .iter()
                 .cloned()
                 .filter(|c| ui.node(*c).has_component::<TransitionView>())
+                .map(|c| c.to_variant::<TransitionView>())
                 .collect::<Vec<_>>();
         }
 
@@ -349,13 +351,10 @@ impl StateGraphViewer {
             Ordering::Less => {
                 // A state was added.
                 for (state_handle, state) in machine_layer.states().pair_iter() {
-                    if states.iter().all(|state_view| {
-                        ui.node(*state_view)
-                            .query_component::<AbsmNode<State<Handle<N>>>>()
-                            .unwrap()
-                            .model_handle
-                            != state_handle
-                    }) {
+                    if states
+                        .iter()
+                        .all(|state_view| ui[*state_view].model_handle != state_handle)
+                    {
                         let state_view_handle = AbsmNodeBuilder::new(
                             WidgetBuilder::new()
                                 .with_context_menu(self.node_context_menu.menu.clone())
@@ -375,7 +374,7 @@ impl StateGraphViewer {
                         .with_name(state.name.clone())
                         .build(&mut ui.build_ctx());
 
-                        states.push(state_view_handle);
+                        states.push(state_view_handle.to_base());
 
                         ui.send_sync(state_view_handle, WidgetMessage::LinkWith(self.canvas));
                     }
@@ -383,16 +382,11 @@ impl StateGraphViewer {
             }
             Ordering::Greater => {
                 // A state was removed.
-                for (state_view_handle, state_model_handle) in
-                    states.clone().iter().cloned().map(|state_view| {
-                        (
-                            state_view,
-                            ui.node(state_view)
-                                .query_component::<AbsmNode<State<Handle<N>>>>()
-                                .unwrap()
-                                .model_handle,
-                        )
-                    })
+                for (state_view_handle, state_model_handle) in states
+                    .clone()
+                    .iter()
+                    .cloned()
+                    .map(|state_view| (state_view, ui[state_view].model_handle))
                 {
                     if machine_layer
                         .states()
@@ -412,10 +406,7 @@ impl StateGraphViewer {
 
         // Sync state nodes.
         for state in states.iter() {
-            let state_node = ui
-                .node(*state)
-                .query_component::<AbsmNode<State<Handle<N>>>>()
-                .unwrap();
+            let state_node = &ui[*state];
             let state_model_handle = state_node.model_handle;
             let state_model_ref = &machine_layer.states()[state_node.model_handle];
 
@@ -465,26 +456,17 @@ impl StateGraphViewer {
                     if transitions.iter().all(|transition_view| {
                         transition_handle
                             != Handle::<Transition<Handle<N>>>::from(
-                                ui.node(*transition_view)
-                                    .query_component::<TransitionView>()
-                                    .unwrap()
-                                    .model_handle,
+                                ui[*transition_view].model_handle,
                             )
                     }) {
                         fn find_state_view<N: Reflect>(
                             state_handle: Handle<State<Handle<N>>>,
-                            states: &[Handle<UiNode>],
+                            states: &[Handle<AbsmNode<State<Handle<N>>>>],
                             ui: &UserInterface,
-                        ) -> Handle<UiNode> {
+                        ) -> Handle<AbsmNode<State<Handle<N>>>> {
                             states
                                 .iter()
-                                .find(|s| {
-                                    ui.node(**s)
-                                        .query_component::<AbsmNode<State<Handle<N>>>>()
-                                        .unwrap()
-                                        .model_handle
-                                        == state_handle
-                                })
+                                .find(|s| ui[**s].model_handle == state_handle)
                                 .cloned()
                                 .unwrap_or_default()
                         }
@@ -493,8 +475,8 @@ impl StateGraphViewer {
                             WidgetBuilder::new()
                                 .with_context_menu(self.transition_context_menu.menu.clone()),
                         )
-                        .with_source(find_state_view(transition.source(), &states, ui))
-                        .with_dest(find_state_view(transition.dest(), &states, ui))
+                        .with_source(find_state_view(transition.source(), &states, ui).to_base())
+                        .with_dest(find_state_view(transition.dest(), &states, ui).to_base())
                         .build(transition_handle.into(), &mut ui.build_ctx());
 
                         ui.send_sync(transition_view, WidgetMessage::LinkWith(self.canvas));
@@ -507,16 +489,11 @@ impl StateGraphViewer {
 
             Ordering::Greater => {
                 // A transition was removed.
-                for (transition_view_handle, transition_model_handle) in
-                    transitions.clone().iter().cloned().map(|transition_view| {
-                        (
-                            transition_view,
-                            ui.node(transition_view)
-                                .query_component::<TransitionView>()
-                                .unwrap()
-                                .model_handle,
-                        )
-                    })
+                for (transition_view_handle, transition_model_handle) in transitions
+                    .clone()
+                    .iter()
+                    .cloned()
+                    .map(|transition_view| (transition_view, ui[transition_view].model_handle))
                 {
                     if machine_layer.transitions().pair_iter().all(|(h, _)| {
                         h != Handle::<Transition<Handle<N>>>::from(transition_model_handle)
@@ -540,22 +517,18 @@ impl StateGraphViewer {
             .entities
             .iter()
             .filter_map(|entry| match entry {
-                SelectedEntity::Transition(transition) => transitions.iter().cloned().find(|t| {
-                    *transition
-                        == Handle::<Transition<Handle<N>>>::from(
-                            ui.node(*t)
-                                .query_component::<TransitionView>()
-                                .unwrap()
-                                .model_handle,
-                        )
-                }),
-                SelectedEntity::State(state) => states.iter().cloned().find(|s| {
-                    ui.node(*s)
-                        .query_component::<AbsmNode<State<Handle<N>>>>()
-                        .unwrap()
-                        .model_handle
-                        == *state
-                }),
+                SelectedEntity::Transition(transition) => transitions
+                    .iter()
+                    .cloned()
+                    .find(|t| {
+                        *transition == Handle::<Transition<Handle<N>>>::from(ui[*t].model_handle)
+                    })
+                    .map(|c| c.to_base()),
+                SelectedEntity::State(state) => states
+                    .iter()
+                    .cloned()
+                    .find(|s| ui[*s].model_handle == *state)
+                    .map(|c| c.to_base()),
                 SelectedEntity::PoseNode(_) => {
                     // No such nodes possible to have on this canvas.
                     None

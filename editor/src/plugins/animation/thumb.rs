@@ -135,7 +135,7 @@ impl ThumbBuilder {
         Self { widget_builder }
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<Thumb> {
         let ruler = Thumb {
             widget: self
                 .widget_builder
@@ -146,7 +146,7 @@ impl ThumbBuilder {
             position: 0.0,
         };
 
-        ctx.add_node(UiNode::new(ruler))
+        ctx.add_node(UiNode::new(ruler)).to_variant()
     }
 }
 

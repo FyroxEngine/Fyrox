@@ -56,6 +56,7 @@ use crate::{
 };
 use fyrox::core::PhantomDataSendSync;
 use fyrox::gui::button::Button;
+use fyrox::gui::image::Image;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::text::Text;
 use fyrox::gui::window::WindowAlignment;
@@ -65,7 +66,6 @@ use std::{
     ops::{Deref, DerefMut},
     sync::Mutex,
 };
-use fyrox::gui::image::Image;
 
 pub enum HandlePropertyEditorMessage<T: Reflect> {
     Value(Handle<T>),
@@ -347,7 +347,7 @@ impl<T: Reflect> HandlePropertyEditorBuilder<T> {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<HandlePropertyEditor<T>> {
         let text;
         let locate;
         let select;
@@ -460,7 +460,7 @@ impl<T: Reflect> HandlePropertyEditorBuilder<T> {
             pick,
         };
 
-        ctx.add_node(UiNode::new(editor))
+        ctx.add_node(UiNode::new(editor)).to_variant()
     }
 }
 
@@ -502,9 +502,9 @@ impl<T: Reflect> PropertyEditorDefinition for NodeHandlePropertyEditorDefinition
             .with_value(*value)
             .build(ctx.build_context);
 
-        request_name_sync(&sender, editor, ErasedHandle::from(*value));
+        request_name_sync(&sender, editor.to_base(), ErasedHandle::from(*value));
 
-        Ok(PropertyEditorInstance::Simple { editor })
+        Ok(PropertyEditorInstance::simple(editor))
     }
 
     fn create_message(

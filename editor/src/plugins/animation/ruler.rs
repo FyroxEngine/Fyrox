@@ -458,7 +458,7 @@ impl RulerBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<Ruler> {
         let context_menu = ContextMenu::new(ctx);
 
         let ruler = Ruler {
@@ -477,7 +477,7 @@ impl RulerBuilder {
             context_menu,
         };
 
-        ctx.add_node(UiNode::new(ruler))
+        ctx.add_node(UiNode::new(ruler)).to_variant()
     }
 }
 
