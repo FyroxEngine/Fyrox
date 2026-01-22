@@ -167,8 +167,7 @@ pub fn make_simple_tooltip(ctx: &mut BuildContext, text: &str) -> RcUiNodeHandle
                 .build(ctx),
             ),
     )
-    .build(ctx)
-    .to_base();
+    .build(ctx);
     RcUiNodeHandle::new(handle, ctx.sender())
 }
 
@@ -201,8 +200,7 @@ pub fn make_asset_preview_tooltip(
                 image_preview
             }),
     )
-    .build(ctx)
-    .to_base();
+    .build(ctx);
     (
         RcUiNodeHandle::new(image_preview_tooltip, ctx.sender()),
         image_preview,

@@ -39,7 +39,7 @@ use crate::{
             stack_panel::StackPanelBuilder,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
         },
         resource::curve::{CurveResource, CurveResourceState},
     },
@@ -51,6 +51,7 @@ use crate::{
 use fyrox::asset::manager::ResourceManager;
 use fyrox::core::some_or_return;
 use fyrox::gui::button::Button;
+use fyrox::gui::curve::CurveEditor;
 use fyrox::gui::file_browser::{FileSelector, FileSelectorMode, FileType};
 use fyrox::gui::menu::MenuItem;
 use fyrox::gui::messagebox::MessageBox;
@@ -108,7 +109,7 @@ struct Menu {
 
 pub struct CurveEditorWindow {
     window: Handle<Window>,
-    curve_editor: Handle<UiNode>,
+    curve_editor: Handle<CurveEditor>,
     ok: Handle<Button>,
     cancel: Handle<Button>,
     curve_resource: Option<CurveResource>,

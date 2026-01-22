@@ -54,6 +54,7 @@ use crate::{
 use fyrox::core::{ok_or_return, uuid, Uuid};
 use fyrox::engine::GraphicsContext;
 use fyrox::gui::button::Button;
+use fyrox::gui::dock::DockingManager;
 use fyrox::gui::menu::MenuItem;
 use fyrox::gui::scroll_viewer::ScrollViewer;
 use fyrox::gui::searchbar::SearchBar;
@@ -281,7 +282,7 @@ impl SettingsWindow {
         message: &UiMessage,
         engine: &mut Engine,
         settings: &mut Settings,
-        docking_manager: Handle<UiNode>,
+        docking_manager: Handle<DockingManager>,
         property_editors: Arc<PropertyEditorDefinitionContainer>,
     ) -> Option<Self> {
         let ui = engine.user_interfaces.first_mut();

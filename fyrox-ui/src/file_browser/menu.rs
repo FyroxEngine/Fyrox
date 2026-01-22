@@ -184,7 +184,7 @@ impl Control for ItemContextMenu {
 }
 
 impl ItemContextMenu {
-    pub fn build(ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(ctx: &mut BuildContext) -> Handle<ItemContextMenu> {
         let delete;
         let make_folder;
         let base_menu = ContextMenuBuilder::new(
@@ -227,7 +227,7 @@ impl ItemContextMenu {
             folder_name_dialog: Default::default(),
         };
 
-        ctx.add_node(UiNode::new(menu))
+        ctx.add(menu)
     }
 
     fn item_path(&self, ui: &UserInterface) -> Option<TreeItemPath> {

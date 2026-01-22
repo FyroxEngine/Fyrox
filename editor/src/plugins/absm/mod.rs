@@ -41,7 +41,7 @@ use crate::{
             message::UiMessage,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, UiNode, UserInterface,
+            BuildContext, UserInterface,
         },
     },
     menu::create_menu_item,
@@ -63,6 +63,7 @@ use crate::{
 };
 use fyrox::core::{uuid, Uuid};
 use fyrox::engine::ApplicationLoopController;
+use fyrox::gui::dock::DockingManager;
 use fyrox::gui::inspector::editors::PropertyEditorDefinitionContainer;
 use fyrox::gui::menu::MenuItem;
 use fyrox::gui::window::{Window, WindowAlignment};
@@ -406,7 +407,7 @@ impl AbsmEditor {
         }
     }
 
-    fn destroy(self, ui: &UserInterface, docking_manager: Handle<UiNode>) {
+    fn destroy(self, ui: &UserInterface, docking_manager: Handle<DockingManager>) {
         ui.send(
             docking_manager,
             DockingManagerMessage::RemoveFloatingWindow(self.window),

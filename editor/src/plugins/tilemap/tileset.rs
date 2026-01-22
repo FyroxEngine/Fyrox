@@ -54,6 +54,7 @@ use crate::{
     message::MessageSender,
     plugins::inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
 };
+use fyrox::gui::color::ColorField;
 use fyrox::gui::grid::Grid;
 use fyrox::gui::text::Text;
 use fyrox::gui::window::{Window, WindowAlignment};
@@ -85,7 +86,7 @@ pub struct TileSetEditor {
     tile_book: TileBook,
     /// The field that controls the tint of the background material on tile atlas pages.
     /// This tint allows the background material to be visually distinguished from actual tiles.
-    color_field: Handle<UiNode>,
+    color_field: Handle<ColorField>,
     /// A text widget showing the coordinates of the currently selected cells.
     cell_position: Handle<Text>,
     /// The control that allows the editor to switch between the tiles tab,

@@ -57,7 +57,7 @@ impl PropertyEditorDefinition for CurvePropertyEditorDefinition {
         ctx.build_context
             .inner()
             .send(editor, CurveEditorMessage::ZoomToFit { after_layout: true });
-        Ok(PropertyEditorInstance::Simple { editor })
+        Ok(PropertyEditorInstance::simple(editor))
     }
 
     fn create_message(

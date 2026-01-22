@@ -369,7 +369,7 @@ fn make_tooltip(ctx: &mut BuildContext, text: &str) -> RcUiNodeHandle {
             ),
     )
     .build(ctx);
-    RcUiNodeHandle::new(handle.to_base(), ctx.sender())
+    RcUiNodeHandle::new(handle, ctx.sender())
 }
 
 impl AssetItemBuilder {

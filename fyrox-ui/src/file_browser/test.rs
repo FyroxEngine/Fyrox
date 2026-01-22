@@ -133,7 +133,7 @@ fn test_find_tree() {
         root,
         "./test/path1",
         "./test",
-        RcUiNodeHandle::new(Handle::new(0, 1), ui.sender()),
+        RcUiNodeHandle::new(Handle::<Tree>::new(0, 1), ui.sender()),
         &Default::default(),
         &mut ui,
     );

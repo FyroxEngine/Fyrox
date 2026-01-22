@@ -69,6 +69,7 @@ use crate::{
     Message, Mode,
 };
 use fyrox::asset::event::ResourceEvent;
+use fyrox::gui::dock::DockingManager;
 use fyrox::gui::file_browser::FileBrowser;
 use fyrox::gui::grid::Grid;
 use fyrox::gui::scroll_viewer::ScrollViewer;
@@ -158,7 +159,7 @@ struct InspectorAddon {
 
 pub struct AssetBrowser {
     pub window: Handle<Window>,
-    pub docking_manager: Handle<UiNode>,
+    pub docking_manager: Handle<DockingManager>,
     content_panel: Handle<WrapPanel>,
     folder_browser: Handle<FileBrowser>,
     scroll_viewer: Handle<ScrollViewer>,

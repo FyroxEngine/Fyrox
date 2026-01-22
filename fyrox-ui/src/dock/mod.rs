@@ -98,8 +98,8 @@ impl MessageData for DockingManagerMessage {}
 /// #     window::{WindowBuilder, WindowTitle},
 /// #     BuildContext, UiNode,
 /// # };
-/// #
-/// fn create_docking_manager(ctx: &mut BuildContext) -> Handle<UiNode> {
+/// # use fyrox_ui::dock::DockingManager;
+/// fn create_docking_manager(ctx: &mut BuildContext) -> Handle<DockingManager> {
 ///     let top_window = WindowBuilder::new(WidgetBuilder::new())
 ///         .with_title(WindowTitle::text("Top Window"))
 ///         .build(ctx);
@@ -176,6 +176,7 @@ impl ConstructorProvider<UiNode, UserInterface> for DockingManager {
             .with_variant("Docking Manager", |ui| {
                 DockingManagerBuilder::new(WidgetBuilder::new().with_name("Docking Manager"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Layout")
@@ -377,13 +378,13 @@ impl DockingManagerBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<DockingManager> {
         let docking_manager = DockingManager {
             widget: self.widget_builder.with_preview_messages(true).build(ctx),
             floating_windows: RefCell::new(self.floating_windows),
         };
 
-        ctx.add_node(UiNode::new(docking_manager))
+        ctx.add(docking_manager)
     }
 }
 

@@ -31,6 +31,7 @@ use crate::asset::preview::cache::IconRequest;
 use commands::*;
 use fyrox::core::pool::ObjectOrVariant;
 use fyrox::gui::button::Button;
+use fyrox::gui::color::ColorField;
 use fyrox::gui::text::Text;
 use fyrox::{
     fxhash::FxHashMap,
@@ -438,7 +439,7 @@ impl TileEditor for TileMaterialEditor {
 /// An editor for the color of a tile.
 pub struct TileColorEditor {
     handle: Handle<UiNode>,
-    field: Handle<UiNode>,
+    field: Handle<ColorField>,
     draw_button: Handle<Button>,
     color: Color,
 }

@@ -1092,7 +1092,8 @@ impl MenuItemBuilder {
                 // We'll manually control if popup is either open or closed.
                 .stays_open(true),
         )
-        .build(ctx);
+        .build(ctx)
+        .to_base();
 
         let menu = MenuItem {
             widget: self
@@ -1148,6 +1149,7 @@ impl ConstructorProvider<UiNode, UserInterface> for ContextMenu {
                         .with_restrict_picking(false),
                 )
                 .build(&mut ui.build_ctx())
+                .to_base()
                 .into()
             })
             .with_group("Input")
@@ -1221,9 +1223,9 @@ impl ContextMenuBuilder {
     }
 
     /// Finishes context menu building and adds it to the user interface.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<ContextMenu> {
         let context_menu = self.build_context_menu(ctx);
-        ctx.add_node(UiNode::new(context_menu))
+        ctx.add(context_menu)
     }
 }
 

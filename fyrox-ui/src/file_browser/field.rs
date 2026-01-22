@@ -66,6 +66,7 @@ impl ConstructorProvider<UiNode, UserInterface> for FileSelectorField {
             .with_variant("File Selector Field", |ui| {
                 FileSelectorFieldBuilder::new(WidgetBuilder::new().with_name("File Selector Field"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("File System")
@@ -154,7 +155,7 @@ impl FileSelectorFieldBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<FileSelectorField> {
         let select;
         let path_field;
         let field = FileSelectorField {
@@ -192,6 +193,6 @@ impl FileSelectorFieldBuilder {
             file_selector: Default::default(),
         };
 
-        ctx.add_node(UiNode::new(field))
+        ctx.add(field)
     }
 }

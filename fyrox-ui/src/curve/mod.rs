@@ -457,6 +457,7 @@ impl ConstructorProvider<UiNode, UserInterface> for CurveEditor {
             .with_variant("Curve Editor", |ui| {
                 CurveEditorBuilder::new(WidgetBuilder::new().with_name("Curve Editor"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Input")
@@ -1784,7 +1785,7 @@ impl CurveEditorBuilder {
         self
     }
 
-    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<CurveEditor> {
         let background_curve_brush = ctx.style.get_or_default::<Brush>(Style::BRUSH_LIGHT);
         let key_brush = Brush::Solid(Color::opaque(140, 140, 140));
 
@@ -1994,7 +1995,7 @@ impl CurveEditorBuilder {
             background_curve_brush,
         };
 
-        ctx.add_node(UiNode::new(editor))
+        ctx.add(editor)
     }
 }
 

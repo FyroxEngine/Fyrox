@@ -433,9 +433,9 @@ impl PartialEq for RcUiNodeHandle {
 impl RcUiNodeHandle {
     /// Creates a new reference counted widget handle.
     #[inline]
-    pub fn new(handle: Handle<UiNode>, sender: Sender<UiMessage>) -> Self {
+    pub fn new(handle: Handle<impl ObjectOrVariant<UiNode>>, sender: Sender<UiMessage>) -> Self {
         Self(Arc::new(Mutex::new(RcUiNodeHandleInner {
-            handle,
+            handle: handle.to_base(),
             sender: Some(sender),
         })))
     }

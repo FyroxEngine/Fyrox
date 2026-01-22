@@ -45,7 +45,7 @@ use crate::{
             style::{resource::StyleResourceExt, Style},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, UiNode, UserInterface,
+            BuildContext, UserInterface,
         },
         resource::model::AnimationSource,
     },
@@ -67,6 +67,8 @@ use crate::{
     ui_scene::UiScene,
     Editor, Message,
 };
+use fyrox::gui::curve::CurveEditor;
+use fyrox::gui::dock::DockingManager;
 use fyrox::gui::grid::Grid;
 use fyrox::gui::menu::MenuItem;
 use fyrox::gui::window::Window;
@@ -92,7 +94,7 @@ pub struct AnimationEditor {
     animation_player: ErasedHandle,
     animation: ErasedHandle,
     track_list: TrackList,
-    curve_editor: Handle<UiNode>,
+    curve_editor: Handle<CurveEditor>,
     toolbar: Toolbar,
     content: Handle<Grid>,
     ruler: Handle<Ruler>,
@@ -488,7 +490,7 @@ impl AnimationEditor {
                 ToolbarAction::SelectAnimation(animation) => {
                     let animation_ref = &animations[animation.into()];
 
-                    let size = ui.node(self.curve_editor).actual_local_size();
+                    let size = ui[self.curve_editor].actual_local_size();
                     let length = animation_ref.length().max(1.0);
                     let zoom = size.x / length;
 
@@ -632,7 +634,7 @@ impl AnimationEditor {
         }
     }
 
-    pub fn destroy(self, ui: &UserInterface, docking_manager: Handle<UiNode>) {
+    pub fn destroy(self, ui: &UserInterface, docking_manager: Handle<DockingManager>) {
         self.toolbar.destroy(ui);
         ui.send(
             docking_manager,

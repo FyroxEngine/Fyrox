@@ -47,6 +47,7 @@ use super::*;
 use commands::*;
 use fyrox::core::pool::ObjectOrVariant;
 use fyrox::gui::border::Border;
+use fyrox::gui::color::ColorField;
 use fyrox::gui::numeric::NumericUpDown;
 use fyrox::gui::text::Text;
 use fyrox::gui::text_box::TextBox;
@@ -73,7 +74,7 @@ pub struct PropertiesTab {
     data_panel: Handle<Grid>,
     name_edit_panel: Handle<Border>,
     value_name_field: Handle<TextBox>,
-    color_field: Handle<UiNode>,
+    color_field: Handle<ColorField>,
     i8_field: Handle<NumericUpDown<i8>>,
     i32_field: Handle<NumericUpDown<i32>>,
     f32_field: Handle<NumericUpDown<f32>>,

@@ -50,15 +50,15 @@ impl PropertyEditorDefinition for ColorPropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<Color>()?;
-        Ok(PropertyEditorInstance::Simple {
-            editor: ColorFieldBuilder::new(
+        Ok(PropertyEditorInstance::simple(
+            ColorFieldBuilder::new(
                 WidgetBuilder::new()
                     .with_min_size(Vector2::new(0.0, 17.0))
                     .with_margin(Thickness::uniform(1.0)),
             )
             .with_color(*value)
             .build(ctx.build_context),
-        })
+        ))
     }
 
     fn create_message(
@@ -99,15 +99,15 @@ impl PropertyEditorDefinition for ColorGradientPropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<ColorGradient>()?;
-        Ok(PropertyEditorInstance::Simple {
-            editor: ColorGradientEditorBuilder::new(
+        Ok(PropertyEditorInstance::simple(
+            ColorGradientEditorBuilder::new(
                 WidgetBuilder::new()
                     .with_min_size(Vector2::new(0.0, 40.0))
                     .with_margin(Thickness::uniform(1.0)),
             )
             .with_color_gradient(value.clone())
             .build(ctx.build_context),
-        })
+        ))
     }
 
     fn create_message(

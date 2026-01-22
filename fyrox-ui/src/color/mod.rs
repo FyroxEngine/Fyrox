@@ -47,7 +47,6 @@ use crate::popup::Popup;
 use crate::text::Text;
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
-use fyrox_graph::SceneGraph;
 use fyrox_material::MaterialResource;
 use std::{ops::Deref, sync::mpsc::Sender};
 
@@ -121,6 +120,7 @@ impl ConstructorProvider<UiNode, UserInterface> for AlphaBar {
             .with_variant("Alpha Bar", |ui| {
                 AlphaBarBuilder::new(WidgetBuilder::new().with_name("Alpha Bar"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Color")
@@ -375,14 +375,14 @@ impl AlphaBarBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<AlphaBar> {
         let canvas = AlphaBar {
             widget: self.widget_builder.build(ctx),
             orientation: self.orientation,
             alpha: self.alpha,
             is_picking: false,
         };
-        ctx.add_node(UiNode::new(canvas))
+        ctx.add(canvas)
     }
 }
 
@@ -401,6 +401,7 @@ impl ConstructorProvider<UiNode, UserInterface> for HueBar {
             .with_variant("Hue Bar", |ui| {
                 HueBarBuilder::new(WidgetBuilder::new().with_name("Hue Bar"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Color")
@@ -536,14 +537,14 @@ impl HueBarBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<HueBar> {
         let bar = HueBar {
             widget: self.widget_builder.build(ctx),
             orientation: self.orientation,
             is_picking: false,
             hue: self.hue,
         };
-        ctx.add_node(UiNode::new(bar))
+        ctx.add(bar)
     }
 }
 
@@ -565,6 +566,7 @@ impl ConstructorProvider<UiNode, UserInterface> for SaturationBrightnessField {
                     WidgetBuilder::new().with_name("Saturation Brightness Field"),
                 )
                 .build(&mut ui.build_ctx())
+                .to_base()
                 .into()
             })
             .with_group("Color")
@@ -750,7 +752,7 @@ impl SaturationBrightnessFieldBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<SaturationBrightnessField> {
         let bar = SaturationBrightnessField {
             widget: self.widget_builder.build(ctx),
             is_picking: false,
@@ -758,7 +760,7 @@ impl SaturationBrightnessFieldBuilder {
             brightness: self.brightness,
             hue: self.hue,
         };
-        ctx.add_node(UiNode::new(bar))
+        ctx.add(bar)
     }
 }
 
@@ -766,9 +768,9 @@ impl SaturationBrightnessFieldBuilder {
 #[reflect(derived_type = "UiNode")]
 pub struct ColorPicker {
     pub widget: Widget,
-    pub hue_bar: Handle<UiNode>,
-    pub alpha_bar: Handle<UiNode>,
-    pub saturation_brightness_field: Handle<UiNode>,
+    pub hue_bar: Handle<HueBar>,
+    pub alpha_bar: Handle<AlphaBar>,
+    pub saturation_brightness_field: Handle<SaturationBrightnessField>,
     pub red: Handle<NumericUpDown<f32>>,
     pub green: Handle<NumericUpDown<f32>>,
     pub blue: Handle<NumericUpDown<f32>>,
@@ -787,6 +789,7 @@ impl ConstructorProvider<UiNode, UserInterface> for ColorPicker {
             .with_variant("Color Picker", |ui| {
                 ColorPickerBuilder::new(WidgetBuilder::new().with_name("Color Picker"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Color")
@@ -1003,7 +1006,7 @@ impl ColorPickerBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<ColorPicker> {
         let hue_bar;
         let alpha_bar;
         let saturation_brightness_field;
@@ -1146,7 +1149,7 @@ impl ColorPickerBuilder {
             alpha_bar,
             alpha,
         };
-        ctx.add_node(UiNode::new(picker))
+        ctx.add(picker)
     }
 }
 
@@ -1155,7 +1158,7 @@ impl ColorPickerBuilder {
 pub struct ColorField {
     pub widget: Widget,
     pub popup: Handle<Popup>,
-    pub picker: Handle<UiNode>,
+    pub picker: Handle<ColorPicker>,
     pub color: Color,
 }
 
@@ -1165,6 +1168,7 @@ impl ConstructorProvider<UiNode, UserInterface> for ColorField {
             .with_variant("Color Field", |ui| {
                 ColorFieldBuilder::new(WidgetBuilder::new().with_name("Color Field"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Color")
@@ -1236,10 +1240,7 @@ impl Control for ColorField {
             if message.destination() == self.popup
                 && message.direction() == MessageDirection::ToWidget
             {
-                let picker = ui
-                    .node(self.picker)
-                    .cast::<ColorPicker>()
-                    .expect("self.picker must be ColorPicker!");
+                let picker = &ui[self.picker];
                 ui.send(self.handle, ColorFieldMessage::Color(picker.color));
             }
         }
@@ -1264,7 +1265,7 @@ impl ColorFieldBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<ColorField> {
         let picker;
         let popup = PopupBuilder::new(WidgetBuilder::new())
             .with_content({
@@ -1281,7 +1282,7 @@ impl ColorFieldBuilder {
             picker,
             color: self.color,
         };
-        ctx.add_node(UiNode::new(field))
+        ctx.add(field)
     }
 }
 

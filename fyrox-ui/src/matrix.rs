@@ -253,7 +253,7 @@ where
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<MatrixEditor<R, C, T>> {
         let mut fields = Vec::new();
         let mut children = Vec::new();
 
@@ -289,7 +289,7 @@ where
             step: self.step,
         };
 
-        ctx.add_node(UiNode::new(node))
+        ctx.add(node)
     }
 }
 

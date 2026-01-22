@@ -43,7 +43,9 @@ use crate::{
     BuildContext, Control, RcUiNodeHandle, UiNode, UserInterface,
 };
 
+use crate::color::ColorField;
 use crate::message::MessageData;
+use fyrox_core::pool::HandlesVecExtension;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;
 use std::cell::Cell;
@@ -71,6 +73,7 @@ impl ConstructorProvider<UiNode, UserInterface> for ColorGradientField {
                     WidgetBuilder::new().with_name("Color Gradient Field"),
                 )
                 .build(&mut ui.build_ctx())
+                .to_base()
                 .into()
             })
             .with_group("Color")
@@ -170,13 +173,13 @@ impl ColorGradientFieldBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<ColorGradientField> {
         let field = ColorGradientField {
             widget: self.widget_builder.build(ctx),
             color_gradient: self.color_gradient,
         };
 
-        ctx.add_node(UiNode::new(field))
+        ctx.add(field)
     }
 }
 
@@ -185,9 +188,9 @@ impl ColorGradientFieldBuilder {
 #[reflect(derived_type = "UiNode")]
 pub struct ColorGradientEditor {
     widget: Widget,
-    gradient_field: Handle<UiNode>,
-    selector_field: Handle<UiNode>,
-    points_canvas: Handle<UiNode>,
+    gradient_field: Handle<ColorGradientField>,
+    selector_field: Handle<ColorField>,
+    points_canvas: Handle<ColorPointsCanvas>,
     context_menu: RcUiNodeHandle,
     point_context_menu: RcUiNodeHandle,
     add_point: Handle<MenuItem>,
@@ -204,6 +207,7 @@ impl ConstructorProvider<UiNode, UserInterface> for ColorGradientEditor {
                     WidgetBuilder::new().with_name("Color Gradient Editor"),
                 )
                 .build(&mut ui.build_ctx())
+                .to_base()
                 .into()
             })
             .with_group("Color")
@@ -224,7 +228,8 @@ impl Control for ColorGradientEditor {
             );
 
             let points =
-                create_color_points(value, self.point_context_menu.clone(), &mut ui.build_ctx());
+                create_color_points(value, self.point_context_menu.clone(), &mut ui.build_ctx())
+                    .to_base();
             ui.send(self.points_canvas, WidgetMessage::ReplaceChildren(points));
         }
 
@@ -264,8 +269,7 @@ impl Control for ColorGradientEditor {
             {
                 let mut gradient = ColorGradient::new();
 
-                for (handle, pt) in ui
-                    .node(self.points_canvas)
+                for (handle, pt) in ui[self.points_canvas]
                     .children()
                     .iter()
                     .map(|c| (*c, ui.node(*c).query_component::<ColorPoint>().unwrap()))
@@ -309,8 +313,7 @@ impl ColorGradientEditor {
     fn fetch_gradient(&self, exclude: Handle<UiNode>, ui: &UserInterface) -> ColorGradient {
         let mut gradient = ColorGradient::new();
 
-        for pt in ui
-            .node(self.points_canvas)
+        for pt in ui[self.points_canvas]
             .children()
             .iter()
             .filter(|c| **c != exclude)
@@ -332,7 +335,7 @@ fn create_color_points(
     color_gradient: &ColorGradient,
     point_context_menu: RcUiNodeHandle,
     ctx: &mut BuildContext,
-) -> Vec<Handle<UiNode>> {
+) -> Vec<Handle<ColorPoint>> {
     color_gradient
         .points()
         .iter()
@@ -363,7 +366,7 @@ impl ColorGradientEditorBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<ColorGradientEditor> {
         let add_point;
         let context_menu = ContextMenuBuilder::new(
             PopupBuilder::new(WidgetBuilder::new())
@@ -413,11 +416,10 @@ impl ColorGradientEditorBuilder {
                 .with_height(10.0)
                 .on_row(0)
                 .on_column(0)
-                .with_children(create_color_points(
-                    &self.color_gradient,
-                    point_context_menu.clone(),
-                    ctx,
-                )),
+                .with_children(
+                    create_color_points(&self.color_gradient, point_context_menu.clone(), ctx)
+                        .to_base(),
+                ),
         )
         .build(ctx);
 
@@ -458,7 +460,7 @@ impl ColorGradientEditorBuilder {
             context_menu_open_position: Cell::new(Default::default()),
         };
 
-        ctx.add_node(UiNode::new(editor))
+        ctx.add(editor)
     }
 }
 
@@ -483,6 +485,7 @@ impl ConstructorProvider<UiNode, UserInterface> for ColorPoint {
             .with_variant("Color Point", |ui| {
                 ColorPointBuilder::new(WidgetBuilder::new().with_name("Color Point"))
                     .build(&mut ui.build_ctx())
+                    .to_base()
                     .into()
             })
             .with_group("Color")
@@ -598,19 +601,19 @@ impl ColorPointBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        ctx.add_node(UiNode::new(ColorPoint {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<ColorPoint> {
+        ctx.add(ColorPoint {
             widget: self.widget_builder.build(ctx),
             location: self.location,
             dragging: false,
-        }))
+        })
     }
 }
 
 #[derive(Clone, Visit, Reflect, Debug, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "2608955a-4095-4fd1-af71-99bcdf2600f0")]
 #[reflect(derived_type = "UiNode")]
-struct ColorPointsCanvas {
+pub struct ColorPointsCanvas {
     widget: Widget,
 }
 
@@ -647,10 +650,10 @@ impl ColorPointsCanvasBuilder {
         Self { widget_builder }
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        ctx.add_node(UiNode::new(ColorPointsCanvas {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<ColorPointsCanvas> {
+        ctx.add(ColorPointsCanvas {
             widget: self.widget_builder.build(ctx),
-        }))
+        })
     }
 }
 

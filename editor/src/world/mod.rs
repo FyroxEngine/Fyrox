@@ -507,7 +507,7 @@ impl WorldViewer {
                     }
                     if !found {
                         let menu = self.item_context_menu.as_ref().map_or(
-                            RcUiNodeHandle::new(Default::default(), ui.sender()),
+                            RcUiNodeHandle::new(Handle::<UiNode>::default(), ui.sender()),
                             |menu| menu.borrow().menu(),
                         );
                         let graph_node_item = make_graph_node_item(
@@ -566,7 +566,7 @@ impl WorldViewer {
                     || tree_node(ui, tree_root.items[0].transmute()) != data_provider.root_node()
                 {
                     let menu = self.item_context_menu.as_ref().map_or(
-                        RcUiNodeHandle::new(Default::default(), ui.sender()),
+                        RcUiNodeHandle::new(Handle::<UiNode>::default(), ui.sender()),
                         |menu| menu.borrow().menu(),
                     );
                     let new_root_item = make_graph_node_item(

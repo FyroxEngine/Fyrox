@@ -90,6 +90,7 @@ use crate::{
     },
     Editor, Engine, Message,
 };
+use fyrox::gui::dock::DockingManager;
 use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::window::Window;
 use std::{
@@ -228,6 +229,7 @@ macro_rules! mat_ui_view {
                 MatrixEditorBuilder::new(WidgetBuilder::new())
                     .with_value(self)
                     .build(ctx)
+                    .to_base()
             }
         })*
     };
@@ -254,6 +256,7 @@ impl UiView for Color {
         ColorFieldBuilder::new(WidgetBuilder::new())
             .with_color(self)
             .build(ctx)
+            .to_base()
     }
 }
 
@@ -364,7 +367,7 @@ impl MaterialEditor {
         }
     }
 
-    pub fn destroy(self, docking_manager: Handle<UiNode>, engine: &mut Engine) {
+    pub fn destroy(self, docking_manager: Handle<DockingManager>, engine: &mut Engine) {
         self.preview.destroy(engine);
         let ui = engine.user_interfaces.first();
         ui.send(
@@ -520,7 +523,8 @@ impl MaterialEditor {
                     Kind::Bool { value } => value.make_view(ctx),
                     Kind::Color { r, g, b, a } => ColorFieldBuilder::new(WidgetBuilder::new())
                         .with_color(Color::from_rgba(*r, *g, *b, *a))
-                        .build(ctx),
+                        .build(ctx)
+                        .to_base(),
                 };
 
                 property_views.push(item);

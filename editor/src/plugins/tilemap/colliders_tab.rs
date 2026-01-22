@@ -42,6 +42,7 @@ use fyrox::scene::tilemap::{tileset::*, *};
 use super::*;
 use commands::*;
 use fyrox::gui::button::Button;
+use fyrox::gui::color::ColorField;
 use fyrox::gui::text_box::TextBox;
 
 /// This is the tab of the tile set editor that allows the user to modify the collider
@@ -56,7 +57,7 @@ pub struct CollidersTab {
     add_button: Handle<Button>,
     data_panel: Handle<Grid>,
     name_field: Handle<TextBox>,
-    color_field: Handle<UiNode>,
+    color_field: Handle<ColorField>,
 }
 
 fn make_arrow_button(

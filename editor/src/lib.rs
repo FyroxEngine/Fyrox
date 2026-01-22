@@ -92,7 +92,6 @@ use crate::{
         event::{Event, WindowEvent},
         event_loop::EventLoop,
         fxhash::{FxHashMap, FxHashSet},
-        graph::SceneGraph,
         gui::{
             brush::Brush,
             button::ButtonBuilder,
@@ -650,7 +649,7 @@ pub struct Editor {
     pub mesh_control_panel: MeshControlPanel,
     pub audio_preview_panel: AudioPreviewPanel,
     pub doc_window: DocWindow,
-    pub docking_manager: Handle<UiNode>,
+    pub docking_manager: Handle<DockingManager>,
     pub node_removal_dialog: NodeRemovalDialog,
     pub engine: Engine,
     pub plugins: EditorPluginsContainer,
@@ -1037,11 +1036,7 @@ impl Editor {
             1.0 / 60.0,
             &Default::default(),
         );
-        let default_layout = ui
-            .try_get_of_type::<DockingManager>(docking_manager)
-            .unwrap()
-            .layout(ui);
-
+        let default_layout = ui[docking_manager].layout(ui);
         if let Some(layout) = settings.windows.layout.as_ref() {
             ui.send(
                 docking_manager,
@@ -2816,11 +2811,7 @@ impl Editor {
 
     fn save_layout(&mut self) {
         let ui = self.engine.user_interfaces.first();
-        let layout = ui
-            .node(self.docking_manager)
-            .query_component::<DockingManager>()
-            .unwrap()
-            .layout(ui);
+        let layout = ui[self.docking_manager].layout(ui);
         self.settings.windows.layout = Some(layout);
     }
 
