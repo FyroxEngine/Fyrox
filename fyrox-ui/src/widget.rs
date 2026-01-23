@@ -85,11 +85,11 @@ impl PartialEq for SortingPredicate {
     }
 }
 
-/// A set of messages for any kind of widgets (including user controls). These messages provides basic
+/// A set of messages for any kind of widgets (including user controls). These messages provide basic
 /// communication elements of the UI library.
 #[derive(Debug, Clone, PartialEq)]
 pub enum WidgetMessage {
-    /// Initiated when user clicks on a widget's geometry.
+    /// Initiated when a user clicks on a widget's geometry.
     ///
     /// Direction: **From UI**.
     MouseDown {
@@ -99,7 +99,7 @@ pub enum WidgetMessage {
         button: MouseButton,
     },
 
-    /// Initiated when user releases mouse button while cursor is over widget's geometry.
+    /// Initiated when a user releases mouse button while the cursor is over widget's geometry.
     ///
     /// Direction: **From UI**.
     MouseUp {
@@ -119,7 +119,7 @@ pub enum WidgetMessage {
         state: MouseState,
     },
 
-    /// Initiated when user scrolls mouse wheel while cursor is over widget's geometry.
+    /// Initiated when a user scrolls mouse wheel while the cursor is over widget's geometry.
     ///
     /// Direction: **From/To UI**.
     MouseWheel {
@@ -134,7 +134,7 @@ pub enum WidgetMessage {
     /// Direction: **From UI**.
     MouseLeave,
 
-    /// Initiated when cursor enters geometry of a widget.
+    /// Initiated when the cursor enters geometry of a widget.
     ///
     /// Direction: **From UI**.
     MouseEnter,
@@ -149,19 +149,19 @@ pub enum WidgetMessage {
     /// Direction: **From UI**.
     KeyDown(KeyCode),
 
-    /// Initiated when widget is in focus and user releases a button on a keyboard.
+    /// Initiated when the widget is in focus and user releases a button on a keyboard.
     ///
     /// Direction: **From UI**.
     KeyUp(KeyCode),
 
-    /// Initiated when widget received focus (when direction is [`MessageDirection::FromWidget`]). In most cases focus is received
+    /// Initiated when widget received focus (when direction is [`MessageDirection::FromWidget`]). In most cases, focus is received
     /// by clicking on widget. You can request focus explicitly by sending this message to a widget with [`MessageDirection::ToWidget`]
     ///
     /// Direction: **From UI/To UI**.
     Focus,
 
     /// Initiated when widget has lost its focus (when direction is [`MessageDirection::FromWidget`]). Can be used to
-    /// removed focus from widget if sent with [`MessageDirection::ToWidget`]
+    ///  remove focus from the widget if sent with [`MessageDirection::ToWidget`]
     ///
     /// Direction: **From UI/To UI**.
     Unfocus,
@@ -171,12 +171,12 @@ pub enum WidgetMessage {
     /// Direction: **From UI**.
     DragStarted(Handle<UiNode>),
 
-    /// Initiated when user drags a widget over some other widget.
+    /// Initiated when a user drags a widget over some other widget.
     ///
     /// Direction: **From UI**.
     DragOver(Handle<UiNode>),
 
-    /// Initiated when user drops a widget onto some other widget.
+    /// Initiated when a user drops a widget onto some other widget.
     ///
     /// Direction: **From UI**.
     Drop(Handle<UiNode>),
@@ -209,7 +209,7 @@ pub enum WidgetMessage {
     /// Direction: **From/To UI**.
     LinkWith(Handle<UiNode>),
 
-    /// A request to link initiator with specified widget and put it in front of children list.
+    /// A request to link initiator with a specified widget and put it in front of children list.
     ///
     /// Direction: **From/To UI**.
     LinkWithReverse(Handle<UiNode>),
@@ -220,7 +220,7 @@ pub enum WidgetMessage {
     /// Direction: **To UI**.
     ReplaceChildren(Vec<Handle<UiNode>>),
 
-    /// A request to change background brush of a widget. Background brushes are used to fill volume of widgets.
+    /// A request to change background brush of a widget. Background brushes are used to fill the volume with widgets.
     ///
     /// Direction: **From/To UI**
     Background(StyledProperty<Brush>),
@@ -230,19 +230,19 @@ pub enum WidgetMessage {
     /// Direction: **From/To UI**
     Foreground(StyledProperty<Brush>),
 
-    /// A request to change name of a widget. Name is given to widget mostly for debugging purposes.
+    /// A request to change the name of a widget. Name is given to widget mostly for debugging purposes.
     ///
     /// Direction: **From/To UI**
     Name(String),
 
-    /// A request to set width of a widget. In most cases there is no need to explicitly set width of a widget,
-    /// because fyrox-ui uses automatic layout engine which will correctly calculate desired width of a widget.
+    /// A request to set the width of a widget. In most cases, there is no need to explicitly set the width of a widget,
+    /// because fyrox-ui uses automatic layout engine which will correctly calculate the desired width of a widget.
     ///
     /// Direction: **From/To UI**
     Width(f32),
 
-    /// A request to set height of a widget. In most cases there is no need to explicitly set height of a widget,
-    /// because fyrox-ui uses automatic layout engine which will correctly calculate desired height of a widget.
+    /// A request to set the height of a widget. In most cases, there is no need to explicitly set the height of a widget,
+    /// because fyrox-ui uses automatic layout engine which will correctly calculate the desired height of a widget.
     ///
     /// Direction: **From/To UI**
     Height(f32),
@@ -259,16 +259,16 @@ pub enum WidgetMessage {
     /// Direction: **From/To UI**
     HorizontalAlignment(HorizontalAlignment),
 
-    /// A request to set maximum size of widget. Maximum size restricts size of a widget during layout pass. For example
-    /// you can set maximum size to a button which was placed into a grid's cell, if maximum size wouldn't be set, button
-    /// would be stretched to fill entire cell.
+    /// A request to set the maximum size of widget. Maximum size restricts the size of a widget during layout pass. For example,
+    /// you can set the maximum size to a button which was placed into a grid's cell. if the maximum size wouldn't be set, the button
+    /// would be stretched to fill the entire cell.
     ///
     /// Direction: **From/To UI**
     MaxSize(Vector2<f32>),
 
-    /// A request to set minimum size of widget. Minimum size restricts size of a widget during layout pass. For example
-    /// you can set minimum size to a button which was placed into a grid's cell, if minimum size wouldn't be set, button
-    /// would be compressed to fill entire cell.
+    /// A request to set the minimum size of widget. Minimum size restricts the size of a widget during layout pass. For example,
+    /// you can set minimum size to a button which was placed into a grid's cell, if minimum size wouldn't be set, the button
+    /// would be compressed to fill the entire cell.
     ///
     /// Direction: **From/To UI**
     MinSize(Vector2<f32>),
@@ -279,7 +279,7 @@ pub enum WidgetMessage {
     ///
     /// # Notes
     ///
-    /// This is bad API and it should be changed in future. Grid should have explicit list of pairs (row, child) instead
+    /// This is a bad API, and it should be changed in the future. Grid should have an explicit list of pairs (row, child) instead
     /// of this indirect attachment.
     Row(usize),
 
@@ -289,36 +289,36 @@ pub enum WidgetMessage {
     ///
     /// # Notes
     ///
-    /// This is bad API and it should be changed in future. Grid should have explicit list of pairs (column, child) instead
+    /// This is a bad API, and it should be changed in the future. Grid should have an explicit list of pairs (column, child) instead
     /// of this indirect attachment.
     Column(usize),
 
-    /// A request to set new margin of widget. Margin could be used to add some free space around widget to make UI look less
+    /// A request to set new margin of widget. Margin could be used to add some free space around the widget to make the UI look less
     /// dense.
     ///
     /// Direction: **From/To UI**
     Margin(Thickness),
 
-    /// A request to set new state hit test visibility. If set to false, widget will become "non-clickable". It is useful for
+    /// A request to set new state hit test visibility. If set to false, the widget will become "non-clickable". It is useful for
     /// decorations which should be transparent for mouse events.
     ///
     /// Direction: **From/To UI**
     HitTestVisibility(bool),
 
-    /// A request to set new visibility of a widget. Widget can be either visible or not. Invisible widgets does not take space
+    /// A request to set new visibility of a widget. Widget can be either visible or not. Invisible widgets do not take space
     /// in layout pass and collapsed to a point.
     ///
     /// Direction: **From/To UI**
     Visibility(bool),
 
     /// A request to set new z index of a widget. Z index is used to change drawing order of widgets. Please note that it works
-    /// only in same hierarchy level, which means that it is impossible to set z index to 9999 (or similar huge value) to force
-    /// widget to be drawn on top of everything.
+    /// only in the same hierarchy level, which means that it is impossible to set z index to 9999 (or similar huge value) to force
+    /// the widget to be drawn on top of everything.
     ///
     /// Direction: **From/To UI**
     ZIndex(usize),
 
-    /// A request to set new desired position of a widget. It is called "desired" because layout system may ignore it and set
+    /// A request to set new desired position of a widget. It is called "desired" because the layout system may ignore it and set
     /// some other position. Desired position works with a combination of a layout panel that supports direct coordinated
     /// (Canvas for example).
     ///
@@ -326,7 +326,7 @@ pub enum WidgetMessage {
     DesiredPosition(Vector2<f32>),
 
     /// Aligns the widget in the specified widget's bounds using the given options. It can be used only if the
-    /// widget is a child of a container, that supports arbitrary positions (such as Canvas).
+    /// widget is a child of a container that supports arbitrary positions (such as Canvas).
     Align {
         /// A handle of a node to which the sender of this message should be aligned to.
         relative_to: Handle<UiNode>,
@@ -344,7 +344,7 @@ pub enum WidgetMessage {
     /// Direction: **From/To UI**
     Enabled(bool),
 
-    /// A request to set desired position at center in local coordinates.
+    /// A request to set the desired position at center in local coordinates.
     ///
     /// Direction: **From/To UI**
     Center,
@@ -374,11 +374,11 @@ pub enum WidgetMessage {
         button: MouseButton,
     },
 
-    /// A request to set new context menu for a widget. Old context menu will be removed only if its
+    /// A request to set new context menu for a widget. The old context menu will be removed only if its
     /// reference counter was 1.
     ContextMenu(Option<RcUiNodeHandle>),
 
-    /// A request to set new tooltip for a widget. Old tooltip will be removed only if its reference
+    /// A request to set new tooltip for a widget. The old tooltip will be removed only if its reference
     /// counter was 1.
     Tooltip(Option<RcUiNodeHandle>),
 
@@ -404,7 +404,7 @@ pub enum WidgetMessage {
         id: u64,
     },
 
-    /// Initiated when user drags their finger across the screen.
+    /// Initiated when a user drags their finger across the screen.
     ///
     /// Direction: **From UI**.
     TouchMoved {
@@ -416,7 +416,7 @@ pub enum WidgetMessage {
         id: u64,
     },
 
-    /// Initiated when user cancels their touch event.
+    /// Initiated when a user cancels their touch event.
     ///
     /// Direction: **From UI**.
     TouchCancelled {
@@ -426,7 +426,7 @@ pub enum WidgetMessage {
         id: u64,
     },
 
-    /// Initiated when user taps the screen two or more times in rapid succession.
+    /// Initiated when a user taps the screen two or more times in rapid succession.
     ///
     /// Direction: **From UI**.
     DoubleTap {
@@ -568,10 +568,10 @@ pub struct Widget {
     pub background: InheritableVariable<StyledProperty<Brush>>,
     /// Foreground brush of the widget.
     pub foreground: InheritableVariable<StyledProperty<Brush>>,
-    /// Index of the row to which this widget belongs to. It is valid only in when used in [`crate::grid::Grid`] widget.
+    /// Index of the row to which this widget belongs to. It is valid only when used in [`crate::grid::Grid`] widget.
     #[reflect(setter = "set_row_notify")]
     pub row: InheritableVariable<usize>,
-    /// Index of the column to which this widget belongs to. It is valid only in when used in [`crate::grid::Grid`] widget.
+    /// Index of the column to which this widget belongs to. It is valid only when used in [`crate::grid::Grid`] widget.
     #[reflect(setter = "set_column_notify")]
     pub column: InheritableVariable<usize>,
     /// Vertical alignment of the widget.
@@ -580,7 +580,7 @@ pub struct Widget {
     /// Horizontal alignment of the widget.
     #[reflect(setter = "set_horizontal_alignment_notify")]
     pub horizontal_alignment: InheritableVariable<HorizontalAlignment>,
-    /// Margin for every sides of bounding rectangle. See [`Thickness`] docs for more info.
+    /// Margin for every side of bounding rectangle. See [`Thickness`] docs for more info.
     #[reflect(setter = "set_margin_notify")]
     pub margin: InheritableVariable<Thickness>,
     /// Current, **local**, visibility state of the widget.
@@ -618,10 +618,10 @@ pub struct Widget {
     #[reflect(hidden)]
     #[visit(skip)]
     pub user_data: Option<Arc<Mutex<dyn Any + Send>>>,
-    /// A flag, that defines whether the widget should be drawn in a separate drawind pass after any other widget that draws
+    /// A flag, that defines whether the widget should be drawn in a separate drawing pass after any other widget that draws
     /// normally.
     pub draw_on_top: InheritableVariable<bool>,
-    /// A flag, that defines whether the widget is enabled or not. Disabled widgets cannot be interacted by used and they're
+    /// A flag, that defines whether the widget is enabled or not. Disabled widgets cannot be interacted by used, and they're
     /// greyed out.
     pub enabled: InheritableVariable<bool>,
     /// Optional cursor icon that will be used for mouse cursor when hovering over the widget.
@@ -655,20 +655,20 @@ pub struct Widget {
     /// A flag, that defines whether the widget will receive any OS events or not. Basically, it defines whether [crate::Control::handle_os_event]
     /// is called or not.
     pub handle_os_events: bool,
-    /// Defines the order in which this widget will get keyboard focus when Tab key is pressed.
+    /// Defines the order in which this widget will get keyboard focus when the Tab key is pressed.
     /// If set to [`None`], Tab key won't do anything on such widget. Default is [`None`].
     pub tab_index: InheritableVariable<Option<usize>>,
     /// A flag, that defines whether the Tab key navigation is enabled or disabled for this widget.
     pub tab_stop: InheritableVariable<bool>,
-    /// A flag, that defines whether the widget will be update or not. Basically, it defines whether [crate::Control::update]
+    /// A flag, that defines whether the widget will be updated or not. Basically, it defines whether [crate::Control::update]
     /// is called or not.
     pub need_update: bool,
     /// Enables (`false`) or disables (`true`) layout rounding.
     pub ignore_layout_rounding: bool,
-    /// A flag, that indicates that the widget accepts user input. It could be used to determine, if
-    /// a user can interact with the widget using keyboard. It is also used for automatic assignment
-    /// of the tab index. Keep in mind, that this flag is only a marker and does not do anything else
-    /// on its own. Default value is `false`.
+    /// A flag, that indicates that the widget accepts user input. It could be used to determine if
+    /// a user can interact with the widget using a keyboard. It is also used for automatic assignment
+    /// of the tab index. Keep in mind that this flag is only a marker and does not do anything else
+    /// on its own. The Default value is `false`.
     pub accepts_input: bool,
     /// Internal sender for layout events.
     #[reflect(hidden)]
@@ -712,7 +712,7 @@ pub struct Widget {
     #[reflect(hidden)]
     #[visit(skip)]
     pub prev_arrange: Cell<Rect<f32>>,
-    /// Desired size of the node after Measure pass.
+    /// The desired size of the node after Measure pass.
     #[reflect(hidden)]
     #[visit(skip)]
     pub desired_size: Cell<Vector2<f32>>,
@@ -854,7 +854,7 @@ impl Widget {
             .coords
     }
 
-    /// Invalidates layout of the widget. **WARNING**: Do not use this method, unless you understand what you're doing,
+    /// Invalidates the layout of the widget. **WARNING**: Do not use this method, unless you understand what you're doing,
     /// it will cause new layout pass for this widget which could be quite heavy and doing so on every frame for multiple
     /// widgets **will** cause severe performance issues.
     #[inline]
@@ -899,7 +899,7 @@ impl Widget {
     }
 
     /// Invalidates arrangement results of the widget. **WARNING**: Do not use this method, unless you understand what you're
-    /// doing, it will cause new arrangement pass for this widget which could be quite heavy and doing so on every frame for
+    /// doing, it will cause a new arrangement pass for this widget which could be quite heavy and doing so on every frame for
     /// multiple widgets **will** cause severe performance issues.
     #[inline]
     pub fn invalidate_arrange(&self) {
@@ -928,7 +928,7 @@ impl Widget {
         std::mem::replace(&mut self.max_size, value)
     }
 
-    /// Returns current maximum size of the widget.
+    /// Returns the current maximum size of the widget.
     #[inline]
     pub fn max_size(&self) -> Vector2<f32> {
         *self.max_size
@@ -1000,7 +1000,7 @@ impl Widget {
         std::mem::replace(&mut self.width, width)
     }
 
-    /// Returns current width of the widget.
+    /// Returns the current width of the widget.
     #[inline]
     pub fn width(&self) -> f32 {
         *self.width
@@ -1024,7 +1024,7 @@ impl Widget {
         std::mem::replace(&mut self.height, height)
     }
 
-    /// Returns current height of the widget.
+    /// Returns the current height of the widget.
     #[inline]
     pub fn height(&self) -> f32 {
         *self.height
@@ -1115,7 +1115,7 @@ impl Widget {
         std::mem::replace(&mut self.row, row)
     }
 
-    /// Returns current row of the widget. Rows are used only by [`crate::grid::Grid`] widget.
+    /// Returns the current row of the widget. Rows are used only by [`crate::grid::Grid`] widget.
     #[inline]
     pub fn row(&self) -> usize {
         *self.row
@@ -1410,7 +1410,7 @@ impl Widget {
         self.margin.set_value_and_mark_modified(margin)
     }
 
-    /// Returns current margin of the widget.
+    /// Returns the current margin of the widget.
     #[inline]
     pub fn margin(&self) -> Thickness {
         *self.margin
@@ -1438,7 +1438,7 @@ impl Widget {
     }
 
     /// Performs standard arrangement of the children nodes of the widget. It uses input final size to make a final
-    /// bounding rectangle to arrange children. As a result, all the children nodes will be located at the top-left
+    /// bounding rectangle to arrange children. As a result, all the children nodes will be located in the top-left
     /// corner of this widget and stretched to fit its bounds.
     #[inline]
     pub fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
@@ -1518,7 +1518,7 @@ impl Widget {
     }
 
     /// Returns `true` of the widget is globally visible, which means that all its parents are visible as well
-    /// as this widget. It is valid only after the first update of the layout, otherwise if will be always false.
+    /// as this widget. It is valid only after the first update of the layout, otherwise if you will be always false.
     #[inline]
     pub fn is_globally_visible(&self) -> bool {
         self.global_visibility
@@ -1553,7 +1553,7 @@ impl Widget {
         *self.visibility
     }
 
-    /// Enables or disables the widget. Disabled widgets does not interact with user and usually greyed out.
+    /// Enables or disables the widget. Disabled widgets do not interact with user and usually greyed out.
     #[inline]
     pub fn set_enabled(&mut self, enabled: bool) -> &mut Self {
         self.enabled.set_value_and_mark_modified(enabled);
@@ -1572,7 +1572,7 @@ impl Widget {
         self.cursor.set_value_and_mark_modified(cursor);
     }
 
-    /// Returns current cursor of the widget.
+    /// Returns the current cursor of the widget.
     #[inline]
     pub fn cursor(&self) -> Option<CursorIcon> {
         *self.cursor
@@ -1746,7 +1746,7 @@ pub struct WidgetBuilder {
     pub clip_to_bounds: bool,
     /// Unique id of the widget.
     pub id: Uuid,
-    /// Defines the order in which this widget will get keyboard focus when Tab key is pressed.
+    /// Defines the order in which this widget will get keyboard focus when the Tab key is pressed.
     /// If set to [`None`], Tab key won't do anything on such widget. Default is [`None`].
     pub tab_index: Option<usize>,
     /// A flag, that defines whether the Tab key navigation is enabled or disabled for this widget.
@@ -1982,7 +1982,7 @@ impl WidgetBuilder {
         self
     }
 
-    /// Enables or disables an ability to drop other widgets on this widget.
+    /// Enables or disables the ability to drop other widgets on this widget.
     pub fn with_allow_drop(mut self, allow_drop: bool) -> Self {
         self.allow_drop = allow_drop;
         self
@@ -2035,8 +2035,8 @@ impl WidgetBuilder {
     ///
     /// ## Important
     ///
-    /// The widget will share the tooltip, which means that when widget will be deleted, the
-    /// tooltip will be deleted only if there's no one use the tooltip anymore.
+    /// The widget will share the tooltip, which means that when the widget will be deleted, the
+    /// tooltip will be deleted only if there's no one using the tooltip anymore.
     pub fn with_tooltip(mut self, tooltip: RcUiNodeHandle) -> Self {
         self.tooltip = Some(tooltip);
         self
@@ -2046,8 +2046,8 @@ impl WidgetBuilder {
     ///
     /// ## Important
     ///
-    /// The widget will share the tooltip, which means that when widget will be deleted, the
-    /// tooltip will be deleted only if there's no one use the tooltip anymore.
+    /// The widget will share the tooltip, which means that when the widget will be deleted, the
+    /// tooltip will be deleted only if there's no one using the tooltip anymore.
     pub fn with_opt_tooltip(mut self, tooltip: Option<RcUiNodeHandle>) -> Self {
         self.tooltip = tooltip;
         self

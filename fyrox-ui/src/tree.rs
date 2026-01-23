@@ -137,7 +137,7 @@ impl MessageData for TreeRootMessage {}
 /// # use fyrox_ui::tree::TreeRoot;
 /// #
 /// fn create_tree(ctx: &mut BuildContext) -> Handle<TreeRoot> {
-///     // Note, that `TreeRoot` widget is mandatory here. Otherwise some functionality of
+///     // Note, that `TreeRoot` widget is mandatory here. Otherwise, some functionality of
 ///     // descendant trees won't work.
 ///     TreeRootBuilder::new(WidgetBuilder::new())
 ///         .with_items(vec![TreeBuilder::new(WidgetBuilder::new())
@@ -177,7 +177,7 @@ impl MessageData for TreeRootMessage {}
 /// `Any Mouse Button` - select.
 /// `Ctrl+Click` - enables multi-selection.
 /// `Alt+Click` - prevents selection allowing you to use drag'n'drop.
-/// `Shift+Click` - selects a span of items.
+/// `Shift+Click` - select a span of items.
 /// `ArrowUp` - navigate up from the topmost selection.
 /// `ArrowDown` - navigate down from the lowermost selection.
 /// `ArrowRight` - expand the selected item (first from the selection) or (if it is expanded), go
@@ -232,7 +232,7 @@ impl MessageData for TreeRootMessage {}
 ///
 /// ## Setting New Items
 ///
-/// Tree's items could be changed all at once using the [`TreeMessage::SetItems`] message like so:
+/// Tree items could be changed all at once using the [`TreeMessage::SetItems`] message like so:
 ///
 /// ```rust
 /// # use fyrox_ui::{
@@ -619,7 +619,7 @@ impl TreeBuilder {
         self
     }
 
-    /// Sets whether the tree should always show its expander, no matter if has children items or
+    /// Sets whether the tree should always show its expander, no matter if it has children items or
     /// not.
     pub fn with_always_show_expander(mut self, state: bool) -> Self {
         self.always_show_expander = state;
@@ -632,7 +632,7 @@ impl TreeBuilder {
         self
     }
 
-    /// Builds the tree widget, but does not add it to user interface.
+    /// Builds the tree widget, but does not add it to the user interface.
     pub fn build_tree(self, ctx: &mut BuildContext) -> Tree {
         let expander = build_expander(
             self.always_show_expander,
@@ -761,8 +761,8 @@ fn build_expander(
     .build(ctx)
 }
 
-/// Tree root is special widget that handles the entire hierarchy of descendant [`Tree`] widgets. Its
-/// main purpose is to handle selection of descendant [`Tree`] widgets. Tree root cannot have a
+/// Tree root is a special widget that handles the entire hierarchy of descendant [`Tree`] widgets. Its
+/// main purpose is to handle the selection of descendant [`Tree`] widgets. Tree root cannot have a
 /// content and it only could have children tree items. See docs for [`Tree`] for usage examples.
 ///
 /// ## Selection

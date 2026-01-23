@@ -171,7 +171,7 @@ impl MessageData for TextMessage {}
 ///
 /// ## Fonts and colors
 ///
-/// To set a color of the text just use [`WidgetBuilder::with_foreground`] while building the text instance:
+/// To set a color of the text, just use [`WidgetBuilder::with_foreground`] while building the text instance:
 ///
 /// ```rust,no_run
 /// # use fyrox_ui::{
@@ -217,7 +217,7 @@ impl MessageData for TextMessage {}
 /// ## Shadows
 ///
 /// Text widget supports shadows effect to add contrast to your text, which could be useful to make text readable independent
-/// on the background colors. This effect could be used for subtitles. Shadows are pretty easy to add, all you need to do
+///  of the background colors. This effect could be used for subtitles. Shadows are pretty easy to add, all you need to do
 /// is to enable them, setup desired thickness, offset and brush (solid color or gradient).
 ///
 /// ```rust,no_run
@@ -288,7 +288,7 @@ impl MessageData for TextMessage {}
 ///
 /// ## Messages
 ///
-/// Text widget can accept the following list of messages at runtime (respective constructors are name with small letter -
+/// Text widget can accept the following list of messages at runtime (respective constructors are named with small letter -
 /// `TextMessage::Text -> TextMessage::text(widget_handle, direction, text)`):
 ///
 /// - [`TextMessage::BBCode`] - sets the text and formatting runs using BBCode.

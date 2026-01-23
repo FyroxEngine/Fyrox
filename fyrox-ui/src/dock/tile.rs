@@ -195,7 +195,7 @@ fn get_tile_window(ui: &UserInterface, tile: Handle<Tile>) -> Option<&Window> {
     ui.try_get(*handle).ok()
 }
 
-/// True if the the given handle points to a tile that has been minimized.
+/// True if the given handle points to a tile that has been minimized.
 fn is_minimized_window(ui: &UserInterface, tile: Handle<Tile>) -> bool {
     let Some(window) = get_tile_window(ui, tile) else {
         return false;
@@ -205,7 +205,7 @@ fn is_minimized_window(ui: &UserInterface, tile: Handle<Tile>) -> bool {
 
 /// True if the given `TileContent` contains exactly one minimized tile as one of its
 /// two members. Only [`TileContent::VerticalTiles`] or [`TileContent::HorizontalTiles`]
-/// may satisfyin this condition, and only if at least one of its two child tiles
+/// may satisfy in this condition, and only if at least one of its two child tiles
 /// is a window tile. This serves to detect the case when a tile needs special layout
 /// calculation.
 fn has_one_minimized(ui: &UserInterface, content: &TileContent) -> bool {
@@ -228,7 +228,7 @@ fn has_one_minimized(ui: &UserInterface, content: &TileContent) -> bool {
 }
 
 /// Given two tiles and the handle of a window, check that one of the two tiles
-/// is a window tile that is holding the given window, and if so then ensure
+/// is a window tile that is holding the given window, and if so, then ensure
 /// that the other tile is not a minimized window. The idea is to ensure
 /// that at most one of the two tiles is minimized at any time.
 fn deminimize_other_window(
@@ -304,8 +304,8 @@ impl Control for Tile {
             if child_handle == self.tabs {
                 continue;
             }
-            // Determine available size for each child by its kind:
-            // - Every child not in content of tile just takes whole available size.
+            // Determine the available size for each child by its kind:
+            // - Every child not in content of tile just takes the whole available size.
             // - Every content's child uses specific available measure size.
             // This is a bit weird, but it is how it works.
             let available_size = match &self.content {
@@ -622,8 +622,8 @@ impl Control for Tile {
                                     if let Ok(sub_tile) = ui.try_get(tile) {
                                         match sub_tile.content {
                                             TileContent::Window(sub_tile_wnd) => {
-                                                // If we have only a tile with a window, then detach window and schedule
-                                                // linking with current tile.
+                                                // If we have only a tile with a window, then detach the window and schedule
+                                                // linking with the current tile.
                                                 ui.send(sub_tile_wnd, WidgetMessage::Unlink);
 
                                                 ui.send(
@@ -653,7 +653,7 @@ impl Control for Tile {
                                                 send_visibility(ui, self.splitter, false);
                                             }
                                             // In case if we have a split tile (vertically or horizontally) left in current tile
-                                            // (which is split too) we must set content of current tile to content of sub tile.
+                                            // (which is split too), we must set content of current tile to content of sub tile.
                                             TileContent::VerticalTiles {
                                                 splitter,
                                                 tiles: sub_tiles,
@@ -706,7 +706,7 @@ impl Control for Tile {
                 }
                 _ => {}
             }
-            // We can catch any message from window while it docked.
+            // We can catch any message from the window while it docked.
         } else if let Some(msg) = message.data::<WindowMessage>() {
             match msg {
                 WindowMessage::Maximize(true) => {
@@ -734,7 +734,7 @@ impl Control for Tile {
                     }
                 }
                 WindowMessage::Move(_) => {
-                    // Check if we dragging child window.
+                    // Check if we're dragging child window.
                     let content_moved = self
                         .content
                         .contains_window(message.destination().to_variant());
@@ -828,7 +828,7 @@ impl Control for Tile {
             if let Some((_, docking_manager)) =
                 ui.find_component_up::<DockingManager>(self.parent())
             {
-                // Make sure we are dragging one of floating windows of parent docking manager.
+                // Make sure we are dragging one of the floating windows of parent docking manager.
                 if message.direction() == MessageDirection::FromWidget
                     && docking_manager
                         .floating_windows
@@ -848,13 +848,13 @@ impl Control for Tile {
                                 );
                             }
 
-                            // Window can be docked only if current tile is not split already.
+                            // The window can be docked only if the current tile is not split already.
                             if self.content.can_dock() {
                                 // Show anchors.
                                 for &anchor in &self.anchors() {
                                     send_visibility(ui, anchor, true);
                                 }
-                                // When window is being dragged, we should check which tile can accept it.
+                                // When a window is being dragged, we should check which tile can accept it.
                                 let pos = ui.cursor_position;
                                 for &anchor in &self.anchors() {
                                     send_background(ui, anchor, DEFAULT_ANCHOR_COLOR);
@@ -885,7 +885,7 @@ impl Control for Tile {
                                 send_visibility(ui, anchor, false);
                             }
 
-                            // Drop if has any drop anchor.
+                            // Drop if it has any drop anchor.
                             if self.drop_anchor.get().is_some() {
                                 match &self.content {
                                     TileContent::Empty => {
@@ -1061,7 +1061,7 @@ impl Tile {
         send_size(ui, window, f32::NAN, f32::NAN);
     }
 
-    /// Remove window from this tile. When this is called
+    /// Remove the window from this tile. When this is called,
     /// this tile should have [`TileContent::Window`] and the window
     /// contained in this tile must be given window.
     fn undock(&self, window: &Window, ui: &UserInterface) {
@@ -1094,7 +1094,7 @@ impl Tile {
     }
     /// Measure the tile in the special case where exactly one of the two child tiles
     /// is a minimized window. The minimized window is put at the top or bottom of the tile
-    /// at its natural size, while the unminimized child is made to fill the rest of the tile.
+    /// at its natural size, while the unminimized child is made to fill the rest with the tile.
     fn measure_vertical_with_minimized(
         &self,
         ui: &UserInterface,
@@ -1123,7 +1123,7 @@ impl Tile {
     }
     /// Arrange the tile in the special case where exactly one of the two child tiles
     /// is a minimized window. The minimized window is put at the top or bottom of the tile
-    /// at its natural size, while the unminimized child is made to fill the rest of the tile.
+    /// at its natural size, while the unminimized child is made to fill the rest with the tile.
     fn arrange_vertical_with_minimized(
         &self,
         ui: &UserInterface,
@@ -1305,7 +1305,7 @@ impl TileBuilder {
         match self.content {
             TileContent::Window(window) => {
                 if let Ok(window) = ctx.inner_mut().try_get_mut(window) {
-                    // Every docked window must be non-resizable (it means that it cannot be resized by user
+                    // Every docked window must be non-resizable (it means that it cannot be resized by user,
                     // and it still can be resized by a proper message).
                     window.can_resize = false;
 

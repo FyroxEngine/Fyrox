@@ -43,7 +43,7 @@ use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 /// A set of messages that is used to fetch or modify values of [`UuidEditor`] widgets.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UuidEditorMessage {
-    /// Fetches or modifies a value of a [`UuidEditor`] widget.
+    /// Fetches or modifies the value of a [`UuidEditor`] widget.
     Value(Uuid),
 }
 impl MessageData for UuidEditorMessage {}

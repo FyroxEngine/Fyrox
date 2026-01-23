@@ -50,9 +50,9 @@ use std::{
 
 pub mod loader;
 
-/// Arbitrarily chosen limit to the number of levels of recursion
-/// we will search through fallbacks. In most cases a limit of 1 should
-/// be sufficient and if we get to 10 that most likely indicates
+/// Arbitrarily chosen limit to the number of levels of recursion,
+/// we will search through fallbacks. In most cases, a limit of 1 should
+/// be sufficient, and if we get to 10, that most likely indicates
 /// a cycle in the fallback fonts.
 const MAX_FALLBACK_DEPTH: usize = 10;
 
@@ -85,7 +85,7 @@ pub struct FontGlyph {
     pub tex_coords: [Vector2<f32>; 4],
     /// The index of the atlas page.
     pub page_index: usize,
-    /// The position of the gylph measured to sub-pixel precision.
+    /// The position of the glyph measured to sub-pixel precision.
     /// It is like `bitmap_top`, `bitmap_left`, `bitmap_width`, and `bitmap_height`,
     /// except that those measure the whole pixels that the font needs for rendering while
     /// this rect contains the exact outline of the glyph, which is potentially smaller.
@@ -130,7 +130,7 @@ pub struct Atlas {
     /// such as the size of each glyph, the index of its page, and the UVs of the corners
     /// of its quad.
     pub glyphs: Vec<FontGlyph>,
-    /// A map to lookup the index of the glyph for a particular char in the `glyphs` array.
+    /// A map to look up the index of the glyph for a particular char in the `glyphs` array.
     pub char_map: FxHashMap<char, usize>,
     /// The list of pages the contain the glyphs of this atlas. Each page is a texture
     /// that can be used to render glyphs based on the UV data stored in `glyphs`.
@@ -245,7 +245,7 @@ impl Atlas {
 
         self.glyphs.push(glyph);
 
-        // Map the new glyph to its unicode position.
+        // Map the new glyph to its Unicode position.
         self.char_map.insert(unicode, glyph_index);
 
         Ok(glyph_index)
@@ -383,7 +383,7 @@ impl ResourceData for Font {
 
 /// The size the text that a font is supposed to render.
 /// Each distinct size gets its own atlas page, and `FontHeight`
-/// allows a f32 to be hashed to lookup the page.
+/// allows a f32 to be hashed to look up the page.
 #[derive(Copy, Clone, Default, Debug)]
 pub struct FontHeight(pub f32);
 
@@ -557,7 +557,7 @@ impl Font {
         self.inner.as_ref().and_then(|f| f.name())
     }
 
-    /// Create a font from a u8 array of font data such as one might get from a font file.
+    /// Create a font from an u8 array of font data such as one might get from a font file.
     pub fn from_memory(
         data: impl Deref<Target = [u8]>,
         page_size: usize,
@@ -612,11 +612,11 @@ impl Font {
         }
     }
 
-    /// Tries to get a glyph at the given unicode position of the given height. If there's no rendered
+    /// Tries to get a glyph at the given Unicode position of the given height. If there's no rendered
     /// glyph, this method tries to render the glyph and put into a suitable atlas (see [`Atlas`] docs
-    /// for more info). If the given unicode position has no representation in the font, [`None`] will
+    /// for more info). If the given Unicode position has no representation in the font, [`None`] will
     /// be returned. If the requested size of the glyph is too big to fit into the page size of the
-    /// font, [`None`] will be returned. Keep in mind, that this method is free to create as many atlases
+    /// font, [`None`] will be returned. Keep in mind that this method is free to create as many atlases
     /// with any number of pages in them. Each atlas corresponds to a particular glyph size, each glyph
     /// in the atlas could be rendered at any page in the atlas.
     #[inline]
@@ -687,7 +687,7 @@ impl Font {
     }
 }
 
-/// Font builder allows you to load fonts in declarative manner.
+/// Font builder allows you to load fonts in a declarative manner.
 pub struct FontBuilder {
     /// The size of each atlas page in font pixels. Each page is a square measuring `page_size` x `page_size`.
     page_size: usize,

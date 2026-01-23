@@ -40,7 +40,7 @@ use fyrox_graph::SceneGraph;
 /// A set of possible [`StackPanel`] widget messages.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StackPanelMessage {
-    /// The message is used to change orientation of the stack panel.
+    /// The message is used to change the orientation of the stack panel.
     Orientation(Orientation),
 }
 impl MessageData for StackPanelMessage {}

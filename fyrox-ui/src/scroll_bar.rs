@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//! Scroll bar is used to represent a value on a finite range. It has a thumb that shows the current value on
-//! on the bar. See [`ScrollBar`] docs for more info and usage examples.
+//! Scroll bar is used to represent a value on a finite range. It has a thumb that shows the
+//! current value of the bar. See [`ScrollBar`] docs for more info and usage examples.
 
 #![warn(missing_docs)]
 
@@ -69,7 +69,7 @@ pub enum ScrollBarMessage {
 }
 impl MessageData for ScrollBarMessage {}
 
-/// Scroll bar is used to represent a value on a finite range. It has a thumb that shows the current value on
+/// Scroll bar is used to represent a value on a finite range. It has a thumb that shows the current value
 /// on the bar. Usually it is used in pair with [`crate::scroll_panel::ScrollPanel`] to create something like
 /// [`crate::scroll_viewer::ScrollViewer`] widget. However, it could also be used to create sliders to show some
 /// value that lies within some range.
@@ -157,7 +157,7 @@ pub struct ScrollBar {
     pub indicator: InheritableVariable<Handle<UiNode>>,
     /// A handle of the canvas that is used for the thumb.
     pub indicator_canvas: InheritableVariable<Handle<Canvas>>,
-    /// A handle of the [`crate::text::Text`] widget that is used to show the current value of the scroll bar.
+    /// A handle of the [`Text`] widget that is used to show the current value of the scroll bar.
     pub value_text: InheritableVariable<Handle<Text>>,
     /// Current value precision in decimal places.
     pub value_precision: InheritableVariable<usize>,
@@ -304,7 +304,7 @@ impl Control for ScrollBar {
 
                     match *self.orientation {
                         Orientation::Horizontal => {
-                            // minimum size of the indicator will be 15 irrespective of size ratio
+                            // the minimum size of the indicator will be 15 irrespective of size ratio
                             let new_size = (size_ratio * field_size.x).max(15.0);
                             let old_size = indicator_size.x;
 
@@ -313,7 +313,7 @@ impl Control for ScrollBar {
                             }
                         }
                         Orientation::Vertical => {
-                            // minimum size of the indicator will be 15 irrespective of size ratio
+                            // the minimum size of the indicator will be 15 irrespective of size ratio
                             let new_size = (size_ratio * field_size.y).max(15.0);
                             let old_size = indicator_size.y;
 
@@ -459,7 +459,7 @@ impl ScrollBarBuilder {
         self
     }
 
-    /// Sets the new handle to a button, that is used to increase values of the scroll bar.
+    /// Sets the new handle to a button, that is used to increase the values of the scroll bar.
     pub fn with_increase(mut self, increase: Handle<Button>) -> Self {
         self.increase = Some(increase);
         self

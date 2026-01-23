@@ -45,13 +45,13 @@ use std::{cell::RefCell, ops::Range};
 /// A set of possible [`WrapPanel`] widget messages.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WrapPanelMessage {
-    /// The message is used to change orientation of the wrap panel.
+    /// The message is used to change the orientation of the wrap panel.
     Orientation(Orientation),
 }
 impl MessageData for WrapPanelMessage {}
 
 /// Wrap panel is used to stack children widgets either in vertical or horizontal direction with overflow - every widget
-/// that does not have enough space on current line, will automatically be placed on the next line (either vertical or
+/// that does not have enough space on the current line, will automatically be placed on the next line (either vertical or
 /// horizontal, depending on the orientation).
 ///
 /// ## How to create

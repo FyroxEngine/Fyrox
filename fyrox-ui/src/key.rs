@@ -47,7 +47,7 @@ use std::fmt::{Display, Formatter};
 /// Hot key is a combination of a key code with an arbitrary set of keyboard modifiers (such as Ctrl, Shift, Alt keys).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Reflect, Default, Visit)]
 pub enum HotKey {
-    /// Unset hot key. Does nothing. This is default value.
+    /// Unset hot key. Does nothing. This is the default value.
     #[default]
     NotSet,
     /// Some hot key.
@@ -128,14 +128,14 @@ impl Display for HotKey {
 /// A set of messages, that is used to alternate the state of [`HotKeyEditor`] widget or to listen to its changes.
 #[derive(Debug, Clone, PartialEq)]
 pub enum HotKeyEditorMessage {
-    /// A message, that is either used to modify current value of a [`HotKey`] widget instance (with [`MessageDirection::ToWidget`])
+    /// A message, that is either used to modify the current value of a [`HotKey`] widget instance (with [`MessageDirection::ToWidget`])
     /// or to listen to its changes (with [`MessageDirection::FromWidget`]).
     Value(HotKey),
 }
 impl MessageData for HotKeyEditorMessage {}
 
 /// Hot key editor is used to provide a unified way of editing an arbitrary combination of modifiers keyboard keys (such
-/// as Ctrl, Shift, Alt) with any other key. It could be used, if you need a simple way to add an editor for [`HotKey`].
+/// as Ctrl, Shift, Alt) with any other key. It could be used if you need a simple way to add an editor for [`HotKey`].
 ///
 /// ## Examples
 ///
@@ -353,7 +353,7 @@ impl Display for KeyBinding {
 /// A set of messages, that is used to modify [`KeyBindingEditor`] state or to listen to its changes.
 #[derive(Debug, Clone, PartialEq)]
 pub enum KeyBindingEditorMessage {
-    /// A message, that is used to fetch a new value of a key binding, or to set new one.
+    /// A message, that is used to fetch a new value of a key binding, or to set a new one.
     Value(KeyBinding),
 }
 impl MessageData for KeyBindingEditorMessage {}

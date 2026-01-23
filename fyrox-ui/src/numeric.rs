@@ -140,7 +140,7 @@ pub enum DragContext<T: NumericType> {
     },
 }
 
-/// A widget that handles numbers of any machine type. Use this widget if you need to provide input field for a numeric
+/// A widget that handles numbers of any machine type. Use this widget if you need to provide an input field for a numeric
 /// type.
 ///
 /// ## How to create
@@ -162,7 +162,7 @@ pub enum DragContext<T: NumericType> {
 /// ```
 ///
 /// Keep in mind, that this widget is generic and can work with any numeric types. Sometimes you might get an "unknown type"
-/// error message from the compiler (especially if your use `123.0` ambiguous numeric literals), in this case you need to
+/// error message from the compiler (especially if you use `123.0` ambiguous numeric literals), in this case, you need to
 /// specify the type explicitly (`NumericUpDownBuilder::<f32>::new...`).
 ///
 /// ## Limits
@@ -189,8 +189,8 @@ pub enum DragContext<T: NumericType> {
 ///
 /// The default limits for min and max are [NumericType::min_value] and [NumericType::max_value] respectively.
 ///
-/// [NumericType::min_value]: crate::core::num_traits::Bounded::min_value
-/// [NumericType::max_value]: crate::core::num_traits::Bounded::max_value
+/// [NumericType::min_value]: Bounded::min_value
+/// [NumericType::max_value]: Bounded::max_value
 ///
 /// ## Step
 ///
@@ -219,8 +219,8 @@ pub enum DragContext<T: NumericType> {
 /// ## Precision
 ///
 /// It is possible to specify **visual** rounding of the value up to desired decimal place (it does not change the way how
-/// the actual value is rounded). For example, in some cases you might get irrational values such as `1/3 ~= 0.33333333`,
-/// but you interested in only first two decimal places. In this case you can set the precision to `2`:
+/// the actual value is rounded). For example, in some cases, you might get irrational values such as `1/3 ~= 0.33333333`,
+/// but you are interested in only the first two decimal places. In this case you can set the precision to `2`:
 ///
 /// ```rust
 /// # use fyrox_ui::{
@@ -267,7 +267,7 @@ pub struct NumericUpDown<T: NumericType> {
     #[visit(skip)]
     #[reflect(hidden)]
     pub drag_context: Option<DragContext<T>>,
-    /// Defines how movement in Y axis will be translated in the actual value change. It is some sort of a scaling modifier.
+    /// Defines how movement in Y axis will be translated in the actual value change. It is some sort of scaling modifier.
     pub drag_value_scaling: InheritableVariable<f32>,
 }
 

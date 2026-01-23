@@ -33,22 +33,22 @@ use serde::{Deserialize, Serialize};
 use std::{any::Any, cell::Cell, fmt::Debug};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
-/// Message direction allows you to distinguish from where message has came from. Often there is a need to find out who
-/// created a message to respond properly. Imagine that we have a NumericUpDown input field for a property and we using
-/// some data source to feed data into input field. When we change something in the input field by typing, it creates a
-/// message with new value. On other hand we often need to put new value in the input field from some code, in this case
-/// we again creating a message. But how to understand from which "side" message has came from? Was it filled in by user
+/// Message direction allows you to distinguish from where the message has come from. Often there is a need to find out who
+/// created a message to respond properly. Imagine that we have a NumericUpDown input field for a property, and we're using
+/// some data source to feed data into the input field. When we change something in the input field by typing, it creates a
+/// message with new value. On the other hand, we often need to put new value in the input field from some code, in this case
+/// we're again creating a message. But how to understand from which "side" message has come from? Was it filled in by user,
 /// and we should create a command  to change value in the data source, or it was created from syncing code just to pass
-/// new value to UI? This problem solved by setting a direction to a message. Also it solves another problem: often we
-/// need to respond to a message only if it did some changes. In this case at first we fire a message with ToWidget direction,
-/// widget catches it and checks if changes are needed and if so, it "rethrows" message with direction FromWidget. Listeners
+/// new value to UI? This problem is solved by setting a direction to a message. Also, it solves another problem: often we
+/// need to respond to a message only if it did some changes. In this case, at first we fire a message with ToWidget direction,
+/// widget catches it and checks if changes are needed, and if so, it "rethrows" message with direction FromWidget. Listeners
 /// are "subscribed" to FromWidget messages only and won't respond to ToWidget messages.
 #[derive(Debug, Copy, Clone, PartialOrd, PartialEq, Hash, Eq)]
 pub enum MessageDirection {
     /// Used to indicate a request for changes in a widget.
     ToWidget,
 
-    /// Used to indicate response from widget if anything has actually changed.
+    /// Used to indicate response from the widget if anything has actually changed.
     FromWidget,
 }
 
@@ -62,7 +62,7 @@ impl MessageDirection {
     }
 }
 
-/// A trait, that is used by every messages used in the user interface. It contains utility methods, that are used
+/// A trait, that is used by every messages used in the user interface. It contains utility methods that are used
 /// for downcasting and equality comparison.
 pub trait BaseMessageData: 'static + Debug + Any + Send {
     /// Casts `self` as [`Any`] reference.
@@ -193,7 +193,7 @@ pub struct UiMessage {
     pub data: Box<dyn MessageData>,
 
     /// Handle of node that will receive message. Please note that **all** nodes in hierarchy will also receive this message,
-    /// order is "up-on-tree" (so called "bubble" message routing).
+    /// order is "up-on-tree" (so-called "bubble" message routing).
     pub destination: Handle<UiNode>,
 
     /// Indicates the direction of the message. See [`MessageDirection`] docs for more info.
@@ -357,8 +357,8 @@ impl UiMessage {
     }
 
     /// Creates a new copy of the message with reversed direction. Typical use case is to re-send messages to create "response"
-    /// in a widget. For example you have a float input field and it has Value message. When the input field receives Value message
-    /// with [`MessageDirection::ToWidget`] it checks if value needs to be changed and if it does, it re-sends same message, but with
+    /// in a widget. For example, you have a float input field, and it has a Value message. When the input field receives a Value message
+    /// with [`MessageDirection::ToWidget`] it checks if value needs to be changed and if it does, it re-sends the same message, but with
     /// reversed direction back to message queue so every "listener" can reach properly. The input field won't react at
     /// [`MessageDirection::FromWidget`] message so there will be no infinite message loop.
     #[must_use = "method creates new value which must be used"]
@@ -585,7 +585,7 @@ pub enum Force {
     /// If the platform reports the force as normalized, we have no way of
     /// knowing how much pressure 1.0 corresponds to – we know it's the maximum
     /// amount of force, but as to how much force, you might either have to
-    /// press really really hard, or not hard at all, depending on the device.
+    /// press really, really hard, or not hard at all, depending on the device.
     Normalized([u8; 8]),
 }
 
@@ -1344,7 +1344,7 @@ pub enum CursorIcon {
     Cell,
 
     /// A simple crosshair (e.g., short line segments resembling a "+" sign).
-    /// Often used to indicate a two dimensional bitmap selection mode.
+    /// Often used to indicate a two-dimensional bitmap selection mode.
     Crosshair,
 
     /// Indicates text that may be selected. Often rendered as an I-beam.

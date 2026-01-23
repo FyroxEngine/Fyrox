@@ -90,7 +90,7 @@ impl ScrollViewerMessage {
 
 /// Scroll viewer is a scrollable region with two scroll bars for each axis. It is used to wrap a content of unknown
 /// size to ensure that all of it will be accessible in a parent widget bounds. For example, it could be used in a
-/// Window widget to allow a content of the window to be accessible, even if the window is smaller than the content.
+/// Window widget to allow the content of the window to be accessible, even if the window is smaller than the content.
 ///
 /// ## Example
 ///
@@ -130,7 +130,7 @@ impl ScrollViewerMessage {
 ///
 /// ## Scrolling Speed and Controls
 ///
-/// Scroll viewer can have an arbitrary scrolling speed for each axis. Scrolling is performed via mouse wheel and by default it
+/// Scroll viewer can have an arbitrary scrolling speed for each axis. Scrolling is performed via mouse wheel, and by default it
 /// scrolls vertical axis, which can be changed by holding `Shift` key. Scrolling speed can be set during the build phase:
 ///
 /// ```rust
@@ -150,7 +150,7 @@ impl ScrollViewerMessage {
 /// }
 /// ```
 ///
-/// Also it could be set using [`ScrollViewerMessage::HScrollSpeed`] or [`ScrollViewerMessage::VScrollSpeed`] messages.
+/// Also, it could be set using [`ScrollViewerMessage::HScrollSpeed`] or [`ScrollViewerMessage::VScrollSpeed`] messages.
 ///
 /// ## Bringing a child into view
 ///
@@ -176,7 +176,7 @@ pub struct ScrollViewer {
     pub widget: Widget,
     /// A handle of a content.
     pub content: Handle<UiNode>,
-    /// A handle of [`crate::scroll_panel::ScrollPanel`] widget instance that does the actual layouting.
+    /// A handle of [`ScrollPanel`] widget instance that does the actual lay outing.
     pub scroll_panel: Handle<ScrollPanel>,
     /// A handle of scroll bar widget for vertical axis.
     pub v_scroll_bar: Handle<ScrollBar>,

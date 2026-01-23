@@ -60,7 +60,7 @@ pub enum WindowAlignment {
     /// specified).
     Center,
     /// Position (in local coordinates) relative to the left top corner of the parent widget
-    /// bounds. In most cases it is just screen coordinates.
+    /// bounds. In most cases, it is just screen coordinates.
     Position(Vector2<f32>),
     /// Relative alignment to the specified widget.
     Relative {
@@ -97,16 +97,16 @@ pub enum WindowMessage {
     /// instead of putting window in system tray, it just collapses internal content panel.
     Minimize(bool),
 
-    /// Forces the window to take the inner size of main application window.
+    /// Forces the window to take the inner size of the main application window.
     Maximize(bool),
 
-    /// Whether or not window can be minimized by _ mark. false hides _ mark.
+    /// Whether window can be minimized by _ mark. false hides _ mark.
     CanMinimize(bool),
 
-    /// Whether or not window can be closed by X mark. false hides X mark.
+    /// Whether window can be closed by X mark. false hides X mark.
     CanClose(bool),
 
-    /// Whether or not window can be resized by resize grips.
+    /// Whether window can be resized by resize grips.
     CanResize(bool),
 
     /// Indicates that move has been started. You should never send this message by hand.
@@ -128,7 +128,7 @@ pub enum WindowMessage {
 }
 impl MessageData for WindowMessage {}
 
-/// The state of a window's size, as controlled by the buttons on the top-right corner.
+/// The state of a window's size, as controlled by the buttons in the top-right corner.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Visit, Reflect)]
 pub enum WindowSizeState {
     /// The window is neither maximized nor minimized, showing its content and free to move around the screen.
@@ -140,7 +140,7 @@ pub enum WindowSizeState {
     Maximized,
 }
 
-/// The Window widget provides a standard window that can contain another widget. Based on setting
+/// The Window widget provides a standard window that can contain another widget. Based on setting,
 /// windows can be configured so users can do any of the following:
 ///
 /// * Movable by the user. Not configurable.
@@ -182,18 +182,18 @@ pub enum WindowSizeState {
 /// ```
 ///
 /// You will likely want to constrain the initial size of the window to something as shown in the
-/// example by providing a set width and/or height to the base WidgetBuilder. Otherwise it will
-/// expand to fit it's content.
+/// example by providing a set width and/or height to the base WidgetBuilder. Otherwise, it will
+/// expand to fit its content.
 ///
 /// You may also want to set an initial position with the *with_desired_position* function called
-/// on the base WidgetBuilder which sets the position of the window's top-left corner. Otherwise all
-/// your windows will start with it's top-left corner at 0,0 and be stacked on top of each other.
+/// on the base WidgetBuilder which sets the position of the window's top-left corner. Otherwise, all
+/// your windows will start with its top-left corner at 0,0 and be stacked on top of each other.
 ///
 /// Windows can only contain a single direct child widget, set by using the *with_content* function.
-/// Additional calls to *with_content* replaces the widgets given in previous calls, and the old
+/// Additional calls to *with_content* replace the widgets given in previous calls, and the old
 /// widgets exist outside the window, so you should delete old widgets before changing a window's
 /// widget. If you want multiple widgets, you need to use one of the layout container widgets like
-/// the Grid, Stack Panel, etc then add the additional widgets to that widget as needed.
+/// the Grid, Stack Panel, etc. then add the additional widgets to that widget as needed.
 ///
 /// The Window is a user editable object, but can only be affected by UI Messages they trigger if
 /// the message's corresponding variable has been set to true aka what is set by the *can_close*,
@@ -206,7 +206,7 @@ pub enum WindowSizeState {
 ///
 /// ## Styling the Buttons
 ///
-/// The window close and minimise buttons can be configured with the *with_close_button* and
+/// The window close and minimize buttons can be configured with the *with_close_button* and
 /// *with_minimize_button* functions. You will want to pass them a button widget, but can do anything
 /// else you like past that.
 ///
@@ -554,7 +554,7 @@ impl Control for Window {
                     focus_content,
                 } => {
                     // Only manage this window's visibility if it is at the root.
-                    // Otherwise it is part of something like a tile, and that parent should decide
+                    // Otherwise, it is part of something like a tile, and that parent should decide
                     // whether the window is visible.
                     if !self.visibility() && self.parent() == ui.root() {
                         ui.send(self.handle(), WidgetMessage::Visibility(true));
@@ -654,8 +654,8 @@ impl Control for Window {
                 }
                 &WindowMessage::Move(mut new_pos) => {
                     if let Some(safe_border) = self.safe_border_size {
-                        // Clamp new position in allowed bounds. This will prevent moving the window outside of main
-                        // application window, thus leaving an opportunity to drag window to some other place.
+                        // Clamp new position in allowed bounds. This will prevent moving the window outside the main
+                        // application window, thus leaving an opportunity to drag the window to some other place.
                         new_pos.x = new_pos.x.clamp(
                             -(self.actual_local_size().x - safe_border.x).abs(),
                             (ui.screen_size().x - safe_border.x).abs(),
@@ -893,7 +893,7 @@ pub struct WindowBuilder {
     pub minimize_button: Option<Handle<Button>>,
     /// Optional custom maximization button, if not specified, then a default button will be created.
     pub maximize_button: Option<Handle<Button>>,
-    /// Whether the window should be created as modal or not. Warning: Any dependant builders must
+    /// Whether the window should be created as modal or not. Warning: Any independent builders must
     /// take this into account!
     pub modal: bool,
     /// Whether the window should be resizable or not.

@@ -244,7 +244,7 @@ impl FileSelector {
     }
 }
 
-// File selector extends Window widget so it delegates most of calls
+// File selector extends Window widget so it delegates most of the calls
 // to inner window.
 impl Control for FileSelector {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {

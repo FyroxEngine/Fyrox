@@ -324,8 +324,7 @@ impl CurveTransform {
     }
 }
 
-/// Iterate through f32 values stepping by `step_size`. Each value is
-/// is a multiple of `step_size`.
+/// Iterate through f32 values stepping by `step_size`. Each value is a multiple of `step_size`.
 #[derive(Debug, Clone)]
 pub struct StepIterator {
     pub step_size: f32,

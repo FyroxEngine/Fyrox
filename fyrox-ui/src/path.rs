@@ -79,11 +79,11 @@ impl MessageData for PathEditorMessage {}
 pub struct PathEditor {
     /// Base widget of the editor.
     pub widget: Widget,
-    /// A handle of the text field, that is used to show current path.
+    /// A handle of the text field, that is used to show the current path.
     pub text_field: InheritableVariable<Handle<TextBox>>,
     /// A button, that opens a file selection.
     pub select: InheritableVariable<Handle<Button>>,
-    /// Current file selector instance, could be [`Handle::NONE`] if the selector is closed.
+    /// The current file selector instance, could be [`Handle::NONE`] if the selector is closed.
     pub selector: InheritableVariable<Handle<FileSelector>>,
     /// Current path.
     pub path: InheritableVariable<PathBuf>,

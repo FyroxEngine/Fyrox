@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//! Docking manager allows you to dock windows and hold them in-place.
+//! The docking manager allows you to dock windows and hold them in-place.
 //!
 //! # Notes
 //!

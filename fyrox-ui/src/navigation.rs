@@ -37,7 +37,7 @@ use crate::{
 use fyrox_graph::SceneGraph;
 
 /// A widget, that handles keyboard navigation on its descendant widgets using Tab key. It should
-/// be used as a root widget for an hierarchy, that should support Tab key navigation:
+/// be used as a root widget for a hierarchy, that should support Tab key navigation:
 ///
 /// ```rust
 /// use fyrox_ui::{

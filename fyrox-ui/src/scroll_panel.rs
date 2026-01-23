@@ -195,7 +195,7 @@ impl ScrollPanel {
             parent = node.parent();
         }
         // This check is needed because it possible that given handle is not in
-        // sub-tree of current scroll panel.
+        // subtree of the current scroll panel.
         if parent != self.handle {
             return;
         }
@@ -288,7 +288,7 @@ impl Control for ScrollPanel {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        // Emit transparent geometry so panel will receive mouse events.
+        // Emit transparent geometry so the panel will receive mouse events.
         drawing_context.push_rect_filled(&self.widget.bounding_rect(), None);
         drawing_context.commit(
             self.clip_bounds(),

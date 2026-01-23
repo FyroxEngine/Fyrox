@@ -139,7 +139,7 @@ impl RunSet {
         }
         None
     }
-    /// Find the shadow offsat at the given position.
+    /// Find the shadow offset at the given position.
     pub fn shadow_offset_at(&self, index: usize) -> Option<Vector2<f32>> {
         for run in self.0.iter().rev() {
             if run.range.contains(&(index as u32)) && run.shadow_offset().is_some() {
@@ -150,7 +150,7 @@ impl RunSet {
     }
 }
 
-/// The style of a partion of text within a range.
+/// The style of a portion of text within a range.
 #[derive(Clone, PartialEq, Debug, Default, Visit, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "f0e5cc5d-0b82-4d6f-a505-12f890ffe7ea")]
 pub struct Run {
@@ -274,6 +274,6 @@ pub struct GlyphDrawValues {
     pub atlas_page_index: usize,
     pub font: FontResource,
     pub brush: Brush,
-    /// Font size scaled by super sampling scaling to pick correct atlas page.
+    /// Font size scaled by super sampling scaling to pick the correct atlas page.
     pub height: FontHeight,
 }

@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 //! [`Menu`] and [`MenuItem`] widgets are used to create menu chains like standard `File`, `Edit`, etc. menus. See doc
-//! of respective widget for more info and usage examples.
+//!  of the respective widget for more info and usage examples.
 
 #![warn(missing_docs)]
 
@@ -148,8 +148,8 @@ pub enum MenuItemMessage {
 impl MessageData for MenuItemMessage {}
 
 /// Menu widget is a root widget of an arbitrary menu hierarchy. An example could be "standard" menu strip with `File`, `Edit`, `View`, etc.
-/// items. Menu widget can contain any number of children item (`File`, `Edit` in the previous example). These items should be [`MenuItem`]
-/// widgets, however you can use any widget type (for example - to create some sort of a separator).
+/// items. Menu widget can contain any number of children items (`File`, `Edit` in the previous example). These items should be [`MenuItem`]
+/// widgets, however, you can use any widget type (for example, to create some sort of separator).
 ///
 /// ## Examples
 ///
@@ -257,7 +257,7 @@ impl Control for Menu {
                             let node = ui.node(handle);
                             if let Some(item) = node.cast::<MenuItem>() {
                                 ui.send(handle, MenuItemMessage::Close { deselect: true });
-                                // We have to search in popup content too because menu shows its content
+                                // We have to search in popup content too because the menu shows its content
                                 // in popup and content could be another menu item.
                                 stack.push(*item.items_panel);
                             }
@@ -285,9 +285,9 @@ impl Control for Menu {
         ui: &mut UserInterface,
         event: &OsEvent,
     ) {
-        // Handle menu items close by clicking outside of menu item. We using
-        // raw event here because we need to know the fact that mouse was clicked
-        // and we do not care which element was clicked so we'll get here in any
+        // Handle menu items close by clicking outside of menu item. We're using
+        // raw event here because we need to know the fact that mouse was clicked,
+        // and we do not care which element was clicked, so we'll get here in any
         // case.
         if let OsEvent::MouseInput { state, .. } = event {
             if *state == ButtonState::Pressed && self.active {
@@ -295,7 +295,7 @@ impl Control for Menu {
                 let pos = ui.cursor_position();
                 if !self.widget.screen_bounds().contains(pos) {
                     // Also check if we clicked inside some descendant menu item - in this
-                    // case we don't need to close menu.
+                    //  case, we don't need to close the menu.
                     let mut any_picked = false;
                     let mut stack = self.children().to_vec();
                     'depth_search: while let Some(handle) = stack.pop() {
@@ -303,13 +303,13 @@ impl Control for Menu {
                         if let Some(item) = node.cast::<MenuItem>() {
                             let popup = ui.node(*item.items_panel);
                             if popup.screen_bounds().contains(pos) && popup.is_globally_visible() {
-                                // Once we found that we clicked inside some descendant menu item
+                                // Once we found that we clicked inside some descendant menu item,
                                 // we can immediately stop search - we don't want to close menu
-                                // items popups in this case and can safely skip all stuff below.
+                                // items popups in this case and can safely skip all the stuff below.
                                 any_picked = true;
                                 break 'depth_search;
                             }
-                            // We have to search in popup content too because menu shows its content
+                            // We have to search in popup content too because the menu shows its content
                             // in popup and content could be another menu item.
                             stack.push(*item.items_panel);
                         }
@@ -468,7 +468,7 @@ impl MenuItem {
 // MenuItem uses popup to show its content, popup can be top-most only if it is
 // direct child of root canvas of UI. This fact adds some complications to search
 // of parent menu - we can't just traverse the tree because popup is not a child
-// of menu item, instead we trying to fetch handle to parent menu item from popup's
+// of menu item, instead we're trying to fetch handle to parent menu item from popup's
 // user data and continue up-search until we find menu.
 fn find_menu(from: Handle<UiNode>, ui: &UserInterface) -> Handle<UiNode> {
     let mut handle = from;
@@ -545,7 +545,7 @@ impl Control for MenuItem {
                             ui.send(self.handle(), MenuItemMessage::Close { deselect: true });
                             ui.send(menu, MenuMessage::Deactivate);
                         } else {
-                            // Activate menu so it user will be able to open submenus by
+                            // Activate menu so its user will be able to open submenus by
                             // mouse hover.
                             ui.send(menu, MenuMessage::Activate);
                             ui.send(self.handle(), MenuItemMessage::Open);
@@ -560,10 +560,10 @@ impl Control for MenuItem {
                         if self.items_container.is_empty() {
                             let menu = find_menu(self.parent(), ui);
                             if menu.is_some() {
-                                // Deactivate menu if we have one.
+                                // Deactivate the menu if we have one.
                                 ui.send(menu, MenuMessage::Deactivate);
                             } else {
-                                // Or close menu chain if menu item is in "orphaned" state.
+                                // Or close the menu chain if menu item is in "orphaned" state.
                                 close_menu_chain(self.parent(), ui);
                             }
                         }
@@ -752,7 +752,7 @@ impl Control for MenuItem {
             if *state == ButtonState::Pressed {
                 if let Some(panel) = ui.node(*self.items_panel).query_component::<ContextMenu>() {
                     if *panel.popup.is_open {
-                        // Ensure that cursor is outside of any menus.
+                        // Ensure that the cursor is outside any menus.
                         if !is_any_menu_item_contains_point(ui, ui.cursor_position())
                             && find_menu(self.parent(), ui).is_none()
                         {
@@ -843,7 +843,7 @@ impl MenuBuilder {
 /// widget.
 #[derive(Clone, Debug, Visit, Reflect, PartialEq)]
 pub enum MenuItemContent {
-    /// Quick-n-dirty way of building elements. It can cover most of use cases - it builds classic menu item:
+    /// Quick-n-dirty way of building elements. It can cover most use cases - it builds classic menu item:
     ///
     /// ```text
     ///   _________________________
@@ -856,7 +856,7 @@ pub enum MenuItemContent {
         text: String,
         /// Shortcut of the menu item.
         shortcut: String,
-        /// Icon of the menu item. Usually it is a [`crate::image::Image`] or [`crate::vector_image::VectorImage`] widget instance.
+        /// Icon of the menu item. Usually it is a [`crate::image::Image`] or [`VectorImage`] widget instance.
         icon: Handle<UiNode>,
         /// Create an arrow or not.
         arrow: bool,
@@ -968,7 +968,7 @@ impl MenuItemBuilder {
     }
 
     /// Allows you to specify the background content. Background node is only for decoration purpose, it can be any kind of node,
-    /// by default it is Decorator.
+    /// by default it is a Decorator.
     pub fn with_back(mut self, handle: Handle<UiNode>) -> Self {
         self.back = Some(handle);
         self
@@ -1089,7 +1089,7 @@ impl MenuItemBuilder {
                     panel
                 })
                 .with_restrict_picking(self.restrict_picking)
-                // We'll manually control if popup is either open or closed.
+                // We'll manually control if the popup is either open or closed.
                 .stays_open(true),
         )
         .build(ctx)

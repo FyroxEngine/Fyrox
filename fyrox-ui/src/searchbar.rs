@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 //! Search bar widget is a text box with a "clear text" button. It is used as an input field for search functionality.
-//! Keep in mind, that it does **not** provide any built-in searching functionality by itself! See [`SearchBar`] docs
+//! Keep in mind that it does **not** provide any built-in searching functionality by itself! See [`SearchBar`] docs
 //! for more info and usage examples.
 
 #![warn(missing_docs)]
@@ -62,7 +62,7 @@ pub enum SearchBarMessage {
 impl MessageData for SearchBarMessage {}
 
 /// Search bar widget is a text box with a "clear text" button. It is used as an input field for search functionality.
-/// Keep in mind, that it does **not** provide any built-in searching functionality by itself, you need to implement
+/// Keep in mind that it does **not** provide any built-in searching functionality by itself, you need to implement
 /// it manually. This widget provides a "standard" looking search bar with very little functionality.
 ///
 /// ## Examples

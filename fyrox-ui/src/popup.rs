@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//! Popup is used to display other widgets in floating panel, that could lock input in self bounds. See [`Popup`] docs
+//! Popup is used to display other widgets in floating panel, that could lock input in its bounds. See [`Popup`] docs
 //! for more info and usage examples.
 
 #![warn(missing_docs)]
@@ -52,7 +52,7 @@ pub enum PopupMessage {
     Content(Handle<UiNode>),
     /// Used to change popup's placement. Use [`PopupMessage::placement`] to create the message.
     Placement(Placement),
-    /// Used to adjust position of a popup widget, so it will be on screen. Use [`PopupMessage::adjust_position`] to create
+    /// Used to adjust the position of a popup widget, so it will be on screen. Use [`PopupMessage::adjust_position`] to create
     /// the message.
     AdjustPosition,
     /// Used to set the owner of a Popup. The owner will receive Event messages.
@@ -79,7 +79,7 @@ pub enum Placement {
     RightTop(Handle<UiNode>),
 
     /// A popup should be placed relative to given widget at the center of the widget screen bounds.
-    /// Widget handle could be [`Handle::NONE`], in this case the popup will be placed at the center of the screen.
+    /// Widget handle could be [`Handle::NONE`], in this case, the popup will be placed at the center of the screen.
     Center(Handle<UiNode>),
 
     /// A popup should be placed relative to given widget at the left bottom corner of the widget screen bounds.
@@ -126,7 +126,7 @@ impl Placement {
     }
 }
 
-/// Popup is used to display other widgets in floating panel, that could lock input in self bounds.
+/// Popup is used to display other widgets in floating panel, that could lock input in its bounds.
 ///
 /// ## How to create
 ///
@@ -201,7 +201,7 @@ impl Placement {
 ///                 .with_text("Click Me!")
 ///                 .build(&mut ui.build_ctx()),
 ///         )
-///         // Set the placement. For simplicity it is just a cursor position with Handle::NONE as placement target.
+///         // Set the placement. For simplicity, it is just a cursor position with Handle::NONE as placement target.
 ///         .with_placement(Placement::Cursor(Handle::NONE))
 ///         .build(&mut ui.build_ctx());
 ///
@@ -214,9 +214,9 @@ impl Placement {
 ///
 /// The example uses [`Placement::Cursor`] with [`Handle::NONE`] placement target for simplicity reasons, however in
 /// the real-world usages this handle must be a handle of some widget that is located under the popup. It is very
-/// important to specify it correctly, otherwise you will lost the built-in ability to fetch the actual placement target.
+/// important to specify it correctly, otherwise you will lose the built-in ability to fetch the actual placement target.
 /// For example, imagine that you're building your own custom [`crate::dropdown_list::DropdownList`] widget and the popup
-/// is used to display content of the list. In this case you could specify the placement target like this:
+/// is used to display content of the list. In this case, you could specify the placement target like this:
 ///
 /// ```rust
 /// # use fyrox_ui::{
@@ -251,15 +251,15 @@ impl Placement {
 /// ```
 ///
 /// In this case, the popup will open at the left bottom corner of the dropdown list automatically. Placement target is also
-/// useful to build context menus, especially for lists with multiple items. Each item in the list usually have the same context
-/// menu, and this is ideal use case for popups, since the single context menu can be shared across multiple list items. To find
-/// which item cause the context menu to open, catch [`PopupMessage::Placement`] and extract the node handle - this will be your
+/// useful to build context menus, especially for lists with multiple items. Each item in the list usually has the same context
+/// menu, and this is an ideal use case for popups, since the single context menu can be shared across multiple list items. To find
+/// which item causes the context menu to open, catch [`PopupMessage::Placement`] and extract the node handle - this will be your
 /// actual item.
 ///
 /// ## Opening mode
 ///
-/// By default, when you click outside of your popup it will automatically close. It is pretty common behaviour in the UI, you
-/// can see it almost everytime you use context menus in various apps. There are cases when this behaviour is undesired and it
+/// By default, when you click outside your popup, it will automatically close. It is pretty common behavior in the UI, you
+/// can see it almost every time you use context menus in various apps. There are cases when this behavior is undesired and it
 /// can be turned off:
 ///
 /// ```rust
@@ -276,7 +276,7 @@ impl Placement {
 ///                 .with_text("Click Me!")
 ///                 .build(ctx),
 ///         )
-///         // This forces the popup to stay open when clicked outside of its bounds
+///         // This forces the popup to stay open when clicked outside its bounds
 ///         .stays_open(true)
 ///         .build(ctx)
 /// }
@@ -293,7 +293,7 @@ pub struct Popup {
     pub widget: Widget,
     /// Current placement of the popup.
     pub placement: InheritableVariable<Placement>,
-    /// A flag, that defines whether the popup will stay open if a user click outside of its bounds.
+    /// A flag, that defines whether the popup will stay open if a user click outside its bounds.
     pub stays_open: InheritableVariable<bool>,
     /// A flag, that defines whether the popup is open or not.
     pub is_open: InheritableVariable<bool>,
@@ -301,8 +301,8 @@ pub struct Popup {
     pub content: InheritableVariable<Handle<UiNode>>,
     /// Background widget of the popup. It is used as a container for the content.
     pub body: InheritableVariable<Handle<UiNode>>,
-    /// Smart placement prevents the popup from going outside of the screen bounds. It is usually used for tooltips,
-    /// dropdown lists, etc. to prevent the content from being outside of the screen.
+    /// Smart placement prevents the popup from going outside the screen bounds. It is usually used for tooltips,
+    /// dropdown lists, etc. to prevent the content from being outside the screen.
     pub smart_placement: InheritableVariable<bool>,
     /// The destination for Event messages that relay messages from the children of this popup.
     pub owner: Handle<UiNode>,
@@ -563,7 +563,7 @@ impl PopupBuilder {
         self
     }
 
-    /// Defines whether to keep the popup open when user clicks outside of its content or not.
+    /// Defines whether to keep the popup open when a user clicks outside its content or not.
     pub fn stays_open(mut self, value: bool) -> Self {
         self.stays_open = value;
         self

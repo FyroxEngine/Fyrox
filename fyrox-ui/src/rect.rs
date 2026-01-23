@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//! Rect editor widget is used to show and edit [`Rect`] values. It shows four numeric fields: two for top left corner
+//! Rect editor widget is used to show and edit [`Rect`] values. It shows four numeric fields: two for the top left corner
 //! of a rect, two for its size. See [`RectEditor`] docs for more info and usage examples.
 
 #![warn(missing_docs)]
@@ -58,7 +58,7 @@ where
 }
 impl<T: NumericType> MessageData for RectEditorMessage<T> {}
 
-/// Rect editor widget is used to show and edit [`Rect`] values. It shows four numeric fields: two for top left corner
+/// Rect editor widget is used to show and edit [`Rect`] values. It shows four numeric fields: two for the top left corner
 /// of a rect, two for its size.
 ///
 /// ## Example

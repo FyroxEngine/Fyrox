@@ -41,7 +41,7 @@ pub mod constructor;
 pub mod container;
 
 /// UI node is a type-agnostic wrapper for any widget type. Internally, it is just a trait object
-/// that provides common widget interface. Its main use is to reduce code bloat (no need to type
+/// that provides a common widget interface. Its main use is to reduce code bloat (no need to type
 /// `Box<dyn Control>` everywhere, just `UiNode`) and to provide some useful methods such as type
 /// casting, component querying, etc. You could also be interested in [`Control`] docs, since it
 /// contains all the interesting stuff and detailed description for each method.
@@ -248,7 +248,7 @@ impl UiNode {
         original_handle: Handle<UiNode>,
         model: Resource<UserInterface>,
     ) {
-        // Notify instantiated node about resource it was created from.
+        // Notify instantiated node about the resource it was created from.
         self.resource = Some(model.clone());
 
         // Reset resource instance root flag, this is needed because a node after instantiation cannot
@@ -284,6 +284,10 @@ impl Reflect for UiNode {
         &[]
     }
 
+    fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
+        Some(Box::new(self.clone()))
+    }
+
     fn query_derived_types(&self) -> &'static [TypeId] {
         Self::derived_types()
     }
@@ -294,14 +298,6 @@ impl Reflect for UiNode {
 
     fn doc(&self) -> &'static str {
         self.0.deref().doc()
-    }
-
-    fn assembly_name(&self) -> &'static str {
-        self.0.deref().assembly_name()
-    }
-
-    fn type_assembly_name() -> &'static str {
-        env!("CARGO_PKG_NAME")
     }
 
     fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
@@ -336,6 +332,14 @@ impl Reflect for UiNode {
         self.0.deref_mut().set(value)
     }
 
+    fn assembly_name(&self) -> &'static str {
+        self.0.deref().assembly_name()
+    }
+
+    fn type_assembly_name() -> &'static str {
+        env!("CARGO_PKG_NAME")
+    }
+
     fn set_field(
         &mut self,
         field: &str,
@@ -351,9 +355,5 @@ impl Reflect for UiNode {
 
     fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
         self.0.deref_mut().field_mut(name, func)
-    }
-
-    fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
-        Some(Box::new(self.clone()))
     }
 }

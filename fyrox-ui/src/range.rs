@@ -74,7 +74,7 @@ impl<T: NumericType> MessageData for RangeEditorMessage<T> {}
 ///
 /// ## Value
 ///
-/// To change current value of a range editor, use [`RangeEditorMessage::Value`] message:
+/// To change the current value of a range editor, use [`RangeEditorMessage::Value`] message:
 ///
 /// ```rust
 /// # use fyrox_ui::{
@@ -116,9 +116,9 @@ where
     pub widget: Widget,
     /// Current value of the range editor.
     pub value: InheritableVariable<Range<T>>,
-    /// A handle to numeric field that is used to show/modify start value of current range.
+    /// A handle to numeric field that is used to show/modify start value of the current range.
     pub start: InheritableVariable<Handle<NumericUpDown<T>>>,
-    /// A handle to numeric field that is used to show/modify end value of current range.
+    /// A handle to numeric field that is used to show/modify end value of the current range.
     pub end: InheritableVariable<Handle<NumericUpDown<T>>>,
 }
 

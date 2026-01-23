@@ -73,9 +73,9 @@ impl MessageData for ProgressBarMessage {}
 ///
 /// ## Style
 ///
-/// It is possible to specify custom indicator (the part that show the progress) and the back of
+/// It is possible to specify custom indicator (the part that shows the progress) and the back of
 /// the progress bar. Use [`ProgressBarBuilder::with_indicator`] and [`ProgressBarBuilder::with_body`]
-/// methods respectively. These methods can accept any widget, but usually it i a
+/// methods respectively. These methods can accept any widget, but usually it is a
 /// [`crate::border::Border`], [`crate::image::Image`], [`crate::nine_patch::NinePatch`] widgets.
 ///
 /// ## Changing progress
@@ -186,7 +186,7 @@ impl ProgressBarBuilder {
         self
     }
 
-    /// Sets the desired progress value. Input value will be clamped to `[0..1]` range.
+    /// Sets the desired progress value. The input value will be clamped to `[0..1]` range.
     pub fn with_progress(mut self, progress: f32) -> Self {
         self.progress = progress.clamp(0.0, 1.0);
         self

@@ -20,7 +20,7 @@
 
 //! File browser is a tree view over file system. It allows to select file or folder.
 //!
-//! File selector is dialog window with file browser, it somewhat similar to standard
+//! File selector is dialog window with file browser, it is somewhat similar to standard
 //! OS file selector.
 
 use crate::{
@@ -606,7 +606,7 @@ impl FileBrowserBuilder {
     ///
     /// It does **not** bring tree item with given path into view because it is impossible
     /// during construction stage - there is not enough layout information to do so. You
-    /// can send FileBrowserMessage::Path right after creation and it will bring tree item
+    /// can send FileBrowserMessage::Path right after creation, and it will bring tree item
     /// into view without any problems. It is possible because all widgets were created at
     /// that moment and layout system can give correct offsets to bring item into view.
     pub fn with_path<P: AsRef<Path>>(mut self, path: P) -> Self {

@@ -74,7 +74,7 @@ pub enum TextBoxMessage {
     TextCommitMode(TextCommitMode),
     /// Used to enable or disable multiline mode of a text box.
     Multiline(bool),
-    /// Used to enable or disable an ability to edit text box content.
+    /// Used to enable or disable the ability to edit text box content.
     Editable(bool),
     /// Used to set new padding for a text box.
     Padding(Thickness),
@@ -125,11 +125,11 @@ pub enum TextCommitMode {
     /// Text box will immediately send [`TextMessage::Text`] message after any change (after any pressed button).
     Immediate = 0,
 
-    /// Text box will send Text message only when it loses focus (when a user "clicks" outside of it or with any other
+    /// Text box will send [`TextMessage::Text`] message only when it loses focus (when a user "clicks" outside of it or with any other
     /// event that forces the text box to lose focus).
     LostFocus = 1,
 
-    /// Text box will send Text message when it loses focus or if Enter key was pressed. This is **default** behavior.
+    /// Text box will send [`TextMessage::Text`] message when it loses focus or if `Enter` key was pressed. This is **default** behavior.
     ///
     /// # Notes
     ///
@@ -137,12 +137,12 @@ pub enum TextCommitMode {
     #[default]
     LostFocusPlusEnter = 2,
 
-    /// Text box will send Text message when it loses focus or if Enter key was pressed, but **only** if the content
+    /// Text box will send Text message when it loses focus or if `Enter` key was pressed, but **only** if the content
     /// of the text box changed since the last time it gained focus or the text was committed.
     ///
     /// # Notes
     ///
-    /// In case of multiline text box hitting Enter key won't commit the text!
+    /// In case of multiline text box hitting `Enter` key won't commit the text!
     Changed = 3,
 }
 
@@ -157,7 +157,7 @@ pub struct SelectionRange {
 }
 
 impl SelectionRange {
-    /// Creates a new range, that have its begin always before end. It could be useful in case if user
+    /// Creates a new range, that have its beginning always before end. It could be useful in case if a user
     /// selects a range right-to-left.
     #[must_use = "method creates new value which must be used"]
     pub fn normalized(&self) -> SelectionRange {
@@ -252,7 +252,7 @@ pub type FilterCallback = dyn FnMut(char) -> bool + Send;
 ///
 /// ## Fonts and colors
 ///
-/// To set a color of the text just use [`WidgetBuilder::with_foreground`] while building the text instance:
+/// To set a color of the text, just use [`WidgetBuilder::with_foreground`] while building the text instance:
 ///
 /// ```rust,no_run
 /// # use fyrox_ui::{
@@ -320,12 +320,12 @@ pub type FilterCallback = dyn FnMut(char) -> bool + Send;
 /// ```
 ///
 /// Please keep in mind, that like any other situation when you "changing" something via messages, you should remember
-/// that the change is **not** immediate. The change will be applied on `ui.poll_message(..)` call somewhere in your
+/// that the change is **not** immediate. The change will be applied on `ui.poll_message(...)` call somewhere in your
 /// code.
 ///
 /// ## Shortcuts
 ///
-/// There are number of default shortcuts that can be used to speed up text editing:
+/// There are a number of default shortcuts that can be used to speed up text editing:
 ///
 /// - `Ctrl+A` - select all
 /// - `Ctrl+C` - copy selected text
@@ -341,16 +341,16 @@ pub type FilterCallback = dyn FnMut(char) -> bool + Send;
 ///
 /// ## Multiline Text Box
 ///
-/// By default, text box will not add new line character to the text if you press `Enter` on keyboard. To enable this
+/// By default, text box will not add a new line character to the text if you press `Enter` on keyboard. To enable this
 /// functionality use [`TextBoxBuilder::with_multiline`]
 ///
 /// ## Read-only Mode
 ///
-/// You can enable or disable content editing by using read-only mode. Use [`TextBoxBuilder::with_editable`] at build stage.
+/// You can enable or disable content editing by using read-only mode. Use [`TextBoxBuilder::with_editable`] at the build stage.
 ///
 /// ## Mask Character
 ///
-/// You can specify replacement character for every other characters, this is useful option for password fields. Use
+/// You can specify replacement character for every other characters, this is a useful option for password fields. Use
 /// [`TextBoxBuilder::with_mask_char`] at build stage. For example, you can set replacement character to asterisk `*` using
 /// `.with_mask_char(Some('*'))`
 ///
@@ -367,7 +367,7 @@ pub type FilterCallback = dyn FnMut(char) -> bool + Send;
 ///
 /// ## Filtering
 ///
-/// It is possible specify custom input filter, it can be useful if you're creating special input fields like numerical or
+/// It is possible to specify custom input filter, it can be useful if you're creating special input fields like numerical or
 /// phone number. A filter can be specified at build stage like so:
 ///
 /// ```rust,no_run
@@ -423,7 +423,7 @@ pub struct TextBox {
     pub filter: Option<Arc<Mutex<FilterCallback>>>,
     /// Current text commit mode of the text box.
     pub commit_mode: InheritableVariable<TextCommitMode>,
-    /// `true` if the the multiline mode is active.
+    /// `true` if the multiline mode is active.
     pub multiline: InheritableVariable<bool>,
     /// `true` if the text box is editable.
     pub editable: InheritableVariable<bool>,
@@ -564,7 +564,7 @@ impl TextBox {
 
     /// Maps input [`Position`] to a linear position in character array.
     /// The index returned is the index of the character after the position, which may be
-    /// out-of-bounds if thee position is at the end of the text.
+    /// out-of-bounds if the position is at the end of the text.
     /// You should check the index before trying to use it to fetch data from inner array of characters.
     pub fn position_to_char_index_unclamped(&self, position: Position) -> Option<usize> {
         self.formatted_text
@@ -574,10 +574,10 @@ impl TextBox {
 
     /// Maps input [`Position`] to a linear position in character array.
     /// The index returned is usually the index of the character after the position,
-    /// but if the position is at the end of a line then return the index of the character _before_ the position.
+    /// but if the position is at the end of a line, then return the index of the character _before_ the position.
     /// In other words, the last two positions of each line are mapped to the same character index.
-    /// Output index will always be valid for fetching, if the method returned `Some(index)`.
-    /// The index however cannot be used for text insertion, because it cannot point to a "place after last char".
+    /// Output index will always be valid for fetching if the method returned `Some(index)`.
+    /// The index, however, cannot be used for text insertion because it cannot point to a "place after last char".
     pub fn position_to_char_index_clamped(&self, position: Position) -> Option<usize> {
         self.formatted_text
             .borrow()
@@ -594,7 +594,7 @@ impl TextBox {
         self.formatted_text.borrow().end_position()
     }
 
-    /// Returns a position of a next word after the caret in the text.
+    /// Returns a position of the next word after the caret in the text.
     pub fn find_next_word(&self, from: Position) -> Position {
         self.position_to_char_index_unclamped(from)
             .and_then(|i| {
@@ -928,19 +928,6 @@ impl Control for TextBox {
         text_size.sup(&children_size)
     }
 
-    fn on_visual_transform_changed(
-        &self,
-        old_transform: &Matrix3<f32>,
-        new_transform: &Matrix3<f32>,
-    ) {
-        if old_transform != new_transform {
-            self.formatted_text
-                .borrow_mut()
-                .set_super_sampling_scale(self.visual_max_scaling())
-                .build();
-        }
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.bounding_rect();
         drawing_context.push_rect_filled(&bounds, None);
@@ -1051,6 +1038,19 @@ impl Control for TextBox {
                 &self.material,
                 None,
             );
+        }
+    }
+
+    fn on_visual_transform_changed(
+        &self,
+        old_transform: &Matrix3<f32>,
+        new_transform: &Matrix3<f32>,
+    ) {
+        if old_transform != new_transform {
+            self.formatted_text
+                .borrow_mut()
+                .set_super_sampling_scale(self.visual_max_scaling())
+                .build();
         }
     }
 

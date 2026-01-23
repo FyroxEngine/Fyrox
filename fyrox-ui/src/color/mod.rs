@@ -255,7 +255,7 @@ impl Control for AlphaBar {
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.bounding_rect();
 
-        // Draw checker board first.
+        // Draw checkerboard first.
         draw_checker_board(
             bounds,
             self.clip_bounds(),
@@ -593,7 +593,7 @@ uuid_provider!(SaturationBrightnessField = "ab6bfad5-0c4b-42a5-8da5-fc5687b1afc7
 impl Control for SaturationBrightnessField {
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.deref().arrange_override(ui, final_size);
-        // Make sure field is always square.
+        // Make sure the field is always square.
         ui.send(self.handle, WidgetMessage::Width(final_size.y));
         size
     }
@@ -618,7 +618,7 @@ impl Control for SaturationBrightnessField {
             None,
         );
 
-        // Indicator must be drawn separately, otherwise it may be drawn incorrectly.
+        // The indicator must be drawn separately, otherwise it may be drawn incorrectly.
         let origin = Vector2::new(
             bounds.x() + self.saturation / 100.0 * bounds.w(),
             bounds.y() + (100.0 - self.brightness) / 100.0 * bounds.h(),

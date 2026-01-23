@@ -119,7 +119,7 @@ impl Debug for TabUserData {
     }
 }
 
-/// Tab of the [`TabControl`] widget. It stores important tab data, that is widely used at runtime.
+/// Tab of the [`TabControl`] widget. It stores important tab data that is widely used at runtime.
 #[derive(Default, Clone, PartialEq, Visit, Reflect, Debug)]
 pub struct Tab {
     /// Unique identifier of this tab.
@@ -146,7 +146,7 @@ pub struct Tab {
 /// tab header buttons. Each tab is defined via a Tab Definition struct which takes two widgets, one representing the tab
 /// header and the other representing the tab's contents.
 ///
-/// The following example makes a 2 tab, Tab Control containing some simple text widgets:
+/// The following example makes a 2 tab [`TabControl`] containing some simple text widgets:
 ///
 /// ```rust,no_run
 /// # use fyrox_ui::{
@@ -202,7 +202,7 @@ pub struct Tab {
 ///
 /// ## Tab Header Styling
 ///
-/// Notice that you can put any widget into the tab header, so if you want images to denote each tab you can add an Image
+/// Notice that you can put any widget into the tab header, so if you want images to denote each tab, you can add an Image
 /// widget to each header, and if you want an image *and* some text you can insert a stack panel with an image on top and
 /// text below it.
 ///
@@ -245,7 +245,7 @@ pub struct TabControl {
     pub tabs: Vec<Tab>,
     /// Active tab of the tab control.
     pub active_tab: Option<usize>,
-    /// A handle of a widget, that holds content of every tab.
+    /// A handle of a widget that holds the content of every tab.
     pub content_container: Handle<Grid>,
     /// A handle of a widget, that holds headers of every tab.
     pub headers_container: Handle<WrapPanel>,
@@ -338,7 +338,7 @@ impl TabControl {
         self.active_tab = active_tab;
 
         // Notify potential listeners that the active tab has changed.
-        // First we notify by tab index.
+        // First, we notify by tab index.
         let mut msg = UiMessage::from_widget(self.handle, TabControlMessage::ActiveTab(active_tab));
         msg.flags = flags;
         ui.send_message(msg);
@@ -511,7 +511,7 @@ pub struct TabControlBuilder {
     initial_tab: usize,
 }
 
-/// Tab definition is used to describe content of each tab for the [`TabControlBuilder`] builder.
+/// Tab definition is used to describe the content of each tab for the [`TabControlBuilder`] builder.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TabDefinition {
     /// Content of the tab-switching (header) button.

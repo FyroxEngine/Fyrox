@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//! List view is used to display lists with arbitrary items. It supports single-selection and by default, it stacks the items
+//! List view is used to display lists with arbitrary items. It supports single-selection, and by default, it stacks the items
 //! vertically.
 
 #![warn(missing_docs)]
@@ -117,7 +117,7 @@ impl ListViewMessage {
 /// ## Custom Items Panel
 ///
 /// By default, list view creates inner [`crate::stack_panel::StackPanel`] to arrange its items. It is enough for most cases,
-/// however in rare cases you might want to use something else. For example, you could use [`crate::wrap_panel::WrapPanel`]
+///  however, in rare cases you might want to use something else. For example, you could use [`crate::wrap_panel::WrapPanel`]
 /// to create list view with selectable "tiles":
 ///
 /// ```rust
@@ -186,8 +186,8 @@ impl ListViewMessage {
 ///
 /// ## Adding/removing items
 ///
-/// To change items of the list view you can use the variety of following messages: [`ListViewMessage::AddItem`], [`ListViewMessage::RemoveItem`],
-/// [`ListViewMessage::Items`]. To decide which one to use, is very simple - if you adding/removing a few items, use [`ListViewMessage::AddItem`]
+/// To change items of the list view, you can use the variety of following messages: [`ListViewMessage::AddItem`], [`ListViewMessage::RemoveItem`],
+/// [`ListViewMessage::Items`]. To decide which one to use is very simple - if you adding/removing a few items, use [`ListViewMessage::AddItem`]
 /// and [`ListViewMessage::RemoveItem`], otherwise use [`ListViewMessage::Items`], which changes the items at once.
 ///
 /// ```rust
@@ -217,8 +217,8 @@ impl ListViewMessage {
 ///
 /// ## Bringing a particular item into view
 ///
-/// It is possible to bring a particular item into view, which is useful when you have hundreds or thousands of items and you
-/// want to bring only particular item into view. It could be done by sending a [`ListViewMessage::BringItemIntoView`] message:
+/// It is possible to bring a particular item into view, which is useful when you have hundreds or thousands of items, and you
+/// want to bring only a particular item into view. It could be done by sending a [`ListViewMessage::BringItemIntoView`] message:
 ///
 /// ```rust
 /// # use fyrox_ui::{
@@ -274,7 +274,7 @@ impl ListView {
     }
 
     fn fix_selection(&self, ui: &UserInterface) {
-        // Check if current selection is out-of-bounds.
+        // Check if the current selection is out-of-bounds.
         let mut fixed_selection = Vec::with_capacity(self.selection.len());
 
         for &selected_index in self.selection.iter() {

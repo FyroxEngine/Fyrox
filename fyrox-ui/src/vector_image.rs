@@ -40,7 +40,7 @@ use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
-/// Primitive is a simplest shape, that consists of one or multiple lines of the same thickness.
+/// Primitive is the simplest shape, that consists of one or multiple lines of the same thickness.
 #[derive(Clone, Debug, PartialEq, Visit, Reflect, AsRefStr, EnumString, VariantNames)]
 pub enum Primitive {
     /// Solid triangle primitive.
@@ -178,7 +178,7 @@ impl Primitive {
 /// ) -> Handle<VectorImage> {
 ///     VectorImageBuilder::new(
 ///         WidgetBuilder::new()
-///             // Color of the image is defined by the foreground brush of the base widget.
+///             // The color of the image is defined by the foreground brush of the base widget.
 ///             .with_foreground(ctx.style.property(Style::BRUSH_BRIGHT)),
 ///     )
 ///     .with_primitives(vec![
@@ -204,7 +204,7 @@ impl Primitive {
 pub struct VectorImage {
     /// Base widget of the image.
     pub widget: Widget,
-    /// Current set of primitives that will be drawn.
+    /// The current set of primitives that will be drawn.
     pub primitives: InheritableVariable<Vec<Primitive>>,
 }
 

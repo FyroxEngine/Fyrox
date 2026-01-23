@@ -39,17 +39,17 @@ use std::cell::Cell;
 
 /// Screen is a widget that always has the size of the screen of the UI in which it is used. It is
 /// main use case is to provide automatic layout functionality, that will always provide screen size
-/// to its children widgets. This is needed, because the root node of any UI is [`crate::canvas::Canvas`]
+/// to its children widgets. This is needed because the root node of any UI is [`crate::canvas::Canvas`]
 /// which provides infinite bounds as a layout constraint, thus making it impossible for automatic
 /// fitting to the current screen size. For example, Screen widget could be used as a root node for
-/// [`crate::grid::Grid`] widget - in this case the grid instance will always have the size of the
-/// screen and will automatically shrink or expand when the screen size changes. It is ideal choice if
+/// [`crate::grid::Grid`] widget - in this case, the grid instance will always have the size of the
+/// screen and will automatically shrink or expand when the screen size changes. It is an ideal choice if
 /// you want to have some widgets always centered on screen (for example - crosshair, main menu of
 /// your game, etc.).
 ///
 /// ## Example
 ///
-/// The following examples creates a simple main menu of a game with just two buttons. The buttons
+/// The following examples create a simple main menu of a game with just two buttons. The buttons
 /// will always be centered in the current screen bounds.
 ///
 /// ```rust
@@ -93,8 +93,8 @@ use std::cell::Cell;
 ///                         .build(ctx),
 ///                     ),
 ///             )
-///             // Split the grid into 3 rows and 3 columns. The center cell contain the stack panel
-///             // instance, that basically stacks main menu buttons one on top of another. The center
+///             // Split the grid into 3 rows and 3 columns. The center cell contains the stack panel
+///             // instance that basically stacks main menu buttons one on top of another. The center
 ///             // cell will also be always centered in screen bounds.
 ///             .add_row(Row::stretch())
 ///             .add_row(Row::auto())

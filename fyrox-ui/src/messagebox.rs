@@ -85,12 +85,12 @@ pub enum MessageBoxResult {
 /// A fixed set of possible buttons in a message box.
 #[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Debug, Visit, Reflect, Default)]
 pub enum MessageBoxButtons {
-    /// Only `Ok` button. It is typically used to show a message with results of some finished action.
+    /// Only `Ok` button. It is typically used to show a message with the results of some finished action.
     #[default]
     Ok,
-    /// `Yes` and `No` buttons. It is typically used to show a message to ask a user if they are want to continue or not.
+    /// `Yes` and `No` buttons. It is typically used to show a message to ask a user if they want to continue or not.
     YesNo,
-    /// `Yes`, `No`, `Cancel` buttons. It is typically used to show a message to ask a user if they are want to confirm action,
+    /// `Yes`, `No`, `Cancel` buttons. It is typically used to show a message to ask a user if they want to confirm action,
     /// refuse, cancel the next action completely.
     YesNoCancel,
 }
@@ -164,8 +164,8 @@ pub enum MessageBoxButtons {
 ///
 /// ## Styling
 ///
-/// There's no way to change the style of the message box, nor add some widgets to it. If you need custom message box, then you
-/// need to create your own widget. This message box is meant to be used as a standard dialog box for standard situations in UI.
+/// There's no way to change the style of the message box, nor add some widgets to it. If you need a custom message box, then you
+/// need to create your own widget. This message box is meant to be used as a standard dialog box for standard situations in the UI.
 #[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]
 pub struct MessageBox {
@@ -215,8 +215,8 @@ impl DerefMut for MessageBox {
 
 uuid_provider!(MessageBox = "b14c0012-4383-45cf-b9a1-231415d95373");
 
-// Message box extends Window widget so it delegates most of calls
-// to inner window.
+// Message box extends Window widget so it delegates most of the calls
+//  to the inner window.
 impl Control for MessageBox {
     control_trait_proxy_impls!(window);
 
@@ -274,7 +274,7 @@ impl Control for MessageBox {
     }
 }
 
-/// Creates [`MessageBox`] widgets and adds them to user interface.
+/// Creates [`MessageBox`] widgets and adds them to the user interface.
 pub struct MessageBoxBuilder<'b> {
     window_builder: WindowBuilder,
     buttons: MessageBoxButtons,
@@ -282,7 +282,7 @@ pub struct MessageBoxBuilder<'b> {
 }
 
 impl<'b> MessageBoxBuilder<'b> {
-    /// Creates new builder instance. `window_builder` could be used to customize the look of you message box.
+    /// Creates new builder instance. `window_builder` could be used to customize the look of your message box.
     pub fn new(window_builder: WindowBuilder) -> Self {
         Self {
             window_builder,
@@ -459,7 +459,7 @@ impl<'b> MessageBoxBuilder<'b> {
         let handle = ctx.add(message_box);
 
         if is_open {
-            // We must restrict picking because message box is modal.
+            // We must restrict picking because the message box is modal.
             ctx.push_picking_restriction(RestrictionEntry {
                 handle: handle.to_base(),
                 stop: true,

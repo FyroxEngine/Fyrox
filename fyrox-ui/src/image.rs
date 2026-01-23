@@ -45,13 +45,13 @@ use fyrox_texture::{TextureKind, TextureResource};
 pub enum ImageMessage {
     /// Used to set new texture of the [`Image`] widget.
     Texture(Option<TextureResource>),
-    /// Used to enable or disable texture flip of the [`Image`] widget. See respective [section](Image#vertical-flip)
+    /// Used to enable or disable texture flip of the [`Image`] widget. See the respective [section](Image#vertical-flip)
     /// of the docs for more info.
     Flip(bool),
-    /// Used to set specific portion of the texture. See respective [section](Image#drawing-only-a-portion-of-the-texture)
+    /// Used to set specific portion of the texture. See the respective [section](Image#drawing-only-a-portion-of-the-texture)
     /// of the docs for more info.
     UvRect(Rect<f32>),
-    /// Used to enable or disable checkerboard background. See respective [section](Image#checkerboard-background) of the
+    /// Used to enable or disable checkerboard background. See the respective [section](Image#checkerboard-background) of the
     /// docs for more info.
     CheckerboardBackground(bool),
 }
@@ -77,12 +77,12 @@ impl MessageData for ImageMessage {}
 /// ```
 ///
 /// By default, the Image widget will try to use the size of the texture as its desired size for layout
-/// process. This means that the widget will be as large as the texture if the outer bounds allows
+/// process. This means that the widget will be as large as the texture if the outer bounds allow
 /// that. You can specify the desired width and height manually and the image will shrink/expand
 /// automatically.
 ///
 /// Keep in mind, that texture is a resource, and it could be loaded asynchronously, and during that
-/// process, the UI can't fetch texture's size, and it will be collapsed into a point. After it fully
+/// process, the UI can't fetch texture's size, and it will be collapsed into a point. After it is fully
 /// loaded, the widget will take texture's size as normal.
 ///
 /// ## Vertical Flip
@@ -112,7 +112,7 @@ impl MessageData for ImageMessage {}
 ///
 /// ## Checkerboard background
 ///
-/// Image widget supports checkerboard background that could be useful for images with alpha channel (transparency). It can
+/// The Image widget supports checkerboard background that could be useful for images with alpha channel (transparency). It can
 /// be enabled either when building the widget or via [`ImageMessage::CheckerboardBackground`] message:
 ///
 /// ```rust,no_run
@@ -132,7 +132,7 @@ impl MessageData for ImageMessage {}
 ///
 /// ## Drawing only a portion of the texture
 ///
-/// Specific cases requires to be able to draw a specific rectangular portion of the texture. It could be done by using
+/// Specific cases require to be able to draw a specific rectangular portion of the texture. It could be done by using
 /// custom UV rect (UV stands for XY coordinates, but texture related):
 ///
 /// ```rust,no_run
@@ -151,12 +151,12 @@ impl MessageData for ImageMessage {}
 /// ```
 ///
 /// Keep in mind, that the rectangle uses _normalized_ coordinates. This means that the entire image dimensions (for both
-/// X and Y axes) "compressed" to `0.0..1.0` range. In this case 0.0 means left corner for X axis and top for Y axis, while
+/// X and Y axes) "compressed" to `0.0..1.0` range. In this case, 0.0 means left corner for X axis and top for Y axis, while
 /// 1.0 means right corner for X axis and bottom for Y axis.
 ///
 /// It is useful if you have many custom UI elements packed in a single texture atlas. Drawing using atlases is much more
-/// efficient and faster. This could also be used for animations, when you have multiple frames packed in a single atlas
-/// and changing texture coordinates over the time.
+/// efficient and faster. This could also be used for animations when you have multiple frames packed in a single atlas
+/// and changing texture coordinates over time.
 #[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider, TypeUuidProvider)]
 #[type_uuid(id = "18e18d0f-cb84-4ac1-8050-3480a2ec3de5")]
 #[visit(optional)]
@@ -342,7 +342,7 @@ impl ImageBuilder {
         }
     }
 
-    /// Sets whether the image should be flipped vertically or not. See respective
+    /// Sets whether the image should be flipped vertically or not. See the respective
     /// [section](Image#vertical-flip) of the docs for more info.
     pub fn with_flip(mut self, flip: bool) -> Self {
         self.flip = flip;
@@ -361,14 +361,14 @@ impl ImageBuilder {
         self
     }
 
-    /// Specifies a portion of the texture in normalized coordinates. See respective
+    /// Specifies a portion of the texture in normalized coordinates. See the respective
     /// [section](Image#drawing-only-a-portion-of-the-texture) of the docs for more info.
     pub fn with_uv_rect(mut self, uv_rect: Rect<f32>) -> Self {
         self.uv_rect = uv_rect;
         self
     }
 
-    /// Sets whether the image should use checkerboard background or not. See respective
+    /// Sets whether the image should use checkerboard background or not. See the respective
     /// [section](Image#checkerboard-background) of the docs for more info.
     pub fn with_checkerboard_background(mut self, checkerboard_background: bool) -> Self {
         self.checkerboard_background = checkerboard_background;

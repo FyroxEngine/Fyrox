@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 //! Property editor for [`InheritableVariable`]. It acts like a proxy to inner property, but also
-//! adds special "revert" button that is used to revert value to its parent's value.
+//!  adds a special "revert" button that is used to revert value to its parent's value.
 
 use crate::button::Button;
 use crate::{
@@ -369,7 +369,7 @@ where
             });
         }
 
-        // Try translate other messages using inner property editor.
+        // Try to translate other messages using inner property editor.
         if let Some(definition) = ctx
             .definition_container
             .definitions()
