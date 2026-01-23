@@ -68,7 +68,7 @@ impl MessageData for ExpanderMessage {}
 /// #
 /// fn create_expander(ctx: &mut BuildContext) -> Handle<Expander> {
 ///     ExpanderBuilder::new(WidgetBuilder::new())
-///         // Header is visible all the time.
+///         // The Header is visible all the time.
 ///         .with_header(
 ///             TextBuilder::new(WidgetBuilder::new())
 ///                 .with_text("Foobar")
@@ -98,8 +98,8 @@ impl MessageData for ExpanderMessage {}
 /// ## Customization
 ///
 /// It is possible to completely change the arrow of the header of the expander. By default, the arrow consists
-/// of [`crate::check_box::CheckBox`] widget. By changing the arrow, you can customize the look of the header.
-/// For example, you can set the new check box with image check marks, which will use custom graphics:
+/// of [`CheckBox`] widget. By changing the arrow, you can customize the look of the header.
+/// For example, you can set the new checkbox with image check marks, which will use custom graphics:
 ///
 /// ```rust
 /// # use fyrox_ui::{
@@ -114,12 +114,12 @@ impl MessageData for ExpanderMessage {}
 ///             CheckBoxBuilder::new(WidgetBuilder::new())
 ///                 .with_check_mark(
 ///                     ImageBuilder::new(WidgetBuilder::new().with_height(16.0).with_height(16.0))
-///                         .with_opt_texture(None) // Set this to required image.
+///                         .with_opt_texture(None) // Set this to the required image.
 ///                         .build(ctx),
 ///                 )
 ///                 .with_uncheck_mark(
 ///                     ImageBuilder::new(WidgetBuilder::new().with_height(16.0).with_height(16.0))
-///                         .with_opt_texture(None) // Set this to required image.
+///                         .with_opt_texture(None) // Set this to the required image.
 ///                         .build(ctx),
 ///                 )
 ///                 .build(ctx),
@@ -200,7 +200,7 @@ impl Control for Expander {
     }
 }
 
-/// Expander builder allows you to create [`Expander`] widgets and add them to user interface.
+/// Expander builder allows you to create [`Expander`] widgets and add them to the user interface.
 pub struct ExpanderBuilder {
     /// Base builder.
     pub widget_builder: WidgetBuilder,
@@ -242,7 +242,7 @@ impl ExpanderBuilder {
         self
     }
 
-    /// Sets the desired check box (arrow part) of the expander.
+    /// Sets the desired checkbox (arrow part) of the expander.
     pub fn with_checkbox(mut self, check_box: Handle<CheckBox>) -> Self {
         self.check_box = check_box;
         self

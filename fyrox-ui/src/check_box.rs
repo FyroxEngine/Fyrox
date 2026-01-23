@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//! Checkbox is a UI widget that have three states - `Checked`, `Unchecked` and `Undefined`. In most cases it is used
-//! only with two values which fits in `bool` type. Third, undefined, state is used for specific situations when your
+//! Checkbox is a UI widget that have three states - `Checked`, `Unchecked` and `Undefined`. In most cases, it is used
+//! only with two values which fit in `bool` type. Third, undefined, state is used for specific situations when your
 //! data have such state. See [`CheckBox`] docs for more info and usage examples.
 
 #![warn(missing_docs)]
@@ -46,18 +46,18 @@ use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 /// A set of possible check box messages.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CheckBoxMessage {
-    /// Emitted when the check box changed its state. Could also be used to modify check box state.
+    /// Emitted when the checkbox changed its state. Could also be used to modify the checkbox state.
     Check(Option<bool>),
 }
 impl MessageData for CheckBoxMessage {}
 
-/// Checkbox is a UI widget that have three states - `Checked`, `Unchecked` and `Undefined`. In most cases it is used
-/// only with two values which fits in `bool` type. Third, undefined, state is used for specific situations when your
+/// Checkbox is a UI widget that have three states - `Checked`, `Unchecked` and `Undefined`. In most cases, it is used
+/// only with two values which fit in `bool` type. Third, undefined, state is used for specific situations when your
 /// data have such state.
 ///
 /// ## How to create
 ///
-/// To create a checkbox you should do something like this:
+/// To create a checkbox, you should do something like this:
 ///
 /// ```rust,no_run
 /// # use fyrox_ui::{
@@ -136,7 +136,7 @@ impl MessageData for CheckBoxMessage {}
 /// ```
 ///
 /// Keep in mind that checkbox (as any other widget) generates [`WidgetMessage`] instances. You can catch them too and
-/// do a custom handling if you need.
+/// do custom handling if you need.
 ///
 /// ## Theme
 ///
@@ -151,15 +151,15 @@ impl MessageData for CheckBoxMessage {}
 #[type_uuid(id = "3a866ba8-7682-4ce7-954a-46360f5837dc")]
 #[reflect(derived_type = "UiNode")]
 pub struct CheckBox {
-    /// Base widget of the check box.
+    /// Base widget of the checkbox.
     pub widget: Widget,
-    /// Current state of the check box.
+    /// Current state of the checkbox.
     pub checked: InheritableVariable<Option<bool>>,
-    /// Check mark that is used when the state is `Some(true)`.
+    /// Check mark widget that is used when the state is `Some(true)`.
     pub check_mark: InheritableVariable<Handle<UiNode>>,
-    /// Check mark that is used when the state is `Some(false)`.
+    /// Check mark widget that is used when the state is `Some(false)`.
     pub uncheck_mark: InheritableVariable<Handle<UiNode>>,
-    /// Check mark that is used when the state is `None`.
+    /// Check mark widget that is used when the state is `None`.
     pub undefined_mark: InheritableVariable<Handle<UiNode>>,
 }
 
@@ -284,7 +284,7 @@ impl CheckBoxBuilder {
         }
     }
 
-    /// Sets the desired state of the check box.
+    /// Sets the desired state of the checkbox.
     pub fn checked(mut self, value: Option<bool>) -> Self {
         self.checked = value;
         self
@@ -311,7 +311,7 @@ impl CheckBoxBuilder {
         self
     }
 
-    /// Sets the new content of the check box.
+    /// Sets the new content of the checkbox.
     pub fn with_content(mut self, content: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
         self.content = content.to_base();
         self

@@ -46,7 +46,7 @@ use std::cell::RefCell;
 /// Messages that can be emitted by [`Button`] widget (or can be sent to the widget).
 #[derive(Debug, Clone, PartialEq)]
 pub enum ButtonMessage {
-    /// Emitted by the button widget when it was clicked by any mouse button. Click is a press with a following release
+    /// Emitted by the button widget when it was clicked by any mouse button. Click event is a press with the following release
     /// of a mouse button withing the button bounds. This message can be only emitted, not sent. See [`Button`] docs
     /// for usage examples.
     Click,
@@ -65,7 +65,7 @@ impl MessageData for ButtonMessage {}
 ///
 /// ## Examples
 ///
-/// To create a simple button with text you should do something like this:
+/// To create a simple button with text, you should do something like this:
 ///
 /// ```rust
 /// # use fyrox_ui::{
@@ -249,7 +249,7 @@ pub enum ButtonContent {
         /// Font size of the text. Default is 14.0 (defined by default style of the crate).
         size: Option<StyledProperty<f32>>,
     },
-    /// Arbitrary widget handle. It could be any widget handle, for example a handle of [`crate::image::Image`]
+    /// Arbitrary widget handle. It could be any widget handle, for example, a handle of [`crate::image::Image`]
     /// widget.
     Node(Handle<UiNode>),
 }
@@ -368,7 +368,7 @@ impl ButtonBuilder {
         self
     }
 
-    /// Specifies the widget that will be used as a content holder of the button. By default it is an
+    /// Specifies the widget that will be used as a content holder of the button. By default, it is an
     /// instance of [`crate::decorator::Decorator`] widget. Usually, this widget should respond to mouse
     /// events to highlight button state (hovered, pressed, etc.)
     pub fn with_back(mut self, decorator: Handle<impl ObjectOrVariant<UiNode>>) -> Self {

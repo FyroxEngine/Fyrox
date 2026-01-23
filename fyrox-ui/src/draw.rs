@@ -132,7 +132,7 @@ pub struct Command {
     pub clip_bounds: Rect<f32>,
     /// Total bounds of command's geometry. Screen-space.
     pub bounds: Rect<f32>,
-    /// Brush defines visual appearance of rendered geometry.
+    /// Brush defines the visual appearance of rendered geometry.
     pub brush: Brush,
     pub texture: CommandTexture,
     pub triangles: Range<usize>,
@@ -879,7 +879,7 @@ pub struct DrawingContext {
     opacity_stack: Vec<f32>,
     triangles_to_commit: usize,
     pub style: StyleResource,
-    /// Amount of time (in seconds) that passed from creation of the engine. Keep in mind, that
+    /// Amount of time (in seconds) that passed from the creation of the engine. Keep in mind that
     /// this value is **not** guaranteed to match real time. A user can change delta time with
     /// which the engine "ticks" and this delta time affects elapsed time.
     pub elapsed_time: f32,

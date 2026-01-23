@@ -38,7 +38,7 @@ use std::{
 
 define_as_any_trait!(ControlAsAny => BaseControl);
 
-/// Base trait for all UI widgets. It has auto-impl and you don't need to implement it manually. Your widget
+/// Base trait for all UI widgets. It has auto-impl, and you don't need to implement it manually. Your widget
 /// must implement [`Clone`] and [`Control`] traits for impl to be generated for you, also your widget must
 /// not contain any references (due to `'static` lifetime requirement).
 pub trait BaseControl: Send + ControlAsAny {
@@ -50,7 +50,7 @@ pub trait BaseControl: Send + ControlAsAny {
 
     fn id(&self) -> Uuid;
 
-    /// Returns total amount of memory used by this widget (in bytes), in other words it returns
+    /// Returns the total amount of memory used by this widget (in bytes), in other words, it returns
     /// `size_of::<WidgetType>()`.
     fn self_size(&self) -> usize;
 }
@@ -178,8 +178,8 @@ pub trait Control:
     /// is guaranteed to be called once, and only if the widget is deleted via [`crate::widget::WidgetMessage::remove`].
     fn on_remove(&self, #[allow(unused_variables)] sender: &Sender<UiMessage>) {}
 
-    /// This method is used to override measurement step of the layout system. It should return desired size of
-    /// the widget (how many space it wants to occupy).
+    /// This method is used to override measurement step of the layout system. It should return the desired size of
+    /// the widget (how much space it wants to occupy).
     ///
     /// ## Example
     ///
@@ -232,12 +232,12 @@ pub trait Control:
     /// ```
     ///
     /// The goal of this method is to supply the UI system with the size requirements of all descendants
-    /// of the widget. In this example we measure all descendants recursively and finding the max desired
-    /// size of across all the children widgets. This effectively does the following: size of this widget
-    /// will be the max size of children widgets. Some widgets (like [`crate::canvas::Canvas`]), can provide infinite
+    /// of the widget. In this example, we measure all descendants recursively and find the max desired
+    /// size of across all the children's widgets. This effectively does the following: the size of this widget
+    /// will be the max size of children's widgets. Some widgets (like [`crate::canvas::Canvas`]), can provide infinite
     /// constraints to children nodes, to fetch unconstrained desired size.
     ///
-    /// It is recommended to check implementation of this method of built-in widgets (such as [`crate::canvas::Canvas`],
+    /// It is recommended to check the implementation of this method of built-in widgets (such as [`crate::canvas::Canvas`],
     /// [`crate::stack_panel::StackPanel`], [`crate::wrap_panel::WrapPanel`], [`crate::grid::Grid`]). It should help you to
     /// understand measurement step better.
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
@@ -246,9 +246,9 @@ pub trait Control:
 
     /// This method is used to override arrangement step of the layout system. Arrangement step is used to
     /// commit the final location and size of the widget in local coordinates. It is done after the measurement
-    /// step; when all desired sizes of every widget is known. This fact allows you to calculate final location
-    /// and size of every child widget, based in their desired size. Usually this method is used in some panel
-    /// widgets, that takes their children and arranges them in some specific way. For example, it may stack
+    /// step; when all desired sizes of every widget is known. This fact allows you to calculate the final location
+    /// and size of every child widget, based on their desired size. Usually, this method is used in some panel
+    /// widgets that take their children and arrange them in some specific way. For example, it may stack
     /// widgets on top of each other, or put them in a line with wrapping, etc.
     ///
     /// ## Example
@@ -297,15 +297,15 @@ pub trait Control:
     /// parent widget, so all children will have exactly the same size as the parent and be located at (0;0)
     /// point in local coordinates.
     ///
-    /// It is recommended to check implementation of this method of built-in widgets (such as [`crate::canvas::Canvas`],
+    /// It is recommended to check the implementation of this method of built-in widgets (such as [`crate::canvas::Canvas`],
     /// [`crate::stack_panel::StackPanel`], [`crate::wrap_panel::WrapPanel`], [`crate::grid::Grid`]). It should help you to
-    /// understand arrangement step better.
+    ///  understand the arrangement step better.
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         self.deref().arrange_override(ui, final_size)
     }
 
     /// This method is used to emit drawing commands that will be used later to draw your widget on screen.
-    /// Keep in mind that any emitted geometry (quads, lines, text, etc), will be used to perform hit test.
+    /// Keep in mind that any emitted geometry (quads, lines, text, etc.), will be used to perform hit test.
     /// In other words, all the emitted geometry will make your widget "clickable". Widgets with no geometry
     /// emitted by this method are mouse input transparent.
     ///
@@ -340,7 +340,7 @@ pub trait Control:
     ///     // Push a rect.
     ///     drawing_context.push_rect_filled(&bounds, None);
     ///
-    ///     // Commit the geometry, it is mandatory step, otherwise your widget's geometry
+    ///     // Commit the geometry, it is a mandatory step, otherwise your widget's geometry
     ///     // will be "attached" to some other widget that will call `commit`.
     ///     drawing_context.commit(
     ///         self.clip_bounds(),
@@ -375,7 +375,7 @@ pub trait Control:
     fn post_draw(&self, #[allow(unused_variables)] drawing_context: &mut DrawingContext) {}
 
     /// This method is called every frame and can be used to update internal variables of the widget, that
-    /// can be used to animated your widget. Its main difference from other methods, is that it does **not**
+    /// can be used to animated your widget. Its main difference from other methods is that it does **not**
     /// provide access to any other widget in the UI. Instead, you can only send messages to widgets to
     /// force them to change their state.
     ///
@@ -395,21 +395,21 @@ pub trait Control:
     /// # Notes
     ///
     /// Do *not* try to borrow node by `self_handle` in UI - at this moment node has been moved
-    /// out of pool and attempt of borrowing will cause panic! `self_handle` should be used only
+    /// out of the pool and attempt of borrowing will cause panic! `self_handle` should be used only
     /// to check if event came from/for this node or to capture input on node.
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage);
 
-    /// Used to react to a message (by producing another message) that was posted outside of current
-    /// hierarchy. In other words this method is used when you need to "peek" a message before it'll
-    /// be passed into bubbling router. Most common use case is to catch messages from popups: popup
-    /// in 99.9% cases is a child of root canvas and it **won't** receive a message from a its *logical*
-    /// parent during bubbling message routing. For example `preview_message` used in a dropdown list:
+    /// Used to react to a message (by producing another message) that was posted outside the current
+    /// hierarchy. In other words, this method is used when you need to "peek" a message before it'll
+    /// be passed into bubbling router. The Most common use case is to catch messages from popups: popup
+    /// in 99.9% cases is a child of root canvas and it **won't** receive a message from a *logical*
+    /// parent during bubbling message routing. For example, `preview_message` used in a dropdown list:
     /// dropdown list has two separate parts - a field with selected value and a popup for all possible
     /// options. Visual parent of the popup in this case is the root canvas, but logical parent is the
-    /// dropdown list. Because of this fact, the field won't receive any messages from popup, to solve
+    /// dropdown list. Because of this fact, the field won't receive any messages from the popup, to solve
     /// this we use `preview_message`. This method is much more restrictive - it does not allow you to
     /// modify a node and ui, you can either *request* changes by sending a message or use internal
-    /// mutability (`Cell`, `RefCell`, etc).
+    /// mutability (`Cell`, `RefCell`, etc.).
     ///
     /// ## Important notes
     ///

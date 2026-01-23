@@ -33,8 +33,8 @@ use std::{
 };
 
 /// Build context is used to decouple explicit UI state modification. Its main use is in the various widget
-/// builders. Internally, it is just a mutable reference to the UI state. UI can be modified (add nodes, clone,
-/// link, etc.) via build context. This is needed to explicitly highlight that it used to modify the UI
+/// builders. Internally, it is just a mutable reference to the UI state. The UI can be modified (add nodes, clone,
+/// link, etc.) via build context. This is needed to explicitly highlight that it is used to modify the UI
 /// state. It is **not recommended** to use BuildContext for mutable access to widgets at runtime! _Use message
 /// passing_ to modify widgets at runtime, otherwise you will easily break invariant (inner state) of widgets.
 /// The only place where it's allowed to directly mutate widget's state is at build stage (inside `build`
@@ -122,8 +122,8 @@ impl BuildContext<'_> {
     }
 
     /// Returns current message sender of the UI, that is used for message passing mechanism. You can
-    /// send messages for your widgets inside your builders, however this has limited use and should
-    /// be avoided in the favor of explicit state modification to not overload message pipeline.
+    /// send messages for your widgets inside your builders, however, this has limited use and should
+    /// be avoided in favor of explicit state modification to not overload message pipeline.
     pub fn sender(&self) -> Sender<UiMessage> {
         self.ui.sender()
     }
@@ -138,7 +138,7 @@ impl BuildContext<'_> {
     }
 
     /// Links the child widget with the parent widget. Child widget's position and size will be restricted by
-    /// the new parent. When a widget is linked to other widget, its coordinates become relative to it parent.
+    /// the new parent. When a widget is linked to other widget, its coordinates become relative to its parent.
     pub fn link(
         &mut self,
         child: Handle<impl ObjectOrVariant<UiNode>>,
@@ -187,7 +187,7 @@ impl BuildContext<'_> {
     /// Sends a message during build stage. It has quite limited use, but could be unavoidable in
     /// for cases when you need to do some action that relies on fully performed layout stage. When a
     /// widget is being built, you can't fetch any layout info of it since it wasn't calculated yet.
-    /// In this case all you can do is to "postpone" your action for later moment in current frame
+    /// In this case, all you can do is to "postpone" your action for later moment in the current frame
     /// by sending a message.
     pub fn send_message(&self, message: UiMessage) {
         self.ui.send_message(message);

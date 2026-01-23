@@ -97,7 +97,7 @@ pub type LayerAnimationEventsCollection =
 pub type AnimationEventsSource =
     crate::generic_animation::machine::layer::AnimationEventsSource<Handle<UiNode>>;
 
-/// Standard prelude for animation blending state machine, that contains all most commonly used types and traits.
+/// Standard prelude for animation blending state machine, that contains all the most commonly used types and traits.
 pub mod prelude {
     pub use super::{
         AndNode, AnimationBlendingStateMachine, AnimationBlendingStateMachineBuilder,
@@ -202,7 +202,7 @@ impl Control for AnimationBlendingStateMachine {
     }
 }
 
-/// Animation blending state machine builder allows you to create state machines in declarative manner.
+/// Animation blending state machine builder allows you to create state machines in a declarative manner.
 pub struct AnimationBlendingStateMachineBuilder {
     widget_builder: WidgetBuilder,
     machine: Machine,
@@ -245,7 +245,7 @@ impl AnimationBlendingStateMachineBuilder {
         UiNode::new(self.build_absm(ctx))
     }
 
-    /// Creates new node and adds it to the user interface.
+    /// Creates a new node and adds it to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<AnimationBlendingStateMachine> {
         ctx.add(self.build_absm(ctx))
     }

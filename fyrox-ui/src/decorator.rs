@@ -63,7 +63,7 @@ impl MessageData for DecoratorMessage {}
 /// - `Hovered` - mouse is over decorator.
 /// - `Normal` - not selected, pressed, hovered.
 ///
-/// This element is widely used to provide some generic visual behaviour for various widgets. For example it used
+/// This element is widely used to provide some generic visual behavior for various widgets. For example, it used
 /// to decorate buttons - it has use of three of these states. When it is clicked - the decorator will be in `Pressed`
 /// state, when hovered by a cursor - `Hovered`, otherwise it stays in `Normal` state.
 ///

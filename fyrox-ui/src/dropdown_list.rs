@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//! Drop-down list. This is control which shows currently selected item and provides drop-down
+//! Drop-down list. This is control which shows the currently selected item and provides a drop-down
 //! list to select its current item. It is build using composition with standard list view.
 //! See [`DropdownList`] docs for more info and usage examples.
 
@@ -66,8 +66,8 @@ pub enum DropdownListMessage {
 }
 impl MessageData for DropdownListMessage {}
 
-/// Drop-down list is a control which shows currently selected item and provides drop-down
-/// list to select its current item. It is used to show a single selected item in compact way.
+/// Drop-down list is a control which shows the currently selected item and provides a drop-down
+/// list to select its current item. It is used to show a single selected item in a compact way.
 ///
 /// ## Example
 ///
@@ -99,7 +99,7 @@ impl MessageData for DropdownListMessage {}
 ///
 /// Keep in mind, that items of a dropdown list could be any widget, but usually each item is wrapped
 /// in some other widget that shows current state of items (selected, hovered, clicked, etc.). One
-/// of the most convenient way of doing this is to use Decorator widget:
+/// of the most convenient ways of doing this is to use Decorator widget:
 ///
 /// ```rust
 /// # use fyrox_ui::{
@@ -298,7 +298,7 @@ impl Control for DropdownList {
                 && message.destination() == *self.list_view
                 && *self.selection != selection
             {
-                // Post message again but from name of this drop-down list so user can catch
+                // Post message again but from the name of this drop-down list so user can catch
                 // message and respond properly.
                 ui.send(self.handle, DropdownListMessage::Selection(selection));
             }
@@ -328,8 +328,8 @@ impl DropdownList {
 
     fn sync_selected_item_preview(&mut self, ui: &mut UserInterface) {
         // Copy node from current selection in list view. This is not
-        // always suitable because if an item has some visual behaviour
-        // (change color on mouse hover, change something on click, etc)
+        // always suitable because if an item has some visual behavior
+        // (change color on mouse hover, change something on click, etc.),
         // it will be also reflected in selected item.
         if self.current.is_some() {
             ui.send(*self.current, WidgetMessage::Remove);

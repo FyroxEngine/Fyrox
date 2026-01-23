@@ -29,7 +29,7 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 /// Gradient point defines a point on a surface with a color.
 #[derive(Clone, Debug, PartialEq, Reflect, Visit, Default)]
 pub struct GradientPoint {
-    /// A distance from an origin of the gradient.
+    /// A distance from the origin of the gradient.
     pub stop: f32,
     /// Color of the point.
     pub color: Color,

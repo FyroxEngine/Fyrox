@@ -324,12 +324,31 @@ struct HandlePropertyEditorBuilder<T: Reflect> {
 fn make_icon(data: &[u8], color: Color, ctx: &mut BuildContext) -> Handle<Image> {
     ImageBuilder::new(
         WidgetBuilder::new()
-            .with_width(16.0)
-            .with_height(16.0)
-            .with_margin(Thickness::uniform(1.0))
+            .with_width(12.0)
+            .with_height(12.0)
+            .with_margin(Thickness::uniform(3.0))
             .with_background(Brush::Solid(color).into()),
     )
     .with_opt_texture(load_image_internal(data))
+    .build(ctx)
+}
+
+fn make_button(
+    ctx: &mut BuildContext,
+    data: &[u8],
+    color: Color,
+    column: usize,
+    tooltip: &str,
+) -> Handle<Button> {
+    ButtonBuilder::new(
+        WidgetBuilder::new()
+            .with_margin(Thickness::uniform(1.0))
+            .with_tooltip(make_simple_tooltip(ctx, tooltip))
+            .with_width(20.0)
+            .with_height(20.0)
+            .on_column(column),
+    )
+    .with_content(make_icon(data, color, ctx))
     .build(ctx)
 }
 
@@ -348,90 +367,41 @@ impl<T: Reflect> HandlePropertyEditorBuilder<T> {
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<HandlePropertyEditor<T>> {
-        let text;
-        let locate;
-        let select;
-        let make_unassigned;
-        let pick;
+        let text = TextBuilder::new(
+            WidgetBuilder::new()
+                .on_column(0)
+                .with_vertical_alignment(VerticalAlignment::Center),
+        )
+        .with_vertical_text_alignment(VerticalAlignment::Center)
+        .with_text(if self.value.is_none() {
+            "Unassigned".to_owned()
+        } else {
+            "Err: Desync!".to_owned()
+        })
+        .build(ctx);
+        let locate_img = include_bytes!("../../../../resources/locate.png");
+        let locate = make_button(ctx, locate_img, Color::repeat(180), 2, "Locate Object");
+        let select_img = include_bytes!("../../../../resources/select_in_wv.png");
+        let select = make_button(ctx, select_img, Color::repeat(180), 3, "Select Object");
+        let cross_img = include_bytes!("../../../../resources/cross.png");
+        let make_unassigned = make_button(
+            ctx,
+            cross_img,
+            Color::opaque(180, 0, 0),
+            4,
+            "Make Unassigned",
+        );
+        let pick_img = include_bytes!("../../../../resources/pick.png");
+        let pick = make_button(ctx, pick_img, Color::opaque(0, 180, 0), 1, "Set...");
         let grid = GridBuilder::new(
             WidgetBuilder::new()
-                .with_child({
-                    text = TextBuilder::new(WidgetBuilder::new().on_column(0))
-                        .with_vertical_text_alignment(VerticalAlignment::Center)
-                        .with_text(if self.value.is_none() {
-                            "Unassigned".to_owned()
-                        } else {
-                            "Err: Desync!".to_owned()
-                        })
-                        .build(ctx);
-                    text
-                })
-                .with_child({
-                    pick = ButtonBuilder::new(
-                        WidgetBuilder::new()
-                            .with_tooltip(make_simple_tooltip(ctx, "Set..."))
-                            .with_width(20.0)
-                            .with_height(20.0)
-                            .on_column(1),
-                    )
-                    .with_content(make_icon(
-                        include_bytes!("../../../../resources/pick.png"),
-                        Color::opaque(0, 180, 0),
-                        ctx,
-                    ))
-                    .build(ctx);
-                    pick
-                })
-                .with_child({
-                    locate = ButtonBuilder::new(
-                        WidgetBuilder::new()
-                            .with_tooltip(make_simple_tooltip(ctx, "Locate Object"))
-                            .with_width(20.0)
-                            .with_height(20.0)
-                            .on_column(2),
-                    )
-                    .with_content(make_icon(
-                        include_bytes!("../../../../resources/locate.png"),
-                        Color::opaque(180, 180, 180),
-                        ctx,
-                    ))
-                    .build(ctx);
-                    locate
-                })
-                .with_child({
-                    select = ButtonBuilder::new(
-                        WidgetBuilder::new()
-                            .with_tooltip(make_simple_tooltip(ctx, "Select Object"))
-                            .with_width(20.0)
-                            .with_height(20.0)
-                            .on_column(3),
-                    )
-                    .with_content(make_icon(
-                        include_bytes!("../../../../resources/select_in_wv.png"),
-                        Color::opaque(180, 180, 180),
-                        ctx,
-                    ))
-                    .build(ctx);
-                    select
-                })
-                .with_child({
-                    make_unassigned = ButtonBuilder::new(
-                        WidgetBuilder::new()
-                            .with_tooltip(make_simple_tooltip(ctx, "Make Unassigned"))
-                            .with_width(20.0)
-                            .with_height(20.0)
-                            .on_column(4),
-                    )
-                    .with_content(make_icon(
-                        include_bytes!("../../../../resources/cross.png"),
-                        Color::opaque(180, 0, 0),
-                        ctx,
-                    ))
-                    .build(ctx);
-                    make_unassigned
-                }),
+                .with_child(text)
+                .with_child(pick)
+                .with_child(locate)
+                .with_child(select)
+                .with_child(make_unassigned),
         )
-        .add_row(Row::stretch())
+        .add_row(Row::auto())
         .add_column(Column::stretch())
         .add_column(Column::auto())
         .add_column(Column::auto())

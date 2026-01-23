@@ -20,8 +20,8 @@
 
 #![warn(missing_docs)]
 
-//! Style allows to change visual appearance of widgets in centralized manner. It can be considered
-//! as a storage for properties, that defines visual appearance. See [`Style`] docs for more info
+//! Style allows to change the visual appearance of widgets in a centralized manner. It can be considered
+//! as a storage for properties that define visual appearance. See [`Style`] docs for more info
 //! and usage examples.
 
 pub mod resource;
@@ -59,7 +59,7 @@ use std::{
 pub enum StyleProperty {
     /// A numeric property.
     Number(f32),
-    /// A thickness property, that defines width of four sides of a rectangles.
+    /// A thickness property that defines the width of four sides of a rectangles.
     Thickness(Thickness),
     /// A color property.
     Color(Color),
@@ -131,7 +131,7 @@ lazy_static! {
 
 /// A property, that can bind its value to a style. Why can't we just fetch the actual value from
 /// the style and why do we need to store the value as well? The answer is flexibility. In this
-/// approach style becomes not necessary and the value can be hardcoded. Also, the values of such
+/// approach, style becomes not necessary and the value can be hardcoded. Also, the values of such
 /// properties can be updated individually.
 #[derive(Clone, Debug, Reflect, Default)]
 #[reflect(bounds = "T: Reflect + Clone")]
@@ -199,9 +199,9 @@ impl<T: Visit> Visit for StyledProperty<T> {
     }
 }
 
-/// Style is a simple container for a named properties. Styles can be based off some other style, thus
+/// Style is a simple container for a named properties. Styles can be based on some other styles, thus
 /// allowing cascaded styling. Such cascading allows to define some base style with common properties
-/// and then create any amount of derived styles. For example, you can define a style for Button widget
+/// and then create any number of derived styles. For example, you can define a style for Button widget
 /// with corner radius, font size, border thickness and then create two derived styles for light and
 /// dark themes that will define colors and brushes. Light or dark theme does not affect all of those
 /// base properties, but has different colors.
@@ -209,7 +209,7 @@ impl<T: Visit> Visit for StyledProperty<T> {
 /// Styles can contain only specific types of properties (see [`StyleProperty`] enumeration), any
 /// more complex properties can be built using these primitives.
 ///
-/// There are three major ways of widgets styling:
+/// There are three major ways of widget styling:
 ///
 /// 1) During widget building stage - this way involves [`crate::BuildContext`]'s style field. This
 /// field defines a style for all widgets that will be built with the context.
@@ -245,7 +245,7 @@ impl<T: Visit> Visit for StyledProperty<T> {
 ///
 ///     ctx.style = StyleResource::new_embedded(style);
 ///
-///     // The button will have corner radius of 6.0 points and border thickness of 3.0 points on
+///     // The button will have a corner radius of 6.0 points and border thickness of 3.0 points on
 ///     // each side.
 ///     ButtonBuilder::new(WidgetBuilder::new()).build(ctx);
 /// }
@@ -473,7 +473,7 @@ impl Style {
         self
     }
 
-    /// Sets the parent style for this style. Parent style will be used at attempt to fetch properties
+    /// Sets the parent style for this style. Parent style will be used in an attempt to fetch properties
     /// that aren't present in this style.
     pub fn set_parent(&mut self, parent: Option<StyleResource>) {
         self.parent = parent;
@@ -588,7 +588,7 @@ impl Style {
     }
 
     /// Returns an immutable reference to the internal container with the style properties.
-    /// Keep in mind, that the returned container contains only the properties of the current
+    /// Keep in mind that the returned container contains only the properties of the current
     /// style! Properties of the parent style(s) should be obtained separately.
     pub fn inner(&self) -> &FxHashMap<ImmutableString, StyleProperty> {
         &self.variables

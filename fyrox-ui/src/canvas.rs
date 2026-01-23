@@ -42,7 +42,7 @@ use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 ///
 /// ## Examples
 ///
-/// A instance of [`Canvas`] widget can be created using [`CanvasBuilder`] with a set of children widgets provided
+/// An instance of [`Canvas`] widget can be created using [`CanvasBuilder`] with a set of children widgets provided
 /// to [`WidgetBuilder`]:
 ///
 /// ```rust

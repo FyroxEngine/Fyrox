@@ -261,7 +261,7 @@ pub struct FormattedText {
     font: InheritableVariable<Option<FontResource>>,
     pub text: InheritableVariable<Vec<char>>,
     // Temporary buffer used to split text on lines. We need it to reduce memory allocations
-    // when we changing text too frequently, here we sacrifice some memory in order to get
+    // when we're changing text too frequently, here we sacrifice some memory in order to get
     // more performance.
     #[reflect(hidden)]
     #[visit(skip)]
@@ -434,7 +434,7 @@ impl FormattedText {
     }
     /// Maps input [`Position`] to a linear position in character array.
     /// The index returned is the index of the character after the position, which may be
-    /// out-of-bounds if thee position is at the end of the text.
+    /// out-of-bounds if the position is at the end of the text.
     /// You should check the index before trying to use it to fetch data from inner array of characters.
     pub fn position_to_char_index_unclamped(&self, position: Position) -> Option<usize> {
         self.position_to_char_index_internal(position, false)
@@ -442,10 +442,10 @@ impl FormattedText {
 
     /// Maps input [`Position`] to a linear position in character array.
     /// The index returned is usually the index of the character after the position,
-    /// but if the position is at the end of a line then return the index of the character _before_ the position.
+    /// but if the position is at the end of a line, then return the index of the character _before_ the position.
     /// In other words, the last two positions of each line are mapped to the same character index.
-    /// Output index will always be valid for fetching, if the method returned `Some(index)`.
-    /// The index however cannot be used for text insertion, because it cannot point to a "place after last char".
+    /// Output index will always be valid for fetching if the method returned `Some(index)`.
+    /// The index, however, cannot be used for text insertion because it cannot point to a "place after last char".
     pub fn position_to_char_index_clamped(&self, position: Position) -> Option<usize> {
         self.position_to_char_index_internal(position, true)
     }
@@ -741,7 +741,7 @@ impl FormattedText {
     /// The amount of indent of the first line, horizontally separating it
     /// from the start of the remaining lines.
     /// If the indent is negative, then the first line will not be indented
-    /// while all the other lines will be indented. By default this is 0.0.
+    /// while all the other lines will be indented. By default, this is 0.0.
     pub fn set_line_indent(&mut self, indent: f32) -> &mut Self {
         self.line_indent.set_value_and_mark_modified(indent);
         self
@@ -750,20 +750,20 @@ impl FormattedText {
     /// The amount of indent of the first line, horizontally separating it
     /// from the start of the remaining lines.
     /// If the indent is negative, then the first line will not be indented
-    /// while all the other lines will be indented. By default this is 0.0.
+    /// while all the other lines will be indented. By default, this is 0.0.
     pub fn line_indent(&mut self) -> f32 {
         *self.line_indent
     }
 
     /// The space separating each line from the line above and below.
-    /// By default this is 0.0.
+    /// By default, this is 0.0.
     pub fn set_line_space(&mut self, space: f32) -> &mut Self {
         self.line_space.set_value_and_mark_modified(space);
         self
     }
 
     /// The space separating each line from the line above and below.
-    /// By default this is 0.0.
+    /// By default, this is 0.0.
     pub fn line_space(&self) -> f32 {
         *self.line_space
     }
@@ -1245,14 +1245,14 @@ impl FormattedTextBuilder {
     /// The amount of indent of the first line, horizontally separating it
     /// from the start of the remaining lines.
     /// If the indent is negative, then the first line will not be indented
-    /// while all the other lines will be indented. By default this is 0.0.
+    /// while all the other lines will be indented. By default, this is 0.0.
     pub fn with_line_indent(mut self, indent: f32) -> Self {
         self.line_indent = indent;
         self
     }
 
     /// The space separating each line from the line above and below.
-    /// By default this is 0.0.
+    /// By default, this is 0.0.
     pub fn with_line_space(mut self, space: f32) -> Self {
         self.line_space = space;
         self

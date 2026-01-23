@@ -184,7 +184,7 @@ pub struct PropertyEditorBuildContext<'a, 'b, 'c, 'd> {
     pub name_column_width: f32,
     pub base_path: String,
     /// A flag, that defines whether the inspectable object has a parent object from which it can
-    /// obtain initial property values when clicking on "Revert" button. This flag is used only for
+    /// obtain initial property values when clicking on the "Revert" button. This flag is used only for
     /// [`crate::core::variable::InheritableVariable`] properties, primarily to hide "Revert" button
     /// when it does nothing (when there's no parent object).
     pub has_parent_object: bool,
@@ -193,11 +193,11 @@ pub struct PropertyEditorBuildContext<'a, 'b, 'c, 'd> {
 /// This structure is passed to [PropertyEditorDefinition::create_message] in order to generate a message that will
 /// update the editor widget to the property's current value.
 pub struct PropertyEditorMessageContext<'a, 'b, 'c> {
-    /// The handle of widget that the message will be sent to. It should be an editor created by
+    /// The handle of the widget that the message will be sent to. It should be an editor created by
     /// [PropertyEditorDefinition::create_instance].
     pub instance: Handle<UiNode>,
     /// The UserInterface is provided to make it possible for `create_message` to send whatever messages
-    /// are needed directly instead of returning a message. In this case, the sent messages should have their
+    /// are needed directly instead of returning a message. In this case, sent messages should have their
     /// [UiMessage::flags] set to `sync_flag`.
     pub ui: &'b mut UserInterface,
     /// The FieldInfo of the property to edit, extracted from the object we are inspecting by reflection.
@@ -224,7 +224,7 @@ pub struct PropertyEditorMessageContext<'a, 'b, 'c> {
     pub name_column_width: f32,
     pub base_path: String,
     /// A flag, that defines whether the inspectable object has a parent object from which it can
-    /// obtain initial property values when clicking on "Revert" button. This flag is used only for
+    /// obtain initial property values when clicking on the "Revert" button. This flag is used only for
     /// [`crate::core::variable::InheritableVariable`] properties, primarily to hide "Revert" button
     /// when it does nothing (when there's no parent object).
     pub has_parent_object: bool,
@@ -239,7 +239,7 @@ pub struct PropertyEditorTranslationContext<'b, 'c> {
     /// adapt to the situation if we can successfully cast the given
     /// [InspectorEnvironment] into a specific type.
     ///
-    /// When the environment is not None, it is often an
+    /// When the environment is not None, it is often a
     /// [fyroxed_base::inspector::EditorEnvironment](https://docs.rs/fyroxed_base/latest/fyroxed_base/inspector/struct.EditorEnvironment.html)
     /// which may be accessed using EditorEnvironment::try_get_from.
     /// For example, the EditorEnvironment can be used by
@@ -259,14 +259,14 @@ pub struct PropertyEditorTranslationContext<'b, 'c> {
     pub definition_container: Arc<PropertyEditorDefinitionContainer>,
 }
 
-/// A widget handle that is to act as an editor in an [Insector](crate::inspector::Inspector), with or without
+/// A widget handle that is to act as an editor in an [Inspector](crate::inspector::Inspector), with or without
 /// a custom container widget to show the name of the property that is being edited.
 #[derive(Clone, Debug, PartialEq, Visit, Reflect)]
 pub enum PropertyEditorInstance {
     /// A property editor that is to be given a default container, which is just a label to the left
     /// of the editor to show the name of the property being edited.
     Simple {
-        /// A property editor. Could be any widget that capable of editing a property
+        /// A property editor. Could be any widget that is capable of editing a property
         /// value.
         editor: Handle<UiNode>,
     },
@@ -276,7 +276,7 @@ pub enum PropertyEditorInstance {
         /// It should include a label to identify the property being edited.
         container: Handle<UiNode>,
 
-        /// A property editor. Could be any widget that capable of editing a property
+        /// A property editor. Could be any widget that is capable of editing a property
         /// value.
         editor: Handle<UiNode>,
     },
@@ -363,7 +363,7 @@ pub struct PropertyEditorDefinitionContainerEntry {
 pub struct PropertyEditorDefinitionContainer {
     /// A type representing the source of PropertyEditorDefinitions that are added in the future.
     /// For each added PropertyEditorDefinition entry, [PropertyEditorDefinitionContainerEntry::source_type_id]
-    /// is set equal to this TypeId. By default this begins as `().type_id()`, and then it can be modified
+    /// is set equal to this TypeId. By default, this begins as `().type_id()`, and then it can be modified
     /// with a plugin is loaded to cause all definitions added after that point to be marked as being from
     /// that plugin.
     pub context_type_id: Mutex<TypeId>,
@@ -497,7 +497,7 @@ impl PropertyEditorDefinitionContainer {
         container.insert(InheritablePropertyEditorDefinition::<UnitQuaternion<f32>>::new());
 
         // Rect<NumericType> + InheritableVariable<Rect<NumericType>>
-        reg_property_editor! { container, RectPropertyEditorDefinition: new, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize };
+        reg_property_editor! { container, RectPropertyEditorDefinition: new, f64, f32, i64, u64, i32, u32, i16, u16, i8, u8, usize, isize }
         reg_property_editor! { container, InheritablePropertyEditorDefinition: new,
             Rect<f64>, Rect<f32>, Rect<i64>, Rect<u64>, Rect<i32>, Rect<u32>,
             Rect<i16>, Rect<u16>, Rect<i8>, Rect<u8>, Rect<usize>, Rect<isize>
@@ -527,7 +527,7 @@ impl PropertyEditorDefinitionContainer {
         container.insert(InheritablePropertyEditorDefinition::<Color>::new());
 
         // [NumericType; 1..N]
-        reg_array_property_editor! { container, f64, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+        reg_array_property_editor! { container, f64, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
         reg_array_property_editor! { container, f32, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
         reg_array_property_editor! { container, u64, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
         reg_array_property_editor! { container, i64, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }

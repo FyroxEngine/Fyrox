@@ -58,7 +58,7 @@ pub type AnimationPose = crate::generic_animation::AnimationPose<Handle<UiNode>>
 /// UI-specific animation node pose.
 pub type NodePose = crate::generic_animation::NodePose<Handle<UiNode>>;
 
-/// Standard prelude for animations, that contains all most commonly used types and traits.
+/// Standard prelude for animations, that contains all the most commonly used types and traits.
 pub mod prelude {
     pub use super::{
         Animation, AnimationContainer, AnimationContainerExt, AnimationPlayer,
@@ -91,7 +91,7 @@ impl AnimationContainerExt for AnimationContainer {
 
 /// Extension trait for [`AnimationPose`].
 pub trait AnimationPoseExt {
-    /// Tries to set each value to the each property from the animation pose to respective widgets.
+    /// Tries to set each value to the property from the animation pose to the respective widgets.
     fn apply(&self, ui: &mut UserInterface);
 }
 
@@ -181,7 +181,7 @@ impl AnimationPlayer {
     /// then every animation in this node is updated first, and then their output pose could be applied
     /// to the graph, so the animation takes effect. Automatic applying is useful when you need your
     /// animations to be applied immediately to the graph, but in some cases (if you're using animation
-    /// blending state machines for example) this functionality is undesired.
+    /// blending state machines, for example), this functionality is undesired.
     ///
     /// Animation blending machines hijacks control over the animation container and updates only
     /// active animations, instead of all available. This is much better for performance than updating
@@ -196,13 +196,13 @@ impl AnimationPlayer {
         self.auto_apply
     }
 
-    /// Returns a reference to internal animations container.
+    /// Returns a reference to internal animations' container.
     pub fn animations(&self) -> &InheritableVariable<AnimationContainer> {
         &self.animations
     }
 
-    /// Returns a reference to internal animations container. Keep in mind that mutable access to [`InheritableVariable`]
-    /// may have side effects if used inappropriately. Checks docs for [`InheritableVariable`] for more info.
+    /// Returns a reference to internal animations' container. Keep in mind that mutable access to [`InheritableVariable`]
+    /// may have side effects if used inappropriately. Check docs for [`InheritableVariable`] for more info.
     pub fn animations_mut(&mut self) -> &mut InheritableVariable<AnimationContainer> {
         &mut self.animations
     }
@@ -226,6 +226,14 @@ impl TypeUuidProvider for AnimationPlayer {
 define_widget_deref!(AnimationPlayer);
 
 impl Control for AnimationPlayer {
+    fn update(&mut self, dt: f32, ui: &mut UserInterface) {
+        if self.auto_apply {
+            self.animations
+                .get_value_mut_silent()
+                .update_animations(ui, dt);
+        }
+    }
+
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
@@ -247,14 +255,6 @@ impl Control for AnimationPlayer {
                     }
                 }
             }
-        }
-    }
-
-    fn update(&mut self, dt: f32, ui: &mut UserInterface) {
-        if self.auto_apply {
-            self.animations
-                .get_value_mut_silent()
-                .update_animations(ui, dt);
         }
     }
 }

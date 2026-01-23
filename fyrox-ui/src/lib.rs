@@ -23,25 +23,25 @@
 //!
 //! ## Basic Concepts
 //!
-//! FyroxUI is quite complex UI library and before using it, you should understand basic concepts of it. Especially,
+//! FyroxUI is quite a complex UI library and before using it, you should understand basic concepts of it. Especially,
 //! if you're got used to immediate-mode UIs.
 //!
 //! ### Stateful
 //!
 //! **Stateful UI* means that we can create and destroy widgets when we need to, it is the opposite approach of
 //! **immediate-mode** or **stateless UIs** when you don't have long-lasting state for your widgets
-//! (usually stateless UI hold its state only for one or few frames).
+//! (usually stateless UI holds its state only for one or few frames).
 //!
-//! Stateful UI is much more powerful and flexible, it allows you to have complex layout system without having to
+//! Stateful UI is much more powerful and flexible, it allows you to have a complex layout system without having to
 //! create hacks to create complex layout as you'd do in immediate-mode UIs. It is also much faster in terms of
 //! performance. Stateful UI is a must for complex user interfaces that requires rich layout and high performance.
 //!
 //! ### Node-based architecture
 //!
 //! Every user interface could be represented as a set of small blocks that have hierarchical bonding between each
-//! other. For example a button could be represented using two parts: a background and a foreground. Usually the background
+//! other. For example, a button could be represented using two parts: a background and a foreground. Usually the background
 //! is just a simple rectangle (either a vector or bitmap), and a foreground is a text. The text (the foreground widget)
-//! is a child object of the rectangle (the background widget). These two widgets forms another, more complex widget that
+//! is a child object of the rectangle (the background widget). These two widgets form another, more complex widget that
 //! we call button.
 //!
 //! Such approach allows us to modify the look of the button as we wish, we can create a button with image background,
@@ -50,21 +50,21 @@
 //!
 //! ### Composition
 //!
-//! Every widget in the engine uses composition to build more complex widgets. All widgets (and respective builders) contains
-//! `Widget` instance inside, it provides basic functionality the widget such as layout information, hierarchy, default
-//! foreground and background brushes (their usage depends on derived widget), render and layout transform and so on.
+//! Every widget in the engine uses composition to build more complex widgets. All widgets (and respective builders) contain
+//! `Widget` instance inside, it provides basic functionality for the widget such as layout information, hierarchy, default
+//! foreground and background brushes (their usage depends on derived widget), render and layout transform, and so on.
 //!
 //! ### Message passing
 //!
 //! The engine uses message passing mechanism for UI logic. What does that mean? Let's see at the button from the
-//! previous section and imagine we want to change its text. To do that we need to explicitly "tell" the button's text
+//! previous section and imagine we want to change its text. To do that, we need to explicitly "tell" the button's text
 //! widget to change its content to something new. This is done by sending a message to the widget.
 //!
-//! There is no "classic" callbacks to handle various types of messages, which may come from widgets. Instead, you should write
+//! There are no "classic" callbacks to handle various types of messages, which may come from widgets. Instead, you should write
 //! your own message dispatcher where you'll handle all messages. Why so? At first - decoupling, in this case business logic
 //! is decoupled from the UI. You just receive messages one-by-one and do specific logic. The next reason is that any
 //! callback would require context capturing which could be somewhat restrictive - since you need to share context with the
-//! UI, it would force you to wrap it in `Rc<RefCell<..>>`/`Arc<Mutex<..>>`.
+//! UI, it would force you to wrap it in `Rc<RefCell<...>>`/`Arc<Mutex<...>>`.
 //!
 //! ### Message routing strategies
 //!
@@ -72,11 +72,11 @@
 //! will "travel" across the tree of nodes.
 //!
 //! 1. Bubble - a message starts its way from a widget and goes up on hierarchy until it reaches the root node of the hierarchy.
-//! Nodes that lies outside that path won't receive the message. This is the most important message routing strategy, that
+//! Nodes that lie outside that path won't receive the message. This is the most important message routing strategy that
 //! is used for **every** node by default.
-//! 2. Direct - a message passed directly to every node that are capable to handle it. There is actual routing in this
+//! 2. Direct - a message passed directly to every node that is capable of handle it. There is actual routing in this
 //! case. Direct routing is used in rare cases when you need to catch a message outside its normal "bubble" route. It is **off**
-//! by default for every widget, but can be enabled on per-widget instance basis.
+//! by default for every widget, but can be enabled on a per-widget instance basis.
 //!
 //! ## Widgets Overview
 //!
@@ -85,76 +85,76 @@
 //!
 //! ### Containers
 //!
-//! The Container widgets primary purpose is to contain other widgets. They are mostly used as a tool to layout the UI in
+//! The Container widgets' primary purpose is to contain other widgets. They are mostly used as a tool to lay out the UI in
 //! visually different ways.
 //!
-//! * [`crate::stack_panel::StackPanel`]: The Stack Panel arranges widgets in a linear fashion, either vertically or horizontally
+//! * [`stack_panel::StackPanel`]: The Stack Panel arranges widgets in a linear fashion, either vertically or horizontally
 //! depending on how it's setup.
-//! * [`crate::wrap_panel::WrapPanel`]: The Wrap Panel arranges widgets in a linear fashion but if it overflows the widgets are
-//! continued adjacent to the first line. Can arrange widgets either vertically or horizontally depending on how it's setup.
-//! * [`crate::grid::Grid`]: The Grid arranges widgets into rows and columns with given size constraints.
-//! * [`crate::canvas::Canvas`]: The Canvas arranges widgets at their desired positions; it has infinite size and does not restrict
-//! their children widgets position and size.
-//! * [`crate::window::Window`]: The Window holds other widgets in a panel that can be configured at setup to be move-able,
+//! * [`wrap_panel::WrapPanel`]: The Wrap Panel arranges widgets in a linear fashion, but if it overflows, the widgets are
+//! continued adjacent to the first line. Can arrange widgets either vertically or horizontally depending on how its setup.
+//! * [`grid::Grid`]: The Grid arranges widgets into rows and columns with given size constraints.
+//! * [`Canvas`]: The Canvas arranges widgets at their desired positions; it has infinite size and does not restrict
+//! their children's widgets' position and size.
+//! * [`window::Window`]: The Window holds other widgets in a panel that can be configured at setup to be move-able,
 //! expanded and contracted via user input, exited, and have a displayed label. The window has a title bar to assist with these
 //! features.
-//! * [`crate::messagebox::MessageBox`]: The Message Box is a Window that has been streamlined to show standard confirmation/information
+//! * [`messagebox::MessageBox`]: The Message Box is a Window that has been streamlined to show standard confirmation/information
 //! dialogues, for example, closing a document with unsaved changes. It has a title, some text, and a fixed set of buttons (Yes, No,
 //! Cancel in different combinations).
-//! * [`crate::menu::Menu`]: The Menu is a root container for Menu Items, an example could be a menu strip with File, Edit, View, etc
+//! * [`menu::Menu`]: The Menu is a root container for Menu Items, an example could be a menu strip with File, Edit, View, etc
 //! items.
-//! * [`crate::popup::Popup`]: The Popup is a panel that locks input to its content while it is open. A simple example of it could be a
+//! * [`popup::Popup`]: The Popup is a panel that locks input to its content while it is open. A simple example of it could be a
 //! context menu.
-//! * [`crate::scroll_viewer::ScrollViewer`]: The ScrollViewer is a wrapper for Scroll Panel that adds two scroll bars to it.
-//! * [`crate::scroll_panel::ScrollPanel`]: The Scroll Panel is a panel that allows you apply some offset to children widgets. It
+//! * [`scroll_viewer::ScrollViewer`]: The ScrollViewer is a wrapper for Scroll Panel that adds two scroll bars to it.
+//! * [`scroll_panel::ScrollPanel`]: The Scroll Panel is a panel that allows you to apply some offset to children widgets. It
 //! is used to create "scrollable" area in conjunction with the Scroll Viewer.
-//! * [`crate::expander::Expander`]: The Expander handles hiding and showing multiple panels of widgets in an according style UI element.
+//! * [`expander::Expander`]: The Expander handles hiding and showing multiple panels of widgets in an according style UI element.
 //! Multiple panels can be shown or hidden at any time based on user input.
-//! * [`crate::tab_control::TabControl`]: The Tab Control handles hiding several panels of widgets, only showing the one that the user
+//! * [`tab_control::TabControl`]: The Tab Control handles hiding several panels of widgets, only showing the one that the user
 //! has selected.
-//! * [`crate::dock::DockingManager`]: The Docking manager allows you to dock windows and hold them in-place.
-//! * [`crate::tree::Tree`]: The Tree allows you to create views for hierarchical data.
-//! * [`crate::screen::Screen`]: The Screen widgets always has its bounds match the current screen size
+//! * [`dock::DockingManager`]: The Docking manager allows you to dock windows and hold them in-place.
+//! * [`tree::Tree`]: The Tree allows you to create views for hierarchical data.
+//! * [`screen::Screen`]: The Screen widgets always has its bounds match the current screen size,
 //! thus making it possible to create widget hierarchy that always fits the screen bounds.
 //!
 //!
 //! ### Visual
 //!
-//! The Visual widgets primary purpose is to provide the user feedback generally without the user directly interacting with them.
+//! The Visual widgets' primary purpose is to provide the user feedback generally without the user directly interacting with them.
 //!
-//! * [`crate::text::Text`]: The Text widget is used to display a string to the user.
-//! * [`crate::image::Image`]: The Image widget is used to display a pixel image to the user.
-//! * [`crate::vector_image::VectorImage`]: The Vector Image is used to render vector instructions as a graphical element.
-//! * [`crate::rect::RectEditor`]: The Rect allows you to specify numeric values for X, Y, Width, and Height of a rectangle.
-//! * [`crate::progress_bar::ProgressBar`]: The Progress Bar shows a bar whose fill state can be adjusted to indicate visually how full
-//! something is, for example how close to 100% is a loading process.
-//! * [`crate::decorator::Decorator`]: The Decorator is used to style any widget. It has support for different styles depending on various
+//! * [`text::Text`]: The Text widget is used to display a string to the user.
+//! * [`image::Image`]: The Image widget is used to display a pixel image to the user.
+//! * [`vector_image::VectorImage`]: The Vector Image is used to render vector instructions as a graphical element.
+//! * [`rect::RectEditor`]: The Rect allows you to specify numeric values for X, Y, Width, and Height of a rectangle.
+//! * [`progress_bar::ProgressBar`]: The Progress Bar shows a bar whose fill state can be adjusted to indicate visually how full
+//! something is, for example, how close to 100% is a loading process.
+//! * [`decorator::Decorator`]: The Decorator is used to style any widget. It has support for different styles depending on various
 //! events like mouse hover or click.
-//! * [`crate::border::Border`]: The Border widget is used in conjunction with the Decorator widget to provide configurable boarders to
+//! * [`border::Border`]: The Border widget is used in conjunction with the Decorator widget to provide configurable boarders to
 //! any widget for styling purposes.
 //!
 //! ### Controls
 //!
-//! Control widgets primary purpose is to provide users with interactable UI elements to control some aspect of the program.
+//! Control widgets' primary purpose is to provide users with interactable UI elements to control some aspect of the program.
 //!
-//! * [`crate::button::Button`]: The Button provides a press-able control that can contain other UI elements, for example a Text
+//! * [`button::Button`]: The Button provides a press-able control that can contain other UI elements, for example, a Text
 //! or Image Widget.
-//! * [`crate::check_box::CheckBox`]: The Check Box is a toggle-able control that can contain other UI elements, for example a Text
+//! * [`check_box::CheckBox`]: The Checkbox is a toggle-able control that can contain other UI elements, for example, a Text
 //! or Image Widget.
-//! * [`crate::text_box::TextBox`]: The Text Box is a control that allows the editing of text.
-//! * [`crate::scroll_bar::ScrollBar`]: The Scroll Bar provides a scroll bar like control that can be used on it's own as a data input or with
+//! * [`text_box::TextBox`]: The Text Box is a control that allows the editing of text.
+//! * [`scroll_bar::ScrollBar`]: The Scroll Bar provides a scroll bar like control that can be used on its own as a data input or with
 //! certain other widgets to provide content scrolling capabilities.
-//! * [`crate::numeric::NumericUpDown`]: The Numeric Field provides the ability to adjust a number via increment and decrement buttons or direct
+//! * [`numeric::NumericUpDown`]: The Numeric Field provides the ability to adjust a number via increment and decrement buttons or direct
 //! input. The number can be constrained to remain inside a specific range or have a specific step.
-//! * [`crate::range::RangeEditor`]: The Range allows the user to edit a numeric range - specify its begin and end values.
-//! * [`crate::list_view::ListView`]: The List View provides a control where users can select from a list of items.
-//! * [`crate::dropdown_list::DropdownList`]: The Drop-down List is a control which shows the currently selected item and provides a drop-down
+//! * [`range::RangeEditor`]: The Range allows the user to edit a numeric range - specify its beginning and end values.
+//! * [`list_view::ListView`]: The List View provides a control where users can select from a list of items.
+//! * [`dropdown_list::DropdownList`]: The Drop-down List is a control which shows the currently selected item and provides a drop-down
 //! list to select an item.
-//! * [`crate::file_browser::FileBrowser`]: The File Browser is a tree view of the file system allowing the user to select a file or folder.
-//! * [`crate::curve::CurveEditor`]: The CurveEditor allows editing parametric curves - adding points, and setting up transitions (constant,
+//! * [`file_browser::FileBrowser`]: The File Browser is a tree view of the file system allowing the user to select a file or folder.
+//! * [`curve::CurveEditor`]: The CurveEditor allows editing parametric curves - adding points, and setting up transitions (constant,
 //! linear, cubic) between them.
-//! * [`crate::inspector::Inspector`]: The Inspector automatically creates and handles the input of UI elements based on a populated Inspector
-//! Context given to it allowing the user to adjust values of a variety of models without manually creating UI's for each type.
+//! * [`inspector::Inspector`]: The Inspector automatically creates and handles the input of UI elements based on a populated Inspector
+//! Context given to it, allowing the user to adjust values of a variety of models without manually creating UI for each type.
 //!
 //! ## Examples
 //!
@@ -187,7 +187,7 @@
 //! ```
 //!
 //! **Important**: This example **does not** include any drawing or OS event processing! It is because this
-//! crate is OS- and GAPI-agnostic and do not create native OS windows and cannot draw anything on screen.
+//! crate is OS- and GAPI-agnostic and does not create native OS windows and cannot draw anything on screen.
 //! For more specific examples, please see `examples` of the crate.
 //!
 //! ## Keyboard Focus
@@ -402,8 +402,8 @@ impl Drop for RcUiNodeHandleInner {
 }
 
 /// Reference counted handle to a widget. It is used to automatically destroy the widget it points
-/// to when the reference counter reaches zero. It's main usage in the library is to store handles
-/// to context menus, that could be shared across multiple widgets.
+/// to when the reference counter reaches zero. Its main usage in the library is to store handles
+/// to context menus that could be shared across multiple widgets.
 #[derive(Clone, Default, Visit, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "9111a53b-05dc-4c75-aab1-71d5b1c93311")]
 pub struct RcUiNodeHandle(Arc<Mutex<RcUiNodeHandleInner>>);
@@ -569,13 +569,13 @@ pub struct RestrictionEntry {
     /// Handle to UI node to which picking must be restricted to.
     pub handle: Handle<UiNode>,
 
-    /// A flag that tells UI to stop iterating over picking stack.
+    /// A flag that tells the UI to stop iterating over picking stack.
     /// There are two use cases: chain of menus (popups) and set of modal windows. In case of
-    /// menus you need to restrict picking to an entire chain, but leave possibility to select
-    /// any menu in the chain. In case of multiple modal windows you need to restrict picking
+    ///  menus, you need to restrict picking to an entire chain, but leave the possibility to select
+    /// any menu in the chain. In the case of multiple modal windows, you need to restrict picking
     /// individually per window, not allowing to pick anything behind modal window, but still
-    /// save restrictions in the entire chain of modal windows so if topmost closes, restriction
-    /// will be on previous one and so on.
+    /// save restrictions in the entire chain of modal windows, so if topmost closes, restriction
+    /// will be on the previous one and so on.
     pub stop: bool,
 }
 
@@ -586,9 +586,9 @@ pub struct TooltipEntry {
     pub shown: bool,
     /// Time remaining until this entry should disappear (in seconds).
     pub disappear_timer: f32,
-    /// Maximum time that it should be kept for
+    /// The Maximum time that it should be kept for
     /// This is stored here as well, because when hovering
-    /// over the tooltip, we don't know the time it should stay for and
+    /// over the tooltip, we don't know the time it should stay for, and
     /// so we use this to refresh the timer.
     pub max_time: f32,
 }
@@ -898,7 +898,7 @@ fn invalidate_recursive_up(
     callback: fn(&UiNode),
 ) {
     if let Ok(node_ref) = nodes.try_borrow(node) {
-        (callback)(node_ref);
+        callback(node_ref);
         if node_ref.parent().is_some() {
             invalidate_recursive_up(nodes, node_ref.parent(), callback);
         }
@@ -981,7 +981,7 @@ impl UiContainer {
         self.pool.iter_mut()
     }
 
-    /// Adds a new user interface into container.
+    /// Adds a new user interface into the container.
     #[inline]
     pub fn add(&mut self, scene: UserInterface) -> Handle<UserInterface> {
         self.pool.spawn(scene)
@@ -993,7 +993,7 @@ impl UiContainer {
         self.pool.clear()
     }
 
-    /// Removes the given user interface from container. The user interface will be destroyed
+    /// Removes the given user interface from the container. The user interface will be destroyed
     /// immediately.
     #[inline]
     pub fn remove(&mut self, handle: Handle<UserInterface>) {
@@ -1059,7 +1059,7 @@ impl IndexMut<Handle<UserInterface>> for UiContainer {
 
 fn is_on_screen(node: &UiNode, nodes: &Pool<UiNode, WidgetContainer>) -> bool {
     // Crawl up on tree and check if current bounds are intersects with every screen bound
-    // of parents chain. This is needed because some control can move their children outside of
+    // of parents chain. This is needed because some control can move their children outside
     // their bounds (like scroll viewer, etc.) and single intersection test of parent bounds with
     // current bounds is not enough.
     let bounds = node.clip_bounds();
@@ -1503,7 +1503,7 @@ impl UserInterface {
 
         self.update_tooltips(dt);
 
-        // Try to fetch new cursor icon starting from current picked node. Traverse
+        // Try to fetch new cursor icon starting from the current picked node. Traverse
         // tree up until cursor with different value is found.
         self.cursor_icon = CursorIcon::default();
         let mut handle = self.picked_node;
@@ -1617,7 +1617,7 @@ impl UserInterface {
             );
         }
 
-        // Debug info rendered on top of other.
+        // Debug info rendered on top of others.
         if self.visual_debug {
             if self.picked_node.is_some() {
                 let bounds = self.nodes.borrow(self.picked_node).screen_bounds();
@@ -1940,7 +1940,7 @@ impl UserInterface {
         } else {
             // We have some picking restriction chain.
             // Go over picking stack and try each entry. This will help with picking
-            // in a series of popups, especially in menus where may be many open popups
+            // in a series of popups, especially in menus where there may be many open popups
             // at the same time.
             for root in self.picking_stack.iter().rev() {
                 if self.nodes.is_valid_handle(root.handle) {
@@ -2114,9 +2114,9 @@ impl UserInterface {
     //
     // # Notes
     //
-    // Node will be topmost *only* on same hierarchy level! So if you have a floating
-    // window (for example) and a window embedded into some other control (yes this is
-    // possible) then floating window won't be the topmost.
+    // Node will be topmost *only* on the same hierarchy level! So if you have a floating
+    // window (for example) and a window embedded into some other control (yes, this is
+    // possible), then the floating window won't be the topmost.
     fn make_topmost(&mut self, node: Handle<UiNode>) {
         let parent = self.node(node).parent();
         if parent.is_some() {
@@ -2156,8 +2156,8 @@ impl UserInterface {
 
     /// Extracts UI event one-by-one from common queue. Each extracted event will go to *all*
     /// available nodes first and only then will be moved outside of this method. This is one
-    /// of most important methods which must be called each frame of your game loop, otherwise
-    /// UI will not respond to any kind of events and simply speaking will just not work.
+    ///  of the most important methods which must be called each frame of your game loop, otherwise
+    /// the UI will not respond to any kind of events and simply speaking will just not work.
     ///
     /// # Routing Scheme
     ///
@@ -2237,7 +2237,7 @@ impl UserInterface {
     }
 
     fn poll_single_message(&mut self, mut message: UiMessage) -> Option<UiMessage> {
-        // Destination node may be destroyed at the time we receive message,
+        // The Destination node may be destroyed at the time we receive message,
         // we have skip processing of such messages.
         if !self.nodes.is_valid_handle(message.destination()) {
             return Some(message);
@@ -2673,7 +2673,7 @@ impl UserInterface {
     }
 
     /// Translates raw window event into some specific UI message. This is one of the
-    /// most important methods of UI. You must call it each time you received a message
+    /// most important methods of UI. You must call it each time you receive a message
     /// from a window.
     pub fn process_os_event(&mut self, event: &OsEvent) -> bool {
         let mut event_processed = false;
@@ -3152,7 +3152,7 @@ impl UserInterface {
     }
 
     /// Extracts sub-graph starting from the given widget. All handles to extracted widgets
-    /// becomes reserved and will be marked as "occupied", an attempt to borrow a widget
+    ///  become reserved and will be marked as "occupied", an attempt to borrow a widget
     /// at such handle will result in panic!. Please note that root widget will be
     /// detached from its parent!
     #[inline]
@@ -3176,7 +3176,7 @@ impl UserInterface {
     }
 
     /// Puts previously extracted sub-graph into the user interface. Handles to widgets will become valid
-    /// again. After that you probably want to re-link returned handle with its previous parent.
+    /// again. After that, you probably want to re-link the returned handle with its previous parent.
     #[inline]
     pub fn put_sub_graph_back(&mut self, sub_graph: SubGraph) -> Handle<UiNode> {
         for (ticket, node) in sub_graph.descendants {
@@ -3533,6 +3533,18 @@ impl SceneGraph for UserInterface {
             .map(|n| ControlAsAny::as_any(n.0.deref()).type_id())
     }
 
+    fn actual_type_name(&self, handle: Handle<Self::Node>) -> Result<&'static str, PoolError> {
+        self.nodes
+            .try_borrow(handle)
+            .map(|n| Reflect::type_name(n.0.deref()))
+    }
+
+    fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Result<Vec<TypeId>, PoolError> {
+        self.nodes
+            .try_borrow(handle)
+            .map(|n| n.0.query_derived_types().to_vec())
+    }
+
     #[inline]
     fn root(&self) -> Handle<Self::Node> {
         self.root_canvas
@@ -3646,18 +3658,6 @@ impl SceneGraph for UserInterface {
         }
     }
 
-    fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Result<Vec<TypeId>, PoolError> {
-        self.nodes
-            .try_borrow(handle)
-            .map(|n| n.0.query_derived_types().to_vec())
-    }
-
-    fn actual_type_name(&self, handle: Handle<Self::Node>) -> Result<&'static str, PoolError> {
-        self.nodes
-            .try_borrow(handle)
-            .map(|n| Reflect::type_name(n.0.deref()))
-    }
-
     #[inline]
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
         self.nodes.pair_iter()
@@ -3730,12 +3730,12 @@ fn less_than_or_close(value1: f32, value2: f32) -> bool {
     (value1 < value2) || are_close(value1, value2)
 }
 
-/// Calculates a new size for the rect after transforming it with the given matrix. Basically it
+/// Calculates a new size for the rect after transforming it with the given matrix. Basically, it
 /// finds a new rectangle that can contain the rotated rectangle.
 ///
 /// # Origin
 ///
-/// Original code was taken from WPF source code (FindMaximalAreaLocalSpaceRect) and ported to Rust.
+/// The Original code was taken from WPF source code (FindMaximalAreaLocalSpaceRect) and ported to Rust.
 /// It handles a lot of edge cases that could occur due to the fact that the UI uses a lot of
 /// special floating-point constants like Infinity or NaN. If there would be no such values, simple
 /// `rect.transform(&matrix).size` could be used.
@@ -3805,7 +3805,7 @@ fn transform_size(transform_space_bounds: Vector2<f32>, matrix: &Matrix3<f32>) -
             } else {
                 // Case: b==0, a!=0, c!=0, d!=0
 
-                // Maximizing under line (hIntercept=xConstr/c, wIntercept=xConstr/a)
+                // Maximizing underline (hIntercept=xConstr/c, wIntercept=xConstr/a)
                 // BUT we still have constraint: h <= yConstr/d
 
                 h = (0.5 * (x_constr / c).abs()).min(y_cover_d);
@@ -3814,7 +3814,7 @@ fn transform_size(transform_space_bounds: Vector2<f32>, matrix: &Matrix3<f32>) -
         } else {
             // Case: c==0, a!=0, b!=0, d!=0
 
-            // Maximizing under line (hIntercept=yConstr/d, wIntercept=yConstr/b)
+            // Maximizing underline (hIntercept=yConstr/d, wIntercept=yConstr/b)
             // BUT we still have constraint: w <= xConstr/a
 
             w = (0.5 * (y_constr / b).abs()).min(x_cover_a);
@@ -3837,7 +3837,7 @@ fn transform_size(transform_space_bounds: Vector2<f32>, matrix: &Matrix3<f32>) -
             } else {
                 // Case: a==0, b!=0, c!=0, d!=0
 
-                // Maximizing under line (hIntercept=yConstr/d, wIntercept=yConstr/b)
+                // Maximizing underline (hIntercept=yConstr/d, wIntercept=yConstr/b)
                 // BUT we still have constraint: h <= xConstr/c
 
                 h = (0.5 * (y_constr / d).abs()).min(x_cover_c);
@@ -3846,7 +3846,7 @@ fn transform_size(transform_space_bounds: Vector2<f32>, matrix: &Matrix3<f32>) -
         } else {
             // Case: d==0, a!=0, b!=0, c!=0
 
-            // Maximizing under line (hIntercept=xConstr/c, wIntercept=xConstr/a)
+            // Maximizing underline (hIntercept=xConstr/c, wIntercept=xConstr/a)
             // BUT we still have constraint: w <= yConstr/b
 
             w = (0.5 * (x_constr / a).abs()).min(y_cover_b);
@@ -3859,7 +3859,7 @@ fn transform_size(transform_space_bounds: Vector2<f32>, matrix: &Matrix3<f32>) -
         let y_cover_b = (y_constr / b).abs(); // w-intercept of y-constraint line.
         let y_cover_d = (y_constr / d).abs(); // h-intercept of y-constraint line.
 
-        // The tighest constraint governs, so we pick the lowest constraint line.
+        // The tightest constraint governs, so we pick the lowest constraint line.
         //
         //   The optimal point (w,h) for which Area = w*h is maximized occurs halfway
         //   to each intercept.
@@ -3947,7 +3947,7 @@ mod test_inner {
                 .with_height(widget_size.y),
         )
         .build(&mut ui.build_ctx());
-        ui.update(screen_size, 0.0, &Default::default()); // Make sure layout was calculated.
+        ui.update(screen_size, 0.0, &Default::default()); // Make sure the layout was calculated.
         ui.send(widget, WidgetMessage::Center);
         while ui.poll_message().is_some() {}
         ui.update(screen_size, 0.0, &Default::default());
@@ -3963,7 +3963,7 @@ mod test_inner {
 
         let text_box = TextBoxBuilder::new(WidgetBuilder::new()).build(&mut ui.build_ctx());
 
-        // Make sure layout was calculated.
+        // Make sure the layout was calculated.
         ui.update(screen_size, 0.0, &Default::default());
 
         assert!(ui.poll_message().is_none());
@@ -3975,12 +3975,12 @@ mod test_inner {
             ui.poll_message(),
             Some(UiMessage::for_widget(text_box, WidgetMessage::Focus))
         );
-        // Root must be unfocused right before new widget is focused.
+        // Root must be unfocused right before the new widget is focused.
         assert_eq!(
             ui.poll_message(),
             Some(UiMessage::from_widget(ui.root(), WidgetMessage::Unfocus))
         );
-        // Finally there should be a response from newly focused node.
+        // Finally, there should be a response from newly focused node.
         assert_eq!(
             ui.poll_message(),
             Some(UiMessage::from_widget(text_box, WidgetMessage::Focus))

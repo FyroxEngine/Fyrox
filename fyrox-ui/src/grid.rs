@@ -90,7 +90,7 @@ pub struct GridDimension {
     /// Local position along the axis of the dimension after arrangement step.
     pub location: f32,
     /// The number of children in this dimension that still need to be measured before the size is known.
-    /// For Auto rows and columns this is initially the number of nodes in that row or column,
+    /// For Auto rows and columns, this is initially the number of nodes in that row or column,
     /// and then it is reduced as nodes are measured.
     /// This is zero for all non-Auto rows and columns.
     #[visit(skip)]
@@ -204,18 +204,18 @@ pub type Row = GridDimension;
 /// You then need to tell each child what row and column it belongs to via the [`WidgetBuilder::on_column`] and [`WidgetBuilder::on_row`]
 /// functions of their base widget. By default, all children will be placed into row 0, column 0.
 ///
-/// After that you need to provide sizing constraints for each row and column to the [`GridBuilder`] by using the [`GridBuilder::add_row`]
+/// After that, you need to provide sizing constraints for each row and column to the [`GridBuilder`] by using the [`GridBuilder::add_row`]
 /// and [`GridBuilder::add_column`] functions while providing a [`GridDimension`] instance to the call. [`GridDimension`] can be
 /// constructed with the following functions:
 ///
 /// * [`GridDimension::auto`] - Sizes the row or column so it's just large enough to fit the largest child's size.
 /// * [`GridDimension::stretch`] - Stretches the row or column to fill the parent's available space, if multiple rows or
-/// columns have this option the size is evenly distributed between them.
+/// columns have this option, the size is evenly distributed between them.
 /// * [`GridDimension::strict`] - Sets the row or column to be exactly the given value of pixels long. So a row will only
 /// be the given number of pixels wide, while a column will be that many pixels tall.
 ///
 /// You can add any number of rows and columns to a grid widget, and each grid cell does **not** need to have a UI widget
-/// in it to be valid. For example you can add a column and set it to a specific size via strict to provide spacing between
+/// in it to be valid. For example, you can add a column and set it to a specific size via strict to provide spacing between
 /// two other columns.
 #[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]
@@ -235,7 +235,7 @@ pub struct Grid {
     #[reflect(hidden)]
     pub cells: RefCell<Vec<Cell>>,
     /// A set of four groups, where each group contains cell indices. It is used for measurement
-    /// purposes to group the cells in specific way, so it can be measured in the correct order
+    /// purposes to group the cells in a specific way, so it can be measured in the correct order
     /// later.
     #[visit(skip)]
     #[reflect(hidden)]
@@ -289,7 +289,7 @@ pub struct Cell {
 /// desired size information from other nodes, and so they are always measured first.
 ///
 /// Group 1 is special because it contains all the remaining auto-width nodes
-/// after group 0 has been measured, and group 1 may blocked from being measured
+/// after group 0 has been measured, and group 1 may be blocked from being measured
 /// due to group 2 not yet being measured to provide the desired size of the
 /// remaining auto rows.
 ///
@@ -336,7 +336,7 @@ fn calc_total_size_of_non_stretch_dims(dims: &[GridDimension]) -> Option<f32> {
         // This requires that all the autos be already measured.
         Some(dims.iter().map(|d| d.desired_size).sum())
     } else {
-        // We have at least one stretch but not all the autos are measured
+        // We have at least one stretch, but not all the autos are measured
         // so we fail.
         None
     }
@@ -734,25 +734,25 @@ impl GridBuilder {
         }
     }
 
-    /// Adds a new row to the grid builder. Number of rows is unlimited.
+    /// Adds a new row to the grid builder. The number of rows is unlimited.
     pub fn add_row(mut self, row: Row) -> Self {
         self.rows.push(row);
         self
     }
 
-    /// Adds a new column to the grid builder. Number of columns is unlimited.
+    /// Adds a new column to the grid builder. The number of columns is unlimited.
     pub fn add_column(mut self, column: Column) -> Self {
         self.columns.push(column);
         self
     }
 
-    /// Adds a set of rows to the grid builder. Number of rows is unlimited.
+    /// Adds a set of rows to the grid builder. The number of rows is unlimited.
     pub fn add_rows(mut self, mut rows: Vec<Row>) -> Self {
         self.rows.append(&mut rows);
         self
     }
 
-    /// Adds a set of columnds to the grid builder. Number of columnds is unlimited.
+    /// Adds a set of columns to the grid builder. The number of columns is unlimited.
     pub fn add_columns(mut self, mut columns: Vec<Column>) -> Self {
         self.columns.append(&mut columns);
         self
