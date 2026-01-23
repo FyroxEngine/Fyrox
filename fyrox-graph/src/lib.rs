@@ -737,8 +737,30 @@ pub trait SceneGraph: 'static {
     /// of nodes. It does *not* perform any tree traversal!
     fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node>;
 
+    /// Tries to borrow a graph node by the given handle. This method accepts both type-agnostic
+    /// container (read - [`Self::Node`]) handles and the actual node type handles. For example,
+    /// if the container type is `Node` (holds `Box<dyn NodeTrait>`) and there's a `SpecificNode`
+    /// (implements the `NodeTrait`), then this method can accept both `Handle<Node>` and
+    /// `Handle<SpecificNode>`. Internally, this method will try to downcast the container to
+    /// the specified type (which may fail).
+    ///
+    /// Also, in most cases, the implementation will also provide access to inner components of the
+    /// node. This means that if a node implements [`ComponentProvider`] trait and there's a field
+    /// of type `T` in the actual node type, then this method will at first try to downcast the
+    /// node to the given type and on failure will try to find a component of the given type.
     fn try_get<U: ObjectOrVariant<Self::Node>>(&self, handle: Handle<U>) -> Result<&U, PoolError>;
 
+    /// Tries to borrow a graph node by the given handle. This method accepts both type-agnostic
+    /// container (read - [`Self::Node`]) handles and the actual node type handles. For example,
+    /// if the container type is `Node` (holds `Box<dyn NodeTrait>`) and there's a `SpecificNode`
+    /// (implements the `NodeTrait`), then this method can accept both `Handle<Node>` and
+    /// `Handle<SpecificNode>`. Internally, this method will try to downcast the container to
+    /// the specified type (which may fail).
+    ///
+    /// Also, in most cases, the implementation will also provide access to inner components of the
+    /// node. This means that if a node implements [`ComponentProvider`] trait and there's a field
+    /// of type `T` in the actual node type, then this method will at first try to downcast the
+    /// node to the given type and on failure will try to find a component of the given type.
     fn try_get_mut<U: ObjectOrVariant<Self::Node>>(
         &mut self,
         handle: Handle<U>,
