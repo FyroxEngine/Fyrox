@@ -149,7 +149,7 @@ impl ListViewMessage {
 ///
 /// List view supports any number of selected items (you can add items to the current selecting by
 /// holding Ctrl key), you can change it at runtime by sending [`ListViewMessage::Selection`]
-/// message with [`MessageDirection::ToWidget`] like so:
+/// message with [`crate::message::MessageDirection::ToWidget`] like so:
 ///
 /// ```rust
 /// # use fyrox_ui::{

@@ -44,15 +44,15 @@ use fyrox_graph::{
 /// A set of messages for [`Popup`] widget.
 #[derive(Debug, Clone, PartialEq)]
 pub enum PopupMessage {
-    /// Used to open a [`Popup`] widgets. Use [`PopupMessage::open`] to create the message.
+    /// Used to open a [`Popup`] widgets. Use [`PopupMessage::Open`] to create the message.
     Open,
-    /// Used to close a [`Popup`] widgets. Use [`PopupMessage::close`] to create the message.
+    /// Used to close a [`Popup`] widgets. Use [`PopupMessage::Close`] to create the message.
     Close,
-    /// Used to change the content of a [`Popup`] widgets. Use [`PopupMessage::content`] to create the message.
+    /// Used to change the content of a [`Popup`] widgets. Use [`PopupMessage::Content`] to create the message.
     Content(Handle<UiNode>),
-    /// Used to change popup's placement. Use [`PopupMessage::placement`] to create the message.
+    /// Used to change popup's placement. Use [`PopupMessage::Placement`] to create the message.
     Placement(Placement),
-    /// Used to adjust the position of a popup widget, so it will be on screen. Use [`PopupMessage::adjust_position`] to create
+    /// Used to adjust the position of a popup widget, so it will be on screen. Use [`PopupMessage::AdjustPosition`] to create
     /// the message.
     AdjustPosition,
     /// Used to set the owner of a Popup. The owner will receive Event messages.

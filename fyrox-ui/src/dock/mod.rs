@@ -158,7 +158,7 @@ impl MessageData for DockingManagerMessage {}
 /// ```
 ///
 /// The layout can be restored by sending a [`DockingManagerMessage::Layout`] message to the docking
-/// manager. Use [`DockingManagerMessage::layout`] builder method to make one.
+/// manager.
 ///
 /// To be able to restore the layout to its defaults, just create a desired layout from code,
 /// save the layout and use the returned layout descriptor when you need to restore the layout

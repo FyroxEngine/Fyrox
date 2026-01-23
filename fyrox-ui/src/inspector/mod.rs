@@ -1267,8 +1267,7 @@ impl InspectorContext {
     /// Update the widgets to reflect the value of the given object.
     /// We will iterate through the fields and find the appropriate [PropertyEditorDefinition](editors::PropertyEditorDefinition)
     /// for each field. We call [create_message](editors::PropertyEditorDefinition::create_message) to get each property editor
-    /// definition to generate the appropriate message to get the editor widget to update itself, and we set the [flags](UiMessage::flags)
-    /// of each message to [InspectorContext::sync_flag] before sending the message.
+    /// definition to generate the appropriate message to get the editor widget to update itself.
     /// * object: The object to take the property values from.
     /// * ui: The UserInterface to include in the [PropertyEditorMessageContext].
     /// * layer_index: The depth of the nesting of this inspector.

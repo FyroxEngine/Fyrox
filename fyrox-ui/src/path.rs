@@ -72,8 +72,8 @@ impl MessageData for PathEditorMessage {}
 /// }
 /// ```
 ///
-/// To receive the changes, listen to [`PathEditorMessage::Path`] and check for its direction, it should be [`MessageDirection::FromWidget`].
-/// To set a new path value, send [`PathEditorMessage::Path`] message, but with [`MessageDirection::ToWidget`].
+/// To receive the changes, listen to [`PathEditorMessage::Path`] and check for its direction, it should be [`crate::message::MessageDirection::FromWidget`].
+/// To set a new path value, send [`PathEditorMessage::Path`] message, but with [`crate::message::MessageDirection::ToWidget`].
 #[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]
 pub struct PathEditor {

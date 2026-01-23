@@ -44,8 +44,8 @@ use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 /// state changes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExpanderMessage {
-    /// A message, that could be used to either switch expander state (with [`MessageDirection::ToWidget`]) or
-    /// to get its new state [`MessageDirection::FromWidget`].
+    /// A message, that could be used to either switch expander state (with [`crate::message::MessageDirection::ToWidget`]) or
+    /// to get its new state [`crate::message::MessageDirection::FromWidget`].
     Expand(bool),
 }
 impl MessageData for ExpanderMessage {}
@@ -150,7 +150,7 @@ impl MessageData for ExpanderMessage {}
 /// ```
 ///
 /// To switch expander state at runtime, send [`ExpanderMessage::Expand`] to your Expander widget instance with
-/// [`MessageDirection::ToWidget`].
+/// [`crate::message::MessageDirection::ToWidget`].
 #[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]
 pub struct Expander {

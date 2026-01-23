@@ -211,7 +211,7 @@ impl MessageData for TextMessage {}
 ///
 /// ### Font size
 ///
-/// Use [`TextBuilder::with_font_size`] or send [`TextMessage::font_size`] to your Text widget instance
+/// Use [`TextBuilder::with_font_size`] or send [`TextMessage::FontSize`] to your Text widget instance
 /// to set the font size of it.
 ///
 /// ## Shadows

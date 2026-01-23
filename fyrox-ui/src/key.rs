@@ -128,8 +128,8 @@ impl Display for HotKey {
 /// A set of messages, that is used to alternate the state of [`HotKeyEditor`] widget or to listen to its changes.
 #[derive(Debug, Clone, PartialEq)]
 pub enum HotKeyEditorMessage {
-    /// A message, that is either used to modify the current value of a [`HotKey`] widget instance (with [`MessageDirection::ToWidget`])
-    /// or to listen to its changes (with [`MessageDirection::FromWidget`]).
+    /// A message, that is either used to modify the current value of a [`HotKey`] widget instance (with [`crate::message::MessageDirection::ToWidget`])
+    /// or to listen to its changes (with [`crate::message::MessageDirection::FromWidget`]).
     Value(HotKey),
 }
 impl MessageData for HotKeyEditorMessage {}

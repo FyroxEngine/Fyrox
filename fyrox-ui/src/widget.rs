@@ -154,14 +154,14 @@ pub enum WidgetMessage {
     /// Direction: **From UI**.
     KeyUp(KeyCode),
 
-    /// Initiated when widget received focus (when direction is [`MessageDirection::FromWidget`]). In most cases, focus is received
-    /// by clicking on widget. You can request focus explicitly by sending this message to a widget with [`MessageDirection::ToWidget`]
+    /// Initiated when widget received focus (when direction is [`crate::message::MessageDirection::FromWidget`]). In most cases, focus is received
+    /// by clicking on widget. You can request focus explicitly by sending this message to a widget with [`crate::message::MessageDirection::ToWidget`]
     ///
     /// Direction: **From UI/To UI**.
     Focus,
 
-    /// Initiated when widget has lost its focus (when direction is [`MessageDirection::FromWidget`]). Can be used to
-    ///  remove focus from the widget if sent with [`MessageDirection::ToWidget`]
+    /// Initiated when widget has lost its focus (when direction is [`crate::message::MessageDirection::FromWidget`]). Can be used to
+    ///  remove focus from the widget if sent with [`crate::message::MessageDirection::ToWidget`]
     ///
     /// Direction: **From UI/To UI**.
     Unfocus,

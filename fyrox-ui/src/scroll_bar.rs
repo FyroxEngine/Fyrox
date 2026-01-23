@@ -54,17 +54,17 @@ use fyrox_graph::SceneGraph;
 /// A set of messages that can be accepted by [`ScrollBar`] widget.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ScrollBarMessage {
-    /// Used to indicate that the value of the scroll bar has changed ([`MessageDirection::FromWidget`]) or to set a
-    /// new value (with [`MessageDirection::ToWidget`].
+    /// Used to indicate that the value of the scroll bar has changed ([`crate::message::MessageDirection::FromWidget`]) or to set a
+    /// new value (with [`crate::message::MessageDirection::ToWidget`].
     Value(f32),
-    /// Used to indicate that the min value of the scroll bar has changed ([`MessageDirection::FromWidget`]) or to set a
-    /// new min value (with [`MessageDirection::ToWidget`].
+    /// Used to indicate that the min value of the scroll bar has changed ([`crate::message::MessageDirection::FromWidget`]) or to set a
+    /// new min value (with [`crate::message::MessageDirection::ToWidget`].
     MinValue(f32),
-    /// Used to indicate that the max value of the scroll bar has changed ([`MessageDirection::FromWidget`]) or to set a
-    /// new max value (with [`MessageDirection::ToWidget`].
+    /// Used to indicate that the max value of the scroll bar has changed ([`crate::message::MessageDirection::FromWidget`]) or to set a
+    /// new max value (with [`crate::message::MessageDirection::ToWidget`].
     MaxValue(f32),
     /// Used to set the size of the indicator(thumb) adaptively, according to the relative sizes of the container and the
-    /// content in it (with [`MessageDirection::ToWidget`].
+    /// content in it (with [`crate::message::MessageDirection::ToWidget`].
     SizeRatio(f32),
 }
 impl MessageData for ScrollBarMessage {}
@@ -111,7 +111,7 @@ impl MessageData for ScrollBarMessage {}
 /// # }
 /// ```
 ///
-/// Please note, that you need to explicitly filter messages by [`MessageDirection::FromWidget`], because it's the only
+/// Please note, that you need to explicitly filter messages by [`crate::message::MessageDirection::FromWidget`], because it's the only
 /// direction that is used as an "indicator" that the value was accepted by the scroll bar.
 ///
 /// ## Orientation

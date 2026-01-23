@@ -292,7 +292,7 @@ pub type FilterCallback = dyn FnMut(char) -> bool + Send;
 ///
 /// ### Font size
 ///
-/// Use [`TextBoxBuilder::with_font_size`] or send [`TextMessage::font_size`] to your TextBox widget instance
+/// Use [`TextBoxBuilder::with_font_size`] or send [`TextMessage::FontSize`] to your TextBox widget instance
 /// to set the font size of it.
 ///
 /// ## Messages

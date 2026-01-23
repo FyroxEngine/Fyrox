@@ -325,9 +325,7 @@ pub trait PropertyEditorDefinition: Debug + Send + Sync {
     /// of the property. This is called by [InspectorContext::sync](crate::inspector::InspectorContext::sync).
     ///
     /// Despite the name, this method is also permitted to send messages directly to the widget instead
-    /// of returning anything. If messages are sent directly, they should have their [UiMessage::flags] set
-    /// to [PropertyEditorMessageContext::sync_flag], as this is required to identify the message a sync message
-    /// and prevent potential infinite message loops.
+    /// of returning anything.
     ///
     /// If a message is returned, the caller is responsible for setting `flags` and sending the message.
     fn create_message(

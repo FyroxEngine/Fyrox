@@ -65,7 +65,7 @@ pub struct EditorSceneEntry {
 }
 
 impl EditorSceneEntry {
-    /// Create an entry for when there is no scene using a [`NullSceneController`].
+    // Create an entry for when there is no scene using a [`NullSceneController`].
     pub fn new_null_scene(
         engine: &mut Engine,
         settings: &mut Settings,

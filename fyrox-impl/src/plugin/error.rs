@@ -86,7 +86,7 @@ impl GameError {
         Self::new(GameErrorKind::UserError(Box::new(value)))
     }
 
-    /// A shortcut for [`Self::StringError`]
+    /// A shortcut for [`GameErrorKind::StringError`]
     pub fn str(value: impl AsRef<str>) -> Self {
         Self::new(GameErrorKind::StringError(value.as_ref().to_string()))
     }

@@ -134,12 +134,11 @@ crate::define_widget_deref!(Border);
 /// Supported border-specific messages.
 #[derive(Debug, Clone, PartialEq)]
 pub enum BorderMessage {
-    /// Allows you to set stroke thickness at runtime. See [`Self::stroke_thickness`] docs for more.
+    /// Allows you to set stroke thickness at runtime.
     StrokeThickness(StyledProperty<Thickness>),
-    /// Allows you to set corner radius at runtime. See [`Self::corner_radius`] docs for more.
+    /// Allows you to set corner radius at runtime.
     CornerRadius(StyledProperty<f32>),
-    /// Allows you to enable or disable padding the children nodes by corner radius. See
-    /// [`Self::pad_by_corner_radius`] docs for more.
+    /// Allows you to enable or disable padding the children nodes by corner radius.
     PadByCornerRadius(bool),
 }
 impl MessageData for BorderMessage {}

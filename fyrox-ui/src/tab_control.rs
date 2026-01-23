@@ -61,13 +61,13 @@ use std::{
 /// A set of messages for [`TabControl`] widget.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TabControlMessage {
-    /// Used to change the active tab of a [`TabControl`] widget (with [`MessageDirection::ToWidget`]) or to fetch if the active
-    /// tab has changed (with [`MessageDirection::FromWidget`]).
+    /// Used to change the active tab of a [`TabControl`] widget (with [`crate::message::MessageDirection::ToWidget`]) or to fetch if the active
+    /// tab has changed (with [`crate::message::MessageDirection::FromWidget`]).
     /// When the active tab changes, `ActiveTabUuid` will also be sent from the widget.
     /// When the active tab changes, `ActiveTabUuid` will also be sent from the widget.
     ActiveTab(Option<usize>),
-    /// Used to change the active tab of a [`TabControl`] widget (with [`MessageDirection::ToWidget`]) or to fetch if the active
-    /// tab has changed (with [`MessageDirection::FromWidget`]).
+    /// Used to change the active tab of a [`TabControl`] widget (with [`crate::message::MessageDirection::ToWidget`]) or to fetch if the active
+    /// tab has changed (with [`crate::message::MessageDirection::FromWidget`]).
     /// When the active tab changes, `ActiveTab` will also be sent from the widget.
     ActiveTabUuid(Option<Uuid>),
     /// Emitted by a tab that needs to be closed (and removed). Does **not** remove the tab, its main usage is to catch the moment
