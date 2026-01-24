@@ -21,6 +21,7 @@
 //! A collection of [PropertyEditorDefinition] objects for a wide variety of types,
 //! including standard Rust types and Fyrox core types.
 
+use crate::style::{StyleProperty, StylePropertyContainer};
 use crate::{
     absm::{EventAction, EventKind},
     bit::BitField,
@@ -641,6 +642,11 @@ impl PropertyEditorDefinitionContainer {
             StyledProperty<TextureResource>,
         >::new());
         container.insert(StyledPropertyEditorDefinition::<TextureResource>::new());
+        container.insert(VecCollectionPropertyEditorDefinition::<
+            StylePropertyContainer,
+        >::new());
+        container.insert(InspectablePropertyEditorDefinition::<StylePropertyContainer>::new());
+        container.insert(EnumPropertyEditorDefinition::<StyleProperty>::new());
 
         reg_inspectables!(
             container,

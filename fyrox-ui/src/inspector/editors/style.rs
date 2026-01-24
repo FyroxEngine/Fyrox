@@ -194,10 +194,14 @@ impl StyledPropertySelectorBuilder {
         let style_data = target_style.data_ref();
         let (items, property_list): (Vec<_>, Vec<_>) = style_data
             .all_properties()
+            .inner()
             .iter()
-            .filter_map(|(name, value)| {
-                if value.value_type_id() == target_type {
-                    Some((make_dropdown_list_option(ctx, name), name.clone()))
+            .filter_map(|container| {
+                if container.value.value_type_id() == target_type {
+                    Some((
+                        make_dropdown_list_option(ctx, &container.name),
+                        container.name.clone(),
+                    ))
                 } else {
                     None
                 }
