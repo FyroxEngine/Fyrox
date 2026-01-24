@@ -39,7 +39,6 @@ use crate::{
     toggle::ToggleButton,
     Thickness,
 };
-use fxhash::FxHashMap;
 use fyrox_resource::untyped::ResourceKind;
 use fyrox_resource::{
     io::ResourceIo,
@@ -53,9 +52,11 @@ use std::{
     path::Path,
     sync::Arc,
 };
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// A set of potential values for styled properties.
-#[derive(Visit, Reflect, Debug, Clone)]
+#[derive(Visit, Reflect, Debug, Clone, TypeUuidProvider, AsRefStr, EnumString, VariantNames)]
+#[type_uuid(id = "85b8c1e4-03a2-4a28-acb4-1850d1a29227")]
 pub enum StyleProperty {
     /// A numeric property.
     Number(f32),
@@ -199,6 +200,16 @@ impl<T: Visit> Visit for StyledProperty<T> {
     }
 }
 
+/// Named style property container.
+#[derive(Visit, Reflect, Clone, Default, Debug, TypeUuidProvider)]
+#[type_uuid(id = "6238f37c-c067-4dd1-be67-6a8bb8853a59")]
+pub struct StylePropertyContainer {
+    /// Name of the property.
+    pub name: ImmutableString,
+    /// The actual value of the property.
+    pub value: StyleProperty,
+}
+
 /// Style is a simple container for a named properties. Styles can be based on some other styles, thus
 /// allowing cascaded styling. Such cascading allows to define some base style with common properties
 /// and then create any number of derived styles. For example, you can define a style for Button widget
@@ -272,7 +283,7 @@ impl<T: Visit> Visit for StyledProperty<T> {
 #[type_uuid(id = "38a63b49-d765-4c01-8fb5-202cc43d607e")]
 pub struct Style {
     parent: Option<StyleResource>,
-    variables: FxHashMap<ImmutableString, StyleProperty>,
+    properties: Vec<StylePropertyContainer>,
 }
 
 impl Style {
@@ -484,12 +495,24 @@ impl Style {
         self.parent.as_ref()
     }
 
+    /// Returns an index of the variable with the given name.
+    pub fn index_of(&self, name: &ImmutableString) -> Option<usize> {
+        self.properties
+            .binary_search_by(|v| v.name.cached_hash().cmp(&name.cached_hash()))
+            .ok()
+    }
+
+    /// Checks if there's a variable with the given name.
+    pub fn contains(&self, name: &ImmutableString) -> bool {
+        self.index_of(name).is_some()
+    }
+
     /// Merges current style with some other style. This method does not overwrite existing values,
     /// instead it only adds missing values from the other style.
     pub fn merge(&mut self, other: &Self) -> &mut Self {
-        for (k, v) in other.variables.iter() {
-            if !self.variables.contains_key(k) {
-                self.variables.insert(k.clone(), v.clone());
+        for other_property in other.properties.iter() {
+            if !self.contains(&other_property.name) {
+                self.set(other_property.name.clone(), other_property.value.clone());
             }
         }
         self
@@ -509,9 +532,21 @@ impl Style {
     pub fn set(
         &mut self,
         name: impl Into<ImmutableString>,
-        property: impl Into<StyleProperty>,
+        value: impl Into<StyleProperty>,
     ) -> &mut Self {
-        self.variables.insert(name.into(), property.into());
+        let name = name.into();
+        let value = value.into();
+
+        if let Some(existing_index) = self.index_of(&name) {
+            self.properties[existing_index] = StylePropertyContainer { name, value };
+        } else {
+            let index = self
+                .properties
+                .partition_point(|h| h.name.cached_hash() < name.cached_hash());
+            self.properties
+                .insert(index, StylePropertyContainer { name, value });
+        }
+
         self
     }
 
@@ -519,8 +554,9 @@ impl Style {
     /// try to search in the parent style (the search is recursive).
     pub fn get_raw(&self, name: impl Into<ImmutableString>) -> Option<StyleProperty> {
         let name = name.into();
-        if let Some(property) = self.variables.get(&name) {
-            return Some(property.clone());
+        let index = self.index_of(&name)?;
+        if let Some(container) = self.properties.get(index) {
+            return Some(container.value.clone());
         } else if let Some(parent) = self.parent.as_ref() {
             let state = parent.state();
             if let Some(data) = state.data_ref() {
@@ -590,22 +626,44 @@ impl Style {
     /// Returns an immutable reference to the internal container with the style properties.
     /// Keep in mind that the returned container contains only the properties of the current
     /// style! Properties of the parent style(s) should be obtained separately.
-    pub fn inner(&self) -> &FxHashMap<ImmutableString, StyleProperty> {
-        &self.variables
+    pub fn inner(&self) -> &Vec<StylePropertyContainer> {
+        &self.properties
     }
 
     /// Collects all the properties in the current and ancestor style chain. Returns a hash map with
     /// all property values with their names. Basically, this method merges all the styles with their
     /// ancestor style chain.
-    pub fn all_properties(&self) -> FxHashMap<ImmutableString, StyleProperty> {
+    pub fn all_properties(&self) -> Self {
         let mut properties = self
             .parent
             .as_ref()
             .map(|parent| parent.data_ref().all_properties())
             .unwrap_or_default();
-        for (name, property) in self.variables.iter() {
-            properties.insert(name.clone(), property.clone());
+        for property in self.properties.iter() {
+            properties.set(property.name.clone(), property.value.clone());
         }
         properties
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::brush::Brush;
+    use crate::style::Style;
+    use fyrox_core::color::Color;
+    use fyrox_core::ImmutableString;
+
+    #[test]
+    fn test_style() {
+        let mut style = Style::default();
+        style
+            .set("A", 0.2f32)
+            .set("D", 0.1f32)
+            .set("B", Brush::Solid(Color::WHITE))
+            .set("C", Brush::Solid(Color::WHITE));
+        assert_eq!(style.index_of(&ImmutableString::new("A")), Some(3));
+        assert_eq!(style.index_of(&ImmutableString::new("B")), Some(2));
+        assert_eq!(style.index_of(&ImmutableString::new("C")), Some(1));
+        assert_eq!(style.index_of(&ImmutableString::new("D")), Some(0));
     }
 }
