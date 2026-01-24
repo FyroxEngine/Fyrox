@@ -180,10 +180,12 @@ use crate::{
 use fyrox::core::{info, uuid};
 use fyrox::engine::GraphicsContext;
 use fyrox::event_loop::ActiveEventLoop;
+use fyrox::gui::border::BorderBuilder;
 use fyrox::gui::file_browser::{FileSelector, FileSelectorMode, FileType, PathFilter};
 use fyrox::gui::grid::Grid;
 use fyrox::gui::inspector::editors::PropertyEditorDefinitionContainer;
 use fyrox::gui::messagebox::MessageBox;
+use fyrox::gui::screen::ScreenBuilder;
 use fyrox::gui::text::Text;
 use fyrox::gui::window::{Window, WindowAlignment};
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
@@ -845,6 +847,10 @@ impl Editor {
             asset_browser.preview_sender.clone(),
         );
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
+        ScreenBuilder::new(
+            WidgetBuilder::new().with_child(BorderBuilder::new(WidgetBuilder::new()).build(ctx)),
+        )
+        .build(ctx);
         let navmesh_panel = NavmeshPanel::new(scene_viewer.frame(), ctx, message_sender.clone());
         let scene_node_context_menu = Rc::new(RefCell::new(SceneNodeContextMenu::new(
             &engine.serialization_context,
