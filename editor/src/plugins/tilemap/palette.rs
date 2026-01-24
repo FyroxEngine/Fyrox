@@ -700,19 +700,20 @@ impl PaletteWidget {
             false
         };
         self.colliders.clear();
-        if self.kind == TilePaletteStage::Tiles
-            && self.page.is_some()
-            && !state.visible_colliders.is_empty()
-        {
-            let page = self.page.unwrap();
-            self.content
-                .tile_collider_loop(page, |pos, uuid, color, tile_collider| {
-                    if !state.visible_colliders.contains(&uuid) {
-                        return;
-                    }
-                    self.colliders
-                        .push(ColliderHighlight::new(pos, color, tile_collider.clone()));
-                });
+        if let Some(page) = self.page {
+            if self.kind == TilePaletteStage::Tiles && !state.visible_colliders.is_empty() {
+                self.content
+                    .tile_collider_loop(page, |pos, uuid, color, tile_collider| {
+                        if !state.visible_colliders.contains(&uuid) {
+                            return;
+                        }
+                        self.colliders.push(ColliderHighlight::new(
+                            pos,
+                            color,
+                            tile_collider.clone(),
+                        ));
+                    });
+            }
         }
         if self.editable {
             self.overlay.clear();
