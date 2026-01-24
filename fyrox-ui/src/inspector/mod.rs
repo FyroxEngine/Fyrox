@@ -87,6 +87,23 @@ pub enum CollectionChanged {
 }
 impl MessageData for CollectionChanged {}
 
+pub enum HashMapChanged {
+    Add {
+        key: ObjectValue,
+        value: ObjectValue,
+    },
+    Remove {
+        key_hash: u64,
+    },
+    /// An item in the collection has changed one of its properties.
+    ItemChanged {
+        /// Index of an item in the collection.
+        key_hash: u64,
+        /// The change to the item.
+        property: FieldKind,
+    },
+}
+
 /// Changes that can happen to inheritable variables.
 #[derive(Debug, Clone)]
 pub enum InheritableAction {

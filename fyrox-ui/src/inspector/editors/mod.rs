@@ -152,6 +152,7 @@ pub mod texture_slice;
 pub mod utf32;
 pub mod uuid;
 pub mod vec;
+mod hashmap;
 
 /// This structure is passed to [PropertyEditorDefinition::create_instance] in order to allow it to
 /// build a widget to allow a property to be edited.
