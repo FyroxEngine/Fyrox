@@ -23,6 +23,7 @@
 //!
 //! See [`Rectangle`] docs for more info.
 
+use crate::scene::animation::spritesheet::SpriteSheetAnimation;
 use crate::{
     core::{
         algebra::{Point3, Vector2, Vector3},
@@ -285,6 +286,15 @@ impl Rectangle {
     /// Returns `true` if the rectangle is flipped vertically, `false` - otherwise.
     pub fn is_flip_y(&self) -> bool {
         *self.flip_y
+    }
+
+    /// Applies the given sprite sheet animation. This method assumes that the rectangle's material
+    /// has the `diffuseTexture` resource.
+    pub fn apply_animation(&mut self, animation: &SpriteSheetAnimation) {
+        self.material()
+            .data_ref()
+            .bind("diffuseTexture", animation.texture());
+        self.set_uv_rect(animation.current_frame_uv_rect().unwrap_or_default());
     }
 }
 
