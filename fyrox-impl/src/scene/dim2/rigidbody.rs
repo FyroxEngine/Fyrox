@@ -230,6 +230,18 @@ impl RigidBody {
         self.lin_vel.set_value_and_mark_modified(lin_vel)
     }
 
+    /// Sets new linear velocity along the X axis of the rigid body. Changing this parameter will wake
+    /// up the rigid body!
+    pub fn set_lin_vel_x(&mut self, x_vel: f32) {
+        self.lin_vel.x = x_vel;
+    }
+
+    /// Sets new linear velocity along the Y axis of the rigid body. Changing this parameter will wake
+    /// up the rigid body!
+    pub fn set_lin_vel_y(&mut self, y_vel: f32) {
+        self.lin_vel.y = y_vel;
+    }
+
     /// Returns current linear velocity of the rigid body.
     pub fn lin_vel(&self) -> Vector2<f32> {
         *self.lin_vel
