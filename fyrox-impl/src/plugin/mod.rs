@@ -205,6 +205,57 @@ pub struct PluginContext<'a, 'b> {
     pub input_state: &'a InputState,
 }
 
+impl<'a, 'b> PluginContext<'a, 'b> {
+    /// Spawns an asynchronous task that tries to load a user interface from the given path.
+    /// When the task is completed, the specified callback is called that can be used to
+    /// modify the UI. The loaded UI must be registered in the engine, otherwise it will be
+    /// discarded.
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// # use fyrox_impl::{
+    /// #     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
+    /// #     event::Event,
+    /// #     plugin::{error::GameResult, Plugin, PluginContext, PluginRegistrationContext},
+    /// #     scene::Scene,
+    /// # };
+    /// # use std::str::FromStr;
+    ///
+    /// #[derive(Default, Visit, Reflect, Debug)]
+    /// #[reflect(non_cloneable)]
+    /// struct MyGame {}
+    ///
+    /// impl Plugin for MyGame {
+    ///     fn init(&mut self, _scene_path: Option<&str>, ctx: PluginContext) -> GameResult {
+    ///         ctx.load_ui("data/my.ui", |result, game: &mut MyGame, ctx| {
+    ///             // The loaded UI must be registered in the engine.
+    ///             *ctx.user_interfaces.first_mut() = result?;
+    ///             Ok(())
+    ///         });
+    ///         Ok(())
+    ///     }
+    /// }
+    /// ```
+    pub fn load_ui<U, P, C>(&mut self, path: U, callback: C)
+    where
+        U: AsRef<Path> + Send + 'static,
+        P: Plugin,
+        for<'c, 'd> C: Fn(Result<UserInterface, VisitError>, &mut P, &mut PluginContext<'c, 'd>) -> GameResult
+            + 'static,
+    {
+        self.task_pool.spawn_plugin_task(
+            UserInterface::load_from_file(
+                path,
+                self.widget_constructors.clone(),
+                self.dyn_type_constructors.clone(),
+                self.resource_manager.clone(),
+            ),
+            callback,
+        );
+    }
+}
+
 define_as_any_trait!(PluginAsAny => Plugin);
 
 impl dyn Plugin {
