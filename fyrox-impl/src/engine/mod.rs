@@ -412,10 +412,9 @@ impl AsyncSceneLoader {
             let resource_manager = self.resource_manager.clone();
             let uuid = resource_manager.find::<Model>(&path).resource_uuid();
 
-            // Aquire the resource IO from the resource manager
+            // Acquire the resource IO from the resource manager
             let io = resource_manager.resource_io();
-
-            let future = async move {
+            resource_manager.task_pool().spawn_task(async move {
                 match SceneLoader::from_file(
                     path.clone(),
                     io.as_ref(),
@@ -441,17 +440,7 @@ impl AsyncSceneLoader {
                         }));
                     }
                 }
-            };
-
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                std::thread::spawn(move || block_on(future));
-            }
-
-            #[cfg(target_arch = "wasm32")]
-            {
-                crate::core::wasm_bindgen_futures::spawn_local(future);
-            }
+            });
         }
     }
 
