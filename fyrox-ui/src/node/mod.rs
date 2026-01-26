@@ -36,6 +36,7 @@ use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
+use uuid::Uuid;
 
 pub mod constructor;
 pub mod container;
@@ -117,6 +118,10 @@ impl SceneGraphNode for UiNode {
 
     fn children_mut(&mut self) -> &mut [Handle<Self>] {
         &mut self.children
+    }
+
+    fn instance_id(&self) -> Uuid {
+        self.id
     }
 }
 

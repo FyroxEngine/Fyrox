@@ -416,6 +416,10 @@ impl SceneGraphNode for Node {
     fn children_mut(&mut self) -> &mut [Handle<Self>] {
         &mut self.children
     }
+
+    fn instance_id(&self) -> Uuid {
+        self.instance_id.0
+    }
 }
 
 impl NameProvider for Node {

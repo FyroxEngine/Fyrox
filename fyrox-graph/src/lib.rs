@@ -36,7 +36,7 @@ use fyrox_core::{
     pool::Handle,
     reflect::prelude::*,
     variable::{self, InheritableVariable},
-    ComponentProvider, NameProvider,
+    ComponentProvider, NameProvider, Uuid,
 };
 use fyrox_resource::{untyped::UntypedResource, Resource, TypedResourceData};
 use std::any::Any;
@@ -483,6 +483,7 @@ pub trait SceneGraphNode: ComponentProvider + Reflect + NameProvider + Clone + '
     fn parent(&self) -> Handle<Self>;
     fn children(&self) -> &[Handle<Self>];
     fn children_mut(&mut self) -> &mut [Handle<Self>];
+    fn instance_id(&self) -> Uuid;
 
     /// Puts the given `child` handle to the given position `pos`, by swapping positions.
     #[inline]
@@ -774,6 +775,16 @@ pub trait SceneGraph: 'static {
     /// Borrows a node by its handle.
     fn node_mut(&mut self, handle: Handle<Self::Node>) -> &mut Self::Node {
         self.try_get_node_mut(handle).unwrap()
+    }
+
+    /// Tries to borrow a node, returns Some(node) if the uuid is valid, None - otherwise.
+    fn try_get_node_by_uuid(&self, uuid: Uuid) -> Option<&Self::Node> {
+        self.linear_iter().find(|n| n.instance_id() == uuid)
+    }
+
+    /// Tries to borrow a node, returns Some(node) if the uuid is valid, None - otherwise.
+    fn try_get_node_by_uuid_mut(&mut self, uuid: Uuid) -> Option<&mut Self::Node> {
+        self.linear_iter_mut().find(|n| n.instance_id() == uuid)
     }
 
     /// Reorders the node hierarchy so the `new_root` becomes the root node for the entire hierarchy
@@ -1514,7 +1525,7 @@ mod test {
         path::Path,
     };
 
-    #[derive(Default, Visit, Reflect, Debug, Clone)]
+    #[derive(Visit, Reflect, Debug, Clone)]
     pub struct Base {
         name: String,
         self_handle: Handle<Node>,
@@ -1523,6 +1534,22 @@ mod test {
         resource: Option<Resource<Graph>>,
         parent: Handle<Node>,
         children: Vec<Handle<Node>>,
+        instance_id: Uuid,
+    }
+
+    impl Default for Base {
+        fn default() -> Self {
+            Self {
+                name: Default::default(),
+                self_handle: Default::default(),
+                is_resource_instance_root: Default::default(),
+                original_handle_in_resource: Default::default(),
+                resource: Default::default(),
+                parent: Default::default(),
+                children: Default::default(),
+                instance_id: Uuid::new_v4(),
+            }
+        }
     }
 
     /// A set of useful methods that is possible to auto-implement.
@@ -1769,6 +1796,10 @@ mod test {
 
         fn children_mut(&mut self) -> &mut [Handle<Self>] {
             &mut self.children
+        }
+
+        fn instance_id(&self) -> Uuid {
+            self.instance_id
         }
     }
 
