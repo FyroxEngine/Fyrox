@@ -227,8 +227,8 @@ impl<'a, 'b> PluginContext<'a, 'b> {
     /// struct MyGame {}
     ///
     /// impl Plugin for MyGame {
-    ///     fn init(&mut self, _scene_path: Option<&str>, ctx: PluginContext) -> GameResult {
-    ///         ctx.load_ui("data/my.ui", |result, game: &mut MyGame, ctx| {
+    ///     fn init(&mut self, _scene_path: Option<&str>, mut ctx: PluginContext) -> GameResult {
+    ///         ctx.load_ui("data/my.ui", |result, game: &mut MyGame, mut ctx| {
     ///             // The loaded UI must be registered in the engine.
     ///             *ctx.user_interfaces.first_mut() = result?;
     ///             Ok(())

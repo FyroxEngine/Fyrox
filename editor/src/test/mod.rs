@@ -75,6 +75,7 @@ fn test_close_with_save() {
                 .click_at(FileMenu::CLOSE_SCENE)
                 .click_at_text(SaveSceneConfirmationDialog::DIALOG_ID, "Yes")
                 .click_at_text(FileMenu::SAVE_FILE_SELECTOR, "Save")
+                .skip_frame()
                 .then(|editor| assert_eq!(editor.scenes.len(), 0)),
         ),
     );
