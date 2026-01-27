@@ -792,8 +792,8 @@ where
     /// to point at the vacant place in the pool. [`Self::spawn_at_handle`] call with this handle
     /// will always succeed if called right after this method.
     #[inline]
-    pub fn next_free_handle(&mut self) -> Handle<T> {
-        if let Some(index) = self.free_stack.pop() {
+    pub fn next_free_handle(&self) -> Handle<T> {
+        if let Some(index) = self.free_stack.last().cloned() {
             let generation = self.records[index as usize].generation + 1;
             Handle {
                 index,
