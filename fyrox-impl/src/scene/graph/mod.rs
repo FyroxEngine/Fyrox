@@ -2006,11 +2006,19 @@ impl SceneGraph for Graph {
     }
 
     #[inline]
-    fn add_node(&mut self, mut node: Self::Node) -> Handle<Self::Node> {
+    fn add_node(&mut self, node: Self::Node) -> Handle<Self::Node> {
+        let handle = self.pool.next_free_handle();
+        self.add_node_at_handle(node, handle);
+        handle
+    }
+
+    fn add_node_at_handle(&mut self, mut node: Self::Node, handle: Handle<Self::Node>) {
         let children = node.children.clone();
         node.children.clear();
         let script_count = node.scripts.len();
-        let handle = self.pool.spawn(node);
+        self.pool
+            .spawn_at_handle(handle, node)
+            .expect("The handle must be valid!");
 
         if self.root.is_none() {
             self.root = handle;
@@ -2038,8 +2046,6 @@ impl SceneGraph for Graph {
         node.on_connected_to_graph(handle, message_sender, script_message_sender);
 
         self.instance_id_map.insert(node.instance_id, handle);
-
-        handle
     }
 
     #[inline]

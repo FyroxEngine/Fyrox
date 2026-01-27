@@ -710,6 +710,9 @@ pub trait SceneGraph: 'static {
     /// Adds a new node to the graph.
     fn add_node(&mut self, node: Self::Node) -> Handle<Self::Node>;
 
+    /// Adds a new node to the graph at the given handle.
+    fn add_node_at_handle(&mut self, node: Self::Node, handle: Handle<Self::Node>);
+
     /// Destroys the node and its children recursively.
     fn remove_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>);
 
@@ -1877,10 +1880,19 @@ mod test {
             self.nodes.is_valid_handle(handle)
         }
 
-        fn add_node(&mut self, mut node: Self::Node) -> Handle<Self::Node> {
+        fn add_node(&mut self, node: Self::Node) -> Handle<Self::Node> {
+            let handle = self.nodes.next_free_handle();
+            self.add_node_at_handle(node, handle);
+            handle
+        }
+
+        fn add_node_at_handle(&mut self, mut node: Self::Node, handle: Handle<Self::Node>) {
             let children = node.children.clone();
             node.children.clear();
-            let handle = self.nodes.spawn(node);
+            let handle = self
+                .nodes
+                .spawn_at_handle(handle, node)
+                .expect("The handle must be valid");
 
             if self.root.is_none() {
                 self.root = handle;
@@ -1894,7 +1906,6 @@ mod test {
 
             let node = &mut self.nodes[handle];
             node.self_handle = handle;
-            handle
         }
 
         fn remove_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>) {

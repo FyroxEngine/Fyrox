@@ -3574,10 +3574,18 @@ impl SceneGraph for UserInterface {
     }
 
     #[inline]
-    fn add_node(&mut self, mut node: Self::Node) -> Handle<Self::Node> {
+    fn add_node(&mut self, node: Self::Node) -> Handle<Self::Node> {
+        let handle = self.nodes.next_free_handle();
+        self.add_node_at_handle(node, handle);
+        handle
+    }
+
+    fn add_node_at_handle(&mut self, mut node: Self::Node, node_handle: Handle<Self::Node>) {
         let children = node.children().to_vec();
         node.clear_children();
-        let node_handle = self.nodes.spawn(node);
+        self.nodes
+            .spawn_at_handle(node_handle, node)
+            .expect("The handle must be valid!");
         if self.root_canvas.is_some() {
             self.link_nodes(node_handle, self.root_canvas, false);
         }
@@ -3593,7 +3601,6 @@ impl SceneGraph for UserInterface {
         self.layout_events_sender
             .send(LayoutEvent::VisibilityChanged(node_handle))
             .unwrap();
-        node_handle
     }
 
     #[inline]
