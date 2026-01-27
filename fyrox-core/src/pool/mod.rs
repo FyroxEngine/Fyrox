@@ -788,6 +788,27 @@ where
         free_handles
     }
 
+    /// Returns a handle that may be used to spawn an object in the pool. This handle is guaranteed
+    /// to point at the vacant place in the pool. [`Self::spawn_at_handle`] call with this handle
+    /// will always succeed if called right after this method.
+    #[inline]
+    pub fn next_free_handle(&mut self) -> Handle<T> {
+        if let Some(index) = self.free_stack.pop() {
+            let generation = self.records[index as usize].generation + 1;
+            Handle {
+                index,
+                generation,
+                type_marker: PhantomData,
+            }
+        } else {
+            Handle {
+                index: self.records.len() as u32,
+                generation: 1,
+                type_marker: PhantomData,
+            }
+        }
+    }
+
     /// Borrows shared reference to an object by its handle.
     ///
     /// # Panics
