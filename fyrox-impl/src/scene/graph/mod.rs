@@ -196,6 +196,7 @@ impl Clone for Graph {
     fn clone(&self) -> Self {
         self.clone_ex(
             self.root,
+            true,
             &mut |_, _| true,
             &mut |_, _| {},
             &mut |_, _, _| {},
@@ -480,6 +481,7 @@ impl Graph {
         other_graph.copy_node(
             root,
             &mut graph,
+            false,
             &mut |_, _| true,
             &mut |_, _| {},
             &mut |_, _, _| {},
@@ -782,6 +784,7 @@ impl Graph {
         &self,
         node_handle: Handle<impl ObjectOrVariant<Node>>,
         dest_graph: &mut Graph,
+        preserve_handles: bool,
         filter: &mut F,
         pre_process_callback: &mut Pre,
         post_process_callback: &mut Post,
@@ -795,6 +798,7 @@ impl Graph {
         let root_handle = self.copy_node_raw(
             node_handle,
             dest_graph,
+            preserve_handles,
             &mut old_new_mapping,
             filter,
             pre_process_callback,
@@ -900,6 +904,7 @@ impl Graph {
         &self,
         root_handle: Handle<impl ObjectOrVariant<Node>>,
         dest_graph: &mut Graph,
+        preserve_handles: bool,
         old_new_mapping: &mut NodeHandleMap<Node>,
         filter: &mut F,
         pre_process_callback: &mut Pre,
@@ -914,13 +919,19 @@ impl Graph {
         let src_node = &self.pool[root_handle];
         let mut dest_node = clear_links(src_node.clone_box());
         pre_process_callback(root_handle, &mut dest_node);
-        let dest_copy_handle = dest_graph.add_node(dest_node);
+        let dest_copy_handle = if preserve_handles {
+            dest_graph.add_node_at_handle(dest_node, root_handle);
+            root_handle
+        } else {
+            dest_graph.add_node(dest_node)
+        };
         old_new_mapping.insert(root_handle, dest_copy_handle);
         for &src_child_handle in src_node.children() {
             if filter(src_child_handle, &self.pool[src_child_handle]) {
                 let dest_child_handle = self.copy_node_raw(
                     src_child_handle,
                     dest_graph,
+                    preserve_handles,
                     old_new_mapping,
                     filter,
                     pre_process_callback,
@@ -1632,6 +1643,7 @@ impl Graph {
     pub fn clone_ex<F, Pre, Post>(
         &self,
         root: Handle<impl ObjectOrVariant<Node>>,
+        preserve_handles: bool,
         filter: &mut F,
         pre_process_callback: &mut Pre,
         post_process_callback: &mut Post,
@@ -1654,6 +1666,7 @@ impl Graph {
         let (copy_root, old_new_map) = self.copy_node(
             root,
             &mut copy,
+            preserve_handles,
             filter,
             pre_process_callback,
             post_process_callback,
