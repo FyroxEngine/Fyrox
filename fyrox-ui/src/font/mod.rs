@@ -39,7 +39,7 @@ use fyrox_resource::{
     embedded_data_source, io::ResourceIo, manager::BuiltInResource, untyped::UntypedResource,
     Resource, ResourceData,
 };
-use lazy_static::lazy_static;
+use std::sync::LazyLock;
 use std::{
     error::Error,
     fmt::{Debug, Formatter},
@@ -412,53 +412,69 @@ impl Hash for FontHeight {
 /// A resource that allows a font to be loaded.
 pub type FontResource = Resource<Font>;
 
-lazy_static! {
-    /// Fyrox's default build-in font for rendering bold italic text when no other font is specified.
-    pub static ref BOLD_ITALIC: BuiltInResource<Font> = BuiltInResource::new(
+/// Fyrox's default build-in font for rendering bold italic text when no other font is specified.
+pub static BOLD_ITALIC: LazyLock<BuiltInResource<Font>> = LazyLock::new(|| {
+    BuiltInResource::new(
         "__BOLD_ITALIC__",
         embedded_data_source!("./bold_italic.ttf"),
         |data| {
             FontResource::new_ok(
                 uuid!("f5b02124-9601-452a-9368-3fa2a9703ecd"),
                 ResourceKind::External,
-                Font::from_memory(data.to_vec(), 1024, FontStyles::default(), Vec::default()).unwrap(),
+                Font::from_memory(data.to_vec(), 1024, FontStyles::default(), Vec::default())
+                    .unwrap(),
             )
-        }
-    );
-    /// Fyrox's default build-in font for rendering italic text when no other font is specified.
-    pub static ref BUILT_IN_ITALIC: BuiltInResource<Font> = BuiltInResource::new(
+        },
+    )
+});
+
+/// Fyrox's default build-in font for rendering italic text when no other font is specified.
+pub static BUILT_IN_ITALIC: LazyLock<BuiltInResource<Font>> = LazyLock::new(|| {
+    BuiltInResource::new(
         "__BUILT_IN_ITALIC__",
         embedded_data_source!("./built_in_italic.ttf"),
         |data| {
             let bold = Some(BOLD_ITALIC.resource());
-            let styles = FontStyles{bold, ..FontStyles::default()};
+            let styles = FontStyles {
+                bold,
+                ..FontStyles::default()
+            };
             FontResource::new_ok(
                 uuid!("1cd79487-6c76-4370-91c2-e6e1e728950a"),
                 ResourceKind::External,
                 Font::from_memory(data.to_vec(), 1024, styles, Vec::default()).unwrap(),
             )
-        }
-    );
-    /// Fyrox's default build-in font for rendering bold text when no other font is specified.
-    pub static ref BUILT_IN_BOLD: BuiltInResource<Font> = BuiltInResource::new(
+        },
+    )
+});
+
+/// Fyrox's default build-in font for rendering bold text when no other font is specified.
+pub static BUILT_IN_BOLD: LazyLock<BuiltInResource<Font>> = LazyLock::new(|| {
+    BuiltInResource::new(
         "__BUILT_IN_BOLD__",
         embedded_data_source!("./built_in_bold.ttf"),
         |data| {
             let italic = Some(BOLD_ITALIC.resource());
-            let styles = FontStyles{italic, ..FontStyles::default()};
+            let styles = FontStyles {
+                italic,
+                ..FontStyles::default()
+            };
             FontResource::new_ok(
                 uuid!("8a471243-2466-4241-a4cb-c341ce8e844a"),
                 ResourceKind::External,
                 Font::from_memory(data.to_vec(), 1024, styles, Vec::default()).unwrap(),
             )
-        }
-    );
-    /// Fyrox's default build-in font for rendering text when no other font is specified.
-    pub static ref BUILT_IN_FONT: BuiltInResource<Font> = BuiltInResource::new(
+        },
+    )
+});
+
+/// Fyrox's default build-in font for rendering text when no other font is specified.
+pub static BUILT_IN_FONT: LazyLock<BuiltInResource<Font>> = LazyLock::new(|| {
+    BuiltInResource::new(
         "__BUILT_IN_FONT__",
         embedded_data_source!("./built_in_font.ttf"),
         |data| {
-            let styles = FontStyles{
+            let styles = FontStyles {
                 bold: Some(BUILT_IN_BOLD.resource()),
                 italic: Some(BUILT_IN_ITALIC.resource()),
                 bold_italic: Some(BOLD_ITALIC.resource()),
@@ -468,9 +484,9 @@ lazy_static! {
                 ResourceKind::External,
                 Font::from_memory(data.to_vec(), 1024, styles, Vec::default()).unwrap(),
             )
-        }
-    );
-}
+        },
+    )
+});
 
 /// Wait for all subfonts of this font to be completely loaded, including recursively searching
 /// through the fallback fonts, and the fallbacks of the fallbacks, to ensure that this font is

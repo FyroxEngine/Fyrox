@@ -469,10 +469,10 @@ use fyrox_resource::{
     embedded_data_source, io::ResourceIo, manager::BuiltInResource, untyped::ResourceKind,
     Resource, ResourceData,
 };
-use lazy_static::lazy_static;
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::ops::{Deref, DerefMut};
+use std::sync::LazyLock;
 use std::{
     error::Error,
     fmt::{Display, Formatter},
@@ -951,9 +951,9 @@ impl ShaderResourceExtension for ShaderResource {
     }
 }
 
-lazy_static! {
-    /// Standard shader.
-    pub static ref STANDARD: BuiltInResource<Shader> = BuiltInResource::new(
+/// Standard shader.
+pub static STANDARD: LazyLock<BuiltInResource<Shader>> = LazyLock::new(|| {
+    BuiltInResource::new(
         STANDARD_SHADER_NAME,
         embedded_data_source!("standard/standard.shader"),
         |data| {
@@ -962,40 +962,58 @@ lazy_static! {
                 ResourceKind::External,
                 Shader::from_string_bytes(data).unwrap(),
             )
-        }
-    );
-    /// Standard 2D shader.
-    pub static ref STANDARD_2D: BuiltInResource<Shader> = BuiltInResource::new(
+        },
+    )
+});
+
+/// Standard 2D shader.
+pub static STANDARD_2D: LazyLock<BuiltInResource<Shader>> = LazyLock::new(|| {
+    BuiltInResource::new(
         STANDARD_2D_SHADER_NAME,
         embedded_data_source!("standard/standard2d.shader"),
-        |data| ShaderResource::new_ok(
-            uuid!("55fa05b0-3c25-4e46-bae7-65f093185b75"),
-            ResourceKind::External,
-            Shader::from_string_bytes(data).unwrap(),
-        )
-    );
-    /// Standard particle system shader.
-    pub static ref STANDARD_PARTICLE_SYSTEM: BuiltInResource<Shader> = BuiltInResource::new(
+        |data| {
+            ShaderResource::new_ok(
+                uuid!("55fa05b0-3c25-4e46-bae7-65f093185b75"),
+                ResourceKind::External,
+                Shader::from_string_bytes(data).unwrap(),
+            )
+        },
+    )
+});
+
+/// Standard particle system shader.
+pub static STANDARD_PARTICLE_SYSTEM: LazyLock<BuiltInResource<Shader>> = LazyLock::new(|| {
+    BuiltInResource::new(
         STANDARD_PARTICLE_SYSTEM_SHADER_NAME,
         embedded_data_source!("standard/standard_particle_system.shader"),
-        |data| ShaderResource::new_ok(
-            uuid!("eb474445-6a25-4481-bca9-f919699c300f"),
-            ResourceKind::External,
-            Shader::from_string_bytes(data).unwrap(),
-        )
-    );
-    /// Standard sprite shader.
-    pub static ref STANDARD_SPRITE: BuiltInResource<Shader> = BuiltInResource::new(
+        |data| {
+            ShaderResource::new_ok(
+                uuid!("eb474445-6a25-4481-bca9-f919699c300f"),
+                ResourceKind::External,
+                Shader::from_string_bytes(data).unwrap(),
+            )
+        },
+    )
+});
+
+/// Standard sprite shader.
+pub static STANDARD_SPRITE: LazyLock<BuiltInResource<Shader>> = LazyLock::new(|| {
+    BuiltInResource::new(
         STANDARD_SPRITE_SHADER_NAME,
         embedded_data_source!("standard/standard_sprite.shader"),
-        |data| ShaderResource::new_ok(
-            uuid!("a135826a-4c1b-46d5-ba1f-0c9a226aa52c"),
-            ResourceKind::External,
-            Shader::from_string_bytes(data).unwrap(),
-        )
-    );
-    /// Standard terrain shader.
-    pub static ref STANDARD_TERRAIN: BuiltInResource<Shader> = BuiltInResource::new(
+        |data| {
+            ShaderResource::new_ok(
+                uuid!("a135826a-4c1b-46d5-ba1f-0c9a226aa52c"),
+                ResourceKind::External,
+                Shader::from_string_bytes(data).unwrap(),
+            )
+        },
+    )
+});
+
+/// Standard terrain shader.
+pub static STANDARD_TERRAIN: LazyLock<BuiltInResource<Shader>> = LazyLock::new(|| {
+    BuiltInResource::new(
         STANDARD_TERRAIN_SHADER_NAME,
         embedded_data_source!("standard/terrain.shader"),
         |data| {
@@ -1004,10 +1022,13 @@ lazy_static! {
                 ResourceKind::External,
                 Shader::from_string_bytes(data).unwrap(),
             )
-        }
-    );
-    /// Standard tile shader.
-    pub static ref STANDARD_TILE: BuiltInResource<Shader> = BuiltInResource::new(
+        },
+    )
+});
+
+/// Standard tile shader.
+pub static STANDARD_TILE: LazyLock<BuiltInResource<Shader>> = LazyLock::new(|| {
+    BuiltInResource::new(
         STANDARD_TILE_SHADER_NAME,
         embedded_data_source!("standard/tile.shader"),
         |data| {
@@ -1016,29 +1037,39 @@ lazy_static! {
                 ResourceKind::External,
                 Shader::from_string_bytes(data).unwrap(),
             )
-        }
-    );
-    /// Standard two-sides shader.
-    pub static ref STANDARD_TWOSIDES: BuiltInResource<Shader> = BuiltInResource::new(
+        },
+    )
+});
+
+/// Standard two-sides shader.
+pub static STANDARD_TWOSIDES: LazyLock<BuiltInResource<Shader>> = LazyLock::new(|| {
+    BuiltInResource::new(
         STANDARD_TWOSIDES_SHADER_NAME,
         embedded_data_source!("standard/standard-two-sides.shader"),
-        |data| ShaderResource::new_ok(
-            uuid!("f7979409-5185-4e1c-a644-d53cea64af8f"),
-            ResourceKind::External,
-            Shader::from_string_bytes(data).unwrap(),
-        )
-    );
-    /// Standard widget shader.
-    pub static ref STANDARD_WIDGET: BuiltInResource<Shader> = BuiltInResource::new(
+        |data| {
+            ShaderResource::new_ok(
+                uuid!("f7979409-5185-4e1c-a644-d53cea64af8f"),
+                ResourceKind::External,
+                Shader::from_string_bytes(data).unwrap(),
+            )
+        },
+    )
+});
+
+/// Standard widget shader.
+pub static STANDARD_WIDGET: LazyLock<BuiltInResource<Shader>> = LazyLock::new(|| {
+    BuiltInResource::new(
         STANDARD_WIDGET_SHADER_NAME,
         embedded_data_source!("standard/widget.shader"),
-        |data| ShaderResource::new_ok(
-            uuid!("f5908aa4-e187-42a8-95d2-dc6577f6def4"),
-            ResourceKind::External,
-            Shader::from_string_bytes(data).unwrap(),
-        )
-    );
-}
+        |data| {
+            ShaderResource::new_ok(
+                uuid!("f5908aa4-e187-42a8-95d2-dc6577f6def4"),
+                ResourceKind::External,
+                Shader::from_string_bytes(data).unwrap(),
+            )
+        },
+    )
+});
 
 #[cfg(test)]
 mod test {

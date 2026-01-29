@@ -36,7 +36,7 @@ use std::{
     fmt::{Debug, Display, Formatter},
     hash::{Hash, Hasher},
     ops::Deref,
-    sync::Arc,
+    sync::{Arc, LazyLock},
 };
 
 #[derive(Clone, Debug)]
@@ -274,10 +274,8 @@ impl ImmutableStringStorage {
     }
 }
 
-lazy_static! {
-    static ref SSTORAGE: Arc<Mutex<ImmutableStringStorage>> =
-        Arc::new(Mutex::new(ImmutableStringStorage::default()));
-}
+static SSTORAGE: LazyLock<Arc<Mutex<ImmutableStringStorage>>> =
+    LazyLock::new(|| Arc::new(Mutex::new(ImmutableStringStorage::default())));
 
 #[cfg(test)]
 mod test {
