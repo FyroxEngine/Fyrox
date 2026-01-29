@@ -45,8 +45,10 @@ use fyrox_resource::{
     manager::{BuiltInResource, ResourceManager},
 };
 use fyrox_texture::TextureResource;
-use lazy_static::lazy_static;
-use std::any::{Any, TypeId};
+use std::{
+    any::{Any, TypeId},
+    sync::LazyLock,
+};
 use std::{
     ops::{Deref, DerefMut},
     path::Path,
@@ -123,12 +125,17 @@ impl_casts!(Color => Color);
 impl_casts!(Brush => Brush);
 impl_casts!(TextureResource => Texture);
 
-lazy_static! {
-    /// Default style of the library.
-    pub static ref DEFAULT_STYLE: BuiltInResource<Style> = BuiltInResource::new_no_source("__DEFAULT_STYLE__",
-        StyleResource::new_ok(uuid!("1e0716e8-e728-491c-a65b-ca11b15048be"), ResourceKind::External, Style::dark_style())
-    );
-}
+/// Default style of the library.
+pub static DEFAULT_STYLE: LazyLock<BuiltInResource<Style>> = LazyLock::new(|| {
+    BuiltInResource::new_no_source(
+        "__DEFAULT_STYLE__",
+        StyleResource::new_ok(
+            uuid!("1e0716e8-e728-491c-a65b-ca11b15048be"),
+            ResourceKind::External,
+            Style::dark_style(),
+        ),
+    )
+});
 
 /// A property, that can bind its value to a style. Why can't we just fetch the actual value from
 /// the style and why do we need to store the value as well? The answer is flexibility. In this
