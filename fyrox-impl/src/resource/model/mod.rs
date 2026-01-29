@@ -493,6 +493,7 @@ impl ModelResourceExtension for ModelResource {
         let (root, old_to_new) = model_data.scene.graph.copy_node(
             handle,
             dest_graph,
+            false,
             &mut |_, _| true,
             pre_processing_callback,
             &mut |_, original_handle, node| {

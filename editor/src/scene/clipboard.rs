@@ -57,6 +57,7 @@ fn deep_clone_nodes(
         let (_, old_to_new) = source_graph.copy_node(
             root_node,
             dest_graph,
+            false,
             &mut |_, _| true,
             &mut |_, _| {},
             &mut |_, _, _| {},

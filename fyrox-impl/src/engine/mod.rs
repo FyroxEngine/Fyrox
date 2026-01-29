@@ -1911,6 +1911,7 @@ impl Engine {
                                 scene: scene
                                     .clone_ex(
                                         scene.graph.get_root(),
+                                        true,
                                         &mut |_, _| true,
                                         &mut |_, _| {},
                                         &mut |_, _, _| {},

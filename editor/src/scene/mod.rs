@@ -258,6 +258,7 @@ impl GameScene {
         let editor_root = self.editor_objects_root;
         let (pure_scene, _) = scene.clone_ex(
             self.scene_content_root,
+            true,
             &mut |node, _| node != editor_root,
             &mut |_, _| {},
             &mut |_, _, _| {},
@@ -449,6 +450,7 @@ impl GameScene {
                 source_scene.graph.copy_node(
                     root_node,
                     &mut dest_scene.graph,
+                    false,
                     &mut |_, _| true,
                     &mut |_, _| {},
                     &mut |_, _, _| {},

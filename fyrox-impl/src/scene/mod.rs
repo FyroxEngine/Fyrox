@@ -532,6 +532,7 @@ impl Scene {
     pub fn clone_ex<F, Pre, Post>(
         &self,
         root: Handle<Node>,
+        preserve_handles: bool,
         filter: &mut F,
         pre_process_callback: &mut Pre,
         post_process_callback: &mut Post,
@@ -541,9 +542,13 @@ impl Scene {
         Pre: FnMut(Handle<Node>, &mut Node),
         Post: FnMut(Handle<Node>, Handle<Node>, &mut Node),
     {
-        let (graph, old_new_map) =
-            self.graph
-                .clone_ex(root, filter, pre_process_callback, post_process_callback);
+        let (graph, old_new_map) = self.graph.clone_ex(
+            root,
+            preserve_handles,
+            filter,
+            pre_process_callback,
+            post_process_callback,
+        );
 
         (
             Self {
@@ -562,6 +567,7 @@ impl Scene {
     pub fn clone_one_to_one(&self) -> (Self, NodeHandleMap<Node>) {
         self.clone_ex(
             self.graph.get_root(),
+            true,
             &mut |_, _| true,
             &mut |_, _| {},
             &mut |_, _, _| {},
