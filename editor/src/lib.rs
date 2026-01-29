@@ -225,7 +225,7 @@ static EDITOR_VERSION: LazyLock<String> = LazyLock::new(|| {
 });
 
 static EDITOR_TEXTURE_CACHE: LazyLock<Mutex<FxHashMap<usize, TextureResource>>> =
-    LazyLock::new(|| Default::default());
+    LazyLock::new(Mutex::default);
 
 pub fn load_texture_internal(data: &[u8]) -> Option<TextureResource> {
     let mut cache = EDITOR_TEXTURE_CACHE.safe_lock();

@@ -555,7 +555,7 @@ static BUILT_IN_SKYBOX_RIGHT: LazyLock<BuiltInResource<Texture>> = LazyLock::new
     )
 });
 
-static BUILT_IN_SKYBOX: LazyLock<SkyBox> = LazyLock::new(|| SkyBoxKind::make_built_in_skybox());
+static BUILT_IN_SKYBOX: LazyLock<SkyBox> = LazyLock::new(SkyBoxKind::make_built_in_skybox);
 
 impl SkyBoxKind {
     fn make_built_in_skybox() -> SkyBox {
