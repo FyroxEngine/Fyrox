@@ -61,12 +61,11 @@ use bytemuck::{Pod, Zeroable};
 use fxhash::{FxHashMap, FxHasher};
 use fyrox_resource::manager::BuiltInResource;
 use half::f16;
-use lazy_static::lazy_static;
 use std::{
     error::Error,
     hash::Hasher,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, LazyLock},
 };
 
 /// A target shape for blending.
@@ -1468,64 +1467,74 @@ impl ResourceLoader for SurfaceDataLoader {
     }
 }
 
-lazy_static! {
-    /// Cube surface resource.
-    pub static ref CUBE: BuiltInResource<SurfaceData> = BuiltInResource::new_no_source(
+/// Cube surface resource.
+pub static CUBE: LazyLock<BuiltInResource<SurfaceData>> = LazyLock::new(|| {
+    BuiltInResource::new_no_source(
         "__CubeSurface",
         SurfaceResource::new_ok(
             uuid!("d3a4604a-e1c6-430b-b524-8d3213723952"),
             ResourceKind::Embedded,
             SurfaceData::make_cube(Matrix4::identity()),
-        )
-    );
+        ),
+    )
+});
 
-    /// Quad surface resource.
-    pub static ref QUAD: BuiltInResource<SurfaceData> = BuiltInResource::new_no_source(
+/// Quad surface resource.
+pub static QUAD: LazyLock<BuiltInResource<SurfaceData>> = LazyLock::new(|| {
+    BuiltInResource::new_no_source(
         "__QuadSurface",
         SurfaceResource::new_ok(
             uuid!("a124317f-640b-4c1b-9fdc-af62f745eeba"),
             ResourceKind::Embedded,
             SurfaceData::make_quad(&Matrix4::identity()),
-        )
-    );
+        ),
+    )
+});
 
-    /// Cylinder surface resource.
-    pub static ref CYLINDER: BuiltInResource<SurfaceData> = BuiltInResource::new_no_source(
+/// Cylinder surface resource.
+pub static CYLINDER: LazyLock<BuiltInResource<SurfaceData>> = LazyLock::new(|| {
+    BuiltInResource::new_no_source(
         "__CylinderSurface",
         SurfaceResource::new_ok(
             uuid!("16300ec8-4446-41a7-8ad6-9b45428d0b1b"),
             ResourceKind::Embedded,
             SurfaceData::make_cylinder(32, 1.0, 1.0, true, &Matrix4::identity()),
-        )
-    );
+        ),
+    )
+});
 
-    /// Sphere surface resource.
-    pub static ref SPHERE: BuiltInResource<SurfaceData> = BuiltInResource::new_no_source(
+/// Sphere surface resource.
+pub static SPHERE: LazyLock<BuiltInResource<SurfaceData>> = LazyLock::new(|| {
+    BuiltInResource::new_no_source(
         "__SphereSurface",
         SurfaceResource::new_ok(
             uuid!("ff1811ba-b9ad-4c37-89b8-503f79aaa4bd"),
             ResourceKind::Embedded,
             SurfaceData::make_sphere(32, 32, 1.0, &Matrix4::identity()),
-        )
-    );
+        ),
+    )
+});
 
-    /// Cone surface resource.
-    pub static ref CONE: BuiltInResource<SurfaceData> = BuiltInResource::new_no_source(
+/// Cone surface resource.
+pub static CONE: LazyLock<BuiltInResource<SurfaceData>> = LazyLock::new(|| {
+    BuiltInResource::new_no_source(
         "__ConeSurface",
         SurfaceResource::new_ok(
             uuid!("e4e79405-39c5-4fe4-ba3e-c961f3d7379e"),
             ResourceKind::Embedded,
             SurfaceData::make_cone(32, 1.0, 1.0, &Matrix4::identity()),
-        )
-    );
+        ),
+    )
+});
 
-    /// Torus surface resource.
-    pub static ref TORUS: BuiltInResource<SurfaceData> = BuiltInResource::new_no_source(
+/// Torus surface resource.
+pub static TORUS: LazyLock<BuiltInResource<SurfaceData>> = LazyLock::new(|| {
+    BuiltInResource::new_no_source(
         "__TorusSurface",
         SurfaceResource::new_ok(
             uuid!("d2bb5455-c72e-475d-90da-e3a7bd5b7d07"),
             ResourceKind::Embedded,
-            SurfaceData::make_torus(1.0, 0.25,32, 32,  &Matrix4::identity()),
-        )
-    );
-}
+            SurfaceData::make_torus(1.0, 0.25, 32, 32, &Matrix4::identity()),
+        ),
+    )
+});

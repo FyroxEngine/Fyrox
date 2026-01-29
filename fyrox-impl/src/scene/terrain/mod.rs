@@ -65,12 +65,12 @@ use fyrox_graph::SceneGraph;
 use fyrox_resource::untyped::ResourceKind;
 use half::f16;
 use image::{imageops::FilterType, ImageBuffer, Luma};
-use lazy_static::lazy_static;
 use std::{
     cell::Cell,
     cmp::Ordering,
     collections::HashMap,
     ops::{Deref, DerefMut, Range},
+    sync::LazyLock,
 };
 
 pub mod brushstroke;
@@ -86,17 +86,20 @@ use super::collider::BitMask;
 /// Current implementation version marker.
 pub const VERSION: u8 = 0;
 
-lazy_static! {
-    /// Solid white texture
-    pub static ref WHITE_1X1: TextureResource = TextureResource::from_bytes(
+/// WHITE_1X1 TextureResource.
+pub static WHITE_1X1: LazyLock<TextureResource> = LazyLock::new(|| {
+    TextureResource::from_bytes(
         uuid!("09a71013-ccb2-4a41-a48a-ab6c80f14f0e"),
-        TextureKind::Rectangle { width: 1, height: 1 },
+        TextureKind::Rectangle {
+            width: 1,
+            height: 1,
+        },
         TexturePixelKind::R8,
         vec![255],
         ResourceKind::External,
     )
-    .unwrap();
-}
+    .unwrap()
+});
 
 /// Position of a single cell within terrain data.
 #[derive(Debug, Clone)]

@@ -23,6 +23,7 @@
 use std::{
     fmt::Display,
     path::{Path, PathBuf},
+    sync::LazyLock,
 };
 
 use crate::{
@@ -38,7 +39,6 @@ use crate::{
     },
 };
 use gltf::{buffer::View, image, Document};
-use lazy_static::lazy_static;
 
 use super::uri;
 
@@ -49,8 +49,8 @@ use crate::resource::texture::TextureMinificationFilter as FyroxMinFilter;
 use gltf::texture::MagFilter as GltfMagFilter;
 use gltf::texture::MinFilter as GltfMinFilter;
 
-lazy_static! {
-    pub static ref GLTF_SHADER: BuiltInResource<Shader> = BuiltInResource::new(
+pub static GLTF_SHADER: LazyLock<BuiltInResource<Shader>> = LazyLock::new(|| {
+    BuiltInResource::new(
         "__GLTF_StandardShader",
         embedded_data_source!("gltf_standard.shader"),
         |data| {
@@ -59,9 +59,9 @@ lazy_static! {
                 ResourceKind::External,
                 Shader::from_string_bytes(data).unwrap(),
             )
-        }
-    );
-}
+        },
+    )
+});
 
 fn convert_mini(filter: GltfMinFilter) -> FyroxMinFilter {
     match filter {

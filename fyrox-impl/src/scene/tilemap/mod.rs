@@ -51,7 +51,6 @@ pub use transform::*;
 pub use update::*;
 
 use super::{dim2::rectangle::RectangleVertex, node::constructor::NodeConstructor};
-use crate::lazy_static::*;
 use crate::{
     asset::{untyped::ResourceKind, ResourceDataRef},
     core::{
@@ -89,19 +88,20 @@ use std::{
     fmt::Display,
     ops::{Deref, DerefMut},
     path::PathBuf,
+    sync::LazyLock,
 };
 
 /// Current implementation version marker.
 pub const VERSION: u8 = 0;
 
-lazy_static! {
-    /// The default material for tiles that have no material set.
-    pub static ref DEFAULT_TILE_MATERIAL: MaterialResource = MaterialResource::new_ok(
+/// The default material for tiles that have no material set.
+pub static DEFAULT_TILE_MATERIAL: LazyLock<MaterialResource> = LazyLock::new(|| {
+    MaterialResource::new_ok(
         uuid!("36bf5b66-b4fa-4bca-80eb-33a271d8f825"),
         ResourceKind::External,
-        Material::standard_tile()
-    );
-}
+        Material::standard_tile(),
+    )
+});
 
 /// Context for rendering tiles in a tile map. It is especially used by
 /// [`TileMapEffect`] objects.

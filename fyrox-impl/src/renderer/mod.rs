@@ -98,11 +98,11 @@ use crate::{
 use cache::DynamicSurfaceCache;
 use fxhash::FxHashMap;
 use fyrox_graph::SceneGraph;
-use lazy_static::lazy_static;
 use observer::{Observer, ObserversCollection};
 use resources::RendererResources;
 pub use settings::*;
 pub use stats::*;
+use std::sync::LazyLock;
 use std::{
     any::{Any, TypeId},
     cell::RefCell,
@@ -112,13 +112,17 @@ use std::{
 };
 use winit::window::Window;
 
-lazy_static! {
-    static ref GBUFFER_PASS_NAME: ImmutableString = ImmutableString::new("GBuffer");
-    static ref DIRECTIONAL_SHADOW_PASS_NAME: ImmutableString =
-        ImmutableString::new("DirectionalShadow");
-    static ref SPOT_SHADOW_PASS_NAME: ImmutableString = ImmutableString::new("SpotShadow");
-    static ref POINT_SHADOW_PASS_NAME: ImmutableString = ImmutableString::new("PointShadow");
-}
+static GBUFFER_PASS_NAME: LazyLock<ImmutableString> =
+    LazyLock::new(|| ImmutableString::new("GBuffer"));
+
+static DIRECTIONAL_SHADOW_PASS_NAME: LazyLock<ImmutableString> =
+    LazyLock::new(|| ImmutableString::new("DirectionalShadow"));
+
+static SPOT_SHADOW_PASS_NAME: LazyLock<ImmutableString> =
+    LazyLock::new(|| ImmutableString::new("SpotShadow"));
+
+static POINT_SHADOW_PASS_NAME: LazyLock<ImmutableString> =
+    LazyLock::new(|| ImmutableString::new("PointShadow"));
 
 /// Checks whether the provided render pass name is one of the names of built-in shadow render passes.
 pub fn is_shadow_pass(render_pass_name: &str) -> bool {
