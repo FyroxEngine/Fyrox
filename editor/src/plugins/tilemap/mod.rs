@@ -126,34 +126,54 @@ use fyrox::asset::manager::ResourceManager;
 use fyrox::engine::ApplicationLoopController;
 use fyrox::gui::button::Button;
 use fyrox::gui::message::MessageData;
+use std::sync::LazyLock;
 use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
     sync::Arc,
 };
 
-lazy_static! {
-    static ref VISIBLE_IMAGE: Option<TextureResource> =
-        load_image!("../../../resources/visible.png");
-    static ref BRUSH_IMAGE: Option<TextureResource> = load_image!("../../../resources/brush.png");
-    static ref ERASER_IMAGE: Option<TextureResource> = load_image!("../../../resources/eraser.png");
-    static ref FILL_IMAGE: Option<TextureResource> = load_image!("../../../resources/fill.png");
-    static ref PICK_IMAGE: Option<TextureResource> = load_image!("../../../resources/pipette.png");
-    static ref RECT_FILL_IMAGE: Option<TextureResource> =
-        load_image!("../../../resources/rect_fill.png");
-    static ref NINE_SLICE_IMAGE: Option<TextureResource> =
-        load_image!("../../../resources/nine_slice.png");
-    static ref LINE_IMAGE: Option<TextureResource> = load_image!("../../../resources/line.png");
-    static ref TURN_LEFT_IMAGE: Option<TextureResource> =
-        load_image!("../../../resources/turn_left.png");
-    static ref TURN_RIGHT_IMAGE: Option<TextureResource> =
-        load_image!("../../../resources/turn_right.png");
-    static ref FLIP_X_IMAGE: Option<TextureResource> = load_image!("../../../resources/flip_x.png");
-    static ref FLIP_Y_IMAGE: Option<TextureResource> = load_image!("../../../resources/flip_y.png");
-    static ref RANDOM_IMAGE: Option<TextureResource> = load_image!("../../../resources/die.png");
-    static ref PALETTE_IMAGE: Option<TextureResource> =
-        load_image!("../../../resources/palette.png");
-}
+static VISIBLE_IMAGE: LazyLock<Option<TextureResource>> =
+    LazyLock::new(|| load_image!("../../../resources/visible.png"));
+
+static BRUSH_IMAGE: LazyLock<Option<TextureResource>> =
+    LazyLock::new(|| load_image!("../../../resources/brush.png"));
+
+static ERASER_IMAGE: LazyLock<Option<TextureResource>> =
+    LazyLock::new(|| load_image!("../../../resources/eraser.png"));
+
+static FILL_IMAGE: LazyLock<Option<TextureResource>> =
+    LazyLock::new(|| load_image!("../../../resources/fill.png"));
+
+static PICK_IMAGE: LazyLock<Option<TextureResource>> =
+    LazyLock::new(|| load_image!("../../../resources/pipette.png"));
+
+static RECT_FILL_IMAGE: LazyLock<Option<TextureResource>> =
+    LazyLock::new(|| load_image!("../../../resources/rect_fill.png"));
+
+static NINE_SLICE_IMAGE: LazyLock<Option<TextureResource>> =
+    LazyLock::new(|| load_image!("../../../resources/nine_slice.png"));
+
+static LINE_IMAGE: LazyLock<Option<TextureResource>> =
+    LazyLock::new(|| load_image!("../../../resources/line.png"));
+
+static TURN_LEFT_IMAGE: LazyLock<Option<TextureResource>> =
+    LazyLock::new(|| load_image!("../../../resources/turn_left.png"));
+
+static TURN_RIGHT_IMAGE: LazyLock<Option<TextureResource>> =
+    LazyLock::new(|| load_image!("../../../resources/turn_right.png"));
+
+static FLIP_X_IMAGE: LazyLock<Option<TextureResource>> =
+    LazyLock::new(|| load_image!("../../../resources/flip_x.png"));
+
+static FLIP_Y_IMAGE: LazyLock<Option<TextureResource>> =
+    LazyLock::new(|| load_image!("../../../resources/flip_y.png"));
+
+static RANDOM_IMAGE: LazyLock<Option<TextureResource>> =
+    LazyLock::new(|| load_image!("../../../resources/die.png"));
+
+static PALETTE_IMAGE: LazyLock<Option<TextureResource>> =
+    LazyLock::new(|| load_image!("../../../resources/palette.png"));
 
 /// A structure to keep track of which cells of a tile map brush are involved in macros.
 /// Each macro is expected to keep track of which cells it is using, but this information
