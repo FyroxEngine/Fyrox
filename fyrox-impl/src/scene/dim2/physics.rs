@@ -930,19 +930,22 @@ impl PhysicsWorld {
                         16,
                         UnitQuaternion::identity(),
                     );
-                    let new_local_position =
-                        Vector3::new(local_transform[12], local_transform[13], 0.0);
+                    let new_x = local_transform[12];
+                    let new_y = local_transform[13];
 
                     // Do not touch local transform if position/rotation is not changing. This will
                     // prevent redundant update of its global transform, which in its turn save some
                     // CPU cycles.
                     let local_transform = rigid_body.local_transform();
-                    if **local_transform.position() != new_local_position
+                    let current_position = **local_transform.position();
+                    if current_position.x != new_x
+                        || current_position.y != new_y
                         || **local_transform.rotation() != new_local_rotation
                     {
                         rigid_body
                             .local_transform_mut()
-                            .set_position(new_local_position)
+                            // Keep the Z, since it can be used for layers in 2D.
+                            .set_position(Vector3::new(new_x, new_y, current_position.z))
                             .set_rotation(new_local_rotation);
                     }
 
