@@ -64,8 +64,8 @@ use fyrox_resource::{
     untyped::ResourceKind, Resource, ResourceData,
 };
 use image::{ColorType, DynamicImage, ImageError, ImageFormat, Pixel};
-use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
+use std::sync::LazyLock;
 use std::{
     fmt::{Debug, Display, Formatter},
     hash::{Hash, Hasher},
@@ -670,30 +670,39 @@ impl TextureImportOptions {
     }
 }
 
-lazy_static! {
-    /// Placeholder texture.
-    pub static ref PLACEHOLDER: BuiltInResource<Texture> = BuiltInResource::new("__PlaceholderTexture", embedded_data_source!("default.png"),
+/// Placeholder texture.
+pub static PLACEHOLDER: LazyLock<BuiltInResource<Texture>> = LazyLock::new(|| {
+    BuiltInResource::new(
+        "__PlaceholderTexture",
+        embedded_data_source!("default.png"),
         |data| {
             TextureResource::load_from_memory(
                 uuid!("58b0e112-a21a-481f-b305-a2dc5a8bea1f"),
                 ResourceKind::External,
                 data,
-                Default::default()
+                Default::default(),
             )
             .unwrap()
-        });
-    /// Pure color texture.
-    pub static ref PURE_COLOR: BuiltInResource<Texture> = BuiltInResource::new("__PureColorTexture", embedded_data_source!("pure_color.png"),
+        },
+    )
+});
+
+/// Pure color texture.
+pub static PURE_COLOR: LazyLock<BuiltInResource<Texture>> = LazyLock::new(|| {
+    BuiltInResource::new(
+        "__PureColorTexture",
+        embedded_data_source!("pure_color.png"),
         |data| {
             TextureResource::load_from_memory(
                 uuid!("9709eef2-305c-44da-91e5-6f293d74408a"),
                 ResourceKind::External,
                 data,
-                Default::default()
+                Default::default(),
             )
             .unwrap()
-        });
-}
+        },
+    )
+});
 
 /// Type alias for texture resources.
 pub type TextureResource = Resource<Texture>;

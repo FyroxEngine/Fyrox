@@ -35,6 +35,8 @@ mod segment2d;
 mod triangle;
 mod triangle2d;
 
+use std::sync::LazyLock;
+
 use super::inspector::InspectorPlugin;
 use crate::{
     camera::PickingOptions,
@@ -270,16 +272,14 @@ fn make_shape_gizmo(
     }
 }
 
-lazy_static! {
-    static ref GIZMO_SHADER: ShaderResource = {
-        ShaderResource::from_str(
-            Uuid::new_v4(),
-            include_str!("../../../resources/shaders/sprite_gizmo.shader"),
-            Default::default(),
-        )
-        .unwrap()
-    };
-}
+static GIZMO_SHADER: LazyLock<ShaderResource> = LazyLock::new(|| {
+    ShaderResource::from_str(
+        Uuid::new_v4(),
+        include_str!("../../../resources/shaders/sprite_gizmo.shader"),
+        Default::default(),
+    )
+    .unwrap()
+});
 
 fn make_handle(scene: &mut Scene, root: Handle<Pivot>, visible: bool) -> Handle<Sprite> {
     let mut material = Material::from_shader(GIZMO_SHADER.clone());

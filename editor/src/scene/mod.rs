@@ -109,7 +109,7 @@ use std::{
     rc::Rc,
     sync::{
         mpsc::{self, Receiver},
-        Arc,
+        Arc, LazyLock,
     },
 };
 
@@ -151,16 +151,14 @@ pub struct GameScene {
     pub settings_receiver: Receiver<SettingsMessage>,
 }
 
-lazy_static! {
-    static ref GRID_SHADER: ShaderResource = {
-        ShaderResource::from_str(
-            Uuid::new_v4(),
-            include_str!("../../resources/shaders/grid.shader"),
-            Default::default(),
-        )
-        .unwrap()
-    };
-}
+static GRID_SHADER: LazyLock<ShaderResource> = LazyLock::new(|| {
+    ShaderResource::from_str(
+        Uuid::new_v4(),
+        include_str!("../../resources/shaders/grid.shader"),
+        Default::default(),
+    )
+    .unwrap()
+});
 
 fn make_grid_material() -> MaterialResource {
     let material = Material::from_shader(GRID_SHADER.clone());

@@ -24,13 +24,12 @@ use fyrox_resource::{
     Resource, ResourceData,
 };
 use fyrox_texture::TextureResource;
-use lazy_static::lazy_static;
 use std::{
     any::Any,
     error::Error,
     fmt::{Display, Formatter},
     path::Path,
-    sync::Arc,
+    sync::{Arc, LazyLock},
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
@@ -1084,79 +1083,93 @@ impl MaterialResourceExtension for MaterialResource {
     }
 }
 
-lazy_static! {
-    /// Standard PBR material. Keep in mind that this material is global, any modification
-    /// of it will reflect on every other usage of it.
-    pub static ref STANDARD: BuiltInResource<Material> = BuiltInResource::new_no_source("__StandardMaterial",
+/// Standard PBR material. Keep in mind that this material is global, any modification
+/// of it will reflect on every other usage of it.
+pub static STANDARD: LazyLock<BuiltInResource<Material>> = LazyLock::new(|| {
+    BuiltInResource::new_no_source(
+        "__StandardMaterial",
         MaterialResource::new_ok(
             uuid!("fac37721-d1b8-422e-ae0c-83196ecd0a26"),
             ResourceKind::External,
             Material::from_shader(ShaderResource::standard()),
-        )
-    );
+        ),
+    )
+});
 
-    /// Standard 2D material. Keep in mind that this material is global, any modification
-    /// of it will reflect on every other usage of it.
-    pub static ref STANDARD_2D: BuiltInResource<Material> = BuiltInResource::new_no_source("__Standard2DMaterial",
+/// Standard 2D material. Keep in mind that this material is global, any modification
+/// of it will reflect on every other usage of it.
+pub static STANDARD_2D: LazyLock<BuiltInResource<Material>> = LazyLock::new(|| {
+    BuiltInResource::new_no_source(
+        "__Standard2DMaterial",
         MaterialResource::new_ok(
             uuid!("fe78a0d0-d059-4156-bc63-c3d2e36ad4b6"),
             ResourceKind::External,
             Material::from_shader(ShaderResource::standard_2d()),
-        )
-    );
+        ),
+    )
+});
 
-    /// Standard particle system material. Keep in mind that this material is global, any modification
-    /// of it will reflect on every other usage of it.
-    pub static ref STANDARD_PARTICLE_SYSTEM: BuiltInResource<Material> = BuiltInResource::new_no_source(
+/// Standard particle system material. Keep in mind that this material is global, any modification
+/// of it will reflect on every other usage of it.
+pub static STANDARD_PARTICLE_SYSTEM: LazyLock<BuiltInResource<Material>> = LazyLock::new(|| {
+    BuiltInResource::new_no_source(
         "__StandardParticleSystemMaterial",
         MaterialResource::new_ok(
             uuid!("5bebe6e5-4aeb-496f-88f6-abe2b1ac798b"),
             ResourceKind::External,
-            Material::from_shader(ShaderResource::standard_particle_system(),),
-        )
-    );
+            Material::from_shader(ShaderResource::standard_particle_system()),
+        ),
+    )
+});
 
-    /// Standard sprite material. Keep in mind that this material is global, any modification
-    /// of it will reflect on every other usage of it.
-    pub static ref STANDARD_SPRITE: BuiltInResource<Material> = BuiltInResource::new_no_source(
+/// Standard sprite material. Keep in mind that this material is global, any modification
+/// of it will reflect on every other usage of it.
+pub static STANDARD_SPRITE: LazyLock<BuiltInResource<Material>> = LazyLock::new(|| {
+    BuiltInResource::new_no_source(
         "__StandardSpriteMaterial",
         MaterialResource::new_ok(
             uuid!("3e331786-baae-412b-9d99-7370174bca43"),
             ResourceKind::External,
             Material::from_shader(ShaderResource::standard_sprite()),
-        )
-    );
+        ),
+    )
+});
 
-    /// Standard terrain material. Keep in mind that this material is global, any modification
-    /// of it will reflect on every other usage of it.
-    pub static ref STANDARD_TERRAIN: BuiltInResource<Material> = BuiltInResource::new_no_source(
+/// Standard terrain material. Keep in mind that this material is global, any modification
+/// of it will reflect on every other usage of it.
+pub static STANDARD_TERRAIN: LazyLock<BuiltInResource<Material>> = LazyLock::new(|| {
+    BuiltInResource::new_no_source(
         "__StandardTerrainMaterial",
         MaterialResource::new_ok(
             uuid!("0e407e22-41ad-4763-9adb-9d2e86351ece"),
             ResourceKind::External,
             Material::from_shader(ShaderResource::standard_terrain()),
-        )
-    );
+        ),
+    )
+});
 
-    /// Standard two-sided material. Keep in mind that this material is global, any modification
-    /// of it will reflect on every other usage of it.
-    pub static ref STANDARD_TWOSIDES: BuiltInResource<Material> = BuiltInResource::new_no_source(
+/// Standard two-sided material. Keep in mind that this material is global, any modification
+/// of it will reflect on every other usage of it.
+pub static STANDARD_TWOSIDES: LazyLock<BuiltInResource<Material>> = LazyLock::new(|| {
+    BuiltInResource::new_no_source(
         "__StandardTwoSidesMaterial",
         MaterialResource::new_ok(
             uuid!("24115321-7766-495c-bc3a-75db2f73d26d"),
             ResourceKind::External,
-           Material::from_shader(ShaderResource::standard_twosides()),
-        )
-    );
+            Material::from_shader(ShaderResource::standard_twosides()),
+        ),
+    )
+});
 
-    /// Standard widget material. Keep in mind that this material is global, any modification
-    /// of it will reflect on every other usage of it.
-    pub static ref STANDARD_WIDGET: BuiltInResource<Material> = BuiltInResource::new_no_source(
+/// Standard widget material. Keep in mind that this material is global, any modification
+/// of it will reflect on every other usage of it.
+pub static STANDARD_WIDGET: LazyLock<BuiltInResource<Material>> = LazyLock::new(|| {
+    BuiltInResource::new_no_source(
         "__StandardWidgetMaterial",
         MaterialResource::new_ok(
             uuid!("e5d61a6f-5c94-4137-b303-1ae29cfff6e7"),
             ResourceKind::External,
-           Material::from_shader(ShaderResource::standard_widget()),
-        )
-    );
-}
+            Material::from_shader(ShaderResource::standard_widget()),
+        ),
+    )
+});

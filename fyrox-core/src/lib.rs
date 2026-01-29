@@ -29,8 +29,6 @@
 
 #[macro_use]
 extern crate memoffset;
-#[macro_use]
-extern crate lazy_static;
 
 pub use arrayvec;
 pub use byteorder;

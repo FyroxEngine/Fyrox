@@ -29,9 +29,6 @@
 #![allow(clippy::mutable_key_type)]
 #![allow(mismatched_lifetime_syntaxes)]
 
-#[macro_use]
-extern crate lazy_static;
-
 pub mod asset;
 pub mod audio;
 pub mod camera;
@@ -227,9 +224,8 @@ static EDITOR_VERSION: LazyLock<String> = LazyLock::new(|| {
     "<unknown>".to_string()
 });
 
-lazy_static! {
-    static ref EDITOR_TEXTURE_CACHE: Mutex<FxHashMap<usize, TextureResource>> = Default::default();
-}
+static EDITOR_TEXTURE_CACHE: LazyLock<Mutex<FxHashMap<usize, TextureResource>>> =
+    LazyLock::new(Mutex::default);
 
 pub fn load_texture_internal(data: &[u8]) -> Option<TextureResource> {
     let mut cache = EDITOR_TEXTURE_CACHE.safe_lock();
@@ -277,16 +273,14 @@ macro_rules! load_image {
     };
 }
 
-lazy_static! {
-    static ref GIZMO_SHADER: ShaderResource = {
-        ShaderResource::from_str(
-            Uuid::new_v4(),
-            include_str!("../resources/shaders/gizmo.shader"),
-            Default::default(),
-        )
-        .unwrap()
-    };
-}
+static GIZMO_SHADER: LazyLock<ShaderResource> = LazyLock::new(|| {
+    ShaderResource::from_str(
+        Uuid::new_v4(),
+        include_str!("../resources/shaders/gizmo.shader"),
+        Default::default(),
+    )
+    .unwrap()
+});
 
 pub fn make_color_material(color: Color) -> MaterialResource {
     let mut material = Material::from_shader(GIZMO_SHADER.clone());
