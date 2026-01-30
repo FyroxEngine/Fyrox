@@ -798,6 +798,20 @@ impl Shader {
             cache_index: Default::default(),
         })
     }
+
+    /// Checks if this shader has a texture resource with the specified name.
+    pub fn has_texture_resource(&self, name: &str) -> bool {
+        self.definition.resources.iter().any(|res| {
+            res.name.as_str() == name && matches!(res.kind, ShaderResourceKind::Texture { .. })
+        })
+    }
+
+    /// Checks if this shader has a property group resource with the specified name.
+    pub fn has_property_group_resource(&self, name: &str) -> bool {
+        self.definition.resources.iter().any(|res| {
+            res.name.as_str() == name && matches!(res.kind, ShaderResourceKind::PropertyGroup(_))
+        })
+    }
 }
 
 impl ResourceData for Shader {
