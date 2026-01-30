@@ -55,6 +55,8 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_core::{ok_or_continue, warn, Uuid};
+use fyrox_graph::SceneGraphNode;
+use fyrox_material::Material;
 use fyrox_resource::ResourceData;
 use lightmap::light::{
     DirectionalLightDefinition, LightDefinition, PointLightDefinition, SpotLightDefinition,
@@ -342,6 +344,31 @@ pub struct LightmapInputData {
     lights: FxHashMap<Handle<Node>, LightDefinition>,
 }
 
+fn is_material_supports_lightmaps(node: &Node, surface_index: usize, material: &Material) -> bool {
+    let binding_name = "lightmapTexture";
+    if let Some(shader) = material.shader().data_ref().as_loaded_ref() {
+        if !shader.has_texture_resource(binding_name) {
+            warn!(
+                "[Lightmap]: skipping {}({}) node's surface {surface_index}, because its material \
+                does not have a {binding_name} texture resource!",
+                node.name(),
+                node.self_handle()
+            );
+            return false;
+        }
+    } else {
+        warn!(
+            "[Lightmap]: skipping {}({}) node's surface {surface_index}, because its material \
+            has unloaded shader!",
+            node.name(),
+            node.self_handle()
+        );
+        return false;
+    }
+
+    true
+}
+
 impl LightmapInputData {
     /// Creates a new input data that can be later used to generate a lightmap.
     pub fn from_scene<F>(
@@ -461,22 +488,11 @@ impl LightmapInputData {
                     continue;
                 }
                 let global_transform = mesh.global_transform();
-                'surface_loop: for surface in mesh.surfaces() {
+                'surface_loop: for (surface_index, surface) in mesh.surfaces().iter().enumerate() {
                     // Check material for compatibility.
                     let mut material_state = surface.material().state();
                     if let Some(material) = material_state.data() {
-                        let binding_name = "lightmapTexture";
-                        if !material
-                            .binding_ref(binding_name)
-                            .map(|v| matches!(v, MaterialResourceBinding::Texture { .. }))
-                            .unwrap_or_default()
-                        {
-                            warn!(
-                                "[Lightmap]: skipping {}({}) node, because \
-                            its material does not have a {binding_name} texture resource!",
-                                node.name(),
-                                handle
-                            );
+                        if !is_material_supports_lightmaps(&node, surface_index, material) {
                             continue 'surface_loop;
                         }
                     }
