@@ -122,7 +122,7 @@ impl PathFilter {
                 .get(index)
                 .is_some_and(|file_type| file_type.matches(path))
         } else {
-            self.types.iter().any(|file_type| file_type.matches(path))
+            self.is_empty() || self.types.iter().any(|file_type| file_type.matches(path))
         }
     }
 
