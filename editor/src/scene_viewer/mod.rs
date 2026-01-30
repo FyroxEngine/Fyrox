@@ -747,7 +747,7 @@ impl SceneViewer {
                 && message.direction() == MessageDirection::FromWidget
             {
                 match msg {
-                    TabControlMessage::CloseTabByUuid(uuid) => {
+                    TabControlMessage::CloseTab(uuid) => {
                         if let Some(entry) = scenes.entry_by_scene_id(*uuid) {
                             if entry.need_save() {
                                 self.sender.send(Message::OpenSaveSceneConfirmationDialog {
@@ -759,7 +759,7 @@ impl SceneViewer {
                             }
                         }
                     }
-                    TabControlMessage::ActiveTabUuid(Some(uuid)) => {
+                    TabControlMessage::ActiveTab(Some(uuid)) => {
                         if let Some(entry) = scenes.entry_by_scene_id(*uuid) {
                             self.sender.send(Message::SetCurrentScene(entry.id));
                         }
@@ -893,10 +893,10 @@ impl SceneViewer {
         // Remove any excess tabs.
         for tab in tabs.iter() {
             if scenes.iter().all(|s| tab.uuid != s.id) {
-                engine.user_interfaces.first().send_sync(
-                    self.tab_control,
-                    TabControlMessage::RemoveTabByUuid(tab.uuid),
-                );
+                engine
+                    .user_interfaces
+                    .first()
+                    .send_sync(self.tab_control, TabControlMessage::RemoveTab(tab.uuid));
             }
         }
         // Add any missing tabs.
@@ -914,15 +914,13 @@ impl SceneViewer {
 
                 engine.user_interfaces.first().send_sync(
                     self.tab_control,
-                    TabControlMessage::AddTab {
+                    TabControlMessage::AddTab(TabDefinition {
                         uuid: entry.id,
-                        definition: TabDefinition {
-                            header,
-                            content: Default::default(),
-                            can_be_closed: true,
-                            user_data: None,
-                        },
-                    },
+                        header,
+                        content: Default::default(),
+                        can_be_closed: true,
+                        user_data: None,
+                    }),
                 );
             }
         }
@@ -941,7 +939,7 @@ impl SceneViewer {
 
         engine.user_interfaces.first().send_sync(
             self.tab_control,
-            TabControlMessage::ActiveTabUuid(Some(scenes.current_scene_entry_ref().id)),
+            TabControlMessage::ActiveTab(Some(scenes.current_scene_entry_ref().id)),
         );
         // Then sync to the current scene.
         let entry = scenes.current_scene_entry_ref();

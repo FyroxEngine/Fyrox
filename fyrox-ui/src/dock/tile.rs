@@ -460,7 +460,7 @@ impl Control for Tile {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(TabControlMessage::ActiveTabUuid(Some(id))) = message.data() {
+        if let Some(TabControlMessage::ActiveTab(Some(id))) = message.data() {
             if message.destination() == self.tabs
                 && message.direction() == MessageDirection::FromWidget
             {
@@ -493,10 +493,7 @@ impl Control for Tile {
                                 for tab in tabs.tabs.iter() {
                                     let uuid = tab.uuid;
                                     if !windows.iter().any(|&h| ui[h].id == uuid) {
-                                        ui.send(
-                                            self.tabs,
-                                            TabControlMessage::RemoveTabByUuid(uuid),
-                                        );
+                                        ui.send(self.tabs, TabControlMessage::RemoveTab(uuid));
                                     }
                                 }
                                 for (i, &w) in windows.iter().enumerate() {
@@ -511,10 +508,7 @@ impl Control for Tile {
                                 }
                                 if let Some(&w) = windows.get(*index as usize) {
                                     let uuid = ui[w].id;
-                                    ui.send(
-                                        self.tabs,
-                                        TabControlMessage::ActiveTabUuid(Some(uuid)),
-                                    );
+                                    ui.send(self.tabs, TabControlMessage::ActiveTab(Some(uuid)));
                                 }
                             }
                             TileContent::VerticalTiles { tiles, .. }
@@ -1043,12 +1037,13 @@ impl Tile {
         let uuid = window.id;
         let header = create_tab_header(window.tab_label().to_owned(), &mut ui.build_ctx());
         let definition = TabDefinition {
+            uuid,
             can_be_closed: false,
             header,
             content: Handle::NONE,
             user_data: None,
         };
-        ui.send(self.tabs, TabControlMessage::AddTab { uuid, definition });
+        ui.send(self.tabs, TabControlMessage::AddTab(definition));
     }
     /// Send messages to prepare the window at the given handle for being docked
     /// in this tile.
@@ -1325,12 +1320,13 @@ impl TileBuilder {
                     let id = window.id;
                     let header = create_tab_header(window.tab_label().to_owned(), ctx);
                     let definition = TabDefinition {
+                        uuid: id,
                         can_be_closed: false,
                         content: Handle::NONE,
                         user_data: None,
                         header,
                     };
-                    tabs = tabs.with_tab_uuid(id, definition);
+                    tabs = tabs.with_tab(definition);
                 }
                 tabs = tabs.with_initial_tab(index as usize);
             }

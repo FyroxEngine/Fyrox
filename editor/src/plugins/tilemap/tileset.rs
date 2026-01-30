@@ -23,9 +23,8 @@
 //! with only minor modifications needed when switching between the two modes.
 
 use super::{commands::*, *};
-use crate::asset::preview::cache::IconRequest;
-use crate::plugins::inspector::editors::resource::ResourceField;
 use crate::{
+    asset::preview::cache::IconRequest,
     command::{Command, CommandGroup},
     fyrox::{
         asset::manager::ResourceManager,
@@ -33,32 +32,28 @@ use crate::{
         gui::{
             border::BorderBuilder,
             brush::Brush,
-            button::Button,
-            button::ButtonMessage,
-            color::{ColorFieldBuilder, ColorFieldMessage},
+            button::{Button, ButtonMessage},
+            color::{ColorField, ColorFieldBuilder, ColorFieldMessage},
             decorator::DecoratorMessage,
-            grid::SizeMode,
-            grid::{Column, GridBuilder, Row},
+            grid::{Column, Grid, GridBuilder, Row, SizeMode},
             message::{MessageDirection, UiMessage},
             scroll_viewer::ScrollViewerBuilder,
             stack_panel::StackPanelBuilder,
             tab_control::{TabControl, TabControlBuilder, TabControlMessage, TabDefinition},
-            text::TextBuilder,
-            text::TextMessage,
+            text::{Text, TextBuilder, TextMessage},
             widget::{WidgetBuilder, WidgetMessage},
-            window::{WindowBuilder, WindowMessage, WindowTitle},
+            window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, Thickness, UiNode, UserInterface,
         },
-        scene::tilemap::{tileset::TileSetRef, TileBook, TileDefinitionHandle},
+        scene::tilemap::{
+            brush::TileMapBrushResource, tileset::TileSetRef, TileBook, TileDefinitionHandle,
+        },
     },
     message::MessageSender,
-    plugins::inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
+    plugins::inspector::editors::resource::{
+        ResourceField, ResourceFieldBuilder, ResourceFieldMessage,
+    },
 };
-use fyrox::gui::color::ColorField;
-use fyrox::gui::grid::Grid;
-use fyrox::gui::text::Text;
-use fyrox::gui::window::{Window, WindowAlignment};
-use fyrox::scene::tilemap::brush::TileMapBrushResource;
 use macro_tab::MacroTab;
 use palette::{PaletteWidgetBuilder, DEFAULT_MATERIAL_COLOR};
 use std::sync::mpsc::Sender;
@@ -69,7 +64,10 @@ const TAB_MARGIN: Thickness = Thickness {
     right: 10.0,
     bottom: 2.0,
 };
-
+const TILES_TAB_UUID: Uuid = uuid!("63e4038a-be27-40cf-8140-88e5de36203d");
+const PROPERTIES_TAB_UUID: Uuid = uuid!("504d0f49-1ce3-48dd-9714-5cf369b9634e");
+const COLLISION_TAB_UUID: Uuid = uuid!("80558bb3-ffca-44c4-b424-1d2c21acae7d");
+const MACROS_TAB_UUID: Uuid = uuid!("67cb5962-a1c9-446b-b3cb-c112e2ca2f62");
 const DEFAULT_PAGE: Vector2<i32> = Vector2::new(0, 0);
 
 /// A window for editing tile sets and tile map brushes.
@@ -127,8 +125,14 @@ pub struct TileSetEditor {
     brush_macro_cell_sets: MacroCellSetListRef,
 }
 
-fn make_tab(name: &str, content: Handle<UiNode>, ctx: &mut BuildContext) -> TabDefinition {
+fn make_tab(
+    uuid: Uuid,
+    name: &str,
+    content: Handle<UiNode>,
+    ctx: &mut BuildContext,
+) -> TabDefinition {
     TabDefinition {
+        uuid,
         header: TextBuilder::new(WidgetBuilder::new().with_margin(TAB_MARGIN))
             .with_text(name)
             .build(ctx)
@@ -414,10 +418,25 @@ impl TileSetEditor {
         let colliders_tab = CollidersTab::new(tile_book.clone(), ctx);
         let macros_tab = MacroTab::new(macro_list.clone(), tile_book.clone(), ctx);
         let tab_control = TabControlBuilder::new(WidgetBuilder::new())
-            .with_tab(make_tab("Tiles", tile_tab.to_base(), ctx))
-            .with_tab(make_tab("Properties", properties_tab.handle(), ctx))
-            .with_tab(make_tab("Collision", colliders_tab.handle(), ctx))
-            .with_tab(make_tab("Macros", macros_tab.handle(), ctx))
+            .with_tab(make_tab(TILES_TAB_UUID, "Tiles", tile_tab.to_base(), ctx))
+            .with_tab(make_tab(
+                PROPERTIES_TAB_UUID,
+                "Properties",
+                properties_tab.handle(),
+                ctx,
+            ))
+            .with_tab(make_tab(
+                COLLISION_TAB_UUID,
+                "Collision",
+                colliders_tab.handle(),
+                ctx,
+            ))
+            .with_tab(make_tab(
+                MACROS_TAB_UUID,
+                "Macros",
+                macros_tab.handle(),
+                ctx,
+            ))
             .build(ctx);
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(800.0).with_height(600.0))
@@ -511,7 +530,10 @@ impl TileSetEditor {
             self.tile_set_selector,
             WidgetMessage::Visibility(tile_book.is_brush()),
         );
-        ui.send(self.tab_control, TabControlMessage::ActiveTab(Some(0)));
+        ui.send(
+            self.tab_control,
+            TabControlMessage::ActiveTab(Some(TILES_TAB_UUID)),
+        );
         for palette in [self.pages_palette, self.tiles_palette] {
             ui.send(
                 palette,

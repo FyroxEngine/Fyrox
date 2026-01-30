@@ -26,29 +26,22 @@
 use crate::{
     border::BorderBuilder,
     brush::Brush,
-    button::{ButtonBuilder, ButtonMessage},
+    button::{Button, ButtonBuilder, ButtonMessage},
     core::{
         algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         uuid_provider, visitor::prelude::*,
     },
-    decorator::{DecoratorBuilder, DecoratorMessage},
-    grid::{Column, GridBuilder, Row},
-    message::MessageData,
-    message::{ButtonState, MouseButton, UiMessage},
-    style::resource::StyleResourceExt,
-    style::{Style, StyledProperty},
+    decorator::{Decorator, DecoratorBuilder, DecoratorMessage},
+    grid::{Column, Grid, GridBuilder, Row},
+    message::{ButtonState, MessageData, MouseButton, UiMessage},
+    style::{resource::StyleResourceExt, Style, StyledProperty},
     utils::make_cross_primitive,
     vector_image::VectorImageBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    wrap_panel::WrapPanelBuilder,
+    wrap_panel::{WrapPanel, WrapPanelBuilder},
     BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
-
-use crate::button::Button;
-use crate::decorator::Decorator;
-use crate::grid::Grid;
-use crate::wrap_panel::WrapPanel;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
@@ -63,30 +56,14 @@ use std::{
 pub enum TabControlMessage {
     /// Used to change the active tab of a [`TabControl`] widget (with [`crate::message::MessageDirection::ToWidget`]) or to fetch if the active
     /// tab has changed (with [`crate::message::MessageDirection::FromWidget`]).
-    /// When the active tab changes, `ActiveTabUuid` will also be sent from the widget.
-    /// When the active tab changes, `ActiveTabUuid` will also be sent from the widget.
-    ActiveTab(Option<usize>),
-    /// Used to change the active tab of a [`TabControl`] widget (with [`crate::message::MessageDirection::ToWidget`]) or to fetch if the active
-    /// tab has changed (with [`crate::message::MessageDirection::FromWidget`]).
-    /// When the active tab changes, `ActiveTab` will also be sent from the widget.
-    ActiveTabUuid(Option<Uuid>),
+    ActiveTab(Option<Uuid>),
     /// Emitted by a tab that needs to be closed (and removed). Does **not** remove the tab, its main usage is to catch the moment
     /// when the tab wants to be closed. To remove the tab use [`TabControlMessage::RemoveTab`] message.
-    CloseTab(usize),
-    /// Emitted by a tab that needs to be closed (and removed). Does **not** remove the tab, its main usage is to catch the moment
-    /// when the tab wants to be closed. To remove the tab use [`TabControlMessage::RemoveTab`] message.
-    CloseTabByUuid(Uuid),
-    /// Used to remove a particular tab by its position in the tab list.
-    RemoveTab(usize),
+    CloseTab(Uuid),
     /// Used to remove a particular tab by its UUID.
-    RemoveTabByUuid(Uuid),
+    RemoveTab(Uuid),
     /// Adds a new tab using its definition and activates the tab.
-    AddTab {
-        /// The UUID of the newly created tab.
-        uuid: Uuid,
-        /// The specifications for the tab.
-        definition: TabDefinition,
-    },
+    AddTab(TabDefinition),
 }
 impl MessageData for TabControlMessage {}
 
@@ -150,43 +127,40 @@ pub struct Tab {
 ///
 /// ```rust,no_run
 /// # use fyrox_ui::{
-/// #     BuildContext,
-/// #     widget::WidgetBuilder,
-/// #     text::TextBuilder,
+/// #     core::uuid::uuid,
 /// #     tab_control::{TabControlBuilder, TabDefinition},
+/// #     text::TextBuilder,
+/// #     widget::WidgetBuilder,
+/// #     BuildContext,
 /// # };
 /// fn create_tab_control(ctx: &mut BuildContext) {
 ///     TabControlBuilder::new(WidgetBuilder::new())
-///         .with_tab(
-///             TabDefinition{
-///                 header: TextBuilder::new(WidgetBuilder::new())
-///                             .with_text("First")
-///                             .build(ctx)
-///                             .to_base(),
-///
-///                 content: TextBuilder::new(WidgetBuilder::new())
-///                             .with_text("First tab's contents!")
-///                             .build(ctx)
-///                             .to_base(),
-///                 can_be_closed: true,
-///                 user_data: None
-///             }
-///         )
-///         .with_tab(
-///             TabDefinition{
-///                 header: TextBuilder::new(WidgetBuilder::new())
-///                             .with_text("Second")
-///                             .build(ctx)
-///                             .to_base(),
-///
-///                 content: TextBuilder::new(WidgetBuilder::new())
-///                             .with_text("Second tab's contents!")
-///                             .build(ctx)
-///                             .to_base(),
-///                 can_be_closed: true,
-///                 user_data: None
-///             }
-///         )
+///         .with_tab(TabDefinition {
+///             uuid: uuid!("50964985-96d5-4292-b83c-e0dc02de6a50"),
+///             header: TextBuilder::new(WidgetBuilder::new())
+///                 .with_text("First")
+///                 .build(ctx)
+///                 .to_base(),
+///             content: TextBuilder::new(WidgetBuilder::new())
+///                 .with_text("First tab's contents!")
+///                 .build(ctx)
+///                 .to_base(),
+///             can_be_closed: true,
+///             user_data: None,
+///         })
+///         .with_tab(TabDefinition {
+///             uuid: uuid!("265e78db-f95a-445e-b027-2eee796dd996"),
+///             header: TextBuilder::new(WidgetBuilder::new())
+///                 .with_text("Second")
+///                 .build(ctx)
+///                 .to_base(),
+///             content: TextBuilder::new(WidgetBuilder::new())
+///                 .with_text("Second tab's contents!")
+///                 .build(ctx)
+///                 .to_base(),
+///             can_be_closed: true,
+///             user_data: None,
+///         })
 ///         .build(ctx);
 /// }
 /// ```
@@ -212,27 +186,22 @@ pub struct Tab {
 ///
 /// ```rust,no_run
 /// # use fyrox_ui::{
-/// #     BuildContext,
-/// #     widget::WidgetBuilder,
-/// #     text::TextBuilder,
-/// #     Thickness,
-/// #     tab_control::{TabDefinition},
+/// #     core::uuid::uuid, tab_control::TabDefinition, text::TextBuilder, widget::WidgetBuilder,
+/// #     BuildContext, Thickness,
 /// # };
 /// # fn build(ctx: &mut BuildContext) {
-/// # TabDefinition{
-/// header: TextBuilder::new(
-///             WidgetBuilder::new()
-///                 .with_margin(Thickness::uniform(4.0))
-///         )
-///             .with_text("First")
-///             .build(ctx)
-///             .to_base(),
-/// # content: Default::default(),
-/// # can_be_closed: true,
-/// # user_data: None
-/// # };
+/// TabDefinition {
+/// #   uuid: uuid!("4c430355-892b-4346-a523-553bc4b7df49"),
+///     header: TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(4.0)))
+///         .with_text("First")
+///         .build(ctx)
+///         .to_base(),
+/// #   content: Default::default(),
+/// #   can_be_closed: true,
+/// #   user_data: None,
+///     // ...
+/// };
 /// # }
-///
 /// ```
 #[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]
@@ -338,13 +307,9 @@ impl TabControl {
         self.active_tab = active_tab;
 
         // Notify potential listeners that the active tab has changed.
-        // First, we notify by tab index.
-        let mut msg = UiMessage::from_widget(self.handle, TabControlMessage::ActiveTab(active_tab));
-        msg.flags = flags;
-        ui.send_message(msg);
         // Next we notify by the tab's uuid, which does not change even as the tab moves.
         let tab_id = active_tab.and_then(|i| self.tabs.get(i)).map(|t| t.uuid);
-        let mut msg = UiMessage::from_widget(self.handle, TabControlMessage::ActiveTabUuid(tab_id));
+        let mut msg = UiMessage::from_widget(self.handle, TabControlMessage::ActiveTab(tab_id));
         msg.flags = flags;
         ui.send_message(msg);
     }
@@ -389,26 +354,21 @@ impl Control for TabControl {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(ButtonMessage::Click) = message.data() {
-            for (tab_index, tab) in self.tabs.iter().enumerate() {
+            for tab in self.tabs.iter() {
                 if message.destination() == tab.header_button && tab.header_button.is_some() {
-                    ui.send(
-                        self.handle,
-                        TabControlMessage::ActiveTabUuid(Some(tab.uuid)),
-                    );
+                    ui.send(self.handle, TabControlMessage::ActiveTab(Some(tab.uuid)));
                     break;
                 } else if message.destination() == tab.close_button {
                     // Send two messages, one containing the index, one containing the UUID,
                     // to allow listeners their choice of which system they prefer.
-                    ui.post(self.handle, TabControlMessage::CloseTab(tab_index));
-                    ui.post(self.handle, TabControlMessage::CloseTabByUuid(tab.uuid));
+                    ui.post(self.handle, TabControlMessage::CloseTab(tab.uuid));
                 }
             }
         } else if let Some(WidgetMessage::MouseDown { button, .. }) = message.data() {
             if *button == MouseButton::Middle {
-                for (tab_index, tab) in self.tabs.iter().enumerate() {
+                for tab in self.tabs.iter() {
                     if ui.is_node_child_of(message.destination(), tab.header_button) {
-                        ui.post(self.handle, TabControlMessage::CloseTab(tab_index));
-                        ui.post(self.handle, TabControlMessage::CloseTabByUuid(tab.uuid));
+                        ui.post(self.handle, TabControlMessage::CloseTab(tab.uuid));
                     }
                 }
             }
@@ -421,12 +381,7 @@ impl Control for TabControl {
             }
         } else if let Some(msg) = message.data_for::<TabControlMessage>(self.handle()) {
             match msg {
-                TabControlMessage::ActiveTab(active_tab) => {
-                    if self.active_tab != *active_tab {
-                        self.set_active_tab(*active_tab, ui, message.flags);
-                    }
-                }
-                TabControlMessage::ActiveTabUuid(uuid) => match uuid {
+                TabControlMessage::ActiveTab(uuid) => match uuid {
                     Some(uuid) => {
                         if let Some(active_tab) = self.tabs.iter().position(|t| t.uuid == *uuid) {
                             if self.active_tab != Some(active_tab) {
@@ -439,18 +394,10 @@ impl Control for TabControl {
                     }
                     _ => (),
                 },
-                TabControlMessage::CloseTab(_) | TabControlMessage::CloseTabByUuid(_) => {
+                TabControlMessage::CloseTab(_) => {
                     // Nothing to do.
                 }
-                TabControlMessage::RemoveTab(index) => {
-                    // If a tab was removed, then resend the message.
-                    // Users that remove tabs using the index-based message only get the index-based message in reponse,
-                    // since presumably their application is not using UUIDs.
-                    if self.remove_tab(*index, ui) {
-                        ui.send_message(message.reverse());
-                    }
-                }
-                TabControlMessage::RemoveTabByUuid(uuid) => {
+                TabControlMessage::RemoveTab(uuid) => {
                     // Find the tab that has the given uuid.
                     let index = self.tabs.iter().position(|t| t.uuid == *uuid);
                     // Users that remove tabs using the UUID-based message only get the UUID-based message in reponse,
@@ -461,8 +408,8 @@ impl Control for TabControl {
                         }
                     }
                 }
-                TabControlMessage::AddTab { uuid, definition } => {
-                    if self.tabs.iter().any(|t| &t.uuid == uuid) {
+                TabControlMessage::AddTab(definition) => {
+                    if self.tabs.iter().any(|t| t.uuid == definition.uuid) {
                         ui.send(definition.header, WidgetMessage::Remove);
                         ui.send(definition.content, WidgetMessage::Remove);
                         return;
@@ -487,7 +434,7 @@ impl Control for TabControl {
                     ui.send_message(message.reverse());
 
                     self.tabs.push(Tab {
-                        uuid: *uuid,
+                        uuid: definition.uuid,
                         header_button: header.button,
                         content: definition.content,
                         close_button: header.close_button,
@@ -506,7 +453,7 @@ impl Control for TabControl {
 pub struct TabControlBuilder {
     widget_builder: WidgetBuilder,
     is_tab_drag_allowed: bool,
-    tabs: Vec<(Uuid, TabDefinition)>,
+    tabs: Vec<TabDefinition>,
     active_tab_brush: Option<StyledProperty<Brush>>,
     initial_tab: usize,
 }
@@ -514,6 +461,8 @@ pub struct TabControlBuilder {
 /// Tab definition is used to describe the content of each tab for the [`TabControlBuilder`] builder.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TabDefinition {
+    /// Unique identifier of the tab.
+    pub uuid: Uuid,
     /// Content of the tab-switching (header) button.
     pub header: Handle<UiNode>,
     /// Content of the tab.
@@ -643,13 +592,7 @@ impl TabControlBuilder {
 
     /// Adds a new tab to the builder.
     pub fn with_tab(mut self, tab: TabDefinition) -> Self {
-        self.tabs.push((Uuid::new_v4(), tab));
-        self
-    }
-
-    /// Adds a new tab to the builder, using the given UUID for the tab.
-    pub fn with_tab_uuid(mut self, uuid: Uuid, tab: TabDefinition) -> Self {
-        self.tabs.push((uuid, tab));
+        self.tabs.push(tab);
         self
     }
 
@@ -663,7 +606,7 @@ impl TabControlBuilder {
     pub fn build(self, ctx: &mut BuildContext) -> Handle<TabControl> {
         let tab_count = self.tabs.len();
         // Hide everything but initial tab content.
-        for (i, (_, tab)) in self.tabs.iter().enumerate() {
+        for (i, tab) in self.tabs.iter().enumerate() {
             if let Ok(content) = ctx.try_get_node_mut(tab.content) {
                 content.set_visibility(i == self.initial_tab);
             }
@@ -677,7 +620,7 @@ impl TabControlBuilder {
             .tabs
             .iter()
             .enumerate()
-            .map(|(i, (_, tab_definition))| {
+            .map(|(i, tab_definition)| {
                 Header::build(
                     tab_definition,
                     i == self.initial_tab,
@@ -697,7 +640,7 @@ impl TabControlBuilder {
 
         let content_container = GridBuilder::new(
             WidgetBuilder::new()
-                .with_children(self.tabs.iter().map(|(_, t)| t.content))
+                .with_children(self.tabs.iter().map(|t| t.content))
                 .on_row(1),
         )
         .add_row(Row::stretch())
@@ -732,8 +675,8 @@ impl TabControlBuilder {
             tabs: tab_headers
                 .into_iter()
                 .zip(self.tabs)
-                .map(|(header, (uuid, tab))| Tab {
-                    uuid,
+                .map(|(header, tab)| Tab {
+                    uuid: tab.uuid,
                     header_button: header.button,
                     content: tab.content,
                     close_button: header.close_button,
