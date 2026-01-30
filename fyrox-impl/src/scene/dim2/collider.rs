@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//! Collider is a geometric entity that can be attached to a rigid body to allow participate it
+//! Collider is a geometric entity that can be attached to a rigid body to allow to participate it
 //! participate in contact generation, collision response and proximity queries.
 
 use crate::scene::node::constructor::NodeConstructor;
@@ -155,7 +155,7 @@ impl Default for TriangleShape {
 ///
 /// # Notes
 ///
-/// Currently there is only one way to set geometry - using a scene node as a source of data.
+/// Currently, there is only one way to set geometry - using a scene node as a source of data.
 #[derive(Default, Clone, Copy, PartialEq, Hash, Debug, Visit, Reflect, Eq, TypeUuidProvider)]
 #[type_uuid(id = "1d451699-d76e-4774-87ea-dd3e2751cb39")]
 pub struct GeometrySource(pub Handle<Node>);
@@ -266,8 +266,8 @@ impl ColliderShape {
     }
 }
 
-/// Collider is a geometric entity that can be attached to a rigid body to allow participate it
-/// participate in contact generation, collision response and proximity queries.
+/// Collider is a geometric entity that can be attached to a rigid body to allow to participate in
+/// contact generation, collision response and proximity queries.
 #[derive(Reflect, Visit, Debug, ComponentProvider)]
 #[reflect(derived_type = "Node")]
 pub struct Collider {
@@ -368,7 +368,7 @@ impl Collider {
     /// # Performance
     ///
     /// This is relatively expensive operation - it forces the physics engine to recalculate contacts,
-    /// perform collision response, etc. Try avoid calling this method each frame for better
+    /// perform collision response, etc. Try to avoid calling this method each frame for better
     /// performance.
     pub fn set_shape(&mut self, shape: ColliderShape) -> ColliderShape {
         self.shape.set_value_and_mark_modified(shape)
@@ -389,7 +389,7 @@ impl Collider {
     /// # Performance
     ///
     /// This is relatively expensive operation - it forces the physics engine to recalculate contacts,
-    /// perform collision response, etc. Try avoid calling this method each frame for better
+    /// perform collision response, etc. Try to avoid calling this method each frame for better
     /// performance.
     pub fn shape_mut(&mut self) -> &mut ColliderShape {
         self.shape.get_value_mut_and_mark_modified()
@@ -402,7 +402,7 @@ impl Collider {
     /// # Performance
     ///
     /// This is relatively expensive operation - it forces the physics engine to recalculate contacts,
-    /// perform collision response, etc. Try avoid calling this method each frame for better
+    /// perform collision response, etc. Try to avoid calling this method each frame for better
     /// performance.
     pub fn set_restitution(&mut self, restitution: f32) -> f32 {
         self.restitution.set_value_and_mark_modified(restitution)
@@ -420,12 +420,12 @@ impl Collider {
     ///
     /// 1) If a rigid body to which collider is attached have no additional mass, then the rigid body
     ///    won't rotate, only move.
-    /// 2) If the rigid body have some additional mass, then the rigid body will have normal behaviour.
+    /// 2) If the rigid body have some additional mass, then the rigid body will have normal behavior.
     ///
     /// # Performance
     ///
     /// This is relatively expensive operation - it forces the physics engine to recalculate contacts,
-    /// perform collision response, etc. Try avoid calling this method each frame for better
+    /// perform collision response, etc. Try to avoid calling this method each frame for better
     /// performance.
     pub fn set_density(&mut self, density: Option<f32>) -> Option<f32> {
         self.density.set_value_and_mark_modified(density)
@@ -547,7 +547,7 @@ impl Collider {
     /// This includes only cases where two colliders are pressing against each other,
     /// and only if [`ContactPair::has_any_active_contact`] is true.
     /// When `has_any_active_contact` is false, the colliders may merely have overlapping
-    /// bounding boxes. See [`Collider::active_contacts`] for an interator that yields
+    /// bounding boxes. See [`Collider::active_contacts`] for an integrator that yields
     /// only pairs where `has_any_active_contact` is true.
     ///
     /// When a collider is passing through a sensor collider, that goes into the
@@ -593,7 +593,7 @@ impl Collider {
     /// one of the colliders being a sensor.
     /// If [`IntersectionPair::has_any_active_contact`] is true, that means the colliders are actually touching.
     /// When `has_any_active_contact` is false, the colliders may merely have overlapping
-    /// bounding boxes. See [`Collider::active_intersects`] for an interator that yields
+    /// bounding boxes. See [`Collider::active_intersects`] for an integrator that yields
     /// only colliders that actually overlap this collider.
     ///
     /// Each pair produced by this iterator includes the handles of two colliders,
