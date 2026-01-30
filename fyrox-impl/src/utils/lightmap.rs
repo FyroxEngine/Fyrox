@@ -54,7 +54,7 @@ use crate::{
     utils::{uvgen, uvgen::SurfaceDataPatch},
 };
 use fxhash::FxHashMap;
-use fyrox_core::{warn, Uuid};
+use fyrox_core::{ok_or_continue, warn, Uuid};
 use fyrox_resource::ResourceData;
 use lightmap::light::{
     DirectionalLightDefinition, LightDefinition, PointLightDefinition, SpotLightDefinition,
@@ -439,10 +439,16 @@ impl LightmapInputData {
         let mut instances = Vec::new();
         let mut data_set = FxHashMap::default();
 
-        'node_loop: for (handle, node) in scene.graph.pair_iter() {
+        let mut stack = vec![scene.graph.root()];
+
+        'node_loop: while let Some(handle) = stack.pop() {
+            let node = ok_or_continue!(scene.graph.try_get_node(handle));
+
             if !filter(handle, node) {
                 continue 'node_loop;
             }
+
+            stack.extend_from_slice(node.children());
 
             if let Some(mesh) = node.cast::<Mesh>() {
                 if !mesh.global_visibility() || !mesh.is_globally_enabled() {
