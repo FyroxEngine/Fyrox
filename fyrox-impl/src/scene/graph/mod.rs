@@ -173,6 +173,7 @@ pub struct Graph {
     #[reflect(hidden)]
     pub(crate) message_receiver: Receiver<NodeMessage>,
 
+    #[reflect(read_only)]
     instance_id_map: FxHashMap<SceneNodeId, Handle<Node>>,
 }
 
