@@ -54,7 +54,7 @@ use crate::{
     utils::{uvgen, uvgen::SurfaceDataPatch},
 };
 use fxhash::FxHashMap;
-use fyrox_core::Uuid;
+use fyrox_core::{warn, Uuid};
 use fyrox_resource::ResourceData;
 use lightmap::light::{
     DirectionalLightDefinition, LightDefinition, PointLightDefinition, SpotLightDefinition,
@@ -446,19 +446,31 @@ impl LightmapInputData {
 
             if let Some(mesh) = node.cast::<Mesh>() {
                 if !mesh.global_visibility() || !mesh.is_globally_enabled() {
+                    warn!(
+                        "[Lightmap]: skipping {}({}) node, because \
+                    it is either invisible or disabled.",
+                        mesh.name(),
+                        handle
+                    );
                     continue;
                 }
                 let global_transform = mesh.global_transform();
                 'surface_loop: for surface in mesh.surfaces() {
                     // Check material for compatibility.
-
                     let mut material_state = surface.material().state();
                     if let Some(material) = material_state.data() {
+                        let binding_name = "lightmapTexture";
                         if !material
-                            .binding_ref("lightmapTexture")
+                            .binding_ref(binding_name)
                             .map(|v| matches!(v, MaterialResourceBinding::Texture { .. }))
                             .unwrap_or_default()
                         {
+                            warn!(
+                                "[Lightmap]: skipping {}({}) node, because \
+                            its material does not have a {binding_name} texture resource!",
+                                node.name(),
+                                handle
+                            );
                             continue 'surface_loop;
                         }
                     }
