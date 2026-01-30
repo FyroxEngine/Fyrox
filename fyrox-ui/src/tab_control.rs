@@ -23,6 +23,7 @@
 
 #![warn(missing_docs)]
 
+use crate::message::DeliveryMode;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -286,7 +287,13 @@ impl TabControl {
     /// Send the necessary messages to activate the tab at the given index, or deactivate all tabs if no index is given.
     /// Do nothing if the given index does not refer to any existing tab.
     /// If the index was valid, send FromWidget messages to notify listeners of the change, using messages with the given flags.
-    fn set_active_tab(&mut self, active_tab: Option<usize>, ui: &mut UserInterface, flags: u64) {
+    fn set_active_tab(
+        &mut self,
+        active_tab: Option<usize>,
+        ui: &mut UserInterface,
+        flags: u64,
+        delivery_mode: DeliveryMode,
+    ) {
         if let Some(index) = active_tab {
             if self.tabs.len() <= index {
                 return;
@@ -311,6 +318,7 @@ impl TabControl {
         let tab_id = active_tab.and_then(|i| self.tabs.get(i)).map(|t| t.uuid);
         let mut msg = UiMessage::from_widget(self.handle, TabControlMessage::ActiveTab(tab_id));
         msg.flags = flags;
+        msg.delivery_mode = delivery_mode;
         ui.send_message(msg);
     }
     /// Send the messages necessary to remove the tab at the given index and update the currently active tab.
@@ -332,13 +340,13 @@ impl TabControl {
                 Ordering::Equal => {
                     // The active tab was removed, so we need to change the active tab.
                     if self.tabs.is_empty() {
-                        self.set_active_tab(None, ui, 0);
+                        self.set_active_tab(None, ui, 0, DeliveryMode::FullCycle);
                     } else if *active_tab == 0 {
                         // The index has not changed, but this is actually a different tab,
                         // so we need to activate it.
-                        self.set_active_tab(Some(0), ui, 0);
+                        self.set_active_tab(Some(0), ui, 0, DeliveryMode::FullCycle);
                     } else {
-                        self.set_active_tab(Some(active_tab - 1), ui, 0);
+                        self.set_active_tab(Some(active_tab - 1), ui, 0, DeliveryMode::FullCycle);
                     }
                 }
                 Ordering::Greater => (), // Do nothing, since removed tab was to the right of active tab.
@@ -385,12 +393,17 @@ impl Control for TabControl {
                     Some(uuid) => {
                         if let Some(active_tab) = self.tabs.iter().position(|t| t.uuid == *uuid) {
                             if self.active_tab != Some(active_tab) {
-                                self.set_active_tab(Some(active_tab), ui, message.flags);
+                                self.set_active_tab(
+                                    Some(active_tab),
+                                    ui,
+                                    message.flags,
+                                    message.delivery_mode,
+                                );
                             }
                         }
                     }
                     None if self.active_tab.is_some() => {
-                        self.set_active_tab(None, ui, message.flags)
+                        self.set_active_tab(None, ui, message.flags, message.delivery_mode)
                     }
                     _ => (),
                 },
