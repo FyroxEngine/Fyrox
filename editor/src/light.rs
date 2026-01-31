@@ -53,6 +53,10 @@ use std::{
 
 #[derive(Reflect, Clone, Debug)]
 struct LightmapperSettings {
+    /// Name of the property in a material that will be modified in all materials for all surfaces
+    /// that will receive the light map.
+    texture_name: String,
+
     /// Amount of texels per unit. It defines 'pixels density' per unit of area (square meters). The
     /// more the value, the more detailed produced light map will be and vice versa. This value
     /// **directly** affects performance in quadratic manner, which means that if you change it from
@@ -76,6 +80,7 @@ struct LightmapperSettings {
 impl Default for LightmapperSettings {
     fn default() -> Self {
         Self {
+            texture_name: "lightmapTexture".to_string(),
             texels_per_unit: 64,
             spacing: 0.005,
             path: Default::default(),
@@ -320,6 +325,7 @@ impl LightPanel {
                 self.progress_window = Some(progress_window);
 
                 if let Ok(input_data) = LightmapInputData::from_scene(
+                    &self.settings.texture_name,
                     scene,
                     |handle, _| handle != game_scene.editor_objects_root,
                     cancellation_token.clone(),

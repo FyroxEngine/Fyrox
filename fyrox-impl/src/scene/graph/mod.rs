@@ -1052,22 +1052,35 @@ impl Graph {
                 if let Some(mesh) = self.pool[handle].cast_mut::<Mesh>() {
                     for surface in mesh.surfaces() {
                         let data = surface.data();
-                        unique_data_set.entry(data.key()).or_insert(data);
+                        unique_data_set
+                            .entry(data.key())
+                            .or_insert((data, surface.material.deref().clone()));
                     }
                 }
             }
 
-            for (_, data) in unique_data_set.into_iter() {
-                let mut data = data.data_ref();
-
-                if let Some(patch) = lightmap.patches.get(&data.content_hash()) {
-                    lightmap::apply_surface_data_patch(&mut data, &patch.0);
-                } else {
-                    Log::writeln(
-                        MessageKind::Warning,
-                        "Failed to get surface data patch while resolving lightmap!\
+            for (_, (surface_data, material)) in unique_data_set.into_iter() {
+                let mut data = surface_data.data_ref();
+                if let Some(binding_point) = material
+                    .data_ref()
+                    .shader()
+                    .data_ref()
+                    .find_texture_resource("lightmapTexture")
+                    .map(|t| t.binding)
+                {
+                    if let Some(patch) = lightmap.patches.get(&data.content_hash()) {
+                        lightmap::apply_surface_data_patch(
+                            &mut data,
+                            &patch.0,
+                            binding_point as u8,
+                        );
+                    } else {
+                        Log::writeln(
+                            MessageKind::Warning,
+                            "Failed to get surface data patch while resolving lightmap!\
                     This means that surface has changed and lightmap must be regenerated!",
-                    );
+                        );
+                    }
                 }
             }
 
