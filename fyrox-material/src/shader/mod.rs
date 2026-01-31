@@ -799,18 +799,28 @@ impl Shader {
         })
     }
 
-    /// Checks if this shader has a texture resource with the specified name.
-    pub fn has_texture_resource(&self, name: &str) -> bool {
-        self.definition.resources.iter().any(|res| {
+    /// Tries to find a texture resource with the specified name.
+    pub fn find_texture_resource(&self, name: &str) -> Option<&ShaderResourceDefinition> {
+        self.definition.resources.iter().find(|res| {
             res.name.as_str() == name && matches!(res.kind, ShaderResourceKind::Texture { .. })
         })
     }
 
-    /// Checks if this shader has a property group resource with the specified name.
-    pub fn has_property_group_resource(&self, name: &str) -> bool {
-        self.definition.resources.iter().any(|res| {
+    /// Tries to find a property group resource with the specified name.
+    pub fn find_property_group_resource(&self, name: &str) -> Option<&ShaderResourceDefinition> {
+        self.definition.resources.iter().find(|res| {
             res.name.as_str() == name && matches!(res.kind, ShaderResourceKind::PropertyGroup(_))
         })
+    }
+
+    /// Checks if this shader has a texture resource with the specified name.
+    pub fn has_texture_resource(&self, name: &str) -> bool {
+        self.find_texture_resource(name).is_some()
+    }
+
+    /// Checks if this shader has a property group resource with the specified name.
+    pub fn has_property_group_resource(&self, name: &str) -> bool {
+        self.find_property_group_resource(name).is_some()
     }
 }
 
