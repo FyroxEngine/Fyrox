@@ -61,7 +61,6 @@ use fyrox::gui::button::Button;
 use fyrox::gui::image::Image;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::text::Text;
-use fyrox::gui::{HorizontalAlignment, VerticalAlignment};
 use std::{any::TypeId, sync::mpsc::Sender};
 
 #[derive(Debug, PartialEq, Clone)]

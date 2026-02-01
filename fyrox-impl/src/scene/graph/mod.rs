@@ -1008,31 +1008,53 @@ impl Graph {
     }
 
     /// Tries to set new lightmap to scene.
-    pub fn set_lightmap(&mut self, lightmap: Lightmap) -> Result<Option<Lightmap>, &'static str> {
-        // Assign textures to surfaces.
-        for (handle, lightmaps) in lightmap.map.iter() {
-            if let Some(mesh) = self[*handle].cast_mut::<Mesh>() {
-                if mesh.surfaces().len() != lightmaps.len() {
-                    return Err("failed to set lightmap, surface count mismatch");
-                }
+    pub fn set_lightmap(
+        &mut self,
+        new_lightmap: Option<Lightmap>,
+    ) -> Result<Option<Lightmap>, &'static str> {
+        if let Some(lightmap) = new_lightmap.as_ref() {
+            // Assign textures to surfaces.
+            for (handle, lightmaps) in lightmap.map.iter() {
+                if let Ok(mesh) = self.try_get_mut_of_type::<Mesh>(*handle) {
+                    if mesh.surfaces().len() != lightmaps.len() {
+                        return Err("failed to set lightmap, surface count mismatch");
+                    }
 
-                for (surface, entry) in mesh.surfaces_mut().iter_mut().zip(lightmaps) {
-                    // This unwrap() call must never panic in normal conditions, because texture wrapped in Option
-                    // only to implement Default trait to be serializable.
-                    let texture = entry.texture.clone().unwrap();
-                    let mut material_state = surface.material().state();
-                    if let Some(material) = material_state.data() {
-                        material.bind(
-                            "lightmapTexture",
-                            MaterialResourceBinding::Texture(MaterialTextureBinding {
-                                value: Some(texture),
-                            }),
-                        );
+                    for (surface, entry) in mesh.surfaces_mut().iter_mut().zip(lightmaps) {
+                        // This unwrap() call must never panic in normal conditions, because texture wrapped in Option
+                        // only to implement Default trait to be serializable.
+                        let texture = entry.texture.clone().unwrap();
+                        let mut material_state = surface.material().state();
+                        if let Some(material) = material_state.data() {
+                            material.bind(
+                                &lightmap.texture_name,
+                                MaterialResourceBinding::Texture(MaterialTextureBinding {
+                                    value: Some(texture),
+                                }),
+                            );
+                        }
+                    }
+                }
+            }
+        } else if let Some(existing_lightmap) = self.lightmap.as_ref() {
+            let texture_name = existing_lightmap.texture_name.clone();
+            for node in self.linear_iter_mut() {
+                if let Some(mesh) = node.cast_mut::<Mesh>() {
+                    for surface in mesh.surfaces_mut() {
+                        let mut material_state = surface.material().state();
+                        if let Some(material) = material_state.data() {
+                            material.bind(
+                                &texture_name,
+                                MaterialResourceBinding::Texture(MaterialTextureBinding {
+                                    value: None,
+                                }),
+                            );
+                        }
                     }
                 }
             }
         }
-        Ok(self.lightmap.replace(lightmap))
+        Ok(std::mem::replace(&mut self.lightmap, new_lightmap))
     }
 
     /// Returns current lightmap.

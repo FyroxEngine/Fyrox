@@ -43,8 +43,10 @@ use fyrox::gui::button::Button;
 use fyrox::gui::inspector::editors::PropertyEditorDefinitionContainer;
 use fyrox::gui::inspector::{Inspector, InspectorContextArgs};
 use fyrox::gui::progress_bar::ProgressBar;
+use fyrox::gui::stack_panel::StackPanelBuilder;
 use fyrox::gui::text::Text;
 use fyrox::gui::window::{Window, WindowAlignment};
+use fyrox::gui::Orientation;
 use std::{
     path::PathBuf,
     sync::mpsc::{Receiver, Sender},
@@ -212,6 +214,7 @@ pub struct LightPanel {
     sender: Sender<Result<Lightmap, LightmapGenerationError>>,
     receiver: Receiver<Result<Lightmap, LightmapGenerationError>>,
     clipboard: Option<Box<dyn Reflect>>,
+    clear_lightmap: Handle<Button>,
 }
 
 impl LightPanel {
@@ -222,6 +225,7 @@ impl LightPanel {
         let settings = LightmapperSettings::default();
 
         let generate;
+        let clear_lightmap;
         let inspector;
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
         let window = WindowBuilder::new(
@@ -262,17 +266,32 @@ impl LightPanel {
                         })
                         .build(ctx),
                     )
-                    .with_child({
-                        generate = ButtonBuilder::new(
+                    .with_child(
+                        StackPanelBuilder::new(
                             WidgetBuilder::new()
                                 .on_row(1)
                                 .on_column(0)
-                                .with_margin(Thickness::uniform(1.0)),
+                                .with_horizontal_alignment(HorizontalAlignment::Right)
+                                .with_child({
+                                    generate = ButtonBuilder::new(
+                                        WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
+                                    )
+                                    .with_text("Generate Lightmap")
+                                    .build(ctx);
+                                    generate
+                                })
+                                .with_child({
+                                    clear_lightmap = ButtonBuilder::new(
+                                        WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
+                                    )
+                                    .with_text("Clear Lightmap")
+                                    .build(ctx);
+                                    clear_lightmap
+                                }),
                         )
-                        .with_text("Generate Lightmap")
-                        .build(ctx);
-                        generate
-                    }),
+                        .with_orientation(Orientation::Horizontal)
+                        .build(ctx),
+                    ),
             )
             .add_column(Column::stretch())
             .add_row(Row::stretch())
@@ -292,6 +311,7 @@ impl LightPanel {
             sender,
             receiver,
             clipboard: None,
+            clear_lightmap,
         }
     }
 
@@ -367,6 +387,9 @@ impl LightPanel {
                         ))
                     }
                 }
+            } else if message.destination() == self.clear_lightmap {
+                let scene = &mut engine.scenes[game_scene.scene];
+                Log::verify(scene.graph.set_lightmap(None));
             }
 
             if let Some(progress_window) = self.progress_window.as_ref() {
@@ -396,7 +419,7 @@ impl LightPanel {
             let scene = &mut engine.scenes[game_scene.scene];
             match result {
                 Ok(lightmap) => {
-                    if let Err(err) = scene.graph.set_lightmap(lightmap) {
+                    if let Err(err) = scene.graph.set_lightmap(Some(lightmap)) {
                         Log::err(format!("Failed to set generated lightmap. Reason: {err}"));
                     }
                 }
