@@ -1087,7 +1087,7 @@ impl Graph {
                     .data_ref()
                     .shader()
                     .data_ref()
-                    .find_texture_resource("lightmapTexture")
+                    .find_texture_resource(&lightmap.texture_name)
                     .map(|t| t.binding)
                 {
                     if let Some(patch) = lightmap.patches.get(&data.content_hash()) {
@@ -1113,7 +1113,7 @@ impl Graph {
                         let mut material_state = surface.material().state();
                         if let Some(material) = material_state.data() {
                             material.bind(
-                                "lightmapTexture",
+                                &lightmap.texture_name,
                                 MaterialResourceBinding::Texture(MaterialTextureBinding {
                                     value: entry.texture.clone(),
                                 }),
