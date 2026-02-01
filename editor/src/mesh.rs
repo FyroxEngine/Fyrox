@@ -62,6 +62,7 @@ use crate::{
     world::selection::GraphSelection,
     Message,
 };
+use fyrox::core::math::TriangleDefinition;
 use fyrox::gui::VerticalAlignment;
 
 pub struct MeshControlPanel {
@@ -305,16 +306,21 @@ fn surface_data_statistics(surface_data: &SurfaceData) -> Result<String, std::fm
     let mut stats = String::new();
     writeln!(
         &mut stats,
-        "Vertices: {}",
+        "Vertices: {}\nVertex Size: {} bytes\nVertex Buffer Size: {} bytes",
         surface_data.vertex_buffer.vertex_count(),
+        surface_data.vertex_buffer.vertex_size(),
+        surface_data.vertex_buffer.raw_data().len()
     )?;
     for (i, attribute) in surface_data.vertex_buffer.layout().iter().enumerate() {
         writeln!(&mut stats, "[{i}]{attribute}")?;
     }
+    let triangle_size = size_of::<TriangleDefinition>();
     writeln!(
         &mut stats,
-        "Triangles: {}",
+        "Triangles: {}\nTriangle Size: {} bytes\nTriangle Buffer Size: {} bytes",
         surface_data.geometry_buffer.len(),
+        triangle_size,
+        surface_data.geometry_buffer.len() * triangle_size
     )?;
     Ok(stats)
 }
@@ -340,7 +346,7 @@ impl SurfaceDataViewer {
         )
         .add_row(Row::stretch())
         .add_column(Column::stretch())
-        .add_column(Column::strict(180.0))
+        .add_column(Column::strict(220.0))
         .build(ctx);
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(650.0).with_height(400.0))
