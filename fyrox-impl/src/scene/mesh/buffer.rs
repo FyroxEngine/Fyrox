@@ -197,6 +197,23 @@ pub struct VertexAttribute {
     pub normalized: bool,
 }
 
+impl Display for VertexAttribute {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Vertex Attribute:\n\tUsage: {:?}\n\tData Type: {:?}\n\tComponent Count: {}\n\t\
+            Divisor: {}\n\tOffset: {}\n\tBinding Point:{}\n\tNormalized: {}",
+            self.usage,
+            self.data_type,
+            self.size,
+            self.divisor,
+            self.offset,
+            self.shader_location,
+            self.normalized
+        )
+    }
+}
+
 /// Bytes storage of a vertex buffer.
 #[derive(Reflect, Clone, Debug)]
 pub struct BytesStorage {
