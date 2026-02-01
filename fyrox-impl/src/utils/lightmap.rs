@@ -75,7 +75,7 @@ use std::{
 pub fn apply_surface_data_patch(
     data: &mut SurfaceData,
     patch: &SurfaceDataPatch,
-    texture_binding_point: u8,
+    tex_coord_binding_point: u8,
 ) {
     if !data
         .vertex_buffer
@@ -89,7 +89,7 @@ pub fn apply_surface_data_patch(
                     data_type: VertexAttributeDataType::F32,
                     size: 2,
                     divisor: 0,
-                    shader_location: texture_binding_point,
+                    shader_location: tex_coord_binding_point,
                     normalized: false,
                 },
                 Vector2::<f32>::default(),
@@ -172,6 +172,11 @@ pub struct Lightmap {
     #[visit(optional)] // Backward compatibility
     pub texture_name: String,
 
+    /// Location of the second texture coordinate attribute in the vertex buffer
+    /// of all surfaces.
+    #[visit(optional)] // Backward compatibility
+    pub second_tex_coord_location: u8,
+
     /// Node handle to lightmap mapping. It is used to quickly get information about
     /// lightmaps for any node in scene.
     pub map: FxHashMap<Handle<Node>, Vec<LightmapEntry>>,
@@ -187,6 +192,7 @@ impl Default for Lightmap {
     fn default() -> Self {
         Self {
             texture_name: "lightmapTexture".to_string(),
+            second_tex_coord_location: 6,
             map: Default::default(),
             patches: Default::default(),
         }
@@ -353,30 +359,26 @@ impl From<VertexFetchError> for LightmapGenerationError {
     }
 }
 
-struct SurfaceDefinition {
-    surface: SurfaceResource,
-    texture_binding_point: u8,
-}
-
 /// Data set required to generate a lightmap. It could be produced from a scene using [`LightmapInputData::from_scene`] method.
 /// It is used to split preparation step from the actual lightmap generation; to be able to put heavy generation in a separate
 /// thread.
 pub struct LightmapInputData {
     texture_name: String,
-    data_set: FxHashMap<u64, SurfaceDefinition>,
+    second_tex_coord_location: u8,
+    data_set: FxHashMap<u64, SurfaceResource>,
     instances: Vec<Instance>,
     lights: FxHashMap<Handle<Node>, LightDefinition>,
 }
 
-fn find_lightmap_texture_binding_point(
+fn has_lightmap_texture_binding_point(
     texture_name: &str,
     node: &Node,
     surface_index: usize,
     material: &Material,
-) -> Option<usize> {
+) -> bool {
     if let Some(shader) = material.shader().data_ref().as_loaded_ref() {
-        if let Some(resource) = shader.find_texture_resource(texture_name) {
-            Some(resource.binding)
+        if shader.has_texture_resource(texture_name) {
+            true
         } else {
             warn!(
                 "[Lightmap]: skipping {}({}) node's surface {surface_index}, because its material \
@@ -384,7 +386,7 @@ fn find_lightmap_texture_binding_point(
                 node.name(),
                 node.self_handle()
             );
-            None
+            false
         }
     } else {
         warn!(
@@ -393,7 +395,7 @@ fn find_lightmap_texture_binding_point(
             node.name(),
             node.self_handle()
         );
-        None
+        false
     }
 }
 
@@ -401,6 +403,7 @@ impl LightmapInputData {
     /// Creates a new input data that can be later used to generate a lightmap.
     pub fn from_scene<F>(
         texture_name: &str,
+        second_tex_coord_location: u8,
         scene: &Scene,
         mut filter: F,
         cancellation_token: CancellationToken,
@@ -523,23 +526,18 @@ impl LightmapInputData {
                     let Some(material) = material_state.data() else {
                         continue 'surface_loop;
                     };
-                    let Some(binding_index) = find_lightmap_texture_binding_point(
+                    if !has_lightmap_texture_binding_point(
                         texture_name,
                         &node,
                         surface_index,
                         material,
-                    ) else {
+                    ) {
                         continue 'surface_loop;
-                    };
+                    }
 
                     // Gather unique "list" of surface data to generate UVs for.
                     let data = surface.data();
-                    data_set
-                        .entry(data.key())
-                        .or_insert_with(|| SurfaceDefinition {
-                            surface: surface.data(),
-                            texture_binding_point: binding_index as u8,
-                        });
+                    data_set.entry(data.key()).or_insert_with(|| surface.data());
                     instances.push(Instance {
                         owner: handle,
                         source_data: data.clone(),
@@ -553,6 +551,7 @@ impl LightmapInputData {
 
         Ok(Self {
             texture_name: texture_name.to_string(),
+            second_tex_coord_location,
             data_set,
             instances,
             lights,
@@ -599,6 +598,7 @@ impl Lightmap {
     ) -> Result<Self, LightmapGenerationError> {
         let LightmapInputData {
             texture_name,
+            second_tex_coord_location,
             data_set,
             mut instances,
             lights,
@@ -608,11 +608,11 @@ impl Lightmap {
 
         let patches = data_set
             .into_par_iter()
-            .map(|(_, definition)| {
+            .map(|(_, surface)| {
                 if cancellation_token.is_cancelled() {
                     Err(LightmapGenerationError::Cancelled)
                 } else {
-                    let mut data = definition.surface.data_ref();
+                    let mut data = surface.data_ref();
                     let data = &mut *data;
 
                     let mut patch = uvgen::generate_uvs(
@@ -625,7 +625,7 @@ impl Lightmap {
                     .ok_or(LightmapGenerationError::InvalidIndex)?;
                     patch.data_id = data.content_hash();
 
-                    apply_surface_data_patch(data, &patch, definition.texture_binding_point);
+                    apply_surface_data_patch(data, &patch, second_tex_coord_location);
 
                     progress_indicator.advance_progress();
                     Ok((patch.data_id, SurfaceDataPatchWrapper(patch)))
@@ -721,6 +721,7 @@ impl Lightmap {
 
         Ok(Self {
             texture_name,
+            second_tex_coord_location,
             map,
             patches,
         })
@@ -832,6 +833,7 @@ mod test {
 
         let data = LightmapInputData::from_scene(
             "lightmapTexture",
+            6,
             &scene,
             |_, _| true,
             Default::default(),

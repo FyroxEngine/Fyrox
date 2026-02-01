@@ -42,19 +42,20 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::scene::node::NodeAsAny;
 use crate::{
     asset::untyped::UntypedResource,
     core::{
         algebra::{Matrix4, Rotation3, UnitQuaternion, Vector2, Vector3},
+        dyntype::DynTypeContainer,
         instant,
         log::{Log, MessageKind},
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
-        pool::{Handle, MultiBorrowContext, Pool, Ticket},
+        pool::{Handle, MultiBorrowContext, ObjectOrVariant, Pool, PoolError, Ticket},
         reflect::prelude::*,
         visitor::{Visit, VisitResult, Visitor},
+        warn,
     },
-    graph::{NodeHandleMap, SceneGraph},
+    graph::{NodeHandleMap, SceneGraph, SceneGraphNode},
     material::{MaterialResourceBinding, MaterialTextureBinding},
     resource::model::{Model, ModelResource, ModelResourceExtension},
     scene::{
@@ -66,7 +67,7 @@ use crate::{
         },
         mesh::Mesh,
         navmesh,
-        node::{container::NodeContainer, Node, SyncContext, UpdateContext},
+        node::{container::NodeContainer, Node, NodeAsAny, SyncContext, UpdateContext},
         pivot::Pivot,
         sound::context::SoundContext,
         transform::TransformBuilder,
@@ -76,15 +77,10 @@ use crate::{
 };
 use bitflags::bitflags;
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_core::dyntype::DynTypeContainer;
-use fyrox_core::pool::{ObjectOrVariant, PoolError};
-use fyrox_graph::SceneGraphNode;
-use std::fmt::{Display, Formatter, Write};
-use std::ops::Deref;
 use std::{
     any::{Any, TypeId},
-    fmt::Debug,
-    ops::{Index, IndexMut},
+    fmt::{Debug, Display, Formatter, Write},
+    ops::{Deref, Index, IndexMut},
     sync::mpsc::{channel, Receiver, Sender},
     time::Duration,
 };
@@ -1097,8 +1093,7 @@ impl Graph {
                             binding_point as u8,
                         );
                     } else {
-                        Log::writeln(
-                            MessageKind::Warning,
+                        warn!(
                             "Failed to get surface data patch while resolving lightmap!\
                     This means that surface has changed and lightmap must be regenerated!",
                         );

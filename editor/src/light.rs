@@ -59,6 +59,10 @@ struct LightmapperSettings {
     /// that will receive the light map.
     texture_name: String,
 
+    /// Location of the second texture coordinate attribute in the vertex buffer
+    /// of all surfaces. If the attribute doesn't exist, then it will be added.
+    second_tex_coord_location: u8,
+
     /// Amount of texels per unit. It defines 'pixels density' per unit of area (square meters). The
     /// more the value, the more detailed produced light map will be and vice versa. This value
     /// **directly** affects performance in quadratic manner, which means that if you change it from
@@ -83,6 +87,7 @@ impl Default for LightmapperSettings {
     fn default() -> Self {
         Self {
             texture_name: "lightmapTexture".to_string(),
+            second_tex_coord_location: 6,
             texels_per_unit: 64,
             spacing: 0.005,
             path: Default::default(),
@@ -346,6 +351,7 @@ impl LightPanel {
 
                 if let Ok(input_data) = LightmapInputData::from_scene(
                     &self.settings.texture_name,
+                    self.settings.second_tex_coord_location,
                     scene,
                     |handle, _| handle != game_scene.editor_objects_root,
                     cancellation_token.clone(),
