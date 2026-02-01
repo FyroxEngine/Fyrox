@@ -18,39 +18,41 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::{
-    core::{log::Log, pool::Handle, reflect::prelude::*},
-    gui::{
-        button::{ButtonBuilder, ButtonMessage},
-        formatted_text::WrapMode,
-        grid::{Column, GridBuilder, Row},
-        inspector::{InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction},
-        message::UiMessage,
-        progress_bar::{ProgressBarBuilder, ProgressBarMessage},
-        scroll_viewer::ScrollViewerBuilder,
-        text::TextBuilder,
-        text::TextMessage,
-        widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Thickness, UserInterface, VerticalAlignment,
+use crate::{
+    fyrox::{
+        core::{log::Log, make_relative_path, pool::Handle, reflect::prelude::*},
+        gui::{
+            button::{Button, ButtonBuilder, ButtonMessage},
+            formatted_text::WrapMode,
+            grid::{Column, GridBuilder, Row},
+            inspector::{
+                editors::PropertyEditorDefinitionContainer, Inspector, InspectorBuilder,
+                InspectorContext, InspectorContextArgs, InspectorMessage, PropertyAction,
+            },
+            message::UiMessage,
+            progress_bar::{ProgressBar, ProgressBarBuilder, ProgressBarMessage},
+            scroll_viewer::ScrollViewerBuilder,
+            stack_panel::StackPanelBuilder,
+            text::{Text, TextBuilder, TextMessage},
+            widget::{WidgetBuilder, WidgetMessage},
+            window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
+            VerticalAlignment,
+        },
+        utils::lightmap::{
+            CancellationToken, Lightmap, LightmapGenerationError, LightmapInputData,
+            ProgressIndicator,
+        },
     },
-    utils::lightmap::{
-        CancellationToken, Lightmap, LightmapGenerationError, LightmapInputData, ProgressIndicator,
-    },
+    scene::GameScene,
+    Engine,
 };
-use crate::{scene::GameScene, Engine};
-use fyrox::gui::button::Button;
-use fyrox::gui::inspector::editors::PropertyEditorDefinitionContainer;
-use fyrox::gui::inspector::{Inspector, InspectorContextArgs};
-use fyrox::gui::progress_bar::ProgressBar;
-use fyrox::gui::stack_panel::StackPanelBuilder;
-use fyrox::gui::text::Text;
-use fyrox::gui::window::{Window, WindowAlignment};
-use fyrox::gui::Orientation;
 use std::{
     path::PathBuf,
-    sync::mpsc::{Receiver, Sender},
-    sync::Arc,
+    sync::{
+        mpsc::{Receiver, Sender},
+        Arc,
+    },
 };
 
 #[derive(Reflect, Clone, Debug)]
@@ -227,7 +229,10 @@ impl LightPanel {
         engine: &mut Engine,
         property_editors: Arc<PropertyEditorDefinitionContainer>,
     ) -> Self {
-        let settings = LightmapperSettings::default();
+        let settings = LightmapperSettings {
+            path: make_relative_path(engine.resource_manager.registry_folder()).unwrap_or_default(),
+            ..Default::default()
+        };
 
         let generate;
         let clear_lightmap;
