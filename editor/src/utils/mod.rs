@@ -48,8 +48,8 @@ pub mod doc;
 pub fn make_pick_button(column: usize, ctx: &mut BuildContext) -> Handle<Button> {
     ButtonBuilder::new(
         WidgetBuilder::new()
-            .with_width(20.0)
-            .with_height(20.0)
+            .with_width(22.0)
+            .with_height(22.0)
             .with_vertical_alignment(VerticalAlignment::Center)
             .with_horizontal_alignment(HorizontalAlignment::Center)
             .on_column(column)
@@ -58,7 +58,7 @@ pub fn make_pick_button(column: usize, ctx: &mut BuildContext) -> Handle<Button>
     .with_content(
         ImageBuilder::new(
             WidgetBuilder::new()
-                .with_margin(Thickness::uniform(1.0))
+                .with_margin(Thickness::uniform(3.0))
                 .with_background(Brush::Solid(Color::opaque(0, 180, 0)).into()),
         )
         .with_opt_texture(load_image!("../../resources/pick.png"))
@@ -73,7 +73,7 @@ pub fn is_slice_equal_permutation<T: PartialEq>(a: &[T], b: &[T]) -> bool {
     a.len() == b.len() && is_slice_subset_permutation(a, b) && is_slice_subset_permutation(b, a)
 }
 
-/// True if every elmenet of `a` is equal to some element of `b`.
+/// True if every element of `a` is equal to some element of `b`.
 pub fn is_slice_subset_permutation<T: PartialEq>(a: &[T], b: &[T]) -> bool {
     for source in a.iter() {
         let mut found = false;

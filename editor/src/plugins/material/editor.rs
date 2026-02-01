@@ -263,7 +263,7 @@ impl MaterialFieldEditorBuilder {
                 .with_child({
                     edit = ButtonBuilder::new(
                         WidgetBuilder::new()
-                            .with_width(40.0)
+                            .with_width(55.0)
                             .with_margin(Thickness::uniform(1.0))
                             .on_column(1),
                     )
@@ -274,6 +274,7 @@ impl MaterialFieldEditorBuilder {
                 .with_child({
                     make_unique = ButtonBuilder::new(
                         WidgetBuilder::new()
+                            .with_width(100.0)
                             .with_margin(Thickness::uniform(1.0))
                             .on_column(2)
                             .with_tooltip(make_simple_tooltip(ctx, make_unique_tooltip)),
@@ -283,7 +284,7 @@ impl MaterialFieldEditorBuilder {
                     make_unique
                 }),
         )
-        .add_row(Row::strict(20.0))
+        .add_row(Row::strict(24.0))
         .add_column(Column::auto())
         .add_column(Column::auto())
         .add_column(Column::auto())

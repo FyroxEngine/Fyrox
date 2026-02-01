@@ -61,6 +61,7 @@ use fyrox::gui::button::Button;
 use fyrox::gui::image::Image;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::text::Text;
+use fyrox::gui::{HorizontalAlignment, VerticalAlignment};
 use std::{any::TypeId, sync::mpsc::Sender};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -215,7 +216,7 @@ impl SurfaceDataPropertyEditor {
                 .with_margin(Thickness::uniform(1.0))
                 .on_row(0)
                 .on_column(1)
-                .with_width(45.0)
+                .with_width(55.0)
                 .with_height(22.0),
         )
         .with_text("View...")
