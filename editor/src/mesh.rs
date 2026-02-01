@@ -25,14 +25,22 @@ use crate::{
         engine::Engine,
         graph::SceneGraph,
         gui::{
+            button::Button,
             button::{ButtonBuilder, ButtonMessage},
+            grid::{Column, GridBuilder, Row},
             message::UiMessage,
+            scroll_viewer::ScrollViewerBuilder,
+            stack_panel::StackPanel,
             stack_panel::StackPanelBuilder,
+            text::{Text, TextBuilder, TextMessage},
             utils::make_simple_tooltip,
             widget::WidgetBuilder,
+            widget::WidgetMessage,
+            window::{Window, WindowAlignment},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, Thickness,
         },
+        scene::mesh::surface::SurfaceData,
         scene::{
             base::BaseBuilder,
             collider::{ColliderBuilder, ColliderShape, ConvexPolyhedronShape, GeometrySource},
@@ -54,10 +62,7 @@ use crate::{
     world::selection::GraphSelection,
     Message,
 };
-use fyrox::gui::button::Button;
-use fyrox::gui::stack_panel::StackPanel;
-use fyrox::gui::widget::WidgetMessage;
-use fyrox::gui::window::{Window, WindowAlignment};
+use fyrox::gui::VerticalAlignment;
 
 pub struct MeshControlPanel {
     pub root_widget: Handle<StackPanel>,
@@ -291,7 +296,27 @@ impl MeshControlPanel {
 
 pub struct SurfaceDataViewer {
     pub window: Handle<Window>,
+    info: Handle<Text>,
     preview_panel: PreviewPanel,
+}
+
+fn surface_data_statistics(surface_data: &SurfaceData) -> Result<String, std::fmt::Error> {
+    use std::fmt::Write;
+    let mut stats = String::new();
+    writeln!(
+        &mut stats,
+        "Vertices: {}",
+        surface_data.vertex_buffer.vertex_count(),
+    )?;
+    for (i, attribute) in surface_data.vertex_buffer.layout().iter().enumerate() {
+        writeln!(&mut stats, "[{i}]{attribute}")?;
+    }
+    writeln!(
+        &mut stats,
+        "Triangles: {}",
+        surface_data.geometry_buffer.len(),
+    )?;
+    Ok(stats)
 }
 
 impl SurfaceDataViewer {
@@ -300,34 +325,51 @@ impl SurfaceDataViewer {
 
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
 
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(400.0))
+        let info =
+            TextBuilder::new(WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Top))
+                .build(ctx);
+
+        let content = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(preview_panel.root)
+                .with_child(
+                    ScrollViewerBuilder::new(WidgetBuilder::new().on_row(0).on_column(1))
+                        .with_content(info)
+                        .build(ctx),
+                ),
+        )
+        .add_row(Row::stretch())
+        .add_column(Column::stretch())
+        .add_column(Column::strict(180.0))
+        .build(ctx);
+
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(650.0).with_height(400.0))
             .open(false)
-            .with_content(preview_panel.root)
+            .with_title(WindowTitle::text("Surface Data"))
+            .with_content(content)
             .build(ctx);
 
         Self {
             window,
+            info,
             preview_panel,
         }
     }
 
     pub fn open(&mut self, surface_data: SurfaceResource, engine: &mut Engine) {
         let guard = surface_data.data_ref();
-        let title = WindowTitle::text(format!(
-            "Surface Data - Vertices: {} Triangles: {}",
-            guard.vertex_buffer.vertex_count(),
-            guard.geometry_buffer.len(),
-        ));
-        engine.user_interfaces.first().send_many(
+        let ui = engine.user_interfaces.first();
+        ui.send(
+            self.info,
+            TextMessage::Text(surface_data_statistics(&*guard).unwrap_or_default()),
+        );
+        ui.send(
             self.window,
-            [
-                WindowMessage::Open {
-                    alignment: WindowAlignment::Center,
-                    modal: true,
-                    focus_content: true,
-                },
-                WindowMessage::Title(title),
-            ],
+            WindowMessage::Open {
+                alignment: WindowAlignment::Center,
+                modal: true,
+                focus_content: true,
+            },
         );
         drop(guard);
 
