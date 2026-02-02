@@ -102,6 +102,17 @@ impl GeometryCache {
                         entry.triangles_modifications_count =
                             data.geometry_buffer.modifications_count();
                     }
+                } else {
+                    let SurfaceRenderData {
+                        buffer,
+                        vertex_modifications_count,
+                        triangles_modifications_count,
+                        layout_hash,
+                    } = create_geometry_buffer(&data, server)?;
+                    entry.buffer = buffer;
+                    entry.vertex_modifications_count = vertex_modifications_count;
+                    entry.triangles_modifications_count = triangles_modifications_count;
+                    entry.layout_hash = layout_hash;
                 }
                 Ok(&entry.buffer)
             }
