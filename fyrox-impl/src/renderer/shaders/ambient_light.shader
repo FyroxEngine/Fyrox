@@ -147,9 +147,9 @@
                         vec4 bakedLighting = texture(bakedLightingTexture, texCoord);
 
                         vec3 irradiance = S_SRGBToLinear(texture(irradianceMap, fragmentNormal)).rgb;
-                        vec3 diffuse = (properties.skyboxLighting ? irradiance : properties.ambientColor.rgb) * albedo.rgb;
+                        vec3 diffuse = (bakedLighting.rgb + (properties.skyboxLighting ? irradiance : properties.ambientColor.rgb)) * albedo.rgb;
 
-                        FragColor.rgb = bakedLighting.rgb + (kD * diffuse + specular) * ambientOcclusion;
+                        FragColor.rgb = (kD * diffuse + specular) * ambientOcclusion;
                         FragColor.a = bakedLighting.a;
                     }
                 "#,
