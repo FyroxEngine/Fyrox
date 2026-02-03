@@ -528,7 +528,7 @@ impl LightmapInputData {
                     };
                     if !has_lightmap_texture_binding_point(
                         texture_name,
-                        &node,
+                        node,
                         surface_index,
                         material,
                     ) {

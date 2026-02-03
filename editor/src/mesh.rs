@@ -367,7 +367,7 @@ impl SurfaceDataViewer {
         let ui = engine.user_interfaces.first();
         ui.send(
             self.info,
-            TextMessage::Text(surface_data_statistics(&*guard).unwrap_or_default()),
+            TextMessage::Text(surface_data_statistics(&guard).unwrap_or_default()),
         );
         ui.send(
             self.window,
