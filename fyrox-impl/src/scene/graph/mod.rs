@@ -53,7 +53,6 @@ use crate::{
         pool::{Handle, MultiBorrowContext, ObjectOrVariant, Pool, PoolError, Ticket},
         reflect::prelude::*,
         visitor::{Visit, VisitResult, Visitor},
-        warn,
     },
     graph::{NodeHandleMap, SceneGraph, SceneGraphNode},
     material::{MaterialResourceBinding, MaterialTextureBinding},
@@ -77,6 +76,7 @@ use crate::{
 };
 use bitflags::bitflags;
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_material::MaterialResourceExtension;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Display, Formatter, Write},
@@ -1020,7 +1020,8 @@ impl Graph {
                         // This unwrap() call must never panic in normal conditions, because texture wrapped in Option
                         // only to implement Default trait to be serializable.
                         let texture = entry.texture.clone().unwrap();
-                        let mut material_state = surface.material().state();
+                        let material = surface.material.deep_copy();
+                        let mut material_state = material.state();
                         if let Some(material) = material_state.data() {
                             material.bind(
                                 &lightmap.texture_name,
@@ -1029,6 +1030,8 @@ impl Graph {
                                 }),
                             );
                         }
+                        drop(material_state);
+                        surface.material.set_value_and_mark_modified(material);
                     }
                 }
             }
@@ -1070,34 +1073,20 @@ impl Graph {
                 if let Some(mesh) = self.pool[handle].cast_mut::<Mesh>() {
                     for surface in mesh.surfaces() {
                         let data = surface.data();
-                        unique_data_set
-                            .entry(data.key())
-                            .or_insert((data, surface.material.deref().clone()));
+                        unique_data_set.entry(data.key()).or_insert(data);
                     }
                 }
             }
 
-            for (_, (surface_data, material)) in unique_data_set.into_iter() {
+            for (_, surface_data) in unique_data_set.into_iter() {
                 let mut data = surface_data.data_ref();
-                if let Some(binding_point) = material
-                    .data_ref()
-                    .shader()
-                    .data_ref()
-                    .find_texture_resource(&lightmap.texture_name)
-                    .map(|t| t.binding)
-                {
-                    if let Some(patch) = lightmap.patches.get(&data.content_hash()) {
-                        lightmap::apply_surface_data_patch(
-                            &mut data,
-                            &patch.0,
-                            binding_point as u8,
-                        );
-                    } else {
-                        warn!(
-                            "Failed to get surface data patch while resolving lightmap!\
-                    This means that surface has changed and lightmap must be regenerated!",
-                        );
-                    }
+
+                if let Some(patch) = lightmap.patches.get(&data.content_hash()) {
+                    lightmap::apply_surface_data_patch(
+                        &mut data,
+                        &patch.0,
+                        lightmap.second_tex_coord_location,
+                    );
                 }
             }
 
@@ -1105,7 +1094,8 @@ impl Graph {
             for (&handle, entries) in lightmap.map.iter_mut() {
                 if let Some(mesh) = self.pool[handle].cast_mut::<Mesh>() {
                     for (entry, surface) in entries.iter_mut().zip(mesh.surfaces_mut()) {
-                        let mut material_state = surface.material().state();
+                        let material = surface.material.deep_copy();
+                        let mut material_state = material.state();
                         if let Some(material) = material_state.data() {
                             material.bind(
                                 &lightmap.texture_name,
@@ -1114,6 +1104,8 @@ impl Graph {
                                 }),
                             );
                         }
+                        drop(material_state);
+                        surface.material.set_value_and_mark_modified(material);
                     }
                 }
             }
