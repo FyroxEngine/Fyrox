@@ -1,6 +1,249 @@
-# 1.0.0-rc.1 (WIP)
+# 1.0.0-rc.2 (draft)
 
-First release-candidate version (unreleased).
+Second release-candidate version.
+
+- UI messages refactoring - removed message constructors and replaced with direct enum variant
+  creation.
+- Migrated to typed handles
+- fixed combining lightmaps with emissive channel
+- fixed incorrect light mapping for shared materials
+- update vertex buffer if its layout has changed
+- fill in the default path to lightmap texture as registry root
+- ability to explicitly specify location of the second tex coord attribute
+- ability to clear lightmap
+- style improvements
+- improved surface data viewer to show vertex layout
+- `impl Display for VertexAttribute`
+- removed hardcoded values for lightmap generation
+- `Shader::find_texture_resource` + `Self::find_property_group_resource`
+- fixed incorrect filtering of material when generating a lightmap
+- ability to check if shader has a texture/property group resource
+- correctly filter out editor nodes when generating a lightmap
+- report non-supported nodes when generating a light map
+- fixed path filtering in case of empty filter
+- make `instance_id_map` immutable in the editor
+- use `tinyaudio` version 2
+- fixed editor hanging when closing a scene tab when more 3+ scenes open
+- refactored `TabControl` to use only uuids for tabs
+- removed lazy_static dependency
+- fixed incorrect position syncing when modifying z coordinate of 2d body
+- keep the nodes at their handles when saving a scene in the editor
+- ability to add scene nodes at desired handles
+- `Pool::next_free_handle`
+- ability to fetch scene nodes by uuid
+- `PluginContext::load_ui` helper method
+- use task pool instead of spawning a thread manually when loading a scene
+- `apply_animation` helper method
+- shortcuts for setting specific part of the linear velocity of rigid body
+- added background for the editor content
+- property editor for `Style`
+- refactor `Style` to use plain sorted vector
+- proofreading for doc comments
+- shortcuts for `ScrollViewerMessage` + `ListViewMessage`
+- `HandlesArrayExtension`
+- allow fetching base type instances from compound objects
+- `to_any` for `HandlesVecExtension`
+- fixed infinite recursion in trait bounds for Visit and Reflect procmacro
+- `to_base` for `Vec<T>` where T: ObjectOrVariant<B>
+- error handling in `Ragdoll::iterate_recursive`
+- fixed infinite message loop in node selector
+- fixed crash in node selector when untyped handle was replaced with typed
+- ability to handle game errors and disable standard logging
+- removed `AbstractSceneGraph` + `BaseSceneGraph`, merged in `SceneGraph`
+- `Plugin::on_game_error`
+- support typed handles in multiborrow context
+- to_base/to_variant methods for handle type conversion
+- allow comparison of base and derived handles
+- optional ability to capture backtrace for game errors
+- game error improvements
+- return result in behavior trees
+- remap handles when cloning user data
+- `DynTypeContainer::try_take`
+- downcasting for dyn type
+- fixed dyn type constructors container type passed on deserialization
+- shared property editors container
+- ability to edit ui scene settings
+- user data for user interfaces
+- clone user data correctly
+- pass dyn type constructors when deserializing scenes/uis
+- user data for `Graph`
+- editor support for dyn types
+- dyntype improvements + `value_ref` + `value_mut`
+- added user data for `Graph`
+- DynType improvements
+- dyntype draft for user-defined serializable structures
+- arbitrary error support for visitor
+- plugin docs improvements
+- fixed project template generator
+- checked array element access
+- fixed crash when trying to rebind a property prefab's animation
+- allow script + plugin tasks to return result + more error types
+- `NetStream::pop_message`
+- allow plugin methods to return errors
+- improved script api to support errors
+- error handling for graph
+- improved error handling for pool
+- improved `copy` functionality for log entries
+- show/hide apply+revert buttons in inspector correctly
+- fixed `bring into view` for log panel
+- added property editor for `TextureKind`
+- shader code editor improvements
+- draft shader code editor
+- wrap shader source code into newtype wrapper
+- property editors for shader entities
+- make shader entities inspectable
+- property editors for vec<matrix 2/3/4>
+- type uuid provider impl for matrix 2/3/4
+- property editor for `TexturePixelKind`
+- keep asset preview enabled when inspecting built-in assets
+- ability to check if a path is a built-in resource path
+- show asset preview for built-in assets
+- show the content of built-in assets in inspector when selected
+- limit dropdown container min width instead of width
+- refactored folder name dialog
+- `BuildContext::add`
+- `control_trait_proxy_impls` macro + boilerplate code removal
+- add preview for shaders
+- show registry root when clearing the search bar in the asset browser
+- placeholders for search bars
+- placeholder for textbox + searchbar widgets
+- overall style improvements
+- ability to set text box's padding via respective message
+- padding for text box and formatted text
+- do not allow deleting the root registry folder
+- fixed enabled state for menu items of asset item
+- fixed folder deletion from asset browser
+- refresh asset browser if a folder was added/removed
+- do not register unsupported paths in `ResourceManager::find`
+- check if a resource can be loaded before registering it
+- use `WrapPanel` in the animation editor for better toolbar layout
+- icons for main menu in the editor
+- set icons for undo/redo menu items
+- improved menu item with icons + helper for `MenuItemContent`
+- fixed crash when attempting to delete ui scene root
+- deduplicate fs events to prevent duplication of fs tree items
+- handle `Rescan` message correctly
+- check if a file already exist when selecting a file in file selector
+- use `ok` + `cancel` button style for file selector widget
+- standard `ok` + `cancel` styles for button background decorator
+- take filter into account when checking if a folder is empty
+- ability to deselect currently selected path in file browser
+- add `All Supported` filter option for file selector
+- path filtering in file selector
+- disable ability to delete path root item
+- fixed incorrect "no items" visibility condition + fixed `Make Folder`
+- fixed incorrect tree root handling when processing fs events
+- refactored path filter to support fixed set of file types
+- ability to show context menu by a click on file browser
+- added `this folder is empty` message for file browser
+- ability to specify filter for path field editor
+- folder filter preset
+- make path text non-editable
+- hide home/desktop dir buttons if a root is set for file browser widget
+- improved file selector to have configurable list of file types
+- moved FileSelectorField widget to its own module
+- moved mode out of file browser to file selector widget
+- focus selected path on project import in the project manager
+- refactored file selector + file browser some more
+- fixed file system watcher for file browser widget
+- removed unused root dir title
+- use resource registry folder for asset browser and file browser
+- do not generate redundant fs tree items if a root is set
+- added helper methods to graph to borrow nodes and do ray casting
+- refactored file browser tree building + added tests
+- removed fs events handling from public file browser message
+- fixed crash in fs tree creation
+- refactored path setting + removed duplicated code
+- refactored path filter
+- simplified dir content fetching
+- more refactoring for file browser widget
+- fixed incorrect nan handling in numeric up down widget
+- extracted fs tree management into a separate module
+- split `build_all` into multiple test-able pieces
+- replaced `OpenModal/OpenAt/OpenAndAlign` window messages with `Open`
+- register missing property editors
+- force save an empty resource registry and create a folder for it
+- resource io improvements
+- fixed direction of `MenuItemMessage::Click`
+- post `Popup::Close` only if the dropdown's popup is open
+- send `modified` flag message as sync in inheritable prop editor
+- fixed infinite message loop in numeric up down
+- headless mode for the editor
+- removed useless warning message
+- autotesting for the editor
+- `Widget::local_to_screen`
+- keep updating all UIs even if there's no graphics context
+- automated testing mode for the editor
+- checked access to graphics context in the editor
+- use `send_sync` and `SyncOnly` delivery mode instead send_sync_message
+- fixed topmost widget drawing
+- add layout invalidation for all widgets with custom draw methods
+- invalidate visual for image widget
+- ui optimization based on widget invalidation
+- visual invalidation flag for widgets
+- impl Default for DrawingContext
+- more debug scopes for the renderer
+- disable shadow casting for scene gizmo
+- added named scopes for renderer to improve debugging
+- ability to run the editor with graphics debugging turned on
+- `GraphicsServer::begin_scope`
+- ability to specify debug groups for graphics commands
+- configurable exposure for editor's camera
+- use default exposure for editor camera
+- hdr settings + moved bloom effect rendering to hdr renderer
+- ability to disable bloom + configurable bloom threshold
+- fixed incorrect hdr adaptation
+- fixed hdr auto exposure
+- fixed defaults for automatic exposure for hdr
+- fixed tests
+- Introducing the null scene
+- fixed incorrect frame luminance calculation for hdr
+- color space conversion glsl functions
+- fixed luminance calculation glsl function
+- ability to keep the editor active on every frame
+- add useful instructions for contributors
+- helper methods for scene nodes
+- return the number of processed message from ui message queue polling
+- Improving how selection changes are handled
+- [BREAKING] drop backward compatibility for assets
+- Improving UX of TextBox
+- Putting space in FormattedText for tabs.
+- `send_sync_many`
+- Correcting panic from TileCollider load failure
+- message delivery mode
+- `UiMessage::for_widget`
+- Simplifying BBCodePanel with advanced UiMessage methods
+- BBCode support
+- allow derived widget handles in ui message helpers and send_xxx methods
+- allow indexing `UserInterface` with derived widget handles
+- `UiMessage::data_for` + reworded the docs
+- fixed misleading docs
+- remove optimization for `dev` profile
+- use `send` instead of `send_message` in project manager
+- use `data_from` where possible
+- renamed `comes_from` to `is_from` + use it where possible
+- `UiMessage::is_for`
+- moved `perform_layout` flag to `MessageData` trait method
+- use `send_to` + `send_many_to` to reduce code bloat
+- `UserInterface::send_to + send_many_to + send_many_to_if` methods
+- use gltf emission strength parameter correctly
+- register gltf standard shader
+- Font fallbacks
+- wake up rigid bodies when changing linear/angular velocity
+- made uv + normals optional when loading gltf
+- `UiMessage::data_from` + `comes_from` methods
+- fixed gltf loading
+- Fixing wasm verify to use Display
+- impl Display and impl Error for various errors
+- Merge pull request #858 from b-guild/resource
+- ability to disable writing to stdout for `Log`
+- correctly kill child processes when starting a new export run
+- updated msrv
+- ability to disable optimizations when exporting the project
+
+# 1.0.0-rc.1
+
+First release-candidate version.
 
 ## Fixed
 
