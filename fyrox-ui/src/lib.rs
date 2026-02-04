@@ -3201,6 +3201,10 @@ impl UserInterface {
         self.nodes.forget_ticket(ticket);
     }
 
+    pub fn restricts_picking(&self, node: Handle<UiNode>) -> bool {
+        self.picking_stack.iter().any(|e| e.handle == node)
+    }
+
     pub fn push_picking_restriction(&mut self, restriction: RestrictionEntry) {
         if let Some(top) = self.top_picking_restriction() {
             assert_ne!(top.handle, restriction.handle);
