@@ -573,7 +573,7 @@ impl Control for Window {
                     if focus_content {
                         ui.send(self.content_to_focus(), WidgetMessage::Focus);
                     }
-                    if modal {
+                    if modal && !ui.restricts_picking(self.handle()) {
                         ui.push_picking_restriction(RestrictionEntry {
                             handle: self.handle(),
                             stop: true,
