@@ -215,6 +215,11 @@ pub struct SceneRenderingOptions {
     /// A switch, that allows selecting the source of environment lighting. By default, it is set to
     /// [`EnvironmentLightingSource::SkyBox`].
     pub environment_lighting_source: EnvironmentLightingSource,
+
+    /// Environment lighting brightness. Default is 1.0. Environment lighting will be multiplied
+    /// by this coefficient.
+    #[visit(optional)]
+    pub environment_lighting_brightness: f32,
 }
 
 impl Default for SceneRenderingOptions {
@@ -225,6 +230,7 @@ impl Default for SceneRenderingOptions {
             polygon_rasterization_mode: Default::default(),
             ambient_lighting_color: Color::opaque(100, 100, 100),
             environment_lighting_source: Default::default(),
+            environment_lighting_brightness: 1.0,
         }
     }
 }
@@ -237,6 +243,7 @@ impl Clone for SceneRenderingOptions {
             polygon_rasterization_mode: self.polygon_rasterization_mode,
             ambient_lighting_color: self.ambient_lighting_color,
             environment_lighting_source: self.environment_lighting_source,
+            environment_lighting_brightness: self.environment_lighting_brightness,
         }
     }
 }

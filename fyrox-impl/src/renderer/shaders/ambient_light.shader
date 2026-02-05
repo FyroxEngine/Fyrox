@@ -54,6 +54,7 @@
                 (name: "cameraPosition", kind: Vector3()),
                 (name: "invViewProj", kind: Matrix4()),
                 (name: "skyboxLighting", kind: Bool()),
+                (name: "environmentLightingBrightness", kind: Float()),
             ]),
             binding: 0
         ),
@@ -147,7 +148,7 @@
                         vec4 bakedLighting = texture(bakedLightingTexture, texCoord);
 
                         vec3 irradiance = S_SRGBToLinear(texture(irradianceMap, fragmentNormal)).rgb;
-                        vec3 diffuse = (bakedLighting.rgb + (properties.skyboxLighting ? irradiance : properties.ambientColor.rgb)) * albedo.rgb;
+                        vec3 diffuse = (bakedLighting.rgb + properties.environmentLightingBrightness * (properties.skyboxLighting ? irradiance : properties.ambientColor.rgb)) * albedo.rgb;
 
                         FragColor.rgb = (kD * diffuse + specular) * ambientOcclusion;
                         FragColor.a = bakedLighting.a;

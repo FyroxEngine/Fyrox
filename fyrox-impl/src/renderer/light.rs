@@ -419,6 +419,10 @@ impl DeferredLightRenderer {
             property("cameraPosition", &observer.position.translation),
             property("invViewProj", &inv_view_projection),
             property("skyboxLighting", &skybox_lighting),
+            property(
+                "environmentLightingBrightness",
+                &scene.rendering_options.environment_lighting_brightness,
+            ),
         ]);
         let material = RenderMaterial::from([
             binding(
