@@ -111,6 +111,7 @@ Second release-candidate version.
 - `impl Display for VertexAttribute`
 - Ability to explicitly specify location of the second tex coord attribute
 - Ability to clear lightmap
+- Ability to specify environment lighting brightness
 
 ## Changed
 
