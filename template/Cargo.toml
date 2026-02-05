@@ -1,6 +1,6 @@
 [package]
 name = "fyrox-template"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 edition = "2021"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 license = "MIT"
@@ -14,5 +14,5 @@ readme = "README.md"
 rust-version = "1.87"
 
 [dependencies]
-fyrox-template-core = { version = "1.0.0-rc.1", path = "../template-core" }
+fyrox-template-core = { version = "1.0.0-rc.2", path = "../template-core" }
 clap = { version = "4", features = ["derive"] }

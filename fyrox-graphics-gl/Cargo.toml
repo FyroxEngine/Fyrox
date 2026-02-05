@@ -1,6 +1,6 @@
 [package]
 name = "fyrox-graphics-gl"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.2"
 edition = "2021"
 license = "MIT"
 description = "OpenGL-based graphics server for Fyrox Game Engine"
@@ -14,8 +14,8 @@ rust-version = "1.87"
 
 [dependencies]
 winit = { version = "0.30", features = ["serde"] }
-fyrox-graphics = { version = "1.0.0-rc.1", path = "../fyrox-graphics" }
-fyrox-core = { version = "1.0.0-rc.1", path = "../fyrox-core" }
+fyrox-graphics = { version = "1.0.0-rc.2", path = "../fyrox-graphics" }
+fyrox-core = { version = "1.0.0-rc.2", path = "../fyrox-core" }
 fxhash = "0.2.1"
 regex = "1"
 glow = "0.16"
