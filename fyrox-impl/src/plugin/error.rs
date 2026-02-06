@@ -64,8 +64,10 @@ pub enum GameErrorKind {
 
 /// An error that may occur during game code execution.
 pub struct GameError {
-    kind: GameErrorKind,
-    trace: Option<Backtrace>,
+    /// The actual kind of the error.
+    pub kind: GameErrorKind,
+    /// Optional stack trace of the error. See [`enable_backtrace_capture`] for more info.
+    pub trace: Option<Backtrace>,
 }
 
 impl GameError {
