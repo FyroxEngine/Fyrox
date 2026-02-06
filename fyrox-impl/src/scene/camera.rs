@@ -379,6 +379,9 @@ pub struct Camera {
     #[reflect(setter = "set_color_grading_enabled")]
     color_grading_enabled: InheritableVariable<bool>,
 
+    #[reflect(setter = "set_hdr_adaptation_speed")]
+    hdr_adaptation_speed: InheritableVariable<f32>,
+
     #[reflect(setter = "set_render_target")]
     #[visit(skip)]
     render_target: Option<TextureResource>,
@@ -584,6 +587,18 @@ impl Camera {
     /// Return current environment map.
     pub fn environment_map(&self) -> Option<TextureResource> {
         (*self.environment).clone()
+    }
+
+    /// Sets the speed of automatic adaptation for the current frame luminance. In other words,
+    /// it defines how fast the reaction to the new frame brightness will be. The lower the value,
+    /// the longer it will take to adjust the exposure for the new brightness level.
+    pub fn set_hdr_adaptation_speed(&mut self, speed: f32) -> f32 {
+        self.hdr_adaptation_speed.set_value_and_mark_modified(speed)
+    }
+
+    /// The speed of automatic adaptation for the current frame luminance.
+    pub fn hdr_adaptation_speed(&self) -> f32 {
+        *self.hdr_adaptation_speed
     }
 
     /// Creates picking ray from given screen coordinates.
@@ -1031,6 +1046,7 @@ pub struct CameraBuilder {
     color_grading_enabled: bool,
     projection: Projection,
     render_target: Option<TextureResource>,
+    hdr_adaptation_speed: f32,
 }
 
 impl CameraBuilder {
@@ -1049,6 +1065,7 @@ impl CameraBuilder {
             color_grading_enabled: false,
             projection: Projection::default(),
             render_target: None,
+            hdr_adaptation_speed: 0.5,
         }
     }
 
@@ -1118,6 +1135,12 @@ impl CameraBuilder {
         self
     }
 
+    /// Sets the speed of automatic adaptation for the current frame luminance.
+    pub fn with_hdr_adaptation_speed(mut self, speed: f32) -> Self {
+        self.hdr_adaptation_speed = speed;
+        self
+    }
+
     /// Creates new instance of camera.
     pub fn build_camera(self) -> Camera {
         Camera {
@@ -1133,6 +1156,7 @@ impl CameraBuilder {
             exposure: self.exposure.into(),
             color_grading_lut: self.color_grading_lut.into(),
             color_grading_enabled: self.color_grading_enabled.into(),
+            hdr_adaptation_speed: self.hdr_adaptation_speed.into(),
             render_target: self.render_target,
         }
     }

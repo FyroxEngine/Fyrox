@@ -1155,7 +1155,7 @@ impl Renderer {
             hdr_scene_frame: render_data.hdr_scene_frame_texture(),
             ldr_framebuffer: &render_data.ldr_temp_framebuffer[dest_buf],
             viewport: observer.viewport,
-            dt,
+            speed: observer.hdr_adaptation_speed * dt,
             exposure: observer.exposure,
             color_grading_lut: observer.color_grading_lut.as_ref(),
             use_color_grading: observer.color_grading_enabled,

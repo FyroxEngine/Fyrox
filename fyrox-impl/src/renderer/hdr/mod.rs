@@ -98,7 +98,7 @@ pub struct HdrRendererArgs<'a> {
     pub hdr_scene_frame: &'a GpuTexture,
     pub ldr_framebuffer: &'a GpuFrameBuffer,
     pub viewport: Rect<i32>,
-    pub dt: f32,
+    pub speed: f32,
     pub exposure: Exposure,
     pub color_grading_lut: Option<&'a ColorGradingLut>,
     pub use_color_grading: bool,
@@ -268,7 +268,7 @@ impl HighDynamicRangeRenderer {
     fn adaptation(
         &self,
         server: &dyn GraphicsServer,
-        dt: f32,
+        speed: f32,
         uniform_buffer_cache: &mut UniformBufferCache,
         renderer_resources: &RendererResources,
     ) -> Result<DrawCallStatistics, FrameworkError> {
@@ -278,7 +278,6 @@ impl HighDynamicRangeRenderer {
         let viewport = Rect::new(0, 0, ctx.lum_buffer.size as i32, ctx.lum_buffer.size as i32);
         let matrix = ctx.lum_buffer.matrix();
 
-        let speed = 0.3 * dt;
         let properties = PropertyGroup::from([
             property("worldViewProjection", &matrix),
             property("speed", &speed),
@@ -422,7 +421,7 @@ impl HighDynamicRangeRenderer {
         }
         stats += self.adaptation(
             args.server,
-            args.dt,
+            args.speed,
             args.uniform_buffer_cache,
             args.renderer_resources,
         )?;

@@ -143,6 +143,7 @@ impl ObserversCollection {
                             viewport: Rect::new(0, 0, resolution as i32, resolution as i32),
                             frustum: Frustum::from_view_projection_matrix(view_projection_matrix)
                                 .unwrap_or_default(),
+                            hdr_adaptation_speed: 1.0,
                         })
                     }
                 }
@@ -195,6 +196,10 @@ pub struct Observer {
     pub viewport: Rect<i32>,
     /// Frustum of the observer, it can be used for frustum culling.
     pub frustum: Frustum,
+    /// Defines the speed of automatic adaptation for the current frame luminance. In other words,
+    /// it defines how fast the reaction to the new frame brightness will be. The lower the value,
+    /// the longer it will take to adjust the exposure for the new brightness level.
+    pub hdr_adaptation_speed: f32,
 }
 
 impl Observer {
@@ -222,6 +227,7 @@ impl Observer {
             viewport: camera.viewport_pixels(frame_size),
             frustum: camera.frustum(),
             reflection_probe_data: None,
+            hdr_adaptation_speed: camera.hdr_adaptation_speed(),
         }
     }
 }
