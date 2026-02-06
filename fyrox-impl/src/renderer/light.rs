@@ -965,7 +965,6 @@ impl DeferredLightRenderer {
                             self.csm_renderer.cascades()[1].view_proj_matrix,
                             self.csm_renderer.cascades()[2].view_proj_matrix,
                         ];
-                        let shadow_map_inv_size = 1.0 / (self.csm_renderer.size() as f32);
                         let shadow_bias = csm_options.shadow_bias();
                         let properties = PropertyGroup::from([
                             property("worldViewProjection", &frame_matrix),
@@ -979,7 +978,6 @@ impl DeferredLightRenderer {
                             property("shadowsEnabled", &shadows_enabled),
                             property("shadowBias", &shadow_bias),
                             property("softShadows", &settings.csm_settings.pcf),
-                            property("shadowMapInvSize", &shadow_map_inv_size),
                             property("cascadeDistances", distances.as_slice()),
                         ]);
                         let cascades = self.csm_renderer.cascades();

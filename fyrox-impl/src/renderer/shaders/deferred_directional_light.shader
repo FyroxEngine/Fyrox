@@ -50,7 +50,6 @@
                 (name: "shadowsEnabled", kind: Bool()),
                 (name: "shadowBias", kind: Float()),
                 (name: "softShadows", kind: Bool()),
-                (name: "shadowMapInvSize", kind: Float()),
                 (name: "cascadeDistances", kind: FloatArray(max_len: 3, value: [])),
             ]),
             binding: 0
@@ -114,7 +113,9 @@
                     // Returns **inverted** shadow factor where 1 - fully bright, 0 - fully in shadow.
                     float CsmGetShadow(in sampler2D sampler, in vec3 fragmentPosition, in mat4 lightViewProjMatrix)
                     {
-                        return S_SpotShadowFactor(properties.shadowsEnabled, properties.softShadows, properties.shadowBias, fragmentPosition, lightViewProjMatrix, properties.shadowMapInvSize, sampler);
+                        float invSize = 1.0 / float(textureSize(sampler, 0).x);
+                        return S_SpotShadowFactor(properties.shadowsEnabled, properties.softShadows,
+                            properties.shadowBias, fragmentPosition, lightViewProjMatrix, invSize, sampler);
                     }
 
                     void main()
