@@ -18,16 +18,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox::gui::formatted_text::WrapMode;
-use fyrox::gui::text_box::TextBox;
 use fyrox::{
     core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     gui::{
         control_trait_proxy_impls, define_widget_deref_proxy,
-        grid::GridBuilder,
+        formatted_text::WrapMode,
         message::{MessageData, UiMessage},
+        scroll_viewer::ScrollViewerBuilder,
         text::TextMessage,
-        text_box::{TextBoxBuilder, TextCommitMode},
+        text_box::{TextBox, TextBoxBuilder, TextCommitMode},
         widget::WidgetBuilder,
         window::{Window, WindowAlignment, WindowBuilder, WindowMessage},
         BuildContext, Control, Thickness, UiNode, UserInterface,
@@ -99,7 +98,10 @@ impl ShaderSourceCodeEditorBuilder {
         .with_text_commit_mode(TextCommitMode::LostFocusPlusEnter)
         .with_text(&self.code.0)
         .build(ctx);
-        let content = GridBuilder::new(WidgetBuilder::new().with_child(text_box)).build(ctx);
+
+        let content = ScrollViewerBuilder::new(WidgetBuilder::new())
+            .with_content(text_box)
+            .build(ctx);
 
         let editor = ShaderSourceCodeEditor {
             window: self
