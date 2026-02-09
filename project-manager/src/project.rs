@@ -23,29 +23,23 @@ use crate::{
     settings::{Project, Settings},
     utils,
 };
-use fyrox::gui::button::Button;
-use fyrox::gui::dropdown_list::DropdownList;
-use fyrox::gui::file_browser::PathFilter;
-use fyrox::gui::path::PathEditor;
-use fyrox::gui::text::Text;
-use fyrox::gui::text_box::TextBox;
-use fyrox::gui::window::{Window, WindowAlignment};
 use fyrox::{
     core::pool::Handle,
     gui::{
-        button::ButtonMessage,
-        dropdown_list::{DropdownListBuilder, DropdownListMessage},
+        button::{Button, ButtonMessage},
+        dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
+        file_browser::PathFilter,
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, UiMessage},
-        path::{PathEditorBuilder, PathEditorMessage},
+        path::{PathEditor, PathEditorBuilder, PathEditorMessage},
         stack_panel::StackPanelBuilder,
         style::{self, resource::StyleResourceExt},
-        text::{TextBuilder, TextMessage},
-        text_box::{TextBoxBuilder, TextCommitMode},
+        text::{Text, TextBuilder, TextMessage},
+        text_box::{TextBox, TextBoxBuilder, TextCommitMode},
         utils::make_dropdown_list_option,
         widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage, WindowTitle},
+        window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
         VerticalAlignment,
     },
@@ -145,7 +139,7 @@ impl ProjectWizard {
                 .on_row(0)
                 .on_column(1),
         )
-        .with_path("./")
+        .with_path(std::env::home_dir().unwrap_or_else(|| PathBuf::from("./")))
         .with_file_types(PathFilter::folder())
         .build(ctx);
 
@@ -245,7 +239,7 @@ impl ProjectWizard {
         .add_column(Column::stretch())
         .build(ctx);
 
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(180.0))
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(200.0))
             .with_content(outer_grid)
             .open(false)
             .with_title(WindowTitle::text("Project Wizard"))
