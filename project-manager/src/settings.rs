@@ -21,6 +21,7 @@
 use directories::ProjectDirs;
 use fyrox::gui::inspector::InspectorContextArgs;
 use fyrox::gui::window::{Window, WindowAlignment};
+use fyrox::gui::Thickness;
 use fyrox::{
     core::{log::Log, pool::Handle, reflect::prelude::*},
     fxhash::FxHashSet,
@@ -235,11 +236,12 @@ impl SettingsWindow {
             base_path: Default::default(),
             has_parent_object: false,
         });
-        let inspector = InspectorBuilder::new(WidgetBuilder::new())
-            .with_context(context)
-            .build(ctx);
+        let inspector =
+            InspectorBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
+                .with_context(context)
+                .build(ctx);
 
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(200.0))
             .with_content(
                 ScrollViewerBuilder::new(WidgetBuilder::new())
                     .with_content(inspector)

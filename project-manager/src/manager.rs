@@ -442,43 +442,46 @@ impl ProjectManager {
         ctx[open_help].set_column(4);
 
         let message_count;
-        let open_log = ButtonBuilder::new(WidgetBuilder::new().on_column(4).with_visibility(false))
-            .with_content(
-                GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_vertical_alignment(VerticalAlignment::Center)
-                        .with_child(
-                            ImageBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_margin(Thickness::uniform(1.0))
-                                    .with_width(18.0)
-                                    .with_height(18.0)
-                                    .on_column(0),
-                            )
-                            .with_opt_texture(load_image(include_bytes!(
-                                "../resources/caution.png"
-                            )))
-                            .build(ctx),
+        let open_log = ButtonBuilder::new(
+            WidgetBuilder::new()
+                .with_margin(Thickness::uniform(1.0))
+                .on_column(5)
+                .with_visibility(false),
+        )
+        .with_content(
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_vertical_alignment(VerticalAlignment::Center)
+                    .with_child(
+                        ImageBuilder::new(
+                            WidgetBuilder::new()
+                                .with_margin(Thickness::uniform(1.0))
+                                .with_width(18.0)
+                                .with_height(18.0)
+                                .on_column(0),
                         )
-                        .with_child({
-                            message_count = TextBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_column(1)
-                                    .with_margin(Thickness::uniform(1.0))
-                                    .with_vertical_alignment(VerticalAlignment::Center)
-                                    .with_foreground(Brush::Solid(Color::GOLD).into()),
-                            )
-                            .with_text("0")
-                            .build(ctx);
-                            message_count
-                        }),
-                )
-                .add_column(Column::auto())
-                .add_column(Column::auto())
-                .add_row(Row::auto())
-                .build(ctx),
+                        .with_opt_texture(load_image(include_bytes!("../resources/caution.png")))
+                        .build(ctx),
+                    )
+                    .with_child({
+                        message_count = TextBuilder::new(
+                            WidgetBuilder::new()
+                                .on_column(1)
+                                .with_margin(Thickness::uniform(1.0))
+                                .with_vertical_alignment(VerticalAlignment::Center)
+                                .with_foreground(Brush::Solid(Color::GOLD).into()),
+                        )
+                        .with_text("0")
+                        .build(ctx);
+                        message_count
+                    }),
             )
-            .build(ctx);
+            .add_column(Column::auto())
+            .add_column(Column::auto())
+            .add_row(Row::auto())
+            .build(ctx),
+        )
+        .build(ctx);
 
         let toolbar = GridBuilder::new(
             WidgetBuilder::new()
@@ -494,6 +497,7 @@ impl ProjectManager {
         .add_column(Column::auto())
         .add_column(Column::auto())
         .add_column(Column::stretch())
+        .add_column(Column::auto())
         .add_column(Column::auto())
         .add_column(Column::auto())
         .add_column(Column::auto())
@@ -983,6 +987,7 @@ impl ProjectManager {
         self.import_project_dialog = FileSelectorBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                 .open(false)
+                .with_title(WindowTitle::text("Select an Existing Project Folder"))
                 .with_remove_on_close(true),
         )
         .with_filter(PathFilter::folder())
