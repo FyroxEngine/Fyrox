@@ -1473,7 +1473,7 @@ pub static CUBE: LazyLock<BuiltInResource<SurfaceData>> = LazyLock::new(|| {
         "__CubeSurface",
         SurfaceResource::new_ok(
             uuid!("d3a4604a-e1c6-430b-b524-8d3213723952"),
-            ResourceKind::Embedded,
+            ResourceKind::External,
             SurfaceData::make_cube(Matrix4::identity()),
         ),
     )
@@ -1485,7 +1485,7 @@ pub static QUAD: LazyLock<BuiltInResource<SurfaceData>> = LazyLock::new(|| {
         "__QuadSurface",
         SurfaceResource::new_ok(
             uuid!("a124317f-640b-4c1b-9fdc-af62f745eeba"),
-            ResourceKind::Embedded,
+            ResourceKind::External,
             SurfaceData::make_quad(&Matrix4::identity()),
         ),
     )
@@ -1497,7 +1497,7 @@ pub static CYLINDER: LazyLock<BuiltInResource<SurfaceData>> = LazyLock::new(|| {
         "__CylinderSurface",
         SurfaceResource::new_ok(
             uuid!("16300ec8-4446-41a7-8ad6-9b45428d0b1b"),
-            ResourceKind::Embedded,
+            ResourceKind::External,
             SurfaceData::make_cylinder(32, 1.0, 1.0, true, &Matrix4::identity()),
         ),
     )
@@ -1509,7 +1509,7 @@ pub static SPHERE: LazyLock<BuiltInResource<SurfaceData>> = LazyLock::new(|| {
         "__SphereSurface",
         SurfaceResource::new_ok(
             uuid!("ff1811ba-b9ad-4c37-89b8-503f79aaa4bd"),
-            ResourceKind::Embedded,
+            ResourceKind::External,
             SurfaceData::make_sphere(32, 32, 1.0, &Matrix4::identity()),
         ),
     )
@@ -1521,7 +1521,7 @@ pub static CONE: LazyLock<BuiltInResource<SurfaceData>> = LazyLock::new(|| {
         "__ConeSurface",
         SurfaceResource::new_ok(
             uuid!("e4e79405-39c5-4fe4-ba3e-c961f3d7379e"),
-            ResourceKind::Embedded,
+            ResourceKind::External,
             SurfaceData::make_cone(32, 1.0, 1.0, &Matrix4::identity()),
         ),
     )
@@ -1533,7 +1533,7 @@ pub static TORUS: LazyLock<BuiltInResource<SurfaceData>> = LazyLock::new(|| {
         "__TorusSurface",
         SurfaceResource::new_ok(
             uuid!("d2bb5455-c72e-475d-90da-e3a7bd5b7d07"),
-            ResourceKind::Embedded,
+            ResourceKind::External,
             SurfaceData::make_torus(1.0, 0.25, 32, 32, &Matrix4::identity()),
         ),
     )
