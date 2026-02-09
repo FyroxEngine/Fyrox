@@ -940,10 +940,14 @@ impl ProjectManager {
 
         let ctx = &mut ui.build_ctx();
         self.deletion_confirmation_dialog = MessageBoxBuilder::new(
-            WindowBuilder::new(WidgetBuilder::new())
+            WindowBuilder::new(WidgetBuilder::new().with_width(350.0).with_height(120.0))
                 .with_remove_on_close(true)
                 .with_title(WindowTitle::text("Delete Project"))
-                .open(false),
+                .open(false)
+                .can_close(false)
+                .can_maximize(false)
+                .can_minimize(false)
+                .can_resize(false),
         )
         .with_text(&format!(
             "Do you really want to delete {} project?\n\
