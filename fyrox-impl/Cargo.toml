@@ -44,7 +44,7 @@ winit = { version = "0.30", features = ["serde"] }
 half = { version = "2.2.1", features = ["bytemuck"] }
 base64 = "0.22.1"
 uvgen = "0.3.0"
-lightmap = "0.3.0"
+lightmap = "0.4.0"
 libloading = "0.8.1"
 gltf = { version = "1.4.0", default-features = false, features = ["names", "utils", "extras", "KHR_materials_emissive_strength"] }
 bytemuck = { version = "1.23.2", features = ["derive"] }
