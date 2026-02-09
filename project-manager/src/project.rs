@@ -44,7 +44,7 @@ use fyrox::{
         VerticalAlignment,
     },
 };
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 enum Style {
     TwoD,
@@ -112,6 +112,7 @@ pub struct ProjectWizard {
     vcs: Vcs,
     path: PathBuf,
     validation_text: Handle<Text>,
+    full_project_path: Handle<Text>,
 }
 
 fn make_text(text: &str, row: usize, ctx: &mut BuildContext) -> Handle<Text> {
@@ -130,8 +131,15 @@ fn make_text(text: &str, row: usize, ctx: &mut BuildContext) -> Handle<Text> {
     .build(ctx)
 }
 
+fn full_project_path(folder: &Path, name: &str) -> String {
+    folder.join(name).to_string_lossy().to_string()
+}
+
 impl ProjectWizard {
     pub fn new(ctx: &mut BuildContext) -> Self {
+        let path = std::env::home_dir().unwrap_or_else(|| PathBuf::from("./"));
+        let name = String::from("MyProject");
+
         let path_field = PathEditorBuilder::new(
             WidgetBuilder::new()
                 .with_height(22.0)
@@ -139,13 +147,13 @@ impl ProjectWizard {
                 .on_row(0)
                 .on_column(1),
         )
-        .with_path(std::env::home_dir().unwrap_or_else(|| PathBuf::from("./")))
+        .with_path(&path)
         .with_file_types(PathFilter::folder())
         .build(ctx);
 
         let name_field = TextBoxBuilder::new(
             WidgetBuilder::new()
-                .with_margin(Thickness::uniform(1.0))
+                .with_margin(Thickness::uniform(2.0))
                 .on_row(1)
                 .on_column(1),
         )
@@ -197,6 +205,15 @@ impl ProjectWizard {
         .with_orientation(Orientation::Horizontal)
         .build(ctx);
 
+        let full_project_path = TextBuilder::new(
+            WidgetBuilder::new()
+                .with_margin(Thickness::uniform(1.0))
+                .on_row(4)
+                .on_column(1),
+        )
+        .with_text(full_project_path(&path, &name))
+        .build(ctx);
+
         let grid = GridBuilder::new(
             WidgetBuilder::new()
                 .on_row(0)
@@ -207,8 +224,11 @@ impl ProjectWizard {
                 .with_child(make_text("Style", 2, ctx))
                 .with_child(style_field)
                 .with_child(make_text("Version Control", 3, ctx))
-                .with_child(vcs_field),
+                .with_child(vcs_field)
+                .with_child(make_text("Project Path", 4, ctx))
+                .with_child(full_project_path),
         )
+        .add_row(Row::auto())
         .add_row(Row::auto())
         .add_row(Row::auto())
         .add_row(Row::auto())
@@ -256,7 +276,7 @@ impl ProjectWizard {
 
         Self {
             window,
-            name: "MyProject".to_string(),
+            name,
             style: Style::ThreeD,
             vcs: Vcs::Git,
             create,
@@ -265,8 +285,9 @@ impl ProjectWizard {
             name_field,
             style_field,
             vcs_field,
-            path: Default::default(),
+            path,
             validation_text,
+            full_project_path,
         }
     }
 
@@ -286,6 +307,11 @@ impl ProjectWizard {
 
         ui.send(self.validation_text, WidgetMessage::Visibility(!is_valid));
         ui.send(self.create, WidgetMessage::Enabled(is_valid));
+    }
+
+    fn update_full_project_path(&self, ui: &UserInterface) {
+        let full_path = full_project_path(&self.path, &self.name);
+        ui.send(self.full_project_path, TextMessage::Text(full_path))
     }
 
     pub fn handle_ui_message(
@@ -316,6 +342,7 @@ impl ProjectWizard {
         } else if let Some(TextMessage::Text(text)) = message.data_from(self.name_field) {
             self.name.clone_from(text);
             self.validate(ui);
+            self.update_full_project_path(ui);
         } else if let Some(DropdownListMessage::Selection(Some(index))) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
                 if message.destination() == self.style_field {
@@ -326,6 +353,7 @@ impl ProjectWizard {
             }
         } else if let Some(PathEditorMessage::Path(path)) = message.data_from(self.path_field) {
             self.path.clone_from(path);
+            self.update_full_project_path(ui);
         }
         false
     }
