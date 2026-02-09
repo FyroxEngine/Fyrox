@@ -1313,7 +1313,7 @@ impl Widget {
                     }
                 }
                 &WidgetMessage::Enabled(enabled) => {
-                    self.invalidate_visual();
+                    self.invalidate_layout();
                     self.enabled.set_value_and_mark_modified(enabled);
                 }
                 &WidgetMessage::Cursor(icon) => {
