@@ -25,6 +25,7 @@
 pub mod dylib;
 pub mod error;
 
+use crate::engine::scene_loader::AsyncSceneLoader;
 use crate::plugin::error::GameError;
 use crate::{
     asset::manager::ResourceManager,
@@ -33,8 +34,8 @@ use crate::{
         visitor::Visit,
     },
     engine::{
-        input::InputState, task::TaskPoolHandler, ApplicationLoopController, AsyncSceneLoader,
-        GraphicsContext, PerformanceStatistics, ScriptProcessor, SerializationContext,
+        input::InputState, task::TaskPoolHandler, ApplicationLoopController, GraphicsContext,
+        PerformanceStatistics, ScriptProcessor, SerializationContext,
     },
     event::Event,
     gui::{
