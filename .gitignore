@@ -111,3 +111,4 @@ fabric.properties
 # Resource Metadata
 *.meta
 *.registry
+.DS_Store
