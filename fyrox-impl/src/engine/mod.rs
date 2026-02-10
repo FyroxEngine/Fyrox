@@ -26,7 +26,6 @@
 pub mod error;
 pub mod executor;
 pub mod input;
-pub mod scene_loader;
 pub mod task;
 
 mod hotreload;
@@ -38,7 +37,7 @@ use crate::{
         event::ResourceEvent,
         manager::{ResourceManager, ResourceWaitContext},
         state::ResourceState,
-        untyped::{ResourceKind, UntypedResource},
+        untyped::ResourceKind,
     },
     core::{
         algebra::Vector2,
@@ -49,12 +48,11 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
         task::TaskPool,
-        variable::try_inherit_properties,
         warn, SafeLock,
     },
     engine::{error::EngineError, input::InputState, task::TaskPoolHandler},
     event::Event,
-    graph::{NodeMapping, SceneGraph},
+    graph::SceneGraph,
     graphics::error::FrameworkError,
     gui::{
         constructor::WidgetConstructorContainer,
@@ -87,9 +85,8 @@ use crate::{
     },
     scene::{
         base::NodeScriptMessage,
-        graph::{GraphUpdateSwitches, NodePool},
+        graph::GraphUpdateSwitches,
         mesh::surface::{self, SurfaceData, SurfaceDataLoader},
-        navmesh,
         node::{
             constructor::{new_node_constructor_container, NodeConstructorContainer},
             Node,
@@ -120,7 +117,6 @@ use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
 };
-use scene_loader::AsyncSceneLoader;
 use std::{
     any::TypeId,
     cell::Cell,
@@ -311,9 +307,6 @@ pub struct Engine {
 
     /// All available scenes in the engine.
     pub scenes: SceneContainer,
-
-    /// An instance of the async scene loader. See [`AsyncSceneLoader`] docs for usage example.
-    pub async_scene_loader: AsyncSceneLoader,
 
     /// Task pool for asynchronous task management.
     pub task_pool: TaskPoolHandler,
@@ -1446,11 +1439,6 @@ impl Engine {
         Ok(Self {
             graphics_context: GraphicsContext::Uninitialized(graphics_context_params),
             model_events_receiver: tx,
-            async_scene_loader: AsyncSceneLoader::new(
-                resource_manager.clone(),
-                serialization_context.clone(),
-                dyn_type_constructors.clone(),
-            ),
             resource_manager,
             scenes: SceneContainer::new(sound_engine.clone()),
             sound_engine,
@@ -1603,7 +1591,6 @@ impl Engine {
         lag: &mut f32,
         switches: FxHashMap<Handle<Scene>, GraphUpdateSwitches>,
     ) {
-        self.handle_async_scene_loading(dt, lag, controller);
         self.pre_update(dt, controller, lag, switches);
         self.post_update(dt, &Default::default(), lag, controller);
         self.handle_plugins_hot_reloading(dt, controller, lag, |_| {});
@@ -1631,187 +1618,6 @@ impl Engine {
                 Log::err(format!(
                     "Unable to reload dynamic plugins. Reason: {message}"
                 ))
-            }
-        }
-    }
-
-    fn handle_async_scene_loading(
-        &mut self,
-        dt: f32,
-        lag: &mut f32,
-        controller: ApplicationLoopController,
-    ) {
-        let len = self.async_scene_loader.loading_scenes.len();
-        let mut n = 0;
-        while n < len {
-            if let Some(request) = self.async_scene_loader.loading_scenes.values_mut().nth(n) {
-                if !request.reported {
-                    request.reported = true;
-
-                    // Notify plugins about a scene, that started loading.
-                    if self.plugins_enabled {
-                        let path = request.path.clone();
-                        let mut context = PluginContext {
-                            scenes: &mut self.scenes,
-                            resource_manager: &self.resource_manager,
-                            graphics_context: &mut self.graphics_context,
-                            dt,
-                            lag,
-                            user_interfaces: &mut self.user_interfaces,
-                            serialization_context: &self.serialization_context,
-                            widget_constructors: &self.widget_constructors,
-                            dyn_type_constructors: &self.dyn_type_constructors,
-                            performance_statistics: &self.performance_statistics,
-                            elapsed_time: self.elapsed_time,
-                            script_processor: &self.script_processor,
-                            async_scene_loader: &mut self.async_scene_loader,
-                            loop_controller: controller,
-                            task_pool: &mut self.task_pool,
-                            input_state: &self.input_state,
-                        };
-
-                        for plugin in self.plugins.iter_mut() {
-                            try_enqueue_plugin_error(
-                                "on_scene_begin_loading",
-                                plugin.on_scene_begin_loading(&path, &mut context),
-                                &mut self.error_queue,
-                            );
-                        }
-                    }
-                }
-            }
-
-            n += 1;
-        }
-
-        while let Ok(loading_result) = self.async_scene_loader.receiver.try_recv() {
-            if let Some(request) = self
-                .async_scene_loader
-                .loading_scenes
-                .remove(&loading_result.path)
-            {
-                let mut context = PluginContext {
-                    scenes: &mut self.scenes,
-                    resource_manager: &self.resource_manager,
-                    graphics_context: &mut self.graphics_context,
-                    dt,
-                    lag,
-                    user_interfaces: &mut self.user_interfaces,
-                    serialization_context: &self.serialization_context,
-                    widget_constructors: &self.widget_constructors,
-                    dyn_type_constructors: &self.dyn_type_constructors,
-                    performance_statistics: &self.performance_statistics,
-                    elapsed_time: self.elapsed_time,
-                    script_processor: &self.script_processor,
-                    async_scene_loader: &mut self.async_scene_loader,
-                    loop_controller: controller,
-                    task_pool: &mut self.task_pool,
-                    input_state: &self.input_state,
-                };
-
-                match loading_result.result {
-                    Ok((mut scene, data)) => {
-                        if request.options.derived {
-                            let model = self
-                                .resource_manager
-                                .find_uuid::<Model>(loading_result.uuid);
-                            // Create a resource, that will point to the scene we've loaded the
-                            // scene from and force scene nodes to inherit data from them.
-                            let data = Model {
-                                mapping: NodeMapping::UseHandles,
-                                // We have to create a full copy of the scene, because otherwise
-                                // some methods (`Base::root_resource` in particular) won't work
-                                // correctly.
-                                scene: scene.clone_one_to_one().0,
-                            };
-                            model.header().state.commit_ok(data);
-
-                            for (handle, node) in scene.graph.pair_iter_mut() {
-                                node.set_inheritance_data(handle, model.clone());
-                            }
-
-                            // Reset modified flags in every inheritable property of the scene.
-                            // Except nodes, they're inherited in a separate place.
-                            (&mut scene as &mut dyn Reflect).apply_recursively_mut(
-                                &mut |object| {
-                                    let type_id = (*object).type_id();
-                                    if type_id != TypeId::of::<NodePool>() {
-                                        object.as_inheritable_variable_mut(&mut |variable| {
-                                            if let Some(variable) = variable {
-                                                variable.reset_modified_flag();
-                                            }
-                                        });
-                                    }
-                                },
-                                &[
-                                    TypeId::of::<UntypedResource>(),
-                                    TypeId::of::<navmesh::Container>(),
-                                ],
-                            )
-                        } else {
-                            // Take scene data from the source scene.
-                            if let Some(source_asset) =
-                                scene.graph[scene.graph.get_root()].root_resource()
-                            {
-                                let source_asset_ref = source_asset.data_ref();
-                                let source_scene_ref = &source_asset_ref.scene;
-                                Log::verify(try_inherit_properties(
-                                    &mut scene,
-                                    source_scene_ref,
-                                    &[
-                                        TypeId::of::<NodePool>(),
-                                        TypeId::of::<UntypedResource>(),
-                                        TypeId::of::<navmesh::Container>(),
-                                    ],
-                                ));
-                            }
-                        }
-
-                        let scene_handle = context.scenes.add(scene);
-
-                        // Notify plugins about newly loaded scene.
-                        if self.plugins_enabled {
-                            for plugin in self.plugins.iter_mut() {
-                                Log::info(format!(
-                                    "Scene {} was loaded successfully!",
-                                    loading_result.path.display()
-                                ));
-
-                                try_enqueue_plugin_error(
-                                    "on_scene_loaded",
-                                    plugin.on_scene_loaded(
-                                        &request.path,
-                                        scene_handle,
-                                        &data,
-                                        &mut context,
-                                    ),
-                                    &mut self.error_queue,
-                                );
-                            }
-                        }
-                    }
-                    Err(error) => {
-                        // Notify plugins about a scene, that is failed to load.
-                        if self.plugins_enabled {
-                            Log::err(format!(
-                                "Unable to load scene {:?}. Reason: {}",
-                                loading_result.path, error
-                            ));
-
-                            for plugin in self.plugins.iter_mut() {
-                                try_enqueue_plugin_error(
-                                    "on_scene_loading_failed",
-                                    plugin.on_scene_loading_failed(
-                                        &request.path,
-                                        &error,
-                                        &mut context,
-                                    ),
-                                    &mut self.error_queue,
-                                )
-                            }
-                        }
-                    }
-                }
             }
         }
     }
@@ -1969,7 +1775,6 @@ impl Engine {
                     performance_statistics: &self.performance_statistics,
                     elapsed_time: self.elapsed_time,
                     script_processor: &self.script_processor,
-                    async_scene_loader: &mut self.async_scene_loader,
                     loop_controller: controller,
                     task_pool: &mut self.task_pool,
                     input_state: &self.input_state,
@@ -2072,7 +1877,6 @@ impl Engine {
                 performance_statistics: &self.performance_statistics,
                 elapsed_time: self.elapsed_time,
                 script_processor: &self.script_processor,
-                async_scene_loader: &mut self.async_scene_loader,
                 loop_controller: controller,
                 task_pool: &mut self.task_pool,
                 input_state: &self.input_state,
@@ -2112,7 +1916,6 @@ impl Engine {
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
                         script_processor: &self.script_processor,
-                        async_scene_loader: &mut self.async_scene_loader,
                         loop_controller: controller,
                         task_pool: &mut self.task_pool,
                         input_state: &self.input_state,
@@ -2154,7 +1957,6 @@ impl Engine {
                 performance_statistics: &self.performance_statistics,
                 elapsed_time: self.elapsed_time,
                 script_processor: &self.script_processor,
-                async_scene_loader: &mut self.async_scene_loader,
                 loop_controller: controller,
                 task_pool: &mut self.task_pool,
                 input_state: &self.input_state,
@@ -2300,7 +2102,6 @@ impl Engine {
                     performance_statistics: &self.performance_statistics,
                     elapsed_time: self.elapsed_time,
                     script_processor: &self.script_processor,
-                    async_scene_loader: &mut self.async_scene_loader,
                     loop_controller: controller,
                     task_pool: &mut self.task_pool,
                     input_state: &self.input_state,
@@ -2336,7 +2137,6 @@ impl Engine {
                     performance_statistics: &self.performance_statistics,
                     elapsed_time: self.elapsed_time,
                     script_processor: &self.script_processor,
-                    async_scene_loader: &mut self.async_scene_loader,
                     loop_controller: controller,
                     task_pool: &mut self.task_pool,
                     input_state: &self.input_state,
@@ -2372,7 +2172,6 @@ impl Engine {
                     performance_statistics: &self.performance_statistics,
                     elapsed_time: self.elapsed_time,
                     script_processor: &self.script_processor,
-                    async_scene_loader: &mut self.async_scene_loader,
                     loop_controller: controller,
                     task_pool: &mut self.task_pool,
                     input_state: &self.input_state,
@@ -2408,7 +2207,6 @@ impl Engine {
                     performance_statistics: &self.performance_statistics,
                     elapsed_time: self.elapsed_time,
                     script_processor: &self.script_processor,
-                    async_scene_loader: &mut self.async_scene_loader,
                     loop_controller: controller,
                     task_pool: &mut self.task_pool,
                     input_state: &self.input_state,
@@ -2561,7 +2359,6 @@ impl Engine {
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
                         script_processor: &self.script_processor,
-                        async_scene_loader: &mut self.async_scene_loader,
                         loop_controller: controller,
                         task_pool: &mut self.task_pool,
                         input_state: &self.input_state,
@@ -2590,7 +2387,6 @@ impl Engine {
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
                         script_processor: &self.script_processor,
-                        async_scene_loader: &mut self.async_scene_loader,
                         loop_controller: controller,
                         task_pool: &mut self.task_pool,
                         input_state: &self.input_state,
@@ -2925,7 +2721,6 @@ impl Engine {
             performance_statistics: &Default::default(),
             elapsed_time: self.elapsed_time,
             script_processor: &self.script_processor,
-            async_scene_loader: &mut self.async_scene_loader,
             loop_controller: controller,
             task_pool: &mut self.task_pool,
             input_state: &self.input_state,

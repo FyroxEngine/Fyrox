@@ -84,7 +84,7 @@ impl GameError {
     }
 
     /// A shortcut `GameError::user(value)` for `GameError::UserError(Box::new(value))`.
-    pub fn user(value: impl std::error::Error + 'static) -> Self {
+    pub fn user(value: impl std::error::Error + Send + 'static) -> Self {
         Self::new(GameErrorKind::UserError(Box::new(value)))
     }
 
@@ -176,4 +176,4 @@ impl Debug for GameError {
 pub type GameResult = Result<(), GameError>;
 
 /// An arbitrary, user-defined, boxed error type.
-pub type UserError = Box<dyn std::error::Error>;
+pub type UserError = Box<dyn std::error::Error + Send>;

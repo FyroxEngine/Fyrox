@@ -25,12 +25,11 @@
 pub mod dylib;
 pub mod error;
 
-use crate::engine::scene_loader::AsyncSceneLoader;
-use crate::plugin::error::GameError;
 use crate::{
-    asset::manager::ResourceManager,
+    asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{
-        define_as_any_trait, pool::Handle, reflect::Reflect, visitor::error::VisitError,
+        define_as_any_trait, dyntype::DynTypeConstructorContainer, log::Log, pool::Handle,
+        reflect::Reflect, variable::try_inherit_properties, visitor::error::VisitError,
         visitor::Visit,
     },
     engine::{
@@ -38,16 +37,19 @@ use crate::{
         PerformanceStatistics, ScriptProcessor, SerializationContext,
     },
     event::Event,
+    graph::NodeMapping,
     gui::{
         constructor::WidgetConstructorContainer,
         inspector::editors::PropertyEditorDefinitionContainer, message::UiMessage, UiContainer,
         UserInterface,
     },
-    plugin::error::GameResult,
-    scene::{Scene, SceneContainer},
+    plugin::error::{GameError, GameResult},
+    resource::model::Model,
+    scene::{graph::NodePool, navmesh, Scene, SceneContainer, SceneLoader},
 };
-use fyrox_core::dyntype::DynTypeConstructorContainer;
+use std::path::PathBuf;
 use std::{
+    any::TypeId,
     ops::{Deref, DerefMut},
     path::Path,
     sync::Arc,
@@ -185,10 +187,6 @@ pub struct PluginContext<'a, 'b> {
     /// Script processor is used to run script methods in a strict order.
     pub script_processor: &'a ScriptProcessor,
 
-    /// Asynchronous scene loader. It is used to request scene loading. See [`AsyncSceneLoader`] docs
-    /// for usage example.
-    pub async_scene_loader: &'a mut AsyncSceneLoader,
-
     /// Special field that associates the main application event loop (not game loop) with OS-specific
     /// windows. It also can be used to alternate control flow of the application. `None` if the
     /// engine is running in headless mode.
@@ -253,6 +251,159 @@ impl<'a, 'b> PluginContext<'a, 'b> {
                 self.resource_manager.clone(),
             ),
             callback,
+        );
+    }
+
+    /// Tries to load a game scene at the given path.
+    ///
+    /// This method has a special flag `is_derived` which dictates how to load the scene:
+    ///
+    /// - `false` - the scene is loaded as-is and returned to the caller. Use this option if you
+    ///   don't want to use built-in "saved game" system. See the next option for details.
+    /// - `true`, then the requested scene is loaded and a new model resource is
+    ///   registered in the resource manager that references the scene source file. Then the loaded
+    ///   scene is _cloned_ and all its nodes links to their originals in the source file. Then this
+    ///   cloned and processed scene ("derived") is returned. This process essentially links the
+    ///   scene to its source file, so when the derived scene is saved to disk, it does not save all
+    ///   its content, but only changes from the original scene. Derived scenes are used to create
+    ///   saved games. Keep in mind, if you've created a derived scene and saved it, you must load
+    ///   this saved game with `is_derived` set to `false`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use fyrox_impl::{
+    /// #     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
+    /// #     event::Event,
+    /// #     plugin::{error::GameResult, Plugin, PluginContext, PluginRegistrationContext},
+    /// #     scene::Scene,
+    /// # };
+    /// # use std::str::FromStr;
+    /// #
+    /// #[derive(Default, Visit, Reflect, Debug)]
+    /// #[reflect(non_cloneable)]
+    /// struct MyGame {}
+    ///
+    /// impl MyGame {
+    ///     fn on_scene_loading_result(
+    ///         &mut self,
+    ///         result: Result<(Scene, Vec<u8>), VisitError>,
+    ///         ctx: &mut PluginContext,
+    ///     ) -> GameResult {
+    ///         let (scene, _raw_data) = result?;
+    ///         // Register the scene.
+    ///         ctx.scenes.add(scene);
+    ///         Ok(())
+    ///     }
+    /// }
+    ///
+    /// impl Plugin for MyGame {
+    ///     fn init(&mut self, scene_path: Option<&str>, mut ctx: PluginContext) -> GameResult {
+    ///         ctx.load_scene(
+    ///             scene_path.unwrap_or("data/scene.rgs"),
+    ///             false, // See the docs for details.
+    ///             |result, game: &mut MyGame, ctx| game.on_scene_loading_result(result, ctx),
+    ///         );
+    ///         Ok(())
+    ///     }
+    /// }
+    /// ```
+    pub fn load_scene<U, P, C>(&mut self, path: U, is_derived: bool, callback: C)
+    where
+        U: Into<PathBuf>,
+        P: Plugin,
+        for<'c, 'd> C: Fn(
+                Result<(Scene, Vec<u8>), VisitError>,
+                &mut P,
+                &mut PluginContext<'c, 'd>,
+            ) -> GameResult
+            + 'static,
+    {
+        let path = path.into();
+
+        let serialization_context = self.serialization_context.clone();
+        let dyn_type_constructors = self.dyn_type_constructors.clone();
+        let resource_manager = self.resource_manager.clone();
+        let uuid = resource_manager.find::<Model>(&path).resource_uuid();
+        let io = resource_manager.resource_io();
+
+        self.task_pool.spawn_plugin_task(
+            async move {
+                match SceneLoader::from_file(
+                    path.clone(),
+                    io.as_ref(),
+                    serialization_context,
+                    dyn_type_constructors,
+                    resource_manager.clone(),
+                )
+                .await
+                {
+                    Ok((loader, data)) => Ok((loader.finish().await, data)),
+                    Err(e) => Err(e),
+                }
+            },
+            move |result, plugin, ctx| {
+                match result {
+                    Ok((mut scene, data)) => {
+                        if is_derived {
+                            let model = ctx.resource_manager.find_uuid::<Model>(uuid);
+                            // Create a resource, that will point to the scene we've loaded the
+                            // scene from and force scene nodes to inherit data from them.
+                            let data = Model {
+                                mapping: NodeMapping::UseHandles,
+                                // We have to create a full copy of the scene, because otherwise
+                                // some methods (`Base::root_resource` in particular) won't work
+                                // correctly.
+                                scene: scene.clone_one_to_one().0,
+                            };
+                            model.header().state.commit_ok(data);
+
+                            for (handle, node) in scene.graph.pair_iter_mut() {
+                                node.set_inheritance_data(handle, model.clone());
+                            }
+
+                            // Reset modified flags in every inheritable property of the scene.
+                            // Except nodes, they're inherited in a separate place.
+                            (&mut scene as &mut dyn Reflect).apply_recursively_mut(
+                                &mut |object| {
+                                    let type_id = (*object).type_id();
+                                    if type_id != TypeId::of::<NodePool>() {
+                                        object.as_inheritable_variable_mut(&mut |variable| {
+                                            if let Some(variable) = variable {
+                                                variable.reset_modified_flag();
+                                            }
+                                        });
+                                    }
+                                },
+                                &[
+                                    TypeId::of::<UntypedResource>(),
+                                    TypeId::of::<navmesh::Container>(),
+                                ],
+                            )
+                        } else {
+                            // Take scene data from the source scene.
+                            if let Some(source_asset) =
+                                scene.graph[scene.graph.get_root()].root_resource()
+                            {
+                                let source_asset_ref = source_asset.data_ref();
+                                let source_scene_ref = &source_asset_ref.scene;
+                                Log::verify(try_inherit_properties(
+                                    &mut scene,
+                                    source_scene_ref,
+                                    &[
+                                        TypeId::of::<NodePool>(),
+                                        TypeId::of::<UntypedResource>(),
+                                        TypeId::of::<navmesh::Container>(),
+                                    ],
+                                ));
+                            }
+                        }
+
+                        callback(Ok((scene, data)), plugin, ctx)
+                    }
+                    Err(error) => callback(Err(error), plugin, ctx),
+                }
+            },
         );
     }
 }
@@ -461,41 +612,6 @@ pub trait Plugin: PluginAsAny + Visit + Reflect {
         #[allow(unused_variables)] context: &mut PluginContext,
         #[allow(unused_variables)] message: &UiMessage,
         #[allow(unused_variables)] ui_handle: Handle<UserInterface>,
-    ) -> GameResult {
-        Ok(())
-    }
-
-    /// This method is called when the engine starts loading a scene from the given `path`. It could
-    /// be used to "catch" the moment when the scene is about to be loaded; to show a progress bar
-    /// for example. See [`AsyncSceneLoader`] docs for usage example.
-    fn on_scene_begin_loading(
-        &mut self,
-        #[allow(unused_variables)] path: &Path,
-        #[allow(unused_variables)] context: &mut PluginContext,
-    ) -> GameResult {
-        Ok(())
-    }
-
-    /// This method is called when the engine finishes loading a scene from the given `path`. Use
-    /// this method if you need do something with a newly loaded scene. See [`AsyncSceneLoader`] docs
-    /// for usage example.
-    fn on_scene_loaded(
-        &mut self,
-        #[allow(unused_variables)] path: &Path,
-        #[allow(unused_variables)] scene: Handle<Scene>,
-        #[allow(unused_variables)] data: &[u8],
-        #[allow(unused_variables)] context: &mut PluginContext,
-    ) -> GameResult {
-        Ok(())
-    }
-
-    /// This method is called when the engine finishes loading a scene from the given `path` with
-    /// some error. This method could be used to report any issues to a user.
-    fn on_scene_loading_failed(
-        &mut self,
-        #[allow(unused_variables)] path: &Path,
-        #[allow(unused_variables)] error: &VisitError,
-        #[allow(unused_variables)] context: &mut PluginContext,
     ) -> GameResult {
         Ok(())
     }
