@@ -116,6 +116,29 @@ impl DerefMut for PluginContainer {
     }
 }
 
+/// Output data of a loader.
+pub struct LoaderOutput<T> {
+    /// The object produced by the loader.
+    pub payload: T,
+    /// A path of the source file.
+    pub path: PathBuf,
+    /// A raw data from which the loader output was created from. Usually it is just a content of
+    /// the source file.
+    pub data: Vec<u8>,
+}
+
+/// Alias for `LoaderOutput<Scene>`;
+pub type SceneLoaderOutput = LoaderOutput<Scene>;
+
+/// Alias for `Result<SceneLoaderOutput, VisitError>`;
+pub type SceneLoaderResult = Result<SceneLoaderOutput, VisitError>;
+
+/// Alias for `LoaderOutput<UserInterface>`
+pub type UiLoaderOutput = LoaderOutput<UserInterface>;
+
+/// Alias for `Result<UiLoaderOutput, VisitError>`
+pub type UiLoaderResult = Result<UiLoaderOutput, VisitError>;
+
 /// Contains plugin environment for the registration stage.
 pub struct PluginRegistrationContext<'a> {
     /// A reference to serialization context of the engine. See [`SerializationContext`] for more
@@ -228,7 +251,7 @@ impl<'a, 'b> PluginContext<'a, 'b> {
     ///     fn init(&mut self, _scene_path: Option<&str>, mut ctx: PluginContext) -> GameResult {
     ///         ctx.load_ui("data/my.ui", |result, game: &mut MyGame, mut ctx| {
     ///             // The loaded UI must be registered in the engine.
-    ///             *ctx.user_interfaces.first_mut() = result?;
+    ///             *ctx.user_interfaces.first_mut() = result?.payload;
     ///             Ok(())
     ///         });
     ///         Ok(())
@@ -239,17 +262,29 @@ impl<'a, 'b> PluginContext<'a, 'b> {
     where
         U: Into<PathBuf>,
         P: Plugin,
-        for<'c, 'd> C: Fn(Result<UserInterface, VisitError>, &mut P, &mut PluginContext<'c, 'd>) -> GameResult
-            + 'static,
+        for<'c, 'd> C:
+            FnOnce(UiLoaderResult, &mut P, &mut PluginContext<'c, 'd>) -> GameResult + 'static,
     {
+        let path = path.into();
         self.task_pool.spawn_plugin_task(
             UserInterface::load_from_file(
-                path.into(),
+                path.clone(),
                 self.widget_constructors.clone(),
                 self.dyn_type_constructors.clone(),
                 self.resource_manager.clone(),
             ),
-            callback,
+            move |result, plugin, ctx| match result {
+                Ok((ui, data)) => callback(
+                    Ok(LoaderOutput {
+                        payload: ui,
+                        data,
+                        path,
+                    }),
+                    plugin,
+                    ctx,
+                ),
+                Err(e) => callback(Err(e), plugin, ctx),
+            },
         );
     }
 
@@ -274,7 +309,7 @@ impl<'a, 'b> PluginContext<'a, 'b> {
     /// # use fyrox_impl::{
     /// #     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     /// #     event::Event,
-    /// #     plugin::{error::GameResult, Plugin, PluginContext, PluginRegistrationContext},
+    /// #     plugin::{error::GameResult, SceneLoaderResult, Plugin, PluginContext, PluginRegistrationContext},
     /// #     scene::Scene,
     /// # };
     /// # use std::str::FromStr;
@@ -284,14 +319,9 @@ impl<'a, 'b> PluginContext<'a, 'b> {
     /// struct MyGame {}
     ///
     /// impl MyGame {
-    ///     fn on_scene_loading_result(
-    ///         &mut self,
-    ///         result: Result<(Scene, Vec<u8>), VisitError>,
-    ///         ctx: &mut PluginContext,
-    ///     ) -> GameResult {
-    ///         let (scene, _raw_data) = result?;
+    ///     fn on_scene_loading_result(&mut self, result: SceneLoaderResult, ctx: &mut PluginContext) -> GameResult {
     ///         // Register the scene.
-    ///         ctx.scenes.add(scene);
+    ///         ctx.scenes.add(result?.payload);
     ///         Ok(())
     ///     }
     /// }
@@ -311,12 +341,8 @@ impl<'a, 'b> PluginContext<'a, 'b> {
     where
         U: Into<PathBuf>,
         P: Plugin,
-        for<'c, 'd> C: Fn(
-                Result<(Scene, Vec<u8>), VisitError>,
-                &mut P,
-                &mut PluginContext<'c, 'd>,
-            ) -> GameResult
-            + 'static,
+        for<'c, 'd> C:
+            FnOnce(SceneLoaderResult, &mut P, &mut PluginContext<'c, 'd>) -> GameResult + 'static,
     {
         let path = path.into();
 
@@ -327,18 +353,21 @@ impl<'a, 'b> PluginContext<'a, 'b> {
         let io = resource_manager.resource_io();
 
         self.task_pool.spawn_plugin_task(
-            async move {
-                match SceneLoader::from_file(
-                    path.clone(),
-                    io.as_ref(),
-                    serialization_context,
-                    dyn_type_constructors,
-                    resource_manager.clone(),
-                )
-                .await
-                {
-                    Ok((loader, data)) => Ok((loader.finish().await, data)),
-                    Err(e) => Err(e),
+            {
+                let path = path.clone();
+                async move {
+                    match SceneLoader::from_file(
+                        path,
+                        io.as_ref(),
+                        serialization_context,
+                        dyn_type_constructors,
+                        resource_manager.clone(),
+                    )
+                    .await
+                    {
+                        Ok((loader, data)) => Ok((loader.finish().await, data)),
+                        Err(e) => Err(e),
+                    }
                 }
             },
             move |result, plugin, ctx| {
@@ -398,7 +427,15 @@ impl<'a, 'b> PluginContext<'a, 'b> {
                             }
                         }
 
-                        callback(Ok((scene, data)), plugin, ctx)
+                        callback(
+                            Ok(LoaderOutput {
+                                payload: scene,
+                                path,
+                                data,
+                            }),
+                            plugin,
+                            ctx,
+                        )
                     }
                     Err(error) => callback(Err(error), plugin, ctx),
                 }

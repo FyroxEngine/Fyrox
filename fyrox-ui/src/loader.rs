@@ -60,7 +60,7 @@ impl ResourceLoader for UserInterfaceLoader {
         let dyn_type_constructors = self.dyn_type_constructors.clone();
         Box::pin(async move {
             let io = io.as_ref();
-            let ui = UserInterface::load_from_file_ex(
+            let (ui, _) = UserInterface::load_from_file_ex(
                 &path,
                 constructors,
                 dyn_type_constructors,

@@ -2131,7 +2131,7 @@ impl Editor {
                     .await;
                     loading_scenes.safe_lock().remove(&scene_path);
                     match result {
-                        Ok(ui) => {
+                        Ok((ui, _)) => {
                             sender.send(Message::AddUiScene {
                                 ui,
                                 path: scene_path,

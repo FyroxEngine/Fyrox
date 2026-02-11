@@ -3424,7 +3424,7 @@ impl UserInterface {
         constructors: Arc<WidgetConstructorContainer>,
         dyn_type_constructors: Arc<DynTypeConstructorContainer>,
         resource_manager: ResourceManager,
-    ) -> Result<Self, VisitError> {
+    ) -> Result<(Self, Vec<u8>), VisitError> {
         Self::load_from_file_ex(
             path,
             constructors,
@@ -3473,12 +3473,13 @@ impl UserInterface {
         dyn_type_constructors: Arc<DynTypeConstructorContainer>,
         resource_manager: ResourceManager,
         io: &dyn ResourceIo,
-    ) -> Result<Self, VisitError> {
+    ) -> Result<(Self, Vec<u8>), VisitError> {
         if !resource_manager.registry_is_loaded().await {
             return Err("The resource registry is unavailable!".to_string().into());
         }
-        let mut ui = {
-            let mut visitor = Visitor::load_from_memory(&io.load_file(path.as_ref()).await?)?;
+        let (mut ui, data) = {
+            let data = io.load_file(path.as_ref()).await?;
+            let mut visitor = Visitor::load_from_memory(&data)?;
             let (sender, receiver) = mpsc::channel();
             visitor.blackboard.register(constructors);
             visitor.blackboard.register(Arc::new(sender.clone()));
@@ -3487,7 +3488,7 @@ impl UserInterface {
             let mut ui =
                 UserInterface::new_with_channel(sender, receiver, Vector2::new(100.0, 100.0));
             ui.visit("Ui", &mut visitor)?;
-            ui
+            (ui, data)
         };
 
         Log::info("UserInterface - Collecting resources used by the scene...");
@@ -3505,7 +3506,7 @@ impl UserInterface {
 
         ui.resolve();
 
-        Ok(ui)
+        Ok((ui, data))
     }
 }
 

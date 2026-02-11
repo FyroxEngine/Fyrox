@@ -36,7 +36,7 @@ use fxhash::FxHashMap;
 use std::sync::Arc;
 
 pub(crate) type NodeTaskHandlerClosure = Box<
-    dyn for<'a, 'b, 'c> Fn(
+    dyn for<'a, 'b, 'c> FnOnce(
         Box<dyn AsyncTaskResult>,
         &mut dyn ScriptTrait,
         &mut ScriptContext<'a, 'b, 'c>,
@@ -44,7 +44,7 @@ pub(crate) type NodeTaskHandlerClosure = Box<
 >;
 
 pub(crate) type PluginTaskHandler = Box<
-    dyn for<'a, 'b> Fn(
+    dyn for<'a, 'b> FnOnce(
         Box<dyn AsyncTaskResult>,
         &'a mut [PluginContainer],
         &mut PluginContext<'a, 'b>,
@@ -150,7 +150,7 @@ impl TaskPoolHandler {
         F: AsyncTask<T>,
         T: AsyncTaskResult,
         P: Plugin,
-        for<'a, 'b> C: Fn(T, &mut P, &mut PluginContext<'a, 'b>) -> GameResult + 'static,
+        for<'a, 'b> C: FnOnce(T, &mut P, &mut PluginContext<'a, 'b>) -> GameResult + 'static,
     {
         let task_id = self.task_pool.spawn_with_result(future);
         self.plugin_task_handlers.insert(
@@ -222,7 +222,8 @@ impl TaskPoolHandler {
     ) where
         F: AsyncTask<T>,
         T: AsyncTaskResult,
-        for<'a, 'b, 'c> C: Fn(T, &mut S, &mut ScriptContext<'a, 'b, 'c>) -> GameResult + 'static,
+        for<'a, 'b, 'c> C:
+            FnOnce(T, &mut S, &mut ScriptContext<'a, 'b, 'c>) -> GameResult + 'static,
         S: ScriptTrait,
     {
         let task_id = self.task_pool.spawn_with_result(future);
