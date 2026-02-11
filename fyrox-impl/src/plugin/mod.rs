@@ -47,7 +47,8 @@ use crate::{
     resource::model::Model,
     scene::{graph::NodePool, navmesh, Scene, SceneContainer, SceneLoader},
 };
-use std::path::PathBuf;
+use fyrox_core::err;
+use std::path::{Path, PathBuf};
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
@@ -441,6 +442,29 @@ impl<'a, 'b> PluginContext<'a, 'b> {
                 }
             },
         );
+    }
+
+    /// Tries to load either a game scene (via [`Self::load_scene`] or a user interface [`Self::load_ui`].
+    /// This method tries to guess the actual type of the asset by comparing the extension in the
+    /// path. When a game scene is loaded, it is added to the scene container. When a user interface
+    /// is loaded, it **replaces** the default user interface.
+    pub fn load_scene_or_ui<P: Plugin>(&mut self, path: impl AsRef<Path>) {
+        let path = path.as_ref();
+        let ext = path
+            .extension()
+            .map(|ext| ext.to_string_lossy().to_string())
+            .unwrap_or_default();
+        match ext.as_str() {
+            "rgs" => self.load_scene(path, false, |result, _: &mut P, ctx| {
+                ctx.scenes.add(result?.payload);
+                Ok(())
+            }),
+            "ui" => self.load_ui(path, |result, _: &mut P, ctx| {
+                *ctx.user_interfaces.first_mut() = result?.payload;
+                Ok(())
+            }),
+            _ => err!("File {path:?} is not a game scene nor a user interface!"),
+        }
     }
 }
 

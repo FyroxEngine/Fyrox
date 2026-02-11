@@ -165,7 +165,6 @@ use fyrox::{
     event::Event,
     gui::{message::UiMessage, UserInterface},
     plugin::{Plugin, PluginContext, PluginRegistrationContext, error::GameResult},
-    scene::Scene,
 };
 use std::path::Path;
 
@@ -174,9 +173,7 @@ pub use fyrox;
 
 #[derive(Default, Visit, Reflect, Debug)]
 #[reflect(non_cloneable)]
-pub struct Game {
-    scene: Handle<Scene>,
-}
+pub struct Game { }
 
 impl Plugin for Game {
     fn register(&self, _context: PluginRegistrationContext) -> GameResult {
@@ -184,10 +181,8 @@ impl Plugin for Game {
         Ok(())
     }
 
-    fn init(&mut self, scene_path: Option<&str>, context: PluginContext) -> GameResult {
-        context
-            .async_scene_loader
-            .request(scene_path.unwrap_or("data/scene.rgs"));
+    fn init(&mut self, scene_path: Option<&str>, mut context: PluginContext) -> GameResult {
+        context.load_scene_or_ui::<Self>(scene_path.unwrap_or("data/scene.rgs"));
         Ok(())
     }
 
@@ -217,24 +212,6 @@ impl Plugin for Game {
         _ui_handle: Handle<UserInterface>
     ) -> GameResult {
         // Handle UI events here.
-        Ok(())
-    }
-
-    fn on_scene_begin_loading(&mut self, _path: &Path, ctx: &mut PluginContext) -> GameResult {
-        if self.scene.is_some() {
-            ctx.scenes.remove(self.scene);
-        }
-        Ok(())
-    }
-
-    fn on_scene_loaded(
-        &mut self,
-        _path: &Path,
-        scene: Handle<Scene>,
-        _data: &[u8],
-        _context: &mut PluginContext,
-    ) -> GameResult {
-        self.scene = scene;
         Ok(())
     }
 }
