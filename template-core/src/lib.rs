@@ -166,7 +166,6 @@ use fyrox::{
     gui::{message::UiMessage, UserInterface},
     plugin::{Plugin, PluginContext, PluginRegistrationContext, error::GameResult},
 };
-use std::path::Path;
 
 // Re-export the engine.
 pub use fyrox;
