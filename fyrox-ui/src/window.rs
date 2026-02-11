@@ -431,7 +431,10 @@ impl Control for Window {
                                 }
 
                                 if grip.is_dragging {
-                                    let delta = self.mouse_click_pos - pos;
+                                    let parent = ui.node(self.parent());
+                                    let click_pos = parent.screen_to_local(self.mouse_click_pos);
+                                    let current_pos = parent.screen_to_local(pos);
+                                    let delta = click_pos - current_pos;
                                     let (dx, dy, dw, dh) = match grip.kind {
                                         GripKind::Left => (-1.0, 0.0, 1.0, 0.0),
                                         GripKind::Top => (0.0, -1.0, 0.0, 1.0),
@@ -443,35 +446,50 @@ impl Control for Window {
                                         GripKind::LeftBottomCorner => (-1.0, 0.0, 1.0, -1.0),
                                     };
 
+                                    let initial_position =
+                                        parent.screen_to_local(self.initial_position);
                                     let new_pos = if self.minimized() {
-                                        self.initial_position + Vector2::new(delta.x * dx, 0.0)
+                                        initial_position + Vector2::new(delta.x * dx, 0.0)
                                     } else {
-                                        self.initial_position
-                                            + Vector2::new(delta.x * dx, delta.y * dy)
+                                        initial_position + Vector2::new(delta.x * dx, delta.y * dy)
                                     };
                                     let new_size = self.initial_size
                                         + Vector2::new(delta.x * dw, delta.y * dh);
+                                    let mut clamped_size = self.initial_size;
+                                    let mut clamped_pos = new_pos;
 
-                                    if new_size.x > self.min_width()
-                                        && new_size.x < self.max_width()
-                                        && new_size.y > self.min_height()
-                                        && new_size.y < self.max_height()
-                                    {
-                                        ui.send_many(
-                                            self.handle(),
-                                            [
-                                                WidgetMessage::DesiredPosition(
-                                                    ui.screen_to_root_canvas_space(new_pos),
-                                                ),
-                                                WidgetMessage::Width(new_size.x),
-                                            ],
-                                        );
-                                        if !self.minimized() {
-                                            ui.send(
-                                                self.handle(),
-                                                WidgetMessage::Height(new_size.y),
-                                            );
+                                    if dw != 0.0 {
+                                        clamped_size.x =
+                                            new_size.x.clamp(self.min_width(), self.max_width());
+                                        if dx != 0.0 {
+                                            let right_edge =
+                                                initial_position.x + self.initial_size.x;
+                                            clamped_pos.x = right_edge - clamped_size.x;
                                         }
+                                    }
+
+                                    if dh != 0.0 {
+                                        clamped_size.y =
+                                            new_size.y.clamp(self.min_height(), self.max_height());
+                                        if dy != 0.0 {
+                                            let bottom_edge =
+                                                initial_position.y + self.initial_size.y;
+                                            clamped_pos.y = bottom_edge - clamped_size.y;
+                                        }
+                                    }
+
+                                    ui.send_many(
+                                        self.handle(),
+                                        [
+                                            WidgetMessage::DesiredPosition(clamped_pos),
+                                            WidgetMessage::Width(clamped_size.x),
+                                        ],
+                                    );
+                                    if !self.minimized() {
+                                        ui.send(
+                                            self.handle(),
+                                            WidgetMessage::Height(clamped_size.y),
+                                        );
                                     }
 
                                     break;
