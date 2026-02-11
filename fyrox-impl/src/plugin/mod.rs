@@ -51,7 +51,6 @@ use std::path::PathBuf;
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
-    path::Path,
     sync::Arc,
 };
 
@@ -238,14 +237,14 @@ impl<'a, 'b> PluginContext<'a, 'b> {
     /// ```
     pub fn load_ui<U, P, C>(&mut self, path: U, callback: C)
     where
-        U: AsRef<Path> + Send + 'static,
+        U: Into<PathBuf>,
         P: Plugin,
         for<'c, 'd> C: Fn(Result<UserInterface, VisitError>, &mut P, &mut PluginContext<'c, 'd>) -> GameResult
             + 'static,
     {
         self.task_pool.spawn_plugin_task(
             UserInterface::load_from_file(
-                path,
+                path.into(),
                 self.widget_constructors.clone(),
                 self.dyn_type_constructors.clone(),
                 self.resource_manager.clone(),
