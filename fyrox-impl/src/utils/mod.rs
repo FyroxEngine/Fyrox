@@ -529,7 +529,21 @@ pub fn translate_event(event: &WindowEvent) -> Option<OsEvent> {
         WindowEvent::MouseWheel { delta, .. } => match delta {
             MouseScrollDelta::LineDelta(x, y) => Some(OsEvent::MouseWheel(*x, *y)),
             MouseScrollDelta::PixelDelta(pos) => {
-                Some(OsEvent::MouseWheel(pos.x as f32, pos.y as f32))
+                #[cfg(target_os = "macos")]
+                {
+                    // macOS trackpads emits pixel deltas; scale to line-like units to avoid excessive scroll speed.
+                    const PIXELS_PER_LINE: f32 = 100.0;
+
+                    Some(OsEvent::MouseWheel(
+                        pos.x as f32 / PIXELS_PER_LINE,
+                        pos.y as f32 / PIXELS_PER_LINE,
+                    ))
+                }
+
+                #[cfg(not(target_os = "macos"))]
+                {
+                    Some(OsEvent::MouseWheel(pos.x as f32, pos.y as f32))
+                }
             }
         },
         WindowEvent::MouseInput { state, button, .. } => Some(OsEvent::MouseInput {
