@@ -252,7 +252,7 @@ impl<'a, 'b> PluginContext<'a, 'b> {
     ///     fn init(&mut self, _scene_path: Option<&str>, mut ctx: PluginContext) -> GameResult {
     ///         ctx.load_ui("data/my.ui", |result, game: &mut MyGame, mut ctx| {
     ///             // The loaded UI must be registered in the engine.
-    ///             *ctx.user_interfaces.first_mut() = result?.payload;
+    ///             ctx.user_interfaces.add(result?.payload);
     ///             Ok(())
     ///         });
     ///         Ok(())
@@ -446,8 +446,7 @@ impl<'a, 'b> PluginContext<'a, 'b> {
 
     /// Tries to load either a game scene (via [`Self::load_scene`] or a user interface [`Self::load_ui`].
     /// This method tries to guess the actual type of the asset by comparing the extension in the
-    /// path. When a game scene is loaded, it is added to the scene container. When a user interface
-    /// is loaded, it **replaces** the default user interface.
+    /// path. When a game scene or a UI is loaded, it is added to the respective engine container.
     pub fn load_scene_or_ui<P: Plugin>(&mut self, path: impl AsRef<Path>) {
         let path = path.as_ref();
         let ext = path
@@ -460,7 +459,7 @@ impl<'a, 'b> PluginContext<'a, 'b> {
                 Ok(())
             }),
             "ui" => self.load_ui(path, |result, _: &mut P, ctx| {
-                *ctx.user_interfaces.first_mut() = result?.payload;
+                ctx.user_interfaces.add(result?.payload);
                 Ok(())
             }),
             _ => err!("File {path:?} is not a game scene nor a user interface!"),

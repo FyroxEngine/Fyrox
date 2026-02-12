@@ -1433,16 +1433,13 @@ impl Engine {
 
         let sound_engine = SoundEngine::without_device();
 
-        let user_interfaces =
-            UiContainer::new_with_ui(UserInterface::new(Vector2::new(100.0, 100.0)));
-
         Ok(Self {
             graphics_context: GraphicsContext::Uninitialized(graphics_context_params),
             model_events_receiver: tx,
             resource_manager,
             scenes: SceneContainer::new(sound_engine.clone()),
             sound_engine,
-            user_interfaces,
+            user_interfaces: Default::default(),
             performance_statistics: Default::default(),
             plugins: Default::default(),
             serialization_context,

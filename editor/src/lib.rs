@@ -59,7 +59,6 @@ mod test;
 
 pub use fyrox;
 
-use crate::plugins::inspector::editors::make_property_editors_container;
 use crate::{
     asset::{item::AssetItem, AssetBrowser},
     audio::{preview::AudioPreviewPanel, AudioPanel},
@@ -81,15 +80,19 @@ use crate::{
             watcher::FileSystemWatcher,
             SafeLock, TypeUuidProvider,
         },
+        core::{info, uuid},
         dpi::{PhysicalPosition, PhysicalSize},
+        engine::GraphicsContext,
         engine::{
             ApplicationLoopController, Engine, EngineInitParams, GraphicsContextParams,
             SerializationContext,
         },
         event::{Event, WindowEvent},
+        event_loop::ActiveEventLoop,
         event_loop::EventLoop,
         fxhash::{FxHashMap, FxHashSet},
         gui::{
+            border::BorderBuilder,
             brush::Brush,
             button::ButtonBuilder,
             constructor::new_widget_constructor_container,
@@ -98,20 +101,25 @@ use crate::{
                 DockingManagerMessage, TileBuilder, TileContent,
             },
             dropdown_list::DropdownListBuilder,
-            file_browser::FileSelectorBuilder,
+            file_browser::{
+                FileSelector, FileSelectorBuilder, FileSelectorMode, FileType, PathFilter,
+            },
             formatted_text::WrapMode,
-            grid::{Column, GridBuilder, Row},
+            grid::{Column, Grid, GridBuilder, Row},
+            inspector::editors::PropertyEditorDefinitionContainer,
             key::HotKey,
             log::LogPanel,
             message::{MessageDirection, UiMessage},
             messagebox::{
-                MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult,
+                MessageBox, MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage,
+                MessageBoxResult,
             },
+            screen::ScreenBuilder,
             stack_panel::StackPanelBuilder,
             style::{resource::StyleResource, Style},
-            text::{TextBuilder, TextMessage},
+            text::{Text, TextBuilder, TextMessage},
             widget::{WidgetBuilder, WidgetMessage},
-            window::{WindowBuilder, WindowMessage, WindowTitle},
+            window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
         material::{
@@ -148,6 +156,7 @@ use crate::{
         animation::AnimationEditorPlugin,
         collider::ColliderPlugin,
         curve_editor::CurveEditorPlugin,
+        inspector::editors::make_property_editors_container,
         material::MaterialPlugin,
         probe::ReflectionProbePlugin,
         ragdoll::RagdollPlugin,
@@ -174,17 +183,6 @@ use crate::{
     utils::doc::DocWindow,
     world::{graph::EditorSceneWrapper, menu::SceneNodeContextMenu, WorldViewer},
 };
-use fyrox::core::{info, uuid};
-use fyrox::engine::GraphicsContext;
-use fyrox::event_loop::ActiveEventLoop;
-use fyrox::gui::border::BorderBuilder;
-use fyrox::gui::file_browser::{FileSelector, FileSelectorMode, FileType, PathFilter};
-use fyrox::gui::grid::Grid;
-use fyrox::gui::inspector::editors::PropertyEditorDefinitionContainer;
-use fyrox::gui::messagebox::MessageBox;
-use fyrox::gui::screen::ScreenBuilder;
-use fyrox::gui::text::Text;
-use fyrox::gui::window::{Window, WindowAlignment};
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
@@ -819,6 +817,10 @@ impl Editor {
 
         let (message_sender, message_receiver) = mpsc::channel();
         let message_sender = MessageSender(message_sender);
+
+        engine
+            .user_interfaces
+            .add(UserInterface::new(Vector2::new(100.0, 100.0)));
 
         let ui = engine.user_interfaces.first_mut();
         if let Some(style) = styles.get(&settings.general.style) {

@@ -916,13 +916,6 @@ impl UiContainer {
         Self::default()
     }
 
-    /// Creates a new user interface container with the given user interface.
-    pub fn new_with_ui(ui: UserInterface) -> Self {
-        let mut pool = Pool::new();
-        let _ = pool.spawn(ui);
-        Self { pool }
-    }
-
     /// Returns a reference to the first user interface in the container. Panics, if the container
     /// is empty.
     pub fn first(&self) -> &UserInterface {
