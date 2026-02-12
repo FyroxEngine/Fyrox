@@ -1,7 +1,7 @@
 [package]
 name = "fyroxed_base"
 license = "MIT"
-version = "1.0.0-rc.2"
+version = "1.0.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
 rust-version = "1.87"
@@ -13,8 +13,8 @@ readme = "README.md"
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md", "/resources/**/*"]
 
 [dependencies]
-fyrox = { version = "1.0.0-rc.2", path = "../fyrox", default-features = false }
-fyrox-build-tools = { version = "1.0.0-rc.2", path = "../fyrox-build-tools" }
+fyrox = { version = "1.0.0", path = "../fyrox", default-features = false }
+fyrox-build-tools = { version = "1.0.0", path = "../fyrox-build-tools" }
 ron = "0.11"
 serde = { version = "1", features = ["derive"] }
 toml = { version = "0.9", default-features = false, features = ["parse"] }

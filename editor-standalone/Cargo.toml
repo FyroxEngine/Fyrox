@@ -1,6 +1,6 @@
 [package]
 name = "fyroxed"
-version = "1.0.0-rc.2"
+version = "1.0.0"
 license = "MIT"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
@@ -13,6 +13,6 @@ readme = "README.md"
 include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
 
 [dependencies]
-fyrox = { version = "1.0.0-rc.2", path = "../fyrox" }
-fyroxed_base = { version = "1.0.0-rc.2", path = "../editor" }
+fyrox = { version = "1.0.0", path = "../fyrox" }
+fyroxed_base = { version = "1.0.0", path = "../editor" }
 clap = { version = "4", features = ["derive"] }

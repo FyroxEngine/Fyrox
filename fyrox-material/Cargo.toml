@@ -1,6 +1,6 @@
 [package]
 name = "fyrox-material"
-version = "1.0.0-rc.3"
+version = "1.0.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
 license = "MIT"
@@ -14,10 +14,10 @@ repository = "https://github.com/FyroxEngine/Fyrox"
 rust-version = "1.87"
 
 [dependencies]
-fyrox-core = { version = "1.0.0-rc.2", path = "../fyrox-core" }
-fyrox-resource = { version = "1.0.0-rc.2", path = "../fyrox-resource" }
-fyrox-texture = { version = "1.0.0-rc.2", path = "../fyrox-texture" }
-fyrox-graphics = { version = "1.0.0-rc.2", path = "../fyrox-graphics" }
+fyrox-core = { version = "1.0.0", path = "../fyrox-core" }
+fyrox-resource = { version = "1.0.0", path = "../fyrox-resource" }
+fyrox-texture = { version = "1.0.0", path = "../fyrox-texture" }
+fyrox-graphics = { version = "1.0.0", path = "../fyrox-graphics" }
 strum = "0.27"
 strum_macros = "0.27"
 fxhash = "0.2.1"
@@ -27,4 +27,4 @@ ron = "0.11.0"
 regex = "1"
 
 [dev-dependencies]
-fyrox-texture = { version = "1.0.0-rc.2", path = "../fyrox-texture" }
+fyrox-texture = { version = "1.0.0", path = "../fyrox-texture" }

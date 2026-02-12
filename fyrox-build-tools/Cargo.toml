@@ -1,6 +1,6 @@
 [package]
 name = "fyrox-build-tools"
-version = "1.0.0-rc.2"
+version = "1.0.0"
 edition = "2021"
 license = "MIT"
 description = "Build tools for Fyrox Engine"
@@ -13,7 +13,7 @@ repository = "https://github.com/FyroxEngine/Fyrox"
 rust-version = "1.87"
 
 [dependencies]
-fyrox-core = { path = "../fyrox-core", version = "1.0.0-rc.2" }
-fyrox-ui = { path = "../fyrox-ui", version = "1.0.0-rc.3" }
-fyrox-resource = { path = "../fyrox-resource", version = "1.0.0-rc.2" }
+fyrox-core = { path = "../fyrox-core", version = "1.0.0" }
+fyrox-ui = { path = "../fyrox-ui", version = "1.0.0" }
+fyrox-resource = { path = "../fyrox-resource", version = "1.0.0" }
 serde = { version = "1.0.215", features = ["derive"] }
