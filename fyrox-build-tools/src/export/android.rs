@@ -20,9 +20,8 @@
 
 use crate::export::{asset, utils, ExportOptions};
 use cargo_metadata::{camino::Utf8Path, Metadata, Package};
-use fyrox::asset::manager::ResourceManager;
-use fyrox::core::log::Log;
-use fyrox::core::platform::TargetPlatform;
+use fyrox_core::{log::Log, platform::TargetPlatform};
+use fyrox_resource::manager::ResourceManager;
 use std::{
     ffi::OsStr,
     fs,

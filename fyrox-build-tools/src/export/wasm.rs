@@ -20,7 +20,7 @@
 
 use crate::export::utils;
 use cargo_metadata::camino::Utf8Path;
-use fyrox::core::log::Log;
+use fyrox_core::log::Log;
 use std::{ffi::OsStr, path::Path, process::Stdio};
 
 pub fn build_package(

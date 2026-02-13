@@ -21,12 +21,10 @@
 //! Asset processing module.
 
 use crate::export::utils;
-use fyrox::{
-    asset::manager::ResourceManager,
-    core::{
-        futures::executor, futures::future::join_all, log::Log, platform::TargetPlatform, SafeLock,
-    },
+use fyrox_core::{
+    futures::executor, futures::future::join_all, log::Log, platform::TargetPlatform, SafeLock,
 };
+use fyrox_resource::manager::ResourceManager;
 use std::{fs, io, path::Path};
 
 pub fn copy_and_convert_assets(

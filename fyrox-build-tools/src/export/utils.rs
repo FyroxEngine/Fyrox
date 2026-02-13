@@ -18,12 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::core::platform::TargetPlatform;
 use cargo_metadata::Metadata;
-use fyrox::core::log::Log;
-use std::path::Path;
-use std::process::Stdio;
-use std::{fs, io};
+use fyrox_core::{log::Log, platform::TargetPlatform};
+use std::{fs, io, path::Path, process::Stdio};
 
 pub fn copy_dir_ex<F, C>(
     src: impl AsRef<Path>,

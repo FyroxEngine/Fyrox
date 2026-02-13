@@ -20,7 +20,7 @@
 
 use crate::export::utils;
 use cargo_metadata::Metadata;
-use fyrox::core::log::Log;
+use fyrox_core::log::Log;
 use std::{ffi::OsStr, fs, path::Path, process::Stdio};
 
 pub fn build_package(package_name: &str, enable_optimization: bool) -> std::process::Command {
