@@ -1,0 +1,19 @@
+[package]
+name = "fyrox-build-tools-cli"
+version = "1.0.0"
+edition = "2024"
+authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
+license = "MIT"
+description = "Command line interface for build tools of Fyrox engine"
+keywords = ["fyrox", "game", "project"]
+categories = ["game-development"]
+include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
+homepage = "https://fyrox.rs"
+repository = "https://github.com/FyroxEngine/Fyrox"
+readme = "README.md"
+rust-version = "1.87"
+
+[dependencies]
+fyrox-resource = { path = "../fyrox-resource", version = "1.0.0" }
+fyrox-build-tools = { path = "../fyrox-build-tools", version = "1.0.0" }
+clap = { version = "4", features = ["derive"] }

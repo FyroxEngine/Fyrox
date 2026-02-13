@@ -22,7 +22,6 @@ use cargo_metadata::camino::Utf8Path;
 use fyrox_core::{
     err,
     log::{Log, MessageKind},
-    platform::TargetPlatform,
     reflect::prelude::*,
 };
 use fyrox_resource::manager::ResourceManager;
@@ -35,6 +34,8 @@ use std::{
     },
     time::Duration,
 };
+
+pub use fyrox_core::platform::TargetPlatform;
 
 pub mod android;
 pub mod asset;

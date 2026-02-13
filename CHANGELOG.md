@@ -1,3 +1,7 @@
+# 1.0.0
+
+First stable release.
+
 # 1.0.0-rc.2
 
 Second release-candidate version.
