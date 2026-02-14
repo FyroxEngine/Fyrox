@@ -68,6 +68,15 @@ impl HotKey {
         }
     }
 
+    /// Creates a new hot key with from the given key code and a set of keyboard modifiers (such
+    /// as `Ctrl`, `Alt`, `Shift`, `System`).
+    pub fn key_with_modifiers(key: KeyCode, modifiers: KeyboardModifiers) -> Self {
+        Self::Some {
+            code: key,
+            modifiers,
+        }
+    }
+
     /// Creates a new hot key, that consists of combination `Ctrl + Key`.
     pub fn ctrl_key(key: KeyCode) -> Self {
         Self::Some {
@@ -96,6 +105,18 @@ impl HotKey {
             code: key,
             modifiers: KeyboardModifiers {
                 shift: true,
+                ..Default::default()
+            },
+        }
+    }
+
+    /// Creates a new hot key, that consists of combination `System + Key`.
+    /// `System` is an OS-dependent key, which is `Windows` key on Windows and `Cmd` key on macOS.
+    pub fn sys_key(key: KeyCode) -> Self {
+        Self::Some {
+            code: key,
+            modifiers: KeyboardModifiers {
+                system: true,
                 ..Default::default()
             },
         }
