@@ -58,9 +58,7 @@ pub struct ExportOptions {
     pub assets_folders: Vec<PathBuf>,
     pub ignored_extensions: Vec<String>,
     #[reflect(hidden)]
-    pub build_targets: Vec<String>,
-    #[reflect(hidden)]
-    pub selected_build_target: usize,
+    pub build_target: String,
     pub run_after_build: bool,
     pub open_destination_folder: bool,
     pub convert_assets: bool,
@@ -75,8 +73,7 @@ impl Default for ExportOptions {
             assets_folders: vec!["./data/".into()],
             include_used_assets: false,
             ignored_extensions: vec!["log".to_string()],
-            build_targets: vec!["default".to_string()],
-            selected_build_target: 0,
+            build_target: "default".to_string(),
             run_after_build: false,
             open_destination_folder: true,
             convert_assets: true,
@@ -211,7 +208,7 @@ pub fn export(
 
     build_package(
         package_name,
-        &export_options.build_targets[export_options.selected_build_target],
+        &export_options.build_target,
         package_dir_path,
         export_options.target_platform,
         cancel_flag,

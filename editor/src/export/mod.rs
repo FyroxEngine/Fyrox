@@ -77,6 +77,7 @@ pub struct ExportWindow {
     inspector: Handle<Inspector>,
     build_targets_selector: Handle<DropdownList>,
     child_processes: Vec<std::process::Child>,
+    build_targets: Vec<String>,
 }
 
 fn make_title_text(text: &str, row: usize, ctx: &mut BuildContext) -> Handle<Text> {
@@ -105,6 +106,7 @@ impl ExportWindow {
         let log_scroll_viewer;
         let target_platform_list;
         let export_options = ExportOptions::default();
+        let build_targets = vec![export_options.build_target.clone()];
 
         let platform_section = StackPanelBuilder::new(
             WidgetBuilder::new()
@@ -169,8 +171,7 @@ impl ExportWindow {
                     build_targets_selector =
                         DropdownListBuilder::new(WidgetBuilder::new().on_column(1))
                             .with_items(
-                                export_options
-                                    .build_targets
+                                build_targets
                                     .iter()
                                     .map(|opt| make_dropdown_list_option(ctx, opt))
                                     .collect::<Vec<_>>(),
@@ -326,6 +327,7 @@ impl ExportWindow {
             inspector,
             build_targets_selector,
             child_processes: Default::default(),
+            build_targets,
         }
     }
 
@@ -423,10 +425,12 @@ impl ExportWindow {
                     }
                 };
 
-                self.export_options.build_targets = build_targets;
+                if let Some(first_build_target) = build_targets.first().cloned() {
+                    self.export_options.build_target = first_build_target;
+                }
+                self.build_targets = build_targets;
 
                 let ui_items = self
-                    .export_options
                     .build_targets
                     .iter()
                     .map(|name| make_dropdown_list_option(&mut ui.build_ctx(), name))
@@ -451,7 +455,7 @@ impl ExportWindow {
         } else if let Some(DropdownListMessage::Selection(Some(index))) =
             message.data_from(self.build_targets_selector)
         {
-            self.export_options.selected_build_target = *index;
+            self.export_options.build_target = self.build_targets[*index].clone();
         }
     }
 
