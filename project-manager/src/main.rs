@@ -29,6 +29,7 @@ mod upgrade;
 mod utils;
 
 use crate::{manager::ProjectManager, settings::DATA_DIR, utils::make_button};
+use fyrox::core::algebra::Vector2;
 use fyrox::{
     asset::{io::FsResourceIo, manager::ResourceManager, untyped::ResourceKind},
     core::{
@@ -92,6 +93,10 @@ fn main() {
         dyn_type_constructors: Arc::new(Default::default()),
     })
     .unwrap();
+
+    engine
+        .user_interfaces
+        .add(UserInterface::new(Vector2::repeat(100.0)));
 
     let primary_ui = engine.user_interfaces.first_mut();
 
