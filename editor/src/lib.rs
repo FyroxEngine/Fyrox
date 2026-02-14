@@ -1446,6 +1446,7 @@ impl Editor {
                 ui,
                 &self.message_sender,
                 engine.resource_manager.clone(),
+                &self.settings.build,
             );
         }
         if let Some(stats) = self.statistics_window.as_ref() {

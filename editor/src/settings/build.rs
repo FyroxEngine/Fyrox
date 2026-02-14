@@ -27,6 +27,9 @@ pub struct BuildSettings {
     #[reflect(hidden)]
     pub selected_profile: usize,
     pub profiles: Vec<BuildProfile>,
+    pub pc_build_targets: Vec<String>,
+    pub wasm_build_targets: Vec<String>,
+    pub android_build_targets: Vec<String>,
 }
 
 impl Default for BuildSettings {
@@ -38,6 +41,12 @@ impl Default for BuildSettings {
         Self {
             selected_profile: 0,
             profiles: vec![debug, debug_hot_reloading, release, release_hot_reloading],
+            pc_build_targets: vec!["default".to_string()],
+            wasm_build_targets: vec!["wasm32-unknown-unknown".to_string()],
+            android_build_targets: vec![
+                "armv7-linux-androideabi".to_string(),
+                "aarch64-linux-android".to_string(),
+            ],
         }
     }
 }

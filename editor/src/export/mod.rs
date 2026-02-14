@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::settings::build::BuildSettings;
 use crate::{
     fyrox::{
         asset::manager::ResourceManager,
@@ -368,6 +369,7 @@ impl ExportWindow {
         ui: &mut UserInterface,
         sender: &MessageSender,
         resource_manager: ResourceManager,
+        settings: &BuildSettings,
     ) {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.export {
@@ -413,22 +415,16 @@ impl ExportWindow {
                     _ => Log::err("Unhandled platform index!"),
                 }
 
-                // TODO: move this to settings.
                 let build_targets = match self.export_options.target_platform {
-                    TargetPlatform::PC => vec!["default".to_string()],
-                    TargetPlatform::WebAssembly => vec!["wasm32-unknown-unknown".to_string()],
-                    TargetPlatform::Android => {
-                        vec![
-                            "armv7-linux-androideabi".to_string(),
-                            "aarch64-linux-android".to_string(),
-                        ]
-                    }
+                    TargetPlatform::PC => &settings.pc_build_targets,
+                    TargetPlatform::WebAssembly => &settings.wasm_build_targets,
+                    TargetPlatform::Android => &settings.android_build_targets,
                 };
 
                 if let Some(first_build_target) = build_targets.first().cloned() {
                     self.export_options.build_target = first_build_target;
                 }
-                self.build_targets = build_targets;
+                self.build_targets = build_targets.clone();
 
                 let ui_items = self
                     .build_targets
