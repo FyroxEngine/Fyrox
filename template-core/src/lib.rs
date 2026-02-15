@@ -285,6 +285,56 @@ fn main() {{
     )
 }
 
+fn init_export_cli(base_path: &Path, name: &str) -> Result<(), String> {
+    Command::new("cargo")
+        .args(["init", "--bin", "--vcs", "none"])
+        .arg(base_path.join("export-cli"))
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    // Write Cargo.toml
+    write_file(
+        base_path.join("export-cli/Cargo.toml"),
+        format!(
+            r#"
+[package]
+name = "export-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+fyrox = {{ workspace = true }}
+fyrox-build-tools = {{ workspace = true }}
+{name} = {{ path = "../game" }}
+"#,
+        ),
+    )?;
+
+    // Write main.rs
+    write_file(
+        base_path.join("export-cli/src/main.rs"),
+        format!(
+            r#"//! Exporter command line interface (CLI) with your game connected to it as a plugin.
+//! This tool can be used to automate project export in CI/CD.
+//! Typical usage: `cargo run --package export-cli -- --target-platform pc`
+//!             or `cargo run --package export-cli -- --help` for the docs.
+
+use MyProject::Game;
+use fyrox::core::log::Log;
+use fyrox::engine::executor::Executor;
+use fyrox::event_loop::EventLoop;
+use fyrox_build_tools::export::cli_export;
+
+fn main() {{
+    Log::set_file_name("MyProjectExport.log");
+    let mut executor = Executor::new(EventLoop::new().ok());
+    executor.add_plugin(Game::default());
+    cli_export(executor.resource_manager.clone())
+}}"#,
+        ),
+    )
+}
+
 fn init_wasm_executor(base_path: &Path, name: &str) -> Result<(), String> {
     Command::new("cargo")
         .args(["init", "--lib", "--vcs", "none"])
@@ -574,7 +624,7 @@ fn init_workspace(base_path: &Path, vcs: &str) -> Result<(), String> {
         format!(
             r#"
 [workspace]
-members = ["editor", "executor", "executor-wasm", "executor-android", "game", "game-dylib"]
+members = ["editor", "executor", "executor-wasm", "executor-android", "export-cli", "game", "game-dylib"]
 resolver = "2"
 
 [workspace.dependencies.fyrox]
@@ -583,6 +633,8 @@ default-features = false
 [workspace.dependencies.fyroxed_base]
 version = "{CURRENT_EDITOR_VERSION}"
 default-features = false
+[workspace.dependencies.fyrox-build-tools]
+version = "{CURRENT_EDITOR_VERSION}"
 
 # Separate build profiles for hot reloading. These profiles ensures that build artifacts for
 # hot reloading will be placed into their own folders and does not interfere with standard (static)
@@ -742,7 +794,8 @@ pub fn init_project(
     init_editor(base_path, name)?;
     init_executor(base_path, name)?;
     init_wasm_executor(base_path, name)?;
-    init_android_executor(base_path, name)
+    init_android_executor(base_path, name)?;
+    init_export_cli(base_path, name)
 }
 
 pub fn upgrade_project(root_path: &Path, version: &str, local: bool) -> Result<(), String> {
@@ -821,12 +874,22 @@ pub fn upgrade_project(root_path: &Path, version: &str, local: bool) -> Result<(
                                         scripts_table["path"] = value("../Fyrox/fyrox-scripts");
                                         dependencies["fyrox_scripts"] = scripts_table;
                                     }
+
+                                    if dependencies.contains_key("fyrox-build-tools") {
+                                        let mut scripts_table = table();
+                                        scripts_table["path"] = value("../Fyrox/fyrox-build-tools");
+                                        dependencies["fyrox-build-tools"] = scripts_table;
+                                    }
                                 } else {
                                     dependencies["fyrox"] = value(CURRENT_ENGINE_VERSION);
                                     dependencies["fyroxed_base"] = value(CURRENT_EDITOR_VERSION);
                                     if dependencies.contains_key("fyrox_scripts") {
                                         dependencies["fyrox_scripts"] =
                                             value(CURRENT_SCRIPTS_VERSION);
+                                    }
+                                    if dependencies.contains_key("fyrox-build-tools") {
+                                        dependencies["fyrox-build-tools"] =
+                                            value(CURRENT_ENGINE_VERSION);
                                     }
                                 }
                             } else if version == "nightly" {
@@ -835,6 +898,7 @@ pub fn upgrade_project(root_path: &Path, version: &str, local: bool) -> Result<(
 
                                 dependencies["fyrox"] = table.clone();
                                 dependencies["fyroxed_base"] = table.clone();
+                                dependencies["fyrox-build-tools"] = table.clone();
                             } else {
                                 dependencies["fyrox"] = value(version);
                                 if let Some((editor_version, scripts_version)) =
@@ -845,6 +909,9 @@ pub fn upgrade_project(root_path: &Path, version: &str, local: bool) -> Result<(
                                         if dependencies.contains_key("fyrox_scripts") {
                                             dependencies["fyrox_scripts"] = value(scripts_version);
                                         }
+                                    }
+                                    if dependencies.contains_key("fyrox-build-tools") {
+                                        dependencies["fyrox-build-tools"] = value(version);
                                     }
                                 } else {
                                     println!("WARNING: matching editor/scripts version not found!");
