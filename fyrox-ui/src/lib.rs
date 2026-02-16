@@ -1092,7 +1092,8 @@ fn draw_node(
     // Draw
     {
         node.draw(drawing_context);
-        node.render_data_set.borrow_mut().draw_result = drawing_context.take_render_data();
+        drawing_context
+            .copy_render_data_and_clear(&mut node.render_data_set.borrow_mut().draw_result);
     }
 
     // Continue on children
@@ -1103,7 +1104,9 @@ fn draw_node(
     // Post draw.
     {
         node.post_draw(drawing_context);
-        node.render_data_set.borrow_mut().post_draw_result = drawing_context.take_render_data();
+
+        drawing_context
+            .copy_render_data_and_clear(&mut node.render_data_set.borrow_mut().post_draw_result);
     }
 
     drawing_context.transform_stack.pop();

@@ -941,10 +941,23 @@ impl DrawingContext {
     }
 
     #[inline]
-    pub fn take_render_data(&mut self) -> RenderData {
-        let render_data = std::mem::take(&mut self.render_data);
+    pub fn copy_render_data_and_clear(&mut self, dest: &mut RenderData) {
+        dest.command_buffer.clear();
+        dest.command_buffer
+            .extend_from_slice(&self.render_data.command_buffer);
+        self.render_data.command_buffer.clear();
+
+        dest.vertex_buffer.clear();
+        dest.vertex_buffer
+            .extend_from_slice(&self.render_data.vertex_buffer);
+        self.render_data.vertex_buffer.clear();
+
+        dest.triangle_buffer.clear();
+        dest.triangle_buffer
+            .extend_from_slice(&self.render_data.triangle_buffer);
+        self.render_data.triangle_buffer.clear();
+
         self.triangles_to_commit = 0;
-        render_data
     }
 
     pub fn append(&mut self, render_data: &RenderData) {
