@@ -606,6 +606,10 @@ impl FormattedText {
         self
     }
 
+    pub fn super_sampling_scale(&self) -> f32 {
+        self.super_sampling_scale
+    }
+
     pub fn set_constraint(&mut self, constraint: Vector2<f32>) -> &mut Self {
         self.constraint = constraint;
         self
