@@ -127,6 +127,10 @@ pub fn check_name(name: &str) -> Result<&str, NameError> {
     Ok(name)
 }
 
+pub fn convert_name(name: &str) -> String {
+    name.replace("-", "_").to_lowercase()
+}
+
 fn init_game(base_path: &Path, name: &str) -> Result<(), String> {
     Command::new("cargo")
         .args(["init", "--lib", "--vcs", "none"])
@@ -787,15 +791,16 @@ pub fn init_project(
         ));
     }
 
+    let name = convert_name(name);
     init_workspace(base_path, vcs)?;
     init_data(base_path, style)?;
-    init_game(base_path, name)?;
-    init_game_dylib(base_path, name)?;
-    init_editor(base_path, name)?;
-    init_executor(base_path, name)?;
-    init_wasm_executor(base_path, name)?;
-    init_android_executor(base_path, name)?;
-    init_export_cli(base_path, name)
+    init_game(base_path, &name)?;
+    init_game_dylib(base_path, &name)?;
+    init_editor(base_path, &name)?;
+    init_executor(base_path, &name)?;
+    init_wasm_executor(base_path, &name)?;
+    init_android_executor(base_path, &name)?;
+    init_export_cli(base_path, &name)
 }
 
 pub fn upgrade_project(root_path: &Path, version: &str, local: bool) -> Result<(), String> {
