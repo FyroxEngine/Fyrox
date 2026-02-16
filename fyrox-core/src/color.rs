@@ -824,6 +824,11 @@ impl Color {
     }
 
     #[inline]
+    pub fn hex(source: &str) -> Color {
+        Self::from_hex_str(source).unwrap_or_default()
+    }
+
+    #[inline]
     pub const fn opaque(r: u8, g: u8, b: u8) -> Self {
         Self { r, g, b, a: 255 }
     }
