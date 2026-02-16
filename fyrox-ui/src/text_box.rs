@@ -1046,12 +1046,10 @@ impl Control for TextBox {
         _old_transform: &Matrix3<f32>,
         _new_transform: &Matrix3<f32>,
     ) {
-        let text = self.formatted_text.borrow_mut();
+        let mut text = self.formatted_text.borrow_mut();
         let new_super_sampling_scale = self.visual_max_scaling();
         if new_super_sampling_scale != text.super_sampling_scale() {
-            self.formatted_text
-                .borrow_mut()
-                .set_super_sampling_scale(new_super_sampling_scale)
+            text.set_super_sampling_scale(new_super_sampling_scale)
                 .build();
         }
     }
