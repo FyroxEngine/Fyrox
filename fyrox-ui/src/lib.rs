@@ -1071,13 +1071,16 @@ fn draw_node(
     nodes: &Pool<UiNode, WidgetContainer>,
     node_handle: Handle<UiNode>,
     drawing_context: &mut DrawingContext,
+    mut enabled: bool,
 ) {
     let node = &nodes[node_handle];
     if node.visual_valid.get() {
         return;
     }
 
-    let pushed = if !is_node_enabled(nodes, node_handle) {
+    enabled &= node.enabled();
+
+    let pushed = if !enabled {
         drawing_context.push_opacity(0.4);
         true
     } else if let Some(opacity) = node.opacity() {
@@ -1098,7 +1101,7 @@ fn draw_node(
 
     // Continue on children
     for &child_node in node.children().iter() {
-        draw_node(nodes, child_node, drawing_context);
+        draw_node(nodes, child_node, drawing_context, enabled);
     }
 
     // Post draw.
@@ -1116,21 +1119,6 @@ fn draw_node(
     }
 
     node.visual_valid.set(true);
-}
-
-fn is_node_enabled(nodes: &Pool<UiNode, WidgetContainer>, handle: Handle<UiNode>) -> bool {
-    let root_node = &nodes[handle];
-    let mut enabled = root_node.enabled();
-    let mut parent = root_node.parent();
-    while parent.is_some() {
-        let node = &nodes[parent];
-        if !node.enabled() {
-            enabled = false;
-            break;
-        }
-        parent = node.parent();
-    }
-    enabled
 }
 
 #[derive(Debug)]
@@ -1273,8 +1261,15 @@ impl UserInterface {
         self.captured_node = Handle::NONE;
     }
 
-    pub fn is_node_enabled(&self, handle: Handle<UiNode>) -> bool {
-        is_node_enabled(&self.nodes, handle)
+    #[inline]
+    pub fn is_node_enabled(&self, mut handle: Handle<UiNode>) -> bool {
+        while let Ok(node) = self.nodes.try_get(handle) {
+            if !node.enabled() {
+                return false;
+            }
+            handle = node.parent();
+        }
+        true
     }
 
     fn update_global_visibility(&mut self, from: Handle<UiNode>) {
@@ -1554,7 +1549,12 @@ impl UserInterface {
 
     fn draw(&mut self) {
         self.drawing_context.clear();
-        draw_node(&self.nodes, self.root_canvas, &mut self.drawing_context);
+        draw_node(
+            &self.nodes,
+            self.root_canvas,
+            &mut self.drawing_context,
+            true,
+        );
 
         // Merge all render data from all the widgets.
         fn merge_recursively<F>(
