@@ -38,7 +38,6 @@ use crate::{
             widget::{Widget, WidgetBuilder, WidgetMessage},
             BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
-        resource::texture::TextureResource,
     },
     load_image,
     message::MessageSender,
@@ -46,6 +45,7 @@ use crate::{
     Message,
 };
 
+use crate::world::SceneItemIcon;
 use fyrox::gui::grid::Grid;
 use fyrox::gui::image::Image;
 use fyrox::gui::message::MessageData;
@@ -261,7 +261,7 @@ pub struct SceneItemBuilder {
     tree_builder: TreeBuilder,
     entity_handle: ErasedHandle,
     name: String,
-    icon: Option<TextureResource>,
+    icon: Option<SceneItemIcon>,
     text_brush: Option<StyledProperty<Brush>>,
 }
 
@@ -286,7 +286,7 @@ impl SceneItemBuilder {
         self
     }
 
-    pub fn with_icon(mut self, icon: Option<TextureResource>) -> Self {
+    pub fn with_icon(mut self, icon: Option<SceneItemIcon>) -> Self {
         self.icon = icon;
         self
     }
@@ -308,9 +308,14 @@ impl SceneItemBuilder {
                             .on_column(0)
                             .with_margin(Thickness::left_right(1.0))
                             .with_visibility(self.icon.is_some())
-                            .with_background(ctx.style.property(Style::BRUSH_TEXT)),
+                            .with_background(
+                                self.icon
+                                    .as_ref()
+                                    .map(|i| StyledProperty::from(Brush::Solid(i.color)))
+                                    .unwrap_or_else(|| ctx.style.property(Style::BRUSH_TEXT)),
+                            ),
                     )
-                    .with_opt_texture(self.icon)
+                    .with_opt_texture(self.icon.as_ref().map(|i| i.icon.clone()))
                     .build(ctx),
                 )
                 .with_child({

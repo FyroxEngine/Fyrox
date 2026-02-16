@@ -56,6 +56,7 @@ use crate::{
     world::item::{DropAnchor, SceneItem, SceneItemBuilder, SceneItemMessage},
     Mode, Settings,
 };
+use fyrox::core::color::Color;
 use fyrox::core::pool::HandlesVecExtension;
 use fyrox::gui::button::Button;
 use fyrox::gui::scroll_viewer::ScrollViewer;
@@ -80,6 +81,21 @@ pub mod item;
 pub mod menu;
 pub mod selection;
 
+pub struct SceneItemIcon {
+    pub icon: TextureResource,
+    pub color: Color,
+}
+
+#[macro_export]
+macro_rules! scene_item_icon {
+    ($icon:expr,$color:expr) => {
+        $crate::load_image!($icon).map(|icon| SceneItemIcon {
+            icon,
+            color: $color,
+        })
+    };
+}
+
 pub trait WorldViewerDataProvider {
     fn root_node(&self) -> ErasedHandle;
 
@@ -99,7 +115,7 @@ pub trait WorldViewerDataProvider {
 
     fn is_valid_handle(&self, node: ErasedHandle) -> bool;
 
-    fn icon_of(&self, node: ErasedHandle) -> Option<TextureResource>;
+    fn icon_of(&self, node: ErasedHandle) -> Option<SceneItemIcon>;
 
     fn is_instance(&self, node: ErasedHandle) -> bool;
 
@@ -148,7 +164,7 @@ pub struct WorldViewer {
 fn make_graph_node_item(
     name: Cow<str>,
     is_instance: bool,
-    icon: Option<TextureResource>,
+    icon: Option<SceneItemIcon>,
     handle: ErasedHandle,
     ctx: &mut BuildContext,
     context_menu: RcUiNodeHandle,
