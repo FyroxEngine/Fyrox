@@ -323,14 +323,14 @@ fyrox-build-tools = {{ workspace = true }}
 //! Typical usage: `cargo run --package export-cli -- --target-platform pc`
 //!             or `cargo run --package export-cli -- --help` for the docs.
 
-use MyProject::Game;
+use {name}::Game;
 use fyrox::core::log::Log;
 use fyrox::engine::executor::Executor;
 use fyrox::event_loop::EventLoop;
 use fyrox_build_tools::export::cli_export;
 
 fn main() {{
-    Log::set_file_name("MyProjectExport.log");
+    Log::set_file_name("{name}Export.log");
     let mut executor = Executor::new(EventLoop::new().ok());
     executor.add_plugin(Game::default());
     cli_export(executor.resource_manager.clone())
