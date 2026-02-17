@@ -939,18 +939,15 @@ impl DrawingContext {
     pub fn copy_render_data_and_clear(&mut self, dest: &mut RenderData) {
         dest.command_buffer.clear();
         dest.command_buffer
-            .extend_from_slice(&self.render_data.command_buffer);
-        self.render_data.command_buffer.clear();
+            .append(&mut self.render_data.command_buffer);
 
         dest.vertex_buffer.clear();
         dest.vertex_buffer
-            .extend_from_slice(&self.render_data.vertex_buffer);
-        self.render_data.vertex_buffer.clear();
+            .append(&mut self.render_data.vertex_buffer);
 
         dest.triangle_buffer.clear();
         dest.triangle_buffer
-            .extend_from_slice(&self.render_data.triangle_buffer);
-        self.render_data.triangle_buffer.clear();
+            .append(&mut self.render_data.triangle_buffer);
 
         self.triangles_to_commit = 0;
     }
