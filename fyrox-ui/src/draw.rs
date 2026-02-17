@@ -140,6 +140,7 @@ pub struct Command {
     pub opacity: f32,
     /// A set of triangles that defines clipping region.
     pub clipping_geometry: Option<ClippingGeometry>,
+    pub transform: Matrix3<f32>,
 }
 
 pub trait Draw {
@@ -895,13 +896,7 @@ fn get_line_thickness_vector(a: Vector2<f32>, b: Vector2<f32>, thickness: f32) -
 
 impl Draw for DrawingContext {
     #[inline(always)]
-    fn push_vertex_raw(&mut self, mut vertex: Vertex) {
-        vertex.pos = self
-            .transform_stack
-            .transform
-            .transform_point(&Point2::from(vertex.pos))
-            .coords;
-
+    fn push_vertex_raw(&mut self, vertex: Vertex) {
         self.render_data.vertex_buffer.push(vertex);
     }
 
@@ -1046,6 +1041,7 @@ impl DrawingContext {
                 material: material.clone(),
                 opacity,
                 clipping_geometry,
+                transform: *self.transform_stack.transform(),
             });
             self.triangles_to_commit = 0;
         }

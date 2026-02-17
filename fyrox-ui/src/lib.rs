@@ -356,6 +356,7 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
+use fyrox_core::algebra::Point2;
 use fyrox_core::dyntype::{DynTypeConstructorContainer, DynTypeContainer};
 use fyrox_core::pool::PoolError;
 pub use fyrox_texture as texture;
@@ -1860,8 +1861,20 @@ impl UserInterface {
         clipped
     }
 
-    fn is_node_contains_point(&self, node_handle: Handle<UiNode>, pt: Vector2<f32>) -> bool {
+    fn is_node_contains_point(
+        &self,
+        node_handle: Handle<UiNode>,
+        screen_space_pt: Vector2<f32>,
+    ) -> bool {
         let widget = self.nodes.borrow(node_handle);
+
+        // Transform the probe position into the local space of the widget.
+        let local_space_pt = widget
+            .visual_transform()
+            .try_inverse()
+            .unwrap_or_default()
+            .transform_point(&Point2::from(screen_space_pt))
+            .coords;
 
         if !widget.is_globally_visible() {
             return false;
@@ -1869,12 +1882,12 @@ impl UserInterface {
 
         let render_data_set = widget.render_data_set.borrow();
 
-        if !self.is_node_clipped(node_handle, pt) {
+        if !self.is_node_clipped(node_handle, screen_space_pt) {
             // TODO: Use post draw as well.
             for command in render_data_set.draw_result.command_buffer.iter() {
                 if render_data_set
                     .draw_result
-                    .is_command_contains_point(command, pt)
+                    .is_command_contains_point(command, local_space_pt)
                 {
                     return true;
                 }

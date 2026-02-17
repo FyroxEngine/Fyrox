@@ -686,7 +686,8 @@ impl ShaderDefinition {
                 "fyrox_widgetData" => {
                     properties.clear();
                     properties.extend([
-                        ShaderProperty::new_matrix4("worldViewProjection"),
+                        ShaderProperty::new_matrix4("projectionMatrix"),
+                        ShaderProperty::new_matrix3("worldMatrix"),
                         ShaderProperty::new_color("solidColor"),
                         ShaderProperty::new_vec4_f32_array(
                             "gradientColors",

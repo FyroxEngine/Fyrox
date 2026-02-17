@@ -34,7 +34,9 @@
                     {
                         texCoord = vertexTexCoord;
                         color = vertexColor;
-                        gl_Position = fyrox_widgetData.worldViewProjection * vec4(vertexPosition, 0.0, 1.0);
+
+                        vec3 worldSpaceVertex = fyrox_widgetData.worldMatrix * vec3(vertexPosition, 1.0);
+                        gl_Position = fyrox_widgetData.projectionMatrix * vec4(worldSpaceVertex, 1.0);
                     }
                 "#,
 
@@ -137,7 +139,8 @@
 
                     void main()
                     {
-                        gl_Position = fyrox_widgetData.worldViewProjection * vec4(vertexPosition, 0.0, 1.0);
+                        vec3 worldSpaceVertex = fyrox_widgetData.worldMatrix * vec3(vertexPosition, 1.0);
+                        gl_Position = fyrox_widgetData.projectionMatrix * vec4(worldSpaceVertex, 1.0);
                     }
                 "#,
 

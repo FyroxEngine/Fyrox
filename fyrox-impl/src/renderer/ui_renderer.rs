@@ -178,6 +178,7 @@ fn write_uniform_blocks(
 
                 let buffer = StaticUniformBuffer::<2048>::new()
                     .with(ortho)
+                    .with(&cmd.transform)
                     .with(&solid_color)
                     .with(gradient_colors.as_slice())
                     .with(gradient_stops.as_slice())
@@ -353,7 +354,10 @@ impl UiRenderer {
                     .set_triangles(&clipping_geometry.triangle_buffer);
 
                 // Draw
-                let properties = PropertyGroup::from([property("worldViewProjection", &ortho)]);
+                let properties = PropertyGroup::from([
+                    property("projectionMatrix", &ortho),
+                    property("worldMatrix", &cmd.transform),
+                ]);
                 let material = RenderMaterial::from([binding("properties", &properties)]);
                 statistics += renderer_resources.shaders.ui.run_pass(
                     1,
