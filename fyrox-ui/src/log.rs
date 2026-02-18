@@ -128,7 +128,6 @@ impl LogPanel {
                 .with_height(200.0)
                 .with_name("LogPanel"),
         )
-        .can_minimize(false)
         .open(open)
         .with_title(WindowTitle::text("Message Log"))
         .with_tab_label("Log")

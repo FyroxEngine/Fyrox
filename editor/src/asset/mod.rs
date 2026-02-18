@@ -417,7 +417,6 @@ impl AssetBrowser {
         .build(ctx);
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("AssetBrowser"))
-            .can_minimize(false)
             .with_title(WindowTitle::text("Asset Browser"))
             .with_tab_label("Asset Browser")
             .with_content(docking_manager)

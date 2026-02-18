@@ -496,7 +496,6 @@ impl SceneViewer {
         let tab_control;
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("SceneViewer"))
             .can_close(false)
-            .can_minimize(false)
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
