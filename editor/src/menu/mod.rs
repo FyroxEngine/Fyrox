@@ -254,7 +254,6 @@ impl Menu {
             &self.message_sender,
             Some(entry),
             ctx.engine,
-            ctx.settings,
             &mut ctx.panels,
             ctx.icon_request_sender.clone(),
         );

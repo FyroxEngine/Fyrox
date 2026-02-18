@@ -41,9 +41,12 @@ use crate::{
     settings::{recent::RecentFiles, Settings},
     Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
 };
+use fyrox::core::parking_lot::Mutex;
+use fyrox::graph::SceneGraph;
 use fyrox::gui::file_browser::FileSelector;
 use fyrox::gui::menu::MenuItem;
 use fyrox::gui::messagebox::MessageBox;
+use std::sync::Arc;
 use std::{path::PathBuf, sync::mpsc::Sender};
 
 pub struct FileMenu {
@@ -66,6 +69,9 @@ pub struct FileMenu {
     pub export_project: Handle<MenuItem>,
 }
 
+#[derive(Clone)]
+struct RecentFile(PathBuf);
+
 fn make_recent_files_items(
     ctx: &mut BuildContext,
     recent_files: &RecentFiles,
@@ -73,7 +79,11 @@ fn make_recent_files_items(
     recent_files
         .scenes
         .iter()
-        .map(|f| create_menu_item(f.to_string_lossy().as_ref(), Uuid::new_v4(), vec![], ctx))
+        .map(|f| {
+            let item = create_menu_item(f.to_string_lossy().as_ref(), Uuid::new_v4(), vec![], ctx);
+            ctx[item].user_data = Some(Arc::new(Mutex::new(RecentFile(f.to_path_buf()))));
+            item
+        })
         .collect::<Vec<_>>()
 }
 
@@ -356,7 +366,6 @@ impl FileMenu {
         sender: &MessageSender,
         entry: Option<&mut EditorSceneEntry>,
         engine: &mut Engine,
-        settings: &mut Settings,
         panels: &mut Panels,
         icon_request_sender: Sender<IconRequest>,
     ) {
@@ -454,14 +463,14 @@ impl FileMenu {
                         icon_request_sender,
                     );
                 }
-            } else if let Some(recent_file) = self
-                .recent_files
-                .iter()
-                .position(|i| message.destination() == *i)
+            } else if let Some(recent_file) = engine
+                .user_interfaces
+                .first()
+                .try_get(message.destination())
+                .ok()
+                .and_then(|n| n.user_data_cloned::<RecentFile>())
             {
-                if let Some(recent_file_path) = settings.recent.scenes.get(recent_file) {
-                    sender.send(Message::LoadScene(recent_file_path.clone()));
-                }
+                sender.send(Message::LoadScene(recent_file.0));
             }
         }
     }
