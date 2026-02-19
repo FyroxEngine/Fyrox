@@ -1244,7 +1244,12 @@ pub trait SceneGraph: 'static {
             if let Some(data) = model.data() {
                 let resource_graph = data.graph();
 
-                let resource_instance_root = self.node(instance_root).original_handle_in_resource();
+                let Ok(resource_instance_root) = self
+                    .try_get_node(instance_root)
+                    .map(|n| n.original_handle_in_resource())
+                else {
+                    continue;
+                };
 
                 if resource_instance_root.is_none() {
                     let instance = self.node(instance_root);
@@ -1444,7 +1449,9 @@ pub trait SceneGraph: 'static {
             let mut old_new_mapping = NodeHandleMap::default();
             let mut traverse_stack = vec![*instance_root];
             while let Some(node_handle) = traverse_stack.pop() {
-                let node = self.node(node_handle);
+                let Ok(node) = self.try_get_node(node_handle) else {
+                    continue;
+                };
                 if let Some(node_resource) = node.resource().as_ref() {
                     // We're interested only in instance nodes.
                     if node_resource == resource {
