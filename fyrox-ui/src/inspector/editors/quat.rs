@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::vec::Vec3Editor;
 use crate::{
     core::{
         algebra::{RealField, SimdRealField, SimdValue, UnitQuaternion, Vector3},
@@ -37,6 +38,7 @@ use crate::{
     widget::WidgetBuilder,
     Thickness,
 };
+use fyrox_graph::SceneGraph;
 use std::{any::TypeId, marker::PhantomData};
 
 #[derive(Debug)]
@@ -58,6 +60,19 @@ where
             phantom: PhantomData,
         }
     }
+}
+
+fn euler_to_quat<T>(value: Vector3<T>) -> UnitQuaternion<T>
+where
+    T: NumericType + Real + SimdValue + SimdRealField + RealField,
+    T::Element: SimdRealField,
+{
+    let euler = Vector3::new(
+        value[0].to_radians(),
+        value[1].to_radians(),
+        value[2].to_radians(),
+    );
+    quat_from_euler(euler, RotationOrder::XYZ)
 }
 
 impl<T> PropertyEditorDefinition for QuatPropertyEditorDefinition<T>
@@ -91,6 +106,13 @@ where
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<UnitQuaternion<T>>()?;
+        let editor = ctx
+            .ui
+            .try_get_of_type::<Vec3Editor<T>>(ctx.instance)
+            .unwrap();
+        if euler_to_quat(editor.value) == *value {
+            return Ok(None);
+        }
         let euler = value.euler_angles();
         let euler_degrees = Vector3::new(
             euler.0.to_degrees(),
@@ -108,12 +130,7 @@ where
             if let Some(VecEditorMessage::Value(value)) =
                 ctx.message.data::<VecEditorMessage<T, 3>>()
             {
-                let euler = Vector3::new(
-                    value[0].to_radians(),
-                    value[1].to_radians(),
-                    value[2].to_radians(),
-                );
-                let rotation = quat_from_euler(euler, RotationOrder::XYZ);
+                let rotation = euler_to_quat(*value);
                 return Some(PropertyChanged {
                     name: ctx.name.to_string(),
                     value: FieldKind::object(rotation),
