@@ -78,6 +78,8 @@ pub enum TextBoxMessage {
     Editable(bool),
     /// Used to set new padding for a text box.
     Padding(Thickness),
+    /// Used to set new corner radius.
+    CornerRadius(f32),
 }
 impl MessageData for TextBoxMessage {}
 
@@ -438,6 +440,9 @@ pub struct TextBox {
     /// Placeholder widget when the search bar is empty.
     #[visit(optional)]
     pub placeholder: Handle<UiNode>,
+    /// Corner radius of the text box.
+    #[visit(optional)]
+    pub corner_radius: InheritableVariable<f32>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for TextBox {
@@ -930,7 +935,7 @@ impl Control for TextBox {
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.bounding_rect();
-        drawing_context.push_rect_filled(&bounds, None);
+        drawing_context.push_rounded_rect_filled(&bounds, *self.corner_radius, 4);
         drawing_context.commit(
             self.clip_bounds(),
             self.widget.background(),
@@ -1464,6 +1469,14 @@ impl Control for TextBox {
                                 ui.send_message(message.reverse());
                             }
                         }
+                        TextBoxMessage::CornerRadius(corner_radius) => {
+                            if *self.corner_radius != *corner_radius {
+                                self.corner_radius
+                                    .set_value_and_mark_modified(*corner_radius);
+                                ui.send_message(message.reverse());
+                                self.invalidate_visual();
+                            }
+                        }
                     }
                 }
             }
@@ -1522,6 +1535,7 @@ pub struct TextBoxBuilder<'a> {
     font_size: Option<StyledProperty<f32>>,
     padding: Thickness,
     placeholder: EmptyTextPlaceholder<'a>,
+    corner_radius: f32,
 }
 
 impl<'a> TextBoxBuilder<'a> {
@@ -1554,6 +1568,7 @@ impl<'a> TextBoxBuilder<'a> {
                 bottom: 2.0,
             },
             placeholder: EmptyTextPlaceholder::None,
+            corner_radius: 3.0,
         }
     }
 
@@ -1681,6 +1696,12 @@ impl<'a> TextBoxBuilder<'a> {
         self
     }
 
+    /// Sets the desired corner radius of the text box.
+    pub fn with_corner_radius(mut self, corner_radius: f32) -> Self {
+        self.corner_radius = corner_radius;
+        self
+    }
+
     /// Creates a new [`TextBox`] instance and adds it to the user interface.
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<TextBox> {
         let style = &ctx.style;
@@ -1745,6 +1766,7 @@ impl<'a> TextBoxBuilder<'a> {
             skip_chars: self.skip_chars.into(),
             recent: Default::default(),
             placeholder,
+            corner_radius: self.corner_radius.into(),
         };
 
         ctx.add(text_box)
