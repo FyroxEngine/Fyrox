@@ -705,18 +705,13 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
         let grid = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child({
-                    field = TextBoxBuilder::new(
-                        WidgetBuilder::new()
-                            .on_row(0)
-                            .on_column(0)
-                            .with_margin(Thickness::left(2.0)),
-                    )
-                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                    .with_horizontal_text_alignment(HorizontalAlignment::Left)
-                    .with_text_commit_mode(TextCommitMode::Changed)
-                    .with_text(text)
-                    .with_editable(self.editable)
-                    .build(ctx);
+                    field = TextBoxBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
+                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                        .with_horizontal_text_alignment(HorizontalAlignment::Left)
+                        .with_text_commit_mode(TextCommitMode::Changed)
+                        .with_text(text)
+                        .with_editable(self.editable)
+                        .build(ctx);
                     field
                 })
                 .with_child(
