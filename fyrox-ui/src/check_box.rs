@@ -329,6 +329,7 @@ impl CheckBoxBuilder {
         let check_mark = self.check_mark.unwrap_or_else(|| {
             let size = *ctx.style.property(CheckBox::CHECK_MARK_SIZE);
             let half_size = size * 0.5;
+            let thickness = 2.0;
 
             BorderBuilder::new(
                 WidgetBuilder::new()
@@ -347,13 +348,13 @@ impl CheckBoxBuilder {
                             vec![
                                 Primitive::Line {
                                     begin: Vector2::new(0.0, half_size),
-                                    end: Vector2::new(half_size, size),
-                                    thickness: 2.0,
+                                    end: Vector2::new(half_size + thickness / 2.0, size),
+                                    thickness,
                                 },
                                 Primitive::Line {
                                     begin: Vector2::new(half_size, size),
                                     end: Vector2::new(size, 0.0),
-                                    thickness: 2.0,
+                                    thickness,
                                 },
                             ]
                         })
@@ -420,10 +421,10 @@ impl CheckBoxBuilder {
         let background_ref = &mut ctx[background];
         background_ref.set_row(0).set_column(0);
         if background_ref.min_width() < 0.01 {
-            background_ref.set_min_width(16.0);
+            background_ref.set_min_width(18.0);
         }
         if background_ref.min_height() < 0.01 {
-            background_ref.set_min_height(16.0);
+            background_ref.set_min_height(18.0);
         }
 
         ctx.link(check_mark, background);
