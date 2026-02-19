@@ -57,6 +57,7 @@ use fyrox::gui::button::Button;
 use fyrox::gui::inspector::InspectorContextArgs;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::utils::make_dropdown_list_option;
+use fyrox::gui::{Thickness, VerticalAlignment};
 use std::{
     any::TypeId,
     cell::Cell,
@@ -336,12 +337,14 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
 
         let open_in_ide = ButtonBuilder::new(
             WidgetBuilder::new()
+                .with_margin(Thickness::left(4.0))
                 .on_column(1)
                 .with_tooltip(make_simple_tooltip(ctx.build_context, "Open in IDE")),
         )
         .with_content(
-            TextBuilder::new(WidgetBuilder::new())
+            TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(3.0)))
                 .with_text("Edit...")
+                .with_vertical_text_alignment(VerticalAlignment::Center)
                 .build(ctx.build_context),
         )
         .build(ctx.build_context);

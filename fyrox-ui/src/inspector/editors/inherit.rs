@@ -148,8 +148,8 @@ impl InheritablePropertyEditorBuilder {
             revert = ButtonBuilder::new(
                 WidgetBuilder::new()
                     .with_visibility(self.modified)
-                    .with_width(20.0)
-                    .with_height(20.0)
+                    .with_width(22.0)
+                    .with_height(22.0)
                     .with_vertical_alignment(VerticalAlignment::Top)
                     .with_tooltip(make_simple_tooltip(ctx, "Revert To Parent"))
                     .with_margin(Thickness::uniform(1.0))
@@ -159,7 +159,7 @@ impl InheritablePropertyEditorBuilder {
                 ImageBuilder::new(
                     WidgetBuilder::new()
                         .with_background(ctx.style.property(Style::BRUSH_BRIGHTEST))
-                        .with_margin(Thickness::uniform(1.0))
+                        .with_margin(Thickness::uniform(3.0))
                         .with_width(16.0)
                         .with_height(16.0),
                 )

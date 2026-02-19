@@ -337,7 +337,7 @@ where
                                 name = TextBuilder::new(
                                     WidgetBuilder::new()
                                         .on_column(1)
-                                        .with_margin(Thickness::uniform(1.0)),
+                                        .with_margin(Thickness::uniform(3.0)),
                                 )
                                 .with_vertical_text_alignment(VerticalAlignment::Center)
                                 .with_text(resource_path(&resource_manager, &self.resource))
