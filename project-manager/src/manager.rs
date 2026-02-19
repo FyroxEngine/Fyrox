@@ -143,6 +143,7 @@ pub struct ProjectManager {
     project_controls: Handle<StackPanel>,
     hot_reload: Handle<CheckBox>,
     download: Handle<Button>,
+    donate: Handle<Button>,
     selection: Option<usize>,
     pub settings: Settings,
     project_wizard: Option<ProjectWizard>,
@@ -522,6 +523,7 @@ impl ProjectManager {
         let exclude_project_tooltip = "Removes the project from the project manager, \
         but does NOT delete it.\nHotkey: Ctrl+E";
         let clean_project_tooltip = "Removes project's build artifacts.\nHotkey: Ctrl+N";
+        let donate_tooltip = "Donate for sustainable Fyrox development.";
 
         let edit = make_text_and_image_button_with_tooltip(
             ctx,
@@ -627,6 +629,19 @@ impl ProjectManager {
             Color::LIGHT_STEEL_BLUE,
             font_size,
         );
+        let donate = make_text_and_image_button_with_tooltip(
+            ctx,
+            "Donate",
+            22.0,
+            22.0,
+            load_image(include_bytes!("../resources/donate.png")),
+            donate_tooltip,
+            2,
+            0,
+            None,
+            Color::WHITE,
+            font_size,
+        );
         let hot_reload = CheckBoxBuilder::new(
             WidgetBuilder::new()
                 .with_tab_index(Some(4))
@@ -645,7 +660,6 @@ impl ProjectManager {
         let project_controls = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .with_enabled(false)
-                .on_column(1)
                 .with_child(hot_reload)
                 .with_child(edit)
                 .with_child(run)
@@ -656,6 +670,18 @@ impl ProjectManager {
                 .with_child(delete)
                 .with_child(exclude_project),
         )
+        .build(ctx);
+
+        let project_controls_container = GridBuilder::new(
+            WidgetBuilder::new()
+                .on_column(1)
+                .with_child(project_controls)
+                .with_child(donate),
+        )
+        .add_column(Column::auto())
+        .add_row(Row::auto())
+        .add_row(Row::stretch())
+        .add_row(Row::auto())
         .build(ctx);
 
         let projects = ListViewBuilder::new(
@@ -691,7 +717,7 @@ impl ProjectManager {
             WidgetBuilder::new()
                 .on_row(2)
                 .with_child(border)
-                .with_child(project_controls),
+                .with_child(project_controls_container),
         )
         .add_column(Column::stretch())
         .add_column(Column::auto())
@@ -734,6 +760,7 @@ impl ProjectManager {
             project_controls,
             hot_reload,
             download,
+            donate,
             selection: None,
             settings,
             project_wizard: None,
@@ -1037,6 +1064,10 @@ impl ProjectManager {
         )
     }
 
+    fn on_donate_clicked(&mut self) {
+        let _ = open::that("https://fyrox.rs/sponsor.html");
+    }
+
     fn on_button_click(&mut self, button: Handle<UiNode>, ui: &mut UserInterface) {
         if button == self.create {
             self.on_create_clicked(ui);
@@ -1066,6 +1097,8 @@ impl ProjectManager {
             self.on_clean_clicked(ui);
         } else if button == self.open_help {
             self.on_open_help_clicked();
+        } else if button == self.donate {
+            self.on_donate_clicked()
         }
     }
 
