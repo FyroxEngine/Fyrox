@@ -254,6 +254,7 @@ impl Control for ScrollBar {
                             ScrollBarMessage::Value(*self.value),
                         );
                         response.flags = message.flags;
+                        response.delivery_mode = message.delivery_mode;
                         response.set_handled(message.handled());
                         ui.send_message(response);
                     }
@@ -270,10 +271,12 @@ impl Control for ScrollBar {
                             ui.send(self.handle(), ScrollBarMessage::Value(new_value));
                         }
 
-                        let response = UiMessage::from_widget(
+                        let mut response = UiMessage::from_widget(
                             self.handle,
                             ScrollBarMessage::MinValue(*self.min),
                         );
+                        response.flags = message.flags;
+                        response.delivery_mode = message.delivery_mode;
                         response.set_handled(message.handled());
                         ui.send_message(response);
                     }
@@ -290,10 +293,12 @@ impl Control for ScrollBar {
                             ui.send(self.handle(), ScrollBarMessage::Value(value));
                         }
 
-                        let response = UiMessage::from_widget(
+                        let mut response = UiMessage::from_widget(
                             self.handle,
                             ScrollBarMessage::MaxValue(*self.max),
                         );
+                        response.flags = message.flags;
+                        response.delivery_mode = message.delivery_mode;
                         response.set_handled(message.handled());
                         ui.send_message(response);
                     }
