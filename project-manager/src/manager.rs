@@ -417,8 +417,7 @@ impl ProjectManager {
             WidgetBuilder::new()
                 .on_column(2)
                 .with_tab_index(Some(2))
-                .with_margin(Thickness::uniform(1.0))
-                .with_height(25.0),
+                .with_margin(Thickness::uniform(1.0)),
         )
         .with_empty_text_placeholder(EmptyTextPlaceholder::Text("Search for a project"))
         .build(ctx);
@@ -651,6 +650,7 @@ impl ProjectManager {
         .with_content(
             TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::left(2.0)))
                 .with_text("Hot Reloading")
+                .with_vertical_text_alignment(VerticalAlignment::Center)
                 .build(ctx),
         )
         .build(ctx);

@@ -437,7 +437,7 @@ pub struct TextBox {
     #[visit(skip)]
     #[reflect(hidden)]
     pub recent: Vec<char>,
-    /// Placeholder widget when the search bar is empty.
+    /// Placeholder widget when the text box is empty.
     #[visit(optional)]
     pub placeholder: Handle<UiNode>,
     /// Corner radius of the text box.
@@ -643,7 +643,7 @@ impl TextBox {
         self.formatted_text
             .borrow_mut()
             .insert_char(c, position)
-            .build();
+            .measure_and_arrange();
         self.set_caret_position(
             self.char_index_to_position(position + 1)
                 .unwrap_or_default(),
@@ -668,7 +668,7 @@ impl TextBox {
             .unwrap_or_default();
         let mut text = self.formatted_text.borrow_mut();
         text.insert_str(&str, position);
-        text.build();
+        text.measure();
         drop(text);
         self.set_caret_position(
             self.char_index_to_position(position + str.chars().count())
@@ -775,7 +775,7 @@ impl TextBox {
 
             let mut text = self.formatted_text.borrow_mut();
             text.remove_at(position);
-            text.build();
+            text.measure_and_arrange();
             drop(text);
             self.invalidate_layout();
             self.on_text_changed(ui);
@@ -792,7 +792,7 @@ impl TextBox {
             return;
         }
         self.formatted_text.borrow_mut().remove_range(range);
-        self.formatted_text.borrow_mut().build();
+        self.formatted_text.borrow_mut().measure_and_arrange();
         self.set_caret_position(selection.left());
         self.selection_range.set_value_and_mark_modified(None);
         self.invalidate_layout();
@@ -928,9 +928,14 @@ impl Control for TextBox {
             .borrow_mut()
             .set_super_sampling_scale(self.visual_max_scaling())
             .set_constraint(available_size)
-            .build();
+            .measure();
         let children_size = self.widget.measure_override(ui, available_size);
         text_size.sup(&children_size)
+    }
+
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
+        self.formatted_text.borrow_mut().arrange(final_size);
+        self.widget.arrange_override(ui, final_size)
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
@@ -1055,7 +1060,7 @@ impl Control for TextBox {
         let new_super_sampling_scale = self.visual_max_scaling();
         if new_super_sampling_scale != text.super_sampling_scale() {
             text.set_super_sampling_scale(new_super_sampling_scale)
-                .build();
+                .measure_and_arrange();
         }
     }
 
@@ -1345,7 +1350,7 @@ impl Control for TextBox {
                                 text.set_text(new_text);
                                 drop(text);
                                 self.invalidate_layout();
-                                self.formatted_text.borrow_mut().build();
+                                self.formatted_text.borrow_mut().measure_and_arrange();
                                 self.on_text_changed(ui);
                             }
                         }

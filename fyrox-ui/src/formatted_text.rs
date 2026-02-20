@@ -298,6 +298,9 @@ pub struct FormattedText {
     #[visit(optional)]
     pub line_space: InheritableVariable<f32>,
     pub padding: InheritableVariable<Thickness>,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    total_height: f32,
 }
 
 impl FormattedText {
@@ -869,13 +872,19 @@ impl FormattedText {
         result
     }
 
-    pub fn build(&mut self) -> Vector2<f32> {
+    pub fn measure_and_arrange(&mut self) -> Vector2<f32> {
+        let size = self.measure();
+        self.arrange(self.constraint);
+        size
+    }
+
+    pub fn measure(&mut self) -> Vector2<f32> {
         let mut lines = std::mem::take(&mut self.lines);
         lines.clear();
         // Fail early if any font is not available.
         if !self.are_fonts_loaded() {
             Log::err(format!(
-                "Text failed to build due to unloaded fonts. {:?}.\n{}",
+                "Unable to measure text due to unloaded fonts. {:?}.\n{}",
                 self.text(),
                 self.font_loading_summary(),
             ));
@@ -924,7 +933,81 @@ impl FormattedText {
             }
         }
 
-        let mut total_height = 0.0;
+        self.total_height = 0.0;
+
+        // Calculate line height
+        for line in lines.iter_mut() {
+            if self.mask_char.is_some() || self.runs.is_empty() {
+                line.height = GlyphMetrics {
+                    font: &mut self.get_font().data_ref(),
+                    size: **self.font_size,
+                }
+                .ascender();
+            } else {
+                for i in line.begin..line.end {
+                    let h = GlyphMetrics {
+                        font: &mut self.font_at(i).data_ref(),
+                        size: self.font_size_at(i),
+                    }
+                    .ascender();
+                    line.height = line.height.max(h);
+                }
+            }
+            self.total_height += line.height + self.line_space();
+        }
+        self.total_height -= self.line_space();
+
+        let size_x = if constraint.x.is_finite() {
+            constraint.x
+        } else {
+            lines
+                .iter()
+                .map(|line| line.width)
+                .max_by(f32::total_cmp)
+                .unwrap_or_default()
+        };
+        let size_y = if constraint.y.is_finite() {
+            constraint.y
+        } else {
+            let descender = if self.mask_char.is_some() || self.runs.is_empty() {
+                GlyphMetrics {
+                    font: &mut self.get_font().data_ref(),
+                    size: **self.font_size,
+                }
+                .descender()
+            } else if let Some(line) = lines.last() {
+                (line.begin..line.end)
+                    .map(|i| {
+                        GlyphMetrics {
+                            font: &mut self.font_at(i).data_ref(),
+                            size: self.font_size_at(i),
+                        }
+                        .descender()
+                    })
+                    .min_by(f32::total_cmp)
+                    .unwrap_or_default()
+            } else {
+                0.0
+            };
+            // Minus here is because descender has negative value.
+            self.total_height - descender
+        };
+        self.lines = lines;
+        Vector2::new(
+            size_x + self.padding.left + self.padding.right,
+            size_y + self.padding.top + self.padding.bottom,
+        )
+    }
+
+    pub fn arrange(&mut self, constraint: Vector2<f32>) {
+        self.constraint = constraint;
+        let constraint = Vector2::new(
+            (self.constraint.x - (self.padding.left + self.padding.right)).max(0.0),
+            (self.constraint.y - (self.padding.top + self.padding.bottom)).max(0.0),
+        );
+        let mut lines = std::mem::take(&mut self.lines);
+        let first_indent = self.line_indent.max(0.0);
+        let normal_indent = -self.line_indent.min(0.0);
         // Align lines according to desired alignment.
         for (i, line) in lines.iter_mut().enumerate() {
             let indent = if i == 0 { first_indent } else { normal_indent };
@@ -948,27 +1031,6 @@ impl FormattedText {
             }
             line.x_offset += self.padding.left;
         }
-        // Calculate line height
-        for line in lines.iter_mut() {
-            if self.mask_char.is_some() || self.runs.is_empty() {
-                line.height = GlyphMetrics {
-                    font: &mut self.get_font().data_ref(),
-                    size: **self.font_size,
-                }
-                .ascender();
-            } else {
-                for i in line.begin..line.end {
-                    let h = GlyphMetrics {
-                        font: &mut self.font_at(i).data_ref(),
-                        size: self.font_size_at(i),
-                    }
-                    .ascender();
-                    line.height = line.height.max(h);
-                }
-            }
-            total_height += line.height + self.line_space();
-        }
-        total_height -= self.line_space();
 
         // Generate glyphs for each text line.
         self.glyphs.clear();
@@ -980,14 +1042,14 @@ impl FormattedText {
                     if constraint.y.is_infinite() {
                         0.0
                     } else {
-                        (constraint.y - total_height).max(0.0) * 0.5
+                        (constraint.y - self.total_height).max(0.0) * 0.5
                     }
                 }
                 VerticalAlignment::Bottom => {
                     if constraint.y.is_infinite() {
                         0.0
                     } else {
-                        (constraint.y - total_height).max(0.0)
+                        (constraint.y - self.total_height).max(0.0)
                     }
                 }
                 VerticalAlignment::Stretch => 0.0,
@@ -1037,47 +1099,7 @@ impl FormattedText {
             line.y_offset = y;
             y += line.height + self.line_space();
         }
-
-        let size_x = if constraint.x.is_finite() {
-            constraint.x
-        } else {
-            lines
-                .iter()
-                .map(|line| line.width)
-                .max_by(f32::total_cmp)
-                .unwrap_or_default()
-        };
-        let size_y = if constraint.y.is_finite() {
-            constraint.y
-        } else {
-            let descender = if self.mask_char.is_some() || self.runs.is_empty() {
-                GlyphMetrics {
-                    font: &mut self.get_font().data_ref(),
-                    size: **self.font_size,
-                }
-                .descender()
-            } else if let Some(line) = lines.last() {
-                (line.begin..line.end)
-                    .map(|i| {
-                        GlyphMetrics {
-                            font: &mut self.font_at(i).data_ref(),
-                            size: self.font_size_at(i),
-                        }
-                        .descender()
-                    })
-                    .min_by(f32::total_cmp)
-                    .unwrap_or_default()
-            } else {
-                0.0
-            };
-            // Minus here is because descender has negative value.
-            total_height - descender
-        };
         self.lines = lines;
-        Vector2::new(
-            size_x + self.padding.left + self.padding.right,
-            size_y + self.padding.top + self.padding.bottom,
-        )
     }
 }
 
@@ -1284,6 +1306,7 @@ impl FormattedTextBuilder {
             line_indent: self.line_indent.into(),
             line_space: self.line_space.into(),
             padding: self.padding.into(),
+            total_height: 0.0,
         }
     }
 }

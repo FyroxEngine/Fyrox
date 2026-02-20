@@ -795,7 +795,7 @@ impl PaletteWidget {
             "".into()
         };
         self.position_text.set_text(text);
-        self.position_text.build();
+        self.position_text.measure_and_arrange();
     }
 
     fn tile_point_to_grid_pos(&self, pos: Vector2<f32>) -> Vector2<i32> {

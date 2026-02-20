@@ -163,7 +163,7 @@ impl PanelPreview {
     }
     fn sync_handle_text(&mut self) {
         let text = self.get_handle_text();
-        self.handle_text_size = self.handle_text.set_text(text).build();
+        self.handle_text_size = self.handle_text.set_text(text).measure_and_arrange();
     }
     fn get_handle_text(&self) -> String {
         let state = self.state.lock();

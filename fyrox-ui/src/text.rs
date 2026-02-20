@@ -363,7 +363,12 @@ impl Control for Text {
             .borrow_mut()
             .set_super_sampling_scale(self.visual_max_scaling())
             .set_constraint(available_size)
-            .build()
+            .measure()
+    }
+
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
+        self.formatted_text.borrow_mut().arrange(final_size);
+        self.widget.arrange_override(ui, final_size)
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
@@ -388,7 +393,7 @@ impl Control for Text {
         let new_super_sampling_scale = self.visual_max_scaling();
         if new_super_sampling_scale != text.super_sampling_scale() {
             text.set_super_sampling_scale(new_super_sampling_scale)
-                .build();
+                .measure_and_arrange();
         }
     }
 
