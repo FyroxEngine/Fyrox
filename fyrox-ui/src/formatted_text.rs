@@ -1056,7 +1056,7 @@ impl FormattedText {
                     size: **self.font_size,
                 }
                 .descender()
-            } else if let Some(line) = self.lines.last() {
+            } else if let Some(line) = lines.last() {
                 (line.begin..line.end)
                     .map(|i| {
                         GlyphMetrics {
