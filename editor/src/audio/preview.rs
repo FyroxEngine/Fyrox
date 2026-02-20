@@ -24,11 +24,12 @@ use crate::{
         engine::Engine,
         graph::SceneGraph,
         gui::{
-            button::{ButtonBuilder, ButtonMessage},
-            check_box::{CheckBoxBuilder, CheckBoxMessage},
-            grid::{Column, GridBuilder, Row},
+            button::{Button, ButtonBuilder, ButtonMessage},
+            check_box::{CheckBox, CheckBoxBuilder, CheckBoxMessage},
+            grid::{Column, Grid, GridBuilder, Row},
             message::UiMessage,
-            scroll_bar::{ScrollBarBuilder, ScrollBarMessage},
+            scroll_bar::{ScrollBar, ScrollBarBuilder, ScrollBarMessage},
+            stack_panel::StackPanel,
             text::TextBuilder,
             widget::{WidgetBuilder, WidgetMessage},
             BuildContext, Thickness, VerticalAlignment,
@@ -41,11 +42,6 @@ use crate::{
     scene::{GameScene, Selection},
     Message,
 };
-use fyrox::gui::button::Button;
-use fyrox::gui::check_box::CheckBox;
-use fyrox::gui::grid::Grid;
-use fyrox::gui::scroll_bar::ScrollBar;
-use fyrox::gui::stack_panel::StackPanel;
 
 pub struct AudioPreviewPanel {
     pub root_widget: Handle<Grid>,
@@ -148,25 +144,32 @@ impl AudioPreviewPanel {
                                 TextBuilder::new(
                                     WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                                 )
+                                .with_vertical_text_alignment(VerticalAlignment::Center)
                                 .with_text("Time, s")
                                 .build(ctx),
                             )
                             .with_child({
-                                time = ScrollBarBuilder::new(WidgetBuilder::new().on_column(1))
-                                    .with_min(0.0)
-                                    .build(ctx);
+                                time = ScrollBarBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_column(1)
+                                        .with_margin(Thickness::uniform(1.0)),
+                                )
+                                .show_value(true)
+                                .with_value_precision(2)
+                                .with_min(0.0)
+                                .build(ctx);
                                 time
                             }),
                     )
                     .add_column(Column::auto())
                     .add_column(Column::stretch())
-                    .add_row(Row::strict(20.0))
+                    .add_row(Row::strict(26.0))
                     .build(ctx),
                 ),
         )
         .add_column(Column::stretch())
         .add_row(Row::stretch())
-        .add_row(Row::strict(20.0))
+        .add_row(Row::strict(26.0))
         .build(ctx);
 
         ctx.inner()
