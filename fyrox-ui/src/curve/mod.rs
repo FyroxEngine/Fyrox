@@ -546,7 +546,6 @@ uuid_provider!(CurveEditor = "5c7b087e-871e-498d-b064-187b604a37d8");
 
 impl Control for CurveEditor {
     fn draw(&self, ctx: &mut DrawingContext) {
-        ctx.transform_stack.push(Matrix3::identity());
         self.curve_transform.set_bounds(self.screen_bounds());
         self.curve_transform.update_transform();
         self.draw_background(ctx);
@@ -556,7 +555,6 @@ impl Control for CurveEditor {
         self.draw_curves(&self.curves, ctx);
         self.draw_keys(ctx);
         self.draw_operation(ctx);
-        ctx.transform_stack.pop();
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
@@ -1197,6 +1195,14 @@ impl CurveEditor {
             .coords
     }
 
+    /// Transforms a point to widget's local space.
+    pub fn point_to_local_space(&self, point: Vector2<f32>) -> Vector2<f32> {
+        self.curve_transform
+            .curve_to_local()
+            .transform_point(&Point2::from(point))
+            .coords
+    }
+
     /// Transforms a vector to screen space.
     pub fn vector_to_screen_space(&self, vector: Vector2<f32>) -> Vector2<f32> {
         (*self.curve_transform.curve_to_screen() * Vector3::new(vector.x, vector.y, 0.0)).xy()
@@ -1360,6 +1366,11 @@ impl CurveEditor {
             + Vector2::new(angle.cos(), angle.sin()).scale(self.handle_radius)
     }
 
+    fn tangent_local_position(&self, angle: f32, key_position: Vector2<f32>) -> Vector2<f32> {
+        self.point_to_local_space(key_position)
+            + Vector2::new(angle.cos(), angle.sin()).scale(self.handle_radius)
+    }
+
     fn send_curves(&self, ui: &UserInterface) {
         ui.post(
             self.handle,
@@ -1368,9 +1379,9 @@ impl CurveEditor {
     }
 
     fn draw_background(&self, ctx: &mut DrawingContext) {
-        let screen_bounds = self.screen_bounds();
+        let bounds = self.bounding_rect();
         // Draw background.
-        ctx.push_rect_filled(&screen_bounds, None);
+        ctx.push_rect_filled(&bounds, None);
         ctx.commit(
             self.clip_bounds(),
             self.background(),
@@ -1382,8 +1393,8 @@ impl CurveEditor {
 
     fn draw_highlight_zones(&self, ctx: &mut DrawingContext) {
         for zone in self.highlight_zones.iter() {
-            let left_top_corner = self.point_to_screen_space(zone.rect.left_top_corner());
-            let bottom_right_corner = self.point_to_screen_space(zone.rect.right_bottom_corner());
+            let left_top_corner = self.point_to_local_space(zone.rect.left_top_corner());
+            let bottom_right_corner = self.point_to_local_space(zone.rect.right_bottom_corner());
             ctx.push_rect_filled(
                 &Rect::new(
                     left_top_corner.x,
@@ -1421,27 +1432,27 @@ impl CurveEditor {
 
         for y in self.curve_transform.y_step_iter(self.grid_size.y) {
             ctx.push_line(
-                self.point_to_screen_space(Vector2::new(local_left_bottom.x - step_size_x, y)),
-                self.point_to_screen_space(Vector2::new(local_right_top.x + step_size_x, y)),
+                self.point_to_local_space(Vector2::new(local_left_bottom.x - step_size_x, y)),
+                self.point_to_local_space(Vector2::new(local_right_top.x + step_size_x, y)),
                 1.0,
             );
         }
 
         for x in self.curve_transform.x_step_iter(self.grid_size.x) {
             ctx.push_line(
-                self.point_to_screen_space(Vector2::new(x, local_left_bottom.y + step_size_y)),
-                self.point_to_screen_space(Vector2::new(x, local_right_top.y - step_size_y)),
+                self.point_to_local_space(Vector2::new(x, local_left_bottom.y + step_size_y)),
+                self.point_to_local_space(Vector2::new(x, local_right_top.y - step_size_y)),
                 1.0,
             );
         }
 
         // Draw main axes.
-        let vb = self.point_to_screen_space(Vector2::new(0.0, -10e6));
-        let ve = self.point_to_screen_space(Vector2::new(0.0, 10e6));
+        let vb = self.point_to_local_space(Vector2::new(0.0, -10e6));
+        let ve = self.point_to_local_space(Vector2::new(0.0, 10e6));
         ctx.push_line(vb, ve, 2.0);
 
-        let hb = self.point_to_screen_space(Vector2::new(-10e6, 0.0));
-        let he = self.point_to_screen_space(Vector2::new(10e6, 0.0));
+        let hb = self.point_to_local_space(Vector2::new(-10e6, 0.0));
+        let he = self.point_to_local_space(Vector2::new(10e6, 0.0));
         ctx.push_line(hb, he, 2.0);
 
         ctx.commit(
@@ -1460,7 +1471,7 @@ impl CurveEditor {
                 text.set_text(format!("{y:.1}")).measure_and_arrange();
                 ctx.draw_text(
                     self.clip_bounds(),
-                    self.point_to_screen_space(Vector2::new(local_left_bottom_n.x, y)),
+                    self.point_to_local_space(Vector2::new(local_left_bottom_n.x, y)),
                     &self.material,
                     &text,
                 );
@@ -1472,7 +1483,7 @@ impl CurveEditor {
                 text.set_text(format!("{x:.1}")).measure_and_arrange();
                 ctx.draw_text(
                     self.clip_bounds(),
-                    self.point_to_screen_space(Vector2::new(x, local_left_bottom_n.y)),
+                    self.point_to_local_space(Vector2::new(x, local_left_bottom_n.y)),
                     &self.material,
                     &text,
                 );
@@ -1487,11 +1498,11 @@ impl CurveEditor {
             let draw_keys = curve.keys();
 
             if let Some(first) = draw_keys.first() {
-                let screen_pos = self.point_to_screen_space(first.position);
+                let screen_pos = self.point_to_local_space(first.position);
                 ctx.push_line(Vector2::new(0.0, screen_pos.y), screen_pos, 1.0);
             }
             if let Some(last) = draw_keys.last() {
-                let screen_pos = self.point_to_screen_space(last.position);
+                let screen_pos = self.point_to_local_space(last.position);
                 ctx.push_line(
                     screen_pos,
                     Vector2::new(screen_bounds.x() + screen_bounds.w(), screen_pos.y),
@@ -1503,8 +1514,8 @@ impl CurveEditor {
                 let left = &pair[0];
                 let right = &pair[1];
 
-                let left_pos = self.point_to_screen_space(left.position);
-                let right_pos = self.point_to_screen_space(right.position);
+                let left_pos = self.point_to_local_space(left.position);
+                let right_pos = self.point_to_local_space(right.position);
 
                 let steps = ((right_pos.x - left_pos.x).abs() / 2.0) as usize;
 
@@ -1575,7 +1586,7 @@ impl CurveEditor {
             let keys_to_draw = curve.keys();
 
             for key in keys_to_draw.iter() {
-                let origin = self.point_to_screen_space(key.position);
+                let origin = self.point_to_local_space(key.position);
                 let size = Vector2::new(self.key_size, self.key_size);
                 let half_size = size.scale(0.5);
 
@@ -1631,7 +1642,7 @@ impl CurveEditor {
                     } = key.kind
                     {
                         if show_left {
-                            let left_handle_pos = self.tangent_screen_position(
+                            let left_handle_pos = self.tangent_local_position(
                                 wrap_angle(left_tangent.atan()) + std::f32::consts::PI,
                                 key.position,
                             );
@@ -1645,7 +1656,7 @@ impl CurveEditor {
                         }
 
                         if show_right {
-                            let right_handle_pos = self.tangent_screen_position(
+                            let right_handle_pos = self.tangent_local_position(
                                 wrap_angle(right_tangent.atan()),
                                 key.position,
                             );
@@ -1679,8 +1690,8 @@ impl CurveEditor {
         if let Some(OperationContext::BoxSelection { min, max, .. }) =
             self.operation_context.as_ref()
         {
-            let min = self.point_to_screen_space(min.get());
-            let max = self.point_to_screen_space(max.get());
+            let min = self.point_to_local_space(min.get());
+            let max = self.point_to_local_space(max.get());
             let rect = Rect::new(min.x, min.y, max.x - min.x, max.y - min.y);
 
             ctx.push_rect(&rect, 1.0);
