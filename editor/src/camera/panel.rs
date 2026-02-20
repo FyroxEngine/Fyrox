@@ -20,35 +20,25 @@
 
 use crate::{
     fyrox::{
-        core::pool::Handle,
+        core::{algebra::Vector2, pool::Handle},
         engine::Engine,
         graph::SceneGraph,
         gui::{
-            check_box::{CheckBoxBuilder, CheckBoxMessage},
-            image::{ImageBuilder, ImageMessage},
-            message::UiMessage,
+            image::{Image, ImageBuilder, ImageMessage},
             stack_panel::StackPanelBuilder,
-            text::TextBuilder,
-            widget::WidgetBuilder,
-            window::{WindowBuilder, WindowMessage, WindowTitle},
+            widget::{WidgetBuilder, WidgetMessage},
+            window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
         },
         resource::texture::{TextureResource, TextureResourceExtension},
-        scene::{camera::Camera, node::Node},
+        scene::{camera::Camera, collider::BitMask, node::Node},
     },
     scene::{GameScene, Selection},
     Message,
 };
-use fyrox::core::algebra::Vector2;
-use fyrox::gui::check_box::CheckBox;
-use fyrox::gui::image::Image;
-use fyrox::gui::widget::WidgetMessage;
-use fyrox::gui::window::{Window, WindowAlignment};
-use fyrox::scene::collider::BitMask;
 
 pub struct CameraPreviewControlPanel {
     pub window: Handle<Window>,
-    preview: Handle<CheckBox>,
     camera_state: Option<(Handle<Node>, Node)>,
     scene_viewer_frame: Handle<Image>,
     preview_frame: Handle<Image>,
@@ -56,7 +46,6 @@ pub struct CameraPreviewControlPanel {
 
 impl CameraPreviewControlPanel {
     pub fn new(scene_viewer_frame: Handle<Image>, ctx: &mut BuildContext) -> Self {
-        let preview;
         let preview_frame;
         let window = WindowBuilder::new(
             WidgetBuilder::new()
@@ -68,19 +57,6 @@ impl CameraPreviewControlPanel {
             StackPanelBuilder::new(
                 WidgetBuilder::new()
                     .with_margin(Thickness::uniform(1.0))
-                    .with_child({
-                        preview = CheckBoxBuilder::new(WidgetBuilder::new())
-                            .with_content(
-                                TextBuilder::new(
-                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_text("Preview")
-                                .with_vertical_text_alignment(VerticalAlignment::Center)
-                                .build(ctx),
-                            )
-                            .build(ctx);
-                        preview
-                    })
                     .with_child({
                         preview_frame = ImageBuilder::new(
                             WidgetBuilder::new().with_width(200.0).with_height(200.0),
@@ -99,7 +75,6 @@ impl CameraPreviewControlPanel {
         Self {
             window,
             camera_state: Default::default(),
-            preview,
             scene_viewer_frame,
             preview_frame,
         }
@@ -112,17 +87,8 @@ impl CameraPreviewControlPanel {
         mut game_scene: Option<&mut GameScene>,
         engine: &mut Engine,
     ) {
-        if let Some(game_scene) = game_scene.as_mut() {
-            if let Message::DoCommand(_)
-            | Message::UndoCurrentSceneCommand
-            | Message::RedoCurrentSceneCommand = message
-            {
-                self.leave_preview_mode(game_scene, engine);
-            }
-        }
-
         if let Message::SelectionChanged { .. } = message {
-            let any_camera = if let Some(game_scene) = game_scene {
+            let any_camera = if let Some(game_scene) = game_scene.as_mut() {
                 let scene = &engine.scenes[game_scene.scene];
                 editor_selection.as_graph().is_some_and(|s| {
                     s.nodes
@@ -133,6 +99,9 @@ impl CameraPreviewControlPanel {
                 false
             };
             if any_camera {
+                if let Some(game_scene) = game_scene.as_mut() {
+                    self.enter_preview_mode(editor_selection, game_scene, engine);
+                }
                 engine.user_interfaces.first_mut().send(
                     self.window,
                     WindowMessage::Open {
@@ -147,6 +116,9 @@ impl CameraPreviewControlPanel {
                     },
                 );
             } else {
+                if let Some(game_scene) = game_scene.as_mut() {
+                    self.leave_preview_mode(game_scene, engine);
+                }
                 engine
                     .user_interfaces
                     .first_mut()
@@ -215,27 +187,10 @@ impl CameraPreviewControlPanel {
 
         // Don't keep the render target alive after the preview mode is off.
         ui.send_sync(self.preview_frame, ImageMessage::Texture(None));
-        ui.send_sync(self.preview, CheckBoxMessage::Check(Some(false)));
         ui.send_sync(self.preview_frame, WidgetMessage::Visibility(false));
     }
 
     pub fn is_in_preview_mode(&self) -> bool {
         self.camera_state.is_some()
-    }
-
-    pub fn handle_ui_message(
-        &mut self,
-        message: &UiMessage,
-        editor_selection: &Selection,
-        game_scene: &mut GameScene,
-        engine: &mut Engine,
-    ) {
-        if let Some(CheckBoxMessage::Check(Some(value))) = message.data_from(self.preview) {
-            if *value {
-                self.enter_preview_mode(editor_selection, game_scene, engine);
-            } else {
-                self.leave_preview_mode(game_scene, engine);
-            }
-        }
     }
 }

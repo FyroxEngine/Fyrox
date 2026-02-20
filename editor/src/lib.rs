@@ -1487,12 +1487,6 @@ impl Editor {
                 game_scene,
                 engine,
             );
-            self.camera_control_panel.handle_ui_message(
-                message,
-                &current_scene_entry.selection,
-                game_scene,
-                engine,
-            );
             self.mesh_control_panel.handle_ui_message(
                 message,
                 &current_scene_entry.selection,
