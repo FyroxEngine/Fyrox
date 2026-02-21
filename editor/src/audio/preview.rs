@@ -54,6 +54,16 @@ pub struct AudioPreviewPanel {
     sounds_state: Vec<(Handle<Node>, Node)>,
 }
 
+fn make_button(text: &str, column: usize, ctx: &mut BuildContext) -> Handle<Button> {
+    ButtonBuilder::new(
+        WidgetBuilder::new()
+            .on_column(column)
+            .with_margin(Thickness::uniform(1.0)),
+    )
+    .with_text(text)
+    .build(ctx)
+}
+
 impl AudioPreviewPanel {
     pub fn new(inspector_head: Handle<StackPanel>, ctx: &mut BuildContext) -> Self {
         let preview;
@@ -88,43 +98,19 @@ impl AudioPreviewPanel {
                                 preview
                             })
                             .with_child({
-                                play = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_column(1)
-                                        .with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_text("Play")
-                                .build(ctx);
+                                play = make_button("Play", 1, ctx);
                                 play
                             })
                             .with_child({
-                                pause = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_column(2)
-                                        .with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_text("Pause")
-                                .build(ctx);
+                                pause = make_button("Pause", 2, ctx);
                                 pause
                             })
                             .with_child({
-                                stop = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_column(3)
-                                        .with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_text("Stop")
-                                .build(ctx);
+                                stop = make_button("Stop", 3, ctx);
                                 stop
                             })
                             .with_child({
-                                rewind = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_column(4)
-                                        .with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_text("Rewind")
-                                .build(ctx);
+                                rewind = make_button("Rewind", 4, ctx);
                                 rewind
                             }),
                     )
