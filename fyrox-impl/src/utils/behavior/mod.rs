@@ -55,6 +55,9 @@ pub mod composite;
 pub mod inverter;
 pub mod leaf;
 
+/// An alias for `Result<Status, GameError>`
+pub type BehaviorResult = Result<Status, GameError>;
+
 /// Status of execution of behavior tree node.
 pub enum Status {
     /// Action was successful.
@@ -310,14 +313,15 @@ where
     Inverter::new(child).add_to(tree)
 }
 
+/// Implements [`Behavior`] trait for the given enumeration and dispatches `tick` call of every
+/// specified variant. This macro is used mostly to reduce boilerplate code
 #[macro_export]
 macro_rules! dispatch_behavior_variants {
     ($type_name:ident, $context:ty, $($variants:ident),*) => {
         impl<'a> $crate::utils::behavior::Behavior<'a> for $type_name {
             type Context = $context;
 
-            fn tick(&mut self, context: &mut Self::Context)
-                -> Result<$crate::utils::behavior::Status, $crate::plugin::error::GameError>
+            fn tick(&mut self, context: &mut Self::Context) -> $crate::utils::behavior::BehaviorResult
             {
                 match self {
                     $(
@@ -331,12 +335,31 @@ macro_rules! dispatch_behavior_variants {
 
 #[cfg(test)]
 mod test {
+    use crate::utils::behavior::BehaviorResult;
     use crate::{
         core::{futures::executor::block_on, visitor::prelude::*},
-        plugin::error::GameError,
         utils::behavior::{leaf, sequence, Behavior, BehaviorTree, Status},
     };
     use std::{env, fs::File, io::Write, path::PathBuf};
+
+    #[derive(Visit)]
+    struct Environment {
+        // > 0 - door in front of
+        // < 0 - door is behind
+        distance_to_door: f32,
+        door_opened: bool,
+        done: bool,
+    }
+
+    impl Default for Environment {
+        fn default() -> Self {
+            Self {
+                distance_to_door: 3.0,
+                door_opened: false,
+                done: false,
+            }
+        }
+    }
 
     #[derive(Debug, PartialEq, Default, Visit, Clone)]
     struct WalkAction;
@@ -344,7 +367,7 @@ mod test {
     impl Behavior<'_> for WalkAction {
         type Context = Environment;
 
-        fn tick(&mut self, context: &mut Self::Context) -> Result<Status, GameError> {
+        fn tick(&mut self, context: &mut Self::Context) -> BehaviorResult {
             if context.distance_to_door <= 0.0 {
                 Ok(Status::Success)
             } else {
@@ -364,7 +387,7 @@ mod test {
     impl Behavior<'_> for OpenDoorAction {
         type Context = Environment;
 
-        fn tick(&mut self, context: &mut Self::Context) -> Result<Status, GameError> {
+        fn tick(&mut self, context: &mut Self::Context) -> BehaviorResult {
             if !context.door_opened {
                 context.door_opened = true;
                 println!("Door was opened!");
@@ -379,7 +402,7 @@ mod test {
     impl Behavior<'_> for StepThroughAction {
         type Context = Environment;
 
-        fn tick(&mut self, context: &mut Self::Context) -> Result<Status, GameError> {
+        fn tick(&mut self, context: &mut Self::Context) -> BehaviorResult {
             if context.distance_to_door < -1.0 {
                 Ok(Status::Success)
             } else {
@@ -399,7 +422,7 @@ mod test {
     impl Behavior<'_> for CloseDoorAction {
         type Context = Environment;
 
-        fn tick(&mut self, context: &mut Self::Context) -> Result<Status, GameError> {
+        fn tick(&mut self, context: &mut Self::Context) -> BehaviorResult {
             if context.door_opened {
                 context.door_opened = false;
                 context.done = true;
@@ -410,30 +433,21 @@ mod test {
     }
 
     #[derive(Debug, PartialEq, Visit, Clone)]
-    enum BotBehavior {
+    enum BotAction {
         Walk(WalkAction),
         OpenDoor(OpenDoorAction),
         StepThrough(StepThroughAction),
         CloseDoor(CloseDoorAction),
     }
 
-    impl Default for BotBehavior {
+    impl Default for BotAction {
         fn default() -> Self {
             Self::Walk(Default::default())
         }
     }
 
-    #[derive(Default, Visit)]
-    struct Environment {
-        // > 0 - door in front of
-        // < 0 - door is behind
-        distance_to_door: f32,
-        door_opened: bool,
-        done: bool,
-    }
-
     dispatch_behavior_variants!(
-        BotBehavior,
+        BotAction,
         Environment,
         Walk,
         OpenDoor,
@@ -441,15 +455,15 @@ mod test {
         CloseDoor
     );
 
-    fn create_tree() -> BehaviorTree<BotBehavior> {
+    fn create_tree() -> BehaviorTree<BotAction> {
         let mut tree = BehaviorTree::new();
 
         let entry = sequence(
             [
-                leaf(BotBehavior::Walk(WalkAction), &mut tree),
-                leaf(BotBehavior::OpenDoor(OpenDoorAction), &mut tree),
-                leaf(BotBehavior::StepThrough(StepThroughAction), &mut tree),
-                leaf(BotBehavior::CloseDoor(CloseDoorAction), &mut tree),
+                leaf(BotAction::Walk(WalkAction), &mut tree),
+                leaf(BotAction::OpenDoor(OpenDoorAction), &mut tree),
+                leaf(BotAction::StepThrough(StepThroughAction), &mut tree),
+                leaf(BotAction::CloseDoor(CloseDoorAction), &mut tree),
             ],
             &mut tree,
         );
@@ -463,11 +477,7 @@ mod test {
     fn test_behavior() {
         let tree = create_tree();
 
-        let mut ctx = Environment {
-            distance_to_door: 3.0,
-            door_opened: false,
-            done: false,
-        };
+        let mut ctx = Environment::default();
 
         while !ctx.done {
             tree.tick(&mut ctx).unwrap();
@@ -499,7 +509,7 @@ mod test {
 
         // Load
         let mut visitor = block_on(Visitor::load_from_file(bin)).unwrap();
-        let mut loaded_tree = BehaviorTree::<BotBehavior>::default();
+        let mut loaded_tree = BehaviorTree::<BotAction>::default();
         loaded_tree.visit("Tree", &mut visitor).unwrap();
 
         assert_eq!(saved_tree, loaded_tree);
