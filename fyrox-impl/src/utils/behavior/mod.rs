@@ -310,16 +310,31 @@ where
     Inverter::new(child).add_to(tree)
 }
 
+#[macro_export]
+macro_rules! dispatch_behavior_variants {
+    ($type_name:ident, $context:ty, $($variants:ident),*) => {
+        impl<'a> $crate::utils::behavior::Behavior<'a> for $type_name {
+            type Context = $context;
+
+            fn tick(&mut self, context: &mut Self::Context)
+                -> Result<$crate::utils::behavior::Status, $crate::plugin::error::GameError>
+            {
+                match self {
+                    $(
+                        $type_name::$variants(v) => v.tick(context)
+                    ),*
+                }
+            }
+        }
+    };
+}
+
 #[cfg(test)]
 mod test {
-    use crate::plugin::error::GameError;
     use crate::{
         core::{futures::executor::block_on, visitor::prelude::*},
-        utils::behavior::{
-            composite::{CompositeNode, CompositeNodeKind},
-            leaf::LeafNode,
-            Behavior, BehaviorTree, Status,
-        },
+        plugin::error::GameError,
+        utils::behavior::{leaf, sequence, Behavior, BehaviorTree, Status},
     };
     use std::{env, fs::File, io::Write, path::PathBuf};
 
@@ -394,14 +409,18 @@ mod test {
         }
     }
 
-    #[derive(Debug, PartialEq, Visit, Clone, Default)]
+    #[derive(Debug, PartialEq, Visit, Clone)]
     enum BotBehavior {
-        #[default]
-        None,
         Walk(WalkAction),
         OpenDoor(OpenDoorAction),
         StepThrough(StepThroughAction),
         CloseDoor(CloseDoorAction),
+    }
+
+    impl Default for BotBehavior {
+        fn default() -> Self {
+            Self::Walk(Default::default())
+        }
     }
 
     #[derive(Default, Visit)]
@@ -413,33 +432,27 @@ mod test {
         done: bool,
     }
 
-    impl Behavior<'_> for BotBehavior {
-        type Context = Environment;
-
-        fn tick(&mut self, context: &mut Self::Context) -> Result<Status, GameError> {
-            match self {
-                BotBehavior::None => unreachable!(),
-                BotBehavior::Walk(v) => v.tick(context),
-                BotBehavior::OpenDoor(v) => v.tick(context),
-                BotBehavior::StepThrough(v) => v.tick(context),
-                BotBehavior::CloseDoor(v) => v.tick(context),
-            }
-        }
-    }
+    dispatch_behavior_variants!(
+        BotBehavior,
+        Environment,
+        Walk,
+        OpenDoor,
+        StepThrough,
+        CloseDoor
+    );
 
     fn create_tree() -> BehaviorTree<BotBehavior> {
         let mut tree = BehaviorTree::new();
 
-        let entry = CompositeNode::new(
-            CompositeNodeKind::Sequence,
-            vec![
-                LeafNode::new(BotBehavior::Walk(WalkAction)).add_to(&mut tree),
-                LeafNode::new(BotBehavior::OpenDoor(OpenDoorAction)).add_to(&mut tree),
-                LeafNode::new(BotBehavior::StepThrough(StepThroughAction)).add_to(&mut tree),
-                LeafNode::new(BotBehavior::CloseDoor(CloseDoorAction)).add_to(&mut tree),
+        let entry = sequence(
+            [
+                leaf(BotBehavior::Walk(WalkAction), &mut tree),
+                leaf(BotBehavior::OpenDoor(OpenDoorAction), &mut tree),
+                leaf(BotBehavior::StepThrough(StepThroughAction), &mut tree),
+                leaf(BotBehavior::CloseDoor(CloseDoorAction), &mut tree),
             ],
-        )
-        .add_to(&mut tree);
+            &mut tree,
+        );
 
         tree.set_entry_node(entry);
 
