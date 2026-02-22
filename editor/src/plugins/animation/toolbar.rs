@@ -41,9 +41,10 @@ use crate::{
             style::{resource::StyleResourceExt, Style},
             text::{Text, TextBuilder, TextMessage},
             text_box::{TextBox, TextBoxBuilder},
+            toggle::{ToggleButton, ToggleButtonMessage},
             utils::{
                 make_dropdown_list_option_universal, make_image_button_with_tooltip,
-                make_simple_tooltip,
+                make_image_toggle_with_tooltip, make_simple_tooltip,
             },
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
@@ -89,7 +90,7 @@ pub struct Toolbar {
     pub rename_current_animation: Handle<Button>,
     pub clone_current_animation: Handle<Button>,
     pub animation_name: Handle<TextBox>,
-    pub preview: Handle<CheckBox>,
+    pub preview: Handle<ToggleButton>,
     pub time_slice_start: Handle<NumericUpDown<f32>>,
     pub time_slice_end: Handle<NumericUpDown<f32>>,
     pub import: Handle<Button>,
@@ -97,7 +98,7 @@ pub struct Toolbar {
     pub node_selector: Handle<NodeSelectorWindow>,
     pub import_file_selector: Handle<FileSelector>,
     pub selected_import_root: ErasedHandle,
-    pub looping: Handle<CheckBox>,
+    pub looping: Handle<ToggleButton>,
     pub enabled: Handle<CheckBox>,
     root_motion_dropdown_area: RootMotionDropdownArea,
     pub root_motion: Handle<Button>,
@@ -519,21 +520,14 @@ impl Toolbar {
                                 clone_current_animation
                             })
                             .with_child({
-                                looping = CheckBoxBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .with_tooltip(make_simple_tooltip(
-                                        ctx,
-                                        "Animation looping. Looped animation will play infinitely.",
-                                    )),
-                                )
-                                .with_content(
-                                    TextBuilder::new(WidgetBuilder::new())
-                                        .with_vertical_text_alignment(VerticalAlignment::Center)
-                                        .with_text("Loop")
-                                        .build(ctx),
-                                )
-                                .build(ctx);
+                                looping = make_image_toggle_with_tooltip(
+                                    ctx,
+                                    16.0,
+                                    16.0,
+                                    load_image!("../../../resources/loop.png"),
+                                    "Animation looping. Looped animation will play infinitely.",
+                                    None,
+                                );
                                 looping
                             })
                             .with_child({
@@ -635,26 +629,14 @@ impl Toolbar {
                                 root_motion
                             })
                             .with_child({
-                                preview = CheckBoxBuilder::new(
-                                    WidgetBuilder::new().with_enabled(false).with_margin(
-                                        Thickness {
-                                            left: 10.0,
-                                            top: 1.0,
-                                            right: 5.0,
-                                            bottom: 1.0,
-                                        },
-                                    ),
-                                )
-                                .with_content(
-                                    TextBuilder::new(
-                                        WidgetBuilder::new()
-                                            .with_vertical_alignment(VerticalAlignment::Center),
-                                    )
-                                    .with_text("Preview")
-                                    .build(ctx),
-                                )
-                                .checked(Some(false))
-                                .build(ctx);
+                                preview = make_image_toggle_with_tooltip(
+                                    ctx,
+                                    16.0,
+                                    16.0,
+                                    load_image!("../../../resources/eye.png"),
+                                    "Preview",
+                                    None,
+                                );
                                 preview
                             })
                             .with_child({
@@ -825,28 +807,27 @@ impl Toolbar {
                     ));
                 }
             }
-        } else if let Some(CheckBoxMessage::Check(Some(checked))) = message.data() {
-            if message.direction() == MessageDirection::FromWidget {
-                if message.destination() == self.preview {
-                    return if *checked {
-                        ToolbarAction::EnterPreviewMode
-                    } else {
-                        ToolbarAction::LeavePreviewMode
-                    };
-                } else if message.destination() == self.looping {
-                    sender.do_command(SetAnimationLoopingCommand {
-                        node_handle: animation_player_handle,
-                        animation_handle: selection.animation,
-                        value: *checked,
-                    });
-                } else if message.destination() == self.enabled {
-                    sender.do_command(SetAnimationEnabledCommand {
-                        node_handle: animation_player_handle,
-                        animation_handle: selection.animation,
-                        value: *checked,
-                    });
-                }
-            }
+        } else if let Some(CheckBoxMessage::Check(Some(checked))) = message.data_from(self.enabled)
+        {
+            sender.do_command(SetAnimationEnabledCommand {
+                node_handle: animation_player_handle,
+                animation_handle: selection.animation,
+                value: *checked,
+            });
+        } else if let Some(ToggleButtonMessage::Toggled(toggled)) = message.data_from(self.looping)
+        {
+            sender.do_command(SetAnimationLoopingCommand {
+                node_handle: animation_player_handle,
+                animation_handle: selection.animation,
+                value: *toggled,
+            });
+        } else if let Some(ToggleButtonMessage::Toggled(toggled)) = message.data_from(self.preview)
+        {
+            return if *toggled {
+                ToolbarAction::EnterPreviewMode
+            } else {
+                ToolbarAction::LeavePreviewMode
+            };
         } else if let Some(NumericUpDownMessage::<f32>::Value(value)) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
                 if message.destination() == self.time_slice_start {
@@ -1092,7 +1073,7 @@ impl Toolbar {
             ui.send_sync(self.speed, NumericUpDownMessage::Value(animation.speed()));
             ui.send_sync(
                 self.looping,
-                CheckBoxMessage::Check(Some(animation.is_loop())),
+                ToggleButtonMessage::Toggled(animation.is_loop()),
             );
             ui.send_sync(
                 self.enabled,

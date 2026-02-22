@@ -71,6 +71,7 @@ use fyrox::gui::curve::CurveEditor;
 use fyrox::gui::dock::DockingManager;
 use fyrox::gui::grid::Grid;
 use fyrox::gui::menu::MenuItem;
+use fyrox::gui::toggle::ToggleButtonMessage;
 use fyrox::gui::window::Window;
 use std::any::{Any, TypeId};
 
@@ -851,7 +852,7 @@ impl AnimationEditor {
         );
         ui.send_sync(
             self.toolbar.preview,
-            CheckBoxMessage::Check(Some(self.preview_mode_data.is_some())),
+            ToggleButtonMessage::Toggled(self.preview_mode_data.is_some()),
         );
         ui.send_sync(
             self.curve_editor,

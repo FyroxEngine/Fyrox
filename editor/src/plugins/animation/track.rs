@@ -48,19 +48,21 @@ use crate::{
         gui::{
             border::BorderBuilder,
             brush::Brush,
-            button::{Button, ButtonBuilder, ButtonMessage},
+            button::{Button, ButtonMessage},
             check_box::{CheckBox, CheckBoxBuilder, CheckBoxMessage},
             draw::DrawingContext,
             grid::{Column, Grid, GridBuilder, Row},
-            image::ImageBuilder,
             menu::{ContextMenuBuilder, MenuItem, MenuItemMessage},
             message::{MessageData, MessageDirection, OsEvent, UiMessage},
             popup::PopupBuilder,
             scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
+            searchbar::{SearchBar, SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
             style::{resource::StyleResourceExt, Style},
             text::{Text, TextBuilder, TextMessage},
+            text_box::EmptyTextPlaceholder,
             tree::{Tree, TreeBuilder, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
+            utils::make_image_button_with_tooltip,
             utils::make_simple_tooltip,
             widget::{Widget, WidgetBuilder, WidgetMessage},
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
@@ -98,8 +100,6 @@ use crate::{
     },
     utils::{self, make_square_image_button_with_tooltip},
 };
-use fyrox::gui::searchbar::{SearchBar, SearchBarBuilder, SearchBarMessage};
-use fyrox::gui::text_box::EmptyTextPlaceholder;
 use std::{
     any::TypeId,
     cmp::Ordering,
@@ -526,51 +526,40 @@ impl Toolbar {
                     .build(ctx);
                     search_bar
                 })
-                .with_child({
-                    collapse_all = ButtonBuilder::new(
+                .with_child(
+                    StackPanelBuilder::new(
                         WidgetBuilder::new()
-                            .with_margin(Thickness::uniform(1.0))
                             .on_column(1)
-                            .with_tooltip(make_simple_tooltip(ctx, "Collapse All")),
+                            .with_child({
+                                collapse_all = make_image_button_with_tooltip(
+                                    ctx,
+                                    16.0,
+                                    16.0,
+                                    load_image!("../../../resources/collapse.png"),
+                                    "Collapse All",
+                                    None,
+                                );
+                                collapse_all
+                            })
+                            .with_child({
+                                expand_all = make_image_button_with_tooltip(
+                                    ctx,
+                                    16.0,
+                                    16.0,
+                                    load_image!("../../../resources/expand.png"),
+                                    "Expand All",
+                                    None,
+                                );
+                                expand_all
+                            }),
                     )
-                    .with_content(
-                        ImageBuilder::new(
-                            WidgetBuilder::new()
-                                .with_background(ctx.style.property(Style::BRUSH_BRIGHT))
-                                .with_width(16.0)
-                                .with_height(16.0),
-                        )
-                        .with_opt_texture(load_image!("../../../resources/collapse.png"))
-                        .build(ctx),
-                    )
-                    .build(ctx);
-                    collapse_all
-                })
-                .with_child({
-                    expand_all = ButtonBuilder::new(
-                        WidgetBuilder::new()
-                            .with_margin(Thickness::uniform(1.0))
-                            .on_column(2)
-                            .with_tooltip(make_simple_tooltip(ctx, "Expand All")),
-                    )
-                    .with_content(
-                        ImageBuilder::new(
-                            WidgetBuilder::new()
-                                .with_background(ctx.style.property(Style::BRUSH_BRIGHT))
-                                .with_width(16.0)
-                                .with_height(16.0),
-                        )
-                        .with_opt_texture(load_image!("../../../resources/expand.png"))
-                        .build(ctx),
-                    )
-                    .build(ctx);
-                    expand_all
-                }),
+                    .with_orientation(Orientation::Horizontal)
+                    .build(ctx),
+                ),
         )
         .add_row(Row::strict(26.0))
         .add_column(Column::stretch())
-        .add_column(Column::strict(22.0))
-        .add_column(Column::strict(22.0))
+        .add_column(Column::auto())
         .build(ctx);
 
         Self {
