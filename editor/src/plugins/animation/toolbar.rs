@@ -80,7 +80,8 @@ enum ImportMode {
 }
 
 pub struct Toolbar {
-    pub panel: Handle<UiNode>,
+    pub top_panel: Handle<UiNode>,
+    pub bottom_panel: Handle<UiNode>,
     pub play_pause: Handle<Button>,
     pub stop: Handle<Button>,
     pub speed: Handle<NumericUpDown<f32>>,
@@ -406,7 +407,7 @@ impl Toolbar {
             the animation player.";
         let rename_animation_tooltip = "Rename Selected Animation";
         let add_animation_tooltip =
-            "Add New Animation.\nAdds new empty animation with the name at the right text box.";
+            "Add New Animation.\nAdds new empty animation with the name in the left text box.";
 
         let play_pause;
         let stop;
@@ -425,7 +426,7 @@ impl Toolbar {
         let looping;
         let enabled;
         let root_motion;
-        let panel = BorderBuilder::new(
+        let top_panel = BorderBuilder::new(
             WidgetBuilder::new()
                 .on_row(0)
                 .with_foreground(ctx.style.property(Style::BRUSH_LIGHT))
@@ -467,6 +468,20 @@ impl Toolbar {
                                 import
                             })
                             .with_child({
+                                animations = DropdownListBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_width(120.0)
+                                        .with_margin(Thickness {
+                                            left: 10.0,
+                                            top: 1.0,
+                                            right: 1.0,
+                                            bottom: 1.0,
+                                        }),
+                                )
+                                .build(ctx);
+                                animations
+                            })
+                            .with_child({
                                 reimport = make_image_button_with_tooltip(
                                     ctx,
                                     16.0,
@@ -489,15 +504,6 @@ impl Toolbar {
                                 rename_current_animation
                             })
                             .with_child({
-                                animations = DropdownListBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_width(120.0)
-                                        .with_margin(Thickness::uniform(1.0)),
-                                )
-                                .build(ctx);
-                                animations
-                            })
-                            .with_child({
                                 remove_current_animation = make_image_button_with_tooltip(
                                     ctx,
                                     16.0,
@@ -518,6 +524,17 @@ impl Toolbar {
                                     None,
                                 );
                                 clone_current_animation
+                            })
+                            .with_child({
+                                root_motion = make_image_button_with_tooltip(
+                                    ctx,
+                                    16.0,
+                                    16.0,
+                                    load_image!("../../../resources/root_motion.png"),
+                                    "Root Motion Settings",
+                                    None,
+                                );
+                                root_motion
                             })
                             .with_child({
                                 looping = make_image_toggle_with_tooltip(
@@ -547,13 +564,69 @@ impl Toolbar {
                                 )
                                 .build(ctx);
                                 enabled
+                            }),
+                    )
+                    .with_orientation(Orientation::Horizontal)
+                    .build(ctx),
+                ),
+        )
+        .with_corner_radius(3.0.into())
+        .with_stroke_thickness(Thickness::uniform(1.0).into())
+        .build(ctx)
+        .to_base();
+
+        let bottom_panel = BorderBuilder::new(
+            WidgetBuilder::new()
+                .on_row(1)
+                .with_foreground(ctx.style.property(Style::BRUSH_LIGHT))
+                .with_child(
+                    WrapPanelBuilder::new(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(1.0))
+                            .with_child({
+                                preview = make_image_toggle_with_tooltip(
+                                    ctx,
+                                    16.0,
+                                    16.0,
+                                    load_image!("../../../resources/eye.png"),
+                                    "Preview",
+                                    None,
+                                );
+                                preview
+                            })
+                            .with_child({
+                                play_pause = make_image_button_with_tooltip(
+                                    ctx,
+                                    16.0,
+                                    16.0,
+                                    load_image!("../../../resources/play_pause.png"),
+                                    "Play/Pause",
+                                    None,
+                                );
+                                play_pause
+                            })
+                            .with_child({
+                                stop = make_image_button_with_tooltip(
+                                    ctx,
+                                    16.0,
+                                    16.0,
+                                    load_image!("../../../resources/stop.png"),
+                                    "Stop Playback",
+                                    None,
+                                );
+                                stop
                             })
                             .with_child(
                                 ImageBuilder::new(
                                     WidgetBuilder::new()
                                         .with_width(18.0)
                                         .with_height(18.0)
-                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_margin(Thickness {
+                                            left: 10.0,
+                                            top: 1.0,
+                                            right: 1.0,
+                                            bottom: 1.0,
+                                        })
                                         .with_background(ctx.style.property(Style::BRUSH_BRIGHT)),
                                 )
                                 .with_opt_texture(load_image!("../../../resources/speed.png"))
@@ -579,7 +652,12 @@ impl Toolbar {
                                     WidgetBuilder::new()
                                         .with_width(18.0)
                                         .with_height(18.0)
-                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_margin(Thickness {
+                                            left: 10.0,
+                                            top: 1.0,
+                                            right: 1.0,
+                                            bottom: 1.0,
+                                        })
                                         .with_background(ctx.style.property(Style::BRUSH_BRIGHT)),
                                 )
                                 .with_opt_texture(load_image!("../../../resources/time.png"))
@@ -616,56 +694,13 @@ impl Toolbar {
                                 .with_value(1.0)
                                 .build(ctx);
                                 time_slice_end
-                            })
-                            .with_child({
-                                root_motion = make_image_button_with_tooltip(
-                                    ctx,
-                                    16.0,
-                                    16.0,
-                                    load_image!("../../../resources/root_motion.png"),
-                                    "Root Motion Settings",
-                                    None,
-                                );
-                                root_motion
-                            })
-                            .with_child({
-                                preview = make_image_toggle_with_tooltip(
-                                    ctx,
-                                    16.0,
-                                    16.0,
-                                    load_image!("../../../resources/eye.png"),
-                                    "Preview",
-                                    None,
-                                );
-                                preview
-                            })
-                            .with_child({
-                                play_pause = make_image_button_with_tooltip(
-                                    ctx,
-                                    16.0,
-                                    16.0,
-                                    load_image!("../../../resources/play_pause.png"),
-                                    "Play/Pause",
-                                    None,
-                                );
-                                play_pause
-                            })
-                            .with_child({
-                                stop = make_image_button_with_tooltip(
-                                    ctx,
-                                    16.0,
-                                    16.0,
-                                    load_image!("../../../resources/stop.png"),
-                                    "Stop Playback",
-                                    None,
-                                );
-                                stop
                             }),
                     )
                     .with_orientation(Orientation::Horizontal)
                     .build(ctx),
                 ),
         )
+        .with_corner_radius(3.0.into())
         .with_stroke_thickness(Thickness::uniform(1.0).into())
         .build(ctx)
         .to_base();
@@ -689,7 +724,8 @@ impl Toolbar {
         let root_motion_dropdown_area = RootMotionDropdownArea::new(ctx);
 
         Self {
-            panel,
+            top_panel,
+            bottom_panel,
             play_pause,
             stop,
             speed,

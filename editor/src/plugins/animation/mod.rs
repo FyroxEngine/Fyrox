@@ -18,8 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::plugins::animation::ruler::Ruler;
-use crate::plugins::animation::thumb::Thumb;
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
@@ -36,15 +34,15 @@ use crate::{
         gui::{
             border::BorderBuilder,
             brush::Brush,
-            check_box::CheckBoxMessage,
-            curve::{CurveEditorBuilder, CurveEditorMessage, HighlightZone},
-            dock::DockingManagerMessage,
-            grid::{Column, GridBuilder, Row},
-            menu::MenuItemMessage,
+            curve::{CurveEditor, CurveEditorBuilder, CurveEditorMessage, HighlightZone},
+            dock::{DockingManager, DockingManagerMessage},
+            grid::{Column, Grid, GridBuilder, Row},
+            menu::{MenuItem, MenuItemMessage},
             message::UiMessage,
             style::{resource::StyleResourceExt, Style},
+            toggle::ToggleButtonMessage,
             widget::{WidgetBuilder, WidgetMessage},
-            window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
+            window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, UserInterface,
         },
         resource::model::AnimationSource,
@@ -57,9 +55,9 @@ use crate::{
             AddAnimationSignal, MoveAnimationSignal, RemoveAnimationSignal,
             ReplaceTrackCurveCommand,
         },
-        ruler::{RulerBuilder, RulerMessage, SignalView},
+        ruler::{Ruler, RulerBuilder, RulerMessage, SignalView},
         selection::{AnimationSelection, SelectedEntity},
-        thumb::{ThumbBuilder, ThumbMessage},
+        thumb::{Thumb, ThumbBuilder, ThumbMessage},
         toolbar::{Toolbar, ToolbarAction},
         track::TrackList,
     },
@@ -67,12 +65,6 @@ use crate::{
     ui_scene::UiScene,
     Editor, Message,
 };
-use fyrox::gui::curve::CurveEditor;
-use fyrox::gui::dock::DockingManager;
-use fyrox::gui::grid::Grid;
-use fyrox::gui::menu::MenuItem;
-use fyrox::gui::toggle::ToggleButtonMessage;
-use fyrox::gui::window::Window;
 use std::any::{Any, TypeId};
 
 pub mod command;
@@ -226,43 +218,58 @@ impl AnimationEditor {
                 .on_column(0)
                 .with_child(track_list.panel)
                 .with_child(
-                    BorderBuilder::new(
+                    GridBuilder::new(
                         WidgetBuilder::new()
                             .on_row(0)
                             .on_column(1)
                             .with_child(
-                                GridBuilder::new(
+                                BorderBuilder::new(
                                     WidgetBuilder::new()
-                                        .with_child({
-                                            ruler =
-                                                RulerBuilder::new(WidgetBuilder::new().on_row(0))
-                                                    .with_value(0.0)
-                                                    .build(ctx);
-                                            ruler
-                                        })
-                                        .with_child({
-                                            curve_editor = CurveEditorBuilder::new(
+                                        .with_child(
+                                            GridBuilder::new(
                                                 WidgetBuilder::new()
-                                                    .with_background(
-                                                        ctx.style.property(Style::BRUSH_DARK),
-                                                    )
-                                                    .on_row(1),
+                                                    .with_child({
+                                                        ruler = RulerBuilder::new(
+                                                            WidgetBuilder::new().on_row(0),
+                                                        )
+                                                        .with_value(0.0)
+                                                        .build(ctx);
+                                                        ruler
+                                                    })
+                                                    .with_child({
+                                                        curve_editor = CurveEditorBuilder::new(
+                                                            WidgetBuilder::new()
+                                                                .with_background(
+                                                                    ctx.style.property(
+                                                                        Style::BRUSH_DARK,
+                                                                    ),
+                                                                )
+                                                                .on_row(1),
+                                                        )
+                                                        .with_show_x_values(false)
+                                                        .build(ctx);
+                                                        curve_editor
+                                                    }),
                                             )
-                                            .with_show_x_values(false)
-                                            .build(ctx);
-                                            curve_editor
+                                            .add_row(Row::strict(22.0))
+                                            .add_row(Row::stretch())
+                                            .add_row(Row::auto())
+                                            .add_column(Column::stretch())
+                                            .build(ctx),
+                                        )
+                                        .with_child({
+                                            thumb =
+                                                ThumbBuilder::new(WidgetBuilder::new()).build(ctx);
+                                            thumb
                                         }),
                                 )
-                                .add_row(Row::strict(22.0))
-                                .add_row(Row::stretch())
-                                .add_column(Column::stretch())
                                 .build(ctx),
                             )
-                            .with_child({
-                                thumb = ThumbBuilder::new(WidgetBuilder::new()).build(ctx);
-                                thumb
-                            }),
+                            .with_child(toolbar.bottom_panel),
                     )
+                    .add_row(Row::stretch())
+                    .add_row(Row::auto())
+                    .add_column(Column::stretch())
                     .build(ctx),
                 ),
         )
@@ -273,7 +280,7 @@ impl AnimationEditor {
 
         let content = GridBuilder::new(
             WidgetBuilder::new()
-                .with_child(toolbar.panel)
+                .with_child(toolbar.top_panel)
                 .with_child(payload),
         )
         .add_row(Row::auto())

@@ -100,6 +100,7 @@ use crate::{
     },
     utils::{self, make_square_image_button_with_tooltip},
 };
+use fyrox::gui::border::Border;
 use std::{
     any::TypeId,
     cmp::Ordering,
@@ -639,65 +640,82 @@ impl TrackList {
                     scroll_viewer
                 })
                 .with_child(
-                    StackPanelBuilder::new(
+                    BorderBuilder::new(
                         WidgetBuilder::new()
                             .on_row(2)
                             .on_column(0)
-                            .with_margin(Thickness::uniform(1.0))
-                            .with_child({
-                                add_track = make_square_image_button_with_tooltip(
-                                    ctx,
-                                    load_image!("../../../resources/property_track.png"),
-                                    "Add Property Track.\n\
-                                    Create generic property binding to a numeric property.",
-                                    Some(0),
-                                );
-                                add_track
-                            })
-                            .with_child({
-                                add_position_track = make_square_image_button_with_tooltip(
-                                    ctx,
-                                    load_image!("../../../resources/position_track.png"),
-                                    "Add Position Track.\n\
-                                    Creates a binding to a local position of a node. \
-                                    Such binding is much more performant than generic \
-                                    property binding",
-                                    Some(1),
-                                );
-                                add_position_track
-                            })
-                            .with_child({
-                                add_scale_track = make_square_image_button_with_tooltip(
-                                    ctx,
-                                    load_image!("../../../resources/scaling_track.png"),
-                                    "Add Scale Track.\n\
-                                    Creates a binding to a local scale of a node. \
-                                    Such binding is much more performant than generic \
-                                    property binding",
-                                    Some(2),
-                                );
-                                add_scale_track
-                            })
-                            .with_child({
-                                add_rotation_track = make_square_image_button_with_tooltip(
-                                    ctx,
-                                    load_image!("../../../resources/rotation_track.png"),
-                                    "Add Rotation Track.\n\
-                                    Creates a binding to a local rotation of a node. \
-                                    Such binding is much more performant than generic \
-                                    property binding",
-                                    Some(3),
-                                );
-                                add_rotation_track
-                            }),
+                            .with_foreground(ctx.style.property(Style::BRUSH_LIGHT))
+                            .with_child(
+                                StackPanelBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_child({
+                                            add_track = make_square_image_button_with_tooltip(
+                                                ctx,
+                                                load_image!(
+                                                    "../../../resources/property_track.png"
+                                                ),
+                                                "Add Property Track.\n\
+                                            Create generic property binding to a numeric property.",
+                                                Some(0),
+                                            );
+                                            add_track
+                                        })
+                                        .with_child({
+                                            add_position_track =
+                                                make_square_image_button_with_tooltip(
+                                                    ctx,
+                                                    load_image!(
+                                                        "../../../resources/position_track.png"
+                                                    ),
+                                                    "Add Position Track.\n\
+                                            Creates a binding to a local position of a node. \
+                                            Such binding is much more performant than generic \
+                                            property binding",
+                                                    Some(1),
+                                                );
+                                            add_position_track
+                                        })
+                                        .with_child({
+                                            add_scale_track = make_square_image_button_with_tooltip(
+                                                ctx,
+                                                load_image!("../../../resources/scaling_track.png"),
+                                                "Add Scale Track.\n\
+                                            Creates a binding to a local scale of a node. \
+                                            Such binding is much more performant than generic \
+                                            property binding",
+                                                Some(2),
+                                            );
+                                            add_scale_track
+                                        })
+                                        .with_child({
+                                            add_rotation_track =
+                                                make_square_image_button_with_tooltip(
+                                                    ctx,
+                                                    load_image!(
+                                                        "../../../resources/rotation_track.png"
+                                                    ),
+                                                    "Add Rotation Track.\n\
+                                            Creates a binding to a local rotation of a node. \
+                                            Such binding is much more performant than generic \
+                                            property binding",
+                                                    Some(3),
+                                                );
+                                            add_rotation_track
+                                        }),
+                                )
+                                .with_orientation(Orientation::Horizontal)
+                                .build(ctx),
+                            ),
                     )
-                    .with_orientation(Orientation::Horizontal)
+                    .with_corner_radius(3.0.into())
+                    .with_stroke_thickness(Thickness::uniform(1.0).into())
                     .build(ctx),
                 ),
         )
         .add_row(Row::auto())
         .add_row(Row::stretch())
-        .add_row(Row::strict(28.0))
+        .add_row(Row::auto())
         .add_column(Column::stretch())
         .build(ctx);
 
