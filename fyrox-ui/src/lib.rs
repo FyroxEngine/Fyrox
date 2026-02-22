@@ -1642,7 +1642,10 @@ impl UserInterface {
         }
 
         if let Ok(keyboard_focus_node) = self.nodes.try_borrow(self.keyboard_focus_node) {
-            if keyboard_focus_node.global_visibility && keyboard_focus_node.accepts_input {
+            if keyboard_focus_node.global_visibility
+                && keyboard_focus_node.accepts_input
+                && is_on_screen(keyboard_focus_node, &self.nodes)
+            {
                 let bounds = keyboard_focus_node
                     .screen_bounds()
                     .clip_by(keyboard_focus_node.clip_bounds())
