@@ -569,7 +569,7 @@ impl Toolbar {
                                 speed = NumericUpDownBuilder::<f32>::new(
                                     WidgetBuilder::new()
                                         .with_enabled(false)
-                                        .with_width(50.0)
+                                        .with_width(60.0)
                                         .with_margin(Thickness::uniform(1.0))
                                         .with_tooltip(make_simple_tooltip(
                                             ctx,
@@ -595,7 +595,7 @@ impl Toolbar {
                                 time_slice_start = NumericUpDownBuilder::<f32>::new(
                                     WidgetBuilder::new()
                                         .with_enabled(false)
-                                        .with_width(50.0)
+                                        .with_width(60.0)
                                         .with_margin(Thickness::uniform(1.0))
                                         .with_tooltip(make_simple_tooltip(
                                             ctx,

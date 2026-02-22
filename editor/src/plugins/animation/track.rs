@@ -20,12 +20,10 @@
 
 #![allow(clippy::manual_map)]
 
-use crate::scene::property::PropertySelectorWindow;
-use crate::scene::selector::NodeSelectorWindow;
-use crate::utils::make_square_image_button_with_tooltip;
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
+        asset::Resource,
         core::{
             algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
             color::Color,
@@ -41,8 +39,7 @@ use crate::{
         fxhash::{FxHashMap, FxHashSet},
         generic_animation::{
             container::{TrackDataContainer, TrackValueKind},
-            track::Track,
-            track::TrackBinding,
+            track::{Track, TrackBinding},
             value::{ValueBinding, ValueType},
             Animation,
         },
@@ -51,29 +48,30 @@ use crate::{
         gui::{
             border::BorderBuilder,
             brush::Brush,
-            button::{ButtonBuilder, ButtonMessage},
-            check_box::{CheckBoxBuilder, CheckBoxMessage},
+            button::{Button, ButtonBuilder, ButtonMessage},
+            check_box::{CheckBox, CheckBoxBuilder, CheckBoxMessage},
             draw::DrawingContext,
-            grid::{Column, GridBuilder, Row},
+            grid::{Column, Grid, GridBuilder, Row},
             image::ImageBuilder,
-            menu::{ContextMenuBuilder, MenuItemMessage},
-            message::{MessageDirection, OsEvent, UiMessage},
+            menu::{ContextMenuBuilder, MenuItem, MenuItemMessage},
+            message::{MessageData, MessageDirection, OsEvent, UiMessage},
             popup::PopupBuilder,
-            scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
+            scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
             stack_panel::StackPanelBuilder,
             style::{resource::StyleResourceExt, Style},
             text::{Text, TextBuilder, TextMessage},
-            text_box::{TextBoxBuilder, TextCommitMode},
-            tree::{Tree, TreeBuilder, TreeMessage, TreeRootBuilder, TreeRootMessage},
-            utils::{make_cross, make_simple_tooltip},
+            tree::{Tree, TreeBuilder, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
+            utils::make_simple_tooltip,
             widget::{Widget, WidgetBuilder, WidgetMessage},
-            window::{WindowBuilder, WindowMessage, WindowTitle},
+            window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, Control, Orientation, RcUiNodeHandle, Thickness, UiNode, UserInterface,
             VerticalAlignment,
         },
-        resource::texture::TextureBytes,
-        scene::mesh::buffer::{TriangleBuffer, VertexBuffer},
-        scene::sound::Samples,
+        resource::{model::ModelResource, texture::TextureBytes},
+        scene::{
+            mesh::buffer::{TriangleBuffer, VertexBuffer},
+            sound::Samples,
+        },
     },
     load_image,
     menu::create_menu_item,
@@ -86,29 +84,22 @@ use crate::{
         },
         selection::{AnimationSelection, SelectedEntity},
     },
-    scene::selector::AllowedType,
     scene::{
         commands::ChangeSelectionCommand,
         property::{
             object_to_property_tree, PropertyDescriptorData, PropertySelectorMessage,
-            PropertySelectorWindowBuilder,
+            PropertySelectorWindow, PropertySelectorWindowBuilder,
         },
-        selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
+        selector::{
+            AllowedType, HierarchyNode, NodeSelectorMessage, NodeSelectorWindow,
+            NodeSelectorWindowBuilder,
+        },
         Selection,
     },
-    utils,
+    utils::{self, make_square_image_button_with_tooltip},
 };
-use fyrox::asset::Resource;
-use fyrox::gui::button::Button;
-use fyrox::gui::check_box::CheckBox;
-use fyrox::gui::grid::Grid;
-use fyrox::gui::menu::MenuItem;
-use fyrox::gui::message::MessageData;
-use fyrox::gui::scroll_viewer::ScrollViewer;
-use fyrox::gui::text_box::TextBox;
-use fyrox::gui::tree::TreeRoot;
-use fyrox::gui::window::WindowAlignment;
-use fyrox::resource::model::ModelResource;
+use fyrox::gui::searchbar::{SearchBar, SearchBarBuilder, SearchBarMessage};
+use fyrox::gui::text_box::EmptyTextPlaceholder;
 use std::{
     any::TypeId,
     cmp::Ordering,
@@ -513,46 +504,33 @@ impl TrackViewBuilder {
 
 struct Toolbar {
     panel: Handle<Grid>,
-    search_text: Handle<TextBox>,
-    clear_search_text: Handle<Button>,
+    search_bar: Handle<SearchBar>,
     collapse_all: Handle<Button>,
     expand_all: Handle<Button>,
 }
 
 impl Toolbar {
     fn new(ctx: &mut BuildContext) -> Self {
-        let search_text;
-        let clear_search_text;
+        let search_bar;
         let collapse_all;
         let expand_all;
         let panel = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child({
-                    search_text = TextBoxBuilder::new(
+                    search_bar = SearchBarBuilder::new(
                         WidgetBuilder::new()
                             .with_margin(Thickness::uniform(1.0))
                             .on_column(0),
                     )
-                    .with_text_commit_mode(TextCommitMode::Immediate)
+                    .with_empty_text_placeholder(EmptyTextPlaceholder::Text("Search for a track"))
                     .build(ctx);
-                    search_text
-                })
-                .with_child({
-                    clear_search_text = ButtonBuilder::new(
-                        WidgetBuilder::new()
-                            .with_margin(Thickness::uniform(1.0))
-                            .on_column(1)
-                            .with_tooltip(make_simple_tooltip(ctx, "Clear Filter Text")),
-                    )
-                    .with_content(make_cross(ctx, 12.0, 2.0))
-                    .build(ctx);
-                    clear_search_text
+                    search_bar
                 })
                 .with_child({
                     collapse_all = ButtonBuilder::new(
                         WidgetBuilder::new()
                             .with_margin(Thickness::uniform(1.0))
-                            .on_column(2)
+                            .on_column(1)
                             .with_tooltip(make_simple_tooltip(ctx, "Collapse All")),
                     )
                     .with_content(
@@ -572,7 +550,7 @@ impl Toolbar {
                     expand_all = ButtonBuilder::new(
                         WidgetBuilder::new()
                             .with_margin(Thickness::uniform(1.0))
-                            .on_column(3)
+                            .on_column(2)
                             .with_tooltip(make_simple_tooltip(ctx, "Expand All")),
                     )
                     .with_content(
@@ -589,17 +567,15 @@ impl Toolbar {
                     expand_all
                 }),
         )
-        .add_row(Row::strict(22.0))
+        .add_row(Row::strict(26.0))
         .add_column(Column::stretch())
-        .add_column(Column::strict(22.0))
         .add_column(Column::strict(22.0))
         .add_column(Column::strict(22.0))
         .build(ctx);
 
         Self {
             panel,
-            search_text,
-            clear_search_text,
+            search_bar,
             collapse_all,
             expand_all,
         }
@@ -815,13 +791,10 @@ impl TrackList {
                 ui.send(self.tree_root, TreeRootMessage::ExpandAll);
             } else if message.destination() == self.toolbar.collapse_all {
                 ui.send(self.tree_root, TreeRootMessage::CollapseAll);
-            } else if message.destination() == self.toolbar.clear_search_text {
-                ui.send(
-                    self.toolbar.search_text,
-                    TextMessage::Text(Default::default()),
-                );
             }
-        } else if let Some(TextMessage::Text(text)) = message.data_from(self.toolbar.search_text) {
+        } else if let Some(SearchBarMessage::Text(text)) =
+            message.data_from(self.toolbar.search_bar)
+        {
             let filter_text = text.to_lowercase();
             utils::apply_visibility_filter(self.tree_root.to_base(), ui, |node| {
                 if let Some(tree) = node.query_component::<Tree>() {
