@@ -18,33 +18,33 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::scene::selector::NodeSelectorWindow;
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
         asset::manager::ResourceManager,
-        core::{
-            algebra::Vector2, futures::executor::block_on, log::Log, math::Rect,
-            pool::ErasedHandle, pool::Handle,
-        },
+        core::{futures::executor::block_on, log::Log, pool::ErasedHandle, pool::Handle},
         generic_animation::{Animation, AnimationContainer, RootMotionSettings},
         graph::{PrefabData, SceneGraph, SceneGraphNode},
         gui::{
             border::BorderBuilder,
             button::{Button, ButtonBuilder, ButtonMessage},
-            check_box::{CheckBoxBuilder, CheckBoxMessage},
+            check_box::{CheckBox, CheckBoxBuilder, CheckBoxMessage},
             dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
-            file_browser::{FileSelectorBuilder, FileSelectorMessage, FileType, PathFilter},
+            file_browser::{
+                FileSelector, FileSelectorBuilder, FileSelectorMessage, FileType, PathFilter,
+            },
             grid::{Column, GridBuilder, Row},
             image::ImageBuilder,
             message::{MessageDirection, UiMessage},
-            numeric::{NumericUpDownBuilder, NumericUpDownMessage},
-            popup::{Placement, PopupBuilder, PopupMessage},
+            numeric::{NumericUpDown, NumericUpDownBuilder, NumericUpDownMessage},
+            popup::{Placement, Popup, PopupBuilder, PopupMessage},
             style::{resource::StyleResourceExt, Style},
-            text::{TextBuilder, TextMessage},
+            text::{Text, TextBuilder, TextMessage},
             text_box::{TextBox, TextBoxBuilder},
-            utils::{make_cross, make_dropdown_list_option_universal, make_simple_tooltip},
-            vector_image::{Primitive, VectorImageBuilder},
+            utils::{
+                make_dropdown_list_option_universal, make_image_button_with_tooltip,
+                make_simple_tooltip,
+            },
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
@@ -66,15 +66,11 @@ use crate::{
     },
     scene::{
         commands::ChangeSelectionCommand,
+        selector::NodeSelectorWindow,
         selector::{AllowedType, HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
         Selection,
     },
 };
-use fyrox::gui::check_box::CheckBox;
-use fyrox::gui::file_browser::FileSelector;
-use fyrox::gui::numeric::NumericUpDown;
-use fyrox::gui::popup::Popup;
-use fyrox::gui::text::Text;
 use std::any::TypeId;
 
 enum ImportMode {
@@ -122,14 +118,10 @@ struct RootMotionDropdownArea {
 impl RootMotionDropdownArea {
     fn new(ctx: &mut BuildContext) -> Self {
         fn text(text: &str, row: usize, ctx: &mut BuildContext) -> Handle<Text> {
-            TextBuilder::new(
-                WidgetBuilder::new()
-                    .with_vertical_alignment(VerticalAlignment::Center)
-                    .on_row(row)
-                    .on_column(0),
-            )
-            .with_text(text)
-            .build(ctx)
+            TextBuilder::new(WidgetBuilder::new().on_row(row).on_column(0))
+                .with_vertical_text_alignment(VerticalAlignment::Center)
+                .with_text(text)
+                .build(ctx)
         }
 
         fn check_box(row: usize, ctx: &mut BuildContext) -> Handle<CheckBox> {
@@ -403,6 +395,18 @@ pub enum ToolbarAction {
 
 impl Toolbar {
     pub fn new(ctx: &mut BuildContext) -> Self {
+        let reimport_tooltip =
+            "Reimport Animation.\nImports an animation from external file (FBX/GLTF) and replaces \
+            content of the current animation. Use it if you need to keep references to the \
+            animation valid in some animation blending state machine, but just replace animation \
+            with some other.";
+        let import_tooltip =
+            "Import Animation.\nImports an animation from external file (FBX/GLTF) and adds it to \
+            the animation player.";
+        let rename_animation_tooltip = "Rename Selected Animation";
+        let add_animation_tooltip =
+            "Add New Animation.\nAdds new empty animation with the name at the right text box.";
+
         let play_pause;
         let stop;
         let speed;
@@ -440,109 +444,47 @@ impl Toolbar {
                                 animation_name
                             })
                             .with_child({
-                                add_animation = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_width(20.0)
-                                        .with_height(20.0)
-                                        .with_vertical_alignment(VerticalAlignment::Center)
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .with_tooltip(make_simple_tooltip(
-                                            ctx,
-                                            "Add New Animation.\n\
-                                            Adds new empty animation with the name at \
-                                            the right text box.",
-                                        )),
-                                )
-                                .with_text("+")
-                                .build(ctx);
+                                add_animation = make_image_button_with_tooltip(
+                                    ctx,
+                                    16.0,
+                                    16.0,
+                                    load_image!("../../../resources/add.png"),
+                                    add_animation_tooltip,
+                                    None,
+                                );
                                 add_animation
                             })
                             .with_child({
-                                import = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .with_tooltip(make_simple_tooltip(
-                                            ctx,
-                                            "Import Animation.\n\
-                                            Imports an animation from external file (FBX/GLTF) \
-                                            and adds it to the animation player.",
-                                        )),
-                                )
-                                .with_content(
-                                    ImageBuilder::new(
-                                        WidgetBuilder::new()
-                                            .with_width(18.0)
-                                            .with_height(18.0)
-                                            .with_margin(Thickness::uniform(1.0))
-                                            .with_background(
-                                                ctx.style.property(Style::BRUSH_BRIGHT),
-                                            ),
-                                    )
-                                    .with_opt_texture(load_image!("../../../resources/import.png"))
-                                    .build(ctx),
-                                )
-                                .build(ctx);
+                                import = make_image_button_with_tooltip(
+                                    ctx,
+                                    16.0,
+                                    16.0,
+                                    load_image!("../../../resources/import.png"),
+                                    import_tooltip,
+                                    None,
+                                );
                                 import
                             })
                             .with_child({
-                                reimport = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .with_tooltip(make_simple_tooltip(
-                                            ctx,
-                                            "Reimport Animation.\n\
-                                            Imports an animation from external file (FBX/GLTF) and \
-                                            replaces content of the current animation. Use it \
-                                            if you need to keep references to the animation valid \
-                                            in some animation blending state machine, but just \
-                                            replace animation with some other.",
-                                        )),
-                                )
-                                .with_content(
-                                    ImageBuilder::new(
-                                        WidgetBuilder::new()
-                                            .with_width(18.0)
-                                            .with_height(18.0)
-                                            .with_margin(Thickness::uniform(1.0))
-                                            .with_background(
-                                                ctx.style.property(Style::BRUSH_BRIGHT),
-                                            ),
-                                    )
-                                    .with_opt_texture(load_image!(
-                                        "../../../resources/reimport.png"
-                                    ))
-                                    .build(ctx),
-                                )
-                                .build(ctx);
+                                reimport = make_image_button_with_tooltip(
+                                    ctx,
+                                    16.0,
+                                    16.0,
+                                    load_image!("../../../resources/reimport.png"),
+                                    reimport_tooltip,
+                                    None,
+                                );
                                 reimport
                             })
                             .with_child({
-                                rename_current_animation = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_enabled(false)
-                                        .with_width(20.0)
-                                        .with_height(20.0)
-                                        .with_vertical_alignment(VerticalAlignment::Center)
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .with_tooltip(make_simple_tooltip(
-                                            ctx,
-                                            "Rename Selected Animation",
-                                        )),
-                                )
-                                .with_content(
-                                    ImageBuilder::new(
-                                        WidgetBuilder::new()
-                                            .with_width(18.0)
-                                            .with_height(18.0)
-                                            .with_margin(Thickness::uniform(1.0))
-                                            .with_background(
-                                                ctx.style.property(Style::BRUSH_BRIGHT),
-                                            ),
-                                    )
-                                    .with_opt_texture(load_image!("../../../resources/rename.png"))
-                                    .build(ctx),
-                                )
-                                .build(ctx);
+                                rename_current_animation = make_image_button_with_tooltip(
+                                    ctx,
+                                    16.0,
+                                    16.0,
+                                    load_image!("../../../resources/rename.png"),
+                                    rename_animation_tooltip,
+                                    None,
+                                );
                                 rename_current_animation
                             })
                             .with_child({
@@ -555,49 +497,25 @@ impl Toolbar {
                                 animations
                             })
                             .with_child({
-                                remove_current_animation = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_enabled(false)
-                                        .with_width(20.0)
-                                        .with_height(20.0)
-                                        .with_vertical_alignment(VerticalAlignment::Center)
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .with_tooltip(make_simple_tooltip(
-                                            ctx,
-                                            "Remove Selected Animation",
-                                        )),
-                                )
-                                .with_content(make_cross(ctx, 14.0, 2.0))
-                                .build(ctx);
+                                remove_current_animation = make_image_button_with_tooltip(
+                                    ctx,
+                                    16.0,
+                                    16.0,
+                                    load_image!("../../../resources/cross.png"),
+                                    "Remove Selected Animation",
+                                    None,
+                                );
                                 remove_current_animation
                             })
                             .with_child({
-                                clone_current_animation = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_enabled(false)
-                                        .with_width(20.0)
-                                        .with_height(20.0)
-                                        .with_vertical_alignment(VerticalAlignment::Center)
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .with_tooltip(make_simple_tooltip(
-                                            ctx,
-                                            "Clone Selected Animation",
-                                        )),
-                                )
-                                .with_content(
-                                    ImageBuilder::new(
-                                        WidgetBuilder::new()
-                                            .with_width(18.0)
-                                            .with_height(18.0)
-                                            .with_margin(Thickness::uniform(1.0))
-                                            .with_background(
-                                                ctx.style.property(Style::BRUSH_BRIGHT),
-                                            ),
-                                    )
-                                    .with_opt_texture(load_image!("../../../resources/copy.png"))
-                                    .build(ctx),
-                                )
-                                .build(ctx);
+                                clone_current_animation = make_image_button_with_tooltip(
+                                    ctx,
+                                    16.0,
+                                    16.0,
+                                    load_image!("../../../resources/copy.png"),
+                                    "Clone Selected Animation",
+                                    None,
+                                );
                                 clone_current_animation
                             })
                             .with_child({
@@ -610,12 +528,10 @@ impl Toolbar {
                                     )),
                                 )
                                 .with_content(
-                                    TextBuilder::new(
-                                        WidgetBuilder::new()
-                                            .with_vertical_alignment(VerticalAlignment::Center),
-                                    )
-                                    .with_text("Loop")
-                                    .build(ctx),
+                                    TextBuilder::new(WidgetBuilder::new())
+                                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                                        .with_text("Loop")
+                                        .build(ctx),
                                 )
                                 .build(ctx);
                                 looping
@@ -630,12 +546,10 @@ impl Toolbar {
                                         )),
                                 )
                                 .with_content(
-                                    TextBuilder::new(
-                                        WidgetBuilder::new()
-                                            .with_vertical_alignment(VerticalAlignment::Center),
-                                    )
-                                    .with_text("Enabled")
-                                    .build(ctx),
+                                    TextBuilder::new(WidgetBuilder::new())
+                                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                                        .with_text("Enabled")
+                                        .build(ctx),
                                 )
                                 .build(ctx);
                                 enabled
@@ -710,12 +624,14 @@ impl Toolbar {
                                 time_slice_end
                             })
                             .with_child({
-                                root_motion =
-                                    ButtonBuilder::new(WidgetBuilder::new().with_tooltip(
-                                        make_simple_tooltip(ctx, "Root Motion Settings"),
-                                    ))
-                                    .with_text("RM")
-                                    .build(ctx);
+                                root_motion = make_image_button_with_tooltip(
+                                    ctx,
+                                    16.0,
+                                    16.0,
+                                    load_image!("../../../resources/root_motion.png"),
+                                    "Root Motion Settings",
+                                    None,
+                                );
                                 root_motion
                             })
                             .with_child({
@@ -742,63 +658,25 @@ impl Toolbar {
                                 preview
                             })
                             .with_child({
-                                play_pause = ButtonBuilder::new(
-                                    WidgetBuilder::new().with_enabled(false).with_margin(
-                                        Thickness {
-                                            left: 1.0,
-                                            top: 1.0,
-                                            right: 1.0,
-                                            bottom: 1.0,
-                                        },
-                                    ),
-                                )
-                                .with_content(
-                                    VectorImageBuilder::new(
-                                        WidgetBuilder::new()
-                                            .with_foreground(
-                                                ctx.style.property(Style::BRUSH_BRIGHT),
-                                            )
-                                            .with_tooltip(make_simple_tooltip(ctx, "Play/Pause")),
-                                    )
-                                    .with_primitives(vec![
-                                        Primitive::Triangle {
-                                            points: [
-                                                Vector2::new(0.0, 0.0),
-                                                Vector2::new(8.0, 8.0),
-                                                Vector2::new(0.0, 16.0),
-                                            ],
-                                        },
-                                        Primitive::RectangleFilled {
-                                            rect: Rect::new(10.0, 0.0, 4.0, 16.0),
-                                        },
-                                        Primitive::RectangleFilled {
-                                            rect: Rect::new(15.0, 0.0, 4.0, 16.0),
-                                        },
-                                    ])
-                                    .build(ctx),
-                                )
-                                .build(ctx);
+                                play_pause = make_image_button_with_tooltip(
+                                    ctx,
+                                    16.0,
+                                    16.0,
+                                    load_image!("../../../resources/play_pause.png"),
+                                    "Play/Pause",
+                                    None,
+                                );
                                 play_pause
                             })
                             .with_child({
-                                stop = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_enabled(false)
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .with_tooltip(make_simple_tooltip(ctx, "Stop Playback")),
-                                )
-                                .with_content(
-                                    VectorImageBuilder::new(
-                                        WidgetBuilder::new().with_foreground(
-                                            ctx.style.property(Style::BRUSH_BRIGHT),
-                                        ),
-                                    )
-                                    .with_primitives(vec![Primitive::RectangleFilled {
-                                        rect: Rect::new(0.0, 0.0, 16.0, 16.0),
-                                    }])
-                                    .build(ctx),
-                                )
-                                .build(ctx);
+                                stop = make_image_button_with_tooltip(
+                                    ctx,
+                                    16.0,
+                                    16.0,
+                                    load_image!("../../../resources/stop.png"),
+                                    "Stop Playback",
+                                    None,
+                                );
                                 stop
                             }),
                     )
