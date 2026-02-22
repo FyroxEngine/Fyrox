@@ -18,20 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::button::Button;
-use crate::image::Image;
-use crate::vector_image::VectorImage;
 use crate::{
     border::BorderBuilder,
-    button::ButtonBuilder,
+    button::{Button, ButtonBuilder},
     core::{algebra::Vector2, color::Color, parking_lot::Mutex, pool::Handle},
     decorator::DecoratorBuilder,
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
-    image::ImageBuilder,
+    image::{Image, ImageBuilder},
     style::{resource::StyleResourceExt, Style},
     text::TextBuilder,
-    vector_image::{Primitive, VectorImageBuilder},
+    toggle::{ToggleButton, ToggleButtonBuilder},
+    vector_image::{Primitive, VectorImage, VectorImageBuilder},
     widget::WidgetBuilder,
     Brush, BuildContext, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode, VerticalAlignment,
 };
@@ -312,6 +310,34 @@ pub fn make_image_button_with_tooltip(
     tab_index: Option<usize>,
 ) -> Handle<Button> {
     ButtonBuilder::new(
+        WidgetBuilder::new()
+            .with_tab_index(tab_index)
+            .with_tooltip(make_simple_tooltip(ctx, tooltip))
+            .with_margin(Thickness::uniform(1.0)),
+    )
+    .with_content(
+        ImageBuilder::new(
+            WidgetBuilder::new()
+                .with_background(ctx.style.property(Style::BRUSH_BRIGHTEST))
+                .with_margin(Thickness::uniform(3.0))
+                .with_width(width)
+                .with_height(height),
+        )
+        .with_opt_texture(image)
+        .build(ctx),
+    )
+    .build(ctx)
+}
+
+pub fn make_image_toggle_with_tooltip(
+    ctx: &mut BuildContext,
+    width: f32,
+    height: f32,
+    image: Option<TextureResource>,
+    tooltip: &str,
+    tab_index: Option<usize>,
+) -> Handle<ToggleButton> {
+    ToggleButtonBuilder::new(
         WidgetBuilder::new()
             .with_tab_index(tab_index)
             .with_tooltip(make_simple_tooltip(ctx, tooltip))
