@@ -865,6 +865,20 @@ impl AnimationEditor {
             self.curve_editor,
             WidgetMessage::Enabled(is_animation_selected),
         );
+        let name = if let Ok(player) = graph.try_get(selection.animation_player) {
+            player.name().to_string()
+        } else {
+            "No Player".to_string()
+        };
+        ui.send_sync(
+            self.window,
+            WindowMessage::Title(WindowTitle::text(format!(
+                "Animation Editor - {}({}:{})",
+                name,
+                self.animation_player.index(),
+                self.animation_player.generation()
+            ))),
+        )
     }
 }
 
