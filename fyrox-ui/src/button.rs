@@ -197,7 +197,9 @@ impl Control for Button {
                     }
                     WidgetMessage::KeyDown(key_code) => {
                         if !message.handled()
-                            && (*key_code == KeyCode::Enter || *key_code == KeyCode::Space)
+                            && (*key_code == KeyCode::Enter
+                                || *key_code == KeyCode::NumpadEnter
+                                || *key_code == KeyCode::Space)
                         {
                             ui.post(self.handle, ButtonMessage::Click);
                             message.set_handled(true);
