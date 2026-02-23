@@ -250,6 +250,7 @@ pub mod font;
 pub mod formatted_text;
 pub mod grid;
 pub mod image;
+pub mod input;
 pub mod inspector;
 pub mod key;
 pub mod list_view;
