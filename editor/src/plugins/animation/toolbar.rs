@@ -35,12 +35,12 @@ use crate::{
             },
             grid::{Column, GridBuilder, Row},
             image::ImageBuilder,
+            input::{InputBox, InputBoxBuilder, InputBoxMessage, InputBoxResult},
             message::{MessageDirection, UiMessage},
             numeric::{NumericUpDown, NumericUpDownBuilder, NumericUpDownMessage},
             popup::{Placement, Popup, PopupBuilder, PopupMessage},
             style::{resource::StyleResourceExt, Style},
             text::{Text, TextBuilder, TextMessage},
-            text_box::{TextBox, TextBoxBuilder},
             toggle::{ToggleButton, ToggleButtonMessage},
             utils::{
                 make_dropdown_list_option_universal, make_image_button_with_tooltip,
@@ -89,8 +89,9 @@ pub struct Toolbar {
     pub add_animation: Handle<Button>,
     pub remove_current_animation: Handle<Button>,
     pub rename_current_animation: Handle<Button>,
+    pub rename_animation_input_box: Handle<InputBox>,
     pub clone_current_animation: Handle<Button>,
-    pub animation_name: Handle<TextBox>,
+    pub animation_name_input_box: Handle<InputBox>,
     pub preview: Handle<ToggleButton>,
     pub time_slice_start: Handle<NumericUpDown<f32>>,
     pub time_slice_end: Handle<NumericUpDown<f32>>,
@@ -406,8 +407,7 @@ impl Toolbar {
             "Import Animation.\nImports an animation from external file (FBX/GLTF) and adds it to \
             the animation player.";
         let rename_animation_tooltip = "Rename Selected Animation";
-        let add_animation_tooltip =
-            "Add New Animation.\nAdds new empty animation with the name in the left text box.";
+        let add_animation_tooltip = "Add New Animation";
 
         let play_pause;
         let stop;
@@ -417,7 +417,6 @@ impl Toolbar {
         let remove_current_animation;
         let rename_current_animation;
         let clone_current_animation;
-        let animation_name;
         let preview;
         let time_slice_start;
         let time_slice_end;
@@ -434,17 +433,6 @@ impl Toolbar {
                     WrapPanelBuilder::new(
                         WidgetBuilder::new()
                             .with_margin(Thickness::uniform(1.0))
-                            .with_child({
-                                animation_name = TextBoxBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_width(100.0)
-                                        .with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_vertical_text_alignment(VerticalAlignment::Center)
-                                .with_text("New Animation")
-                                .build(ctx);
-                                animation_name
-                            })
                             .with_child({
                                 add_animation = make_image_button_with_tooltip(
                                     ctx,
@@ -733,7 +721,7 @@ impl Toolbar {
             add_animation,
             rename_current_animation,
             remove_current_animation,
-            animation_name,
+            animation_name_input_box: Default::default(),
             preview,
             time_slice_start,
             time_slice_end,
@@ -748,6 +736,7 @@ impl Toolbar {
             root_motion,
             root_motion_dropdown_area,
             import_mode: ImportMode::Import,
+            rename_animation_input_box: Default::default(),
         }
     }
 
@@ -823,15 +812,34 @@ impl Toolbar {
                     sender.do_command(CommandGroup::from(group));
                 }
             } else if message.destination() == self.rename_current_animation {
-                sender.do_command(SetAnimationNameCommand {
-                    node_handle: animation_player_handle,
-                    animation_handle: selection.animation,
-                    value: ui[self.animation_name].text(),
-                });
+                self.rename_animation_input_box = InputBoxBuilder::new(
+                    WindowBuilder::new(WidgetBuilder::new().with_width(320.0).with_height(120.0))
+                        .with_title(WindowTitle::text("Rename Animation"))
+                        .open(false),
+                )
+                .with_text("Type the new name for the selected animation:")
+                .with_value(
+                    animations
+                        .try_get(selection.animation)
+                        .ok()
+                        .map(|a| a.name().to_string())
+                        .unwrap_or_else(|| "Animation".to_string()),
+                )
+                .build(&mut ui.build_ctx());
+                ui.send(
+                    self.rename_animation_input_box,
+                    InputBoxMessage::open_as_is(),
+                );
             } else if message.destination() == self.add_animation {
-                let mut animation = Animation::default();
-                animation.set_name(ui[self.animation_name].text());
-                sender.do_command(AddAnimationCommand::new(animation_player_handle, animation));
+                self.animation_name_input_box = InputBoxBuilder::new(
+                    WindowBuilder::new(WidgetBuilder::new().with_width(320.0).with_height(120.0))
+                        .with_title(WindowTitle::text("New Animation Name"))
+                        .open(false),
+                )
+                .with_text("Type the name for the new animation:")
+                .with_value("Animation".to_string())
+                .build(&mut ui.build_ctx());
+                ui.send(self.animation_name_input_box, InputBoxMessage::open_as_is());
             } else if message.destination() == self.clone_current_animation {
                 if let Ok(animation) = animations.try_get(selection.animation) {
                     let mut animation_clone = animation.clone();
@@ -890,6 +898,20 @@ impl Toolbar {
                     });
                 }
             }
+        } else if let Some(InputBoxMessage::Close(InputBoxResult::Ok(name))) =
+            message.data_from(self.rename_animation_input_box)
+        {
+            sender.do_command(SetAnimationNameCommand {
+                node_handle: animation_player_handle,
+                animation_handle: selection.animation,
+                value: name.clone(),
+            });
+        } else if let Some(InputBoxMessage::Close(InputBoxResult::Ok(name))) =
+            message.data_from(self.animation_name_input_box)
+        {
+            let mut animation = Animation::default();
+            animation.set_name(name);
+            sender.do_command(AddAnimationCommand::new(animation_player_handle, animation));
         }
 
         ToolbarAction::None
@@ -1083,10 +1105,6 @@ impl Toolbar {
                 .sync_to_model(animation, graph, ui);
 
             selected_animation_valid = true;
-            ui.send_sync(
-                self.animation_name,
-                TextMessage::Text(animation.name().to_string()),
-            );
 
             ui.send_sync(
                 self.time_slice_start,
