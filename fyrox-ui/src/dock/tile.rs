@@ -1226,6 +1226,7 @@ pub fn make_default_anchor(ctx: &mut BuildContext, row: usize, column: usize) ->
     let default_anchor_size = 30.0;
     BorderBuilder::new(
         WidgetBuilder::new()
+            .with_margin(Thickness::uniform(1.0))
             .with_width(default_anchor_size)
             .with_height(default_anchor_size)
             .with_visibility(false)
@@ -1234,6 +1235,7 @@ pub fn make_default_anchor(ctx: &mut BuildContext, row: usize, column: usize) ->
             .with_draw_on_top(true)
             .with_background(Brush::Solid(DEFAULT_ANCHOR_COLOR).into()),
     )
+    .with_corner_radius(3.0.into())
     .build(ctx)
 }
 
