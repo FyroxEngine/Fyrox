@@ -23,6 +23,7 @@ use crate::dropdown_list::DropdownList;
 use crate::menu::MenuItem;
 use crate::scroll_viewer::ScrollViewer;
 use crate::stack_panel::StackPanel;
+use crate::utils::ImageButtonBuilder;
 use crate::window::Window;
 use crate::{
     border::BorderBuilder,
@@ -41,7 +42,7 @@ use crate::{
     stack_panel::StackPanelBuilder,
     style::{resource::StyleResourceExt, Style},
     text::{Text, TextBuilder},
-    utils::{make_dropdown_list_option, make_image_button_with_tooltip},
+    utils::make_dropdown_list_option,
     widget::{WidgetBuilder, WidgetMessage},
     window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
     BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
@@ -141,14 +142,11 @@ impl LogPanel {
                                 .on_row(0)
                                 .on_column(0)
                                 .with_child({
-                                    clear = make_image_button_with_tooltip(
-                                        ctx,
-                                        18.0,
-                                        18.0,
-                                        clear_icon,
-                                        "Clear the log.",
-                                        Some(0),
-                                    );
+                                    clear = ImageButtonBuilder::default()
+                                        .with_image(clear_icon)
+                                        .with_tooltip("Clear the log.")
+                                        .with_tab_index(Some(0))
+                                        .build_button(ctx);
                                     clear
                                 })
                                 .with_child({

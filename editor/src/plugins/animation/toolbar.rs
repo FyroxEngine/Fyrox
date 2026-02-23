@@ -42,10 +42,7 @@ use crate::{
             style::{resource::StyleResourceExt, Style},
             text::{Text, TextBuilder, TextMessage},
             toggle::{ToggleButton, ToggleButtonMessage},
-            utils::{
-                make_dropdown_list_option_universal, make_image_button_with_tooltip,
-                make_image_toggle_with_tooltip, make_simple_tooltip,
-            },
+            utils::{make_dropdown_list_option_universal, make_simple_tooltip},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
@@ -72,6 +69,8 @@ use crate::{
         Selection,
     },
 };
+use fyrox::core::color::Color;
+use fyrox::gui::utils::ImageButtonBuilder;
 use std::any::TypeId;
 
 enum ImportMode {
@@ -434,25 +433,19 @@ impl Toolbar {
                         WidgetBuilder::new()
                             .with_margin(Thickness::uniform(1.0))
                             .with_child({
-                                add_animation = make_image_button_with_tooltip(
-                                    ctx,
-                                    16.0,
-                                    16.0,
-                                    load_image!("../../../resources/add.png"),
-                                    add_animation_tooltip,
-                                    None,
-                                );
+                                add_animation = ImageButtonBuilder::default()
+                                    .with_image_color(Color::GREEN)
+                                    .with_image(load_image!("../../../resources/add.png"))
+                                    .with_tooltip(add_animation_tooltip)
+                                    .build_button(ctx);
                                 add_animation
                             })
                             .with_child({
-                                import = make_image_button_with_tooltip(
-                                    ctx,
-                                    16.0,
-                                    16.0,
-                                    load_image!("../../../resources/import.png"),
-                                    import_tooltip,
-                                    None,
-                                );
+                                import = ImageButtonBuilder::default()
+                                    .with_image_color(Color::PALE_TURQUOISE)
+                                    .with_image(load_image!("../../../resources/import.png"))
+                                    .with_tooltip(import_tooltip)
+                                    .build_button(ctx);
                                 import
                             })
                             .with_child({
@@ -470,69 +463,51 @@ impl Toolbar {
                                 animations
                             })
                             .with_child({
-                                reimport = make_image_button_with_tooltip(
-                                    ctx,
-                                    16.0,
-                                    16.0,
-                                    load_image!("../../../resources/reimport.png"),
-                                    reimport_tooltip,
-                                    None,
-                                );
+                                reimport = ImageButtonBuilder::default()
+                                    .with_image_color(Color::DEEP_SKY_BLUE)
+                                    .with_image(load_image!("../../../resources/reimport.png"))
+                                    .with_tooltip(reimport_tooltip)
+                                    .build_button(ctx);
                                 reimport
                             })
                             .with_child({
-                                rename_current_animation = make_image_button_with_tooltip(
-                                    ctx,
-                                    16.0,
-                                    16.0,
-                                    load_image!("../../../resources/rename.png"),
-                                    rename_animation_tooltip,
-                                    None,
-                                );
+                                rename_current_animation = ImageButtonBuilder::default()
+                                    .with_image_color(Color::ORANGE)
+                                    .with_image(load_image!("../../../resources/rename.png"))
+                                    .with_tooltip(rename_animation_tooltip)
+                                    .build_button(ctx);
                                 rename_current_animation
                             })
                             .with_child({
-                                remove_current_animation = make_image_button_with_tooltip(
-                                    ctx,
-                                    16.0,
-                                    16.0,
-                                    load_image!("../../../resources/cross.png"),
-                                    "Remove Selected Animation",
-                                    None,
-                                );
+                                remove_current_animation = ImageButtonBuilder::default()
+                                    .with_image_color(Color::ORANGE_RED)
+                                    .with_image(load_image!("../../../resources/cross.png"))
+                                    .with_tooltip("Remove Selected Animation")
+                                    .build_button(ctx);
                                 remove_current_animation
                             })
                             .with_child({
-                                clone_current_animation = make_image_button_with_tooltip(
-                                    ctx,
-                                    16.0,
-                                    16.0,
-                                    load_image!("../../../resources/copy.png"),
-                                    "Clone Selected Animation",
-                                    None,
-                                );
+                                clone_current_animation = ImageButtonBuilder::default()
+                                    .with_image_color(Color::LIGHT_GOLDEN_ROD_YELLOW)
+                                    .with_image(load_image!("../../../resources/copy.png"))
+                                    .with_tooltip("Clone Selected Animation")
+                                    .build_button(ctx);
                                 clone_current_animation
                             })
                             .with_child({
-                                root_motion = make_image_button_with_tooltip(
-                                    ctx,
-                                    16.0,
-                                    16.0,
-                                    load_image!("../../../resources/root_motion.png"),
-                                    "Root Motion Settings",
-                                    None,
-                                );
+                                root_motion = ImageButtonBuilder::default()
+                                    .with_image(load_image!("../../../resources/root_motion.png"))
+                                    .with_tooltip("Root Motion Settings")
+                                    .build_button(ctx);
                                 root_motion
                             })
                             .with_child({
-                                looping = make_image_toggle_with_tooltip(
-                                    ctx,
-                                    16.0,
-                                    16.0,
-                                    load_image!("../../../resources/loop.png"),
-                                    "Animation looping. Looped animation will play infinitely.",
-                                    None,
-                                );
+                                looping = ImageButtonBuilder::default()
+                                    .with_image(load_image!("../../../resources/loop.png"))
+                                    .with_tooltip(
+                                        "Animation looping. Looped animation will play infinitely.",
+                                    )
+                                    .build_toggle(ctx);
                                 looping
                             })
                             .with_child({
@@ -572,36 +547,26 @@ impl Toolbar {
                         WidgetBuilder::new()
                             .with_margin(Thickness::uniform(1.0))
                             .with_child({
-                                preview = make_image_toggle_with_tooltip(
-                                    ctx,
-                                    16.0,
-                                    16.0,
-                                    load_image!("../../../resources/eye.png"),
-                                    "Preview",
-                                    None,
-                                );
+                                preview = ImageButtonBuilder::default()
+                                    .with_image(load_image!("../../../resources/eye.png"))
+                                    .with_tooltip("Preview")
+                                    .build_toggle(ctx);
                                 preview
                             })
                             .with_child({
-                                play_pause = make_image_button_with_tooltip(
-                                    ctx,
-                                    16.0,
-                                    16.0,
-                                    load_image!("../../../resources/play_pause.png"),
-                                    "Play/Pause",
-                                    None,
-                                );
+                                play_pause = ImageButtonBuilder::default()
+                                    .with_image_color(Color::GREEN)
+                                    .with_image(load_image!("../../../resources/play_pause.png"))
+                                    .with_tooltip("Play/Pause")
+                                    .build_button(ctx);
                                 play_pause
                             })
                             .with_child({
-                                stop = make_image_button_with_tooltip(
-                                    ctx,
-                                    16.0,
-                                    16.0,
-                                    load_image!("../../../resources/stop.png"),
-                                    "Stop Playback",
-                                    None,
-                                );
+                                stop = ImageButtonBuilder::default()
+                                    .with_image_color(Color::ORANGE_RED)
+                                    .with_image(load_image!("../../../resources/stop.png"))
+                                    .with_tooltip("Stop Playback")
+                                    .build_button(ctx);
                                 stop
                             })
                             .with_child(

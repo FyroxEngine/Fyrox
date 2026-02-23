@@ -36,6 +36,7 @@ use fyrox::gui::searchbar::SearchBar;
 use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::text::Text;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
+use fyrox::gui::utils::ImageButtonBuilder;
 use fyrox::gui::window::WindowAlignment;
 use fyrox::{
     core::{color::Color, log::Log, pool::Handle, some_or_return},
@@ -58,10 +59,7 @@ use fyrox::{
         stack_panel::StackPanelBuilder,
         style::{resource::StyleResourceExt, Style},
         text::{TextBuilder, TextMessage},
-        utils::{
-            load_image, make_image_button_with_tooltip, make_simple_tooltip,
-            make_text_and_image_button_with_tooltip,
-        },
+        utils::{load_image, make_simple_tooltip, make_text_and_image_button_with_tooltip},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
@@ -421,24 +419,20 @@ impl ProjectManager {
         )
         .with_empty_text_placeholder(EmptyTextPlaceholder::Text("Search for a project"))
         .build(ctx);
-        let open_settings = make_image_button_with_tooltip(
-            ctx,
-            18.0,
-            18.0,
-            load_image(include_bytes!("../resources/gear.png")),
-            "Settings\nHotkey: Ctrl+S",
-            Some(7),
-        );
+        let open_settings = ImageButtonBuilder::default()
+            .with_image(load_image(include_bytes!("../resources/gear.png")))
+            .with_size(18.0)
+            .with_tooltip("Settings\nHotkey: Ctrl+S")
+            .with_tab_index(Some(7))
+            .build_button(ctx);
         ctx[open_settings].set_column(3);
 
-        let open_help = make_image_button_with_tooltip(
-            ctx,
-            18.0,
-            18.0,
-            load_image(include_bytes!("../resources/question.png")),
-            "Help\nHotkey: F1",
-            Some(8),
-        );
+        let open_help = ImageButtonBuilder::default()
+            .with_image(load_image(include_bytes!("../resources/question.png")))
+            .with_size(18.0)
+            .with_tooltip("Help\nHotkey: F1")
+            .with_tab_index(Some(8))
+            .build_button(ctx);
         ctx[open_help].set_column(4);
 
         let message_count;

@@ -57,12 +57,13 @@ use crate::{
     plugins::absm::animation_container_ref,
     scene::{controller::SceneController, EntityInfo, GameScene, Selection},
     ui_scene::UiScene,
-    utils::{make_square_image_button_with_tooltip, window_content},
+    utils::window_content,
     Editor, Message, WidgetMessage, WrapMode,
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::text::Text;
+use fyrox::gui::utils::ImageButtonBuilder;
 use fyrox::gui::window::Window;
 use std::{any::Any, sync::mpsc::Sender, sync::Arc};
 
@@ -253,13 +254,12 @@ impl InspectorPlugin {
                                         type_name_text
                                     })
                                     .with_child({
-                                        docs_button = make_square_image_button_with_tooltip(
-                                            ctx,
-                                            load_image!("../../../resources/doc.png"),
-                                            "Open Documentation",
-                                            Some(0),
-                                        );
-                                        ctx[docs_button].set_column(1);
+                                        docs_button = ImageButtonBuilder::default()
+                                            .on_column(1)
+                                            .with_image(load_image!("../../../resources/doc.png"))
+                                            .with_tooltip("Open Documentation")
+                                            .with_tab_index(Some(0))
+                                            .build_button(ctx);
                                         docs_button
                                     }),
                             )

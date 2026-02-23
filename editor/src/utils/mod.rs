@@ -39,8 +39,6 @@ use crate::{
 use fyrox::core::pool::ObjectOrVariant;
 use fyrox::gui::button::Button;
 use fyrox::gui::file_browser::{FileSelector, FileSelectorMode, FileType};
-use fyrox::gui::texture::TextureResource;
-use fyrox::gui::utils::make_image_button_with_tooltip;
 use std::{fs::File, path::Path};
 
 pub mod doc;
@@ -168,15 +166,6 @@ where
     }
 
     apply_filter_recursive(root, ui, &filter);
-}
-
-pub fn make_square_image_button_with_tooltip(
-    ctx: &mut BuildContext,
-    image: Option<TextureResource>,
-    tooltip: &str,
-    tab_index: Option<usize>,
-) -> Handle<Button> {
-    make_image_button_with_tooltip(ctx, 18.0, 18.0, image, tooltip, tab_index)
 }
 
 pub fn is_native_scene(path: &Path) -> bool {

@@ -62,7 +62,6 @@ use crate::{
             text::{Text, TextBuilder, TextMessage},
             text_box::EmptyTextPlaceholder,
             tree::{Tree, TreeBuilder, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
-            utils::make_image_button_with_tooltip,
             utils::make_simple_tooltip,
             widget::{Widget, WidgetBuilder, WidgetMessage},
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
@@ -98,8 +97,9 @@ use crate::{
         },
         Selection,
     },
-    utils::{self, make_square_image_button_with_tooltip},
+    utils::{self},
 };
+use fyrox::gui::utils::ImageButtonBuilder;
 use std::{
     any::TypeId,
     cmp::Ordering,
@@ -531,25 +531,17 @@ impl Toolbar {
                         WidgetBuilder::new()
                             .on_column(1)
                             .with_child({
-                                collapse_all = make_image_button_with_tooltip(
-                                    ctx,
-                                    16.0,
-                                    16.0,
-                                    load_image!("../../../resources/collapse.png"),
-                                    "Collapse All",
-                                    None,
-                                );
+                                collapse_all = ImageButtonBuilder::default()
+                                    .with_image(load_image!("../../../resources/collapse.png"))
+                                    .with_tooltip("Collapse All")
+                                    .build_button(ctx);
                                 collapse_all
                             })
                             .with_child({
-                                expand_all = make_image_button_with_tooltip(
-                                    ctx,
-                                    16.0,
-                                    16.0,
-                                    load_image!("../../../resources/expand.png"),
-                                    "Expand All",
-                                    None,
-                                );
+                                expand_all = ImageButtonBuilder::default()
+                                    .with_image(load_image!("../../../resources/expand.png"))
+                                    .with_tooltip("Expand All")
+                                    .build_button(ctx);
                                 expand_all
                             }),
                     )
@@ -647,59 +639,63 @@ impl TrackList {
                             .with_child(
                                 StackPanelBuilder::new(
                                     WidgetBuilder::new()
-                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_margin(Thickness::uniform(2.0))
                                         .with_child({
-                                            add_track = make_square_image_button_with_tooltip(
-                                                ctx,
-                                                load_image!(
+                                            add_track = ImageButtonBuilder::default()
+                                                .with_image(load_image!(
                                                     "../../../resources/property_track.png"
-                                                ),
-                                                "Add Property Track.\n\
+                                                ))
+                                                .with_tooltip(
+                                                    "Add Property Track.\n\
                                             Create generic property binding to a numeric property.",
-                                                Some(0),
-                                            );
+                                                )
+                                                .with_tab_index(Some(0))
+                                                .build_button(ctx);
                                             add_track
                                         })
                                         .with_child({
-                                            add_position_track =
-                                                make_square_image_button_with_tooltip(
-                                                    ctx,
-                                                    load_image!(
-                                                        "../../../resources/position_track.png"
-                                                    ),
+                                            add_position_track = ImageButtonBuilder::default()
+                                                .with_image(load_image!(
+                                                    "../../../resources/position_track.png"
+                                                ))
+                                                .with_tooltip(
                                                     "Add Position Track.\n\
                                             Creates a binding to a local position of a node. \
                                             Such binding is much more performant than generic \
                                             property binding",
-                                                    Some(1),
-                                                );
+                                                )
+                                                .with_tab_index(Some(1))
+                                                .build_button(ctx);
                                             add_position_track
                                         })
                                         .with_child({
-                                            add_scale_track = make_square_image_button_with_tooltip(
-                                                ctx,
-                                                load_image!("../../../resources/scaling_track.png"),
-                                                "Add Scale Track.\n\
+                                            add_scale_track = ImageButtonBuilder::default()
+                                                .with_image(load_image!(
+                                                    "../../../resources/scaling_track.png"
+                                                ))
+                                                .with_tooltip(
+                                                    "Add Scale Track.\n\
                                             Creates a binding to a local scale of a node. \
                                             Such binding is much more performant than generic \
                                             property binding",
-                                                Some(2),
-                                            );
+                                                )
+                                                .with_tab_index(Some(2))
+                                                .build_button(ctx);
                                             add_scale_track
                                         })
                                         .with_child({
-                                            add_rotation_track =
-                                                make_square_image_button_with_tooltip(
-                                                    ctx,
-                                                    load_image!(
-                                                        "../../../resources/rotation_track.png"
-                                                    ),
+                                            add_rotation_track = ImageButtonBuilder::default()
+                                                .with_image(load_image!(
+                                                    "../../../resources/rotation_track.png"
+                                                ))
+                                                .with_tooltip(
                                                     "Add Rotation Track.\n\
                                             Creates a binding to a local rotation of a node. \
                                             Such binding is much more performant than generic \
                                             property binding",
-                                                    Some(3),
-                                                );
+                                                )
+                                                .with_tab_index(Some(3))
+                                                .build_button(ctx);
                                             add_rotation_track
                                         }),
                                 )

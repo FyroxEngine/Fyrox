@@ -689,19 +689,7 @@ fn make_dark_style() -> StyleResource {
         .set(AssetItem::NORMAL_TEXT_BORDER_BRUSH, Brush::transparent())
         .set(ExportWindow::TITLE_BRUSH, Brush::Solid(Color::CORN_SILK))
         .set(AbsmEditor::NORMAL_ROOT_COLOR, Brush::solid(40, 80, 0))
-        .set(AbsmEditor::SELECTED_ROOT_COLOR, Brush::solid(60, 100, 0))
-        .set(
-            AssetBrowser::ADD_ASSET_NORMAL_BRUSH,
-            Brush::solid(23, 123, 53),
-        )
-        .set(
-            AssetBrowser::ADD_ASSET_HOVER_BRUSH,
-            Brush::solid(29, 148, 65),
-        )
-        .set(
-            AssetBrowser::ADD_ASSET_PRESSED_BRUSH,
-            Brush::solid(15, 79, 34),
-        );
+        .set(AbsmEditor::SELECTED_ROOT_COLOR, Brush::solid(60, 100, 0));
 
     StyleResource::new_embedded(dark_style)
 }
@@ -724,19 +712,7 @@ fn make_light_style() -> StyleResource {
         .set(AssetItem::NORMAL_TEXT_BORDER_BRUSH, Brush::transparent())
         .set(ExportWindow::TITLE_BRUSH, Brush::Solid(Color::CORN_SILK))
         .set(AbsmEditor::NORMAL_ROOT_COLOR, Brush::solid(40, 80, 0))
-        .set(AbsmEditor::SELECTED_ROOT_COLOR, Brush::solid(60, 100, 0))
-        .set(
-            AssetBrowser::ADD_ASSET_NORMAL_BRUSH,
-            Brush::solid(23, 123, 53),
-        )
-        .set(
-            AssetBrowser::ADD_ASSET_HOVER_BRUSH,
-            Brush::solid(29, 148, 65),
-        )
-        .set(
-            AssetBrowser::ADD_ASSET_PRESSED_BRUSH,
-            Brush::solid(15, 79, 34),
-        );
+        .set(AbsmEditor::SELECTED_ROOT_COLOR, Brush::solid(60, 100, 0));
 
     StyleResource::new_embedded(light_style)
 }

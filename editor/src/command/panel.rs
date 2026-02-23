@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::utils::make_square_image_button_with_tooltip;
 use crate::{
     fyrox::{
         core::pool::Handle,
@@ -43,6 +42,7 @@ use crate::{
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::list_view::ListView;
+use fyrox::gui::utils::ImageButtonBuilder;
 use fyrox::gui::window::Window;
 
 pub struct CommandStackViewer {
@@ -63,30 +63,27 @@ impl CommandStackViewer {
         let buttons = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .with_child({
-                    undo = make_square_image_button_with_tooltip(
-                        ctx,
-                        load_image!("../../resources/undo.png"),
-                        "Undo The Command",
-                        Some(0),
-                    );
+                    undo = ImageButtonBuilder::default()
+                        .with_image(load_image!("../../resources/undo.png"))
+                        .with_tooltip("Undo The Command")
+                        .with_tab_index(Some(0))
+                        .build_button(ctx);
                     undo
                 })
                 .with_child({
-                    redo = make_square_image_button_with_tooltip(
-                        ctx,
-                        load_image!("../../resources/redo.png"),
-                        "Redo The Command",
-                        Some(1),
-                    );
+                    redo = ImageButtonBuilder::default()
+                        .with_image(load_image!("../../resources/redo.png"))
+                        .with_tooltip("Redo The Command")
+                        .with_tab_index(Some(1))
+                        .build_button(ctx);
                     redo
                 })
                 .with_child({
-                    clear = make_square_image_button_with_tooltip(
-                        ctx,
-                        load_image!("../../resources/clear.png"),
-                        "Clear Command Stack\nChanges history will be erased.",
-                        Some(2),
-                    );
+                    clear = ImageButtonBuilder::default()
+                        .with_image(load_image!("../../resources/clear.png"))
+                        .with_tooltip("Clear Command Stack\nChanges history will be erased.")
+                        .with_tab_index(Some(2))
+                        .build_button(ctx);
                     clear
                 }),
         )

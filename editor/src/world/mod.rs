@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::utils::make_square_image_button_with_tooltip;
 use crate::{
     asset::item::AssetItem,
     fyrox::{
@@ -64,6 +63,7 @@ use fyrox::gui::searchbar::SearchBar;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
 use fyrox::gui::toggle::ToggleButton;
 use fyrox::gui::tree::Tree;
+use fyrox::gui::utils::ImageButtonBuilder;
 use fyrox::gui::window::Window;
 use fyrox::gui::wrap_panel::WrapPanel;
 use rust_fuzzy_search::fuzzy_compare;
@@ -289,30 +289,27 @@ impl WorldViewer {
                 .on_row(0)
                 .on_column(0)
                 .with_child({
-                    collapse_all = make_square_image_button_with_tooltip(
-                        ctx,
-                        load_image!("../../resources/collapse.png"),
-                        "Collapse Everything",
-                        Some(0),
-                    );
+                    collapse_all = ImageButtonBuilder::default()
+                        .with_image(load_image!("../../resources/collapse.png"))
+                        .with_tooltip("Collapse Everything")
+                        .with_tab_index(Some(0))
+                        .build_button(ctx);
                     collapse_all
                 })
                 .with_child({
-                    expand_all = make_square_image_button_with_tooltip(
-                        ctx,
-                        load_image!("../../resources/expand.png"),
-                        "Expand Everything",
-                        Some(1),
-                    );
+                    expand_all = ImageButtonBuilder::default()
+                        .with_image(load_image!("../../resources/expand.png"))
+                        .with_tooltip("Expand Everything")
+                        .with_tab_index(Some(1))
+                        .build_button(ctx);
                     expand_all
                 })
                 .with_child({
-                    locate_selection = make_square_image_button_with_tooltip(
-                        ctx,
-                        load_image!("../../resources/locate.png"),
-                        "Locate Selection",
-                        Some(2),
-                    );
+                    locate_selection = ImageButtonBuilder::default()
+                        .with_image(load_image!("../../resources/locate.png"))
+                        .with_tooltip("Locate Selection")
+                        .with_tab_index(Some(2))
+                        .build_button(ctx);
                     locate_selection
                 })
                 .with_child(track_selection),

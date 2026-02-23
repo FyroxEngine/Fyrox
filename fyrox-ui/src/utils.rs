@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::style::StyledProperty;
 use crate::{
     border::BorderBuilder,
     button::{Button, ButtonBuilder},
@@ -301,60 +302,128 @@ pub fn make_dropdown_list_option_with_height(
     .to_base()
 }
 
-pub fn make_image_button_with_tooltip(
-    ctx: &mut BuildContext,
+pub struct ImageButtonBuilder<'a> {
     width: f32,
     height: f32,
     image: Option<TextureResource>,
-    tooltip: &str,
+    tooltip: &'a str,
     tab_index: Option<usize>,
-) -> Handle<Button> {
-    ButtonBuilder::new(
-        WidgetBuilder::new()
-            .with_tab_index(tab_index)
-            .with_tooltip(make_simple_tooltip(ctx, tooltip))
-            .with_margin(Thickness::uniform(1.0)),
-    )
-    .with_content(
-        ImageBuilder::new(
-            WidgetBuilder::new()
-                .with_background(ctx.style.property(Style::BRUSH_BRIGHTEST))
-                .with_margin(Thickness::uniform(3.0))
-                .with_width(width)
-                .with_height(height),
-        )
-        .with_opt_texture(image)
-        .build(ctx),
-    )
-    .build(ctx)
+    image_brush: Option<StyledProperty<Brush>>,
+    column: usize,
+    row: usize,
 }
 
-pub fn make_image_toggle_with_tooltip(
-    ctx: &mut BuildContext,
-    width: f32,
-    height: f32,
-    image: Option<TextureResource>,
-    tooltip: &str,
-    tab_index: Option<usize>,
-) -> Handle<ToggleButton> {
-    ToggleButtonBuilder::new(
-        WidgetBuilder::new()
-            .with_tab_index(tab_index)
-            .with_tooltip(make_simple_tooltip(ctx, tooltip))
-            .with_margin(Thickness::uniform(1.0)),
-    )
-    .with_content(
-        ImageBuilder::new(
+impl<'a> Default for ImageButtonBuilder<'a> {
+    fn default() -> Self {
+        Self {
+            width: 16.0,
+            height: 16.0,
+            image: None,
+            tooltip: "",
+            tab_index: None,
+            image_brush: None,
+            column: 0,
+            row: 0,
+        }
+    }
+}
+
+impl<'a> ImageButtonBuilder<'a> {
+    pub fn with_width(mut self, width: f32) -> Self {
+        self.width = width;
+        self
+    }
+
+    pub fn with_height(mut self, height: f32) -> Self {
+        self.height = height;
+        self
+    }
+
+    pub fn with_size(mut self, size: f32) -> Self {
+        self.width = size;
+        self.height = size;
+        self
+    }
+
+    pub fn with_image(mut self, image: Option<TextureResource>) -> Self {
+        self.image = image;
+        self
+    }
+
+    pub fn with_tooltip(mut self, tooltip: &'a str) -> Self {
+        self.tooltip = tooltip;
+        self
+    }
+
+    pub fn with_tab_index(mut self, tab_index: Option<usize>) -> Self {
+        self.tab_index = tab_index;
+        self
+    }
+
+    pub fn with_image_color(mut self, color: Color) -> Self {
+        self.image_brush = Some(Brush::Solid(color).into());
+        self
+    }
+
+    pub fn on_column(mut self, column: usize) -> Self {
+        self.column = column;
+        self
+    }
+
+    pub fn on_row(mut self, row: usize) -> Self {
+        self.row = row;
+        self
+    }
+
+    pub fn build_button(self, ctx: &mut BuildContext) -> Handle<Button> {
+        ButtonBuilder::new(
             WidgetBuilder::new()
-                .with_background(ctx.style.property(Style::BRUSH_BRIGHTEST))
-                .with_margin(Thickness::uniform(3.0))
-                .with_width(width)
-                .with_height(height),
+                .on_column(self.column)
+                .on_row(self.row)
+                .with_tab_index(self.tab_index)
+                .with_tooltip(make_simple_tooltip(ctx, self.tooltip))
+                .with_margin(Thickness::uniform(1.0)),
         )
-        .with_opt_texture(image)
-        .build(ctx),
-    )
-    .build(ctx)
+        .with_content(
+            ImageBuilder::new(
+                WidgetBuilder::new()
+                    .with_background(
+                        self.image_brush
+                            .unwrap_or_else(|| ctx.style.property(Style::BRUSH_BRIGHTEST)),
+                    )
+                    .with_margin(Thickness::uniform(3.0))
+                    .with_width(self.width)
+                    .with_height(self.height),
+            )
+            .with_opt_texture(self.image)
+            .build(ctx),
+        )
+        .build(ctx)
+    }
+
+    pub fn build_toggle(self, ctx: &mut BuildContext) -> Handle<ToggleButton> {
+        ToggleButtonBuilder::new(
+            WidgetBuilder::new()
+                .with_tab_index(self.tab_index)
+                .with_tooltip(make_simple_tooltip(ctx, self.tooltip))
+                .with_margin(Thickness::uniform(1.0)),
+        )
+        .with_content(
+            ImageBuilder::new(
+                WidgetBuilder::new()
+                    .with_background(
+                        self.image_brush
+                            .unwrap_or_else(|| ctx.style.property(Style::BRUSH_BRIGHTEST)),
+                    )
+                    .with_margin(Thickness::uniform(3.0))
+                    .with_width(self.width)
+                    .with_height(self.height),
+            )
+            .with_opt_texture(self.image)
+            .build(ctx),
+        )
+        .build(ctx)
+    }
 }
 
 pub fn make_text_and_image_button_with_tooltip(

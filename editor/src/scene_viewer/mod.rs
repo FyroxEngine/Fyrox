@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::utils::make_square_image_button_with_tooltip;
 use crate::{
     fyrox::{
         core::{color::Color, math::Rect, pool::Handle, uuid::Uuid},
@@ -73,6 +72,7 @@ use fyrox::gui::image::Image;
 use fyrox::gui::numeric::NumericUpDown;
 use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::text::Text;
+use fyrox::gui::utils::ImageButtonBuilder;
 use fyrox::gui::window::Window;
 use std::{
     ops::Deref,
@@ -113,12 +113,10 @@ impl GridSnappingMenu {
         let z_step;
         let grid_snap_menu = DropdownMenuBuilder::new(WidgetBuilder::new())
             .with_header({
-                button = make_square_image_button_with_tooltip(
-                    ctx,
-                    load_image!("../../resources/grid_snapping.png"),
-                    "Snapping Options",
-                    None,
-                );
+                button = ImageButtonBuilder::default()
+                    .with_image(load_image!("../../resources/grid_snapping.png"))
+                    .with_tooltip("Snapping Options")
+                    .build_button(ctx);
                 button.to_base()
             })
             .with_content(

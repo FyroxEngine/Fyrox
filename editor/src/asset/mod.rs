@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::utils::make_square_image_button_with_tooltip;
 use crate::{
     asset::{
         creator::ResourceCreator,
@@ -31,31 +30,29 @@ use crate::{
         selection::AssetSelection,
     },
     fyrox::{
-        asset::{manager::ResourceManager, options::BaseImportOptions},
+        asset::{event::ResourceEvent, manager::ResourceManager, options::BaseImportOptions},
         core::{
-            append_extension, err, futures::executor::block_on, log::Log, make_relative_path,
-            ok_or_continue, pool::Handle, some_or_continue, SafeLock,
+            append_extension, color::Color, err, futures::executor::block_on, log::Log,
+            make_relative_path, ok_or_continue, pool::Handle, some_or_continue, SafeLock,
         },
         engine::Engine,
         graph::SceneGraph,
         gui::{
-            border::BorderBuilder,
             button::{Button, ButtonBuilder, ButtonMessage},
             copypasta::ClipboardProvider,
-            decorator::DecoratorBuilder,
-            dock::{DockingManagerBuilder, TileBuilder, TileContent},
-            file_browser::{FileBrowserBuilder, FileBrowserMessage, PathFilter},
-            grid::{Column, GridBuilder, Row},
+            dock::{DockingManager, DockingManagerBuilder, TileBuilder, TileContent},
+            file_browser::{FileBrowser, FileBrowserBuilder, FileBrowserMessage, PathFilter},
+            grid::{Column, Grid, GridBuilder, Row},
             menu::MenuItemMessage,
             message::{MouseButton, UiMessage},
-            scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
-            searchbar::{SearchBarBuilder, SearchBarMessage},
+            scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
+            searchbar::{SearchBar, SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
-            style::{resource::StyleResourceExt, Style},
-            utils::make_simple_tooltip,
+            text_box::EmptyTextPlaceholder,
+            utils::ImageButtonBuilder,
             widget::{WidgetBuilder, WidgetMessage},
-            window::{WindowBuilder, WindowMessage, WindowTitle},
-            wrap_panel::WrapPanelBuilder,
+            window::{Window, WindowBuilder, WindowMessage, WindowTitle},
+            wrap_panel::{WrapPanel, WrapPanelBuilder},
             HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
     },
@@ -68,24 +65,14 @@ use crate::{
     utils::window_content,
     Message, Mode,
 };
-use fyrox::asset::event::ResourceEvent;
-use fyrox::gui::dock::DockingManager;
-use fyrox::gui::file_browser::FileBrowser;
-use fyrox::gui::grid::Grid;
-use fyrox::gui::scroll_viewer::ScrollViewer;
-use fyrox::gui::searchbar::SearchBar;
-use fyrox::gui::text_box::EmptyTextPlaceholder;
-use fyrox::gui::window::Window;
-use fyrox::gui::wrap_panel::WrapPanel;
 use menu::AssetItemContextMenu;
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
-use std::sync::mpsc::Receiver;
 use std::{
     ffi::OsStr,
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
-        mpsc::{self, Sender},
+        mpsc::{self, Receiver, Sender},
         Arc,
     },
 };
@@ -263,10 +250,6 @@ fn try_move_resource(
 }
 
 impl AssetBrowser {
-    pub const ADD_ASSET_NORMAL_BRUSH: &'static str = "AssetBrowser.AddAssetNormalBrush";
-    pub const ADD_ASSET_HOVER_BRUSH: &'static str = "AssetBrowser.AddAssetHoverBrush";
-    pub const ADD_ASSET_PRESSED_BRUSH: &'static str = "AssetBrowser.AddAssetPressedBrush";
-
     pub fn new(engine: &mut Engine) -> Self {
         let (sender, receiver) = std::sync::mpsc::channel();
         engine
@@ -277,47 +260,29 @@ impl AssetBrowser {
 
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
 
-        let add_resource = ButtonBuilder::new(
-            WidgetBuilder::new()
-                .with_tab_index(Some(1))
-                .with_height(24.0)
-                .with_width(24.0)
-                .with_margin(Thickness::uniform(1.0))
-                .with_tooltip(make_simple_tooltip(ctx, "Add New Resource")),
-        )
-        .with_back(
-            DecoratorBuilder::new(
-                BorderBuilder::new(
-                    WidgetBuilder::new().with_foreground(ctx.style.property(Style::BRUSH_DARKER)),
-                )
-                .with_pad_by_corner_radius(false)
-                .with_corner_radius(ctx.style.property(Button::CORNER_RADIUS))
-                .with_stroke_thickness(ctx.style.property(Button::BORDER_THICKNESS)),
-            )
-            .with_normal_brush(ctx.style.property(Self::ADD_ASSET_NORMAL_BRUSH))
-            .with_hover_brush(ctx.style.property(Self::ADD_ASSET_HOVER_BRUSH))
-            .with_pressed_brush(ctx.style.property(Self::ADD_ASSET_PRESSED_BRUSH))
-            .build(ctx),
-        )
-        .with_text("+")
-        .build(ctx);
+        let add_resource = ImageButtonBuilder::default()
+            .with_image(load_image!("../../resources/add.png"))
+            .with_image_color(Color::GREEN)
+            .with_tab_index(Some(1))
+            .with_tooltip("Add New Resource")
+            .build_button(ctx);
 
-        let resave_resources = make_square_image_button_with_tooltip(
-            ctx,
-            load_image!("../../resources/resave.png"),
-            "Resave All Native Resources\n\
+        let refresh = ImageButtonBuilder::default()
+            .with_image_color(Color::DEEP_SKY_BLUE)
+            .on_column(1)
+            .with_image(load_image!("../../resources/reimport.png"))
+            .with_tooltip("Refresh")
+            .with_tab_index(Some(1))
+            .build_button(ctx);
+
+        let resave_resources = ImageButtonBuilder::default()
+            .on_column(2)
+            .with_image(load_image!("../../resources/resave.png"))
+            .with_tooltip(
+                "Resave All Native Resources\n\
             Use for assets migration from the previous versions of the engine",
-            None,
-        );
-        ctx[resave_resources].set_column(2);
-
-        let refresh = make_square_image_button_with_tooltip(
-            ctx,
-            load_image!("../../resources/reimport.png"),
-            "Refresh",
-            Some(1),
-        );
-        ctx[refresh].set_column(1);
+            )
+            .build_button(ctx);
 
         let search_bar = SearchBarBuilder::new(
             WidgetBuilder::new()
