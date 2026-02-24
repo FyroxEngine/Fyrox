@@ -305,6 +305,8 @@ pub fn make_dropdown_list_option_with_height(
 pub struct ImageButtonBuilder<'a> {
     width: f32,
     height: f32,
+    image_width: f32,
+    image_height: f32,
     image: Option<TextureResource>,
     tooltip: &'a str,
     tab_index: Option<usize>,
@@ -316,8 +318,10 @@ pub struct ImageButtonBuilder<'a> {
 impl<'a> Default for ImageButtonBuilder<'a> {
     fn default() -> Self {
         Self {
-            width: 16.0,
-            height: 16.0,
+            width: f32::NAN,
+            height: f32::NAN,
+            image_width: 16.0,
+            image_height: 16.0,
             image: None,
             tooltip: "",
             tab_index: None,
@@ -339,9 +343,19 @@ impl<'a> ImageButtonBuilder<'a> {
         self
     }
 
-    pub fn with_size(mut self, size: f32) -> Self {
-        self.width = size;
-        self.height = size;
+    pub fn with_image_width(mut self, width: f32) -> Self {
+        self.image_width = width;
+        self
+    }
+
+    pub fn with_image_height(mut self, height: f32) -> Self {
+        self.image_height = height;
+        self
+    }
+
+    pub fn with_image_size(mut self, size: f32) -> Self {
+        self.image_width = size;
+        self.image_height = size;
         self
     }
 
@@ -378,6 +392,8 @@ impl<'a> ImageButtonBuilder<'a> {
     pub fn build_button(self, ctx: &mut BuildContext) -> Handle<Button> {
         ButtonBuilder::new(
             WidgetBuilder::new()
+                .with_width(self.width)
+                .with_height(self.height)
                 .on_column(self.column)
                 .on_row(self.row)
                 .with_tab_index(self.tab_index)
@@ -392,8 +408,8 @@ impl<'a> ImageButtonBuilder<'a> {
                             .unwrap_or_else(|| ctx.style.property(Style::BRUSH_BRIGHTEST)),
                     )
                     .with_margin(Thickness::uniform(3.0))
-                    .with_width(self.width)
-                    .with_height(self.height),
+                    .with_width(self.image_width)
+                    .with_height(self.image_height),
             )
             .with_opt_texture(self.image)
             .build(ctx),
@@ -404,6 +420,8 @@ impl<'a> ImageButtonBuilder<'a> {
     pub fn build_toggle(self, ctx: &mut BuildContext) -> Handle<ToggleButton> {
         ToggleButtonBuilder::new(
             WidgetBuilder::new()
+                .with_width(self.width)
+                .with_height(self.height)
                 .with_tab_index(self.tab_index)
                 .with_tooltip(make_simple_tooltip(ctx, self.tooltip))
                 .with_margin(Thickness::uniform(1.0)),
@@ -416,8 +434,8 @@ impl<'a> ImageButtonBuilder<'a> {
                             .unwrap_or_else(|| ctx.style.property(Style::BRUSH_BRIGHTEST)),
                     )
                     .with_margin(Thickness::uniform(3.0))
-                    .with_width(self.width)
-                    .with_height(self.height),
+                    .with_width(self.image_width)
+                    .with_height(self.image_height),
             )
             .with_opt_texture(self.image)
             .build(ctx),

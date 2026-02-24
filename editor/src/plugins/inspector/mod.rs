@@ -60,6 +60,7 @@ use crate::{
     utils::window_content,
     Editor, Message, WidgetMessage, WrapMode,
 };
+use fyrox::core::color::Color;
 use fyrox::gui::button::Button;
 use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::text::Text;
@@ -255,6 +256,9 @@ impl InspectorPlugin {
                                     })
                                     .with_child({
                                         docs_button = ImageButtonBuilder::default()
+                                            .with_image_color(Color::YELLOW)
+                                            .with_width(26.0)
+                                            .with_height(26.0)
                                             .on_column(1)
                                             .with_image(load_image!("../../../resources/doc.png"))
                                             .with_tooltip("Open Documentation")

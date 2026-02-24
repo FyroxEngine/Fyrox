@@ -421,7 +421,7 @@ impl ProjectManager {
         .build(ctx);
         let open_settings = ImageButtonBuilder::default()
             .with_image(load_image(include_bytes!("../resources/gear.png")))
-            .with_size(18.0)
+            .with_image_size(18.0)
             .with_tooltip("Settings\nHotkey: Ctrl+S")
             .with_tab_index(Some(7))
             .build_button(ctx);
@@ -429,7 +429,7 @@ impl ProjectManager {
 
         let open_help = ImageButtonBuilder::default()
             .with_image(load_image(include_bytes!("../resources/question.png")))
-            .with_size(18.0)
+            .with_image_size(18.0)
             .with_tooltip("Help\nHotkey: F1")
             .with_tab_index(Some(8))
             .build_button(ctx);
