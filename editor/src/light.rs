@@ -411,7 +411,7 @@ impl LightPanel {
         } else if let Some(InspectorMessage::PropertyChanged(args)) =
             message.data_from(self.inspector)
         {
-            PropertyAction::from_field_kind(&args.action).apply(
+            PropertyAction::from_field_action(&args.action).apply(
                 &args.path(),
                 &mut self.settings,
                 &mut |result| {

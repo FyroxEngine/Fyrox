@@ -154,7 +154,7 @@ impl ParameterPanel {
             message.data_from::<InspectorMessage>(self.inspector)
         {
             if is_in_preview_mode {
-                PropertyAction::from_field_kind(&args.action).apply(
+                PropertyAction::from_field_action(&args.action).apply(
                     &args.path(),
                     parameters,
                     &mut |result| {

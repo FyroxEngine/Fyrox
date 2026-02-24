@@ -22,17 +22,14 @@
 //! structure or enumeration recursively. It's primary usage is provide unified and simple way of introspection.
 //! See [`Inspector`] docs for more info and usage examples.
 
-use crate::check_box::CheckBox;
-use crate::menu::MenuItem;
-use crate::message::{DeliveryMode, MessageData};
-use crate::stack_panel::StackPanel;
-use crate::text::Text;
 use crate::{
     border::BorderBuilder,
-    check_box::CheckBoxBuilder,
+    check_box::{CheckBox, CheckBoxBuilder},
     core::{
         algebra::Vector2,
-        pool::Handle,
+        err,
+        log::Log,
+        pool::{Handle, ObjectOrVariant},
         reflect::{prelude::*, CastError, Reflect},
         type_traits::prelude::*,
         uuid_provider,
@@ -45,18 +42,16 @@ use crate::{
         PropertyEditorBuildContext, PropertyEditorDefinitionContainer, PropertyEditorInstance,
         PropertyEditorMessageContext, PropertyEditorTranslationContext,
     },
-    menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
-    message::{MessageDirection, UiMessage},
+    menu::{ContextMenuBuilder, MenuItem, MenuItemBuilder, MenuItemContent, MenuItemMessage},
+    message::{DeliveryMode, MessageData, MessageDirection, UiMessage},
     popup::{Popup, PopupBuilder, PopupMessage},
-    stack_panel::StackPanelBuilder,
-    text::TextBuilder,
+    stack_panel::{StackPanel, StackPanelBuilder},
+    text::{Text, TextBuilder},
     utils::{make_arrow, make_simple_tooltip, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use copypasta::ClipboardProvider;
-use fyrox_core::pool::ObjectOrVariant;
-use fyrox_core::{err, log::Log};
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     SceneGraph,
@@ -154,8 +149,8 @@ impl PropertyAction {
     /// Creates action from a field definition. It is recursive action, it traverses the tree
     /// until there is either FieldKind::Object or FieldKind::Collection. FieldKind::Inspectable
     /// forces new iteration.
-    pub fn from_field_kind(field_kind: &FieldAction) -> Self {
-        match field_kind {
+    pub fn from_field_action(field_action: &FieldAction) -> Self {
+        match field_action {
             FieldAction::ObjectAction(ref value) => Self::Modify {
                 value: value.clone().into_box_reflect(),
             },
@@ -167,10 +162,10 @@ impl PropertyAction {
                 CollectionAction::ItemChanged {
                     action: ref property,
                     ..
-                } => Self::from_field_kind(property),
+                } => Self::from_field_action(property),
             },
             FieldAction::InspectableAction(ref inspectable) => {
-                Self::from_field_kind(&inspectable.action)
+                Self::from_field_action(&inspectable.action)
             }
             FieldAction::InheritableAction { .. } => Self::Revert,
         }

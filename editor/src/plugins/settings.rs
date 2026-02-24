@@ -323,7 +323,7 @@ impl SettingsWindow {
             }
         } else if let Some(InspectorMessage::PropertyChanged(property_changed)) = message.data() {
             if message.destination() == self.inspector {
-                PropertyAction::from_field_kind(&property_changed.action).apply(
+                PropertyAction::from_field_action(&property_changed.action).apply(
                     &property_changed.path(),
                     &mut **settings,
                     &mut Log::verify,
