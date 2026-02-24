@@ -65,6 +65,8 @@ use crate::{
     ui_scene::UiScene,
     Editor, Message,
 };
+use fyrox::gui::UiNode;
+use fyrox::scene::node::Node;
 use std::any::{Any, TypeId};
 
 pub mod command;
@@ -73,6 +75,40 @@ pub mod selection;
 mod thumb;
 mod toolbar;
 mod track;
+
+pub trait TransformProvider {
+    fn position(&self) -> &[f32];
+    fn rotation(&self) -> Option<&[f32]>;
+    fn scale(&self) -> Option<&[f32]>;
+}
+
+impl TransformProvider for Node {
+    fn position(&self) -> &[f32] {
+        self.local_transform().position().as_slice()
+    }
+
+    fn rotation(&self) -> Option<&[f32]> {
+        Some(self.local_transform().rotation().coords.as_slice())
+    }
+
+    fn scale(&self) -> Option<&[f32]> {
+        Some(self.local_transform().scale().as_slice())
+    }
+}
+
+impl TransformProvider for UiNode {
+    fn position(&self) -> &[f32] {
+        self.desired_local_position.as_slice()
+    }
+
+    fn rotation(&self) -> Option<&[f32]> {
+        None
+    }
+
+    fn scale(&self) -> Option<&[f32]> {
+        None
+    }
+}
 
 pub trait PreviewData {
     fn enter(&mut self);
@@ -338,7 +374,7 @@ impl AnimationEditor {
     ) where
         P: PrefabData<Graph = G> + AnimationSource<Node = N, SceneGraph = G, Prefab = P>,
         G: SceneGraph<Node = N, Prefab = P>,
-        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        N: SceneGraphNode<SceneGraph = G, ResourceData = P> + TransformProvider,
     {
         let selection = fetch_selection(self, graph, editor_selection);
 
@@ -544,8 +580,15 @@ impl AnimationEditor {
                 }
             }
 
-            self.track_list
-                .handle_ui_message(message, &selection, root, sender, ui, graph);
+            self.track_list.handle_ui_message(
+                message,
+                editor_selection,
+                &selection,
+                root,
+                sender,
+                ui,
+                graph,
+            );
         }
 
         self.toolbar.post_handle_ui_message(
@@ -673,10 +716,6 @@ impl AnimationEditor {
         G: SceneGraph<Node = N>,
         N: SceneGraphNode<SceneGraph = G>,
     {
-        if !self.is_in_preview_mode() {
-            return;
-        }
-
         let selection = fetch_selection(self, graph, editor_selection);
 
         if let Some(container) = animation_container_ref(graph, selection.animation_player) {

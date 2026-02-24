@@ -20,6 +20,8 @@
 
 #![allow(clippy::manual_map)]
 
+use crate::plugins::animation::command::ReplaceTrackCurveCommand;
+use crate::plugins::animation::TransformProvider;
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
@@ -99,6 +101,8 @@ use crate::{
     },
     utils::{self},
 };
+use fyrox::core::math::curve::{CurveKey, CurveKeyKind};
+use fyrox::core::{ok_or_continue, some_or_return};
 use fyrox::gui::utils::ImageButtonBuilder;
 use std::{
     any::TypeId,
@@ -581,6 +585,7 @@ pub struct TrackList {
     property_binding_mode: PropertyBindingMode,
     scroll_viewer: Handle<ScrollViewer>,
     selected_animation: ErasedHandle,
+    add_key: Handle<Button>,
 }
 
 #[derive(Clone)]
@@ -604,10 +609,43 @@ impl TrackList {
         let toolbar = Toolbar::new(ctx);
 
         let tree_root;
-        let add_track;
-        let add_position_track;
-        let add_rotation_track;
-        let add_scale_track;
+        let add_track = ImageButtonBuilder::default()
+            .with_image(load_image!("../../../resources/property_track.png"))
+            .with_tooltip(
+                "Add Property Track.\nCreate generic property binding to a numeric property.",
+            )
+            .with_tab_index(Some(0))
+            .build_button(ctx);
+        let add_position_track = ImageButtonBuilder::default()
+            .with_image(load_image!("../../../resources/position_track.png"))
+            .with_tooltip(
+                "Add Position Track.\nCreates a binding to a local position of a node. Such \
+                binding is much more performant than generic property binding",
+            )
+            .with_tab_index(Some(1))
+            .build_button(ctx);
+        let add_rotation_track = ImageButtonBuilder::default()
+            .with_image(load_image!("../../../resources/rotation_track.png"))
+            .with_tooltip(
+                "Add Rotation Track.\nCreates a binding to a local rotation of a node. \
+                Such binding is much more performant than generic property binding",
+            )
+            .with_tab_index(Some(3))
+            .build_button(ctx);
+        let add_scale_track = ImageButtonBuilder::default()
+            .with_image(load_image!("../../../resources/scaling_track.png"))
+            .with_tooltip(
+                "Add Scale Track.\nCreates a binding to a local scale of a node. Such \
+                binding is much more performant than generic property binding",
+            )
+            .with_tab_index(Some(2))
+            .build_button(ctx);
+        let add_key = ImageButtonBuilder::default()
+            .with_image_color(Color::GREEN_YELLOW)
+            .with_image(load_image!("../../../resources/key.png"))
+            .with_tooltip("Add key.\nCaptures the state of all properties of the selected object")
+            .with_tab_index(Some(4))
+            .build_button(ctx);
         let scroll_viewer;
 
         let panel = GridBuilder::new(
@@ -640,64 +678,11 @@ impl TrackList {
                                 StackPanelBuilder::new(
                                     WidgetBuilder::new()
                                         .with_margin(Thickness::uniform(2.0))
-                                        .with_child({
-                                            add_track = ImageButtonBuilder::default()
-                                                .with_image(load_image!(
-                                                    "../../../resources/property_track.png"
-                                                ))
-                                                .with_tooltip(
-                                                    "Add Property Track.\n\
-                                            Create generic property binding to a numeric property.",
-                                                )
-                                                .with_tab_index(Some(0))
-                                                .build_button(ctx);
-                                            add_track
-                                        })
-                                        .with_child({
-                                            add_position_track = ImageButtonBuilder::default()
-                                                .with_image(load_image!(
-                                                    "../../../resources/position_track.png"
-                                                ))
-                                                .with_tooltip(
-                                                    "Add Position Track.\n\
-                                            Creates a binding to a local position of a node. \
-                                            Such binding is much more performant than generic \
-                                            property binding",
-                                                )
-                                                .with_tab_index(Some(1))
-                                                .build_button(ctx);
-                                            add_position_track
-                                        })
-                                        .with_child({
-                                            add_scale_track = ImageButtonBuilder::default()
-                                                .with_image(load_image!(
-                                                    "../../../resources/scaling_track.png"
-                                                ))
-                                                .with_tooltip(
-                                                    "Add Scale Track.\n\
-                                            Creates a binding to a local scale of a node. \
-                                            Such binding is much more performant than generic \
-                                            property binding",
-                                                )
-                                                .with_tab_index(Some(2))
-                                                .build_button(ctx);
-                                            add_scale_track
-                                        })
-                                        .with_child({
-                                            add_rotation_track = ImageButtonBuilder::default()
-                                                .with_image(load_image!(
-                                                    "../../../resources/rotation_track.png"
-                                                ))
-                                                .with_tooltip(
-                                                    "Add Rotation Track.\n\
-                                            Creates a binding to a local rotation of a node. \
-                                            Such binding is much more performant than generic \
-                                            property binding",
-                                                )
-                                                .with_tab_index(Some(3))
-                                                .build_button(ctx);
-                                            add_rotation_track
-                                        }),
+                                        .with_child(add_track)
+                                        .with_child(add_position_track)
+                                        .with_child(add_scale_track)
+                                        .with_child(add_rotation_track)
+                                        .with_child(add_key),
                                 )
                                 .with_orientation(Orientation::Horizontal)
                                 .build(ctx),
@@ -732,12 +717,132 @@ impl TrackList {
             property_binding_mode: PropertyBindingMode::Generic,
             scroll_viewer,
             selected_animation: Default::default(),
+            add_key,
         }
+    }
+
+    fn on_add_key_pressed<G, N>(
+        &self,
+        selection: &Selection,
+        animation_player: Handle<N>,
+        animation_handle: Handle<Animation<Handle<N>>>,
+        graph: &G,
+        sender: &MessageSender,
+    ) where
+        G: SceneGraph<Node = N>,
+        N: SceneGraphNode<SceneGraph = G> + TransformProvider,
+    {
+        let nodes = if let Some(ui) = selection.as_ui() {
+            ui.widgets
+                .iter()
+                .map(|h| ErasedHandle::from(*h))
+                .collect::<Vec<_>>()
+        } else if let Some(scene) = selection.as_graph() {
+            scene
+                .nodes
+                .iter()
+                .map(|h| ErasedHandle::from(*h))
+                .collect::<Vec<_>>()
+        } else {
+            return;
+        };
+
+        let animation = some_or_return!(animation_container_ref(graph, animation_player)
+            .and_then(|c| c.try_get(animation_handle).ok()));
+        let state = animation.tracks_data().state();
+        let tracks_data = some_or_return!(state.data_ref());
+
+        let mut commands = vec![];
+        for node_handle in nodes {
+            let node_handle = Handle::<N>::from(node_handle);
+            let node_ref = ok_or_continue!(graph.try_get(node_handle));
+
+            for (track_id, binding) in animation.track_bindings() {
+                if binding.target != node_handle {
+                    continue;
+                };
+
+                for track in tracks_data.tracks() {
+                    if track.id() != *track_id {
+                        continue;
+                    }
+
+                    fn add_keys<G, N>(
+                        animation_player: Handle<N>,
+                        animation_handle: Handle<Animation<Handle<N>>>,
+                        animation: &Animation<Handle<N>>,
+                        track: &Track,
+                        values: &[f32],
+                        commands: &mut Vec<Command>,
+                    ) where
+                        G: SceneGraph<Node = N>,
+                        N: SceneGraphNode<SceneGraph = G> + TransformProvider,
+                    {
+                        for (curve, current_value) in
+                            track.data_container().curves_ref().iter().zip(values)
+                        {
+                            let mut curve_clone = curve.clone();
+                            curve_clone.add_key(CurveKey::new(
+                                animation.time_position(),
+                                *current_value,
+                                CurveKeyKind::Linear,
+                            ));
+                            commands.push(Command::new(ReplaceTrackCurveCommand {
+                                animation_player,
+                                animation: animation_handle,
+                                curve: curve_clone,
+                            }));
+                        }
+                    }
+
+                    match track.value_binding() {
+                        ValueBinding::Position => add_keys(
+                            animation_player,
+                            animation_handle,
+                            animation,
+                            track,
+                            node_ref.position(),
+                            &mut commands,
+                        ),
+                        ValueBinding::Scale => {
+                            if let Some(values) = node_ref.scale() {
+                                add_keys(
+                                    animation_player,
+                                    animation_handle,
+                                    animation,
+                                    track,
+                                    values,
+                                    &mut commands,
+                                )
+                            }
+                        }
+                        ValueBinding::Rotation => {
+                            if let Some(values) = node_ref.rotation() {
+                                add_keys(
+                                    animation_player,
+                                    animation_handle,
+                                    animation,
+                                    track,
+                                    values,
+                                    &mut commands,
+                                )
+                            }
+                        }
+                        ValueBinding::Property { .. } => {
+                            // TODO.
+                        }
+                    }
+                }
+            }
+        }
+
+        sender.do_command_group(commands);
     }
 
     pub fn handle_ui_message<G, N>(
         &mut self,
         message: &UiMessage,
+        editor_selection: &Selection,
         selection: &AnimationSelection<N>,
         root: Handle<N>,
         sender: &MessageSender,
@@ -745,7 +850,7 @@ impl TrackList {
         graph: &G,
     ) where
         G: SceneGraph<Node = N>,
-        N: SceneGraphNode<SceneGraph = G>,
+        N: SceneGraphNode<SceneGraph = G> + TransformProvider,
     {
         let selected_animation = animation_container_ref(graph, selection.animation_player)
             .and_then(|c| c.try_get(selection.animation).ok());
@@ -793,6 +898,14 @@ impl TrackList {
                 ui.send(self.tree_root, TreeRootMessage::ExpandAll);
             } else if message.destination() == self.toolbar.collapse_all {
                 ui.send(self.tree_root, TreeRootMessage::CollapseAll);
+            } else if message.destination() == self.add_key {
+                self.on_add_key_pressed(
+                    editor_selection,
+                    selection.animation_player,
+                    selection.animation,
+                    graph,
+                    sender,
+                );
             }
         } else if let Some(SearchBarMessage::Text(text)) =
             message.data_from(self.toolbar.search_bar)
@@ -1304,18 +1417,17 @@ impl TrackList {
                         .values()
                         .all(|v| ui[*v].id != model_track.id())
                     {
-                        let parent_group =
-                            match self.group_views.entry(model_track_binding.target().into()) {
-                                Entry::Occupied(entry) => *entry.get(),
-                                Entry::Vacant(entry) => {
-                                    let ctx = &mut ui.build_ctx();
-                                    let group = TreeBuilder::new(WidgetBuilder::new())
-                                        .with_content(
-                                            TextBuilder::new(
-                                                WidgetBuilder::new().with_vertical_alignment(
-                                                    VerticalAlignment::Center,
-                                                ),
-                                            )
+                        let parent_group = match self
+                            .group_views
+                            .entry(model_track_binding.target().into())
+                        {
+                            Entry::Occupied(entry) => *entry.get(),
+                            Entry::Vacant(entry) => {
+                                let ctx = &mut ui.build_ctx();
+                                let group = TreeBuilder::new(WidgetBuilder::new())
+                                    .with_content(
+                                        TextBuilder::new(WidgetBuilder::new())
+                                            .with_vertical_text_alignment(VerticalAlignment::Center)
                                             .with_text(format!(
                                                 "{} ({}:{})",
                                                 graph
@@ -1326,12 +1438,12 @@ impl TrackList {
                                                 model_track_binding.target().generation()
                                             ))
                                             .build(ctx),
-                                        )
-                                        .build(ctx);
-                                    ui.send_sync(self.tree_root, TreeRootMessage::AddItem(group));
-                                    *entry.insert(group)
-                                }
-                            };
+                                    )
+                                    .build(ctx);
+                                ui.send_sync(self.tree_root, TreeRootMessage::AddItem(group));
+                                *entry.insert(group)
+                            }
+                        };
 
                         let ctx = &mut ui.build_ctx();
 
