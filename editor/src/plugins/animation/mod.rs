@@ -530,6 +530,18 @@ impl AnimationEditor {
                         }
                     }
                 }
+                ToolbarAction::NewAnimation => {
+                    let size = ui[self.curve_editor].actual_local_size();
+                    let length = 1.0;
+                    let zoom = size.x / length * 0.9;
+                    ui.send_many(
+                        self.curve_editor,
+                        [
+                            CurveEditorMessage::Zoom(Vector2::new(zoom, zoom)),
+                            CurveEditorMessage::ViewPosition(Vector2::new(0.5 * length, 0.0)),
+                        ],
+                    );
+                }
             }
 
             self.track_list

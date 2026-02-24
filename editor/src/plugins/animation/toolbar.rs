@@ -393,6 +393,7 @@ pub enum ToolbarAction {
     SelectAnimation(ErasedHandle),
     PlayPause,
     Stop,
+    NewAnimation,
 }
 
 impl Toolbar {
@@ -876,7 +877,9 @@ impl Toolbar {
         {
             let mut animation = Animation::default();
             animation.set_name(name);
+            animation.set_time_slice(0.0..1.0);
             sender.do_command(AddAnimationCommand::new(animation_player_handle, animation));
+            return ToolbarAction::NewAnimation;
         }
 
         ToolbarAction::None
