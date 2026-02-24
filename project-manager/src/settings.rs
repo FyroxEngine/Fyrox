@@ -289,7 +289,7 @@ impl SettingsWindow {
         } else if let Some(InspectorMessage::PropertyChanged(args)) =
             message.data_from(self.inspector)
         {
-            PropertyAction::from_field_kind(&args.value).apply(
+            PropertyAction::from_field_kind(&args.action).apply(
                 &args.path(),
                 settings.deref_mut(),
                 &mut |result| {

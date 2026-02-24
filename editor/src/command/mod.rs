@@ -356,7 +356,7 @@ pub fn make_command(
     property_changed: &PropertyChanged,
     entity_getter: impl EntityGetter,
 ) -> Option<Command> {
-    match PropertyAction::from_field_kind(&property_changed.value) {
+    match PropertyAction::from_field_kind(&property_changed.action) {
         PropertyAction::Modify { value } => Some(Command::new(SetPropertyCommand::new(
             property_changed.path(),
             value,

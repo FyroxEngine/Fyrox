@@ -32,7 +32,7 @@ use crate::fyrox::{
                 PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
                 PropertyEditorMessageContext, PropertyEditorTranslationContext,
             },
-            FieldKind, InspectorError, PropertyChanged,
+            FieldAction, InspectorError, PropertyChanged,
         },
         message::{MessageDirection, UiMessage},
         text::TextBuilder,
@@ -183,7 +183,7 @@ impl PropertyEditorDefinition for SpriteSheetFramesContainerEditorDefinition {
                 return Some(PropertyChanged {
                     name: ctx.name.to_string(),
 
-                    value: FieldKind::object(container.clone()),
+                    action: FieldAction::object(container.clone()),
                 });
             }
         }

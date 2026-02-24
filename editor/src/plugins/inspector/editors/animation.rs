@@ -32,7 +32,7 @@ use crate::fyrox::{
                 PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
                 PropertyEditorMessageContext, PropertyEditorTranslationContext,
             },
-            FieldKind, InspectorError, PropertyChanged,
+            FieldAction, InspectorError, PropertyChanged,
         },
         message::{MessageDirection, UiMessage},
         widget::WidgetBuilder,
@@ -142,7 +142,7 @@ where
                         return Some(PropertyChanged {
                             name: ctx.name.to_string(),
 
-                            value: FieldKind::object(Handle::<T>::from(definition.handle)),
+                            action: FieldAction::object(Handle::<T>::from(definition.handle)),
                         });
                     }
                 }

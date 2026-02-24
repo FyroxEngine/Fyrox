@@ -34,7 +34,7 @@ use crate::{
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        make_expander_container, FieldKind, Inspector, InspectorBuilder, InspectorContext,
+        make_expander_container, FieldAction, Inspector, InspectorBuilder, InspectorContext,
         InspectorContextArgs, InspectorEnvironment, InspectorError, InspectorMessage,
         PropertyChanged, PropertyFilter,
     },
@@ -503,12 +503,12 @@ where
                 EnumPropertyEditorMessage::PropertyChanged(property_changed) => {
                     Some(PropertyChanged {
                         name: ctx.name.to_string(),
-                        value: FieldKind::Inspectable(Box::new(property_changed.clone())),
+                        action: FieldAction::InspectableAction(Box::new(property_changed.clone())),
                     })
                 }
                 EnumPropertyEditorMessage::Variant(index) => Some(PropertyChanged {
                     name: ctx.name.to_string(),
-                    value: FieldKind::object((self.variant_generator)(*index)),
+                    action: FieldAction::object((self.variant_generator)(*index)),
                 }),
             };
         }

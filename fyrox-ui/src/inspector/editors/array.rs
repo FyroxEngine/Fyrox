@@ -29,7 +29,7 @@ use crate::{
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        make_expander_container, CollectionChanged, FieldKind, InspectorEnvironment,
+        make_expander_container, CollectionAction, FieldAction, InspectorEnvironment,
         InspectorError, PropertyChanged,
     },
     inspector::{make_property_margin, PropertyFilter},
@@ -456,18 +456,20 @@ where
                     return Some(PropertyChanged {
                         name: ctx.name.to_string(),
 
-                        value: FieldKind::Collection(Box::new(CollectionChanged::ItemChanged {
-                            index: *index,
-                            property: definition
-                                .property_editor
-                                .translate_message(PropertyEditorTranslationContext {
-                                    environment: ctx.environment.clone(),
-                                    name: "",
-                                    message,
-                                    definition_container: ctx.definition_container.clone(),
-                                })?
-                                .value,
-                        })),
+                        action: FieldAction::CollectionAction(Box::new(
+                            CollectionAction::ItemChanged {
+                                index: *index,
+                                action: definition
+                                    .property_editor
+                                    .translate_message(PropertyEditorTranslationContext {
+                                        environment: ctx.environment.clone(),
+                                        name: "",
+                                        message,
+                                        definition_container: ctx.definition_container.clone(),
+                                    })?
+                                    .action,
+                            },
+                        )),
                     });
                 }
             }

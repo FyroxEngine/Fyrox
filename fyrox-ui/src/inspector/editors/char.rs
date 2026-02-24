@@ -26,7 +26,7 @@ use crate::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldKind, InspectorError, PropertyChanged,
+        FieldAction, InspectorError, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
     text::TextMessage,
@@ -80,7 +80,7 @@ impl PropertyEditorDefinition for CharPropertyEditorDefinition {
                 if let Some(first_char) = value.chars().next() {
                     return Some(PropertyChanged {
                         name: ctx.name.to_string(),
-                        value: FieldKind::object(first_char),
+                        action: FieldAction::object(first_char),
                     });
                 }
             }

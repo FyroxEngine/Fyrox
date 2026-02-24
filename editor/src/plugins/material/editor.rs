@@ -42,7 +42,7 @@ use crate::{
                     PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
                     PropertyEditorMessageContext, PropertyEditorTranslationContext,
                 },
-                FieldKind, InspectorError, PropertyChanged,
+                FieldAction, InspectorError, PropertyChanged,
             },
             message::UiMessage,
             text::{TextBuilder, TextMessage},
@@ -402,7 +402,7 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
             if let Some(MaterialFieldMessage::Material(value)) = ctx.message.data() {
                 return Some(PropertyChanged {
                     name: ctx.name.to_string(),
-                    value: FieldKind::object(value.clone()),
+                    action: FieldAction::object(value.clone()),
                 });
             }
         }

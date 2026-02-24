@@ -35,7 +35,7 @@ use crate::{
                     PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
                     PropertyEditorMessageContext, PropertyEditorTranslationContext,
                 },
-                FieldKind, InspectorError, PropertyChanged,
+                FieldAction, InspectorError, PropertyChanged,
             },
             menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
             message::{MessageDirection, UiMessage},
@@ -387,10 +387,10 @@ impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
             {
                 return Some(PropertyChanged {
                     name: ctx.name.to_string(),
-                    value: if self.untyped {
-                        FieldKind::object(value.clone().map(|r| r.into_untyped()))
+                    action: if self.untyped {
+                        FieldAction::object(value.clone().map(|r| r.into_untyped()))
                     } else {
-                        FieldKind::object(value.clone())
+                        FieldAction::object(value.clone())
                     },
                 });
             }

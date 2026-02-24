@@ -28,7 +28,7 @@ use crate::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        make_expander_container, FieldKind, Inspector, InspectorBuilder, InspectorContext,
+        make_expander_container, FieldAction, Inspector, InspectorBuilder, InspectorContext,
         InspectorError, InspectorMessage, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
@@ -166,7 +166,7 @@ where
                 return Some(PropertyChanged {
                     name: ctx.name.to_owned(),
 
-                    value: FieldKind::Inspectable(Box::new(msg.clone())),
+                    action: FieldAction::InspectableAction(Box::new(msg.clone())),
                 });
             }
         }

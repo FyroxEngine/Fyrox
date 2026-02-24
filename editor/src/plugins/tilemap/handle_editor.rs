@@ -24,7 +24,7 @@ use std::any::TypeId;
 
 use super::*;
 use fyrox::gui::button::Button;
-use fyrox::gui::inspector::FieldKind;
+use fyrox::gui::inspector::FieldAction;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::text_box::TextBox;
 use fyrox::{
@@ -237,7 +237,7 @@ impl PropertyEditorDefinition for TileDefinitionHandlePropertyEditorDefinition {
             {
                 return Some(PropertyChanged {
                     name: ctx.name.to_string(),
-                    value: FieldKind::object(value),
+                    action: FieldAction::object(value),
                 });
             }
         }
@@ -290,7 +290,7 @@ impl PropertyEditorDefinition for OptionTileDefinitionHandlePropertyEditorDefini
             if let Some(&TileDefinitionHandleEditorMessage::Value(value)) = ctx.message.data() {
                 return Some(PropertyChanged {
                     name: ctx.name.to_string(),
-                    value: FieldKind::object(value),
+                    action: FieldAction::object(value),
                 });
             }
         }

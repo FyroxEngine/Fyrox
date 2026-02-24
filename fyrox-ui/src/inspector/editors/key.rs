@@ -24,7 +24,7 @@ use crate::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldKind, InspectorError, PropertyChanged,
+        FieldAction, InspectorError, PropertyChanged,
     },
     key::{
         HotKey, HotKeyEditorBuilder, HotKeyEditorMessage, KeyBinding, KeyBindingEditorBuilder,
@@ -73,7 +73,7 @@ impl PropertyEditorDefinition for HotKeyPropertyEditorDefinition {
                 return Some(PropertyChanged {
                     name: ctx.name.to_string(),
 
-                    value: FieldKind::object(value.clone()),
+                    action: FieldAction::object(value.clone()),
                 });
             }
         }
@@ -118,7 +118,7 @@ impl PropertyEditorDefinition for KeyBindingPropertyEditorDefinition {
                 return Some(PropertyChanged {
                     name: ctx.name.to_string(),
 
-                    value: FieldKind::object(value.clone()),
+                    action: FieldAction::object(value.clone()),
                 });
             }
         }

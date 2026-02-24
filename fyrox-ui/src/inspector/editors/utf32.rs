@@ -26,7 +26,7 @@ use crate::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldKind, InspectorError, PropertyChanged,
+        FieldAction, InspectorError, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
     text::TextMessage,
@@ -78,7 +78,7 @@ impl PropertyEditorDefinition for Utf32StringPropertyEditorDefinition {
             if let Some(TextMessage::Text(value)) = ctx.message.data::<TextMessage>() {
                 return Some(PropertyChanged {
                     name: ctx.name.to_string(),
-                    value: FieldKind::object(value.chars().collect::<Vec<_>>()),
+                    action: FieldAction::object(value.chars().collect::<Vec<_>>()),
                 });
             }
         }

@@ -40,7 +40,7 @@ use crate::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldKind, InspectorError, PropertyChanged,
+        FieldAction, InspectorError, PropertyChanged,
     },
     list_view::{ListViewBuilder, ListViewMessage},
     message::{OsEvent, UiMessage},
@@ -645,7 +645,7 @@ where
         if let Some(StyledPropertyEditorMessage::BindProperty(name)) = ctx.message.data() {
             return Some(PropertyChanged {
                 name: format!("{}.{}", ctx.name, StyledProperty::<T>::NAME),
-                value: FieldKind::object(name.clone()),
+                action: FieldAction::object(name.clone()),
             });
         }
 

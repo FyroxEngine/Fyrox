@@ -22,7 +22,7 @@ use crate::command::make_command;
 use crate::fyrox::core::reflect::Reflect;
 use crate::fyrox::{
     core::pool::Handle,
-    gui::inspector::{CollectionChanged, FieldKind, PropertyChanged},
+    gui::inspector::{CollectionAction, FieldAction, PropertyChanged},
     scene::{node::Node, terrain::Terrain},
 };
 use crate::scene::commands::{GameSceneContext, RevertSceneNodePropertyCommand};
@@ -43,15 +43,16 @@ impl SceneNodePropertyChangedHandler {
     ) -> Option<Command> {
         // Terrain is special and have its own commands for specific properties.
         if args.path() == Terrain::LAYERS && node.is_terrain() {
-            match args.value {
-                FieldKind::Collection(ref collection_changed) => match **collection_changed {
-                    CollectionChanged::Add(_) => {
+            match args.action {
+                FieldAction::CollectionAction(ref collection_changed) => match **collection_changed
+                {
+                    CollectionAction::Add(_) => {
                         Some(Command::new(AddTerrainLayerCommand::new(handle)))
                     }
-                    CollectionChanged::Remove(index) => {
+                    CollectionAction::Remove(index) => {
                         Some(Command::new(DeleteTerrainLayerCommand::new(handle, index)))
                     }
-                    CollectionChanged::ItemChanged { .. } => None,
+                    CollectionAction::ItemChanged { .. } => None,
                 },
                 _ => None,
             }

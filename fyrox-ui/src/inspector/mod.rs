@@ -72,7 +72,7 @@ pub mod editors;
 /// Messages representing a change in a collection:
 /// either adding an item, removing an item, or updating an existing item.
 #[derive(Debug, Clone, PartialEq)]
-pub enum CollectionChanged {
+pub enum CollectionAction {
     /// An item should be added in the collection.
     Add(ObjectValue),
     /// An item in the collection should be removed.
@@ -82,10 +82,10 @@ pub enum CollectionChanged {
         /// Index of an item in the collection.
         index: usize,
         /// The change to the item.
-        property: FieldKind,
+        action: FieldAction,
     },
 }
-impl MessageData for CollectionChanged {}
+impl MessageData for CollectionAction {}
 
 /// Changes that can happen to inheritable variables.
 #[derive(Debug, Clone)]
@@ -96,16 +96,16 @@ pub enum InheritableAction {
 
 /// An enum of the ways in which a property might be changed by an editor.
 #[derive(Debug, Clone)]
-pub enum FieldKind {
+pub enum FieldAction {
     /// A collection has been changed in the given way.
-    Collection(Box<CollectionChanged>),
+    CollectionAction(Box<CollectionAction>),
     /// A property of a nested object has been changed in the given way.
-    Inspectable(Box<PropertyChanged>),
+    InspectableAction(Box<PropertyChanged>),
     /// A new value is being assigned to the property.
-    Object(ObjectValue),
+    ObjectAction(ObjectValue),
     /// The state of an inheritable property is changing, such as being reverted
     /// to match the value in the original.
-    Inheritable(InheritableAction),
+    InheritableAction(InheritableAction),
 }
 
 /// An action for some property.
@@ -154,22 +154,25 @@ impl PropertyAction {
     /// Creates action from a field definition. It is recursive action, it traverses the tree
     /// until there is either FieldKind::Object or FieldKind::Collection. FieldKind::Inspectable
     /// forces new iteration.
-    pub fn from_field_kind(field_kind: &FieldKind) -> Self {
+    pub fn from_field_kind(field_kind: &FieldAction) -> Self {
         match field_kind {
-            FieldKind::Object(ref value) => Self::Modify {
+            FieldAction::ObjectAction(ref value) => Self::Modify {
                 value: value.clone().into_box_reflect(),
             },
-            FieldKind::Collection(ref collection_changed) => match **collection_changed {
-                CollectionChanged::Add(ref value) => Self::AddItem {
+            FieldAction::CollectionAction(ref collection_changed) => match **collection_changed {
+                CollectionAction::Add(ref value) => Self::AddItem {
                     value: value.clone().into_box_reflect(),
                 },
-                CollectionChanged::Remove(index) => Self::RemoveItem { index },
-                CollectionChanged::ItemChanged { ref property, .. } => {
-                    Self::from_field_kind(property)
-                }
+                CollectionAction::Remove(index) => Self::RemoveItem { index },
+                CollectionAction::ItemChanged {
+                    action: ref property,
+                    ..
+                } => Self::from_field_kind(property),
             },
-            FieldKind::Inspectable(ref inspectable) => Self::from_field_kind(&inspectable.value),
-            FieldKind::Inheritable { .. } => Self::Revert,
+            FieldAction::InspectableAction(ref inspectable) => {
+                Self::from_field_kind(&inspectable.action)
+            }
+            FieldAction::InheritableAction { .. } => Self::Revert,
         }
     }
 
@@ -317,20 +320,24 @@ impl ObjectValue {
     }
 }
 
-impl PartialEq for FieldKind {
+impl PartialEq for FieldAction {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (FieldKind::Collection(l), FieldKind::Collection(r)) => std::ptr::eq(&**l, &**r),
-            (FieldKind::Inspectable(l), FieldKind::Inspectable(r)) => std::ptr::eq(&**l, &**r),
-            (FieldKind::Object(l), FieldKind::Object(r)) => l == r,
+            (FieldAction::CollectionAction(l), FieldAction::CollectionAction(r)) => {
+                std::ptr::eq(&**l, &**r)
+            }
+            (FieldAction::InspectableAction(l), FieldAction::InspectableAction(r)) => {
+                std::ptr::eq(&**l, &**r)
+            }
+            (FieldAction::ObjectAction(l), FieldAction::ObjectAction(r)) => l == r,
             _ => false,
         }
     }
 }
 
-impl FieldKind {
+impl FieldAction {
     pub fn object<T: Value>(value: T) -> Self {
-        Self::Object(ObjectValue {
+        Self::ObjectAction(ObjectValue {
             value: Box::new(value),
         })
     }
@@ -342,49 +349,52 @@ pub struct PropertyChanged {
     /// The name of the edited property.
     pub name: String,
     /// The details of the change.
-    pub value: FieldKind,
+    pub action: FieldAction,
 }
 
 impl PropertyChanged {
     pub fn path(&self) -> String {
         let mut path = self.name.clone();
-        match self.value {
-            FieldKind::Collection(ref collection_changed) => {
-                if let CollectionChanged::ItemChanged {
-                    ref property,
+        match self.action {
+            FieldAction::CollectionAction(ref collection_changed) => {
+                if let CollectionAction::ItemChanged {
+                    action: ref property,
                     index,
                 } = **collection_changed
                 {
                     match property {
-                        FieldKind::Inspectable(inspectable) => {
+                        FieldAction::InspectableAction(inspectable) => {
                             path += format!("[{}].{}", index, inspectable.path()).as_ref();
                         }
                         _ => path += format!("[{index}]").as_ref(),
                     }
                 }
             }
-            FieldKind::Inspectable(ref inspectable) => {
+            FieldAction::InspectableAction(ref inspectable) => {
                 path += format!(".{}", inspectable.path()).as_ref();
             }
-            FieldKind::Object(_) | FieldKind::Inheritable { .. } => {}
+            FieldAction::ObjectAction(_) | FieldAction::InheritableAction { .. } => {}
         }
         path
     }
 
     pub fn is_inheritable(&self) -> bool {
-        match self.value {
-            FieldKind::Collection(ref collection_changed) => match **collection_changed {
-                CollectionChanged::Add(_) => false,
-                CollectionChanged::Remove(_) => false,
-                CollectionChanged::ItemChanged { ref property, .. } => match property {
-                    FieldKind::Inspectable(inspectable) => inspectable.is_inheritable(),
-                    FieldKind::Inheritable(_) => true,
+        match self.action {
+            FieldAction::CollectionAction(ref collection_changed) => match **collection_changed {
+                CollectionAction::Add(_) => false,
+                CollectionAction::Remove(_) => false,
+                CollectionAction::ItemChanged {
+                    action: ref property,
+                    ..
+                } => match property {
+                    FieldAction::InspectableAction(inspectable) => inspectable.is_inheritable(),
+                    FieldAction::InheritableAction(_) => true,
                     _ => false,
                 },
             },
-            FieldKind::Inspectable(ref inspectable) => inspectable.is_inheritable(),
-            FieldKind::Object(_) => false,
-            FieldKind::Inheritable(_) => true,
+            FieldAction::InspectableAction(ref inspectable) => inspectable.is_inheritable(),
+            FieldAction::ObjectAction(_) => false,
+            FieldAction::InheritableAction(_) => true,
         }
     }
 }

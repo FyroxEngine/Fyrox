@@ -35,7 +35,7 @@ use crate::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldKind, InheritableAction, InspectorError, PropertyChanged,
+        FieldAction, InheritableAction, InspectorError, PropertyChanged,
     },
     message::{MessageData, UiMessage},
     resources::REVERT_ICON,
@@ -365,7 +365,7 @@ where
         if let Some(InheritablePropertyEditorMessage::Revert) = ctx.message.data() {
             return Some(PropertyChanged {
                 name: ctx.name.to_string(),
-                value: FieldKind::Inheritable(InheritableAction::Revert),
+                action: FieldAction::InheritableAction(InheritableAction::Revert),
             });
         }
 

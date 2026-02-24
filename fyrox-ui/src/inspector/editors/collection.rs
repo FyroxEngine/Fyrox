@@ -31,7 +31,7 @@ use crate::{
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        make_expander_container, make_property_margin, CollectionChanged, FieldKind,
+        make_expander_container, make_property_margin, CollectionAction, FieldAction,
         InspectorEnvironment, InspectorError, ObjectValue, PropertyChanged, PropertyFilter,
     },
     message::{MessageDirection, UiMessage},
@@ -131,7 +131,7 @@ impl<T: CollectionItem> Control for CollectionEditor<T> {
                 .iter()
                 .position(|i| message.destination() == i.remove)
             {
-                ui.post(self.handle, CollectionChanged::Remove(index));
+                ui.post(self.handle, CollectionAction::Remove(index));
             }
         } else if let Some(msg) = message.data::<CollectionEditorMessage>() {
             if message.destination == self.handle {
@@ -169,7 +169,7 @@ impl<T: CollectionItem> Control for CollectionEditor<T> {
             if message.destination() == self.add {
                 ui.post(
                     self.handle,
-                    CollectionChanged::Add(ObjectValue {
+                    CollectionAction::Add(ObjectValue {
                         value: Box::<T>::default(),
                     }),
                 )
@@ -622,10 +622,10 @@ where
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
         if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(collection_changed) = ctx.message.data::<CollectionChanged>() {
+            if let Some(collection_changed) = ctx.message.data::<CollectionAction>() {
                 return Some(PropertyChanged {
                     name: ctx.name.to_string(),
-                    value: FieldKind::Collection(Box::new(collection_changed.clone())),
+                    action: FieldAction::CollectionAction(Box::new(collection_changed.clone())),
                 });
             } else if let Some(CollectionEditorMessage::ItemChanged { index, message }) =
                 ctx.message.data()
@@ -638,18 +638,20 @@ where
                     return Some(PropertyChanged {
                         name: ctx.name.to_string(),
 
-                        value: FieldKind::Collection(Box::new(CollectionChanged::ItemChanged {
-                            index: *index,
-                            property: definition
-                                .property_editor
-                                .translate_message(PropertyEditorTranslationContext {
-                                    environment: ctx.environment.clone(),
-                                    name: "",
-                                    message,
-                                    definition_container: ctx.definition_container.clone(),
-                                })?
-                                .value,
-                        })),
+                        action: FieldAction::CollectionAction(Box::new(
+                            CollectionAction::ItemChanged {
+                                index: *index,
+                                action: definition
+                                    .property_editor
+                                    .translate_message(PropertyEditorTranslationContext {
+                                        environment: ctx.environment.clone(),
+                                        name: "",
+                                        message,
+                                        definition_container: ctx.definition_container.clone(),
+                                    })?
+                                    .action,
+                            },
+                        )),
                     });
                 }
             }

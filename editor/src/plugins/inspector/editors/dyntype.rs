@@ -36,9 +36,9 @@ use crate::{
                     PropertyEditorDefinitionContainer, PropertyEditorInstance,
                     PropertyEditorMessageContext, PropertyEditorTranslationContext,
                 },
-                make_expander_container, FieldKind, Inspector, InspectorBuilder, InspectorContext,
-                InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged,
-                PropertyFilter,
+                make_expander_container, FieldAction, Inspector, InspectorBuilder,
+                InspectorContext, InspectorEnvironment, InspectorError, InspectorMessage,
+                PropertyChanged, PropertyFilter,
             },
             message::MessageData,
             message::{MessageDirection, UiMessage},
@@ -401,14 +401,16 @@ impl PropertyEditorDefinition for DynTypePropertyEditorDefinition {
 
                             return Some(PropertyChanged {
                                 name: ctx.name.to_string(),
-                                value: FieldKind::object(DynTypeContainer(dyn_type)),
+                                action: FieldAction::object(DynTypeContainer(dyn_type)),
                             });
                         }
                     }
                     DynTypePropertyEditorMessage::PropertyChanged(property_changed) => {
                         return Some(PropertyChanged {
                             name: ctx.name.to_string() + ".0.Some@0.Content",
-                            value: FieldKind::Inspectable(Box::new(property_changed.clone())),
+                            action: FieldAction::InspectableAction(Box::new(
+                                property_changed.clone(),
+                            )),
                         });
                     }
                 }

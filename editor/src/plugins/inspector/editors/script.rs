@@ -35,7 +35,7 @@ use crate::fyrox::{
                 PropertyEditorDefinitionContainer, PropertyEditorInstance,
                 PropertyEditorMessageContext, PropertyEditorTranslationContext,
             },
-            make_expander_container, FieldKind, Inspector, InspectorBuilder, InspectorContext,
+            make_expander_container, FieldAction, Inspector, InspectorBuilder, InspectorContext,
             InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged,
             PropertyFilter,
         },
@@ -507,7 +507,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
 
                             return Some(PropertyChanged {
                                 name: ctx.name.to_string(),
-                                value: FieldKind::object(script),
+                                action: FieldAction::object(script),
                             });
                         }
                     }
@@ -517,7 +517,9 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                             // It is needed because we're editing compound type in this editor.
                             name: ctx.name.to_string() + ".Some@0",
 
-                            value: FieldKind::Inspectable(Box::new(property_changed.clone())),
+                            action: FieldAction::InspectableAction(Box::new(
+                                property_changed.clone(),
+                            )),
                         });
                     }
                 }
