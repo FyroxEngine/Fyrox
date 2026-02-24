@@ -20,19 +20,21 @@
 
 #![allow(clippy::manual_map)]
 
-use crate::plugins::animation::command::ReplaceTrackCurveCommand;
-use crate::plugins::animation::TransformProvider;
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
         asset::Resource,
         core::{
-            algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
+            algebra::{SVector, UnitQuaternion, Vector2, Vector3, Vector4},
             color::Color,
+            err,
             log::Log,
+            math::curve::{CurveKey, CurveKeyKind},
+            ok_or_continue,
             parking_lot::Mutex,
             pool::{ErasedHandle, Handle},
             reflect::{prelude::*, Reflect},
+            some_or_return,
             type_traits::prelude::*,
             uuid_provider,
             variable::InheritableVariable,
@@ -64,7 +66,7 @@ use crate::{
             text::{Text, TextBuilder, TextMessage},
             text_box::EmptyTextPlaceholder,
             tree::{Tree, TreeBuilder, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
-            utils::make_simple_tooltip,
+            utils::{make_simple_tooltip, ImageButtonBuilder},
             widget::{Widget, WidgetBuilder, WidgetMessage},
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, Control, Orientation, RcUiNodeHandle, Thickness, UiNode, UserInterface,
@@ -82,10 +84,11 @@ use crate::{
     plugins::animation::{
         animation_container_ref,
         command::{
-            AddTrackCommand, RemoveTrackCommand, SetTrackEnabledCommand, SetTrackTargetCommand,
-            SetTrackValueBindingCommand,
+            AddTrackCommand, RemoveTrackCommand, ReplaceTrackCurveCommand, SetTrackEnabledCommand,
+            SetTrackTargetCommand, SetTrackValueBindingCommand,
         },
         selection::{AnimationSelection, SelectedEntity},
+        TransformProvider,
     },
     scene::{
         commands::ChangeSelectionCommand,
@@ -101,11 +104,8 @@ use crate::{
     },
     utils::{self},
 };
-use fyrox::core::math::curve::{CurveKey, CurveKeyKind};
-use fyrox::core::{ok_or_continue, some_or_return};
-use fyrox::gui::utils::ImageButtonBuilder;
 use std::{
-    any::TypeId,
+    any::{Any, TypeId},
     cmp::Ordering,
     collections::hash_map::Entry,
     ops::{Deref, DerefMut},
@@ -295,6 +295,47 @@ fn type_id_to_supported_type(property_type: TypeId) -> Option<(TrackValueKind, V
     } else {
         None
     }
+}
+
+fn any_scalar_to_f32(value: &dyn Any) -> Option<f32> {
+    value
+        .downcast_ref::<f32>()
+        .cloned()
+        .or_else(|| value.downcast_ref::<f64>().map(|v| *v as f32))
+        .or_else(|| value.downcast_ref::<i64>().map(|v| *v as f32))
+        .or_else(|| value.downcast_ref::<u64>().map(|v| *v as f32))
+        .or_else(|| value.downcast_ref::<i32>().map(|v| *v as f32))
+        .or_else(|| value.downcast_ref::<u32>().map(|v| *v as f32))
+        .or_else(|| value.downcast_ref::<i16>().map(|v| *v as f32))
+        .or_else(|| value.downcast_ref::<u16>().map(|v| *v as f32))
+        .or_else(|| value.downcast_ref::<i8>().map(|v| *v as f32))
+        .or_else(|| value.downcast_ref::<u8>().map(|v| *v as f32))
+}
+
+fn any_vec_to_f32<const N: usize>(value: &dyn Any) -> Option<SVector<f32, N>> {
+    value
+        .downcast_ref::<SVector<f32, N>>()
+        .cloned()
+        .or_else(|| value.downcast_ref::<SVector<f64, N>>().map(|v| v.cast()))
+        .or_else(|| value.downcast_ref::<SVector<i64, N>>().map(|v| v.cast()))
+        .or_else(|| value.downcast_ref::<SVector<u64, N>>().map(|v| v.cast()))
+        .or_else(|| value.downcast_ref::<SVector<i32, N>>().map(|v| v.cast()))
+        .or_else(|| value.downcast_ref::<SVector<u32, N>>().map(|v| v.cast()))
+        .or_else(|| value.downcast_ref::<SVector<i16, N>>().map(|v| v.cast()))
+        .or_else(|| value.downcast_ref::<SVector<u16, N>>().map(|v| v.cast()))
+        .or_else(|| value.downcast_ref::<SVector<i8, N>>().map(|v| v.cast()))
+        .or_else(|| value.downcast_ref::<SVector<u8, N>>().map(|v| v.cast()))
+}
+
+fn any_quat_to_f32(value: &dyn Any) -> Option<UnitQuaternion<f32>> {
+    value
+        .downcast_ref::<UnitQuaternion<f32>>()
+        .cloned()
+        .or_else(|| {
+            value
+                .downcast_ref::<UnitQuaternion<f64>>()
+                .map(|v| v.cast())
+        })
 }
 
 #[allow(clippy::enum_variant_names)] // GTFO
@@ -752,7 +793,7 @@ impl TrackList {
         let state = animation.tracks_data().state();
         let tracks_data = some_or_return!(state.data_ref());
 
-        let mut commands = vec![];
+        let mut commands = Vec::new();
         for node_handle in nodes {
             let node_handle = Handle::<N>::from(node_handle);
             let node_ref = ok_or_continue!(graph.try_get(node_handle));
@@ -767,70 +808,100 @@ impl TrackList {
                         continue;
                     }
 
-                    fn add_keys<G, N>(
-                        animation_player: Handle<N>,
-                        animation_handle: Handle<Animation<Handle<N>>>,
-                        animation: &Animation<Handle<N>>,
-                        track: &Track,
-                        values: &[f32],
-                        commands: &mut Vec<Command>,
-                    ) where
+                    struct CurveKeyAdder<'a, G, N>
+                    where
                         G: SceneGraph<Node = N>,
                         N: SceneGraphNode<SceneGraph = G> + TransformProvider,
                     {
-                        for (curve, current_value) in
-                            track.data_container().curves_ref().iter().zip(values)
-                        {
-                            let mut curve_clone = curve.clone();
-                            curve_clone.add_key(CurveKey::new(
-                                animation.time_position(),
-                                *current_value,
-                                CurveKeyKind::Linear,
-                            ));
-                            commands.push(Command::new(ReplaceTrackCurveCommand {
-                                animation_player,
-                                animation: animation_handle,
-                                curve: curve_clone,
-                            }));
+                        animation_player: Handle<N>,
+                        animation_handle: Handle<Animation<Handle<N>>>,
+                        animation: &'a Animation<Handle<N>>,
+                        track: &'a Track,
+                        commands: &'a mut Vec<Command>,
+                    }
+
+                    impl<'a, G, N> CurveKeyAdder<'a, G, N>
+                    where
+                        G: SceneGraph<Node = N>,
+                        N: SceneGraphNode<SceneGraph = G> + TransformProvider,
+                    {
+                        fn add(&mut self, values: &[f32]) {
+                            for (curve, current_value) in
+                                self.track.data_container().curves_ref().iter().zip(values)
+                            {
+                                let mut curve_clone = curve.clone();
+                                curve_clone.add_key(CurveKey::new(
+                                    self.animation.time_position(),
+                                    *current_value,
+                                    CurveKeyKind::Linear,
+                                ));
+                                self.commands.push(Command::new(ReplaceTrackCurveCommand {
+                                    animation_player: self.animation_player,
+                                    animation: self.animation_handle,
+                                    curve: curve_clone,
+                                }));
+                            }
                         }
                     }
 
+                    let mut adder = CurveKeyAdder {
+                        animation_player,
+                        animation_handle,
+                        animation,
+                        track,
+                        commands: &mut commands,
+                    };
+
                     match track.value_binding() {
-                        ValueBinding::Position => add_keys(
-                            animation_player,
-                            animation_handle,
-                            animation,
-                            track,
-                            node_ref.position(),
-                            &mut commands,
-                        ),
+                        ValueBinding::Position => adder.add(node_ref.position()),
                         ValueBinding::Scale => {
                             if let Some(values) = node_ref.scale() {
-                                add_keys(
-                                    animation_player,
-                                    animation_handle,
-                                    animation,
-                                    track,
-                                    values,
-                                    &mut commands,
-                                )
+                                adder.add(values)
                             }
                         }
                         ValueBinding::Rotation => {
                             if let Some(values) = node_ref.rotation() {
-                                add_keys(
-                                    animation_player,
-                                    animation_handle,
-                                    animation,
-                                    track,
-                                    values,
-                                    &mut commands,
-                                )
+                                adder.add(values)
                             }
                         }
-                        ValueBinding::Property { .. } => {
-                            // TODO.
-                        }
+                        ValueBinding::Property { name, .. } => node_ref.field(name, &mut |value| {
+                            if let Some(value) = value {
+                                value.as_any(&mut |any| {
+                                    let curves = track.data_container().curves_ref();
+                                    if curves.len() == 1 {
+                                        if let Some(scalar) = any_scalar_to_f32(any) {
+                                            adder.add(&[scalar]);
+                                        } else {
+                                            err!("Unable to set {name} scalar property!");
+                                        }
+                                    } else if curves.len() == 2 {
+                                        if let Some(vec2) = any_vec_to_f32::<2>(any) {
+                                            adder.add(vec2.as_slice())
+                                        } else {
+                                            err!("Unable to set {name} Vector2 property!");
+                                        }
+                                    } else if curves.len() == 3 {
+                                        if let Some(vec3) = any_vec_to_f32::<3>(any) {
+                                            adder.add(vec3.as_slice())
+                                        } else {
+                                            err!("Unable to set {name} Vector3 property!");
+                                        }
+                                    } else if curves.len() == 4 {
+                                        if let Some(vec4) = any_vec_to_f32::<4>(any) {
+                                            adder.add(vec4.as_slice())
+                                        } else if let Some(quat) = any_quat_to_f32(any) {
+                                            adder.add(quat.coords.as_slice())
+                                        } else {
+                                            err!(
+                                                "Unable to set {name} Vector4/Quaternion property!"
+                                            );
+                                        }
+                                    }
+                                })
+                            } else {
+                                err!("Unable to resolve property {name} when adding animation key!")
+                            }
+                        }),
                     }
                 }
             }
