@@ -754,7 +754,7 @@ impl AnimationEditor {
 
             if let Ok(animation) = animations.try_get(selection.animation) {
                 self.track_list
-                    .sync_to_model(animation, graph, &selection, ui);
+                    .sync_to_model(editor_selection, animation, graph, &selection, ui);
 
                 let animation_tracks_data_state = animation.tracks_data().state();
                 let Some(animation_tracks_data) = animation_tracks_data_state.data_ref() else {

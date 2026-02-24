@@ -1425,6 +1425,7 @@ impl TrackList {
 
     pub fn sync_to_model<G, N>(
         &mut self,
+        editor_selection: &Selection,
         animation: &Animation<Handle<N>>,
         graph: &G,
         selection: &AnimationSelection<N>,
@@ -1646,6 +1647,10 @@ impl TrackList {
         ui.send_sync(
             self.context_menu.set_target,
             WidgetMessage::Enabled(any_track_selected),
+        );
+        ui.send_sync(
+            self.add_key,
+            WidgetMessage::Enabled(!editor_selection.is_empty()),
         );
 
         for model_track in tracks_data.tracks() {
