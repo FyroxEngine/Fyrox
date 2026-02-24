@@ -552,8 +552,9 @@ impl Control for CurveEditor {
         self.draw_highlight_zones(ctx);
         self.draw_grid(ctx);
         self.draw_curves(&self.background_curves, ctx);
+        self.draw_keys(&self.background_curves, &self.background_curve_brush, ctx);
         self.draw_curves(&self.curves, ctx);
-        self.draw_keys(ctx);
+        self.draw_keys(&self.curves, &self.key_brush, ctx);
         self.draw_operation(ctx);
     }
 
@@ -1581,8 +1582,8 @@ impl CurveEditor {
         }
     }
 
-    fn draw_keys(&self, ctx: &mut DrawingContext) {
-        for curve in self.curves.iter() {
+    fn draw_keys(&self, curves: &CurvesContainer, brush: &Brush, ctx: &mut DrawingContext) {
+        for curve in curves.iter() {
             let keys_to_draw = curve.keys();
 
             for key in keys_to_draw.iter() {
@@ -1676,7 +1677,7 @@ impl CurveEditor {
                     if selected {
                         self.selected_key_brush.clone()
                     } else {
-                        self.key_brush.clone()
+                        brush.clone()
                     },
                     CommandTexture::None,
                     &self.material,
