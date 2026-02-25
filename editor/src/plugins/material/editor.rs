@@ -137,15 +137,13 @@ impl Control for MaterialFieldEditor {
                     MaterialFieldMessage::Material(self.material.deep_copy_as_embedded()),
                 );
             } else if message.destination() == self.locate {
-                if let Some(resource) = self.resource.as_ref() {
                 if let Some(path) = self
                     .asset_selector_mixin
                     .resource_manager
-                        .resource_path(resource.as_ref())
+                    .resource_path(&self.material)
                 {
                     self.sender.send(Message::ShowInAssetBrowser(path));
                 }
-            }
             }
         } else if let Some(MaterialFieldMessage::Material(material)) = message.data_for(self.handle)
         {
