@@ -104,6 +104,7 @@ use crate::{
     },
     utils::{self},
 };
+use fyrox::core::warn;
 use std::{
     any::{Any, TypeId},
     cmp::Ordering,
@@ -798,10 +799,13 @@ impl TrackList {
             let node_handle = Handle::<N>::from(node_handle);
             let node_ref = ok_or_continue!(graph.try_get(node_handle));
 
+            let mut found = false;
             for (track_id, binding) in animation.track_bindings() {
                 if binding.target != node_handle {
                     continue;
                 };
+
+                found = true;
 
                 for track in tracks_data.tracks() {
                     if track.id() != *track_id {
@@ -905,9 +909,22 @@ impl TrackList {
                     }
                 }
             }
+
+            if !found {
+                warn!(
+                    "There are no tracks for {}({}:{}) node!",
+                    node_ref.name(),
+                    node_handle.index(),
+                    node_handle.generation()
+                );
+            }
         }
 
-        sender.do_command_group(commands);
+        if commands.is_empty() {
+            warn!("No keys were added!")
+        } else {
+            sender.do_command_group(commands);
+        }
     }
 
     pub fn handle_ui_message<G, N>(
