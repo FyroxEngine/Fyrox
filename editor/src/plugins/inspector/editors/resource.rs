@@ -344,6 +344,7 @@ where
                             .with_child({
                                 locate = ImageButtonBuilder::default()
                                     .on_column(2)
+                                    .with_image_size(14.0)
                                     .with_image(load_image!("../../../../resources/locate.png"))
                                     .with_tooltip("Show In Asset Browser")
                                     .build_button(ctx);

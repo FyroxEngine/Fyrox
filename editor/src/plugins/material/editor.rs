@@ -33,10 +33,10 @@ use crate::{
         graph::SceneGraph,
         gui::{
             brush::Brush,
-            button::{ButtonBuilder, ButtonMessage},
+            button::{Button, ButtonBuilder, ButtonMessage},
             draw::{CommandTexture, Draw, DrawingContext},
             grid::{Column, GridBuilder, Row},
-            image::{ImageBuilder, ImageMessage},
+            image::{Image, ImageBuilder, ImageMessage},
             inspector::{
                 editors::{
                     PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
@@ -44,23 +44,20 @@ use crate::{
                 },
                 FieldAction, InspectorError, PropertyChanged,
             },
-            message::UiMessage,
-            text::{TextBuilder, TextMessage},
-            utils::{make_asset_preview_tooltip, make_simple_tooltip},
+            message::{MessageData, UiMessage},
+            text::{Text, TextBuilder, TextMessage},
+            utils::{make_asset_preview_tooltip, make_simple_tooltip, ImageButtonBuilder},
             widget::{Widget, WidgetBuilder, WidgetMessage},
             BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
         material::{Material, MaterialResource, MaterialResourceExtension},
     },
+    load_image,
     message::MessageSender,
     plugins::inspector::EditorEnvironment,
     utils::make_pick_button,
     Message, MessageDirection,
 };
-use fyrox::gui::button::Button;
-use fyrox::gui::image::Image;
-use fyrox::gui::message::MessageData;
-use fyrox::gui::text::Text;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -83,6 +80,7 @@ pub struct MaterialFieldEditor {
     sender: MessageSender,
     text: Handle<Text>,
     edit: Handle<Button>,
+    locate: Handle<Button>,
     make_unique: Handle<Button>,
     material: MaterialResource,
     image: Handle<Image>,
@@ -138,6 +136,16 @@ impl Control for MaterialFieldEditor {
                     self.handle,
                     MaterialFieldMessage::Material(self.material.deep_copy_as_embedded()),
                 );
+            } else if message.destination() == self.locate {
+                if let Some(resource) = self.resource.as_ref() {
+                    if let Some(path) = self
+                        .asset_selector_mixin
+                        .resource_manager
+                        .resource_path(resource.as_ref())
+                    {
+                        self.sender.send(Message::ShowInAssetBrowser(path));
+                    }
+                }
             }
         } else if let Some(MaterialFieldMessage::Material(material)) = message.data_for(self.handle)
         {
@@ -249,6 +257,7 @@ impl MaterialFieldEditorBuilder {
         let edit;
         let text;
         let select;
+        let locate;
         let make_unique;
         let make_unique_tooltip = "Creates a deep copy of the material, making a separate version of the material. \
         Useful when you need to change some properties in the material, but only on some nodes that uses the material.";
@@ -261,11 +270,19 @@ impl MaterialFieldEditorBuilder {
                     select
                 })
                 .with_child({
+                    locate = ImageButtonBuilder::default()
+                        .on_column(1)
+                        .with_image(load_image!("../../../resources/locate.png"))
+                        .with_tooltip("Show In Asset Browser")
+                        .build_button(ctx);
+                    locate
+                })
+                .with_child({
                     edit = ButtonBuilder::new(
                         WidgetBuilder::new()
                             .with_width(55.0)
                             .with_margin(Thickness::uniform(1.0))
-                            .on_column(1),
+                            .on_column(2),
                     )
                     .with_text("Edit...")
                     .build(ctx);
@@ -276,7 +293,7 @@ impl MaterialFieldEditorBuilder {
                         WidgetBuilder::new()
                             .with_width(100.0)
                             .with_margin(Thickness::uniform(1.0))
-                            .on_column(2)
+                            .on_column(3)
                             .with_tooltip(make_simple_tooltip(ctx, make_unique_tooltip)),
                     )
                     .with_text("Make Unique")
@@ -345,6 +362,7 @@ impl MaterialFieldEditorBuilder {
             ),
             image,
             image_preview,
+            locate,
         };
 
         let handle = ctx.add(editor);
