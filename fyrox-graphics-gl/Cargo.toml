@@ -18,7 +18,9 @@ fyrox-graphics = { version = "1.0.0", path = "../fyrox-graphics" }
 fyrox-core = { version = "1.0.0", path = "../fyrox-core" }
 fxhash = "0.2.1"
 regex = "1"
-glow = "0.16"
+# TODO: Migrate to crates.io version once 0.17 is released. 0.16 does not have a fix for this bug
+# https://github.com/grovesNL/glow/pull/348 which ruins 3D textures on WebAssembly.
+glow = { git = "https://github.com/grovesNL/glow", rev = "d645b97f1e26bb1a79b73f77c1c29312cdeca5c2" }
 serde = { version = "1.0.215", features = ["derive"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
