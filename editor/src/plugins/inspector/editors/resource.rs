@@ -32,10 +32,10 @@ use crate::{
         graph::SceneGraph,
         gui::{
             brush::Brush,
-            button::{ButtonBuilder, ButtonMessage},
+            button::{Button, ButtonMessage},
             draw::{CommandTexture, Draw, DrawingContext},
             grid::{Column, GridBuilder, Row},
-            image::{ImageBuilder, ImageMessage},
+            image::{Image, ImageBuilder, ImageMessage},
             inspector::{
                 editors::{
                     PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
@@ -43,21 +43,18 @@ use crate::{
                 },
                 FieldAction, InspectorError, PropertyChanged,
             },
-            message::{MessageDirection, UiMessage},
-            text::{TextBuilder, TextMessage},
+            message::{MessageData, MessageDirection, UiMessage},
+            text::{Text, TextBuilder, TextMessage},
+            utils::{make_asset_preview_tooltip, ImageButtonBuilder},
             widget::{Widget, WidgetBuilder, WidgetMessage},
             BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
     },
+    load_image,
     message::MessageSender,
     plugins::inspector::EditorEnvironment,
     utils, Message,
 };
-use fyrox::gui::button::Button;
-use fyrox::gui::image::Image;
-use fyrox::gui::message::MessageData;
-use fyrox::gui::text::Text;
-use fyrox::gui::utils::make_asset_preview_tooltip;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -345,14 +342,11 @@ where
                                 name
                             })
                             .with_child({
-                                locate = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_width(24.0)
-                                        .on_column(2)
-                                        .with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_text("<<")
-                                .build(ctx);
+                                locate = ImageButtonBuilder::default()
+                                    .on_column(2)
+                                    .with_image(load_image!("../../../../resources/locate.png"))
+                                    .with_tooltip("Show In Asset Browser")
+                                    .build_button(ctx);
                                 locate
                             })
                             .with_child({
