@@ -25,6 +25,7 @@ use crate::{
     core::{dyntype::DynTypeError, pool::PoolError, visitor::error::VisitError},
     scene::graph::GraphError,
 };
+use fyrox_graphics::error::FrameworkError;
 use std::{
     backtrace::Backtrace,
     fmt::{Debug, Display, Formatter},
@@ -60,6 +61,8 @@ pub enum GameErrorKind {
     DynTypeError(DynTypeError),
     /// Arbitrary error message.
     StringError(String),
+    /// A [`FrameworkError`] has occurred.
+    FrameworkError(FrameworkError),
 }
 
 /// An error that may occur during game code execution.
@@ -130,6 +133,12 @@ impl From<DynTypeError> for GameError {
     }
 }
 
+impl From<FrameworkError> for GameError {
+    fn from(value: FrameworkError) -> Self {
+        Self::new(GameErrorKind::FrameworkError(value))
+    }
+}
+
 impl std::error::Error for GameError {}
 
 impl Display for GameError {
@@ -162,6 +171,7 @@ impl Display for GameErrorKind {
             Self::StringError(msg) => {
                 write!(f, "{msg}")
             }
+            Self::FrameworkError(err) => Display::fmt(&err, f),
         }
     }
 }
