@@ -24,23 +24,25 @@
 
 #![warn(missing_docs)]
 
-use crate::message::MessageData;
 use crate::{
     border::BorderBuilder,
     brush::Brush,
     core::{
-        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        variable::InheritableVariable, visitor::prelude::*,
+        color::Color,
+        pool::{Handle, ObjectOrVariant},
+        reflect::prelude::*,
+        type_traits::prelude::*,
+        variable::InheritableVariable,
+        visitor::prelude::*,
     },
     grid::{Column, GridBuilder, Row},
-    message::{KeyCode, UiMessage},
+    image::ImageBuilder,
+    message::{KeyCode, MessageData, UiMessage},
+    resources,
     style::{resource::StyleResourceExt, Style},
-    vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, HorizontalAlignment, MouseButton, Thickness, UiNode, UserInterface,
-    VerticalAlignment,
+    BuildContext, Control, MouseButton, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
-use fyrox_core::pool::ObjectOrVariant;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 
 /// A set of possible check box messages.
@@ -176,7 +178,7 @@ impl CheckBox {
         Style::default()
             .with(Self::CORNER_RADIUS, 4.0f32)
             .with(Self::BORDER_THICKNESS, Thickness::uniform(1.0))
-            .with(Self::CHECK_MARK_SIZE, 7.0f32)
+            .with(Self::CHECK_MARK_SIZE, 12.0f32)
     }
 }
 
@@ -328,37 +330,13 @@ impl CheckBoxBuilder {
     pub fn build(self, ctx: &mut BuildContext) -> Handle<CheckBox> {
         let check_mark = self.check_mark.unwrap_or_else(|| {
             let size = *ctx.style.property(CheckBox::CHECK_MARK_SIZE);
-            let half_size = size * 0.5;
-            let thickness = 2.0;
-
             BorderBuilder::new(
                 WidgetBuilder::new()
                     .with_background(ctx.style.property(Style::BRUSH_BRIGHT_BLUE))
                     .with_child(
-                        VectorImageBuilder::new(
-                            WidgetBuilder::new()
-                                .with_vertical_alignment(VerticalAlignment::Center)
-                                .with_horizontal_alignment(HorizontalAlignment::Center)
-                                // Give some padding to ensure primitives don't get too cut off
-                                .with_width(size + 1.0)
-                                .with_height(size + 1.0)
-                                .with_foreground(ctx.style.property(Style::BRUSH_TEXT)),
-                        )
-                        .with_primitives({
-                            vec![
-                                Primitive::Line {
-                                    begin: Vector2::new(0.0, half_size),
-                                    end: Vector2::new(half_size + thickness / 2.0, size),
-                                    thickness,
-                                },
-                                Primitive::Line {
-                                    begin: Vector2::new(half_size, size),
-                                    end: Vector2::new(size, 0.0),
-                                    thickness,
-                                },
-                            ]
-                        })
-                        .build(ctx),
+                        ImageBuilder::new(WidgetBuilder::new().with_width(size).with_height(size))
+                            .with_opt_texture(resources::CHECK.clone())
+                            .build(ctx),
                     ),
             )
             .with_pad_by_corner_radius(false)
