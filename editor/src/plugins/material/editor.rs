@@ -138,14 +138,14 @@ impl Control for MaterialFieldEditor {
                 );
             } else if message.destination() == self.locate {
                 if let Some(resource) = self.resource.as_ref() {
-                    if let Some(path) = self
-                        .asset_selector_mixin
-                        .resource_manager
+                if let Some(path) = self
+                    .asset_selector_mixin
+                    .resource_manager
                         .resource_path(resource.as_ref())
-                    {
-                        self.sender.send(Message::ShowInAssetBrowser(path));
-                    }
+                {
+                    self.sender.send(Message::ShowInAssetBrowser(path));
                 }
+            }
             }
         } else if let Some(MaterialFieldMessage::Material(material)) = message.data_for(self.handle)
         {
@@ -207,16 +207,11 @@ pub struct MaterialFieldEditorBuilder {
 }
 
 fn make_name(resource_manager: &ResourceManager, material: &MaterialResource) -> String {
-    let resource_uuid = material.resource_uuid();
+    let resource_path = resource_manager.state().resource_path(material.as_ref());
     let header = material.header();
     match header.state {
         ResourceState::Ok { .. } => {
-            if let Some(path) = resource_manager
-                .state()
-                .resource_registry
-                .safe_lock()
-                .uuid_to_path_buf(resource_uuid)
-            {
+            if let Some(path) = resource_path {
                 format!(
                     "{} - {} uses; id - {}",
                     path.display(),
