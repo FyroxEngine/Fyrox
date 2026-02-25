@@ -343,6 +343,12 @@ impl<'a> ImageButtonBuilder<'a> {
         self
     }
 
+    pub fn with_size(mut self, size: f32) -> Self {
+        self.width = size;
+        self.height = size;
+        self
+    }
+
     pub fn with_image_width(mut self, width: f32) -> Self {
         self.image_width = width;
         self

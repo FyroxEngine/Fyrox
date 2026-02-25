@@ -32,10 +32,11 @@ use crate::{
         },
         graph::SceneGraph,
         gui::{
-            button::{ButtonBuilder, ButtonMessage},
+            brush::Brush,
+            button::{Button, ButtonBuilder, ButtonMessage},
             define_widget_deref,
             grid::{Column, GridBuilder, Row},
-            image::{ImageBuilder, ImageMessage},
+            image::{Image, ImageBuilder, ImageMessage},
             inspector::{
                 editors::{
                     PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
@@ -43,24 +44,20 @@ use crate::{
                 },
                 FieldAction, InspectorError, PropertyChanged,
             },
-            message::{MessageDirection, UiMessage},
-            text::{TextBuilder, TextMessage},
-            utils::make_asset_preview_tooltip,
+            message::{MessageData, MessageDirection, UiMessage},
+            text::{Text, TextBuilder, TextMessage},
+            utils::{make_asset_preview_tooltip, ImageButtonBuilder},
             widget::{Widget, WidgetBuilder, WidgetMessage},
             BuildContext, Control, Thickness, UiNode, UserInterface,
         },
         scene::mesh::surface::{SurfaceData, SurfaceResource},
     },
+    load_image,
     message::MessageSender,
     plugins::inspector::EditorEnvironment,
     utils::make_pick_button,
     Message,
 };
-use fyrox::gui::brush::Brush;
-use fyrox::gui::button::Button;
-use fyrox::gui::image::Image;
-use fyrox::gui::message::MessageData;
-use fyrox::gui::text::Text;
 use std::{any::TypeId, sync::mpsc::Sender};
 
 #[derive(Debug, PartialEq, Clone)]
@@ -76,6 +73,7 @@ impl MessageData for SurfaceDataPropertyEditorMessage {}
 pub struct SurfaceDataPropertyEditor {
     widget: Widget,
     view: Handle<Button>,
+    locate: Handle<Button>,
     surface_resource: SurfaceResource,
     text: Handle<Text>,
     image: Handle<Image>,
@@ -96,6 +94,18 @@ impl Control for SurfaceDataPropertyEditor {
             if message.destination == self.view {
                 if let Some(sender) = self.sender.as_ref() {
                     sender.send(Message::ViewSurfaceData(self.surface_resource.clone()));
+                }
+            } else if message.destination() == self.locate {
+                if let Some(resource) = self.resource.as_ref() {
+                    if let Some(path) = self
+                        .asset_selector_mixin
+                        .resource_manager
+                        .resource_path(resource.as_ref())
+                    {
+                        if let Some(sender) = self.sender.as_ref() {
+                            sender.send(Message::ShowInAssetBrowser(path));
+                        }
+                    }
                 }
             }
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
@@ -214,14 +224,14 @@ impl SurfaceDataPropertyEditor {
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(1.0))
                 .on_row(0)
-                .on_column(1)
+                .on_column(3)
                 .with_width(55.0)
                 .with_height(22.0),
         )
         .with_text("View...")
         .build(ctx);
 
-        let select = make_pick_button(2, ctx);
+        let select = make_pick_button(1, ctx);
 
         let text = TextBuilder::new(
             WidgetBuilder::new()
@@ -244,14 +254,24 @@ impl SurfaceDataPropertyEditor {
         )
         .build(ctx);
 
+        let locate = ImageButtonBuilder::default()
+            .on_column(2)
+            .with_size(22.0)
+            .with_image(load_image!("../../../../resources/locate.png"))
+            .with_tooltip("Show In Asset Browser")
+            .build_button(ctx);
+
         let content = GridBuilder::new(
             WidgetBuilder::new()
                 .on_column(1)
                 .with_child(text)
                 .with_child(view)
+                .with_child(locate)
                 .with_child(select),
         )
         .add_column(Column::stretch())
+        .add_column(Column::auto())
+        .add_column(Column::auto())
         .add_column(Column::auto())
         .add_column(Column::auto())
         .add_row(Row::auto())
@@ -282,6 +302,7 @@ impl SurfaceDataPropertyEditor {
             text,
             image,
             image_preview,
+            locate,
         };
 
         let handle = ctx.add(editor);
