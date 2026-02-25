@@ -96,15 +96,13 @@ impl Control for SurfaceDataPropertyEditor {
                     sender.send(Message::ViewSurfaceData(self.surface_resource.clone()));
                 }
             } else if message.destination() == self.locate {
-                if let Some(resource) = self.resource.as_ref() {
-                    if let Some(path) = self
-                        .asset_selector_mixin
-                        .resource_manager
-                        .resource_path(resource.as_ref())
-                    {
-                        if let Some(sender) = self.sender.as_ref() {
-                            sender.send(Message::ShowInAssetBrowser(path));
-                        }
+                if let Some(path) = self
+                    .asset_selector_mixin
+                    .resource_manager
+                    .resource_path(&self.surface_resource)
+                {
+                    if let Some(sender) = self.sender.as_ref() {
+                        sender.send(Message::ShowInAssetBrowser(path));
                     }
                 }
             }
