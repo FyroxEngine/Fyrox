@@ -305,14 +305,20 @@ impl MaterialEditor {
                             WidgetBuilder::new()
                                 .on_row(0)
                                 .with_child(
-                                    TextBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
-                                        .with_vertical_text_alignment(VerticalAlignment::Center)
-                                        .with_text("Shader")
-                                        .build(ctx),
+                                    TextBuilder::new(
+                                        WidgetBuilder::new()
+                                            .on_row(0)
+                                            .on_column(0)
+                                            .with_margin(Thickness::uniform(3.0)),
+                                    )
+                                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                                    .with_text("Shader")
+                                    .build(ctx),
                                 )
                                 .with_child({
                                     shader = ResourceFieldBuilder::<Shader>::new(
                                         WidgetBuilder::new()
+                                            .with_margin(Thickness::uniform(3.0))
                                             .on_column(1)
                                             .with_tooltip(shader_tooltip),
                                         sender,
@@ -327,7 +333,7 @@ impl MaterialEditor {
                         )
                         .add_column(Column::strict(150.0))
                         .add_column(Column::stretch())
-                        .add_row(Row::strict(25.0))
+                        .add_row(Row::auto())
                         .build(ctx),
                     )
                     .with_child(
