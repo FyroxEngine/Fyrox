@@ -486,28 +486,28 @@ use uuid::uuid;
 pub mod loader;
 
 /// A name of the standard shader.
-pub const STANDARD_SHADER_NAME: &str = "Standard";
+pub const STANDARD_SHADER_NAME: &str = "Default Shader";
 
 /// A name of the standard 2D shader.
-pub const STANDARD_2D_SHADER_NAME: &str = "Standard2D";
+pub const STANDARD_2D_SHADER_NAME: &str = "2D Shader";
 
 /// A name of the standard particle system shader.
-pub const STANDARD_PARTICLE_SYSTEM_SHADER_NAME: &str = "StandardParticleSystem";
+pub const STANDARD_PARTICLE_SYSTEM_SHADER_NAME: &str = "Particle System Shader";
 
 /// A name of the standard two-sides shader.
-pub const STANDARD_TWOSIDES_SHADER_NAME: &str = "StandardTwoSides";
+pub const STANDARD_TWOSIDES_SHADER_NAME: &str = "Two Sides Shader";
 
 /// A name of the standard terrain shader.
-pub const STANDARD_TERRAIN_SHADER_NAME: &str = "StandardTerrain";
+pub const STANDARD_TERRAIN_SHADER_NAME: &str = "Terrain Shader";
 
 /// A name of the standard tile shader.
-pub const STANDARD_TILE_SHADER_NAME: &str = "StandardTile";
+pub const STANDARD_TILE_SHADER_NAME: &str = "Tile Shader";
 
 /// A name of the standard sprite shader.
-pub const STANDARD_SPRITE_SHADER_NAME: &str = "StandardSprite";
+pub const STANDARD_SPRITE_SHADER_NAME: &str = "Sprite Shader";
 
 /// A name of the standard widget shader.
-pub const STANDARD_WIDGET_SHADER_NAME: &str = "StandardWidget";
+pub const STANDARD_WIDGET_SHADER_NAME: &str = "Widget Shader";
 
 /// Internal state of the shader.
 ///

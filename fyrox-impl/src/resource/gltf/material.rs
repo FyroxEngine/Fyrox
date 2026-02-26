@@ -51,7 +51,7 @@ use gltf::texture::MinFilter as GltfMinFilter;
 
 pub static GLTF_SHADER: LazyLock<BuiltInResource<Shader>> = LazyLock::new(|| {
     BuiltInResource::new(
-        "__GLTF_StandardShader",
+        "GltfShader",
         embedded_data_source!("gltf_standard.shader"),
         |data| {
             ShaderResource::new_ok(

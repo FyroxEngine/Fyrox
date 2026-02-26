@@ -1470,7 +1470,7 @@ impl ResourceLoader for SurfaceDataLoader {
 /// Cube surface resource.
 pub static CUBE: LazyLock<BuiltInResource<SurfaceData>> = LazyLock::new(|| {
     BuiltInResource::new_no_source(
-        "__CubeSurface",
+        "Cube Surface",
         SurfaceResource::new_ok(
             uuid!("d3a4604a-e1c6-430b-b524-8d3213723952"),
             ResourceKind::External,
@@ -1482,7 +1482,7 @@ pub static CUBE: LazyLock<BuiltInResource<SurfaceData>> = LazyLock::new(|| {
 /// Quad surface resource.
 pub static QUAD: LazyLock<BuiltInResource<SurfaceData>> = LazyLock::new(|| {
     BuiltInResource::new_no_source(
-        "__QuadSurface",
+        "Quad Surface",
         SurfaceResource::new_ok(
             uuid!("a124317f-640b-4c1b-9fdc-af62f745eeba"),
             ResourceKind::External,
@@ -1494,7 +1494,7 @@ pub static QUAD: LazyLock<BuiltInResource<SurfaceData>> = LazyLock::new(|| {
 /// Cylinder surface resource.
 pub static CYLINDER: LazyLock<BuiltInResource<SurfaceData>> = LazyLock::new(|| {
     BuiltInResource::new_no_source(
-        "__CylinderSurface",
+        "Cylinder Surface",
         SurfaceResource::new_ok(
             uuid!("16300ec8-4446-41a7-8ad6-9b45428d0b1b"),
             ResourceKind::External,
@@ -1506,7 +1506,7 @@ pub static CYLINDER: LazyLock<BuiltInResource<SurfaceData>> = LazyLock::new(|| {
 /// Sphere surface resource.
 pub static SPHERE: LazyLock<BuiltInResource<SurfaceData>> = LazyLock::new(|| {
     BuiltInResource::new_no_source(
-        "__SphereSurface",
+        "Sphere Surface",
         SurfaceResource::new_ok(
             uuid!("ff1811ba-b9ad-4c37-89b8-503f79aaa4bd"),
             ResourceKind::External,
@@ -1518,7 +1518,7 @@ pub static SPHERE: LazyLock<BuiltInResource<SurfaceData>> = LazyLock::new(|| {
 /// Cone surface resource.
 pub static CONE: LazyLock<BuiltInResource<SurfaceData>> = LazyLock::new(|| {
     BuiltInResource::new_no_source(
-        "__ConeSurface",
+        "Cone Surface",
         SurfaceResource::new_ok(
             uuid!("e4e79405-39c5-4fe4-ba3e-c961f3d7379e"),
             ResourceKind::External,
@@ -1530,7 +1530,7 @@ pub static CONE: LazyLock<BuiltInResource<SurfaceData>> = LazyLock::new(|| {
 /// Torus surface resource.
 pub static TORUS: LazyLock<BuiltInResource<SurfaceData>> = LazyLock::new(|| {
     BuiltInResource::new_no_source(
-        "__TorusSurface",
+        "Torus Surface",
         SurfaceResource::new_ok(
             uuid!("d2bb5455-c72e-475d-90da-e3a7bd5b7d07"),
             ResourceKind::External,

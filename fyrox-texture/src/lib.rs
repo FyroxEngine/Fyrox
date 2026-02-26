@@ -673,7 +673,7 @@ impl TextureImportOptions {
 /// Placeholder texture.
 pub static PLACEHOLDER: LazyLock<BuiltInResource<Texture>> = LazyLock::new(|| {
     BuiltInResource::new(
-        "__PlaceholderTexture",
+        "Default Texture",
         embedded_data_source!("default.png"),
         |data| {
             TextureResource::load_from_memory(
@@ -690,7 +690,7 @@ pub static PLACEHOLDER: LazyLock<BuiltInResource<Texture>> = LazyLock::new(|| {
 /// Pure color texture.
 pub static PURE_COLOR: LazyLock<BuiltInResource<Texture>> = LazyLock::new(|| {
     BuiltInResource::new(
-        "__PureColorTexture",
+        "Pure Color Texture",
         embedded_data_source!("pure_color.png"),
         |data| {
             TextureResource::load_from_memory(

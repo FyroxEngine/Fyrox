@@ -128,7 +128,7 @@ impl_casts!(TextureResource => Texture);
 /// Default style of the library.
 pub static DEFAULT_STYLE: LazyLock<BuiltInResource<Style>> = LazyLock::new(|| {
     BuiltInResource::new_no_source(
-        "__DEFAULT_STYLE__",
+        "Default Style",
         StyleResource::new_ok(
             uuid!("1e0716e8-e728-491c-a65b-ca11b15048be"),
             ResourceKind::External,

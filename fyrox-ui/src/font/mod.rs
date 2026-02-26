@@ -415,7 +415,7 @@ pub type FontResource = Resource<Font>;
 /// Fyrox's default build-in font for rendering bold italic text when no other font is specified.
 pub static BOLD_ITALIC: LazyLock<BuiltInResource<Font>> = LazyLock::new(|| {
     BuiltInResource::new(
-        "__BOLD_ITALIC__",
+        "Bold Italic Font",
         embedded_data_source!("./bold_italic.ttf"),
         |data| {
             FontResource::new_ok(
@@ -431,7 +431,7 @@ pub static BOLD_ITALIC: LazyLock<BuiltInResource<Font>> = LazyLock::new(|| {
 /// Fyrox's default build-in font for rendering italic text when no other font is specified.
 pub static BUILT_IN_ITALIC: LazyLock<BuiltInResource<Font>> = LazyLock::new(|| {
     BuiltInResource::new(
-        "__BUILT_IN_ITALIC__",
+        "Italic Font",
         embedded_data_source!("./built_in_italic.ttf"),
         |data| {
             let bold = Some(BOLD_ITALIC.resource());
@@ -451,7 +451,7 @@ pub static BUILT_IN_ITALIC: LazyLock<BuiltInResource<Font>> = LazyLock::new(|| {
 /// Fyrox's default build-in font for rendering bold text when no other font is specified.
 pub static BUILT_IN_BOLD: LazyLock<BuiltInResource<Font>> = LazyLock::new(|| {
     BuiltInResource::new(
-        "__BUILT_IN_BOLD__",
+        "Bold Font",
         embedded_data_source!("./built_in_bold.ttf"),
         |data| {
             let italic = Some(BOLD_ITALIC.resource());
@@ -471,7 +471,7 @@ pub static BUILT_IN_BOLD: LazyLock<BuiltInResource<Font>> = LazyLock::new(|| {
 /// Fyrox's default build-in font for rendering text when no other font is specified.
 pub static BUILT_IN_FONT: LazyLock<BuiltInResource<Font>> = LazyLock::new(|| {
     BuiltInResource::new(
-        "__BUILT_IN_FONT__",
+        "Default Font",
         embedded_data_source!("./built_in_font.ttf"),
         |data| {
             let styles = FontStyles {

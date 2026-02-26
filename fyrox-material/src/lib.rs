@@ -1087,7 +1087,7 @@ impl MaterialResourceExtension for MaterialResource {
 /// of it will reflect on every other usage of it.
 pub static STANDARD: LazyLock<BuiltInResource<Material>> = LazyLock::new(|| {
     BuiltInResource::new_no_source(
-        "__StandardMaterial",
+        "Default Material",
         MaterialResource::new_ok(
             uuid!("fac37721-d1b8-422e-ae0c-83196ecd0a26"),
             ResourceKind::External,
@@ -1100,7 +1100,7 @@ pub static STANDARD: LazyLock<BuiltInResource<Material>> = LazyLock::new(|| {
 /// of it will reflect on every other usage of it.
 pub static STANDARD_2D: LazyLock<BuiltInResource<Material>> = LazyLock::new(|| {
     BuiltInResource::new_no_source(
-        "__Standard2DMaterial",
+        "2D Material",
         MaterialResource::new_ok(
             uuid!("fe78a0d0-d059-4156-bc63-c3d2e36ad4b6"),
             ResourceKind::External,
@@ -1113,7 +1113,7 @@ pub static STANDARD_2D: LazyLock<BuiltInResource<Material>> = LazyLock::new(|| {
 /// of it will reflect on every other usage of it.
 pub static STANDARD_PARTICLE_SYSTEM: LazyLock<BuiltInResource<Material>> = LazyLock::new(|| {
     BuiltInResource::new_no_source(
-        "__StandardParticleSystemMaterial",
+        "Particle SystemMaterial",
         MaterialResource::new_ok(
             uuid!("5bebe6e5-4aeb-496f-88f6-abe2b1ac798b"),
             ResourceKind::External,
@@ -1126,7 +1126,7 @@ pub static STANDARD_PARTICLE_SYSTEM: LazyLock<BuiltInResource<Material>> = LazyL
 /// of it will reflect on every other usage of it.
 pub static STANDARD_SPRITE: LazyLock<BuiltInResource<Material>> = LazyLock::new(|| {
     BuiltInResource::new_no_source(
-        "__StandardSpriteMaterial",
+        "Sprite Material",
         MaterialResource::new_ok(
             uuid!("3e331786-baae-412b-9d99-7370174bca43"),
             ResourceKind::External,
@@ -1139,7 +1139,7 @@ pub static STANDARD_SPRITE: LazyLock<BuiltInResource<Material>> = LazyLock::new(
 /// of it will reflect on every other usage of it.
 pub static STANDARD_TERRAIN: LazyLock<BuiltInResource<Material>> = LazyLock::new(|| {
     BuiltInResource::new_no_source(
-        "__StandardTerrainMaterial",
+        "Terrain Material",
         MaterialResource::new_ok(
             uuid!("0e407e22-41ad-4763-9adb-9d2e86351ece"),
             ResourceKind::External,
@@ -1152,7 +1152,7 @@ pub static STANDARD_TERRAIN: LazyLock<BuiltInResource<Material>> = LazyLock::new
 /// of it will reflect on every other usage of it.
 pub static STANDARD_TWOSIDES: LazyLock<BuiltInResource<Material>> = LazyLock::new(|| {
     BuiltInResource::new_no_source(
-        "__StandardTwoSidesMaterial",
+        "Two Sides Material",
         MaterialResource::new_ok(
             uuid!("24115321-7766-495c-bc3a-75db2f73d26d"),
             ResourceKind::External,
@@ -1165,7 +1165,7 @@ pub static STANDARD_TWOSIDES: LazyLock<BuiltInResource<Material>> = LazyLock::ne
 /// of it will reflect on every other usage of it.
 pub static STANDARD_WIDGET: LazyLock<BuiltInResource<Material>> = LazyLock::new(|| {
     BuiltInResource::new_no_source(
-        "__StandardWidgetMaterial",
+        "Widget Material",
         MaterialResource::new_ok(
             uuid!("e5d61a6f-5c94-4137-b303-1ae29cfff6e7"),
             ResourceKind::External,

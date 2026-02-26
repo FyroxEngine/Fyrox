@@ -509,7 +509,7 @@ fn load_texture(id: Uuid, data: &[u8]) -> TextureResource {
 
 static BUILT_IN_SKYBOX_FRONT: LazyLock<BuiltInResource<Texture>> = LazyLock::new(|| {
     BuiltInResource::new(
-        "__BUILT_IN_SKYBOX_FRONT",
+        "Skybox Front Face",
         embedded_data_source!("skybox/front.png"),
         |data| load_texture(uuid!("f8d4519b-2947-4c83-9aa5-800a70ae918e"), data),
     )
@@ -517,7 +517,7 @@ static BUILT_IN_SKYBOX_FRONT: LazyLock<BuiltInResource<Texture>> = LazyLock::new
 
 static BUILT_IN_SKYBOX_BACK: LazyLock<BuiltInResource<Texture>> = LazyLock::new(|| {
     BuiltInResource::new(
-        "__BUILT_IN_SKYBOX_BACK",
+        "Skybox Back Face",
         embedded_data_source!("skybox/back.png"),
         |data| load_texture(uuid!("28676705-58bd-440f-b0aa-ce42cf95be79"), data),
     )
@@ -525,7 +525,7 @@ static BUILT_IN_SKYBOX_BACK: LazyLock<BuiltInResource<Texture>> = LazyLock::new(
 
 static BUILT_IN_SKYBOX_TOP: LazyLock<BuiltInResource<Texture>> = LazyLock::new(|| {
     BuiltInResource::new(
-        "__BUILT_IN_SKYBOX_TOP",
+        "Skybox Top Face",
         embedded_data_source!("skybox/top.png"),
         |data| load_texture(uuid!("03e38da7-53d1-48c0-87f8-2baf9869d61d"), data),
     )
@@ -533,7 +533,7 @@ static BUILT_IN_SKYBOX_TOP: LazyLock<BuiltInResource<Texture>> = LazyLock::new(|
 
 static BUILT_IN_SKYBOX_BOTTOM: LazyLock<BuiltInResource<Texture>> = LazyLock::new(|| {
     BuiltInResource::new(
-        "__BUILT_IN_SKYBOX_BOTTOM",
+        "Skybox Bottom Face",
         embedded_data_source!("skybox/bottom.png"),
         |data| load_texture(uuid!("01684dc1-34b2-48b3-b8c2-30a7718cb9e7"), data),
     )
@@ -541,7 +541,7 @@ static BUILT_IN_SKYBOX_BOTTOM: LazyLock<BuiltInResource<Texture>> = LazyLock::ne
 
 static BUILT_IN_SKYBOX_LEFT: LazyLock<BuiltInResource<Texture>> = LazyLock::new(|| {
     BuiltInResource::new(
-        "__BUILT_IN_SKYBOX_LEFT",
+        "Skybox Left Face",
         embedded_data_source!("skybox/left.png"),
         |data| load_texture(uuid!("1725b779-7633-477a-a7b0-995c079c3202"), data),
     )
@@ -549,7 +549,7 @@ static BUILT_IN_SKYBOX_LEFT: LazyLock<BuiltInResource<Texture>> = LazyLock::new(
 
 static BUILT_IN_SKYBOX_RIGHT: LazyLock<BuiltInResource<Texture>> = LazyLock::new(|| {
     BuiltInResource::new(
-        "__BUILT_IN_SKYBOX_RIGHT",
+        "Skybox Right Face",
         embedded_data_source!("skybox/right.png"),
         |data| load_texture(uuid!("5f74865a-3eae-4bff-8743-b9d1f7bb3c59"), data),
     )
