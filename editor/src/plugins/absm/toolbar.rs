@@ -18,27 +18,26 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::scene::selector::NodeSelectorWindow;
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
-        core::pool::Handle,
+        core::{color::Color, pool::Handle},
         fxhash::FxHashSet,
         generic_animation::machine::{mask::LayerMask, Machine, MachineLayer},
         graph::{PrefabData, SceneGraph, SceneGraphNode},
         gui::{
-            button::{ButtonBuilder, ButtonMessage},
-            check_box::{CheckBoxBuilder, CheckBoxMessage},
-            dropdown_list::{DropdownListBuilder, DropdownListMessage},
+            button::{Button, ButtonBuilder, ButtonMessage},
+            dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
             image::ImageBuilder,
+            input::{InputBox, InputBoxBuilder, InputBoxMessage, InputBoxResult},
             message::UiMessage,
-            stack_panel::StackPanelBuilder,
-            text::{TextBuilder, TextMessage},
-            text_box::{TextBox, TextBoxBuilder},
-            utils::{make_cross, make_simple_tooltip},
+            stack_panel::{StackPanel, StackPanelBuilder},
+            style::{resource::StyleResourceExt, Style},
+            toggle::{ToggleButton, ToggleButtonMessage},
+            utils::{make_dropdown_list_option, make_simple_tooltip, ImageButtonBuilder},
             widget::{WidgetBuilder, WidgetMessage},
-            window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, Orientation, Thickness, UserInterface, VerticalAlignment,
+            window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
+            BuildContext, Orientation, Thickness, UserInterface,
         },
     },
     load_image,
@@ -49,29 +48,25 @@ use crate::{
         fetch_selection, machine_container_ref,
         selection::AbsmSelection,
     },
-    scene::selector::{AllowedType, SelectedHandle},
     scene::{
         commands::ChangeSelectionCommand,
-        selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
+        selector::{
+            AllowedType, HierarchyNode, NodeSelectorMessage, NodeSelectorWindow,
+            NodeSelectorWindowBuilder, SelectedHandle,
+        },
         Selection,
     },
 };
-use fyrox::gui::button::Button;
-use fyrox::gui::check_box::CheckBox;
-use fyrox::gui::dropdown_list::DropdownList;
-use fyrox::gui::stack_panel::StackPanel;
-use fyrox::gui::style::resource::StyleResourceExt;
-use fyrox::gui::style::Style;
-use fyrox::gui::utils::make_dropdown_list_option;
-use fyrox::gui::window::WindowAlignment;
 use std::any::TypeId;
 
 pub struct Toolbar {
     pub panel: Handle<StackPanel>,
-    pub preview: Handle<CheckBox>,
+    pub preview: Handle<ToggleButton>,
     pub layers: Handle<DropdownList>,
-    pub layer_name: Handle<TextBox>,
+    pub add_layer_input_box: Handle<InputBox>,
     pub add_layer: Handle<Button>,
+    pub rename_layer: Handle<Button>,
+    pub rename_layer_input_box: Handle<InputBox>,
     pub remove_layer: Handle<Button>,
     pub edit_mask: Handle<Button>,
     pub node_selector: Handle<NodeSelectorWindow>,
@@ -87,60 +82,41 @@ impl Toolbar {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let preview;
         let layers;
-        let layer_name;
+        let rename_layer;
         let add_layer;
         let remove_layer;
         let edit_mask;
         let panel = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .with_child({
-                    preview = CheckBoxBuilder::new(
-                        WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
-                    )
-                    .with_content(
-                        TextBuilder::new(
-                            WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Center),
-                        )
-                        .with_text("Preview")
-                        .build(ctx),
-                    )
-                    .build(ctx);
+                    preview = ImageButtonBuilder::default()
+                        .with_image(load_image!("../../../resources/eye.png"))
+                        .with_tooltip("Preview")
+                        .build_toggle(ctx);
                     preview
                 })
                 .with_child({
-                    layer_name = TextBoxBuilder::new(
-                        WidgetBuilder::new()
-                            .with_margin(Thickness::uniform(1.0))
-                            .with_tooltip(make_simple_tooltip(ctx, "Change selected layer name."))
-                            .with_width(100.0),
-                    )
-                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                    .build(ctx);
-                    layer_name
-                })
-                .with_child({
-                    add_layer = ButtonBuilder::new(
-                        WidgetBuilder::new()
-                            .with_margin(Thickness::uniform(1.0))
-                            .with_width(20.0)
-                            .with_tooltip(make_simple_tooltip(
-                                ctx,
-                                "Add a new layer with the name specified in the right text box",
-                            )),
-                    )
-                    .with_text("+")
-                    .build(ctx);
+                    add_layer = ImageButtonBuilder::default()
+                        .with_image_color(Color::GREEN)
+                        .with_image(load_image!("../../../resources/add.png"))
+                        .with_tooltip("Add new layer.")
+                        .build_button(ctx);
                     add_layer
                 })
                 .with_child({
-                    remove_layer = ButtonBuilder::new(
-                        WidgetBuilder::new()
-                            .with_margin(Thickness::uniform(1.0))
-                            .with_width(20.0)
-                            .with_tooltip(make_simple_tooltip(ctx, "Removes the current layer.")),
-                    )
-                    .with_content(make_cross(ctx, 12.0, 2.0))
-                    .build(ctx);
+                    rename_layer = ImageButtonBuilder::default()
+                        .with_image_color(Color::ORANGE)
+                        .with_image(load_image!("../../../resources/rename.png"))
+                        .with_tooltip("Rename current layer.")
+                        .build_button(ctx);
+                    rename_layer
+                })
+                .with_child({
+                    remove_layer = ImageButtonBuilder::default()
+                        .with_image_color(Color::ORANGE_RED)
+                        .with_image(load_image!("../../../resources/cross.png"))
+                        .with_tooltip("Remove Selected Animation")
+                        .build_button(ctx);
                     remove_layer
                 })
                 .with_child({
@@ -180,8 +156,10 @@ impl Toolbar {
             panel,
             preview,
             layers,
-            layer_name,
+            add_layer_input_box: Default::default(),
+            rename_layer_input_box: Default::default(),
             add_layer,
+            rename_layer,
             remove_layer,
             edit_mask,
             node_selector: Handle::NONE,
@@ -203,7 +181,7 @@ impl Toolbar {
     {
         let selection = fetch_selection(editor_selection);
 
-        if let Some(CheckBoxMessage::Check(Some(value))) = message.data_from(self.preview) {
+        if let Some(ToggleButtonMessage::Toggled(value)) = message.data_from(self.preview) {
             return if *value {
                 ToolbarAction::EnterPreviewMode
             } else {
@@ -216,24 +194,29 @@ impl Toolbar {
             new_selection.layer = Some(*index);
             new_selection.entities.clear();
             sender.do_command(ChangeSelectionCommand::new(Selection::new(new_selection)));
-        } else if let Some(TextMessage::Text(text)) = message.data_from(self.layer_name) {
-            if let Some(layer_index) = selection.layer {
-                sender.do_command(SetLayerNameCommand {
-                    absm_node_handle: selection.absm_node_handle,
-                    layer_index,
-                    name: text.clone(),
-                });
-            }
         } else if let Some(ButtonMessage::Click) = message.data() {
-            if message.destination() == self.add_layer {
-                let mut layer = MachineLayer::new();
-
-                layer.set_name(ui[self.layer_name].text());
-
-                sender.do_command(AddLayerCommand {
-                    absm_node_handle: selection.absm_node_handle,
-                    layer: Some(layer),
-                });
+            if message.destination() == self.rename_layer {
+                self.rename_layer_input_box = InputBoxBuilder::new(
+                    WindowBuilder::new(WidgetBuilder::new().with_width(320.0).with_height(120.0))
+                        .with_title(WindowTitle::text("Rename Layer"))
+                        .open(false)
+                        .with_remove_on_close(true),
+                )
+                .with_text("Type the new name for the selected layer:")
+                .with_value("Layer".to_string())
+                .build(&mut ui.build_ctx());
+                ui.send(self.rename_layer_input_box, InputBoxMessage::open_as_is());
+            } else if message.destination() == self.add_layer {
+                self.add_layer_input_box = InputBoxBuilder::new(
+                    WindowBuilder::new(WidgetBuilder::new().with_width(320.0).with_height(120.0))
+                        .with_title(WindowTitle::text("Add Layer"))
+                        .open(false)
+                        .with_remove_on_close(true),
+                )
+                .with_text("Type the name for the new layer:")
+                .with_value("Layer".to_string())
+                .build(&mut ui.build_ctx());
+                ui.send(self.add_layer_input_box, InputBoxMessage::open_as_is());
             } else if message.destination() == self.edit_mask {
                 let mut root = HierarchyNode {
                     name: "root".to_string(),
@@ -366,6 +349,27 @@ impl Toolbar {
 
                 self.node_selector = Handle::NONE;
             }
+        } else if let Some(InputBoxMessage::Close(InputBoxResult::Ok(name))) =
+            message.data_from(self.add_layer_input_box)
+        {
+            let mut layer = MachineLayer::new();
+
+            layer.set_name(name);
+
+            sender.do_command(AddLayerCommand {
+                absm_node_handle: selection.absm_node_handle,
+                layer: Some(layer),
+            });
+        } else if let Some(InputBoxMessage::Close(InputBoxResult::Ok(name))) =
+            message.data_from(self.rename_layer_input_box)
+        {
+            if let Some(layer_index) = selection.layer {
+                sender.do_command(SetLayerNameCommand {
+                    absm_node_handle: selection.absm_node_handle,
+                    layer_index,
+                    name: name.clone(),
+                });
+            }
         }
 
         ToolbarAction::None
@@ -389,11 +393,5 @@ impl Toolbar {
 
         ui.send_sync(self.layers, DropdownListMessage::Items(layers));
         ui.send_sync(self.layers, DropdownListMessage::Selection(selection.layer));
-
-        if let Some(layer_index) = selection.layer {
-            if let Some(layer) = machine.layers().get(layer_index) {
-                ui.send_sync(self.layer_name, TextMessage::Text(layer.name().to_string()));
-            }
-        }
     }
 }

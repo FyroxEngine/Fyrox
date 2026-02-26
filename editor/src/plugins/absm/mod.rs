@@ -21,9 +21,13 @@
 use crate::{
     fyrox::{
         core::{
-            pool::ErasedHandle, pool::Handle, reflect::Reflect, some_or_return,
+            pool::{ErasedHandle, Handle},
+            reflect::Reflect,
+            some_or_return, uuid,
             variable::InheritableVariable,
+            Uuid,
         },
+        engine::ApplicationLoopController,
         fxhash::FxHashSet,
         generic_animation::{
             machine::{
@@ -35,12 +39,16 @@ use crate::{
         graph::{PrefabData, SceneGraph, SceneGraphNode},
         gui::{
             check_box::CheckBoxMessage,
-            dock::{DockingManagerBuilder, DockingManagerMessage, TileBuilder, TileContent},
+            dock::{
+                DockingManager, DockingManagerBuilder, DockingManagerMessage, TileBuilder,
+                TileContent,
+            },
             grid::{Column, GridBuilder, Row},
-            menu::MenuItemMessage,
+            inspector::editors::PropertyEditorDefinitionContainer,
+            menu::{MenuItem, MenuItemMessage},
             message::UiMessage,
             widget::{WidgetBuilder, WidgetMessage},
-            window::{WindowBuilder, WindowMessage, WindowTitle},
+            window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, UserInterface,
         },
     },
@@ -61,12 +69,6 @@ use crate::{
     ui_scene::UiScene,
     Editor, Message,
 };
-use fyrox::core::{uuid, Uuid};
-use fyrox::engine::ApplicationLoopController;
-use fyrox::gui::dock::DockingManager;
-use fyrox::gui::inspector::editors::PropertyEditorDefinitionContainer;
-use fyrox::gui::menu::MenuItem;
-use fyrox::gui::window::{Window, WindowAlignment};
 use std::any::Any;
 use std::sync::Arc;
 
@@ -264,7 +266,7 @@ impl AbsmEditor {
                 .with_child(toolbar.panel)
                 .with_child(docking_manager),
         )
-        .add_row(Row::strict(22.0))
+        .add_row(Row::auto())
         .add_row(Row::stretch())
         .add_column(Column::stretch())
         .build(ctx);

@@ -781,7 +781,8 @@ impl Toolbar {
                 self.rename_animation_input_box = InputBoxBuilder::new(
                     WindowBuilder::new(WidgetBuilder::new().with_width(320.0).with_height(120.0))
                         .with_title(WindowTitle::text("Rename Animation"))
-                        .open(false),
+                        .open(false)
+                        .with_remove_on_close(true),
                 )
                 .with_text("Type the new name for the selected animation:")
                 .with_value(
@@ -800,7 +801,8 @@ impl Toolbar {
                 self.animation_name_input_box = InputBoxBuilder::new(
                     WindowBuilder::new(WidgetBuilder::new().with_width(320.0).with_height(120.0))
                         .with_title(WindowTitle::text("New Animation Name"))
-                        .open(false),
+                        .open(false)
+                        .with_remove_on_close(true),
                 )
                 .with_text("Type the name for the new animation:")
                 .with_value("Animation".to_string())
