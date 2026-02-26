@@ -405,7 +405,7 @@ impl Graph {
         // Create root node.
         let mut root_node = Pivot::default();
         let instance_id = root_node.instance_id;
-        root_node.set_name("__ROOT__");
+        root_node.set_name("SceneRoot");
 
         // Add it to the pool.
         let mut pool = Pool::new();
