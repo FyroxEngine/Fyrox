@@ -23,13 +23,14 @@ use crate::{
     fyrox::{
         asset::{manager::ResourceManager, untyped::UntypedResource},
         core::{
-            algebra::Vector2, make_relative_path, pool::Handle, reflect::prelude::*,
+            algebra::Vector2, color::Color, make_relative_path, pool::Handle, reflect::prelude::*,
             type_traits::prelude::*, uuid_provider, visitor::prelude::*,
         },
         graph::SceneGraph,
         gui::{
+            button::{Button, ButtonMessage},
             grid::{Column, GridBuilder, Row},
-            image::{ImageBuilder, ImageMessage},
+            image::{Image, ImageBuilder, ImageMessage},
             inspector::{
                 editors::{
                     PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
@@ -37,77 +38,25 @@ use crate::{
                 },
                 FieldAction, InspectorError, PropertyChanged,
             },
-            menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
-            message::{MessageDirection, UiMessage},
-            popup::{PopupBuilder, PopupMessage},
-            stack_panel::StackPanelBuilder,
-            text::TextBuilder,
-            utils::make_asset_preview_tooltip,
+            message::{MessageData, MessageDirection, UiMessage},
+            text::{Text, TextBuilder, TextMessage},
+            utils::{make_asset_preview_tooltip, ImageButtonBuilder},
             widget::{Widget, WidgetBuilder, WidgetMessage},
-            BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface,
-            VerticalAlignment,
+            BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
         resource::texture::{Texture, TextureResource},
     },
+    load_image,
     message::MessageSender,
     plugins::inspector::EditorEnvironment,
     utils, Message,
 };
-use fyrox::gui::image::Image;
-use fyrox::gui::menu::MenuItem;
-use fyrox::gui::message::MessageData;
-use fyrox::gui::text::{Text, TextMessage};
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
-
-#[derive(Clone, Debug, PartialEq)]
-struct TextureContextMenu {
-    popup: RcUiNodeHandle,
-    show_in_asset_browser: Handle<MenuItem>,
-    unassign: Handle<MenuItem>,
-}
-
-impl TextureContextMenu {
-    fn new(owner: Handle<TextureEditor>, ctx: &mut BuildContext) -> Self {
-        let show_in_asset_browser;
-        let unassign;
-        let popup = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
-                .with_content(
-                    StackPanelBuilder::new(
-                        WidgetBuilder::new()
-                            .with_child({
-                                show_in_asset_browser = MenuItemBuilder::new(WidgetBuilder::new())
-                                    .with_content(MenuItemContent::text("Show In Asset Browser"))
-                                    .build(ctx);
-                                show_in_asset_browser
-                            })
-                            .with_child({
-                                unassign = MenuItemBuilder::new(WidgetBuilder::new())
-                                    .with_content(MenuItemContent::text("Unassign"))
-                                    .build(ctx);
-                                unassign
-                            }),
-                    )
-                    .build(ctx),
-                )
-                .with_restrict_picking(false)
-                .with_owner(owner.to_base()),
-        )
-        .build(ctx);
-        let popup = RcUiNodeHandle::new(popup, ctx.sender());
-
-        Self {
-            popup,
-            show_in_asset_browser,
-            unassign,
-        }
-    }
-}
 
 #[derive(Clone, Visit, Reflect, ComponentProvider)]
 #[reflect(derived_type = "UiNode")]
@@ -116,13 +65,12 @@ pub struct TextureEditor {
     image: Handle<Image>,
     path: Handle<Text>,
     texture: Option<TextureResource>,
+    unassign: Handle<Button>,
+    locate: Handle<Button>,
     selector_mixin: AssetSelectorMixin<Texture>,
     #[visit(skip)]
     #[reflect(hidden)]
     sender: MessageSender,
-    #[visit(skip)]
-    #[reflect(hidden)]
-    texture_context_menu: Option<TextureContextMenu>,
 }
 
 impl Debug for TextureEditor {
@@ -194,21 +142,16 @@ impl Control for TextureEditor {
 
                 ui.send_message(message.reverse());
             }
-        } else if let Some(PopupMessage::RelayedMessage(message)) = message.data() {
-            let context_menu = self.texture_context_menu.as_mut().unwrap();
-            if let Some(MenuItemMessage::Click) = message.data() {
-                if message.destination() == context_menu.show_in_asset_browser {
-                    if let Some(path) = self.texture.as_ref().and_then(|t| {
-                        self.selector_mixin
-                            .resource_manager
-                            .resource_path(t.as_ref())
-                    }) {
-                        self.sender.send(Message::ShowInAssetBrowser(path));
-                    }
-                } else if message.destination() == context_menu.unassign {
-                    ui.send(self.handle, TextureEditorMessage::Texture(None));
-                }
+        } else if let Some(ButtonMessage::Click) = message.data_from(self.locate) {
+            if let Some(path) = self.texture.as_ref().and_then(|t| {
+                self.selector_mixin
+                    .resource_manager
+                    .resource_path(t.as_ref())
+            }) {
+                self.sender.send(Message::ShowInAssetBrowser(path));
             }
+        } else if let Some(ButtonMessage::Click) = message.data_from(self.unassign) {
+            ui.send(self.handle, TextureEditorMessage::Texture(None));
         }
 
         self.selector_mixin
@@ -283,15 +226,36 @@ impl TextureEditorBuilder {
         .with_text(texture_name(self.texture.as_ref(), &resource_manager))
         .build(ctx);
 
+        let locate = ImageButtonBuilder::default()
+            .on_column(3)
+            .with_image_size(14.0)
+            .with_size(22.0)
+            .with_image(load_image!("../../../../resources/locate.png"))
+            .with_tooltip("Show In Asset Browser")
+            .build_button(ctx);
+
+        let unassign = ImageButtonBuilder::default()
+            .on_column(4)
+            .with_image_size(14.0)
+            .with_size(22.0)
+            .with_image_color(Color::opaque(180, 0, 0))
+            .with_image(load_image!("../../../../resources/cross.png"))
+            .with_tooltip("Unassign. Fallback will be used instead.")
+            .build_button(ctx);
+
         let content = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child(image)
                 .with_child(path)
-                .with_child(select),
+                .with_child(select)
+                .with_child(locate)
+                .with_child(unassign),
         )
         .add_row(Row::auto())
         .add_column(Column::auto())
         .add_column(Column::stretch())
+        .add_column(Column::auto())
+        .add_column(Column::auto())
         .add_column(Column::auto())
         .build(ctx);
 
@@ -307,19 +271,13 @@ impl TextureEditorBuilder {
             image,
             path,
             texture: None,
+            unassign,
+            locate,
             selector_mixin: AssetSelectorMixin::new(select, icon_request_sender, resource_manager),
             sender,
-            texture_context_menu: None,
         };
 
-        let editor = ctx.add(editor);
-
-        let texture_context_menu = TextureContextMenu::new(editor, ctx);
-        let editor_mut = &mut ctx.inner_mut()[editor];
-        editor_mut.context_menu = Some(texture_context_menu.popup.clone());
-        editor_mut.texture_context_menu = Some(texture_context_menu);
-
-        editor.to_variant()
+        ctx.add(editor)
     }
 }
 
