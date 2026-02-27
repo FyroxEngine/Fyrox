@@ -20,8 +20,6 @@
 
 //! A widget that shows numeric value as a set of individual bits allowing switching separate bits.
 
-use crate::message::MessageData;
-use crate::resources::BITS_ICON;
 use crate::{
     brush::Brush,
     core::{
@@ -36,7 +34,8 @@ use crate::{
         visitor::prelude::*,
     },
     draw::{CommandTexture, Draw, DrawingContext},
-    message::{ButtonState, UiMessage},
+    message::{ButtonState, MessageData, UiMessage},
+    resources::BITS_ICON,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, MessageDirection, MouseButton, UiNode, UserInterface, WidgetMessage,
 };
@@ -47,12 +46,13 @@ use std::{
     ops::{BitAnd, BitOr, Deref, DerefMut, Not, Shl},
 };
 
-const BIT_SIZE: f32 = 16.0;
+const BIT_SIZE: f32 = 18.0;
 const BYTE_GAP: f32 = 8.0;
 const ROW_GAP: f32 = 4.0;
+const BIT_GAP: f32 = 2.0;
 
-const ON_NORMAL: Brush = Brush::Solid(Color::DARK_GRAY);
-const ON_HOVER: Brush = Brush::Solid(Color::LIGHT_BLUE);
+const ON_NORMAL: Brush = Brush::Solid(Color::opaque(80, 118, 178));
+const ON_HOVER: Brush = Brush::Solid(Color::opaque(50, 88, 148));
 const OFF_HOVER: Brush = Brush::Solid(Color::DARK_SLATE_BLUE);
 
 pub trait BitContainer:
@@ -198,7 +198,7 @@ fn bit_to_rect(index: usize, width: usize) -> Rect<f32> {
     let (byte_y, byte_x) = byte_index.div_rem_euclid(&width);
     let row_stride = BIT_SIZE + ROW_GAP;
     let col_stride = BIT_SIZE * 8.0 + BYTE_GAP;
-    let x = col_stride * byte_x as f32 + BIT_SIZE * bit_index as f32;
+    let x = col_stride * byte_x as f32 + (BIT_SIZE + BIT_GAP) * bit_index as f32;
     let y = row_stride * byte_y as f32;
     Rect::new(x, y, BIT_SIZE, BIT_SIZE)
 }
@@ -301,7 +301,7 @@ where
         }
         ctx.commit(
             self.clip_bounds(),
-            Brush::Solid(Color::WHITE),
+            Brush::Solid(Color::repeat_opaque(20)),
             CommandTexture::None,
             &self.material,
             None,
@@ -313,7 +313,7 @@ where
         }
         ctx.commit(
             self.clip_bounds(),
-            Brush::Solid(Color::BLACK),
+            Brush::Solid(Color::opaque(200, 200, 200)),
             CommandTexture::Texture(BITS_ICON.clone().unwrap()),
             &self.material,
             None,
@@ -325,7 +325,7 @@ where
         }
         ctx.commit(
             self.clip_bounds(),
-            Brush::Solid(Color::GRAY),
+            Brush::Solid(Color::opaque(200, 200, 200)),
             CommandTexture::Texture(BITS_ICON.clone().unwrap()),
             &self.material,
             None,
@@ -428,11 +428,11 @@ where
     }
     fn draw_bit_background(&self, index: usize, width: usize, ctx: &mut DrawingContext) {
         let rect = bit_to_rect(index, width);
-        ctx.push_rect_filled(&rect, None);
+        ctx.push_rounded_rect_filled(&rect, 3.0, 4);
     }
     fn draw_bit_foreground(&self, index: usize, width: usize, ctx: &mut DrawingContext) {
         let rect = bit_to_rect(index, width);
-        ctx.push_rect(&rect, 1.0);
+        ctx.push_rounded_rect(&rect, 1.0, 3.0, 4);
     }
     fn draw_bit_icon(&self, index: usize, width: usize, ctx: &mut DrawingContext) {
         let rect = bit_to_rect(index, width);
