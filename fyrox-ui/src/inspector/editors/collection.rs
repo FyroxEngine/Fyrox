@@ -19,10 +19,10 @@
 // SOFTWARE.
 
 use crate::{
-    button::{ButtonBuilder, ButtonMessage},
+    button::{Button, ButtonMessage},
     core::{
-        pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
-        PhantomDataSendSync,
+        color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        visitor::prelude::*, PhantomDataSendSync,
     },
     grid::{Column, GridBuilder, Row},
     inspector::{
@@ -34,16 +34,14 @@ use crate::{
         make_expander_container, make_property_margin, CollectionAction, FieldAction,
         InspectorEnvironment, InspectorError, ObjectValue, PropertyChanged, PropertyFilter,
     },
-    message::{MessageDirection, UiMessage},
-    stack_panel::StackPanelBuilder,
+    message::{DeliveryMode, MessageData, MessageDirection, UiMessage},
+    resources,
+    stack_panel::{StackPanel, StackPanelBuilder},
+    utils::ImageButtonBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
-
-use crate::button::Button;
-use crate::message::{DeliveryMode, MessageData};
-use crate::stack_panel::StackPanel;
 use fyrox_graph::SceneGraph;
 use std::{
     any::TypeId,
@@ -276,18 +274,17 @@ where
                 ctx[editor].set_margin(make_property_margin(layer_index + 1));
             }
 
-            let remove = ButtonBuilder::new(
-                WidgetBuilder::new()
-                    .with_visibility(!immutable_collection)
-                    .with_margin(Thickness::uniform(1.0))
-                    .with_vertical_alignment(VerticalAlignment::Top)
-                    .with_horizontal_alignment(HorizontalAlignment::Right)
-                    .on_column(1)
-                    .with_width(16.0)
-                    .with_height(16.0),
-            )
-            .with_text("-")
-            .build(ctx);
+            let remove = ImageButtonBuilder::default()
+                .with_tooltip("Remove Item")
+                .with_image_color(Color::opaque(200, 0, 0))
+                .with_visibility(!immutable_collection)
+                .with_vertical_alignment(VerticalAlignment::Top)
+                .with_horizontal_alignment(HorizontalAlignment::Right)
+                .on_column(1)
+                .with_image_size(12.0)
+                .with_size(18.0)
+                .with_image(resources::REMOVE.clone())
+                .build_button(ctx);
 
             items.push(Item {
                 editor_instance: editor,
@@ -466,17 +463,22 @@ where
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<Vec<T>>()?;
 
-        let add = ButtonBuilder::new(
-            WidgetBuilder::new()
-                .with_visibility(!ctx.property_info.immutable_collection)
-                .with_horizontal_alignment(HorizontalAlignment::Right)
-                .with_width(16.0)
-                .with_height(16.0)
-                .on_column(1)
-                .with_margin(Thickness::uniform(1.0)),
-        )
-        .with_text("+")
-        .build(ctx.build_context);
+        let add = ImageButtonBuilder::default()
+            .with_margin(Thickness {
+                left: 1.0,
+                top: 1.0,
+                right: 2.0,
+                bottom: 1.0,
+            })
+            .with_tooltip("Add Item")
+            .with_image_color(Color::opaque(0, 200, 0))
+            .with_visibility(!ctx.property_info.immutable_collection)
+            .with_horizontal_alignment(HorizontalAlignment::Right)
+            .on_column(1)
+            .with_image_size(12.0)
+            .with_size(18.0)
+            .with_image(resources::ADD.clone())
+            .build_button(ctx.build_context);
 
         let editor;
         let container = make_expander_container(

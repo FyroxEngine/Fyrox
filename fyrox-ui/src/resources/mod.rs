@@ -34,3 +34,5 @@ built_in_image!(REVERT_ICON = "revert.png");
 built_in_image!(FOLDER_ICON = "folder.png");
 built_in_image!(BIND_ICON = "chain.png");
 built_in_image!(CHECK = "check.png");
+built_in_image!(ADD = "add.png");
+built_in_image!(REMOVE = "cross.png");
