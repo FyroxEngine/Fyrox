@@ -502,18 +502,17 @@ impl AssetItemContextMenu {
                     }
                 }
             }
-        } else if let Some(MessageBoxMessage::Close(result)) = message.data() {
-            if message.destination() == self.delete_confirmation_dialog {
-                if *result == MessageBoxResult::Yes {
-                    if self.path_to_delete.is_file() {
-                        Log::verify(std::fs::remove_file(&self.path_to_delete));
-                    } else if self.path_to_delete.is_dir() {
-                        Log::verify(std::fs::remove_dir_all(&self.path_to_delete));
-                    }
+        } else if let Some(MessageBoxMessage::Close(result)) =
+            message.data_from(self.delete_confirmation_dialog)
+        {
+            if *result == MessageBoxResult::Yes {
+                if self.path_to_delete.is_file() {
+                    Log::verify(std::fs::remove_file(&self.path_to_delete));
+                } else if self.path_to_delete.is_dir() {
+                    Log::verify(std::fs::remove_dir_all(&self.path_to_delete));
                 }
-
-                self.delete_confirmation_dialog = Handle::NONE;
             }
+            self.delete_confirmation_dialog = Handle::NONE;
         }
 
         false

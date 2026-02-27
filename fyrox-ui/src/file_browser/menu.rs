@@ -144,22 +144,22 @@ impl Control for ItemContextMenu {
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         self.base_menu.preview_message(ui, message);
 
-        if let Some(MessageBoxMessage::Close(result)) = message.data() {
-            if message.destination() == self.delete_message_box.get() {
-                if let MessageBoxResult::Yes = *result {
-                    if let Some(item_path) = self.item_path(ui).map(|p| p.into_path()) {
-                        if item_path.is_dir() {
-                            Log::verify(std::fs::remove_dir_all(item_path));
-                        } else {
-                            Log::verify(std::fs::remove_file(item_path));
-                        }
+        if let Some(MessageBoxMessage::Close(result)) =
+            message.data_from(self.delete_message_box.get())
+        {
+            if let MessageBoxResult::Yes = *result {
+                if let Some(item_path) = self.item_path(ui).map(|p| p.into_path()) {
+                    if item_path.is_dir() {
+                        Log::verify(std::fs::remove_dir_all(item_path));
+                    } else {
+                        Log::verify(std::fs::remove_file(item_path));
                     }
                 }
-
-                ui.send(self.delete_message_box.get(), WidgetMessage::Remove);
-
-                self.delete_message_box.set(Handle::NONE);
             }
+
+            ui.send(self.delete_message_box.get(), WidgetMessage::Remove);
+
+            self.delete_message_box.set(Handle::NONE);
         } else if let Some(FolderNameDialogMessage::Name(folder_name)) =
             message.data_from(self.folder_name_dialog)
         {

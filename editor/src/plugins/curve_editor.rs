@@ -510,31 +510,33 @@ impl CurveEditorWindow {
                 self.path.clone_from(path);
                 self.save();
             }
-        } else if let Some(MessageBoxMessage::Close(result)) = message.data() {
-            if message.destination() == self.save_changes_message_box {
-                match result {
-                    MessageBoxResult::No => {
-                        self.revert();
-                        self.destroy(ui);
-                        return None;
-                    }
-                    MessageBoxResult::Yes => {
-                        if self.path == PathBuf::default() {
-                            self.open_save_file_dialog(&engine.resource_manager, ui);
-                        } else {
-                            self.save();
-                            self.destroy(ui);
-                            return None;
-                        }
-                    }
-                    _ => (),
-                }
-            } else if message.destination() == self.cancel_message_box {
-                if let MessageBoxResult::Yes = result {
+        } else if let Some(MessageBoxMessage::Close(result)) =
+            message.data_from(self.save_changes_message_box)
+        {
+            match result {
+                MessageBoxResult::No => {
                     self.revert();
                     self.destroy(ui);
                     return None;
                 }
+                MessageBoxResult::Yes => {
+                    if self.path == PathBuf::default() {
+                        self.open_save_file_dialog(&engine.resource_manager, ui);
+                    } else {
+                        self.save();
+                        self.destroy(ui);
+                        return None;
+                    }
+                }
+                _ => (),
+            }
+        } else if let Some(MessageBoxMessage::Close(result)) =
+            message.data_from(self.cancel_message_box)
+        {
+            if let MessageBoxResult::Yes = result {
+                self.revert();
+                self.destroy(ui);
+                return None;
             }
         }
 

@@ -1272,16 +1272,16 @@ impl ProjectManager {
             if message.destination() == self.import_project_dialog {
                 self.try_import(path, ui);
             }
-        } else if let Some(MessageBoxMessage::Close(MessageBoxResult::Yes)) = message.data() {
-            if message.destination() == self.deletion_confirmation_dialog {
-                if let Some(index) = self.selection {
-                    if let Some(project) = self.settings.projects.get(index) {
-                        if let Some(dir) = project.manifest_path.parent() {
-                            let _ = std::fs::remove_dir_all(dir);
-                        }
-                        self.settings.projects.remove(index);
-                        self.refresh(ui);
+        } else if let Some(MessageBoxMessage::Close(MessageBoxResult::Yes)) =
+            message.data_from(self.deletion_confirmation_dialog)
+        {
+            if let Some(index) = self.selection {
+                if let Some(project) = self.settings.projects.get(index) {
+                    if let Some(dir) = project.manifest_path.parent() {
+                        let _ = std::fs::remove_dir_all(dir);
                     }
+                    self.settings.projects.remove(index);
+                    self.refresh(ui);
                 }
             }
         } else if let Some(WidgetMessage::KeyDown(key)) = message.data() {

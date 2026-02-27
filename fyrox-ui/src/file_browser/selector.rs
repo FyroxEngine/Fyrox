@@ -288,16 +288,16 @@ impl Control for FileSelector {
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         self.window.preview_message(ui, message);
 
-        if let Some(MessageBoxMessage::Close(result)) = message.data() {
-            if message.destination() == self.overwrite_message_box.get() {
-                if let MessageBoxResult::Yes = *result {
-                    ui.send(self.handle, FileSelectorMessage::Commit(self.final_path()));
-                }
-
-                ui.send(self.overwrite_message_box.get(), WidgetMessage::Remove);
-
-                self.overwrite_message_box.set(Handle::NONE);
+        if let Some(MessageBoxMessage::Close(result)) =
+            message.data_from(self.overwrite_message_box.get())
+        {
+            if let MessageBoxResult::Yes = *result {
+                ui.send(self.handle, FileSelectorMessage::Commit(self.final_path()));
             }
+
+            ui.send(self.overwrite_message_box.get(), WidgetMessage::Remove);
+
+            self.overwrite_message_box.set(Handle::NONE);
         }
     }
 

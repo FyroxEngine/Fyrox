@@ -242,7 +242,7 @@ impl Control for MessageBox {
                     MessageBoxMessage::Close(MessageBoxResult::No),
                 );
             }
-        } else if let Some(msg) = message.data::<MessageBoxMessage>() {
+        } else if let Some(msg) = message.data_for::<MessageBoxMessage>(self.handle) {
             match msg {
                 MessageBoxMessage::Open { title, text } => {
                     if let Some(title) = title {
@@ -268,6 +268,8 @@ impl Control for MessageBox {
                 MessageBoxMessage::Close(_) => {
                     // Translate message box message into window message.
                     ui.send(self.handle(), WindowMessage::Close);
+
+                    ui.send_message(message.reverse());
                 }
             }
         }

@@ -437,59 +437,57 @@ impl SaveSceneConfirmationDialog {
         sender: &MessageSender,
         scenes: &SceneContainer,
     ) {
-        if let Some(MessageBoxMessage::Close(result)) = message.data() {
-            if message.destination() == self.save_message_box {
-                match result {
-                    MessageBoxResult::No => match self.action {
-                        SaveSceneConfirmationDialogAction::None => {}
-                        SaveSceneConfirmationDialogAction::OpenLoadSceneDialog => {
-                            sender.send(Message::OpenLoadSceneDialog)
-                        }
-                        SaveSceneConfirmationDialogAction::MakeNewScene => {
-                            sender.send(Message::NewScene)
-                        }
-                        SaveSceneConfirmationDialogAction::CloseScene(scene) => {
-                            sender.send(Message::CloseScene(scene))
-                        }
-                        SaveSceneConfirmationDialogAction::LoadScene(ref path) => {
-                            sender.send(Message::LoadScene(path.clone()))
-                        }
-                    },
-                    MessageBoxResult::Yes => {
-                        if let Some(entry) = scenes.entry_by_scene_id(self.id) {
-                            if let Some(path) = entry.path.clone() {
-                                // If the scene was already saved into some file - save it
-                                // immediately and perform the requested action.
-                                sender.send(Message::SaveScene { id: self.id, path });
+        if let Some(MessageBoxMessage::Close(result)) = message.data_from(self.save_message_box) {
+            match result {
+                MessageBoxResult::No => match self.action {
+                    SaveSceneConfirmationDialogAction::None => {}
+                    SaveSceneConfirmationDialogAction::OpenLoadSceneDialog => {
+                        sender.send(Message::OpenLoadSceneDialog)
+                    }
+                    SaveSceneConfirmationDialogAction::MakeNewScene => {
+                        sender.send(Message::NewScene)
+                    }
+                    SaveSceneConfirmationDialogAction::CloseScene(scene) => {
+                        sender.send(Message::CloseScene(scene))
+                    }
+                    SaveSceneConfirmationDialogAction::LoadScene(ref path) => {
+                        sender.send(Message::LoadScene(path.clone()))
+                    }
+                },
+                MessageBoxResult::Yes => {
+                    if let Some(entry) = scenes.entry_by_scene_id(self.id) {
+                        if let Some(path) = entry.path.clone() {
+                            // If the scene was already saved into some file - save it
+                            // immediately and perform the requested action.
+                            sender.send(Message::SaveScene { id: self.id, path });
 
-                                match self.action {
-                                    SaveSceneConfirmationDialogAction::None => {}
-                                    SaveSceneConfirmationDialogAction::OpenLoadSceneDialog => {
-                                        sender.send(Message::OpenLoadSceneDialog)
-                                    }
-                                    SaveSceneConfirmationDialogAction::MakeNewScene => {
-                                        sender.send(Message::NewScene)
-                                    }
-                                    SaveSceneConfirmationDialogAction::CloseScene(scene) => {
-                                        sender.send(Message::CloseScene(scene))
-                                    }
-                                    SaveSceneConfirmationDialogAction::LoadScene(ref path) => {
-                                        sender.send(Message::LoadScene(path.clone()))
-                                    }
+                            match self.action {
+                                SaveSceneConfirmationDialogAction::None => {}
+                                SaveSceneConfirmationDialogAction::OpenLoadSceneDialog => {
+                                    sender.send(Message::OpenLoadSceneDialog)
                                 }
-
-                                self.action = SaveSceneConfirmationDialogAction::None;
-                            } else {
-                                // Otherwise, open save scene dialog and do the action after the
-                                // scene was saved.
-                                sender.send(Message::OpenSaveSceneDialog {
-                                    default_file_info: entry.default_file_info(),
-                                })
+                                SaveSceneConfirmationDialogAction::MakeNewScene => {
+                                    sender.send(Message::NewScene)
+                                }
+                                SaveSceneConfirmationDialogAction::CloseScene(scene) => {
+                                    sender.send(Message::CloseScene(scene))
+                                }
+                                SaveSceneConfirmationDialogAction::LoadScene(ref path) => {
+                                    sender.send(Message::LoadScene(path.clone()))
+                                }
                             }
+
+                            self.action = SaveSceneConfirmationDialogAction::None;
+                        } else {
+                            // Otherwise, open save scene dialog and do the action after the
+                            // scene was saved.
+                            sender.send(Message::OpenSaveSceneDialog {
+                                default_file_info: entry.default_file_info(),
+                            })
                         }
                     }
-                    _ => (),
                 }
+                _ => (),
             }
         }
     }
@@ -1564,37 +1562,35 @@ impl Editor {
             );
         }
 
-        if let Some(MessageBoxMessage::Close(result)) = message.data() {
-            if message.destination() == self.exit_message_box {
-                match result {
-                    MessageBoxResult::No => {
-                        self.message_sender.send(Message::Exit { force: true });
-                    }
-                    MessageBoxResult::Yes => {
-                        if let Some(first_unsaved) = self.scenes.first_unsaved_scene() {
-                            if first_unsaved.need_save() {
-                                if let Some(path) = first_unsaved.path.as_ref() {
-                                    self.message_sender.send(Message::SaveScene {
-                                        id: first_unsaved.id,
-                                        path: path.clone(),
-                                    });
+        if let Some(MessageBoxMessage::Close(result)) = message.data_from(self.exit_message_box) {
+            match result {
+                MessageBoxResult::No => {
+                    self.message_sender.send(Message::Exit { force: true });
+                }
+                MessageBoxResult::Yes => {
+                    if let Some(first_unsaved) = self.scenes.first_unsaved_scene() {
+                        if first_unsaved.need_save() {
+                            if let Some(path) = first_unsaved.path.as_ref() {
+                                self.message_sender.send(Message::SaveScene {
+                                    id: first_unsaved.id,
+                                    path: path.clone(),
+                                });
 
-                                    self.message_sender
-                                        .send(Message::CloseScene(first_unsaved.id));
+                                self.message_sender
+                                    .send(Message::CloseScene(first_unsaved.id));
 
-                                    self.message_sender.send(Message::Exit {
-                                        force: self.scenes.unsaved_scene_count() == 1,
-                                    });
-                                } else {
-                                    self.message_sender.send(Message::OpenSaveSceneDialog {
-                                        default_file_info: first_unsaved.default_file_info(),
-                                    });
-                                }
+                                self.message_sender.send(Message::Exit {
+                                    force: self.scenes.unsaved_scene_count() == 1,
+                                });
+                            } else {
+                                self.message_sender.send(Message::OpenSaveSceneDialog {
+                                    default_file_info: first_unsaved.default_file_info(),
+                                });
                             }
                         }
                     }
-                    _ => {}
                 }
+                _ => {}
             }
         }
 
