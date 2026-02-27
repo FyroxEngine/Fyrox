@@ -170,7 +170,11 @@ fn main() {
                             loop {
                                 let poll_result = ui.poll_message_queue();
                                 if let Some(message) = poll_result.message {
-                                    project_manager.handle_ui_message(&message, ui);
+                                    project_manager.handle_ui_message(
+                                        &message,
+                                        ui,
+                                        active_event_loop,
+                                    );
                                 } else {
                                     break;
                                 }
@@ -211,7 +215,10 @@ fn main() {
                         WindowEvent::Focused(focus) => {
                             project_manager.focused = focus;
                         }
-                        WindowEvent::CloseRequested => active_event_loop.exit(),
+                        WindowEvent::CloseRequested => {
+                            let ui = engine.user_interfaces.first_mut();
+                            project_manager.request_close(ui, active_event_loop);
+                        }
                         WindowEvent::Resized(size) => {
                             if let Err(e) = engine.set_frame_size(size.into()) {
                                 Log::writeln(

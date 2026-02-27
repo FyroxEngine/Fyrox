@@ -24,54 +24,54 @@ use crate::{
     upgrade::UpgradeTool,
     utils::{self, is_production_ready},
 };
-use fyrox::core::pool::HandlesVecExtension;
-use fyrox::gui::button::Button;
-use fyrox::gui::check_box::CheckBox;
-use fyrox::gui::decorator::Decorator;
-use fyrox::gui::file_browser::{FileSelector, FileSelectorMode, PathFilter};
-use fyrox::gui::grid::Grid;
-use fyrox::gui::list_view::ListView;
-use fyrox::gui::messagebox::MessageBox;
-use fyrox::gui::searchbar::SearchBar;
-use fyrox::gui::stack_panel::StackPanel;
-use fyrox::gui::text::Text;
-use fyrox::gui::text_box::EmptyTextPlaceholder;
-use fyrox::gui::utils::ImageButtonBuilder;
-use fyrox::gui::window::WindowAlignment;
 use fyrox::{
-    core::{color::Color, log::Log, pool::Handle, some_or_return},
+    core::{
+        color::Color,
+        log::Log,
+        pool::{Handle, HandlesVecExtension},
+        some_or_return,
+    },
+    event_loop::ActiveEventLoop,
     gui::{
         border::BorderBuilder,
         brush::Brush,
-        button::{ButtonBuilder, ButtonMessage},
-        check_box::{CheckBoxBuilder, CheckBoxMessage},
-        decorator::DecoratorBuilder,
-        file_browser::{FileSelectorBuilder, FileSelectorMessage},
+        button::{Button, ButtonBuilder, ButtonMessage},
+        check_box::{CheckBox, CheckBoxBuilder, CheckBoxMessage},
+        decorator::{Decorator, DecoratorBuilder},
+        file_browser::{
+            FileSelector, FileSelectorBuilder, FileSelectorMessage, FileSelectorMode, PathFilter,
+        },
         formatted_text::WrapMode,
-        grid::{Column, GridBuilder, Row},
+        grid::{Column, Grid, GridBuilder, Row},
         image::ImageBuilder,
-        list_view::{ListViewBuilder, ListViewMessage},
+        list_view::{ListView, ListViewBuilder, ListViewMessage},
         log::LogPanel,
         message::{KeyCode, UiMessage},
-        messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult},
+        messagebox::{
+            MessageBox, MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult,
+        },
         navigation::NavigationLayerBuilder,
-        searchbar::{SearchBarBuilder, SearchBarMessage},
-        stack_panel::StackPanelBuilder,
+        searchbar::{SearchBar, SearchBarBuilder, SearchBarMessage},
+        stack_panel::{StackPanel, StackPanelBuilder},
         style::{resource::StyleResourceExt, Style},
-        text::{TextBuilder, TextMessage},
-        utils::{load_image, make_simple_tooltip, make_text_and_image_button_with_tooltip},
+        text::{Text, TextBuilder, TextMessage},
+        text_box::EmptyTextPlaceholder,
+        utils::{
+            load_image, make_simple_tooltip, make_text_and_image_button_with_tooltip,
+            ImageButtonBuilder,
+        },
         widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage, WindowTitle},
+        window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
         VerticalAlignment,
     },
 };
 use fyrox_build_tools::{build::BuildWindow, BuildProfile, CommandDescriptor};
-use std::sync::mpsc::{channel, Receiver, Sender};
 use std::{
     collections::VecDeque,
     path::{Path, PathBuf},
     process::Stdio,
+    sync::mpsc::{channel, Receiver, Sender},
 };
 
 pub enum Mode {
@@ -167,6 +167,7 @@ pub struct ProjectManager {
     project_size_sender: Sender<ProjectSize>,
     pub focused: bool,
     pub update_loop_state: UpdateLoopState,
+    pub exit_confirmation_dialog: Handle<MessageBox>,
 }
 
 fn make_project_item(
@@ -780,6 +781,7 @@ impl ProjectManager {
             project_size_receiver,
             update_loop_state: Default::default(),
             project_size_sender,
+            exit_confirmation_dialog: Default::default(),
         }
     }
 
@@ -802,6 +804,32 @@ impl ProjectManager {
             WidgetMessage::Visibility(items.is_empty()),
         );
         ui.send(self.projects, ListViewMessage::Items(items));
+    }
+
+    pub fn request_close(&mut self, ui: &mut UserInterface, active_event_loop: &ActiveEventLoop) {
+        if self.mode.is_build() {
+            self.exit_confirmation_dialog = MessageBoxBuilder::new(
+                WindowBuilder::new(WidgetBuilder::new().with_width(280.0).with_height(120.0))
+                    .open(false)
+                    .with_remove_on_close(true)
+                    .with_title(WindowTitle::text("Confirm Exit")),
+            )
+            .with_text(
+                "The project manager is currently running a child process. An attempt to close \
+             the project manager will close your game/editor. Do you really want to exit?",
+            )
+            .with_buttons(MessageBoxButtons::YesNo)
+            .build(&mut ui.build_ctx());
+            ui.send(
+                self.exit_confirmation_dialog,
+                MessageBoxMessage::Open {
+                    title: None,
+                    text: None,
+                },
+            );
+        } else {
+            active_event_loop.exit()
+        }
     }
 
     fn handle_modes(&mut self, ui: &mut UserInterface) {
@@ -1214,7 +1242,12 @@ impl ProjectManager {
         }
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &mut UserInterface) {
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        ui: &mut UserInterface,
+        active_event_loop: &ActiveEventLoop,
+    ) {
         if let Some(project_wizard) = self.project_wizard.as_mut() {
             if project_wizard.handle_ui_message(message, ui, &mut self.settings) {
                 self.refresh(ui);
@@ -1288,6 +1321,10 @@ impl ProjectManager {
             if !message.handled() {
                 self.on_hot_key(*key, ui)
             }
+        } else if let Some(MessageBoxMessage::Close(MessageBoxResult::Yes)) =
+            message.data_from(self.exit_confirmation_dialog)
+        {
+            active_event_loop.exit()
         }
     }
 }
