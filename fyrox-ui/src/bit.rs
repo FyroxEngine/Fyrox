@@ -47,7 +47,7 @@ use std::{
 };
 
 const BIT_SIZE: f32 = 18.0;
-const BYTE_GAP: f32 = 8.0;
+const BYTE_GAP: f32 = 24.0;
 const ROW_GAP: f32 = 4.0;
 const BIT_GAP: f32 = 2.0;
 
