@@ -226,7 +226,7 @@ where
 {
     fn measure_override(&self, _ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         let size = mem::size_of::<T>();
-        let byte_size = BIT_SIZE * 8.0;
+        let byte_size = (BIT_SIZE + BIT_GAP) * 8.0;
         let width = available_size.x;
         let byte_width = if width.is_finite() {
             byte_width(width)
