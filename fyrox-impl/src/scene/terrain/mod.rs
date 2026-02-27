@@ -2650,7 +2650,7 @@ impl TerrainBuilder {
             width_chunks: 0..2,
             length_chunks: 0..2,
             mask_size: Vector2::new(256, 256),
-            height_map_size: Vector2::new(257, 257),
+            height_map_size: Vector2::new(259, 259),
             block_size: Vector2::new(33, 33),
             layers: Default::default(),
         }
