@@ -18,23 +18,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::style::StyledProperty;
 use crate::{
     border::BorderBuilder,
     button::{Button, ButtonBuilder},
-    core::{algebra::Vector2, color::Color, parking_lot::Mutex, pool::Handle},
+    core::{algebra::Vector2, color::Color, parking_lot::Mutex, pool::Handle, Uuid},
     decorator::DecoratorBuilder,
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
     image::{Image, ImageBuilder},
-    style::{resource::StyleResourceExt, Style},
+    style::{resource::StyleResourceExt, Style, StyledProperty},
     text::TextBuilder,
     toggle::{ToggleButton, ToggleButtonBuilder},
     vector_image::{Primitive, VectorImage, VectorImageBuilder},
     widget::WidgetBuilder,
     Brush, BuildContext, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode, VerticalAlignment,
 };
-use fyrox_core::Uuid;
 use fyrox_texture::{
     CompressionOptions, TextureImportOptions, TextureMinificationFilter, TextureResource,
     TextureResourceExtension,
@@ -313,6 +311,10 @@ pub struct ImageButtonBuilder<'a> {
     image_brush: Option<StyledProperty<Brush>>,
     column: usize,
     row: usize,
+    visibility: bool,
+    horizontal_alignment: HorizontalAlignment,
+    vertical_alignment: VerticalAlignment,
+    margin: Thickness,
 }
 
 impl<'a> Default for ImageButtonBuilder<'a> {
@@ -328,6 +330,10 @@ impl<'a> Default for ImageButtonBuilder<'a> {
             image_brush: None,
             column: 0,
             row: 0,
+            visibility: true,
+            horizontal_alignment: HorizontalAlignment::Stretch,
+            vertical_alignment: VerticalAlignment::Stretch,
+            margin: Thickness::uniform(1.0),
         }
     }
 }
@@ -395,6 +401,26 @@ impl<'a> ImageButtonBuilder<'a> {
         self
     }
 
+    pub fn with_visibility(mut self, visibility: bool) -> Self {
+        self.visibility = visibility;
+        self
+    }
+
+    pub fn with_horizontal_alignment(mut self, alignment: HorizontalAlignment) -> Self {
+        self.horizontal_alignment = alignment;
+        self
+    }
+
+    pub fn with_vertical_alignment(mut self, alignment: VerticalAlignment) -> Self {
+        self.vertical_alignment = alignment;
+        self
+    }
+
+    pub fn with_margin(mut self, margin: Thickness) -> Self {
+        self.margin = margin;
+        self
+    }
+
     pub fn build_button(self, ctx: &mut BuildContext) -> Handle<Button> {
         ButtonBuilder::new(
             WidgetBuilder::new()
@@ -403,8 +429,11 @@ impl<'a> ImageButtonBuilder<'a> {
                 .on_column(self.column)
                 .on_row(self.row)
                 .with_tab_index(self.tab_index)
+                .with_visibility(self.visibility)
+                .with_horizontal_alignment(self.horizontal_alignment)
+                .with_vertical_alignment(self.vertical_alignment)
                 .with_tooltip(make_simple_tooltip(ctx, self.tooltip))
-                .with_margin(Thickness::uniform(1.0)),
+                .with_margin(self.margin),
         )
         .with_content(
             ImageBuilder::new(
@@ -429,8 +458,11 @@ impl<'a> ImageButtonBuilder<'a> {
                 .with_width(self.width)
                 .with_height(self.height)
                 .with_tab_index(self.tab_index)
+                .with_visibility(self.visibility)
+                .with_horizontal_alignment(self.horizontal_alignment)
+                .with_vertical_alignment(self.vertical_alignment)
                 .with_tooltip(make_simple_tooltip(ctx, self.tooltip))
-                .with_margin(Thickness::uniform(1.0)),
+                .with_margin(self.margin),
         )
         .with_content(
             ImageBuilder::new(
