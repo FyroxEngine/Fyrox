@@ -36,3 +36,4 @@ built_in_image!(BIND_ICON = "chain.png");
 built_in_image!(CHECK = "check.png");
 built_in_image!(ADD = "add.png");
 built_in_image!(REMOVE = "cross.png");
+built_in_image!(SHUFFLE = "shuffle.png");

@@ -24,19 +24,17 @@
 #![warn(missing_docs)]
 
 use crate::{
-    button::{ButtonBuilder, ButtonMessage},
+    button::{Button, ButtonMessage},
     core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     define_widget_deref,
     grid::{Column, GridBuilder, Row},
-    message::UiMessage,
-    text::{TextBuilder, TextMessage},
+    message::{MessageData, UiMessage},
+    resources,
+    text::{Text, TextBuilder, TextMessage},
+    utils::ImageButtonBuilder,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
-
-use crate::button::Button;
-use crate::message::MessageData;
-use crate::text::Text;
 use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 
@@ -150,15 +148,14 @@ impl UuidEditorBuilder {
                     text
                 })
                 .with_child({
-                    generate = ButtonBuilder::new(
-                        WidgetBuilder::new()
-                            .on_column(1)
-                            .on_row(0)
-                            .with_width(24.0)
-                            .with_margin(Thickness::uniform(1.0)),
-                    )
-                    .with_text("^/v")
-                    .build(ctx);
+                    generate = ImageButtonBuilder::default()
+                        .on_column(1)
+                        .on_row(0)
+                        .with_size(20.0)
+                        .with_image_size(14.0)
+                        .with_image(resources::SHUFFLE.clone())
+                        .with_tooltip("New Random UUID")
+                        .build_button(ctx);
                     generate
                 }),
         )
