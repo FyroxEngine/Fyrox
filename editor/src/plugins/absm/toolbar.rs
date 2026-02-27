@@ -88,6 +88,7 @@ impl Toolbar {
             WidgetBuilder::new()
                 .with_child({
                     add_layer = ImageButtonBuilder::default()
+                        .with_size(24.0)
                         .with_image_color(Color::GREEN)
                         .with_image(load_image!("../../../resources/add.png"))
                         .with_tooltip("Add new layer.")
@@ -105,6 +106,7 @@ impl Toolbar {
                 })
                 .with_child({
                     edit_mask = ImageButtonBuilder::default()
+                        .with_size(24.0)
                         .with_image_color(Color::LIGHT_SKY_BLUE)
                         .with_image(load_image!("../../../resources/filter.png"))
                         .with_tooltip("Edit layer mask...")
@@ -113,6 +115,7 @@ impl Toolbar {
                 })
                 .with_child({
                     rename_layer = ImageButtonBuilder::default()
+                        .with_size(24.0)
                         .with_image_color(Color::ORANGE)
                         .with_image(load_image!("../../../resources/rename.png"))
                         .with_tooltip("Rename current layer.")
@@ -121,6 +124,7 @@ impl Toolbar {
                 })
                 .with_child({
                     remove_layer = ImageButtonBuilder::default()
+                        .with_size(24.0)
                         .with_image_color(Color::ORANGE_RED)
                         .with_image(load_image!("../../../resources/cross.png"))
                         .with_tooltip("Remove Selected Animation")
@@ -129,6 +133,7 @@ impl Toolbar {
                 })
                 .with_child({
                     preview = ImageButtonBuilder::default()
+                        .with_size(24.0)
                         .with_image(load_image!("../../../resources/eye.png"))
                         .with_tooltip("Preview")
                         .build_toggle(ctx);

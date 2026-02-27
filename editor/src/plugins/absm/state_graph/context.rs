@@ -226,7 +226,7 @@ impl NodeContextMenu {
                             })
                             .with_child({
                                 connect_to_all_nodes = create_menu_item(
-                                    "Create all transition from current state",
+                                    "Create Transitions With All States",
                                     Self::CREATE_ALL_TRANSITIONS,
                                     vec![],
                                     ctx,

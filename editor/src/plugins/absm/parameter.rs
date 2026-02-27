@@ -50,6 +50,7 @@ use crate::{
 };
 use fyrox::gui::inspector::Inspector;
 use fyrox::gui::window::Window;
+use fyrox::gui::Thickness;
 use std::sync::Arc;
 
 pub struct ParameterPanel {
@@ -74,7 +75,10 @@ impl ParameterPanel {
             .with_content(
                 ScrollViewerBuilder::new(WidgetBuilder::new())
                     .with_content({
-                        inspector = InspectorBuilder::new(WidgetBuilder::new()).build(ctx);
+                        inspector = InspectorBuilder::new(
+                            WidgetBuilder::new().with_margin(Thickness::uniform(3.0)),
+                        )
+                        .build(ctx);
                         inspector
                     })
                     .build(ctx),
