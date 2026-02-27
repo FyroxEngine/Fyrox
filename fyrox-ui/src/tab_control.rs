@@ -506,8 +506,15 @@ impl Header {
         let button = ButtonBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
             .with_back({
                 decorator = DecoratorBuilder::new(
-                    BorderBuilder::new(WidgetBuilder::new())
-                        .with_stroke_thickness(Thickness::uniform(0.0).into()),
+                    BorderBuilder::new(WidgetBuilder::new().with_margin(Thickness {
+                        left: 0.0,
+                        top: 2.0,
+                        right: 2.0,
+                        bottom: 2.0,
+                    }))
+                    .with_stroke_thickness(Thickness::uniform(0.0).into())
+                    .with_pad_by_corner_radius(false)
+                    .with_corner_radius(4.0.into()),
                 )
                 .with_normal_brush(ctx.style.property(Style::BRUSH_DARK))
                 .with_selected_brush(active_tab_brush)
@@ -627,7 +634,7 @@ impl TabControlBuilder {
 
         let active_tab_brush = self
             .active_tab_brush
-            .unwrap_or_else(|| ctx.style.property::<Brush>(Style::BRUSH_LIGHTEST));
+            .unwrap_or_else(|| ctx.style.property::<Brush>(Style::BRUSH_BRIGHT_BLUE));
 
         let tab_headers = self
             .tabs
