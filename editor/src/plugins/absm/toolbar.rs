@@ -26,15 +26,13 @@ use crate::{
         generic_animation::machine::{mask::LayerMask, Machine, MachineLayer},
         graph::{PrefabData, SceneGraph, SceneGraphNode},
         gui::{
-            button::{Button, ButtonBuilder, ButtonMessage},
+            button::{Button, ButtonMessage},
             dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
-            image::ImageBuilder,
             input::{InputBox, InputBoxBuilder, InputBoxMessage, InputBoxResult},
             message::UiMessage,
             stack_panel::{StackPanel, StackPanelBuilder},
-            style::{resource::StyleResourceExt, Style},
             toggle::{ToggleButton, ToggleButtonMessage},
-            utils::{make_dropdown_list_option, make_simple_tooltip, ImageButtonBuilder},
+            utils::{make_dropdown_list_option, ImageButtonBuilder},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, Orientation, Thickness, UserInterface,
@@ -89,19 +87,29 @@ impl Toolbar {
         let panel = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .with_child({
-                    preview = ImageButtonBuilder::default()
-                        .with_image(load_image!("../../../resources/eye.png"))
-                        .with_tooltip("Preview")
-                        .build_toggle(ctx);
-                    preview
-                })
-                .with_child({
                     add_layer = ImageButtonBuilder::default()
                         .with_image_color(Color::GREEN)
                         .with_image(load_image!("../../../resources/add.png"))
                         .with_tooltip("Add new layer.")
                         .build_button(ctx);
                     add_layer
+                })
+                .with_child({
+                    layers = DropdownListBuilder::new(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(1.0))
+                            .with_width(100.0),
+                    )
+                    .build(ctx);
+                    layers
+                })
+                .with_child({
+                    edit_mask = ImageButtonBuilder::default()
+                        .with_image_color(Color::LIGHT_SKY_BLUE)
+                        .with_image(load_image!("../../../resources/filter.png"))
+                        .with_tooltip("Edit layer mask...")
+                        .build_button(ctx);
+                    edit_mask
                 })
                 .with_child({
                     rename_layer = ImageButtonBuilder::default()
@@ -120,33 +128,11 @@ impl Toolbar {
                     remove_layer
                 })
                 .with_child({
-                    layers = DropdownListBuilder::new(
-                        WidgetBuilder::new()
-                            .with_margin(Thickness::uniform(1.0))
-                            .with_width(100.0),
-                    )
-                    .build(ctx);
-                    layers
-                })
-                .with_child({
-                    edit_mask = ButtonBuilder::new(
-                        WidgetBuilder::new()
-                            .with_margin(Thickness::uniform(1.0))
-                            .with_tooltip(make_simple_tooltip(ctx, "Edit layer mask...")),
-                    )
-                    .with_content(
-                        ImageBuilder::new(
-                            WidgetBuilder::new()
-                                .with_width(18.0)
-                                .with_height(18.0)
-                                .with_margin(Thickness::uniform(1.0))
-                                .with_background(ctx.style.property(Style::BRUSH_BRIGHT)),
-                        )
-                        .with_opt_texture(load_image!("../../../resources/filter.png"))
-                        .build(ctx),
-                    )
-                    .build(ctx);
-                    edit_mask
+                    preview = ImageButtonBuilder::default()
+                        .with_image(load_image!("../../../resources/eye.png"))
+                        .with_tooltip("Preview")
+                        .build_toggle(ctx);
+                    preview
                 }),
         )
         .with_orientation(Orientation::Horizontal)
