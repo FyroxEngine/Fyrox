@@ -384,5 +384,10 @@ impl Toolbar {
 
         ui.send_sync(self.layers, DropdownListMessage::Items(layers));
         ui.send_sync(self.layers, DropdownListMessage::Selection(selection.layer));
+
+        let enabled = selection.layer.is_some();
+        ui.send_sync(self.edit_mask, WidgetMessage::Enabled(enabled));
+        ui.send_sync(self.remove_layer, WidgetMessage::Enabled(enabled));
+        ui.send_sync(self.rename_layer, WidgetMessage::Enabled(enabled));
     }
 }
