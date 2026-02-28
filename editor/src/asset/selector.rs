@@ -27,25 +27,34 @@ use crate::{
     fyrox::{
         asset::{manager::ResourceManager, untyped::UntypedResource, Resource, TypedResourceData},
         core::{
-            log::Log, pool::Handle, reflect::prelude::*, some_or_continue, type_traits::prelude::*,
-            visitor::prelude::*, PhantomDataSendSync, SafeLock,
+            log::Log,
+            pool::{Handle, HandlesVecExtension},
+            reflect::prelude::*,
+            some_or_continue,
+            type_traits::prelude::*,
+            visitor::prelude::*,
+            PhantomDataSendSync, SafeLock,
         },
         graph::SceneGraph,
         gui::{
             border::BorderBuilder,
             brush::Brush,
             button::{Button, ButtonBuilder, ButtonMessage},
+            control_trait_proxy_impls,
             decorator::DecoratorBuilder,
             define_widget_deref,
             formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
+            image::Image,
             image::{ImageBuilder, ImageMessage},
             list_view::{ListView, ListViewBuilder, ListViewMessage},
             message::{MessageData, UiMessage},
             searchbar::{SearchBar, SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
             text::{Text, TextBuilder},
+            text_box::EmptyTextPlaceholder,
             widget::{Widget, WidgetBuilder, WidgetMessage},
+            window::WindowAlignment,
             window::{Window, WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
             BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode,
@@ -53,11 +62,8 @@ use crate::{
         },
     },
 };
-use fyrox::core::pool::HandlesVecExtension;
-use fyrox::gui::control_trait_proxy_impls;
-use fyrox::gui::image::Image;
-use fyrox::gui::text_box::EmptyTextPlaceholder;
-use fyrox::gui::window::WindowAlignment;
+use fyrox::gui::style::resource::StyleResourceExt;
+use fyrox::gui::style::Style;
 use rust_fuzzy_search::fuzzy_compare;
 use std::{
     borrow::Cow,
@@ -184,7 +190,7 @@ impl ItemBuilder {
                 )
                 .with_vertical_text_alignment(VerticalAlignment::Top)
                 .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                .with_wrap(WrapMode::Letter)
+                .with_wrap(WrapMode::Word)
                 .with_text(
                     self.path
                         .file_name()
@@ -204,9 +210,13 @@ impl ItemBuilder {
                 .widget_builder
                 .with_need_update(true)
                 .with_child(
-                    DecoratorBuilder::new(BorderBuilder::new(
-                        WidgetBuilder::new().with_child(content),
-                    ))
+                    DecoratorBuilder::new(
+                        BorderBuilder::new(WidgetBuilder::new().with_child(content))
+                            .with_pad_by_corner_radius(false)
+                            .with_stroke_thickness(Thickness::uniform(2.0).into())
+                            .with_corner_radius(4.0.into()),
+                    )
+                    .with_selected_brush(ctx.style.property(Style::BRUSH_BRIGHT_BLUE))
                     .build(ctx),
                 )
                 .build(ctx),
