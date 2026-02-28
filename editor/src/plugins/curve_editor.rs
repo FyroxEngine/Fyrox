@@ -530,14 +530,12 @@ impl CurveEditorWindow {
                 }
                 _ => (),
             }
-        } else if let Some(MessageBoxMessage::Close(result)) =
+        } else if let Some(MessageBoxMessage::Close(MessageBoxResult::Yes)) =
             message.data_from(self.cancel_message_box)
         {
-            if let MessageBoxResult::Yes = result {
-                self.revert();
-                self.destroy(ui);
-                return None;
-            }
+            self.revert();
+            self.destroy(ui);
+            return None;
         }
 
         Some(self)
