@@ -1541,6 +1541,7 @@ pub struct TextBoxBuilder<'a> {
     padding: Thickness,
     placeholder: EmptyTextPlaceholder<'a>,
     corner_radius: f32,
+    trim_text: bool,
 }
 
 impl<'a> TextBoxBuilder<'a> {
@@ -1574,6 +1575,7 @@ impl<'a> TextBoxBuilder<'a> {
             },
             placeholder: EmptyTextPlaceholder::None,
             corner_radius: 3.0,
+            trim_text: false,
         }
     }
 
@@ -1707,6 +1709,13 @@ impl<'a> TextBoxBuilder<'a> {
         self
     }
 
+    /// A flag, that defines whether the formatted text should add ellipsis (…) to lines that goes
+    /// outside provided bounds.
+    pub fn with_trim_text(mut self, trim: bool) -> Self {
+        self.trim_text = trim;
+        self
+    }
+
     /// Creates a new [`TextBox`] instance and adds it to the user interface.
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<TextBox> {
         let style = &ctx.style;
@@ -1751,6 +1760,7 @@ impl<'a> TextBoxBuilder<'a> {
                     .with_shadow_dilation(self.shadow_dilation)
                     .with_shadow_offset(self.shadow_offset)
                     .with_padding(self.padding)
+                    .with_trim_text(self.trim_text)
                     .with_font_size(
                         self.font_size
                             .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),

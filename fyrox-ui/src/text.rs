@@ -546,6 +546,7 @@ pub struct TextBuilder {
     shadow_offset: Vector2<f32>,
     font_size: Option<StyledProperty<f32>>,
     runs: Vec<Run>,
+    trim_text: bool,
 }
 
 impl TextBuilder {
@@ -565,6 +566,7 @@ impl TextBuilder {
             shadow_offset: Vector2::new(1.0, 1.0),
             font_size: None,
             runs: Vec::default(),
+            trim_text: true,
         }
     }
 
@@ -659,6 +661,13 @@ impl TextBuilder {
         self
     }
 
+    /// A flag, that defines whether the formatted text should add ellipsis (…) to lines that goes
+    /// outside provided bounds.
+    pub fn with_trim_text(mut self, trim: bool) -> Self {
+        self.trim_text = trim;
+        self
+    }
+
     /// Finishes text widget creation and registers it in the user interface, returning its handle to you.
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<Text> {
         let font = if let Some(font) = self.font {
@@ -687,6 +696,7 @@ impl TextBuilder {
             .with_shadow_brush(self.shadow_brush)
             .with_shadow_dilation(self.shadow_dilation)
             .with_shadow_offset(self.shadow_offset)
+            .with_trim_text(self.trim_text)
             .with_font_size(
                 self.font_size
                     .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),

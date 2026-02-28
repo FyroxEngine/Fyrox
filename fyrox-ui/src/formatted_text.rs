@@ -21,14 +21,13 @@
 use crate::{
     brush::Brush,
     core::{
-        algebra::Vector2, color::Color, math::Rect, reflect::prelude::*, uuid_provider,
+        algebra::Vector2, color::Color, log::Log, math::Rect, reflect::prelude::*, uuid_provider,
         variable::InheritableVariable, visitor::prelude::*,
     },
     font::{Font, FontGlyph, FontHeight, FontResource, BUILT_IN_FONT},
     style::StyledProperty,
     HorizontalAlignment, Thickness, VerticalAlignment,
 };
-use fyrox_core::log::Log;
 use fyrox_resource::state::{LoadError, ResourceState};
 pub use run::*;
 use std::{
@@ -43,6 +42,7 @@ mod textwrapper;
 
 /// Width of a tab when multiplied by font size.
 const TAB_WIDTH: f32 = 2.0;
+const ELLIPSIS: char = '…';
 
 /// Defines a position in the text. It is just a coordinates of a character in text.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Visit, Reflect)]
@@ -301,6 +301,10 @@ pub struct FormattedText {
     #[visit(skip)]
     #[reflect(hidden)]
     total_height: f32,
+    /// A flag, that defines whether the formatted text should add ellipsis to lines that goes
+    /// outside provided bounds.
+    #[visit(optional)]
+    pub trim_text: InheritableVariable<bool>,
 }
 
 impl FormattedText {
@@ -1076,10 +1080,8 @@ impl FormattedText {
                 for (i, &c) in self.text.iter().enumerate().take(line.end).skip(line.begin) {
                     let font = self.font_at(i);
                     let font = &mut font.data_ref();
-                    let mut metrics = GlyphMetrics {
-                        font,
-                        size: self.font_size_at(i),
-                    };
+                    let size = self.font_size_at(i);
+                    let mut metrics = GlyphMetrics { font, size };
                     match c {
                         '\n' => {
                             x += metrics.newline_advance();
@@ -1089,6 +1091,20 @@ impl FormattedText {
                             let scale = self.super_sampling_scale;
                             let (glyph, advance) =
                                 build_glyph(&mut metrics, x, y1, i, c, prev, scale);
+
+                            if *self.trim_text
+                                && *self.wrap == WrapMode::NoWrap
+                                && line.width > constraint.x
+                            {
+                                let ellipsis_advance = metrics.advance(ELLIPSIS);
+                                if x + ellipsis_advance * 1.5 > constraint.x {
+                                    let (glyph, _) =
+                                        build_glyph(&mut metrics, x, y1, i, ELLIPSIS, prev, scale);
+                                    self.glyphs.push(glyph);
+                                    break;
+                                }
+                            }
+
                             self.glyphs.push(glyph);
                             x += advance;
                         }
@@ -1142,6 +1158,7 @@ pub struct FormattedTextBuilder {
     line_indent: f32,
     /// The space between lines.
     line_space: f32,
+    trim_text: bool,
 }
 
 impl FormattedTextBuilder {
@@ -1166,6 +1183,7 @@ impl FormattedTextBuilder {
             runs: RunSet::default(),
             line_indent: 0.0,
             line_space: 0.0,
+            trim_text: false,
         }
     }
 
@@ -1284,6 +1302,13 @@ impl FormattedTextBuilder {
         self
     }
 
+    /// A flag, that defines whether the formatted text should add ellipsis (…) to lines that goes
+    /// outside provided bounds.
+    pub fn with_trim_text(mut self, trim: bool) -> Self {
+        self.trim_text = trim;
+        self
+    }
+
     pub fn build(self) -> FormattedText {
         FormattedText {
             text: self.text.into(),
@@ -1307,6 +1332,7 @@ impl FormattedTextBuilder {
             line_space: self.line_space.into(),
             padding: self.padding.into(),
             total_height: 0.0,
+            trim_text: self.trim_text.into(),
         }
     }
 }
