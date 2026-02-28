@@ -45,10 +45,11 @@ use crate::{
                 FieldAction, InspectorError, PropertyChanged,
             },
             message::{MessageData, MessageDirection, UiMessage},
+            stack_panel::StackPanelBuilder,
             text::{Text, TextBuilder, TextMessage},
             utils::{make_asset_preview_tooltip, ImageButtonBuilder},
             widget::{Widget, WidgetBuilder, WidgetMessage},
-            BuildContext, Control, Thickness, UiNode, UserInterface,
+            BuildContext, Control, Orientation, Thickness, UiNode, UserInterface,
         },
         scene::mesh::surface::{SurfaceData, SurfaceResource},
     },
@@ -196,17 +197,9 @@ fn surface_data_info(resource_manager: &ResourceManager, data: &SurfaceResource)
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|| "External".to_string());
     if data.is_ok() {
-        let guard = data.data_ref();
-        format!(
-            "{}\nVertices: {}\nTriangles: {}\nUse Count: {}\nId: {}",
-            kind,
-            guard.vertex_buffer.vertex_count(),
-            guard.geometry_buffer.len(),
-            use_count,
-            id
-        )
+        format!("{} - {} uses; Id: {}", kind, use_count, id)
     } else {
-        format!("{}\nNot loaded\nUse Count: {}\nId: {}", kind, use_count, id)
+        format!("{}Not loaded - {} uses; Id: {}", kind, use_count, id)
     }
 }
 
@@ -231,20 +224,14 @@ impl SurfaceDataPropertyEditor {
 
         let select = make_pick_button(1, ctx);
 
-        let text = TextBuilder::new(
-            WidgetBuilder::new()
-                .on_row(0)
-                .on_column(0)
-                .with_margin(Thickness::uniform(1.0)),
-        )
-        .with_text(surface_data_info(&resource_manager, &surface_resource))
-        .build(ctx);
+        let text = TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+            .with_text(surface_data_info(&resource_manager, &surface_resource))
+            .build(ctx);
 
         let (image_preview_tooltip, image_preview) = make_asset_preview_tooltip(None, ctx);
 
         let image = ImageBuilder::new(
             WidgetBuilder::new()
-                .on_column(0)
                 .with_width(52.0)
                 .with_height(52.0)
                 .with_tooltip(image_preview_tooltip)
@@ -253,7 +240,6 @@ impl SurfaceDataPropertyEditor {
         .build(ctx);
 
         let locate = ImageButtonBuilder::default()
-            .on_column(2)
             .with_size(22.0)
             .with_image(load_image!("../../../../resources/locate.png"))
             .with_tooltip("Show In Asset Browser")
@@ -263,15 +249,20 @@ impl SurfaceDataPropertyEditor {
             WidgetBuilder::new()
                 .on_column(1)
                 .with_child(text)
-                .with_child(view)
-                .with_child(locate)
-                .with_child(select),
+                .with_child(
+                    StackPanelBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(1)
+                            .with_child(select)
+                            .with_child(locate)
+                            .with_child(view),
+                    )
+                    .with_orientation(Orientation::Horizontal)
+                    .build(ctx),
+                ),
         )
         .add_column(Column::stretch())
-        .add_column(Column::auto())
-        .add_column(Column::auto())
-        .add_column(Column::auto())
-        .add_column(Column::auto())
+        .add_row(Row::auto())
         .add_row(Row::auto())
         .build(ctx);
 
