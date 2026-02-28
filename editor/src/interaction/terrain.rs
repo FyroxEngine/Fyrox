@@ -675,9 +675,13 @@ impl BrushPanel {
         if let Some(InspectorMessage::PropertyChanged(msg)) =
             message.data_from::<InspectorMessage>(self.inspector)
         {
-            PropertyAction::from_field_action(&msg.action).apply(&msg.path(), brush, &mut |result| {
-                Log::verify(result);
-            });
+            PropertyAction::from_field_action(&msg.action).apply(
+                &msg.path(),
+                brush,
+                &mut |result| {
+                    Log::verify(result);
+                },
+            );
         }
         Some(())
     }
