@@ -416,7 +416,7 @@ impl CheckBoxBuilder {
         )
         .add_row(Row::stretch())
         .add_column(Column::auto())
-        .add_column(Column::auto())
+        .add_column(Column::stretch())
         .build(ctx);
 
         let cb = CheckBox {
