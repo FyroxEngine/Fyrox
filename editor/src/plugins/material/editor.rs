@@ -298,6 +298,7 @@ impl MaterialFieldEditorBuilder {
         .add_column(Column::auto())
         .add_column(Column::auto())
         .add_column(Column::auto())
+        .add_column(Column::auto())
         .build(ctx);
 
         let (image_preview_tooltip, image_preview) = make_asset_preview_tooltip(None, ctx);
@@ -327,7 +328,7 @@ impl MaterialFieldEditorBuilder {
         )
         .add_row(Row::auto())
         .add_row(Row::auto())
-        .add_column(Column::auto())
+        .add_column(Column::stretch())
         .build(ctx);
 
         let editor = MaterialFieldEditor {
