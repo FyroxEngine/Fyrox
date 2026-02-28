@@ -420,7 +420,7 @@ impl AssetItemBuilder {
                     TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
                         .with_vertical_text_alignment(VerticalAlignment::Center)
                         .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                        .with_wrap(WrapMode::Letter)
+                        .with_wrap(WrapMode::Word)
                         .with_text(
                             self.path
                                 .file_name()
