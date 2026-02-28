@@ -250,7 +250,7 @@ impl InspectorPlugin {
                                                 .on_row(0)
                                                 .on_column(0),
                                         )
-                                        .with_wrap(WrapMode::Letter)
+                                        .with_wrap(WrapMode::NoWrap)
                                         .build(ctx);
                                         type_name_text
                                     })
