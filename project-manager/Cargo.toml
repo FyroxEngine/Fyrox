@@ -7,7 +7,7 @@ license = "MIT"
 description = "Project manager for Fyrox engine"
 keywords = ["fyrox", "project", "manager"]
 categories = ["game-development"]
-include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md", "/resources/**/*"]
+include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md", "/resources/**/*", "/pm.version"]
 homepage = "https://fyrox.rs"
 repository = "https://github.com/FyroxEngine/Fyrox"
 rust-version = "1.87"
@@ -22,3 +22,6 @@ open = "5.0.1"
 cargo_metadata = "0.22.0"
 serde_json = "1.0.133"
 directories = "5.0.1"
+
+[build-dependencies]
+toml_edit = "0.23.5"

@@ -28,6 +28,8 @@ mod settings;
 mod upgrade;
 mod utils;
 
+static CURRENT_VERSION: &str = include_str!("../pm.version");
+
 use crate::{manager::ProjectManager, settings::DATA_DIR, utils::make_button};
 use fyrox::core::algebra::Vector2;
 use fyrox::{
@@ -75,7 +77,7 @@ fn main() {
     let mut window_attributes = WindowAttributes::default();
     window_attributes.inner_size = Some(PhysicalSize::new(720, 520).into());
     window_attributes.resizable = true;
-    window_attributes.title = "Fyrox Project Manager".to_string();
+    window_attributes.title = format!("Fyrox Project Manager - {}", CURRENT_VERSION);
 
     let serialization_context = Arc::new(SerializationContext::new());
     let task_pool = Arc::new(TaskPool::new());
