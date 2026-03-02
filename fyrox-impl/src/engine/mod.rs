@@ -2583,6 +2583,17 @@ impl Engine {
             self.widget_constructors.remove(*type_uuid);
         }
 
+        // Search for dyn type constructors, that belongs to dynamic plugins and remove them.
+        let mut dyn_type_constructors = FxHashSet::default();
+        for (type_uuid, constructor) in self.dyn_type_constructors.inner().iter() {
+            if constructor.assembly_name == plugin_assembly_name {
+                dyn_type_constructors.insert(*type_uuid);
+            }
+        }
+        for type_uuid in dyn_type_constructors.iter() {
+            self.dyn_type_constructors.remove(type_uuid);
+        }
+
         // Reload resources, that belongs to the plugin.
         {
             let mut resources_to_reload = FxHashSet::default();

@@ -18,28 +18,26 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::scene::base::NodeMessage;
 use crate::{
     asset::manager::ResourceManager,
     core::{
+        dyntype::{DynTypeConstructorContainer, DynTypeContainer},
         log::Log,
         pool::{Handle, PayloadContainer, Ticket},
-        visitor::{Visit, Visitor, VisitorFlags},
+        visitor::{error::VisitError, Visit, Visitor, VisitorFlags},
     },
     engine::SerializationContext,
+    graph::SceneGraph,
     gui::constructor::WidgetConstructorContainer,
     plugin::Plugin,
     resource::model::ModelResource,
     scene::{
-        base::{visit_opt_script, NodeScriptMessage},
+        base::{visit_opt_script, NodeMessage, NodeScriptMessage},
         node::{container::NodeContainer, Node},
         Scene,
     },
     script::Script,
 };
-use fyrox_core::dyntype::DynTypeConstructorContainer;
-use fyrox_core::visitor::error::VisitError;
-use fyrox_graph::SceneGraph;
 use std::{
     ops::Deref,
     sync::{mpsc::Sender, Arc},
@@ -60,6 +58,41 @@ pub struct NodeState {
 pub struct SceneState {
     pub scene: Handle<Scene>,
     nodes: Vec<NodeState>,
+    scene_user_data_blob: Vec<u8>,
+}
+
+fn serialize_user_data(scene: &mut Scene) -> Result<Vec<u8>, String> {
+    let mut visitor = make_writing_visitor();
+    scene
+        .graph
+        .user_data
+        .visit("UserData", &mut visitor)
+        .map_err(|e| e.to_string())?;
+    visitor.save_binary_to_vec().map_err(|e| e.to_string())
+}
+
+fn deserialize_user_data(
+    scene: &mut Scene,
+    user_data_blob: &[u8],
+    serialization_context: &Arc<SerializationContext>,
+    resource_manager: &ResourceManager,
+    widget_constructors: &Arc<WidgetConstructorContainer>,
+    dyn_type_constructors: &Arc<DynTypeConstructorContainer>,
+) -> Result<(), String> {
+    let mut visitor = make_reading_visitor(
+        user_data_blob,
+        serialization_context,
+        resource_manager,
+        widget_constructors,
+        dyn_type_constructors,
+    )
+    .map_err(|e| e.to_string())?;
+    let mut container = DynTypeContainer::default();
+    container
+        .visit("UserData", &mut visitor)
+        .map_err(|e| e.to_string())?;
+    scene.graph.user_data = container;
+    Ok(())
 }
 
 impl SceneState {
@@ -70,6 +103,7 @@ impl SceneState {
         plugin: &dyn Plugin,
     ) -> Result<Option<Self>, String> {
         let mut scene_state = Self {
+            scene_user_data_blob: serialize_user_data(scene)?,
             scene: scene_handle,
             nodes: Default::default(),
         };
@@ -141,6 +175,15 @@ impl SceneState {
         widget_constructors: &Arc<WidgetConstructorContainer>,
         dyn_type_constructors: &Arc<DynTypeConstructorContainer>,
     ) -> Result<(), String> {
+        deserialize_user_data(
+            scene,
+            &self.scene_user_data_blob,
+            serialization_context,
+            resource_manager,
+            widget_constructors,
+            dyn_type_constructors,
+        )?;
+
         // SAFETY: Scene is guaranteed to be used only once per inner loop.
         let scene2 = unsafe { &mut *(scene as *mut Scene) };
 
@@ -170,6 +213,14 @@ impl SceneState {
         widget_constructors: &Arc<WidgetConstructorContainer>,
         dyn_type_constructors: &Arc<DynTypeConstructorContainer>,
     ) -> Result<(), String> {
+        deserialize_user_data(
+            &mut prefab.data_ref().scene,
+            &self.scene_user_data_blob,
+            serialization_context,
+            resource_manager,
+            widget_constructors,
+            dyn_type_constructors,
+        )?;
         let script_message_sender = prefab.data_ref().scene.graph.script_message_sender.clone();
         let message_sender = prefab.data_ref().scene.graph.message_sender.clone();
         self.deserialize_into_scene_internal(
