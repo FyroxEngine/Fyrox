@@ -330,6 +330,8 @@ pub type DynTypeConstructor = Box<dyn Fn() -> Box<dyn DynType> + Send + 'static>
 pub struct DynTypeConstructorDefinition {
     pub name: String,
     pub constructor: DynTypeConstructor,
+    /// A name of the assembly this constructor is from.
+    pub assembly_name: &'static str,
 }
 
 #[derive(Default)]
@@ -345,15 +347,17 @@ impl DynTypeConstructorContainer {
             .map(|c| (*c.constructor)())
     }
 
-    pub fn add<T>(&self, name: &str) -> &Self
+    pub fn add<T, A>(&self, name: &str) -> &Self
     where
         T: TypeUuidProvider + Default + DynType,
+        A: Reflect,
     {
         let old = self.map.safe_lock().insert(
             <T as TypeUuidProvider>::type_uuid(),
             DynTypeConstructorDefinition {
                 name: name.to_string(),
                 constructor: Box::new(|| Box::new(T::default())),
+                assembly_name: A::type_assembly_name(),
             },
         );
 
@@ -373,6 +377,10 @@ impl DynTypeConstructorContainer {
         assert!(old.is_none());
 
         Ok(())
+    }
+
+    pub fn remove(&self, type_uuid: &Uuid) -> Option<DynTypeConstructorDefinition> {
+        self.map.safe_lock().remove(type_uuid)
     }
 
     pub fn inner(&self) -> MutexGuard<FxHashMap<Uuid, DynTypeConstructorDefinition>> {
