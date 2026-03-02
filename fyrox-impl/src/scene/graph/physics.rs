@@ -138,6 +138,8 @@ pub enum CoefficientCombineRule {
     Multiply,
     /// The greatest coefficient is chosen.
     Max,
+    /// The clamped sum of the two coefficients.
+    ClampedSum = 4,
 }
 
 uuid_provider!(CoefficientCombineRule = "775d5598-c283-4b44-9cc0-2e23dc8936f4");
@@ -151,6 +153,9 @@ impl From<rapier3d::dynamics::CoefficientCombineRule> for CoefficientCombineRule
                 CoefficientCombineRule::Multiply
             }
             rapier3d::dynamics::CoefficientCombineRule::Max => CoefficientCombineRule::Max,
+            rapier3d::dynamics::CoefficientCombineRule::ClampedSum => {
+                CoefficientCombineRule::ClampedSum
+            }
         }
     }
 }
@@ -164,6 +169,9 @@ impl Into<rapier3d::dynamics::CoefficientCombineRule> for CoefficientCombineRule
                 rapier3d::dynamics::CoefficientCombineRule::Multiply
             }
             CoefficientCombineRule::Max => rapier3d::dynamics::CoefficientCombineRule::Max,
+            CoefficientCombineRule::ClampedSum => {
+                rapier3d::dynamics::CoefficientCombineRule::ClampedSum
+            }
         }
     }
 }
@@ -177,6 +185,9 @@ impl Into<rapier2d::dynamics::CoefficientCombineRule> for CoefficientCombineRule
                 rapier2d::dynamics::CoefficientCombineRule::Multiply
             }
             CoefficientCombineRule::Max => rapier2d::dynamics::CoefficientCombineRule::Max,
+            CoefficientCombineRule::ClampedSum => {
+                rapier2d::dynamics::CoefficientCombineRule::ClampedSum
+            }
         }
     }
 }
@@ -835,31 +846,6 @@ pub struct IntegrationParameters {
     #[reflect(min_value = 0.0)]
     pub min_ccd_dt: f32,
 
-    /// The damping ratio used by the springs for contact constraint stabilization.
-    /// Larger values make the constraints more compliant (allowing more visible penetrations
-    /// before stabilization). Default `5.0`.
-    #[reflect(min_value = 0.0)]
-    pub contact_damping_ratio: f32,
-
-    /// The natural frequency used by the springs for contact constraint regularization.
-    /// Increasing this value will make it so that penetrations get fixed more quickly at the
-    /// expense of potential jitter effects due to overshooting. In order to make the simulation
-    /// look stiffer, it is recommended to increase the `contact_damping_ratio` instead of this
-    /// value. Default: `30.0`
-    #[reflect(min_value = 0.0)]
-    pub contact_natural_frequency: f32,
-
-    /// The natural frequency used by the springs for joint constraint regularization.
-    /// Increasing this value will make it so that penetrations get fixed more quickly.
-    /// Default: `1.0e6`
-    #[reflect(min_value = 0.0)]
-    pub joint_natural_frequency: f32,
-
-    /// The fraction of critical damping applied to the joint for constraints regularization.
-    /// (default `0.8`).
-    #[reflect(min_value = 0.0)]
-    pub joint_damping_ratio: f32,
-
     /// Amount of penetration the engine wont attempt to correct (default: `0.002m`).
     #[reflect(min_value = 0.0)]
     pub allowed_linear_error: f32,
@@ -910,10 +896,6 @@ impl Default for IntegrationParameters {
         Self {
             dt: None,
             min_ccd_dt: 1.0 / 60.0 / 100.0,
-            contact_damping_ratio: 5.0,
-            contact_natural_frequency: 30.0,
-            joint_natural_frequency: 1.0e6,
-            joint_damping_ratio: 1.0,
             warmstart_coefficient: 1.0,
             allowed_linear_error: 0.002,
             normalized_max_corrective_velocity: 10.0,
@@ -1132,10 +1114,7 @@ impl PhysicsWorld {
             let integration_parameters = rapier3d::dynamics::IntegrationParameters {
                 dt,
                 min_ccd_dt: self.integration_parameters.min_ccd_dt,
-                contact_damping_ratio: self.integration_parameters.contact_damping_ratio,
-                contact_natural_frequency: self.integration_parameters.contact_natural_frequency,
-                joint_natural_frequency: self.integration_parameters.joint_natural_frequency,
-                joint_damping_ratio: self.integration_parameters.joint_damping_ratio,
+                contact_softness: rapier3d::dynamics::SpringCoefficients::contact_defaults(),
                 warmstart_coefficient: self.integration_parameters.warmstart_coefficient,
                 length_unit: self.integration_parameters.length_unit,
                 normalized_allowed_linear_error: self.integration_parameters.allowed_linear_error,
@@ -1249,6 +1228,7 @@ impl PhysicsWorld {
             rapier3d::pipeline::QueryFilter::new().groups(InteractionGroups::new(
                 u32_to_group(opts.groups.memberships.0),
                 u32_to_group(opts.groups.filter.0),
+                Default::default(),
             )),
         );
 
@@ -1330,7 +1310,11 @@ impl PhysicsWorld {
         let filter = rapier3d::pipeline::QueryFilter {
             flags: rapier3d::pipeline::QueryFilterFlags::from_bits(filter.flags.bits()).unwrap(),
             groups: filter.groups.map(|g| {
-                InteractionGroups::new(u32_to_group(g.memberships.0), u32_to_group(g.filter.0))
+                InteractionGroups::new(
+                    u32_to_group(g.memberships.0),
+                    u32_to_group(g.filter.0),
+                    Default::default(),
+                )
             }),
             exclude_collider: filter
                 .exclude_collider
@@ -1682,12 +1666,14 @@ impl PhysicsWorld {
                         native.set_collision_groups(InteractionGroups::new(
                             u32_to_group(v.memberships.0),
                             u32_to_group(v.filter.0),
+                            Default::default(),
                         ))
                     });
                     collider_node.solver_groups.try_sync_model(|v| {
                         native.set_solver_groups(InteractionGroups::new(
                             u32_to_group(v.memberships.0),
                             u32_to_group(v.filter.0),
+                            Default::default(),
                         ))
                     });
                     collider_node
@@ -1751,12 +1737,14 @@ impl PhysicsWorld {
                         .collision_groups(InteractionGroups::new(
                             u32_to_group(collider_node.collision_groups().memberships.0),
                             u32_to_group(collider_node.collision_groups().filter.0),
+                            Default::default(),
                         ))
                         .friction_combine_rule(collider_node.friction_combine_rule().into())
                         .restitution_combine_rule(collider_node.restitution_combine_rule().into())
                         .solver_groups(InteractionGroups::new(
                             u32_to_group(collider_node.solver_groups().memberships.0),
                             u32_to_group(collider_node.solver_groups().filter.0),
+                            Default::default(),
                         ))
                         .sensor(collider_node.is_sensor());
 

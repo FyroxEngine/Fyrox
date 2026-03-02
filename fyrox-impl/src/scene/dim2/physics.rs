@@ -655,10 +655,7 @@ impl PhysicsWorld {
             let integration_parameters = rapier2d::dynamics::IntegrationParameters {
                 dt,
                 min_ccd_dt: self.integration_parameters.min_ccd_dt,
-                contact_damping_ratio: self.integration_parameters.contact_damping_ratio,
-                contact_natural_frequency: self.integration_parameters.contact_natural_frequency,
-                joint_natural_frequency: self.integration_parameters.joint_natural_frequency,
-                joint_damping_ratio: self.integration_parameters.joint_damping_ratio,
+                contact_softness: rapier2d::dynamics::SpringCoefficients::contact_defaults(),
                 warmstart_coefficient: self.integration_parameters.warmstart_coefficient,
                 length_unit: self.integration_parameters.length_unit,
                 normalized_allowed_linear_error: self.integration_parameters.allowed_linear_error,
@@ -771,6 +768,7 @@ impl PhysicsWorld {
             rapier2d::pipeline::QueryFilter::new().groups(InteractionGroups::new(
                 u32_to_group(opts.groups.memberships.0),
                 u32_to_group(opts.groups.filter.0),
+                Default::default(),
             )),
         );
 
@@ -852,7 +850,11 @@ impl PhysicsWorld {
         let filter = rapier2d::pipeline::QueryFilter {
             flags: rapier2d::pipeline::QueryFilterFlags::from_bits(filter.flags.bits()).unwrap(),
             groups: filter.groups.map(|g| {
-                InteractionGroups::new(u32_to_group(g.memberships.0), u32_to_group(g.filter.0))
+                InteractionGroups::new(
+                    u32_to_group(g.memberships.0),
+                    u32_to_group(g.filter.0),
+                    Default::default(),
+                )
             }),
             exclude_collider: filter
                 .exclude_collider
@@ -1133,12 +1135,14 @@ impl PhysicsWorld {
                         native.set_collision_groups(InteractionGroups::new(
                             u32_to_group(v.memberships.0),
                             u32_to_group(v.filter.0),
+                            Default::default(),
                         ))
                     });
                     collider_node.solver_groups.try_sync_model(|v| {
                         native.set_solver_groups(InteractionGroups::new(
                             u32_to_group(v.memberships.0),
                             u32_to_group(v.filter.0),
+                            Default::default(),
                         ))
                     });
                     collider_node
@@ -1200,12 +1204,14 @@ impl PhysicsWorld {
                         .collision_groups(InteractionGroups::new(
                             u32_to_group(collider_node.collision_groups().memberships.0),
                             u32_to_group(collider_node.collision_groups().filter.0),
+                            Default::default(),
                         ))
                         .friction_combine_rule(collider_node.friction_combine_rule().into())
                         .restitution_combine_rule(collider_node.restitution_combine_rule().into())
                         .solver_groups(InteractionGroups::new(
                             u32_to_group(collider_node.solver_groups().memberships.0),
                             u32_to_group(collider_node.solver_groups().filter.0),
+                            Default::default(),
                         ))
                         .sensor(collider_node.is_sensor());
 
