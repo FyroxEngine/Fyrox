@@ -20,16 +20,14 @@
 
 //! Dynamic plugins with hot-reloading ability.
 
-use crate::core::notify::RecommendedWatcher;
 use crate::{
     core::{
         log::Log,
-        notify::{self, EventKind, RecursiveMode, Watcher},
+        notify::{self, EventKind, RecommendedWatcher, RecursiveMode, Watcher},
     },
-    plugin::Plugin,
+    plugin::{DynamicPlugin, Plugin},
 };
 use std::{
-    ffi::OsStr,
     fs::File,
     io::Read,
     path::{Path, PathBuf},
@@ -38,8 +36,6 @@ use std::{
         Arc,
     },
 };
-
-use crate::plugin::DynamicPlugin;
 
 /// Dynamic plugin, that is loaded from a dynamic library. Usually it is used for hot reloading,
 /// it is strongly advised not to use it in production builds, because it is slower than statically
@@ -60,7 +56,7 @@ impl DyLibHandle {
     /// Tries to load a plugin from a dynamic library (*.dll on Windows, *.so on Unix).
     pub fn load<P>(#[allow(unused_variables)] path: P) -> Result<Self, String>
     where
-        P: AsRef<OsStr>,
+        P: libloading::AsFilename,
     {
         #[cfg(any(unix, windows))]
         unsafe {
