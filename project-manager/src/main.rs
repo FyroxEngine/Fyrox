@@ -70,6 +70,7 @@ fn set_ui_scaling(ui: &UserInterface, scale: f32) {
 #[allow(clippy::unnecessary_to_owned)]
 fn main() {
     Log::set_file_name(DATA_DIR.join("project_manager.log"));
+    Log::set_log_info(false);
 
     let mut window_attributes = WindowAttributes::default();
     window_attributes.inner_size = Some(PhysicalSize::new(720, 520).into());
