@@ -2845,6 +2845,7 @@ impl Editor {
         P: DynamicPlugin + 'static,
     {
         let plugin = self.engine.add_dynamic_plugin_custom(plugin);
+        *self.property_editors.context_type_id.safe_lock() = plugin.type_id();
         plugin.register_property_editors(self.property_editors.clone());
         Ok(())
     }
