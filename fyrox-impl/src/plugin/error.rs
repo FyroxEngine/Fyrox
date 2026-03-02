@@ -22,10 +22,10 @@
 
 use crate::{
     asset::state::LoadError,
-    core::{dyntype::DynTypeError, pool::PoolError, visitor::error::VisitError},
+    core::{dyntype::DynTypeError, pool::PoolError, visitor::error::VisitError, warn},
+    graphics::error::FrameworkError,
     scene::graph::GraphError,
 };
-use fyrox_graphics::error::FrameworkError;
 use std::{
     backtrace::Backtrace,
     fmt::{Debug, Display, Formatter},
@@ -38,6 +38,13 @@ static CAPTURE_BACKTRACE: AtomicBool = AtomicBool::new(false);
 /// operation, so it is disabled by default.
 pub fn enable_backtrace_capture(capture: bool) {
     CAPTURE_BACKTRACE.store(capture, Ordering::Relaxed);
+
+    if capture {
+        warn!(
+            "Backtrace capture is enabled! This will negatively impact performance in \
+        case of error spam."
+        )
+    }
 }
 
 /// Returns `true` when the backtrace capture is one, `false` - otherwise.
