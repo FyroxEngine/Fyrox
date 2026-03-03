@@ -164,21 +164,22 @@ use crate::{
         },
     },
     message::MessageSender,
-    plugins::inspector::editors::dyntype::DynTypePropertyEditorDefinition,
-    plugins::inspector::editors::shader::field::ShaderSourceCodeEditorDefinition,
     plugins::{
         inspector::editors::{
             animation::{
                 AnimationContainerPropertyEditorDefinition, AnimationPropertyEditorDefinition,
                 MachinePropertyEditorDefinition,
             },
+            dyntype::DynTypePropertyEditorDefinition,
             font::FontPropertyEditorDefinition,
             handle::NodeHandlePropertyEditorDefinition,
             resource::ResourceFieldPropertyEditorDefinition,
             script::ScriptPropertyEditorDefinition,
+            shader::field::ShaderSourceCodeEditorDefinition,
             spritesheet::SpriteSheetFramesContainerEditorDefinition,
             surface::SurfaceDataPropertyEditorDefinition,
             texture::TexturePropertyEditorDefinition,
+            vertex_buffer::VertexBufferPropertyEditorDefinition,
         },
         tilemap::{
             OptionTileDefinitionHandlePropertyEditorDefinition,
@@ -211,6 +212,7 @@ pub mod shader;
 pub mod spritesheet;
 pub mod surface;
 pub mod texture;
+mod vertex_buffer;
 
 pub fn make_status_enum_editor_definition() -> EnumPropertyEditorDefinition<Status> {
     EnumPropertyEditorDefinition {
@@ -681,6 +683,8 @@ pub fn make_property_editors_container(
     container.insert(VecCollectionPropertyEditorDefinition::<CommandDescriptor>::new());
     container.insert(InspectablePropertyEditorDefinition::<CommandDescriptor>::new());
     container.insert(HotKeyPropertyEditorDefinition);
+
+    container.insert(VertexBufferPropertyEditorDefinition);
 
     reg_node_handle_editors!(
         container,
