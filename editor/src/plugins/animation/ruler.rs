@@ -274,9 +274,9 @@ impl Control for Ruler {
                 Vector2::new(x, local_bounds.h()),
             ]);
             let brush = if signal.selected {
-                ctx.style.get_or_default(Style::BRUSH_BRIGHT)
+                ctx.style.get_or_default(Style::BRUSH_BRIGHT_BLUE)
             } else {
-                ctx.style.get_or_default(Style::BRUSH_LIGHTEST)
+                ctx.style.get_or_default(Style::BRUSH_DIM_BLUE)
             };
             ctx.commit(
                 self.clip_bounds(),
@@ -339,6 +339,8 @@ impl Control for Ruler {
 
                                     ui.post(self.handle, RulerMessage::SelectSignal(signal.id));
                                 }
+
+                                self.invalidate_visual();
                             }
 
                             if self.drag_context.is_none() {
@@ -370,7 +372,9 @@ impl Control for Ruler {
                                                 id,
                                                 new_position: self.screen_to_value_space(pos.x),
                                             },
-                                        )
+                                        );
+
+                                        self.invalidate_visual();
                                     }
                                 }
                             }
