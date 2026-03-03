@@ -179,6 +179,7 @@ use crate::{
             spritesheet::SpriteSheetFramesContainerEditorDefinition,
             surface::SurfaceDataPropertyEditorDefinition,
             texture::TexturePropertyEditorDefinition,
+            triangle_buffer::TriangleBufferPropertyEditorDefinition,
             vertex_buffer::VertexBufferPropertyEditorDefinition,
         },
         tilemap::{
@@ -212,6 +213,7 @@ pub mod shader;
 pub mod spritesheet;
 pub mod surface;
 pub mod texture;
+mod triangle_buffer;
 mod vertex_buffer;
 
 pub fn make_status_enum_editor_definition() -> EnumPropertyEditorDefinition<Status> {
@@ -685,6 +687,7 @@ pub fn make_property_editors_container(
     container.insert(HotKeyPropertyEditorDefinition);
 
     container.insert(VertexBufferPropertyEditorDefinition);
+    container.insert(TriangleBufferPropertyEditorDefinition);
 
     reg_node_handle_editors!(
         container,
