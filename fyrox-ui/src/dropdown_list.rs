@@ -30,20 +30,15 @@ use crate::{
         algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         uuid_provider, variable::InheritableVariable, visitor::prelude::*,
     },
-    grid::{Column, GridBuilder, Row},
-    list_view::{ListViewBuilder, ListViewMessage},
-    message::{KeyCode, MessageDirection, UiMessage},
-    popup::{Placement, PopupBuilder, PopupMessage},
+    grid::{Column, Grid, GridBuilder, Row},
+    list_view::{ListView, ListViewBuilder, ListViewMessage},
+    message::{KeyCode, MessageData, MessageDirection, UiMessage},
+    popup::{Placement, Popup, PopupBuilder, PopupMessage},
     style::{resource::StyleResourceExt, Style},
     utils::{make_arrow_non_uniform_size, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
-
-use crate::grid::Grid;
-use crate::list_view::ListView;
-use crate::message::MessageData;
-use crate::popup::Popup;
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     SceneGraph,
@@ -360,6 +355,7 @@ pub struct DropdownListBuilder {
     items: Vec<Handle<UiNode>>,
     selected: Option<usize>,
     close_on_selection: bool,
+    items_constraint: Vector2<f32>,
 }
 
 impl DropdownListBuilder {
@@ -370,6 +366,7 @@ impl DropdownListBuilder {
             items: Default::default(),
             selected: None,
             close_on_selection: false,
+            items_constraint: Vector2::repeat(f32::INFINITY),
         }
     }
 
@@ -397,16 +394,21 @@ impl DropdownListBuilder {
         self
     }
 
+    /// Sets the desired constraint for the inner items. By default, it is unconstrained (+infinity).
+    pub fn with_items_constraint(mut self, constraint: Vector2<f32>) -> Self {
+        self.items_constraint = constraint;
+        self
+    }
+
     /// Finishes list building and adds it to the given user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<DropdownList>
     where
         Self: Sized,
     {
-        let items_control = ListViewBuilder::new(
-            WidgetBuilder::new().with_max_size(Vector2::new(f32::INFINITY, 200.0)),
-        )
-        .with_items(self.items.clone())
-        .build(ctx);
+        let items_control =
+            ListViewBuilder::new(WidgetBuilder::new().with_max_size(self.items_constraint))
+                .with_items(self.items.clone())
+                .build(ctx);
 
         let popup = PopupBuilder::new(WidgetBuilder::new())
             .with_content(items_control)
