@@ -102,7 +102,7 @@ use crate::{
         scene::{
             self,
             base::{
-                Base, LevelOfDetail, LodGroup, Mobility, Property, PropertyValue, ScriptRecord,
+                Base, LevelOfDetail, LodGroup,  Property, PropertyValue, ScriptRecord,
             },
             camera::{
                 Camera, ColorGradingLut, Exposure, OrthographicProjection, PerspectiveProjection,
@@ -496,7 +496,6 @@ pub fn make_property_editors_container(
     container.register_inheritable_enum::<Projection, _>();
     container.register_inheritable_enum::<ColliderShape, _>();
     container.register_inheritable_enum::<PropertyValue, _>();
-    container.register_inheritable_enum::<Mobility, _>();
     container.register_inheritable_enum::<RigidBodyType, _>();
     container.register_inheritable_enum::<Exposure, _>();
     container.register_inheritable_enum::<FrustumSplitOptions, _>();

@@ -133,71 +133,6 @@ pub struct LodGroup {
     pub levels: Vec<LevelOfDetail>,
 }
 
-/// Mobility defines a group for scene node which has direct impact on performance
-/// and capabilities of nodes.
-#[derive(
-    Default,
-    Copy,
-    Clone,
-    PartialOrd,
-    PartialEq,
-    Ord,
-    Eq,
-    Debug,
-    Visit,
-    Reflect,
-    AsRefStr,
-    EnumString,
-    VariantNames,
-    TypeUuidProvider,
-)]
-#[type_uuid(id = "57c125ff-e408-4318-9874-f59485e95764")]
-#[repr(u32)]
-pub enum Mobility {
-    /// Transform cannot be changed.
-    ///
-    /// ## Scene and performance.
-    ///
-    /// Nodes with Static mobility should be used all the time you need unchangeable
-    /// node. Such nodes will have maximum optimization during the rendering.
-    ///
-    /// ### Meshes
-    ///
-    /// Static meshes will be baked into larger blocks to reduce draw call count per frame.
-    /// Also static meshes will participate in lightmap generation.
-    ///
-    /// ### Lights
-    ///
-    /// Static lights will be baked in lightmap. They lit only static geometry!
-    /// Specular lighting is not supported.
-    #[default]
-    Static = 0,
-
-    /// Transform cannot be changed, but other node-dependent properties are changeable.
-    ///
-    /// ## Scene and performance.
-    ///
-    /// ### Meshes
-    ///
-    /// Same as Static.
-    ///
-    /// ### Lights
-    ///
-    /// Stationary lights have complex route for shadows:
-    ///   - Shadows from Static/Stationary meshes will be baked into lightmap.
-    ///   - Shadows from Dynamic lights will be re-rendered each frame into shadow map.
-    /// Stationary lights support specular lighting.
-    Stationary = 1,
-
-    /// Transform can be freely changed.
-    ///
-    /// ## Scene and performance.
-    ///
-    /// Dynamic mobility should be used only for the objects that are designed to be
-    /// moving in the scene, for example - objects with physics, or dynamic lights, etc.
-    Dynamic = 2,
-}
-
 /// A property value.
 #[derive(
     Debug, Visit, Reflect, PartialEq, Clone, AsRefStr, EnumString, VariantNames, TypeUuidProvider,
@@ -468,9 +403,6 @@ pub struct Base {
 
     #[reflect(setter = "set_lod_group")]
     lod_group: InheritableVariable<Option<LodGroup>>,
-
-    #[reflect(setter = "set_mobility")]
-    mobility: InheritableVariable<Mobility>,
 
     #[reflect(setter = "set_tag")]
     tag: InheritableVariable<String>,
@@ -800,18 +732,6 @@ impl Base {
     pub fn world_bounding_box(&self) -> AxisAlignedBoundingBox {
         self.local_bounding_box()
             .transform(&self.global_transform())
-    }
-
-    /// Set new mobility for the node. See [`Mobility`] docs for more info.
-    #[inline]
-    pub fn set_mobility(&mut self, mobility: Mobility) -> Mobility {
-        self.mobility.set_value_and_mark_modified(mobility)
-    }
-
-    /// Return current mobility of the node.
-    #[inline]
-    pub fn mobility(&self) -> Mobility {
-        *self.mobility
     }
 
     /// Returns combined visibility of an node. This is the final visibility of a node. Global visibility calculated
@@ -1258,7 +1178,6 @@ impl Visit for Base {
             .visit("IsResourceInstance", &mut region)?;
         self.lifetime.visit("Lifetime", &mut region)?;
         self.lod_group.visit("LodGroup", &mut region)?;
-        self.mobility.visit("Mobility", &mut region)?;
         self.original_handle_in_resource
             .visit("Original", &mut region)?;
         self.tag.visit("Tag", &mut region)?;
@@ -1292,7 +1211,6 @@ pub struct BaseBuilder {
     children: Vec<Handle<Node>>,
     lifetime: Option<f32>,
     lod_group: Option<LodGroup>,
-    mobility: Mobility,
     inv_bind_pose_transform: Matrix4<f32>,
     tag: String,
     frustum_culling: bool,
@@ -1319,7 +1237,6 @@ impl BaseBuilder {
             children: Default::default(),
             lifetime: None,
             lod_group: None,
-            mobility: Default::default(),
             inv_bind_pose_transform: Matrix4::identity(),
             tag: Default::default(),
             frustum_culling: true,
@@ -1328,13 +1245,6 @@ impl BaseBuilder {
             instance_id: SceneNodeId(Uuid::new_v4()),
             enabled: true,
         }
-    }
-
-    /// Sets desired mobility.
-    #[inline]
-    pub fn with_mobility(mut self, mobility: Mobility) -> Self {
-        self.mobility = mobility;
-        self
     }
 
     /// Sets desired name.
@@ -1462,7 +1372,6 @@ impl BaseBuilder {
             original_handle_in_resource: Handle::NONE,
             is_resource_instance_root: false,
             lod_group: self.lod_group.into(),
-            mobility: self.mobility.into(),
             tag: self.tag.into(),
             properties: Default::default(),
             frustum_culling: self.frustum_culling.into(),
