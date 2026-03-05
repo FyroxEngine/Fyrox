@@ -899,7 +899,6 @@ impl AssetBrowser {
     }
 
     pub fn locate_path(&mut self, ui: &UserInterface, path: PathBuf) {
-        dbg!(&path);
         let folder = path.parent().map(|p| p.to_path_buf()).unwrap_or_default();
         ui.send(self.folder_browser, FileBrowserMessage::Path(folder));
         self.item_to_select = Some(path);
