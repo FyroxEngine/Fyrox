@@ -1101,7 +1101,7 @@ impl InspectorContext {
                 }
 
                 let description = if info.doc.is_empty() {
-                    info.doc.to_string()
+                    info.display_name.to_string()
                 } else {
                     format!("{}\n\n{}", info.display_name, info.doc)
                 };
