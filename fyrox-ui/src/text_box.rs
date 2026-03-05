@@ -187,6 +187,11 @@ impl SelectionRange {
     pub fn right(&self) -> Position {
         Position::max(self.begin, self.end)
     }
+
+    /// Returns `true` if beginning of the selection equals to its ending.
+    pub fn is_collapsed(&self) -> bool {
+        self.begin == self.end
+    }
 }
 
 /// Defines a function, that could be used to filter out desired characters. It must return `true` for characters, that pass
@@ -749,8 +754,10 @@ impl TextBox {
 
     fn remove_char(&mut self, direction: HorizontalDirection, ui: &UserInterface) {
         if let Some(selection) = *self.selection_range {
-            self.remove_range(ui, selection);
-            return;
+            if !selection.is_collapsed() {
+                self.remove_range(ui, selection);
+                return;
+            }
         }
         let Some(position) = self.position_to_char_index_unclamped(*self.caret_position) else {
             return;
