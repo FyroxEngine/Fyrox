@@ -334,7 +334,7 @@ use fyrox_graph::{NodeHandleMap, NodeMapping, PrefabData, SceneGraph, SceneGraph
 use fyrox_resource::{
     io::{FsResourceIo, ResourceIo},
     manager::ResourceManager,
-    untyped::{ResourceKind, UntypedResource},
+    untyped::UntypedResource,
     Resource, ResourceData,
 };
 use fyrox_texture::TextureResource;
