@@ -464,6 +464,22 @@ impl AbsmEditor {
         } else {
             self.clear(ui);
         }
+
+        let name = if let Ok(absm) = graph.try_get(selection.absm_node_handle) {
+            if machine.is_some() {
+                format!(
+                    "Animation Editor - {}({}:{})",
+                    absm.name(),
+                    selection.absm_node_handle.index(),
+                    selection.absm_node_handle.generation()
+                )
+            } else {
+                "No ABSM Selected".to_string()
+            }
+        } else {
+            "No ABSM Selected".to_string()
+        };
+        ui.send_sync(self.window, WindowMessage::Title(WindowTitle::text(name)))
     }
 
     pub fn clear(&mut self, ui: &UserInterface) {
