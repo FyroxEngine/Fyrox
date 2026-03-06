@@ -1243,6 +1243,7 @@ pub(crate) fn initialize_resource_manager_loaders(
     state.built_in_resources.add(texture::PLACEHOLDER.clone());
     state.built_in_resources.add(texture::PURE_COLOR.clone());
     state.built_in_resources.add(style::DEFAULT_STYLE.clone());
+    state.built_in_resources.add(style::LIGHT_STYLE.clone());
 
     for material in [
         &*material::STANDARD,

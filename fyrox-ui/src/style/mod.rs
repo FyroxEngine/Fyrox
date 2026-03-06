@@ -137,6 +137,18 @@ pub static DEFAULT_STYLE: LazyLock<BuiltInResource<Style>> = LazyLock::new(|| {
     )
 });
 
+/// Light style of the library.
+pub static LIGHT_STYLE: LazyLock<BuiltInResource<Style>> = LazyLock::new(|| {
+    BuiltInResource::new_no_source(
+        "Light Style",
+        StyleResource::new_ok(
+            uuid!("05141b18-2a27-4fe3-ae6e-7af11c2e7471"),
+            ResourceKind::External,
+            Style::light_style(),
+        ),
+    )
+});
+
 /// A property, that can bind its value to a style. Why can't we just fetch the actual value from
 /// the style and why do we need to store the value as well? The answer is flexibility. In this
 /// approach, style becomes not necessary and the value can be hardcoded. Also, the values of such
