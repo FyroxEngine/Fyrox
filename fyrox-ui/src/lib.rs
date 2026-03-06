@@ -1650,9 +1650,7 @@ impl UserInterface {
                 self.drawing_context.push_rounded_rect(&bounds, 1.0, 2.0, 6);
                 self.drawing_context.commit(
                     bounds,
-                    DEFAULT_STYLE
-                        .resource
-                        .get_or_default(Style::BRUSH_HIGHLIGHT),
+                    self.style.get_or_default(Style::BRUSH_HIGHLIGHT),
                     CommandTexture::None,
                     &self.standard_material,
                     None,
