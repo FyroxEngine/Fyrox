@@ -453,16 +453,17 @@ impl WorldViewer {
                         .map(|i| i.entity_handle == node_handle)
                         .unwrap_or_default()
                 });
-                assert!(view.is_some());
-                self.build_breadcrumb(
-                    &format!(
-                        "{}({})",
-                        data_provider.name_of(node_handle).unwrap_or_default(),
-                        node_handle
-                    ),
-                    view,
-                    ui,
-                );
+                if view.is_some() {
+                    self.build_breadcrumb(
+                        &format!(
+                            "{}({})",
+                            data_provider.name_of(node_handle).unwrap_or_default(),
+                            node_handle
+                        ),
+                        view,
+                        ui,
+                    );
+                }
 
                 node_handle = data_provider.parent_of(node_handle);
             }
