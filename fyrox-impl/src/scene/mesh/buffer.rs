@@ -35,6 +35,7 @@ use crate::{
 use bytemuck::Pod;
 use fxhash::FxHasher;
 use fyrox_core::visitor::pod::PodVecView;
+use fyrox_core::visitor::BinaryBlob;
 use std::{
     alloc::Layout,
     fmt::{Display, Formatter},
@@ -1462,10 +1463,21 @@ impl VertexWriteTrait for VertexViewMut<'_> {
 }
 
 /// A buffer for data that defines connections between vertices.
-#[derive(Reflect, Visit, Default, Clone, Debug)]
+#[derive(Reflect, Default, Clone, Debug)]
 pub struct TriangleBuffer {
     triangles: Vec<TriangleDefinition>,
     modifications_counter: u64,
+}
+
+impl Visit for TriangleBuffer {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut guard = visitor.enter_region(name)?;
+        BinaryBlob {
+            vec: &mut self.triangles,
+        }
+        .visit("Data", &mut guard)?;
+        Ok(())
+    }
 }
 
 fn calculate_triangle_buffer_hash(triangles: &[TriangleDefinition]) -> u64 {
