@@ -243,7 +243,7 @@ impl ResourceData for SurfaceData {
 
     fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
         let mut visitor = Visitor::new();
-        self.visit("Surface", &mut visitor)?;
+        self.visit("SurfaceData", &mut visitor)?;
         visitor.save_ascii_to_file(path)?;
         Ok(())
     }
