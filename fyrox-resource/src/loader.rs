@@ -284,6 +284,14 @@ impl ResourceLoadersContainer {
         }
     }
 
+    /// Tries to fina a loader for the specified data type uuid.
+    pub fn loader_for_data_type(&self, data_type_uuid: Uuid) -> Option<&dyn ResourceLoader> {
+        self.loaders
+            .iter()
+            .find(|loader| loader.data_type_uuid() == data_type_uuid)
+            .map(|l| &**l)
+    }
+
     /// Checks if there's a resource loader for the given path and the data type produced by the
     /// loader matches the given type `T`.
     pub fn is_extension_matches_type<T>(&self, path: &Path) -> bool

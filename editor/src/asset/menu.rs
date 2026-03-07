@@ -18,46 +18,43 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::message::MessageSender;
 use crate::{
     asset::{self, item::AssetItem},
     fyrox::{
         asset::manager::ResourceManager,
         core::{
-            futures::executor::block_on, log::Log, pool::Handle, reflect::prelude::*,
-            type_traits::prelude::*, visitor::prelude::*,
+            futures::executor::block_on, log::Log, ok_or_return, pool::Handle,
+            pool::HandlesVecExtension, reflect::prelude::*, type_traits::prelude::*,
+            visitor::prelude::*, SafeLock,
         },
         engine::Engine,
         graph::SceneGraph,
         gui::{
-            button::{ButtonBuilder, ButtonMessage},
+            button::{Button, ButtonBuilder, ButtonMessage},
+            control_trait_proxy_impls,
+            formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
-            menu::{ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
+            menu::{
+                ContextMenuBuilder, MenuItem, MenuItemBuilder, MenuItemContent, MenuItemMessage,
+            },
             message::UiMessage,
             messagebox::{
-                MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult,
+                MessageBox, MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage,
+                MessageBoxResult,
             },
             popup::{Placement, PopupBuilder, PopupMessage},
             stack_panel::StackPanelBuilder,
             text::{TextBuilder, TextMessage},
-            text_box::{TextBoxBuilder, TextCommitMode},
+            text_box::{TextBox, TextBoxBuilder, TextCommitMode},
             widget::{Widget, WidgetBuilder, WidgetMessage},
-            window::{Window, WindowBuilder, WindowMessage, WindowTitle},
+            window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, Control, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness,
             UiNode, UserInterface,
         },
     },
+    message::MessageSender,
     Message,
 };
-use fyrox::core::pool::HandlesVecExtension;
-use fyrox::core::{ok_or_return, SafeLock};
-use fyrox::gui::button::Button;
-use fyrox::gui::control_trait_proxy_impls;
-use fyrox::gui::formatted_text::WrapMode;
-use fyrox::gui::menu::MenuItem;
-use fyrox::gui::messagebox::MessageBox;
-use fyrox::gui::text_box::TextBox;
-use fyrox::gui::window::WindowAlignment;
 use std::{
     fs::File,
     io::Write,
@@ -400,17 +397,17 @@ impl AssetItemContextMenu {
                                 .get(&path)
                                 .cloned();
                             if let Some(built_in) = built_in {
-                                if let Some(data_source) = built_in.data_source.as_ref() {
-                                    let registry_path = engine
-                                        .resource_manager
-                                        .state()
-                                        .resource_registry
-                                        .safe_lock()
-                                        .path()
-                                        .parent()
-                                        .map(|p| p.to_path_buf())
-                                        .unwrap_or_default();
+                                let registry_path = engine
+                                    .resource_manager
+                                    .state()
+                                    .resource_registry
+                                    .safe_lock()
+                                    .path()
+                                    .parent()
+                                    .map(|p| p.to_path_buf())
+                                    .unwrap_or_default();
 
+                                if let Some(data_source) = built_in.data_source.as_ref() {
                                     let final_copy_path = asset::make_unique_path(
                                         &registry_path,
                                         path.to_str().unwrap(),
@@ -434,6 +431,34 @@ impl AssetItemContextMenu {
                                             "Failed to create a file for resource at path {final_copy_path:?}. \
                                                 Reason: {err}",
                                         )),
+                                    }
+                                } else if let Some(data) = built_in.resource.lock().state.data_mut()
+                                {
+                                    let loaders = engine.resource_manager.state().loaders.clone();
+                                    let loaders = loaders.lock();
+
+                                    if let Some(loader) =
+                                        loaders.loader_for_data_type(data.type_uuid())
+                                    {
+                                        if let Some(extension) = loader.extensions().first() {
+                                            if data.can_be_saved() {
+                                                let final_copy_path = asset::make_unique_path(
+                                                    &registry_path,
+                                                    path.to_str().unwrap(),
+                                                    extension,
+                                                );
+                                                drop(loaders);
+                                                if data.save(&final_copy_path).is_ok() {
+                                                    engine
+                                                        .resource_manager
+                                                        .request_untyped(&final_copy_path);
+
+                                                    sender.send(Message::ShowInAssetBrowser(
+                                                        final_copy_path,
+                                                    ));
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             } else if let Ok(canonical_path) = path.canonicalize() {
