@@ -241,8 +241,10 @@ impl ResourceData for SurfaceData {
         <SurfaceData as fyrox_core::TypeUuidProvider>::type_uuid()
     }
 
-    fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
-        // TODO: Add saving.
+    fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
+        let mut visitor = Visitor::new();
+        self.visit("Surface", &mut visitor)?;
+        visitor.save_ascii_to_file(path)?;
         Ok(())
     }
 
