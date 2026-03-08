@@ -793,11 +793,13 @@ impl EditorPlugin for AbsmEditorPlugin {
             }
         }
 
-        let mut absm_editor = some_or_return!(self.absm_editor.take());
+        let absm_editor = some_or_return!(self.absm_editor.as_mut());
 
         if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == absm_editor.window {
                 self.on_leave_preview_mode(editor);
+
+                let mut absm_editor = some_or_return!(self.absm_editor.take());
 
                 absm_editor.destroy(
                     editor.engine.user_interfaces.first(),
@@ -830,8 +832,6 @@ impl EditorPlugin for AbsmEditorPlugin {
                 ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
             );
         }
-
-        self.absm_editor = Some(absm_editor);
     }
 
     fn on_leave_preview_mode(&mut self, editor: &mut Editor) {
