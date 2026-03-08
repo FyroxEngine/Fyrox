@@ -992,11 +992,13 @@ impl EditorPlugin for AnimationEditorPlugin {
             }
         }
 
-        let mut animation_editor = some_or_return!(self.animation_editor.take());
+        let animation_editor = some_or_return!(self.animation_editor.as_mut());
 
         if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == animation_editor.window {
                 self.on_leave_preview_mode(editor);
+
+                let mut animation_editor = some_or_return!(self.animation_editor.take());
 
                 animation_editor.destroy(
                     editor.engine.user_interfaces.first(),
@@ -1034,8 +1036,6 @@ impl EditorPlugin for AnimationEditorPlugin {
                 ui_scene.ui_update_switches.node_overrides.as_mut().unwrap(),
             );
         }
-
-        self.animation_editor = Some(animation_editor);
     }
 
     fn on_leave_preview_mode(&mut self, editor: &mut Editor) {
