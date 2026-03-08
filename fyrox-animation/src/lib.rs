@@ -930,7 +930,7 @@ impl<T: EntityId> Default for Animation<T> {
         Self {
             name: Default::default(),
             tracks_data: Resource::new_ok(
-                Uuid::default(),
+                Uuid::new_v4(),
                 ResourceKind::Embedded,
                 AnimationTracksData::default(),
             ),
