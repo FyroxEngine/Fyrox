@@ -1023,12 +1023,15 @@ impl NodeTrait for Collider {
     fn on_local_transform_changed(&self, context: &mut SyncContext) {
         if self.native.get() != ColliderHandle::invalid() {
             if let Some(native) = context.physics.colliders.get_mut(self.native.get()) {
-                native.set_position_wrt_parent(Isometry3 {
-                    rotation: **self.local_transform().rotation(),
-                    translation: Translation3 {
-                        vector: **self.local_transform().position(),
-                    },
-                });
+                native.set_position_wrt_parent(
+                    Isometry3 {
+                        rotation: **self.local_transform().rotation(),
+                        translation: Translation3 {
+                            vector: **self.local_transform().position(),
+                        },
+                    }
+                    .into(),
+                );
             }
         }
     }

@@ -24,15 +24,17 @@
 //! is a resource that contains triangles to allow an arbitrary shape to be constructed for
 //! any tile.
 
+use super::*;
 use crate::{
     asset::{Resource, ResourceData},
     core::{
-        algebra::{Matrix4, Point2, Point3, Vector2},
+        algebra::{Matrix4, Point3, Vector2},
         reflect::prelude::*,
         type_traits::prelude::*,
         visitor::prelude::*,
     },
 };
+use fyrox_core::algebra::Point2;
 use std::{
     error::Error,
     fmt::{Debug, Display, Formatter},
@@ -41,8 +43,6 @@ use std::{
     str::FromStr,
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};
-
-use super::*;
 
 /// Supported collider types for tiles.
 #[derive(

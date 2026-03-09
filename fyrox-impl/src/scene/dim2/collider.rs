@@ -680,14 +680,17 @@ impl NodeTrait for Collider {
     fn on_local_transform_changed(&self, context: &mut SyncContext) {
         if self.native.get() != ColliderHandle::invalid() {
             if let Some(native) = context.physics2d.colliders.get_mut(self.native.get()) {
-                native.set_position_wrt_parent(Isometry2 {
-                    rotation: UnitComplex::from_angle(
-                        self.local_transform().rotation().euler_angles().2,
-                    ),
-                    translation: Translation2 {
-                        vector: self.local_transform().position().xy(),
-                    },
-                });
+                native.set_position_wrt_parent(
+                    Isometry2 {
+                        rotation: UnitComplex::from_angle(
+                            self.local_transform().rotation().euler_angles().2,
+                        ),
+                        translation: Translation2 {
+                            vector: self.local_transform().position().xy(),
+                        },
+                    }
+                    .into(),
+                );
             }
         }
     }
