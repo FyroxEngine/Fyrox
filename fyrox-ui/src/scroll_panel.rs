@@ -184,9 +184,6 @@ impl ScrollPanel {
         children_size
     }
     fn bring_into_view(&self, ui: &UserInterface, handle: Handle<UiNode>) {
-        let Ok(node_to_focus_ref) = ui.try_get_node(handle) else {
-            return;
-        };
         let mut parent = handle;
         let mut relative_position = Vector2::default();
         while parent.is_some() && parent != self.handle {
@@ -199,13 +196,12 @@ impl ScrollPanel {
         if parent != self.handle {
             return;
         }
-        let size = node_to_focus_ref.actual_local_size();
         let children_size = self.children_size(ui);
         let view_size = self.actual_local_size();
         // Check if requested item already in "view box", this will prevent weird "jumping" effect
         // when bring into view was requested on already visible element.
         if self.vertical_scroll_allowed
-            && (relative_position.y < 0.0 || relative_position.y + size.y > view_size.y)
+            && (relative_position.y < 0.0 || relative_position.y > view_size.y)
         {
             relative_position.y += self.scroll.y;
             let scroll_max = (children_size.y - view_size.y).max(0.0);
@@ -216,7 +212,7 @@ impl ScrollPanel {
             );
         }
         if self.horizontal_scroll_allowed
-            && (relative_position.x < 0.0 || relative_position.x + size.x > view_size.x)
+            && (relative_position.x < 0.0 || relative_position.x > view_size.x)
         {
             relative_position.x += self.scroll.x;
             let scroll_max = (children_size.x - view_size.x).max(0.0);
