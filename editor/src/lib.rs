@@ -2024,6 +2024,10 @@ impl Editor {
             }
         }
 
+        // We must process file system events when a scene was saved, because such scene can be used
+        // as a prefab. All prefab instances must be updated in the loaded scenes.
+        self.try_process_file_system_events();
+
         self.sync_to_model();
     }
 
@@ -2924,7 +2928,7 @@ impl Editor {
         self.engine.destroy_graphics_context().unwrap();
     }
 
-    fn on_focus_changed(&mut self) {
+    fn try_process_file_system_events(&mut self) {
         if self.focused {
             self.engine
                 .resource_manager
@@ -2997,7 +3001,7 @@ impl Editor {
                             }
                             WindowEvent::Focused(focused) => {
                                 self.focused = *focused;
-                                self.on_focus_changed();
+                                self.try_process_file_system_events();
                             }
                             WindowEvent::Moved(new_position) => {
                                 // Allow the window to go outside the screen bounds by a little. This
