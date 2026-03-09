@@ -49,7 +49,7 @@ impl CameraPreviewControlPanel {
         let window = WindowBuilder::new(
             WidgetBuilder::new()
                 .with_name("CameraPanel")
-                .with_min_size(Vector2::new(180.0, 45.0)),
+                .with_min_size(Vector2::new(180.0, 225.0)),
         )
         .with_title(WindowTitle::text("Camera Preview"))
         .with_content(
