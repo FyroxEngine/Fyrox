@@ -31,7 +31,7 @@ use crate::{
             BuildContext, HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
         },
         resource::texture::{TextureResource, TextureResourceExtension},
-        scene::{camera::Camera, collider::BitMask, node::Node},
+        scene::{camera::Camera, collider::BitMask},
     },
     scene::{GameScene, Selection},
     Message,
@@ -39,7 +39,6 @@ use crate::{
 
 pub struct CameraPreviewControlPanel {
     pub window: Handle<Window>,
-    camera_state: Option<(Handle<Node>, Node)>,
     scene_viewer_frame: Handle<Image>,
     preview_frame: Handle<Image>,
 }
@@ -74,7 +73,6 @@ impl CameraPreviewControlPanel {
 
         Self {
             window,
-            camera_state: Default::default(),
             scene_viewer_frame,
             preview_frame,
         }
@@ -133,8 +131,6 @@ impl CameraPreviewControlPanel {
         game_scene: &mut GameScene,
         engine: &mut Engine,
     ) {
-        assert!(self.camera_state.is_none());
-
         let scene = &mut engine.scenes[game_scene.scene];
         let node_overrides = game_scene.graph_switches.node_overrides.as_mut().unwrap();
 
@@ -162,7 +158,6 @@ impl CameraPreviewControlPanel {
                         .first()
                         .send_sync(self.preview_frame, WidgetMessage::Visibility(true));
 
-                    self.camera_state = Some((node_handle, scene.graph[node_handle].clone_box()));
                     break;
                 }
             }
@@ -170,15 +165,10 @@ impl CameraPreviewControlPanel {
     }
 
     pub fn leave_preview_mode(&mut self, game_scene: &mut GameScene, engine: &mut Engine) {
-        let scene = &mut engine.scenes[game_scene.scene];
         let node_overrides = game_scene.graph_switches.node_overrides.as_mut().unwrap();
 
-        if let Some((camera_handle, original)) = self.camera_state.take() {
-            if let Ok(camera) = scene.graph.try_get_node_mut(camera_handle) {
-                *camera = original
-            }
-
-            assert!(node_overrides.remove(&camera_handle));
+        if game_scene.preview_camera.is_some() {
+            assert!(node_overrides.remove(&game_scene.preview_camera));
         }
 
         game_scene.preview_camera = Handle::NONE;
@@ -188,9 +178,5 @@ impl CameraPreviewControlPanel {
         // Don't keep the render target alive after the preview mode is off.
         ui.send_sync(self.preview_frame, ImageMessage::Texture(None));
         ui.send_sync(self.preview_frame, WidgetMessage::Visibility(false));
-    }
-
-    pub fn is_in_preview_mode(&self) -> bool {
-        self.camera_state.is_some()
     }
 }

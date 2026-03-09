@@ -1962,7 +1962,6 @@ impl Editor {
         };
 
         self.particle_system_control_panel.is_in_preview_mode()
-            || self.camera_control_panel.is_in_preview_mode()
             || self.audio_preview_panel.is_in_preview_mode()
             || self.light_panel.is_in_preview_mode()
             || self.export_window.is_some()
