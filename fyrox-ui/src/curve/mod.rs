@@ -91,6 +91,7 @@ pub enum CurveEditorMessage {
     PasteSelection,
     // Position in screen coordinates.
     AddKey(Vector2<f32>),
+    ShowBackgroundCurves(bool),
 }
 
 impl MessageData for CurveEditorMessage {
@@ -448,6 +449,7 @@ pub struct CurveEditor {
     #[visit(skip)]
     #[reflect(hidden)]
     clipboard: Vec<(Vector2<f32>, CurveKeyKind)>,
+    show_background_curves: bool,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for CurveEditor {
@@ -551,8 +553,10 @@ impl Control for CurveEditor {
         self.draw_background(ctx);
         self.draw_highlight_zones(ctx);
         self.draw_grid(ctx);
-        self.draw_curves(&self.background_curves, ctx);
-        self.draw_keys(&self.background_curves, &self.background_curve_brush, ctx);
+        if self.show_background_curves {
+            self.draw_curves(&self.background_curves, ctx);
+            self.draw_keys(&self.background_curves, &self.background_curve_brush, ctx);
+        }
         self.draw_curves(&self.curves, ctx);
         self.draw_keys(&self.curves, &self.key_brush, ctx);
         self.draw_operation(ctx);
@@ -1004,6 +1008,12 @@ impl Control for CurveEditor {
                             self.send_curves(ui);
 
                             self.invalidate_visual();
+                        }
+                    }
+                    CurveEditorMessage::ShowBackgroundCurves(show) => {
+                        if self.show_background_curves != *show {
+                            self.show_background_curves = *show;
+                            self.invalidate_layout();
                         }
                     }
                 }
@@ -1720,6 +1730,7 @@ pub struct CurveEditorBuilder {
     min_zoom: Vector2<f32>,
     max_zoom: Vector2<f32>,
     highlight_zones: Vec<HighlightZone>,
+    show_background_curves: bool,
 }
 
 impl CurveEditorBuilder {
@@ -1737,6 +1748,7 @@ impl CurveEditorBuilder {
             min_zoom: Vector2::new(0.001, 0.001),
             max_zoom: Vector2::new(1000.0, 1000.0),
             highlight_zones: Default::default(),
+            show_background_curves: true,
         }
     }
 
@@ -1793,6 +1805,11 @@ impl CurveEditorBuilder {
 
     pub fn with_highlight_zone(mut self, zones: Vec<HighlightZone>) -> Self {
         self.highlight_zones = zones;
+        self
+    }
+
+    pub fn with_show_background_curves(mut self, show: bool) -> Self {
+        self.show_background_curves = show;
         self
     }
 
@@ -2004,6 +2021,7 @@ impl CurveEditorBuilder {
             zoom_to_fit_timer: None,
             clipboard: Default::default(),
             background_curve_brush,
+            show_background_curves: self.show_background_curves,
         };
 
         ctx.add(editor)
