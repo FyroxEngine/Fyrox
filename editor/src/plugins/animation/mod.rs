@@ -578,6 +578,12 @@ impl AnimationEditor {
                         ],
                     );
                 }
+                ToolbarAction::ShowBackgroundCurves(show) => {
+                    ui.send(
+                        self.curve_editor,
+                        CurveEditorMessage::ShowBackgroundCurves(show),
+                    );
+                }
             }
 
             self.track_list.handle_ui_message(

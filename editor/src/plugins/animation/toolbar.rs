@@ -104,6 +104,7 @@ pub struct Toolbar {
     root_motion_dropdown_area: RootMotionDropdownArea,
     pub root_motion: Handle<Button>,
     import_mode: ImportMode,
+    show_background_curves: Handle<ToggleButton>,
 }
 
 struct RootMotionDropdownArea {
@@ -394,6 +395,7 @@ pub enum ToolbarAction {
     PlayPause,
     Stop,
     NewAnimation,
+    ShowBackgroundCurves(bool),
 }
 
 impl Toolbar {
@@ -425,6 +427,7 @@ impl Toolbar {
         let looping;
         let enabled;
         let root_motion;
+        let show_background_curves;
         let top_panel = BorderBuilder::new(
             WidgetBuilder::new()
                 .on_row(0)
@@ -510,6 +513,14 @@ impl Toolbar {
                                     )
                                     .build_toggle(ctx);
                                 looping
+                            })
+                            .with_child({
+                                show_background_curves = ImageButtonBuilder::default()
+                                    .with_is_toggled(true)
+                                    .with_image(load_image!("../../../resources/all_curves.png"))
+                                    .with_tooltip("Show Background Curves.")
+                                    .build_toggle(ctx);
+                                show_background_curves
                             })
                             .with_child({
                                 enabled = CheckBoxBuilder::new(
@@ -703,6 +714,7 @@ impl Toolbar {
             root_motion_dropdown_area,
             import_mode: ImportMode::Import,
             rename_animation_input_box: Default::default(),
+            show_background_curves,
         }
     }
 
@@ -833,6 +845,10 @@ impl Toolbar {
                 animation_handle: selection.animation,
                 value: *toggled,
             });
+        } else if let Some(ToggleButtonMessage::Toggled(toggled)) =
+            message.data_from(self.show_background_curves)
+        {
+            return ToolbarAction::ShowBackgroundCurves(*toggled);
         } else if let Some(ToggleButtonMessage::Toggled(toggled)) = message.data_from(self.preview)
         {
             return if *toggled {
