@@ -998,7 +998,7 @@ impl EditorPlugin for AnimationEditorPlugin {
             if message.destination() == animation_editor.window {
                 self.on_leave_preview_mode(editor);
 
-                let mut animation_editor = some_or_return!(self.animation_editor.take());
+                let animation_editor = some_or_return!(self.animation_editor.take());
 
                 animation_editor.destroy(
                     editor.engine.user_interfaces.first(),

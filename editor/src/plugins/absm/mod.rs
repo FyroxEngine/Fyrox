@@ -799,7 +799,7 @@ impl EditorPlugin for AbsmEditorPlugin {
             if message.destination() == absm_editor.window {
                 self.on_leave_preview_mode(editor);
 
-                let mut absm_editor = some_or_return!(self.absm_editor.take());
+                let absm_editor = some_or_return!(self.absm_editor.take());
 
                 absm_editor.destroy(
                     editor.engine.user_interfaces.first(),
