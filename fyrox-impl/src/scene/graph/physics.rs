@@ -730,8 +730,6 @@ fn make_heightfield(terrain: &Terrain) -> Option<SharedShape> {
     }
     let x_scale = terrain.chunk_size().x * scale.x * col_range as f32;
     let z_scale = terrain.chunk_size().y * scale.z * row_range as f32;
-    let x_pos = terrain.chunk_size().x * scale.x * chunk_min.x as f32;
-    let z_pos = terrain.chunk_size().y * scale.z * chunk_min.y as f32;
     let mut hf = HeightField::new(
         Array2::new(nrows as usize, ncols as usize, data),
         Vec3::new(x_scale, 1.0, z_scale),
@@ -765,10 +763,7 @@ fn make_heightfield(terrain: &Terrain) -> Option<SharedShape> {
     }
     // HeightField colliders naturally have their origin at their centers,
     // so to position the collider correctly we must add half of the size to x and z.
-    Some(SharedShape::compound(vec![(
-        Pose3::translation(x_scale * 0.5 + x_pos, 0.0, z_scale * 0.5 + z_pos),
-        SharedShape::new(hf),
-    )]))
+    Some(SharedShape::new(hf))
 }
 
 // Converts descriptor in a shared shape.
