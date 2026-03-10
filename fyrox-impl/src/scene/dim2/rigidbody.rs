@@ -52,6 +52,7 @@ use crate::{
     },
 };
 
+use crate::scene::dim2::collider::ColliderShape;
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::SceneGraph;
 use rapier2d::prelude::RigidBodyHandle;
@@ -531,7 +532,20 @@ impl NodeTrait for RigidBody {
 
     fn validate(&self, scene: &Scene) -> Result<(), String> {
         for &child in self.children() {
-            if scene.graph.try_get_of_type::<Collider>(child).is_ok() {
+            if let Ok(collider) = scene.graph.try_get_of_type::<Collider>(child) {
+                match collider.shape() {
+                    ColliderShape::Trimesh(_) | ColliderShape::Heightfield(_)
+                        if *self.body_type == RigidBodyType::Dynamic =>
+                    {
+                        return Err(
+                            "The 2D rigid body is marked as dynamic, but uses the collider \
+                        that cannot be dynamic. Consider making the rigid body static."
+                                .to_string(),
+                        )
+                    }
+                    _ => (),
+                }
+
                 return Ok(());
             }
         }

@@ -28,6 +28,7 @@
 //! using [`RigidBody::wake_up`]. By default any external action does **not** wakes up rigid body.
 //! You can also explicitly tell to rigid body that it cannot sleep, by calling
 //! [`RigidBody::set_can_sleep`] with `false` value.
+use crate::scene::collider::ColliderShape;
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
@@ -673,7 +674,20 @@ impl NodeTrait for RigidBody {
 
     fn validate(&self, scene: &Scene) -> Result<(), String> {
         for &child in self.children() {
-            if scene.graph.try_get_of_type::<Collider>(child).is_ok() {
+            if let Ok(collider) = scene.graph.try_get_of_type::<Collider>(child) {
+                match collider.shape() {
+                    ColliderShape::Trimesh(_) | ColliderShape::Heightfield(_)
+                        if *self.body_type == RigidBodyType::Dynamic =>
+                    {
+                        return Err(
+                            "The 3D rigid body is marked as dynamic, but uses the collider \
+                        that cannot be dynamic. Consider making the rigid body static."
+                                .to_string(),
+                        )
+                    }
+                    _ => (),
+                }
+
                 return Ok(());
             }
         }
