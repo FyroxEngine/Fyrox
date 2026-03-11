@@ -35,7 +35,7 @@ use crate::{
 };
 
 use crate::message::MessageData;
-use fyrox_core::uuid_provider;
+use fyrox_core::{ok_or_return, uuid_provider};
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;
 
@@ -187,7 +187,7 @@ impl ScrollPanel {
         let mut parent = handle;
         let mut relative_position = Vector2::default();
         while parent.is_some() && parent != self.handle {
-            let node = ui.node(parent);
+            let node = ok_or_return!(ui.try_get_node(parent));
             relative_position += node.actual_local_position();
             parent = node.parent();
         }
