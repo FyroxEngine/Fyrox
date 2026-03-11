@@ -344,6 +344,9 @@ fn render_scene_to_texture(
 
     let camera = CameraBuilder::new(BaseBuilder::new()).build(&mut scene.graph);
 
+    scene.rendering_options.ambient_lighting_color = Color::repeat_opaque(160);
+    scene.rendering_options.environment_lighting_source = EnvironmentLightingSource::AmbientColor;
+
     scene.update(rt_size, 0.016, Default::default());
 
     let scene_aabb = scene
