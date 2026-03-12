@@ -222,13 +222,13 @@ impl Control for Button {
                 ButtonMessage::RepeatInterval(interval) => {
                     if *self.repeat_interval != *interval {
                         *self.repeat_interval = *interval;
-                        ui.try_send_response(&message);
+                        ui.try_send_response(message);
                     }
                 }
                 ButtonMessage::RepeatClicksOnHold(repeat_clicks) => {
                     if *self.repeat_clicks_on_hold != *repeat_clicks {
                         *self.repeat_clicks_on_hold = *repeat_clicks;
-                        ui.try_send_response(&message);
+                        ui.try_send_response(message);
                     }
                 }
             }

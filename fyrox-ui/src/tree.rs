@@ -890,7 +890,7 @@ impl Control for TreeRoot {
                         }
 
                         self.selected.clone_from(selected);
-                        ui.try_send_response(&message);
+                        ui.try_send_response(message);
                     }
                 }
                 TreeRootMessage::CollapseAll => {

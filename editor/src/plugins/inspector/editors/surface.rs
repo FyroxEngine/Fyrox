@@ -143,7 +143,7 @@ impl Control for SurfaceDataPropertyEditor {
         {
             if &self.surface_resource != surface_resource {
                 self.surface_resource = surface_resource.clone();
-                ui.try_send_response(&message);
+                ui.try_send_response(message);
 
                 ui.send(
                     self.text,

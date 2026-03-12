@@ -87,7 +87,7 @@ impl Control for TileHandleField {
             if let Some(TileHandleEditorMessage::Value(value)) = message.data() {
                 self.value = *value;
                 ui.send(self.field, TextMessage::Text(value_to_string(*value)));
-                ui.try_send_response(&message);
+                ui.try_send_response(message);
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if let Some(value) = self.value {

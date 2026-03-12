@@ -428,7 +428,7 @@ impl Control for Popup {
                         if *self.smart_placement {
                             ui.send(self.handle, PopupMessage::AdjustPosition);
                         }
-                        ui.try_send_response(&message);
+                        ui.try_send_response(message);
                     }
                 }
                 PopupMessage::Close => {
@@ -448,7 +448,7 @@ impl Control for Popup {
                             ui.release_mouse_capture();
                         }
 
-                        ui.try_send_response(&message);
+                        ui.try_send_response(message);
                     }
                 }
                 PopupMessage::Content(content) => {
@@ -459,7 +459,7 @@ impl Control for Popup {
                         self.content.set_value_and_mark_modified(*content);
                         ui.send(*self.content, WidgetMessage::LinkWith(*self.body));
 
-                        ui.try_send_response(&message);
+                        ui.try_send_response(message);
                     }
                 }
                 PopupMessage::Placement(placement) => {
@@ -467,7 +467,7 @@ impl Control for Popup {
                         self.placement.set_value_and_mark_modified(*placement);
                         self.invalidate_layout();
 
-                        ui.try_send_response(&message);
+                        ui.try_send_response(message);
                     }
                 }
                 PopupMessage::AdjustPosition => {

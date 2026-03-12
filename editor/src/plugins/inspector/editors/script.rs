@@ -107,7 +107,7 @@ impl Control for ScriptPropertyEditor {
             if self.selected_script_uuid != *id {
                 self.selected_script_uuid = *id;
                 self.need_context_update.set(true);
-                ui.try_send_response(&message);
+                ui.try_send_response(message);
             }
         } else if let Some(InspectorMessage::PropertyChanged(property_changed)) =
             message.data_from(self.inspector)

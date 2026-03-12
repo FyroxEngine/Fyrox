@@ -148,7 +148,7 @@ impl Control for PathEditor {
                     *self.text_field,
                     TextMessage::Text(path.to_string_lossy().to_string()),
                 );
-                ui.try_send_response(&message);
+                ui.try_send_response(message);
             }
         }
     }

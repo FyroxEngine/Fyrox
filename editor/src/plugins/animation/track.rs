@@ -417,7 +417,7 @@ impl Control for TrackView {
                             CheckBoxMessage::Check(Some(*enabled)),
                         );
 
-                        ui.try_send_response(&message);
+                        ui.try_send_response(message);
                     }
                 }
                 TrackViewMessage::TrackName(name) => {

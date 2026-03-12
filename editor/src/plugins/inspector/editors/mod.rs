@@ -101,9 +101,7 @@ use crate::{
         scene::base::SceneNodeId,
         scene::{
             self,
-            base::{
-                Base, LevelOfDetail, LodGroup,  Property, PropertyValue, ScriptRecord,
-            },
+            base::{Base, LevelOfDetail, LodGroup, Property, PropertyValue, ScriptRecord},
             camera::{
                 Camera, ColorGradingLut, Exposure, OrthographicProjection, PerspectiveProjection,
                 Projection,

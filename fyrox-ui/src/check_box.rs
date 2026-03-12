@@ -240,7 +240,7 @@ impl Control for CheckBox {
             if *self.checked != value {
                 self.checked.set_value_and_mark_modified(value);
 
-                ui.try_send_response(&message);
+                ui.try_send_response(message);
 
                 if self.check_mark.is_some() {
                     match value {

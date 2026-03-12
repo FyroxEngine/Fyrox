@@ -130,7 +130,7 @@ impl Control for Selector {
                             }
                         }
 
-                        ui.try_send_response(&message);
+                        ui.try_send_response(message);
                     }
                 }
             }

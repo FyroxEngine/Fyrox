@@ -735,7 +735,7 @@ impl Control for TextureSliceFieldEditor {
         {
             if &self.texture_slice != slice {
                 self.texture_slice = slice.clone();
-                ui.try_send_response(&message);
+                ui.try_send_response(message);
                 ui.send(
                     self.editor,
                     TextureSliceEditorMessage::Slice(self.texture_slice.clone()),

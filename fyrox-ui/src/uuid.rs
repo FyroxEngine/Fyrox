@@ -99,7 +99,7 @@ impl Control for UuidEditor {
         if let Some(UuidEditorMessage::Value(value)) = message.data_for(self.handle) {
             if self.value != *value {
                 self.value = *value;
-                ui.try_send_response(&message);
+                ui.try_send_response(message);
                 ui.send(self.text, TextMessage::Text(value.to_string()));
             }
         } else if let Some(ButtonMessage::Click) = message.data_from(self.generate) {

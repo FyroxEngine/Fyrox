@@ -256,7 +256,7 @@ impl Control for NodeSelector {
                     if &self.selected != selection {
                         self.selected.clone_from(selection);
                         self.sync_selection(ui);
-                        ui.try_send_response(&message);
+                        ui.try_send_response(message);
                     }
                 }
                 NodeSelectorMessage::ChooseFocus => {

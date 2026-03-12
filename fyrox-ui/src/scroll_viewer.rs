@@ -332,7 +332,7 @@ impl Control for ScrollViewer {
                         {
                             self.h_scroll_speed = speed;
 
-                            ui.try_send_response(&message);
+                            ui.try_send_response(message);
                         }
                     }
                     &ScrollViewerMessage::VScrollSpeed(speed) => {
@@ -341,7 +341,7 @@ impl Control for ScrollViewer {
                         {
                             self.v_scroll_speed = speed;
 
-                            ui.try_send_response(&message);
+                            ui.try_send_response(message);
                         }
                     }
                     ScrollViewerMessage::ScrollToEnd => {

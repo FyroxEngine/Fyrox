@@ -117,7 +117,7 @@ impl Control for Thumb {
                 ThumbMessage::Position(value) => {
                     if value.ne(&self.position) {
                         self.position = *value;
-                        ui.try_send_response(&message);
+                        ui.try_send_response(message);
                         self.invalidate_visual();
                     }
                 }

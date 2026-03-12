@@ -185,13 +185,13 @@ impl Control for InputBox {
 
                     ui.send(*self.value_box, WidgetMessage::Focus);
 
-                    ui.try_send_response(&message);
+                    ui.try_send_response(message);
                 }
                 InputBoxMessage::Close(_) => {
                     // Translate input box message into window message.
                     ui.send(self.handle(), WindowMessage::Close);
 
-                    ui.try_send_response(&message);
+                    ui.try_send_response(message);
                 }
             }
         } else if let Some(TextMessage::Text(text)) = message.data_from(*self.value_box) {

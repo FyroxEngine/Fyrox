@@ -140,7 +140,7 @@ impl Control for TextureEditor {
                     )),
                 );
 
-                ui.try_send_response(&message);
+                ui.try_send_response(message);
             }
         } else if let Some(ButtonMessage::Click) = message.data_from(self.locate) {
             if let Some(path) = self.texture.as_ref().and_then(|t| {

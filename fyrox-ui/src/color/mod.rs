@@ -335,7 +335,7 @@ impl Control for AlphaBar {
                         AlphaBarMessage::Alpha(alpha) => {
                             if self.alpha != alpha {
                                 self.alpha = alpha;
-                                ui.try_send_response(&message);
+                                ui.try_send_response(message);
 
                                 self.invalidate_visual();
                             }
@@ -343,7 +343,7 @@ impl Control for AlphaBar {
                         AlphaBarMessage::Orientation(orientation) => {
                             if self.orientation != orientation {
                                 self.orientation = orientation;
-                                ui.try_send_response(&message);
+                                ui.try_send_response(message);
 
                                 self.invalidate_visual();
                             }
@@ -496,13 +496,13 @@ impl Control for HueBar {
                         HueBarMessage::Hue(hue) => {
                             if self.hue != hue {
                                 self.hue = hue;
-                                ui.try_send_response(&message);
+                                ui.try_send_response(message);
                             }
                         }
                         HueBarMessage::Orientation(orientation) => {
                             if self.orientation != orientation {
                                 self.orientation = orientation;
-                                ui.try_send_response(&message);
+                                ui.try_send_response(message);
                             }
                         }
                     }
@@ -935,7 +935,7 @@ impl Control for ColorPicker {
 
                             self.sync_fields(ui, color, self.hsv);
 
-                            ui.try_send_response(&message);
+                            ui.try_send_response(message);
                         }
                     }
                     ColorPickerMessage::Hsv(hsv) => {
@@ -947,7 +947,7 @@ impl Control for ColorPicker {
 
                             self.sync_fields(ui, self.color, hsv);
 
-                            ui.try_send_response(&message);
+                            ui.try_send_response(message);
                         }
                     }
                 }
@@ -1226,7 +1226,7 @@ impl Control for ColorField {
             {
                 self.color = color;
                 ui.send(self.picker, ColorPickerMessage::Color(self.color));
-                ui.try_send_response(&message);
+                ui.try_send_response(message);
 
                 self.invalidate_visual();
             }

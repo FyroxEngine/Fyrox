@@ -129,7 +129,7 @@ impl Control for FontField {
                     TextMessage::Text(make_name(&self.resource_manager, &self.font)),
                 );
 
-                ui.try_send_response(&message);
+                ui.try_send_response(message);
             }
         }
     }

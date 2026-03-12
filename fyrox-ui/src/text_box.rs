@@ -1366,7 +1366,7 @@ impl Control for TextBox {
                                 text.set_wrap(*wrap_mode);
                                 drop(text);
                                 self.invalidate_layout();
-                                ui.try_send_response(&message);
+                                ui.try_send_response(message);
                             }
                         }
                         TextMessage::Font(font) => {
@@ -1374,7 +1374,7 @@ impl Control for TextBox {
                                 text.set_font(font.clone());
                                 drop(text);
                                 self.invalidate_layout();
-                                ui.try_send_response(&message);
+                                ui.try_send_response(message);
                             }
                         }
                         TextMessage::VerticalAlignment(alignment) => {
@@ -1382,7 +1382,7 @@ impl Control for TextBox {
                                 text.set_vertical_alignment(*alignment);
                                 drop(text);
                                 self.invalidate_layout();
-                                ui.try_send_response(&message);
+                                ui.try_send_response(message);
                             }
                         }
                         TextMessage::HorizontalAlignment(alignment) => {
@@ -1390,7 +1390,7 @@ impl Control for TextBox {
                                 text.set_horizontal_alignment(*alignment);
                                 drop(text);
                                 self.invalidate_layout();
-                                ui.try_send_response(&message);
+                                ui.try_send_response(message);
                             }
                         }
                         &TextMessage::Shadow(shadow) => {
@@ -1398,7 +1398,7 @@ impl Control for TextBox {
                                 text.set_shadow(shadow);
                                 drop(text);
                                 self.invalidate_layout();
-                                ui.try_send_response(&message);
+                                ui.try_send_response(message);
                             }
                         }
                         TextMessage::ShadowBrush(brush) => {
@@ -1406,7 +1406,7 @@ impl Control for TextBox {
                                 text.set_shadow_brush(brush.clone());
                                 drop(text);
                                 self.invalidate_layout();
-                                ui.try_send_response(&message);
+                                ui.try_send_response(message);
                             }
                         }
                         &TextMessage::ShadowDilation(dilation) => {
@@ -1414,7 +1414,7 @@ impl Control for TextBox {
                                 text.set_shadow_dilation(dilation);
                                 drop(text);
                                 self.invalidate_layout();
-                                ui.try_send_response(&message);
+                                ui.try_send_response(message);
                             }
                         }
                         &TextMessage::ShadowOffset(offset) => {
@@ -1422,7 +1422,7 @@ impl Control for TextBox {
                                 text.set_shadow_offset(offset);
                                 drop(text);
                                 self.invalidate_layout();
-                                ui.try_send_response(&message);
+                                ui.try_send_response(message);
                             }
                         }
                         TextMessage::FontSize(height) => {
@@ -1430,7 +1430,7 @@ impl Control for TextBox {
                                 text.set_font_size(height.clone());
                                 drop(text);
                                 self.invalidate_layout();
-                                ui.try_send_response(&message);
+                                ui.try_send_response(message);
                             }
                         }
                         TextMessage::Runs(runs) => {
@@ -1447,45 +1447,45 @@ impl Control for TextBox {
                             if &*self.selection_brush != brush {
                                 self.selection_brush
                                     .set_value_and_mark_modified(brush.clone());
-                                ui.try_send_response(&message);
+                                ui.try_send_response(message);
                             }
                         }
                         TextBoxMessage::CaretBrush(brush) => {
                             if &*self.caret_brush != brush {
                                 self.caret_brush.set_value_and_mark_modified(brush.clone());
-                                ui.try_send_response(&message);
+                                ui.try_send_response(message);
                             }
                         }
                         TextBoxMessage::TextCommitMode(mode) => {
                             if &*self.commit_mode != mode {
                                 self.commit_mode.set_value_and_mark_modified(*mode);
-                                ui.try_send_response(&message);
+                                ui.try_send_response(message);
                             }
                         }
                         TextBoxMessage::Multiline(multiline) => {
                             if &*self.multiline != multiline {
                                 self.multiline.set_value_and_mark_modified(*multiline);
-                                ui.try_send_response(&message);
+                                ui.try_send_response(message);
                             }
                         }
                         TextBoxMessage::Editable(editable) => {
                             if &*self.editable != editable {
                                 self.editable.set_value_and_mark_modified(*editable);
-                                ui.try_send_response(&message);
+                                ui.try_send_response(message);
                             }
                         }
                         TextBoxMessage::Padding(padding) => {
                             let mut formatted_text = self.formatted_text.borrow_mut();
                             if &*formatted_text.padding != padding {
                                 formatted_text.padding.set_value_and_mark_modified(*padding);
-                                ui.try_send_response(&message);
+                                ui.try_send_response(message);
                             }
                         }
                         TextBoxMessage::CornerRadius(corner_radius) => {
                             if *self.corner_radius != *corner_radius {
                                 self.corner_radius
                                     .set_value_and_mark_modified(*corner_radius);
-                                ui.try_send_response(&message);
+                                ui.try_send_response(message);
                                 self.invalidate_visual();
                             }
                         }

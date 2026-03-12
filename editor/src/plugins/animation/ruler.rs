@@ -304,7 +304,7 @@ impl Control for Ruler {
                 RulerMessage::Value(value) => {
                     if value.ne(&self.value) {
                         self.value = *value;
-                        ui.try_send_response(&message);
+                        ui.try_send_response(message);
                         self.invalidate_visual();
                     }
                 }

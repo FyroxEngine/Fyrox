@@ -188,7 +188,7 @@ where
             }
 
             if changed {
-                ui.try_send_response(&message);
+                ui.try_send_response(message);
             }
         }
     }

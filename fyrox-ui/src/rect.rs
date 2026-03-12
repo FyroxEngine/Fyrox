@@ -194,7 +194,7 @@ where
         {
             if *value != *self.value {
                 self.value.set_value_and_mark_modified(*value);
-                ui.try_send_response(&message);
+                ui.try_send_response(message);
             }
         } else if let Some(VecEditorMessage::Value(value)) =
             message.data::<VecEditorMessage<T, 2>>()

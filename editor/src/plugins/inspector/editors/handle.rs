@@ -230,7 +230,7 @@ impl<T: Reflect> Control for HandlePropertyEditor<T> {
                 HandlePropertyEditorMessage::Value(handle) => {
                     if self.value != *handle {
                         self.value = *handle;
-                        ui.try_send_response(&message);
+                        ui.try_send_response(message);
                     }
 
                     // Sync name in any case, because it may be changed.

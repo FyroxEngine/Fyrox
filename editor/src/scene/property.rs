@@ -375,7 +375,7 @@ impl Control for PropertySelector {
                 PropertySelectorMessage::Selection(selection) => {
                     if &self.selected_property_paths != selection {
                         self.selected_property_paths.clone_from(selection);
-                        ui.try_send_response(&message);
+                        ui.try_send_response(message);
                     }
                 }
                 PropertySelectorMessage::ChooseFocus => {

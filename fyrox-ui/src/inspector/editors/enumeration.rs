@@ -173,7 +173,7 @@ impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
             });
 
             ui.send(self.inspector, InspectorMessage::Context(ctx));
-            ui.try_send_response(&message);
+            ui.try_send_response(message);
         } else if let Some(InspectorMessage::PropertyChanged(property_changed)) =
             message.data_from(self.inspector)
         {
