@@ -119,10 +119,6 @@ impl TestPlugin {
 }
 
 impl EditorPlugin for TestPlugin {
-    fn on_ui_message(&mut self, message: &mut UiMessage, _editor: &mut Editor) {
-        info!("{message:?}")
-    }
-
     fn on_post_update(&mut self, editor: &mut Editor, loop_controller: ApplicationLoopController) {
         self.test_macro.execute_next(editor, loop_controller)
     }
