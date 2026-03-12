@@ -667,7 +667,7 @@ impl Control for Window {
                 &WindowMessage::CanResize(value) => {
                     if self.can_resize != value {
                         self.can_resize = value;
-                        ui.send_message(message.reverse());
+                        ui.try_send_response(&message);
                     }
                 }
                 &WindowMessage::Move(mut new_pos) => {
@@ -685,7 +685,7 @@ impl Control for Window {
 
                     if self.is_dragging && self.desired_local_position() != new_pos {
                         ui.send(self.handle(), WidgetMessage::DesiredPosition(new_pos));
-                        ui.send_message(message.reverse());
+                        ui.try_send_response(&message);
                     }
                 }
                 WindowMessage::MoveStart => {
@@ -708,7 +708,7 @@ impl Control for Window {
                             }
                         }
 
-                        ui.send_message(message.reverse());
+                        ui.try_send_response(&message);
                     }
                 }
                 WindowMessage::MoveEnd => {
@@ -716,7 +716,7 @@ impl Control for Window {
                         ui.release_mouse_capture();
                         self.is_dragging = false;
 
-                        ui.send_message(message.reverse());
+                        ui.try_send_response(&message);
                     }
                 }
                 WindowMessage::Title(title) => {
@@ -770,7 +770,7 @@ impl Control for Window {
                 WindowMessage::SafeBorderSize(size) => {
                     if &self.safe_border_size != size {
                         self.safe_border_size = *size;
-                        ui.send_message(message.reverse());
+                        ui.try_send_response(&message);
                     }
                 }
             }

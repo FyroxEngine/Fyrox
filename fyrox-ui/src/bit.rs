@@ -408,7 +408,7 @@ where
         } else if let Some(BitFieldMessage::Value(value)) = message.data_for(self.handle) {
             if *value != self.value {
                 self.value = *value;
-                ui.send_message(message.reverse());
+                ui.try_send_response(&message);
                 self.invalidate_visual();
             }
         }

@@ -116,7 +116,7 @@ impl Control for FileSelectorField {
                     TextMessage::Text(self.path.to_string_lossy().to_string()),
                 );
 
-                ui.send_message(message.reverse());
+                ui.try_send_response(&message);
             }
         }
     }

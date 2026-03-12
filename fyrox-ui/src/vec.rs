@@ -237,8 +237,8 @@ where
                     }
                 }
 
-                if changed && !message.is_sync() {
-                    ui.send_message(message.reverse());
+                if changed {
+                    ui.try_send_response(message);
                 }
             }
         }

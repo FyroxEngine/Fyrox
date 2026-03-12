@@ -273,7 +273,7 @@ impl Control for Border {
                     if *thickness != *self.stroke_thickness {
                         self.stroke_thickness
                             .set_value_and_mark_modified(thickness.clone());
-                        ui.send_message(message.reverse());
+                        ui.try_send_response(&message);
                         self.invalidate_layout();
                     }
                 }
@@ -281,14 +281,14 @@ impl Control for Border {
                     if *radius != *self.corner_radius {
                         self.corner_radius
                             .set_value_and_mark_modified(radius.clone());
-                        ui.send_message(message.reverse());
+                        ui.try_send_response(&message);
                         self.invalidate_layout();
                     }
                 }
                 BorderMessage::PadByCornerRadius(pad) => {
                     if *pad != *self.pad_by_corner_radius {
                         self.pad_by_corner_radius.set_value_and_mark_modified(*pad);
-                        ui.send_message(message.reverse());
+                        ui.try_send_response(&message);
                         self.invalidate_layout();
                     }
                 }

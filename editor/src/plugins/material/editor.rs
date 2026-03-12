@@ -161,7 +161,7 @@ impl Control for MaterialFieldEditor {
                 self.asset_selector_mixin
                     .request_preview(self.handle, material);
 
-                ui.send_message(message.reverse());
+                ui.try_send_response(&message);
             }
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
             if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {

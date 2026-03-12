@@ -417,7 +417,7 @@ impl Control for TabControl {
                     // since presumably their application is not using tab indices.
                     if let Some(index) = index {
                         if self.remove_tab(index, ui) {
-                            ui.send_message(message.reverse());
+                            ui.try_send_response(&message);
                         }
                     }
                 }
@@ -444,7 +444,7 @@ impl Control for TabControl {
                         WidgetMessage::link_with(self.content_container),
                     );
 
-                    ui.send_message(message.reverse());
+                    ui.try_send_response(&message);
 
                     self.tabs.push(Tab {
                         uuid: definition.uuid,

@@ -110,7 +110,7 @@ impl Control for ToggleButton {
                     if self.is_toggled != *value {
                         self.is_toggled = *value;
                         ui.send(self.decorator, DecoratorMessage::Select(self.is_toggled));
-                        ui.send_message(message.reverse());
+                        ui.try_send_response(&message);
                     }
                 }
                 ToggleButtonMessage::Content(content) => {

@@ -107,7 +107,7 @@ impl TileBoundsEditor {
             (Some(_), None) => {
                 ui.send(self.value_area, WidgetMessage::Visibility(false));
                 self.value = None;
-                ui.send_message(message.reverse());
+                ui.try_send_response(&message);
             }
             (None, Some(v)) => {
                 ui.send(self.value_area, WidgetMessage::Visibility(true));
@@ -115,7 +115,7 @@ impl TileBoundsEditor {
                 for i in 0..4 {
                     ui.send(self.get_field(i), Vec2EditorMessage::Value(v.get(i)));
                 }
-                ui.send_message(message.reverse());
+                ui.try_send_response(&message);
             }
             (Some(v0), Some(v1)) => {
                 let mut has_changed = false;
@@ -127,7 +127,7 @@ impl TileBoundsEditor {
                 }
                 self.value = Some(v1.clone());
                 if has_changed {
-                    ui.send_message(message.reverse());
+                    ui.try_send_response(&message);
                 }
             }
         }

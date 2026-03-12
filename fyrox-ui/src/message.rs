@@ -224,7 +224,7 @@ where
 {
     if value != new_value {
         *value = new_value.clone();
-        ui.send_message(message.reverse());
+        ui.try_send_response(&message);
         true
     } else {
         false

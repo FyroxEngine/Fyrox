@@ -433,7 +433,7 @@ impl Control for ListView {
                     if &self.selection != selection {
                         self.selection.clone_from(selection);
                         self.sync_decorators(ui);
-                        ui.send_message(message.reverse());
+                        ui.try_send_response(&message);
                     }
                 }
                 &ListViewMessage::RemoveItem(item) => {

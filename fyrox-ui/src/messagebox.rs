@@ -269,7 +269,7 @@ impl Control for MessageBox {
                     // Translate message box message into window message.
                     ui.send(self.handle(), WindowMessage::Close);
 
-                    ui.send_message(message.reverse());
+                    ui.try_send_response(&message);
                 }
             }
         }

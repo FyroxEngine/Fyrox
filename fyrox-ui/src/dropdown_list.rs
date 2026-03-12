@@ -279,7 +279,7 @@ impl Control for DropdownList {
                             ui.send(*self.popup, PopupMessage::Close);
                         }
 
-                        ui.send_message(message.reverse());
+                        ui.try_send_response(&message);
                     }
                 }
             }

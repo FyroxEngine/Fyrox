@@ -359,7 +359,7 @@ impl Control for BlendSpaceField {
                         if message.is_for(self.handle) {
                             self.sampling_point = *sampling_point;
                             self.invalidate_visual();
-                            ui.send_message(message.reverse());
+                            ui.try_send_response(&message);
                         }
                     }
                     BlendSpaceFieldMessage::MovePoint { .. }

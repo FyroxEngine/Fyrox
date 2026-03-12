@@ -291,7 +291,7 @@ impl Control for HotKeyEditor {
             if value != &*self.value {
                 self.value.set_value_and_mark_modified(value.clone());
                 ui.send(*self.text, TextMessage::Text(format!("{}", *self.value)));
-                ui.send_message(message.reverse());
+                ui.try_send_response(&message);
             }
         }
     }
@@ -492,7 +492,7 @@ impl Control for KeyBindingEditor {
             if value != &*self.value {
                 self.value.set_value_and_mark_modified(value.clone());
                 ui.send(*self.text, TextMessage::Text(format!("{}", *self.value)));
-                ui.send_message(message.reverse());
+                ui.try_send_response(&message);
             }
         }
     }

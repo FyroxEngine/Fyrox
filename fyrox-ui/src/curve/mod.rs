@@ -880,14 +880,14 @@ impl Control for CurveEditor {
                     }
                     CurveEditorMessage::ViewPosition(view_position) => {
                         self.set_view_position(*view_position);
-                        ui.send_message(message.reverse());
+                        ui.try_send_response(&message);
 
                         self.invalidate_visual();
                     }
                     CurveEditorMessage::Zoom(zoom) => {
                         self.curve_transform
                             .set_scale(zoom.simd_clamp(self.min_zoom, self.max_zoom));
-                        ui.send_message(message.reverse());
+                        ui.try_send_response(&message);
 
                         self.invalidate_visual();
                     }

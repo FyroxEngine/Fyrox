@@ -69,7 +69,7 @@ impl Selectable {
         } else if let Some(SelectableMessage::Select(selected)) = message.data_for(self_handle) {
             if self.selected != *selected {
                 self.selected = *selected;
-                ui.send_message(message.reverse());
+                ui.try_send_response(&message);
                 return true;
             }
         }

@@ -98,7 +98,7 @@ impl Control for DynTypePropertyEditor {
             if self.selected_dyn_type_uuid != *id {
                 self.selected_dyn_type_uuid = *id;
                 self.need_context_update.set(true);
-                ui.send_message(message.reverse());
+                ui.try_send_response(&message);
             }
         } else if let Some(InspectorMessage::PropertyChanged(property_changed)) =
             message.data_from(self.inspector)

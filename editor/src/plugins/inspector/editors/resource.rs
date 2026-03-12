@@ -227,7 +227,7 @@ where
                     )),
                 );
 
-                ui.send_message(message.reverse());
+                ui.try_send_response(&message);
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.locate {

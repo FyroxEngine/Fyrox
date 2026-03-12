@@ -516,28 +516,28 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                 NumericUpDownMessage::MinValue(min_value) => {
                     if (*self.min_value).ne(min_value) {
                         self.min_value.set_value_and_mark_modified(*min_value);
-                        ui.send_message(message.reverse());
+                        ui.try_send_response(&message);
                         self.sync_value_to_bounds_if_needed(ui);
                     }
                 }
                 NumericUpDownMessage::MaxValue(max_value) => {
                     if (*self.max_value).ne(max_value) {
                         self.max_value.set_value_and_mark_modified(*max_value);
-                        ui.send_message(message.reverse());
+                        ui.try_send_response(&message);
                         self.sync_value_to_bounds_if_needed(ui);
                     }
                 }
                 NumericUpDownMessage::Step(step) => {
                     if (*self.step).ne(step) {
                         self.step.set_value_and_mark_modified(*step);
-                        ui.send_message(message.reverse());
+                        ui.try_send_response(&message);
                         self.sync_text_field(ui);
                     }
                 }
                 NumericUpDownMessage::Precision(precision) => {
                     if (*self.precision).ne(precision) {
                         self.precision.set_value_and_mark_modified(*precision);
-                        ui.send_message(message.reverse());
+                        ui.try_send_response(&message);
                         self.sync_text_field(ui);
                     }
                 }

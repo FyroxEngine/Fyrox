@@ -524,7 +524,7 @@ impl Control for ColorPoint {
                             if *location != self.location {
                                 self.location = *location;
                                 self.invalidate_layout();
-                                ui.send_message(message.reverse());
+                                ui.try_send_response(&message);
                                 self.invalidate_visual();
                             }
                         }

@@ -111,7 +111,7 @@ impl Control for TileDefinitionHandleEditor {
         {
             self.value = handle;
             ui.send_sync(self.field, TextMessage::Text(self.text()));
-            ui.send_message(message.reverse());
+            ui.try_send_response(&message);
         } else if let Some(TextMessage::Text(text)) = message.data_from(self.field) {
             let value = TileDefinitionHandle::parse(text);
             if self.allow_none || value.is_some() {

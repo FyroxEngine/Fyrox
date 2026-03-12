@@ -188,7 +188,7 @@ where
                     ui.send(*self.start, NumericUpDownMessage::Value(range.start));
                     ui.send(*self.end, NumericUpDownMessage::Value(range.end));
 
-                    ui.send_message(message.reverse());
+                    ui.try_send_response(&message);
                 }
             } else if let Some(NumericUpDownMessage::Value(value)) =
                 message.data::<NumericUpDownMessage<T>>()
