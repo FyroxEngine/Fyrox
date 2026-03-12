@@ -91,18 +91,22 @@ impl UserInterfaceTestingExtension for UserInterface {
     fn click_at(&mut self, uuid: Uuid) -> Handle<UiNode> {
         assert_ne!(uuid, Uuid::default());
         if let Some((handle, n)) = self.find_from_root(&mut |n| n.id == uuid) {
-            info!("{} - bounds {:?}", uuid, n.screen_bounds());
+            if self.visual_debug {
+                info!("{} - bounds {:?}", uuid, n.screen_bounds());
+            }
             assert!(is_enabled(handle, self));
             assert!(n.is_globally_visible());
             let center = n.screen_bounds().center();
             self.click(center);
-            info!(
-                "==== Clicked at {uuid}({}:{}) at [{};{}] coords. ====",
-                handle.index(),
-                handle.generation(),
-                center.x,
-                center.y
-            );
+            if self.visual_debug {
+                info!(
+                    "==== Clicked at {uuid}({}:{}) at [{};{}] coords. ====",
+                    handle.index(),
+                    handle.generation(),
+                    center.x,
+                    center.y
+                );
+            }
             handle
         } else {
             panic!("There's no widget {uuid}!")
@@ -112,7 +116,9 @@ impl UserInterfaceTestingExtension for UserInterface {
     fn click_at_text(&mut self, uuid: Uuid, text: &str) {
         assert_ne!(uuid, Uuid::default());
         if let Some((start_handle, start_node)) = self.find_from_root(&mut |n| n.id == uuid) {
-            info!("{} - bounds {:?}", uuid, start_node.screen_bounds());
+            if self.visual_debug {
+                info!("{} - bounds {:?}", uuid, start_node.screen_bounds());
+            }
             assert!(is_enabled(start_handle, self));
             assert!(start_node.is_globally_visible());
             if let Some((text_handle, text_node)) = self.find(start_handle, &mut |n| {
@@ -126,13 +132,15 @@ impl UserInterfaceTestingExtension for UserInterface {
                 assert!(text_node.is_globally_visible());
                 let center = text_node.screen_bounds().center();
                 self.click(center);
-                info!(
+                if self.visual_debug {
+                    info!(
                     "==== Clicked at {text}({}:{}) at [{};{}] coords. Found from {uuid} starting location. ====",
                     text_handle.index(),
                     text_handle.generation(),
                     center.x,
                     center.y
                 );
+                }
             }
         } else {
             panic!("There's no widget {uuid}!")
@@ -159,9 +167,11 @@ impl UserInterfaceTestingExtension for UserInterface {
 
     fn poll_all_messages(&mut self) {
         while let Some(msg) = self.poll_message() {
-            if let Ok(widget) = self.try_get(msg.destination()) {
-                let ty = Reflect::type_name(widget);
-                info!("[{ty}]{msg:?}");
+            if self.visual_debug {
+                if let Ok(widget) = self.try_get(msg.destination()) {
+                    let ty = Reflect::type_name(widget);
+                    info!("[{ty}]{msg:?}");
+                }
             }
         }
         let screen_size = self.screen_size();
@@ -171,9 +181,11 @@ impl UserInterfaceTestingExtension for UserInterface {
     fn poll_and_count(&mut self, mut pred: impl FnMut(&UiMessage) -> bool) -> usize {
         let mut num = 0;
         while let Some(msg) = self.poll_message() {
-            if let Ok(widget) = self.try_get(msg.destination()) {
-                let ty = Reflect::type_name(widget);
-                info!("[{ty}]{msg:?}");
+            if self.visual_debug {
+                if let Ok(widget) = self.try_get(msg.destination()) {
+                    let ty = Reflect::type_name(widget);
+                    info!("[{ty}]{msg:?}");
+                }
             }
 
             if pred(&msg) {
