@@ -237,7 +237,7 @@ where
                     }
                 }
 
-                if changed {
+                if changed && !message.is_sync() {
                     ui.send_message(message.reverse());
                 }
             }

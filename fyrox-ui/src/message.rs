@@ -514,6 +514,11 @@ impl UiMessage {
     pub fn has_flags(&self, flags: u64) -> bool {
         self.flags & flags != 0
     }
+
+    /// Checks if the message is intended for syncing.
+    pub fn is_sync(&self) -> bool {
+        self.delivery_mode == DeliveryMode::SyncOnly
+    }
 }
 
 /// Mouse button state.
