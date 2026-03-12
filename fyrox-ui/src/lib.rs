@@ -2022,6 +2022,15 @@ impl UserInterface {
         self.sender.send(message).unwrap()
     }
 
+    pub fn try_send_response(&self, message: &UiMessage) -> bool {
+        if message.is_sync() || message.direction() == MessageDirection::FromWidget {
+            false
+        } else {
+            self.send_message(message.reverse());
+            true
+        }
+    }
+
     pub fn send_messages<const N: usize>(&self, messages: [UiMessage; N]) {
         for message in messages {
             self.send_message(message)
