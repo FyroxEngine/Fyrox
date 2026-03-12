@@ -23,7 +23,7 @@
                 ),
                 depth_write: false,
                 stencil_test: None,
-                depth_test: Some(Less),
+                depth_test: Some(LessOrEqual),
                 blend: None,
                 stencil_op: StencilOp(
                     fail: Keep,
