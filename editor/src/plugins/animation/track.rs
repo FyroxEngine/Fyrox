@@ -1617,9 +1617,11 @@ impl TrackList {
                             })
                             .collect();
 
+                        let name = format!("{}", model_track.value_binding());
                         let track_view = TrackViewBuilder::new(
                             TreeBuilder::new(
                                 WidgetBuilder::new()
+                                    .with_tooltip(make_simple_tooltip(ctx, &name))
                                     .with_context_menu(self.context_menu.menu.clone()),
                             )
                             .with_items(curves),
@@ -1627,7 +1629,7 @@ impl TrackList {
                         .with_track_enabled(model_track_binding.is_enabled())
                         .with_id(model_track.id())
                         .with_target(model_track_binding.target().into())
-                        .with_name(format!("{}", model_track.value_binding()))
+                        .with_name(name)
                         .build(ctx);
 
                         ui.send_sync(parent_group, TreeMessage::AddItem(track_view.transmute()));
