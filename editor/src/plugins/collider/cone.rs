@@ -111,8 +111,6 @@ impl ShapeGizmoTrait for ConeShapeGizmo {
         value: ShapeHandleValue,
         collider: Handle<Node>,
         scene: &mut Scene,
-        _initial_value: ShapeHandleValue,
-        _initial_collider_local_position: Vector3<f32>,
     ) {
         let Some(ColliderShape::Cone(cone)) = try_get_collider_shape_mut(collider, scene) else {
             return;

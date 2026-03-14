@@ -56,8 +56,6 @@ impl ShapeGizmoTrait for DummyShapeGizmo {
         _value: ShapeHandleValue,
         _collider: Handle<Node>,
         _scene: &mut Scene,
-        _initial_value: ShapeHandleValue,
-        _initial_collider_local_position: Vector3<f32>,
     ) {
     }
 }

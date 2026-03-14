@@ -165,8 +165,6 @@ trait ShapeGizmoTrait {
         value: ShapeHandleValue,
         collider: Handle<Node>,
         scene: &mut Scene,
-        initial_value: ShapeHandleValue,
-        initial_collider_local_position: Vector3<f32>,
     );
 
     fn is_vector_handle(&self, _handle: Handle<Sprite>) -> bool {
@@ -336,7 +334,6 @@ struct DragContext {
     initial_handle_position: Vector3<f32>,
     plane: Plane,
     initial_value: ShapeHandleValue,
-    initial_collider_local_position: Vector3<f32>,
     handle_major_axis: Option<Vector3<f32>>,
     plane_kind: Option<PlaneKind>,
     initial_shape: ColliderInitialShape,
@@ -406,7 +403,6 @@ impl InteractionMode for ColliderShapeInteractionMode {
             let plane = Plane::from_normal_and_point(&-camera_view_dir, &initial_position)
                 .unwrap_or_default();
             let collider_node = &scene.graph[self.collider];
-            let initial_collider_local_position = **collider_node.local_transform().position();
 
             let initial_shape = if let Some(collider) = collider_node.component_ref::<Collider>() {
                 ColliderInitialShape::ThreeD(collider.shape().clone())
@@ -435,7 +431,6 @@ impl InteractionMode for ColliderShapeInteractionMode {
                         scene,
                     ),
                     initial_value: handle_value,
-                    initial_collider_local_position,
                     plane_kind: None,
                     initial_shape,
                 })
@@ -452,7 +447,6 @@ impl InteractionMode for ColliderShapeInteractionMode {
                         plane,
                         handle_major_axis: None,
                         initial_value: handle_value,
-                        initial_collider_local_position,
                         plane_kind: Some(plane_kind),
                         initial_shape,
                     })
@@ -573,12 +567,10 @@ impl InteractionMode for ColliderShapeInteractionMode {
                             ShapeHandleValue::Scalar(initial_value + delta),
                             self.collider,
                             scene,
-                            ShapeHandleValue::Scalar(initial_value),
-                            drag_context.initial_collider_local_position,
                         );
                     }
                 }
-                ShapeHandleValue::Vector(initial_value) => {
+                ShapeHandleValue::Vector(_) => {
                     if let Some(plane_kind) = drag_context.plane_kind {
                         let value = self
                             .shape_gizmo
@@ -606,8 +598,6 @@ impl InteractionMode for ColliderShapeInteractionMode {
                             ShapeHandleValue::Vector(value + local_offset),
                             self.collider,
                             scene,
-                            ShapeHandleValue::Vector(initial_value),
-                            drag_context.initial_collider_local_position,
                         );
                     }
                 }
