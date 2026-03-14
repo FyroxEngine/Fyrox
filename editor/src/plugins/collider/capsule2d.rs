@@ -135,6 +135,7 @@ impl ShapeGizmoTrait for Capsule2DShapeGizmo {
         value: ShapeHandleValue,
         collider: Handle<Node>,
         scene: &mut Scene,
+        _initial_value: ShapeHandleValue,
         _initial_collider_local_position: Vector3<f32>,
     ) {
         let Some(ColliderShape::Capsule(capsule)) = try_get_collider_shape_mut_2d(collider, scene)

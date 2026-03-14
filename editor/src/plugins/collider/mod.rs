@@ -165,6 +165,7 @@ trait ShapeGizmoTrait {
         value: ShapeHandleValue,
         collider: Handle<Node>,
         scene: &mut Scene,
+        initial_value: ShapeHandleValue,
         initial_collider_local_position: Vector3<f32>,
     );
 
@@ -572,11 +573,12 @@ impl InteractionMode for ColliderShapeInteractionMode {
                             ShapeHandleValue::Scalar(initial_value + delta),
                             self.collider,
                             scene,
+                            ShapeHandleValue::Scalar(initial_value),
                             drag_context.initial_collider_local_position,
                         );
                     }
                 }
-                ShapeHandleValue::Vector(_) => {
+                ShapeHandleValue::Vector(initial_value) => {
                     if let Some(plane_kind) = drag_context.plane_kind {
                         let value = self
                             .shape_gizmo
@@ -604,6 +606,7 @@ impl InteractionMode for ColliderShapeInteractionMode {
                             ShapeHandleValue::Vector(value + local_offset),
                             self.collider,
                             scene,
+                            ShapeHandleValue::Vector(initial_value),
                             drag_context.initial_collider_local_position,
                         );
                     }

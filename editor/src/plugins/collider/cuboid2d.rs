@@ -136,6 +136,7 @@ impl ShapeGizmoTrait for Cuboid2DShapeGizmo {
         value: ShapeHandleValue,
         collider: Handle<Node>,
         scene: &mut Scene,
+        initial_value: ShapeHandleValue,
         initial_collider_local_position: Vector3<f32>,
     ) {
         let Ok(collider) = scene.graph.try_get_mut_of_type::<Collider>(collider) else {
@@ -146,24 +147,27 @@ impl ShapeGizmoTrait for Cuboid2DShapeGizmo {
             return;
         };
 
+        let value = value.into_scalar();
+        let initial_value = initial_value.into_scalar();
+
         if handle == self.pos_x_handle {
-            cuboid.half_extents.x = value.into_scalar().max(0.0);
+            cuboid.half_extents.x = value.max(0.0);
         } else if handle == self.pos_y_handle {
-            cuboid.half_extents.y = value.into_scalar().max(0.0);
+            cuboid.half_extents.y = value.max(0.0);
         } else if handle == self.neg_x_handle {
-            cuboid.half_extents.x = value.into_scalar().max(0.0);
+            cuboid.half_extents.x = value.max(0.0);
             let transform = collider.local_transform_mut();
             transform.set_position(Vector3::new(
-                initial_collider_local_position.x - value.into_scalar() / 2.0,
+                initial_collider_local_position.x - (value - initial_value) / 2.0,
                 initial_collider_local_position.y,
                 initial_collider_local_position.z,
             ));
         } else if handle == self.neg_y_handle {
-            cuboid.half_extents.y = value.into_scalar().max(0.0);
+            cuboid.half_extents.y = value.max(0.0);
             let transform = collider.local_transform_mut();
             transform.set_position(Vector3::new(
                 initial_collider_local_position.x,
-                initial_collider_local_position.y - value.into_scalar() / 2.0,
+                initial_collider_local_position.y - (value - initial_value) / 2.0,
                 initial_collider_local_position.z,
             ));
         }

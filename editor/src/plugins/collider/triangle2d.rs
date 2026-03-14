@@ -104,6 +104,7 @@ impl ShapeGizmoTrait for Triangle2DShapeGizmo {
         value: ShapeHandleValue,
         collider: Handle<Node>,
         scene: &mut Scene,
+        _initial_value: ShapeHandleValue,
         _initial_collider_local_position: Vector3<f32>,
     ) {
         let Some(ColliderShape::Triangle(triangle)) =
