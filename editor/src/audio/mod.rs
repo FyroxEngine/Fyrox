@@ -411,9 +411,11 @@ impl AudioPanel {
             let mut selection = Vec::new();
 
             for bus_index in selected_indices {
-                let bus = item_bus(ui[self.audio_buses].items()[*bus_index], ui);
+                if let Some(bus_item) = ui[self.audio_buses].items().get(*bus_index) {
+                    let bus = item_bus(*bus_item, ui);
 
-                selection.push(bus);
+                    selection.push(bus);
+                }
             }
 
             sender.do_command(ChangeSelectionCommand::new(Selection::new(
