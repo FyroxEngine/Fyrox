@@ -468,7 +468,7 @@ impl AbsmEditor {
         let name = if let Ok(absm) = graph.try_get(selection.absm_node_handle) {
             if machine.is_some() {
                 format!(
-                    "Animation Editor - {}({}:{})",
+                    "ABSM Editor - {}({}:{})",
                     absm.name(),
                     selection.absm_node_handle.index(),
                     selection.absm_node_handle.generation()
