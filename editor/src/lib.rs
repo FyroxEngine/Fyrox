@@ -2300,7 +2300,8 @@ impl Editor {
             ));
         }
 
-        match FileSystemWatcher::new(&working_directory, Duration::from_secs(1)) {
+        let registry_folder = engine.resource_manager.registry_folder();
+        match FileSystemWatcher::new(&registry_folder, Duration::from_secs(1)) {
             Ok(watcher) => {
                 engine.resource_manager.state().set_watcher(Some(watcher));
             }
