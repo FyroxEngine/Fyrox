@@ -28,18 +28,15 @@ use crate::{
     io::ResourceIo,
     loader::ResourceLoadersContainer,
     metadata::ResourceMetadata,
-    state::WakersList,
 };
 use fxhash::FxHashSet;
 use fyrox_core::{futures::executor::block_on, SafeLock};
 use ron::ser::PrettyConfig;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
     collections::BTreeMap,
-    future::Future,
     path::{Path, PathBuf},
-    pin::Pin,
     sync::Arc,
-    task::{Context, Poll},
 };
 
 /// A type alias for the actual registry data container.
@@ -93,85 +90,29 @@ impl RegistryContainerExt for RegistryContainer {
     }
 }
 
-/// Actual status of a resource registry.
-#[derive(Default, Copy, Clone, PartialEq, Eq, Debug, Hash)]
-pub enum ResourceRegistryStatus {
-    /// The status is unknown. It means that the registry wasn't even attempted to be loaded from
-    /// a file. This status will prevent any access to resources through a resource manager - all
-    /// requested resources will immediately fail to load.
-    #[default]
-    Unknown,
-
-    /// Fully loaded registry and ready to use.
-    Loaded,
-
-    /// The registry is still loading and has to be waited for. See [`ResourceRegistryStatusFlag`]
-    /// for more info.
-    Loading,
-}
-
-/// Internal data of the registry status flag.
-#[derive(Clone, Default)]
-pub struct RegistryReadyFlagData {
-    status: ResourceRegistryStatus,
-    wakers: WakersList,
-}
-
 /// A shared flag that can be used to fetch the current status of a resource registry. This struct
 /// supports [`Future`] trait, which means that you can `.await` it in an async context to wait
 /// until the registry is fully loaded (or failed to load). Any access to the registry in an async
 /// context must be guarded with such `.await` call.
 #[derive(Default, Clone)]
-pub struct ResourceRegistryStatusFlag(Arc<Mutex<RegistryReadyFlagData>>);
+pub struct ResourceRegistryStatusFlag(Arc<AtomicBool>);
 
 impl ResourceRegistryStatusFlag {
-    /// Returns current status of the registry.
-    pub fn status(&self) -> ResourceRegistryStatus {
-        self.0.safe_lock().status
-    }
-
-    fn mark_as(&self, status: ResourceRegistryStatus) {
-        let mut lock = self.0.safe_lock();
-
-        lock.status = status;
-
-        for waker in lock.wakers.drain(..) {
-            waker.wake();
-        }
+    /// Returns `true` if the registry loaded, `false` - otherwise.
+    pub fn is_loaded(&self) -> bool {
+        self.0.load(Ordering::SeqCst)
     }
 
     /// Marks the registry as loaded.
     pub fn mark_as_loaded(&self) {
-        self.mark_as(ResourceRegistryStatus::Loaded);
+        self.0.store(true, Ordering::SeqCst);
         info!("Resource registry finished loading.");
-    }
-
-    /// Marks the registry as unknown, due to an error.
-    pub fn mark_as_unknown(&self) {
-        self.mark_as(ResourceRegistryStatus::Unknown);
     }
 
     /// Marks the registry as loading. This method should be used before trying to load a registry
     /// from an external source.
-    pub fn mark_as_loading(&self) {
-        self.0.safe_lock().status = ResourceRegistryStatus::Loading;
-    }
-}
-
-impl Future for ResourceRegistryStatusFlag {
-    type Output = ResourceRegistryStatus;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let mut lock = self.0.safe_lock();
-
-        match lock.status {
-            ResourceRegistryStatus::Unknown => Poll::Ready(ResourceRegistryStatus::Unknown),
-            ResourceRegistryStatus::Loaded => Poll::Ready(ResourceRegistryStatus::Loaded),
-            ResourceRegistryStatus::Loading => {
-                lock.wakers.add_waker(cx.waker());
-                Poll::Pending
-            }
-        }
+    pub fn mark_as_unloaded(&self) {
+        self.0.store(false, Ordering::SeqCst);
     }
 }
 

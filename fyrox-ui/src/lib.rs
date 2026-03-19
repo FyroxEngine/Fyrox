@@ -3489,7 +3489,7 @@ impl UserInterface {
         resource_manager: ResourceManager,
         io: &dyn ResourceIo,
     ) -> Result<(Self, Vec<u8>), VisitError> {
-        if !resource_manager.registry_is_loaded().await {
+        if !resource_manager.registry_is_loaded() {
             return Err("The resource registry is unavailable!".to_string().into());
         }
         let (mut ui, data) = {

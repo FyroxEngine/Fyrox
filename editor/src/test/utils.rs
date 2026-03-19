@@ -22,7 +22,7 @@ use crate::{
     fyrox::{
         core::{algebra::Vector2, info, pool::Handle, Uuid},
         engine::ApplicationLoopController,
-        gui::{message::UiMessage, test::UserInterfaceTestingExtension, Control, UiNode},
+        gui::{test::UserInterfaceTestingExtension, Control, UiNode},
     },
     plugin::EditorPlugin,
     settings::Settings,

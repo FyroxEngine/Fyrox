@@ -351,8 +351,7 @@ impl SceneLoader {
         dyn_type_constructors: Arc<DynTypeConstructorContainer>,
         resource_manager: ResourceManager,
     ) -> Result<(Self, Vec<u8>), VisitError> {
-        // Wait until the registry is fully loaded.
-        if !resource_manager.registry_is_loaded().await {
+        if !resource_manager.registry_is_loaded() {
             return Err(VisitError::User(format!(
                 "Unable to load a scene from {} path, because the \
             resource registry isn't loaded!",

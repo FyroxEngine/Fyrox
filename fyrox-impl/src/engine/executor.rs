@@ -43,6 +43,7 @@ use fyrox_core::pool::Handle;
 use fyrox_resource::io::FsResourceIo;
 use fyrox_ui::constructor::new_widget_constructor_container;
 use std::cell::Cell;
+use std::collections::VecDeque;
 use std::time::Duration;
 use std::{
     ops::{Deref, DerefMut},
@@ -268,15 +269,17 @@ fn run_headless(
     let mut last_throttle_frame_number = 0usize;
     let is_running = Cell::new(true);
 
-    engine.enable_plugins(
-        override_scene,
-        true,
-        ApplicationLoopController::Headless {
-            running: &is_running,
-        },
-    );
-
     while is_running.get() {
+        if !engine.plugins_enabled && engine.resource_manager.registry_is_loaded() {
+            engine.enable_plugins(
+                override_scene,
+                true,
+                ApplicationLoopController::Headless {
+                    running: &is_running,
+                },
+            );
+        }
+
         register_scripted_scenes(&mut engine);
 
         game_loop_iteration(
@@ -318,11 +321,14 @@ fn run_normal(
     let mut frame_counter = 0usize;
     let mut last_throttle_frame_number = 0usize;
 
-    engine.enable_plugins(
-        override_scene,
-        true,
-        ApplicationLoopController::EventLoop(&event_loop),
-    );
+    let override_scene = override_scene.map(|s| s.to_string());
+
+    enum GraphicsEvent {
+        GraphicsContextInitialized,
+        GraphicsContextDestroyed,
+    }
+
+    let mut graphics_event_queue = VecDeque::new();
 
     run_executor(event_loop, move |event, active_event_loop| {
         active_event_loop.set_control_flow(ControlFlow::Wait);
@@ -333,6 +339,33 @@ fn run_normal(
             ApplicationLoopController::ActiveEventLoop(active_event_loop),
             &mut lag,
         );
+
+        if !engine.plugins_enabled && engine.resource_manager.registry_is_loaded() {
+            engine.enable_plugins(
+                override_scene.as_deref(),
+                true,
+                ApplicationLoopController::ActiveEventLoop(active_event_loop),
+            );
+
+            while let Some(graphics_event) = graphics_event_queue.pop_front() {
+                match graphics_event {
+                    GraphicsEvent::GraphicsContextInitialized => {
+                        engine.handle_graphics_context_created_by_plugins(
+                            fixed_time_step,
+                            ApplicationLoopController::ActiveEventLoop(active_event_loop),
+                            &mut lag,
+                        );
+                    }
+                    GraphicsEvent::GraphicsContextDestroyed => {
+                        engine.handle_graphics_context_destroyed_by_plugins(
+                            fixed_time_step,
+                            ApplicationLoopController::ActiveEventLoop(active_event_loop),
+                            &mut lag,
+                        );
+                    }
+                }
+            }
+        }
 
         let scripted_scenes = register_scripted_scenes(&mut engine);
         for scripted_scene in scripted_scenes {
@@ -345,22 +378,30 @@ fn run_normal(
                     .initialize_graphics_context(active_event_loop)
                     .expect("Unable to initialize graphics context!");
 
-                engine.handle_graphics_context_created_by_plugins(
-                    fixed_time_step,
-                    ApplicationLoopController::ActiveEventLoop(active_event_loop),
-                    &mut lag,
-                );
+                if engine.plugins_enabled {
+                    engine.handle_graphics_context_created_by_plugins(
+                        fixed_time_step,
+                        ApplicationLoopController::ActiveEventLoop(active_event_loop),
+                        &mut lag,
+                    );
+                } else {
+                    graphics_event_queue.push_back(GraphicsEvent::GraphicsContextInitialized);
+                }
             }
             Event::Suspended => {
                 engine
                     .destroy_graphics_context()
                     .expect("Unable to destroy graphics context!");
 
-                engine.handle_graphics_context_destroyed_by_plugins(
-                    fixed_time_step,
-                    ApplicationLoopController::ActiveEventLoop(active_event_loop),
-                    &mut lag,
-                );
+                if engine.plugins_enabled {
+                    engine.handle_graphics_context_destroyed_by_plugins(
+                        fixed_time_step,
+                        ApplicationLoopController::ActiveEventLoop(active_event_loop),
+                        &mut lag,
+                    );
+                } else {
+                    graphics_event_queue.push_back(GraphicsEvent::GraphicsContextDestroyed);
+                }
             }
             Event::AboutToWait => {
                 game_loop_iteration(

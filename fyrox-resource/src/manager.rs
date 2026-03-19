@@ -42,7 +42,7 @@ use crate::{
     loader::{ResourceLoader, ResourceLoadersContainer},
     metadata::ResourceMetadata,
     options::OPTIONS_EXTENSION,
-    registry::{RegistryUpdate, ResourceRegistry, ResourceRegistryRefMut, ResourceRegistryStatus},
+    registry::{RegistryUpdate, ResourceRegistry, ResourceRegistryRefMut},
     state::{LoadError, ResourceDataWrapper, ResourceState},
     untyped::ResourceKind,
     Resource, TypedResourceData, UntypedResource,
@@ -397,14 +397,12 @@ impl ResourceManager {
     /// The resource manager keeps a registry of available resources, and this registry must be loaded
     /// before any resources may be requested. This async method returns once the registry loading is complete
     /// and it returns true if the loading was successful. It returns false if loading failed.
-    pub async fn registry_is_loaded(&self) -> bool {
-        let flag = self
-            .state()
+    pub fn registry_is_loaded(&self) -> bool {
+        self.state()
             .resource_registry
             .safe_lock()
             .status_flag()
-            .clone();
-        flag.await == ResourceRegistryStatus::Loaded
+            .is_loaded()
     }
 
     /// Returns the ResourceIo used by this resource manager
@@ -950,7 +948,7 @@ impl ResourceManagerState {
         #[allow(unused_variables)]
         let excluded_folders = resource_registry.safe_lock().excluded_folders.clone();
         let registry_status = resource_registry.safe_lock().status_flag();
-        registry_status.mark_as_loading();
+        registry_status.mark_as_unloaded();
         #[allow(unused_variables)]
         let task_loaders = self.loaders.clone();
         let path = resource_registry.safe_lock().path().to_path_buf();
@@ -1563,20 +1561,19 @@ impl ResourceManagerState {
         let loaders = self.loaders.clone();
         let registry = self.resource_registry.clone();
         let io = self.resource_io.clone();
-        let registry_status = registry.safe_lock().status_flag();
+
+        if !registry.safe_lock().status_flag().is_loaded() {
+            resource.commit_error(
+                PathBuf::default(),
+                LoadError::new("The resource registry is unavailable!".to_string()),
+            );
+
+            err!("The resource registry is unavailable!");
+
+            return;
+        }
 
         self.task_pool.spawn_task(async move {
-            // Wait until the registry is fully loaded.
-            let registry_status = registry_status.await;
-
-            if registry_status == ResourceRegistryStatus::Unknown {
-                resource.commit_error(
-                    PathBuf::default(),
-                    LoadError::new("The resource registry is unavailable!".to_string()),
-                );
-                return;
-            }
-
             let Some(path) = registry
                 .safe_lock()
                 .uuid_to_path(resource.resource_uuid())
