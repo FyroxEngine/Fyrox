@@ -95,7 +95,7 @@ impl GBuffer {
         )?;
         let normal_texture = server.create_2d_render_target(
             "GBufferNormalTexture",
-            PixelKind::RGBA16F,
+            PixelKind::RGB10A2,
             width,
             height,
         )?;
@@ -111,7 +111,7 @@ impl GBuffer {
                 Attachment::color(normal_texture.clone()),
                 Attachment::color(server.create_2d_render_target(
                     "GBufferAmbientTexture",
-                    PixelKind::RGBA16F,
+                    PixelKind::RGB10A2,
                     width,
                     height,
                 )?),

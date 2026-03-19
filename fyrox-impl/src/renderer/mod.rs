@@ -255,7 +255,7 @@ impl RenderDataContainer {
         // Intermediate scene frame will be rendered in HDR render target.
         let hdr_frame_texture = server.create_2d_render_target(
             "ObserverHdrFrame",
-            PixelKind::RGBA16F,
+            PixelKind::RGB10A2,
             width,
             height,
         )?;
