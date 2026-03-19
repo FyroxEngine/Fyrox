@@ -37,6 +37,7 @@ use crate::{
     world::selection::GraphSelection,
     Message,
 };
+use fyrox::core::err;
 
 #[derive(Debug)]
 pub struct MoveNodeCommand {
@@ -61,9 +62,14 @@ impl MoveNodeCommand {
     }
 
     fn set_position(&self, graph: &mut Graph, position: Vector3<f32>) {
-        graph[self.node]
-            .local_transform_mut()
-            .set_position(position);
+        match graph.try_get_mut(self.node) {
+            Ok(node) => {
+                node.local_transform_mut().set_position(position);
+            }
+            Err(err) => {
+                err!("Unable to move scene node. Reason: {err}")
+            }
+        }
     }
 }
 
