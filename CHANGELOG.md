@@ -4,7 +4,7 @@ First stable release.
 
 ## Fixed
 
-Fixed title
+Reduced vram consumption by replacing rgba16f with rgb10a2 textures
 Fixed crash when switching scenes after selecting an audio bus
 Fixed incorrect shape editing for cuboid shapes
 Fixed debug rendering in 2d
@@ -48,6 +48,8 @@ Fixed style for `add` and `remove` buttons for collections
 Include `core` module in `fyrox` docs
 Fix for macos fast scroll when pixel delta is received (#898)
 Style fixes for material editor
+Fixed resource registry not loading in time on wasm
+Prevent crash when moving a scene node
 
 ## Added
 
@@ -83,6 +85,8 @@ Ability to search for a loader for specific resource data type
 
 ## Changed
 
+Increased kernel size of pcs filtered shadows (makes shadows much smoother)
+Watch only registry root for changes
 Absm editor improvements
 Migrate to rapier 0.32
 Do not echo sync-only messages
@@ -132,6 +136,7 @@ Send message box messages back
 Save triangle buffer as a binary blob
 Unify naming for built-in assets
 Editor style improvements
+The plugin initialization was moved to event queue and only when the registry is fully loaded
 Always show display name of the property if the doc is empty
 Build target for project export options
 Configurable constraint for dropdown list
