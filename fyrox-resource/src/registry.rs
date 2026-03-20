@@ -90,10 +90,7 @@ impl RegistryContainerExt for RegistryContainer {
     }
 }
 
-/// A shared flag that can be used to fetch the current status of a resource registry. This struct
-/// supports [`Future`] trait, which means that you can `.await` it in an async context to wait
-/// until the registry is fully loaded (or failed to load). Any access to the registry in an async
-/// context must be guarded with such `.await` call.
+/// A shared flag that can be used to fetch the current status of a resource registry.
 #[derive(Default, Clone)]
 pub struct ResourceRegistryStatusFlag(Arc<AtomicBool>);
 
