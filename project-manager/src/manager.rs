@@ -1194,17 +1194,19 @@ impl ProjectManager {
         ui: &mut UserInterface,
     ) {
         let mut build_profile = build_profile.clone();
-        // Force run `cargo update` before running the project to prevent various issues with
-        // dependency versions incompatibility.
-        build_profile.build_commands.insert(
-            0,
-            CommandDescriptor {
-                command: "cargo".to_string(),
-                args: vec!["update".to_string()],
-                environment_variables: vec![],
-                skip_passthrough_marker: false,
-            },
-        );
+        if self.settings.run_cargo_update {
+            // Force run `cargo update` before running the project to prevent various issues with
+            // dependency versions incompatibility.
+            build_profile.build_commands.insert(
+                0,
+                CommandDescriptor {
+                    command: "cargo".to_string(),
+                    args: vec!["update".to_string()],
+                    environment_variables: vec![],
+                    skip_passthrough_marker: false,
+                },
+            );
+        }
         self.run_selected_project_command(name, build_profile.build_and_run_queue(), ui);
     }
 

@@ -92,6 +92,10 @@ pub static DATA_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
     data_dir
 });
 
+fn default_run_cargo_update() -> bool {
+    true
+}
+
 #[derive(Default, Serialize, Deserialize, Reflect, Clone, Debug)]
 pub struct SettingsData {
     /// Defines a command to run an IDE in a project folder. This command should use either
@@ -101,6 +105,10 @@ pub struct SettingsData {
     pub open_ide_command: CommandDescriptor,
     #[reflect(hidden)]
     pub projects: Vec<Project>,
+    /// Enables or disables `cargo update` command before running the selected project. In some
+    /// cases `cargo update` can be excessive and lead to increased build times.
+    #[serde(default = "default_run_cargo_update")]
+    pub run_cargo_update: bool,
 }
 
 fn default_open_ide_command() -> CommandDescriptor {
