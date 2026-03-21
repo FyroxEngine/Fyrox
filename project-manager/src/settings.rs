@@ -100,7 +100,8 @@ fn default_run_cargo_update() -> bool {
 pub struct SettingsData {
     /// Defines a command to run an IDE in a project folder. This command should use either
     /// %MANIFEST_PATH% or %MANIFEST_DIR% built-in variable to provide the selected project path to
-    /// the chosen IDE.
+    /// the chosen IDE. In case of Visual Studio Code you should use %MANIFEST_DIR% as the first
+    /// argument.
     #[serde(default = "default_open_ide_command")]
     pub open_ide_command: CommandDescriptor,
     #[reflect(hidden)]
