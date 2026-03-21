@@ -367,7 +367,8 @@ impl ProjectManager {
                     )
                     .with_text(
                         "Rust is not installed, please click the button at the right \
-                        and follow build instructions for your platform.",
+                        and follow build instructions for your platform. Also make sure that cargo \
+                        is added to PATH environment variable!",
                     )
                     .with_font_size(18.0.into())
                     .with_wrap(WrapMode::Word)
