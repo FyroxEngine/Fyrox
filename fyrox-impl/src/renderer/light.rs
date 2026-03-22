@@ -452,7 +452,7 @@ impl DeferredLightRenderer {
             ),
             binding(
                 "depthTexture",
-                (gbuffer_depth_map, &renderer_resources.linear_clamp_sampler),
+                (gbuffer_depth_map, &renderer_resources.nearest_clamp_sampler),
             ),
             binding(
                 "normalTexture",
