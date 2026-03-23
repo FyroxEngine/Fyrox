@@ -68,7 +68,7 @@ impl MessageData for SelectorMessage {}
 /// active. The items can be of any type, even mixed types are allowed.
 ///
 /// ```rust
-/// # use crate::{
+/// # use fyrox_ui::{
 /// #     core::pool::{Handle, HandlesVecExtension},
 /// #     selector::{Selector, SelectorBuilder},
 /// #     text::TextBuilder,
@@ -103,7 +103,7 @@ impl MessageData for SelectorMessage {}
 /// message. To select a new item from code, send the same message with the desired index:
 ///
 /// ```rust
-/// # use crate::{
+/// # use fyrox_ui::{
 /// #     core::pool::Handle,
 /// #     message::UiMessage,
 /// #     selector::{Selector, SelectorMessage},
