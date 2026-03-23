@@ -167,6 +167,16 @@ impl SelectorBuilder {
         }
     }
 
+    pub fn with_items(mut self, items: Vec<Handle<UiNode>>) -> Self {
+        self.items = items;
+        self
+    }
+
+    pub fn with_current_item(mut self, current: usize) -> Self {
+        self.current = Some(current);
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext) -> Handle<Selector> {
         for (i, item) in self.items.iter().enumerate() {
             ctx[*item].set_visibility(self.current == Some(i));
