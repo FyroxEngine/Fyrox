@@ -36,6 +36,7 @@ use crate::{
         ColorMask, CompareFunc, CullFace, DrawParameters, ElementRange, StencilAction, StencilFunc,
         StencilOp,
     },
+    include_bytes_align_as,
     renderer::{
         bundle::{LightSourceKind, RenderDataBundleStorage},
         cache::{
@@ -204,7 +205,13 @@ impl DeferredLightRenderer {
                 quality_defaults.csm_settings.precision,
             )?,
             // Use `test_write_brdf_lut` to re-generate the BRDF if needed.
-            brdf_lut: make_brdf_lut(server, 256, include_bytes!("brdf_256x256_256samples.bin"))?,
+            brdf_lut: {
+                make_brdf_lut(
+                    server,
+                    256,
+                    include_bytes_align_as!(half::f16, "brdf_256x256_256samples.bin"),
+                )?
+            },
         })
     }
 
