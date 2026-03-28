@@ -1,3 +1,7 @@
+# 1.0.1
+
+- Fixed unaligned read in the renderer on WebAssembly, that in some cases led to black screen on startup (#906).
+
 # 1.0.0
 
 First stable release.
