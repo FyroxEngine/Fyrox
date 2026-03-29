@@ -228,12 +228,6 @@ impl Visit for TextureKind {
 #[derive(Default, Clone, Reflect)]
 pub struct TextureBytes(Vec<u8>);
 
-impl Visit for TextureBytes {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.0.visit(name, visitor)
-    }
-}
-
 impl Debug for TextureBytes {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "Texture has {} bytes", self.0.len())
