@@ -77,6 +77,7 @@ use std::{
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 pub mod loader;
+pub mod sampler;
 
 /// Texture kind.
 #[derive(Copy, Clone, Debug, Reflect, AsRefStr, EnumString, VariantNames, TypeUuidProvider)]
