@@ -23,7 +23,8 @@ use fyrox_resource::{
     untyped::ResourceKind,
     Resource, ResourceData,
 };
-use fyrox_texture::TextureResource;
+use fyrox_texture::sampler::TextureSampler;
+use fyrox_texture::{sampler, TextureResource};
 use std::{
     any::Any,
     error::Error,
@@ -42,7 +43,11 @@ pub mod shader;
 pub struct MaterialTextureBinding {
     /// Actual value of the texture binding. Could be [`None`], in this case fallback value of the
     /// shader will be used.
-    pub value: Option<TextureResource>,
+    pub texture: Option<TextureResource>,
+
+    /// A sampler that will be used to fetch texture data in the shader. By default, it is a shared
+    /// instance of [`sampler::STANDARD`].
+    pub sampler: Resource<TextureSampler>,
 }
 
 /// A value of a resource binding that will be used for rendering.
@@ -70,7 +75,7 @@ impl MaterialResourceBinding {
     /// Tries to extract a texture from the resource binding.
     pub fn as_texture(&self) -> Option<TextureResource> {
         if let Self::Texture(binding) = self {
-            binding.value.clone()
+            binding.texture.clone()
         } else {
             None
         }
@@ -383,18 +388,6 @@ impl_from_ref!(Matrix4 => Matrix4<f32>);
 impl_from_ref!(Matrix4Array => [Matrix4<f32>]);
 impl_from_ref!(Bool => bool);
 impl_from_ref!(Color => Color);
-
-impl From<Option<TextureResource>> for MaterialResourceBinding {
-    fn from(value: Option<TextureResource>) -> Self {
-        Self::Texture(MaterialTextureBinding { value })
-    }
-}
-
-impl From<TextureResource> for MaterialResourceBinding {
-    fn from(value: TextureResource) -> Self {
-        Self::Texture(MaterialTextureBinding { value: Some(value) })
-    }
-}
 
 macro_rules! define_as {
     ($(#[$meta:meta])* $name:ident = $variant:ident -> $ty:ty) => {
@@ -942,21 +935,76 @@ impl Material {
     ///
     /// # Example
     ///
-    /// ```no_run
-    /// # use fyrox_material::{Material, MaterialProperty};
-    /// # use fyrox_core::color::Color;
-    /// # use fyrox_core::sstorage::ImmutableString;
-    ///
-    /// let mut material = Material::standard();
-    ///
-    /// material.set_property("diffuseColor", Color::WHITE);
-    /// ```
-    pub fn bind(
+    /// TODO
+    pub fn bind_property_group(
         &mut self,
         name: impl Into<ImmutableString>,
-        new_value: impl Into<MaterialResourceBinding>,
+        group: MaterialPropertyGroup,
     ) {
-        self.resource_bindings.insert(name.into(), new_value.into());
+        self.resource_bindings
+            .insert(name.into(), MaterialResourceBinding::PropertyGroup(group));
+    }
+
+    /// Creates a new material resource binding if there's no such binding, or sets the new texture
+    /// to the existing binding. If the binding does not exist, the [`sampler::STANDARD`] will be
+    /// used when adding the binding.
+    pub fn bind_texture(
+        &mut self,
+        name: impl Into<ImmutableString>,
+        texture: Option<TextureResource>,
+    ) {
+        let name = name.into();
+        if let Some(MaterialResourceBinding::Texture(binding)) =
+            self.resource_bindings.get_mut(&name)
+        {
+            binding.texture = texture;
+        } else {
+            self.resource_bindings.insert(
+                name,
+                MaterialResourceBinding::Texture(MaterialTextureBinding {
+                    texture,
+                    sampler: sampler::STANDARD.resource(),
+                }),
+            );
+        }
+    }
+
+    /// Creates a new material resource binding if there's no such binding, or sets the new sampler
+    /// to the existing binding. If the binding does not exist, the [`None`] texture will be used.
+    /// This essentially means that a fallback texture defined in the shader will be used together
+    /// with the specified sampler.
+    pub fn bind_sampler(
+        &mut self,
+        name: impl Into<ImmutableString>,
+        sampler: Resource<TextureSampler>,
+    ) {
+        let name = name.into();
+        if let Some(MaterialResourceBinding::Texture(binding)) =
+            self.resource_bindings.get_mut(&name)
+        {
+            binding.sampler = sampler;
+        } else {
+            self.resource_bindings.insert(
+                name,
+                MaterialResourceBinding::Texture(MaterialTextureBinding {
+                    texture: None,
+                    sampler,
+                }),
+            );
+        }
+    }
+
+    /// Creates a new material resource binding with the given texture and the sampler.
+    pub fn bind_texture_with_sampler(
+        &mut self,
+        name: impl Into<ImmutableString>,
+        texture: Option<TextureResource>,
+        sampler: Resource<TextureSampler>,
+    ) {
+        self.resource_bindings.insert(
+            name.into(),
+            MaterialResourceBinding::Texture(MaterialTextureBinding { texture, sampler }),
+        );
     }
 
     /// Tries to remove a resource bound to the given name.
@@ -1010,7 +1058,7 @@ impl Material {
     pub fn texture(&self, name: impl Into<ImmutableString>) -> Option<TextureResource> {
         self.resource_bindings.get(&name.into()).and_then(|v| {
             if let MaterialResourceBinding::Texture(binding) = v {
-                binding.value.clone()
+                binding.texture.clone()
             } else {
                 None
             }

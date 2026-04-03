@@ -30,7 +30,6 @@ mod document;
 pub mod error;
 mod scene;
 
-use crate::material::MaterialTextureBinding;
 use crate::{
     asset::manager::ResourceManager,
     core::{
@@ -43,7 +42,6 @@ use crate::{
     },
     graph::SceneGraph,
     material,
-    material::MaterialResourceBinding,
     resource::{
         fbx::{
             document::FbxDocument,
@@ -409,12 +407,7 @@ async fn create_materials(
                         };
 
                         if let Some(property_name) = name {
-                            material.bind(
-                                property_name,
-                                MaterialResourceBinding::Texture(MaterialTextureBinding {
-                                    value: Some(texture),
-                                }),
-                            );
+                            material.bind_texture(property_name, Some(texture));
                         }
                     } else {
                         Log::writeln(

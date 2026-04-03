@@ -283,7 +283,7 @@ static GIZMO_SHADER: LazyLock<ShaderResource> = LazyLock::new(|| {
 fn make_handle(scene: &mut Scene, root: Handle<Pivot>, visible: bool) -> Handle<Sprite> {
     let mut material = Material::from_shader(GIZMO_SHADER.clone());
 
-    material.bind(
+    material.bind_texture(
         "diffuseTexture",
         load_texture!("../../../resources/circle.png"),
     );

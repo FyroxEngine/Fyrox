@@ -25,7 +25,7 @@ use crate::fyrox::{
     scene::{mesh::Mesh, node::Node},
 };
 use crate::{command::CommandTrait, scene::commands::GameSceneContext};
-use fyrox::material::{MaterialResourceBinding, MaterialTextureBinding};
+use fyrox::material::MaterialResourceBinding;
 
 #[derive(Debug)]
 enum TextureSet {
@@ -66,7 +66,7 @@ impl CommandTrait for SetMeshTextureCommand {
                         .binding_ref("diffuseTexture")
                         .and_then(|p| {
                             if let MaterialResourceBinding::Texture(binding) = p {
-                                binding.value.clone()
+                                binding.texture.clone()
                             } else {
                                 None
                             }
@@ -77,7 +77,7 @@ impl CommandTrait for SetMeshTextureCommand {
                 surface
                     .material()
                     .data_ref()
-                    .bind("diffuseTexture", texture.clone());
+                    .bind_texture("diffuseTexture", Some(texture.clone()));
             }
             self.set = TextureSet::Multiple(old_set);
         } else {
@@ -95,7 +95,7 @@ impl CommandTrait for SetMeshTextureCommand {
                 .binding_ref("diffuseTexture")
                 .and_then(|p| {
                     if let MaterialResourceBinding::Texture(binding) = p {
-                        binding.value.clone()
+                        binding.texture.clone()
                     } else {
                         None
                     }
@@ -103,12 +103,10 @@ impl CommandTrait for SetMeshTextureCommand {
                 .unwrap();
             assert_eq!(mesh.surfaces_mut().len(), set.len());
             for (surface, old_texture) in mesh.surfaces_mut().iter_mut().zip(set) {
-                surface.material().data_ref().bind(
-                    "diffuseTexture",
-                    MaterialResourceBinding::Texture(MaterialTextureBinding {
-                        value: old_texture.clone(),
-                    }),
-                );
+                surface
+                    .material()
+                    .data_ref()
+                    .bind_texture("diffuseTexture", old_texture.clone());
             }
             self.set = TextureSet::Single(new_value);
         } else {

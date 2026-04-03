@@ -81,7 +81,6 @@ fn convert_mag(filter: GltfMagFilter) -> FyroxMagFilter {
     }
 }
 
-use crate::material::{MaterialResourceBinding, MaterialTextureBinding};
 use crate::resource::texture::TextureWrapMode as FyroxWrapMode;
 use fyrox_core::Uuid;
 use fyrox_resource::builtin::BuiltInResource;
@@ -289,10 +288,7 @@ fn set_texture(
         .get(index)
         .ok_or(GltfMaterialError::InvalidIndex)?
         .clone();
-    material.bind(
-        name,
-        MaterialResourceBinding::Texture(MaterialTextureBinding { value: Some(tex) }),
-    );
+    material.bind_texture(name, Some(tex));
     Ok(())
 }
 

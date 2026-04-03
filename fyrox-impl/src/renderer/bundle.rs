@@ -363,7 +363,7 @@ pub fn make_texture_binding(
         if let Some(binding) = material.binding_ref(resource_definition.name.clone()) {
             if let material::MaterialResourceBinding::Texture(binding) = binding {
                 binding
-                    .value
+                    .texture
                     .as_ref()
                     .and_then(|t| {
                         texture_cache

@@ -295,7 +295,7 @@ impl Sprite {
     pub fn apply_animation(&mut self, animation: &SpriteSheetAnimation) {
         self.material()
             .data_ref()
-            .bind("diffuseTexture", animation.texture());
+            .bind_texture("diffuseTexture", animation.texture());
         self.set_uv_rect(animation.current_frame_uv_rect().unwrap_or_default());
     }
 }

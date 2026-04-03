@@ -2493,12 +2493,12 @@ impl NodeTrait for Terrain {
 
                 let mut material = layer.material.deep_copy().data_ref().clone();
 
-                material.bind(
+                material.bind_texture(
                     &layer.mask_property_name,
-                    chunk.layer_masks[layer_index].clone(),
+                    Some(chunk.layer_masks[layer_index].clone()),
                 );
-                material.bind(&layer.height_map_property_name, chunk.heightmap.clone());
-                material.bind(&layer.hole_mask_property_name, chunk.hole_mask.clone());
+                material.bind_texture(&layer.height_map_property_name, chunk.heightmap.clone());
+                material.bind_texture(&layer.hole_mask_property_name, chunk.hole_mask.clone());
 
                 // The size of the chunk excluding the margins
                 let size = self.height_map_size.map(|x| (x - 3) as f32);

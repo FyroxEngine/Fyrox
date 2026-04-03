@@ -34,8 +34,7 @@ use crate::{
     Brush, BuildContext, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode, VerticalAlignment,
 };
 use fyrox_texture::{
-    CompressionOptions, TextureImportOptions, TextureMinificationFilter, TextureResource,
-    TextureResourceExtension,
+    CompressionOptions, TextureImportOptions, TextureResource, TextureResourceExtension,
 };
 use std::sync::Arc;
 
@@ -565,10 +564,7 @@ pub fn load_image(data: &[u8]) -> Option<TextureResource> {
         Uuid::new_v4(),
         Default::default(),
         data,
-        TextureImportOptions::default()
-            .with_compression(CompressionOptions::NoCompression)
-            .with_minification_filter(TextureMinificationFilter::LinearMipMapLinear)
-            .with_lod_bias(-1.0),
+        TextureImportOptions::default().with_compression(CompressionOptions::NoCompression),
     )
     .ok()
 }

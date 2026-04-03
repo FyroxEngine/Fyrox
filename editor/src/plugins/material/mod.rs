@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::plugins::inspector::editors::resource::ResourceField;
 use crate::{
     asset::preview::cache::IconRequest,
     fyrox::{
@@ -39,7 +38,7 @@ use crate::{
             border::BorderBuilder,
             check_box::{CheckBoxBuilder, CheckBoxMessage},
             color::{ColorFieldBuilder, ColorFieldMessage},
-            dock::DockingManagerMessage,
+            dock::{DockingManager, DockingManagerMessage},
             grid::{Column, GridBuilder, Row},
             inspector::editors::{
                 inherit::InheritablePropertyEditorDefinition,
@@ -50,7 +49,7 @@ use crate::{
             message::{DeliveryMode, MessageDirection, UiMessage},
             numeric::{NumericUpDownBuilder, NumericUpDownMessage},
             scroll_viewer::ScrollViewerBuilder,
-            stack_panel::StackPanelBuilder,
+            stack_panel::{StackPanel, StackPanelBuilder},
             text::TextBuilder,
             utils::make_simple_tooltip,
             vec::{
@@ -58,13 +57,12 @@ use crate::{
                 VecEditorMessage,
             },
             widget::{WidgetBuilder, WidgetMaterial, WidgetMessage},
-            window::WindowAlignment,
-            window::{WindowBuilder, WindowMessage, WindowTitle},
+            window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
         material::{
             shader::{Shader, ShaderResourceKind},
-            MaterialProperty, MaterialResource, MaterialResourceBinding, MaterialTextureBinding,
+            MaterialProperty, MaterialResource, MaterialResourceBinding,
         },
         scene::{
             base::BaseBuilder,
@@ -78,21 +76,18 @@ use crate::{
     plugin::EditorPlugin,
     plugins::{
         inspector::editors::{
-            resource::{ResourceFieldBuilder, ResourceFieldMessage},
+            resource::{ResourceField, ResourceFieldBuilder, ResourceFieldMessage},
             texture::{TextureEditorBuilder, TextureEditorMessage},
         },
         material::editor::MaterialPropertyEditorDefinition,
     },
     preview::PreviewPanel,
     scene::commands::material::{
-        SetMaterialBindingCommand, SetMaterialPropertyGroupPropertyValueCommand,
-        SetMaterialShaderCommand,
+        SetMaterialPropertyGroupPropertyValueCommand, SetMaterialShaderCommand,
+        SetMaterialTextureCommand,
     },
     Editor, Engine, Message,
 };
-use fyrox::gui::dock::DockingManager;
-use fyrox::gui::stack_panel::StackPanel;
-use fyrox::gui::window::Window;
 use std::{
     path::PathBuf,
     sync::{mpsc::Receiver, mpsc::Sender, Arc},
@@ -451,7 +446,7 @@ impl MaterialEditor {
                 ShaderResourceKind::Texture { fallback, .. } => {
                     let texture = material
                         .texture_ref(resource.name.clone())
-                        .and_then(|d| d.value.clone());
+                        .and_then(|d| d.texture.clone());
                     let path = texture
                         .as_ref()
                         .and_then(|tex| resource_manager.resource_path(tex.as_ref()))
@@ -580,7 +575,7 @@ impl MaterialEditor {
             match binding_value {
                 MaterialResourceBinding::Texture(ref binding) => ui.send_sync(
                     view.editor,
-                    TextureEditorMessage::Texture(binding.value.clone()),
+                    TextureEditorMessage::Texture(binding.texture.clone()),
                 ),
                 MaterialResourceBinding::PropertyGroup(ref group) => {
                     let ResourceViewKind::PropertyGroup { ref property_views } = view.kind else {
@@ -650,12 +645,10 @@ impl MaterialEditor {
                 ResourceViewKind::Sampler => {
                     if let Some(TextureEditorMessage::Texture(texture)) = message.data() {
                         if resource_view.editor == message.destination() {
-                            sender.do_command(SetMaterialBindingCommand::new(
+                            sender.do_command(SetMaterialTextureCommand::new(
                                 material.clone(),
                                 resource_view.name.clone(),
-                                MaterialResourceBinding::Texture(MaterialTextureBinding {
-                                    value: texture.clone(),
-                                }),
+                                texture.clone(),
                                 engine.resource_manager.resource_path(material.as_ref()),
                             ));
                         }

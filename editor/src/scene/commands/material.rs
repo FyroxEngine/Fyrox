@@ -23,12 +23,10 @@ use crate::{
     fyrox::{
         asset::ResourceData,
         core::{log::Log, sstorage::ImmutableString},
-        material::{
-            shader::ShaderResource, Material, MaterialProperty, MaterialResource,
-            MaterialResourceBinding,
-        },
+        material::{shader::ShaderResource, Material, MaterialProperty, MaterialResource},
     },
 };
+use fyrox::resource::texture::TextureResource;
 use std::path::{Path, PathBuf};
 
 fn try_save(path: Option<&Path>, material: &MaterialResource) {
@@ -40,24 +38,24 @@ fn try_save(path: Option<&Path>, material: &MaterialResource) {
 }
 
 #[derive(Debug)]
-pub struct SetMaterialBindingCommand {
+pub struct SetMaterialTextureCommand {
     material: MaterialResource,
     name: ImmutableString,
-    binding: Option<MaterialResourceBinding>,
+    texture: Option<TextureResource>,
     path: Option<PathBuf>,
 }
 
-impl SetMaterialBindingCommand {
+impl SetMaterialTextureCommand {
     pub fn new(
         material: MaterialResource,
         name: ImmutableString,
-        binding: MaterialResourceBinding,
+        texture: Option<TextureResource>,
         path: Option<PathBuf>,
     ) -> Self {
         Self {
             material,
             name,
-            binding: Some(binding),
+            texture,
             path,
         }
     }
@@ -65,22 +63,19 @@ impl SetMaterialBindingCommand {
     fn swap(&mut self) {
         let mut material = self.material.data_ref();
 
-        let old_value = material.binding_ref(self.name.clone()).cloned();
-        let new_value = std::mem::replace(&mut self.binding, old_value);
-        if let Some(new_value) = new_value {
-            material.bind(self.name.clone(), new_value);
-        } else {
-            material.unbind(self.name.clone());
-        }
-
+        let old_value = material
+            .texture_ref(self.name.clone())
+            .and_then(|b| b.texture.clone());
+        let new_value = std::mem::replace(&mut self.texture, old_value);
+        material.bind_texture(self.name.clone(), new_value);
         drop(material);
         try_save(self.path.as_deref(), &self.material);
     }
 }
 
-impl CommandTrait for SetMaterialBindingCommand {
+impl CommandTrait for SetMaterialTextureCommand {
     fn name(&mut self, _: &dyn CommandContext) -> String {
-        format!("Set Material {} Property Value", self.name)
+        format!("Set Material {} Texture", self.name)
     }
 
     fn execute(&mut self, _: &mut dyn CommandContext) {

@@ -55,7 +55,6 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     graph::{NodeHandleMap, SceneGraph, SceneGraphNode},
-    material::{MaterialResourceBinding, MaterialTextureBinding},
     resource::model::{Model, ModelResource, ModelResourceExtension},
     scene::{
         base::{NodeMessage, NodeMessageKind, NodeScriptMessage, SceneNodeId},
@@ -1023,12 +1022,7 @@ impl Graph {
                         let material = surface.material.deep_copy();
                         let mut material_state = material.state();
                         if let Some(material) = material_state.data() {
-                            material.bind(
-                                &lightmap.texture_name,
-                                MaterialResourceBinding::Texture(MaterialTextureBinding {
-                                    value: Some(texture),
-                                }),
-                            );
+                            material.bind_texture(&lightmap.texture_name, Some(texture));
                         }
                         drop(material_state);
                         surface.material.set_value_and_mark_modified(material);
@@ -1042,12 +1036,7 @@ impl Graph {
                     for surface in mesh.surfaces_mut() {
                         let mut material_state = surface.material().state();
                         if let Some(material) = material_state.data() {
-                            material.bind(
-                                &texture_name,
-                                MaterialResourceBinding::Texture(MaterialTextureBinding {
-                                    value: None,
-                                }),
-                            );
+                            material.bind_texture(&texture_name, None);
                         }
                     }
                 }
@@ -1097,12 +1086,7 @@ impl Graph {
                         let material = surface.material.deep_copy();
                         let mut material_state = material.state();
                         if let Some(material) = material_state.data() {
-                            material.bind(
-                                &lightmap.texture_name,
-                                MaterialResourceBinding::Texture(MaterialTextureBinding {
-                                    value: entry.texture.clone(),
-                                }),
-                            );
+                            material.bind_texture(&lightmap.texture_name, entry.texture.clone());
                         }
                         drop(material_state);
                         surface.material.set_value_and_mark_modified(material);

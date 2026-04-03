@@ -36,10 +36,7 @@ use crate::{
     },
     graph::SceneGraph,
     graphics::ElementRange,
-    material::{
-        Material, MaterialResource, MaterialResourceBinding, MaterialResourceExtension,
-        MaterialTextureBinding,
-    },
+    material::{Material, MaterialResource, MaterialResourceExtension},
     renderer::{
         self,
         bundle::{RenderContext, RenderDataBundleStorageTrait, SurfaceInstanceData},
@@ -569,7 +566,7 @@ fn extend_aabb_from_vertex_buffer(
 
 fn placeholder_material() -> MaterialResource {
     let mut material = Material::standard();
-    material.bind("diffuseTexture", PLACEHOLDER.resource());
+    material.bind_texture("diffuseTexture", Some(PLACEHOLDER.resource()));
     MaterialResource::new_ok(Uuid::new_v4(), ResourceKind::Embedded, material)
 }
 
@@ -762,11 +759,9 @@ impl NodeTrait for Mesh {
                             .and_then(|c| c.blend_shape_storage.as_ref())
                             .map(|texture| {
                                 let material_copy = surface.material().deep_copy();
-                                material_copy.data_ref().bind(
+                                material_copy.data_ref().bind_texture(
                                     &self.blend_shapes_property_name,
-                                    MaterialResourceBinding::Texture(MaterialTextureBinding {
-                                        value: Some(texture.clone()),
-                                    }),
+                                    Some(texture.clone()),
                                 );
                                 material_copy
                             });
