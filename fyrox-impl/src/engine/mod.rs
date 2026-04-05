@@ -117,7 +117,6 @@ use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
 };
-use fyrox_texture::sampler::TextureSamplerLoader;
 use std::{
     any::TypeId,
     cell::Cell,
@@ -1296,7 +1295,6 @@ pub(crate) fn initialize_resource_manager_loaders(
     loaders.set(TextureLoader {
         default_import_options: Default::default(),
     });
-    loaders.set(TextureSamplerLoader);
     loaders.set(SoundBufferLoader {
         default_import_options: Default::default(),
     });
