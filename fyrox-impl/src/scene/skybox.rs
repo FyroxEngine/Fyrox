@@ -28,8 +28,8 @@ use crate::{
 };
 use fyrox_core::color::Color;
 use fyrox_texture::{
-    CompressionOptions, Texture, TextureImportOptions, TextureKind, TextureMinificationFilter,
-    TexturePixelKind, TextureResource, TextureResourceExtension, TextureWrapMode,
+    CompressionOptions, Texture, TextureImportOptions, TextureKind, TexturePixelKind,
+    TextureResource, TextureResourceExtension,
 };
 use uuid::{uuid, Uuid};
 
@@ -211,11 +211,6 @@ impl SkyBox {
             ResourceKind::Embedded,
         )
         .ok_or(SkyBoxError::UnableToBuildCubeMap)?;
-
-        let mut cubemap_ref = cubemap.data_ref();
-        cubemap_ref.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
-        cubemap_ref.set_t_wrap_mode(TextureWrapMode::ClampToEdge);
-        drop(cubemap_ref);
 
         self.cubemap = Some(cubemap);
 
@@ -501,7 +496,7 @@ fn load_texture(id: Uuid, data: &[u8]) -> TextureResource {
         data,
         TextureImportOptions::default()
             .with_compression(CompressionOptions::NoCompression)
-            .with_minification_filter(TextureMinificationFilter::Linear),
+            .with_generate_mip_map(false),
     )
     .ok()
     .unwrap()

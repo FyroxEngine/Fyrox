@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{TextureMagnificationFilter, TextureMinificationFilter, TextureWrapMode};
+use fyrox_core::sparse::AtomicIndex;
 use fyrox_core::{
     io::FileError, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
 };
@@ -69,6 +70,11 @@ pub struct TextureSampler {
     pub lod_bias: f32,
 
     pub modification_count: u64,
+
+    #[doc(hidden)]
+    #[visit(skip)]
+    #[reflect(hidden)]
+    pub cache_index: Arc<AtomicIndex>,
 }
 
 impl Default for TextureSampler {
@@ -84,6 +90,7 @@ impl Default for TextureSampler {
             max_lod: 1000.0,
             lod_bias: 0.0,
             modification_count: 0,
+            cache_index: Arc::new(Default::default()),
         }
     }
 }

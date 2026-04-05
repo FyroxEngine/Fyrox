@@ -62,6 +62,7 @@ mod uri;
 
 use animation::import_animations;
 use fyrox_resource::untyped::ResourceKind;
+use fyrox_texture::sampler::TextureSamplerResource;
 use material::*;
 pub use surface::SurfaceDataError;
 use surface::{build_surface_data, BlendShapeInfoContainer, GeometryStatistics};
@@ -260,7 +261,7 @@ impl ImportContext {
 #[derive(Default)]
 struct ImportResults {
     buffers: Option<Vec<Vec<u8>>>,
-    textures: Option<Vec<TextureResource>>,
+    textures_with_samplers: Option<Vec<(TextureResource, TextureSamplerResource)>>,
     materials: Option<Vec<MaterialResource>>,
     skins: Option<Vec<SkinData>>,
     meshes: Option<Vec<MeshData>>,
@@ -371,9 +372,11 @@ async fn import_from_slice(slice: &[u8], graph: &mut Graph, context: &ImportCont
     };
     let buffers: &[Vec<u8>] = imports.buffers.as_ref().unwrap().as_slice();
     let images: Vec<SourceImage> = import_images(&doc, buffers)?;
-    imports.textures =
-        Some(import_textures(&doc, images.as_slice(), context.as_texture_context()).await?);
-    let textures = imports.textures.as_ref().unwrap().as_slice();
+    imports.textures_with_samplers = Some(
+        import_textures_with_samplers(&doc, images.as_slice(), context.as_texture_context())
+            .await?,
+    );
+    let textures = imports.textures_with_samplers.as_ref().unwrap().as_slice();
     imports.materials = Some(import_materials(&doc, textures).await?);
     let materials = imports.materials.as_ref().unwrap().as_slice();
     imports.skins = Some(import_skins(&doc, &imports)?);

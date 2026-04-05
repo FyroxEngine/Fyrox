@@ -79,8 +79,8 @@ use crate::{
         gltf::material::GLTF_SHADER,
         model::{loader::ModelLoader, Model, ModelResource},
         texture::{
-            self, loader::TextureLoader, CompressionOptions, Texture, TextureImportOptions,
-            TextureKind, TextureMinificationFilter, TextureResource, TextureResourceExtension,
+            self, loader::TextureLoader, Texture, TextureImportOptions, TextureKind,
+            TextureResource, TextureResourceExtension,
         },
     },
     scene::{
@@ -210,9 +210,7 @@ impl InitializedGraphicsContext {
             Uuid::new_v4(),
             ResourceKind::Embedded,
             data,
-            TextureImportOptions::default()
-                .with_compression(CompressionOptions::NoCompression)
-                .with_minification_filter(TextureMinificationFilter::Linear),
+            TextureImportOptions::default().with_generate_mip_map(false),
         ) {
             self.set_window_icon_from_texture(&texture);
         }

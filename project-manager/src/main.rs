@@ -32,6 +32,7 @@ static CURRENT_VERSION: &str = include_str!("../pm.version");
 
 use crate::{manager::ProjectManager, settings::DATA_DIR, utils::make_button};
 use fyrox::core::algebra::Vector2;
+use fyrox::gui::texture::sampler;
 use fyrox::{
     asset::{io::FsResourceIo, manager::ResourceManager, untyped::ResourceKind},
     core::{
@@ -73,6 +74,8 @@ fn set_ui_scaling(ui: &UserInterface, scale: f32) {
 fn main() {
     Log::set_file_name(DATA_DIR.join("project_manager.log"));
     Log::set_log_info(false);
+
+    sampler::STANDARD.resource.data_ref().lod_bias = -1.0;
 
     let mut window_attributes = WindowAttributes::default();
     window_attributes.inner_size = Some(PhysicalSize::new(720, 520).into());

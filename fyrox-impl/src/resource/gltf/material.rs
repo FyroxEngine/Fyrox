@@ -85,6 +85,8 @@ use crate::resource::texture::TextureWrapMode as FyroxWrapMode;
 use fyrox_core::Uuid;
 use fyrox_resource::builtin::BuiltInResource;
 use fyrox_resource::embedded_data_source;
+use fyrox_texture::sampler;
+use fyrox_texture::sampler::{TextureSampler, TextureSamplerResource};
 use gltf::texture::WrappingMode as GltfWrapMode;
 use uuid::uuid;
 
@@ -173,11 +175,11 @@ pub fn decode_base64(source: &str) -> Result<Vec<u8>> {
 /// * `resource_manager`: A [ResourceManager] makes it possible to access shaders and create materials.
 pub async fn import_materials(
     gltf: &Document,
-    textures: &[TextureResource],
+    textures_with_samplers: &[(TextureResource, TextureSamplerResource)],
 ) -> Result<Vec<MaterialResource>> {
     let mut result: Vec<MaterialResource> = Vec::with_capacity(gltf.materials().len());
     for mat in gltf.materials() {
-        match import_material(mat, textures).await {
+        match import_material(mat, textures_with_samplers).await {
             Ok(res) => result.push(res),
             Err(err) => {
                 Log::err(format!("glTF material failed to import. Reason: {err:?}"));
@@ -194,7 +196,7 @@ pub async fn import_materials(
 
 async fn import_material(
     mat: gltf::Material<'_>,
-    textures: &[TextureResource],
+    textures_with_samplers: &[(TextureResource, TextureSamplerResource)],
 ) -> Result<MaterialResource> {
     let shader: ShaderResource = GLTF_SHADER.resource.clone();
     if !shader.is_ok() {
@@ -203,39 +205,44 @@ async fn import_material(
     let mut result: Material = Material::from_shader(shader);
     let pbr = mat.pbr_metallic_roughness();
     if let Some(tex) = pbr.base_color_texture() {
-        set_texture(
+        bind_texture_and_sampler(
             &mut result,
             "diffuseTexture",
-            textures,
+            textures_with_samplers,
             tex.texture().index(),
         )?;
     }
     if let Some(tex) = mat.normal_texture() {
-        set_texture(
+        bind_texture_and_sampler(
             &mut result,
             "normalTexture",
-            textures,
+            textures_with_samplers,
             tex.texture().index(),
         )?;
     }
     if let Some(tex) = pbr.metallic_roughness_texture() {
-        set_texture(
+        bind_texture_and_sampler(
             &mut result,
             "metallicRoughnessTexture",
-            textures,
+            textures_with_samplers,
             tex.texture().index(),
         )?;
     }
     if let Some(tex) = mat.emissive_texture() {
-        set_texture(
+        bind_texture_and_sampler(
             &mut result,
             "emissionTexture",
-            textures,
+            textures_with_samplers,
             tex.texture().index(),
         )?;
     }
     if let Some(tex) = mat.occlusion_texture() {
-        set_texture(&mut result, "aoTexture", textures, tex.texture().index())?;
+        bind_texture_and_sampler(
+            &mut result,
+            "aoTexture",
+            textures_with_samplers,
+            tex.texture().index(),
+        )?;
     }
     set_material_color(
         &mut result,
@@ -278,17 +285,17 @@ fn set_material_vector4(material: &mut Material, name: &'static str, vector: [f3
     material.set_property(name, value);
 }
 
-fn set_texture(
+fn bind_texture_and_sampler(
     material: &mut Material,
     name: &'static str,
-    textures: &[TextureResource],
+    textures_with_samplers: &[(TextureResource, TextureSamplerResource)],
     index: usize,
 ) -> Result<()> {
-    let tex: TextureResource = textures
+    let (texture, sampler) = textures_with_samplers
         .get(index)
         .ok_or(GltfMaterialError::InvalidIndex)?
         .clone();
-    material.bind_texture(name, Some(tex));
+    material.bind_texture_with_sampler(name, Some(texture), sampler);
     Ok(())
 }
 
@@ -337,12 +344,13 @@ pub struct TextureContext<'a> {
     pub search_options: &'a MaterialSearchOptions,
 }
 
-pub async fn import_textures<'a>(
+pub async fn import_textures_with_samplers<'a>(
     gltf: &'a Document,
     images: &[SourceImage<'a>],
     context: TextureContext<'a>,
-) -> Result<Vec<TextureResource>> {
-    let mut result: Vec<TextureResource> = Vec::with_capacity(gltf.textures().len());
+) -> Result<Vec<(TextureResource, TextureSamplerResource)>> {
+    let mut result: Vec<(TextureResource, TextureSamplerResource)> =
+        Vec::with_capacity(gltf.textures().len());
     for tex in gltf.textures() {
         let sampler = tex.sampler();
         let source = tex.source();
@@ -353,42 +361,44 @@ pub async fn import_textures<'a>(
             SourceImage::Embedded(data) => result.push(import_embedded_texture(sampler, data)?),
             SourceImage::View(data) => result.push(import_embedded_texture(sampler, data)?),
             SourceImage::External(filename) => {
-                import_external_texture(filename, &context).await?;
-            } // result.push(import_external_texture(filename, &context).await?),
+                result.push(import_external_texture(filename, &context).await?)
+            }
         }
     }
     Ok(result)
 }
 
 fn import_embedded_texture(
-    sampler: gltf::texture::Sampler,
+    gltf_sampler: gltf::texture::Sampler,
     data: &[u8],
-) -> Result<TextureResource> {
-    let mut options = TextureImportOptions::default();
-    if let Some(filter) = sampler.min_filter() {
-        options.set_minification_filter(convert_mini(filter));
+) -> Result<(TextureResource, TextureSamplerResource)> {
+    let mut sampler = TextureSampler::default();
+    if let Some(filter) = gltf_sampler.min_filter() {
+        sampler.set_minification_filter(convert_mini(filter));
     }
-    if let Some(filter) = sampler.mag_filter() {
-        options.set_magnification_filter(convert_mag(filter));
+    if let Some(filter) = gltf_sampler.mag_filter() {
+        sampler.set_magnification_filter(convert_mag(filter));
     }
-    options.set_s_wrap_mode(convert_wrap(sampler.wrap_s()));
-    options.set_t_wrap_mode(convert_wrap(sampler.wrap_t()));
-    let tex = Texture::load_from_memory(data, options)?;
-    Ok(Resource::new_ok(
-        Uuid::new_v4(),
-        ResourceKind::Embedded,
-        tex,
+    sampler.set_s_wrap_mode(convert_wrap(gltf_sampler.wrap_s()));
+    sampler.set_t_wrap_mode(convert_wrap(gltf_sampler.wrap_t()));
+    let tex = Texture::load_from_memory(data, TextureImportOptions::default())?;
+    Ok((
+        TextureResource::new_ok(Uuid::new_v4(), ResourceKind::Embedded, tex),
+        TextureSamplerResource::new_ok(Uuid::new_v4(), ResourceKind::Embedded, sampler),
     ))
 }
 
 async fn import_external_texture(
     filename: &str,
     context: &TextureContext<'_>,
-) -> Result<TextureResource> {
+) -> Result<(TextureResource, TextureSamplerResource)> {
     let path = search_for_path(filename, context)
         .await
         .ok_or_else(|| GltfMaterialError::TextureNotFound(filename.into()))?;
-    Ok(context.resource_manager.request(path))
+    Ok((
+        context.resource_manager.request(path),
+        sampler::STANDARD.resource(),
+    ))
 }
 
 async fn search_for_path(filename: &str, context: &TextureContext<'_>) -> Option<PathBuf> {

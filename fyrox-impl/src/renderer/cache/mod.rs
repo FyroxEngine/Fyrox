@@ -37,6 +37,7 @@ use std::{
 use uuid::Uuid;
 
 pub mod geometry;
+pub mod sampler;
 pub mod shader;
 pub mod texture;
 pub mod uniform;

@@ -35,9 +35,7 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     graph::SceneGraph,
-    resource::texture::{
-        TextureKind, TexturePixelKind, TextureResource, TextureResourceExtension, TextureWrapMode,
-    },
+    resource::texture::{TextureKind, TexturePixelKind, TextureResource, TextureResourceExtension},
     scene::{
         base::{Base, BaseBuilder},
         debug::SceneDrawingContext,
@@ -997,12 +995,6 @@ impl ColorGradingLut {
                 )
                 .unwrap();
 
-                let mut lut_ref = lut.data_ref();
-
-                lut_ref.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
-                lut_ref.set_t_wrap_mode(TextureWrapMode::ClampToEdge);
-
-                drop(lut_ref);
                 drop(data);
 
                 Ok(Self {

@@ -498,6 +498,15 @@ impl TextureImportOptions {
     pub fn set_max_level(&mut self, max_level: usize) {
         self.max_level = max_level;
     }
+
+    pub fn with_generate_mip_map(mut self, generate: bool) -> Self {
+        self.generate_mip_map = generate;
+        self
+    }
+
+    pub fn set_generate_mip_map(&mut self, generate: bool) {
+        self.generate_mip_map = generate;
+    }
 }
 
 /// Placeholder texture.

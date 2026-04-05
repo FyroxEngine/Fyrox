@@ -183,6 +183,7 @@ use crate::{
     utils::doc::DocWindow,
     world::{graph::EditorSceneWrapper, menu::SceneNodeContextMenu, WorldViewer},
 };
+use fyrox::gui::texture::sampler;
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
@@ -721,6 +722,8 @@ impl Editor {
     }
 
     pub fn new_with_settings(startup_data: Option<StartupData>, settings: Settings) -> Self {
+        sampler::STANDARD.resource.data_ref().lod_bias = -1.0;
+
         // Useful for debugging purposes when users don't bother to mention editor version
         // they're using.
         Log::info(format!("Editor version: {}", &*EDITOR_VERSION));

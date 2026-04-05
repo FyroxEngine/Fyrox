@@ -18,31 +18,25 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox_core::algebra::{Matrix3, Vector2};
-use fyrox_core::Uuid;
+use fyrox_core::{
+    algebra::{Matrix3, Vector2},
+    Uuid,
+};
 use fyrox_resource::untyped::ResourceKind;
-use fyrox_ui::button::Button;
-use fyrox_ui::image::Image;
-use fyrox_ui::scroll_viewer::ScrollViewer;
-use fyrox_ui::text::Text;
-use fyrox_ui::window::{Window, WindowAlignment};
 use fyrox_ui::{
     border::BorderBuilder,
-    button::{ButtonBuilder, ButtonMessage},
+    button::{Button, ButtonBuilder, ButtonMessage},
     core::{parking_lot::Mutex, pool::Handle, SafeLock},
     grid::{Column, GridBuilder, Row},
-    image::ImageBuilder,
+    image::{Image, ImageBuilder},
     message::UiMessage,
-    scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
+    scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
     stack_panel::StackPanelBuilder,
     style::{resource::StyleResourceExt, Style},
-    text::{TextBuilder, TextMessage},
-    texture::{
-        TextureImportOptions, TextureMagnificationFilter, TextureMinificationFilter,
-        TextureResource, TextureResourceExtension,
-    },
+    text::{Text, TextBuilder, TextMessage},
+    texture::{TextureImportOptions, TextureResource, TextureResourceExtension},
     widget::{WidgetBuilder, WidgetMessage},
-    window::{WindowBuilder, WindowMessage, WindowTitle},
+    window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
     BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
 };
 use std::{
@@ -79,10 +73,7 @@ impl BuildWindow {
             Uuid::new_v4(),
             ResourceKind::Embedded,
             include_bytes!("resources/progress.png"),
-            TextureImportOptions::default()
-                .with_minification_filter(TextureMinificationFilter::LinearMipMapLinear)
-                .with_magnification_filter(TextureMagnificationFilter::Linear)
-                .with_lod_bias(-1.0),
+            TextureImportOptions::default(),
         )
         .ok();
 

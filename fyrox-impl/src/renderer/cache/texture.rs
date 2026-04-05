@@ -25,27 +25,19 @@ use crate::{
     graphics::{
         error::FrameworkError,
         gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
-        sampler::{
-            GpuSampler, GpuSamplerDescriptor, MagnificationFilter, MinificationFilter, WrapMode,
-        },
         server::GraphicsServer,
     },
     renderer::cache::{TemporaryCache, TimeToLive},
     resource::texture::{Texture, TextureResource},
 };
-use fyrox_texture::{
-    TextureKind, TextureMagnificationFilter, TextureMinificationFilter, TexturePixelKind,
-    TextureWrapMode,
-};
+use fyrox_texture::{TextureKind, TexturePixelKind};
 use std::{borrow::Cow, time::Duration};
 use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct TextureRenderData {
     pub gpu_texture: GpuTexture,
-    pub gpu_sampler: GpuSampler,
     modifications_counter: u64,
-    sampler_modifications_counter: u64,
 }
 
 #[derive(Default)]
@@ -109,51 +101,6 @@ pub fn convert_pixel_kind(texture_kind: TexturePixelKind) -> PixelKind {
     }
 }
 
-pub fn convert_magnification_filter(v: TextureMagnificationFilter) -> MagnificationFilter {
-    match v {
-        TextureMagnificationFilter::Nearest => MagnificationFilter::Nearest,
-        TextureMagnificationFilter::Linear => MagnificationFilter::Linear,
-    }
-}
-
-pub fn convert_minification_filter(v: TextureMinificationFilter) -> MinificationFilter {
-    match v {
-        TextureMinificationFilter::Nearest => MinificationFilter::Nearest,
-        TextureMinificationFilter::NearestMipMapNearest => MinificationFilter::NearestMipMapNearest,
-        TextureMinificationFilter::NearestMipMapLinear => MinificationFilter::NearestMipMapLinear,
-        TextureMinificationFilter::Linear => MinificationFilter::Linear,
-        TextureMinificationFilter::LinearMipMapNearest => MinificationFilter::LinearMipMapNearest,
-        TextureMinificationFilter::LinearMipMapLinear => MinificationFilter::LinearMipMapLinear,
-    }
-}
-
-pub fn convert_wrap_mode(v: TextureWrapMode) -> WrapMode {
-    match v {
-        TextureWrapMode::Repeat => WrapMode::Repeat,
-        TextureWrapMode::ClampToEdge => WrapMode::ClampToEdge,
-        TextureWrapMode::ClampToBorder => WrapMode::ClampToBorder,
-        TextureWrapMode::MirroredRepeat => WrapMode::MirroredRepeat,
-        TextureWrapMode::MirrorClampToEdge => WrapMode::MirrorClampToEdge,
-    }
-}
-
-fn create_sampler(
-    server: &dyn GraphicsServer,
-    texture: &Texture,
-) -> Result<GpuSampler, FrameworkError> {
-    server.create_sampler(GpuSamplerDescriptor {
-        mag_filter: convert_magnification_filter(texture.magnification_filter()),
-        min_filter: convert_minification_filter(texture.minification_filter()),
-        s_wrap_mode: convert_wrap_mode(texture.s_wrap_mode()),
-        t_wrap_mode: convert_wrap_mode(texture.t_wrap_mode()),
-        r_wrap_mode: convert_wrap_mode(texture.r_wrap_mode()),
-        anisotropy: texture.anisotropy_level(),
-        min_lod: texture.min_lod(),
-        max_lod: texture.max_lod(),
-        lod_bias: texture.lod_bias(),
-    })
-}
-
 fn create_gpu_texture(
     server: &dyn GraphicsServer,
     resource_manager: &ResourceManager,
@@ -180,9 +127,7 @@ fn create_gpu_texture(
 
     Ok(TextureRenderData {
         gpu_texture,
-        gpu_sampler: create_sampler(server, texture)?,
         modifications_counter: texture.modifications_count(),
-        sampler_modifications_counter: texture.sampler_modifications_count(),
     })
 }
 
@@ -216,7 +161,7 @@ impl TextureCache {
         server: &dyn GraphicsServer,
         resource_manager: &ResourceManager,
         texture_resource: &TextureResource,
-    ) -> Option<&TextureRenderData> {
+    ) -> Option<&GpuTexture> {
         let uuid = texture_resource.resource_uuid();
         let texture_data_guard = texture_resource.state();
         if let Some(texture) = texture_data_guard.data_ref() {
@@ -246,12 +191,7 @@ impl TextureCache {
                         }
                     }
 
-                    if entry.sampler_modifications_counter != texture.sampler_modifications_count()
-                    {
-                        entry.gpu_sampler = create_sampler(server, texture).unwrap();
-                    }
-
-                    return Some(entry);
+                    return Some(&entry.gpu_texture);
                 }
                 Err(e) => {
                     drop(texture_data_guard);
@@ -289,7 +229,6 @@ impl TextureCache {
     /// for a certain time period (see [`TimeToLive`]).
     pub fn try_register(
         &mut self,
-        server: &dyn GraphicsServer,
         texture: &TextureResource,
         gpu_texture: GpuTexture,
     ) -> Result<(), FrameworkError> {
@@ -300,9 +239,7 @@ impl TextureCache {
             self.cache.spawn(
                 TextureRenderData {
                     gpu_texture,
-                    gpu_sampler: create_sampler(server, &data)?,
                     modifications_counter: data.modifications_count(),
-                    sampler_modifications_counter: data.sampler_modifications_count(),
                 },
                 index,
                 TimeToLive::default(),
