@@ -47,7 +47,7 @@ pub use fyrox_sound::{
         DataSource, SoundBuffer, SoundBufferResource, SoundBufferResourceLoadError,
     },
     bus::*,
-    context::{DistanceModel, SAMPLE_RATE},
+    context::DistanceModel,
     dsp::{filters::*, DelayLine},
     effects::*,
     engine::SoundEngine,

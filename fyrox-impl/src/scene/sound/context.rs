@@ -80,12 +80,6 @@ impl SoundContextGuard<'_> {
         self.guard.distance_model()
     }
 
-    /// Normalizes given frequency using context's sampling rate. Normalized frequency then can be used
-    /// to create filters.
-    pub fn normalize_frequency(&self, f: f32) -> f32 {
-        self.guard.normalize_frequency(f)
-    }
-
     /// Returns amount of time context spent on rendering all sound sources.
     pub fn full_render_duration(&self) -> Duration {
         self.guard.full_render_duration()

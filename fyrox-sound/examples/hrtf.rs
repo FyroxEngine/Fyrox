@@ -26,7 +26,7 @@ use fyrox_sound::renderer::hrtf::{HrirSphereResource, HrirSphereResourceExt};
 use fyrox_sound::{
     algebra::{UnitQuaternion, Vector3},
     buffer::{DataSource, SoundBufferResource},
-    context::{self, SoundContext},
+    context::SoundContext,
     engine::SoundEngine,
     futures::executor::block_on,
     hrtf::HrirSphere,
@@ -44,7 +44,7 @@ fn main() {
     let engine = SoundEngine::new().unwrap();
 
     let hrir_path = PathBuf::from("examples/data/IRC_1002_C.bin");
-    let hrir_sphere = HrirSphere::from_file(&hrir_path, context::SAMPLE_RATE).unwrap();
+    let hrir_sphere = HrirSphere::from_file(&hrir_path, engine.sample_rate()).unwrap();
 
     // Initialize new sound context with default output device.
     let context = SoundContext::new();
@@ -55,6 +55,7 @@ fn main() {
     context
         .state()
         .set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(
+            engine.sample_rate(),
             HrirSphereResource::from_hrir_sphere(hrir_sphere, ResourceKind::External),
         )));
 

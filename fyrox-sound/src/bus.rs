@@ -185,11 +185,11 @@ impl AudioBus {
         }
     }
 
-    fn apply_effects(&mut self) {
+    fn apply_effects(&mut self, sample_rate: u32) {
         // Pass through the chain of effects.
         for effect in self.effects.iter_mut() {
             let (input, output) = self.ping_pong_buffer.input_output_buffers();
-            effect.render(input, output);
+            effect.render(sample_rate, input, output);
             self.ping_pong_buffer.swap();
         }
     }
@@ -487,10 +487,10 @@ impl AudioBusGraph {
         }
     }
 
-    pub(crate) fn end_render(&mut self, output_device_buffer: &mut [(f32, f32)]) {
+    pub(crate) fn end_render(&mut self, sample_rate: u32, output_device_buffer: &mut [(f32, f32)]) {
         let mut leafs = Vec::new();
         for (handle, bus) in self.buses.pair_iter_mut() {
-            bus.apply_effects();
+            bus.apply_effects(sample_rate);
 
             if bus.child_buses.is_empty() {
                 leafs.push(handle);
@@ -531,6 +531,8 @@ mod test {
         effects::{Attenuate, Effect},
     };
 
+    const SAMPLE_RATE: u32 = 44100;
+
     #[test]
     fn test_multi_bus_data_flow() {
         let mut output_buffer = [(0.0f32, 0.0f32)];
@@ -553,7 +555,7 @@ mod test {
             *right = 1.0;
         }
 
-        graph.end_render(&mut output_buffer);
+        graph.end_render(SAMPLE_RATE, &mut output_buffer);
 
         assert_eq!(output_buffer[0], (2.0, 2.0));
     }
@@ -572,7 +574,7 @@ mod test {
             *right = 1.0;
         }
 
-        graph.end_render(&mut output_buffer);
+        graph.end_render(SAMPLE_RATE, &mut output_buffer);
 
         assert_eq!(output_buffer[0], (1.0, 1.0));
     }
@@ -606,7 +608,7 @@ mod test {
             *right = 1.0;
         }
 
-        graph.end_render(&mut output_buffer);
+        graph.end_render(SAMPLE_RATE, &mut output_buffer);
 
         assert_eq!(output_buffer[0], (0.75, 0.75));
     }

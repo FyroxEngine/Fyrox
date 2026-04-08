@@ -74,7 +74,7 @@
 //! Clicks can be reproduced by using clean sine wave of 440 Hz on some source moving around listener.
 
 use crate::{
-    context::{self, DistanceModel, SoundContext},
+    context::{DistanceModel, SoundContext},
     listener::Listener,
     renderer::render_source_2d_only,
     source::SoundSource,
@@ -94,6 +94,7 @@ use fyrox_resource::{
     Resource, ResourceData,
 };
 use hrtf::HrirSphere;
+use std::io::Cursor;
 use std::{error::Error, ops::Deref};
 use std::{fmt::Debug, fmt::Formatter, path::PathBuf, sync::Arc};
 use std::{fmt::Display, path::Path};
@@ -159,16 +160,12 @@ impl Visit for HrtfRenderer {
 
 impl HrtfRenderer {
     /// Creates new HRTF renderer using specified HRTF sphere. See module docs for more info.
-    pub fn new(hrir_sphere_resource: HrirSphereResource) -> Self {
+    pub fn new(sample_rate: u32, hrir_sphere_resource: HrirSphereResource) -> Self {
+        let processor = hrir_sphere_resource
+            .data_ref()
+            .make_hrtf_processor(sample_rate);
         Self {
-            processor: Some(hrtf::HrtfProcessor::new(
-                {
-                    let sphere = hrir_sphere_resource.data_ref().hrir_sphere.clone().unwrap();
-                    sphere
-                },
-                SoundContext::HRTF_INTERPOLATION_STEPS,
-                SoundContext::HRTF_BLOCK_LEN,
-            )),
+            processor,
             hrir_resource: Some(hrir_sphere_resource),
         }
     }
@@ -187,6 +184,7 @@ impl HrtfRenderer {
 
     pub(crate) fn render_source(
         &mut self,
+        sample_rate: u32,
         source: &mut SoundSource,
         listener: &Listener,
         distance_model: DistanceModel,
@@ -198,11 +196,7 @@ impl HrtfRenderer {
             if let Some(resource) = self.hrir_resource.as_ref() {
                 let mut header = resource.state();
                 if let Some(hrir) = header.data() {
-                    self.processor = Some(hrtf::HrtfProcessor::new(
-                        hrir.hrir_sphere.clone().unwrap(),
-                        SoundContext::HRTF_INTERPOLATION_STEPS,
-                        SoundContext::HRTF_BLOCK_LEN,
-                    ));
+                    self.processor = hrir.make_hrtf_processor(sample_rate);
                 }
             }
         }
@@ -242,13 +236,41 @@ impl HrtfRenderer {
     }
 }
 
+#[derive(Clone)]
+enum HrirSource {
+    Preloaded(HrirSphere),
+    RawData(Vec<u8>),
+}
+
+impl Default for HrirSource {
+    fn default() -> Self {
+        Self::RawData(Default::default())
+    }
+}
+
 /// Wrapper for [`HrirSphere`] to be able to use it in the resource manager, that will handle async resource
 /// loading automatically.
 #[derive(Reflect, Default, Clone, Visit)]
 pub struct HrirSphereResourceData {
     #[reflect(hidden)]
     #[visit(skip)]
-    hrir_sphere: Option<HrirSphere>,
+    source: HrirSource,
+}
+
+impl HrirSphereResourceData {
+    fn make_hrtf_processor(&self, sample_rate: u32) -> Option<hrtf::HrtfProcessor> {
+        let hrir_sphere = match self.source {
+            HrirSource::Preloaded(ref sphere) => sphere.clone(),
+            HrirSource::RawData(ref raw_data) => {
+                HrirSphere::new(Cursor::new(raw_data), sample_rate).ok()?
+            }
+        };
+        Some(hrtf::HrtfProcessor::new(
+            hrir_sphere,
+            SoundContext::HRTF_INTERPOLATION_STEPS,
+            SoundContext::HRTF_BLOCK_LEN,
+        ))
+    }
 }
 
 impl Debug for HrirSphereResourceData {
@@ -295,12 +317,8 @@ impl ResourceLoader for HrirSphereLoader {
 
     fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
         Box::pin(async move {
-            let reader = io.file_reader(&path).await.map_err(LoadError::new)?;
-            let hrir_sphere = HrirSphere::new(reader, context::SAMPLE_RATE)
-                .map_err(HrtfError::from)
-                .map_err(LoadError::new)?;
             Ok(LoaderPayload::new(HrirSphereResourceData {
-                hrir_sphere: Some(hrir_sphere),
+                source: HrirSource::RawData(io.load_file(&path).await.map_err(LoadError::new)?),
             }))
         })
     }
@@ -322,7 +340,7 @@ impl HrirSphereResourceExt for HrirSphereResource {
             Uuid::new_v4(),
             kind,
             HrirSphereResourceData {
-                hrir_sphere: Some(hrir_sphere),
+                source: HrirSource::Preloaded(hrir_sphere),
             },
         )
     }

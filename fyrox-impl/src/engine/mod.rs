@@ -315,7 +315,6 @@ pub struct Engine {
 
     model_events_receiver: Receiver<ResourceEvent>,
 
-    #[allow(dead_code)] // Keep engine instance alive.
     sound_engine: SoundEngine,
 
     // A set of plugins used by the engine.
@@ -1499,6 +1498,17 @@ impl Engine {
                 "Graphics context is already initialized!".to_string(),
             ))
         }
+    }
+
+    /// Returns current sample rate of the sound engine.
+    pub fn sound_sample_rate(&self) -> u32 {
+        self.sound_engine.sample_rate()
+    }
+
+    /// Normalizes given frequency using sampling rate of the sound output device. Normalized frequency
+    /// then can be used to create filters.
+    pub fn normalize_sound_frequency(&self, f: f32) -> f32 {
+        self.sound_engine.normalize_frequency(f)
     }
 
     /// Tries to destroy current graphics context. It will succeed only if the `graphics_context` is fully initialized.

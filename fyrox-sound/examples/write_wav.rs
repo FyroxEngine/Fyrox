@@ -64,7 +64,7 @@ fn main() {
     // Create output wav file. The sample rate is currently fixed.
     let wav_spec = hound::WavSpec {
         channels: 2,
-        sample_rate: fyrox_sound::context::SAMPLE_RATE,
+        sample_rate: engine.sample_rate(),
         bits_per_sample: 32,
         sample_format: hound::SampleFormat::Float,
     };
@@ -76,7 +76,7 @@ fn main() {
     let mut samples_written = 0;
 
     // Wait until sound will play completely.
-    while samples_written < 3 * fyrox_sound::context::SAMPLE_RATE {
+    while samples_written < 3 * engine.sample_rate() {
         engine.state().render(&mut buf);
         for &(l, r) in buf.iter() {
             wav_writer.write_sample(l).unwrap();

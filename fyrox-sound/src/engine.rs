@@ -24,7 +24,7 @@
 //!
 //! Sound engine manages contexts, feeds output device with data.
 
-use crate::context::{SoundContext, SAMPLE_RATE};
+use crate::context::SoundContext;
 use fyrox_core::visitor::{Visit, VisitResult, Visitor};
 use fyrox_core::SafeLock;
 use std::error::Error;
@@ -43,6 +43,7 @@ impl Default for SoundEngine {
 
 /// Internal state of the sound engine.
 pub struct State {
+    sample_rate: u32,
     contexts: Vec<SoundContext>,
     output_device: Option<tinyaudio::OutputDevice>,
 }
@@ -62,18 +63,37 @@ impl SoundEngine {
     /// method to an output device (or a file, etc.).
     pub fn without_device() -> Self {
         Self(Arc::new(Mutex::new(State {
+            sample_rate: 44100,
             contexts: Default::default(),
             output_device: None,
         })))
     }
 
+    /// Sets the sample rate for the sound engine and recreates the output device.
+    pub fn set_sample_rate(&mut self, sample_rate: u32) -> Result<(), Box<dyn Error>> {
+        self.state().sample_rate = sample_rate;
+        self.initialize_audio_output_device()
+    }
+
+    /// Returns current sample rate of the sound engine.
+    pub fn sample_rate(&self) -> u32 {
+        self.state().sample_rate
+    }
+
+    /// Normalizes given frequency using context's sampling rate. Normalized frequency then can be used
+    /// to create filters.
+    pub fn normalize_frequency(&self, f: f32) -> f32 {
+        f / self.sample_rate() as f32
+    }
+
     /// Tries to initialize default audio output device.
     pub fn initialize_audio_output_device(&self) -> Result<(), Box<dyn Error>> {
-        let state = self.clone();
+        let sample_rate = self.sample_rate() as usize;
+        let this = self.clone();
 
         let device = tinyaudio::run_output_device(
             tinyaudio::OutputDeviceParameters {
-                sample_rate: SAMPLE_RATE as usize,
+                sample_rate,
                 channels_count: 2,
                 channel_sample_count: SoundContext::SAMPLES_PER_CHANNEL,
             },
@@ -87,7 +107,7 @@ impl SoundEngine {
                         )
                     };
 
-                    state.state().render(data);
+                    this.state().render(data);
                 }
             },
         )?;
@@ -159,7 +179,7 @@ impl State {
 
     fn render_inner(&mut self, buf: &mut [(f32, f32)]) {
         for context in self.contexts.iter_mut() {
-            context.state().render(buf);
+            context.state().render(self.sample_rate, buf);
         }
     }
 }

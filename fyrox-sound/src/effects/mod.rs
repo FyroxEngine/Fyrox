@@ -55,7 +55,7 @@ impl Attenuate {
 }
 
 impl EffectRenderTrait for Attenuate {
-    fn render(&mut self, input: &[(f32, f32)], output: &mut [(f32, f32)]) {
+    fn render(&mut self, _sample_rate: u32, input: &[(f32, f32)], output: &mut [(f32, f32)]) {
         for ((input_left, input_right), (output_left, output_right)) in
             input.iter().zip(output.iter_mut())
         {
@@ -97,7 +97,7 @@ impl Default for Effect {
 }
 
 pub(crate) trait EffectRenderTrait {
-    fn render(&mut self, input: &[(f32, f32)], output: &mut [(f32, f32)]);
+    fn render(&mut self, sample_rate: u32, input: &[(f32, f32)], output: &mut [(f32, f32)]);
 }
 
 macro_rules! static_dispatch {
@@ -116,7 +116,7 @@ macro_rules! static_dispatch {
 }
 
 impl EffectRenderTrait for Effect {
-    fn render(&mut self, input: &[(f32, f32)], output: &mut [(f32, f32)]) {
-        static_dispatch!(self, render, input, output)
+    fn render(&mut self, sample_rate: u32, input: &[(f32, f32)], output: &mut [(f32, f32)]) {
+        static_dispatch!(self, render, sample_rate, input, output)
     }
 }

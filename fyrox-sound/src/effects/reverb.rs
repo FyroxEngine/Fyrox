@@ -275,7 +275,7 @@ impl Reverb {
     /// # Notes
     ///
     /// This method uses normalized frequency as input, this means that you should divide your desired
-    /// frequency in hertz by sample rate of sound context. Context has `normalize_frequency` method
+    /// frequency in hertz by sample rate of sound context. Sound engine has `normalize_frequency` method
     /// exactly for this purpose.
     pub fn set_fc(&mut self, fc: f32) {
         self.fc = fc;
@@ -290,7 +290,7 @@ impl Reverb {
 }
 
 impl EffectRenderTrait for Reverb {
-    fn render(&mut self, input: &[(f32, f32)], mix_buf: &mut [(f32, f32)]) {
+    fn render(&mut self, _sample_rate: u32, input: &[(f32, f32)], mix_buf: &mut [(f32, f32)]) {
         let wet = self.wet;
         let dry = 1.0 - self.wet;
 

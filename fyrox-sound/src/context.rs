@@ -51,10 +51,6 @@ use std::{
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
-/// Sample rate for output device.
-/// TODO: Make this configurable, for now its set to most commonly used sample rate of 44100 Hz.
-pub const SAMPLE_RATE: u32 = 44100;
-
 /// Distance model defines how volume of sound will decay when distance to listener changes.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Reflect, Visit, AsRefStr, EnumString, VariantNames)]
 #[repr(u32)]
@@ -186,12 +182,6 @@ impl State {
         self.distance_model
     }
 
-    /// Normalizes given frequency using context's sampling rate. Normalized frequency then can be used
-    /// to create filters.
-    pub fn normalize_frequency(&self, f: f32) -> f32 {
-        f / SAMPLE_RATE as f32
-    }
-
     /// Returns amount of time context spent on rendering all sound sources.
     pub fn full_render_duration(&self) -> Duration {
         self.render_duration
@@ -275,7 +265,7 @@ impl State {
         &mut self.bus_graph
     }
 
-    pub(crate) fn render(&mut self, output_device_buffer: &mut [(f32, f32)]) {
+    pub(crate) fn render(&mut self, sample_rate: u32, output_device_buffer: &mut [(f32, f32)]) {
         let last_time = fyrox_core::instant::Instant::now();
 
         if !self.paused {
@@ -294,7 +284,7 @@ impl State {
             {
                 if let Some(bus_input_buffer) = self.bus_graph.try_get_bus_input_buffer(&source.bus)
                 {
-                    source.render(output_device_buffer.len());
+                    source.render(sample_rate, output_device_buffer.len());
 
                     match self.renderer {
                         Renderer::Default => {
@@ -308,6 +298,7 @@ impl State {
                         }
                         Renderer::HrtfRenderer(ref mut hrtf_renderer) => {
                             hrtf_renderer.render_source(
+                                sample_rate,
                                 source,
                                 &self.listener,
                                 self.distance_model,
@@ -318,7 +309,7 @@ impl State {
                 }
             }
 
-            self.bus_graph.end_render(output_device_buffer);
+            self.bus_graph.end_render(sample_rate, output_device_buffer);
         }
 
         self.render_duration = fyrox_core::instant::Instant::now() - last_time;

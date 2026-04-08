@@ -21,7 +21,6 @@
 //! Contains various filter effects. For example, lowpass filter could be used to muffle sounds.
 
 use crate::{
-    context::SAMPLE_RATE,
     dsp::{filters::Biquad, filters::BiquadKind},
     effects::EffectRenderTrait,
 };
@@ -45,6 +44,10 @@ macro_rules! define_filter_effect {
             quality: f32,
 
             #[reflect(hidden)]
+            #[visit(skip)]
+            sample_rate: u32,
+
+            #[reflect(hidden)]
             left: Biquad,
             #[reflect(hidden)]
             right: Biquad,
@@ -52,20 +55,37 @@ macro_rules! define_filter_effect {
 
         impl Default for $name {
             fn default() -> Self {
-                let mut filter = Self {
+                Self {
                     cutoff_frequency_hz: 2200.0,
                     gain: 1.0,
                     quality: 0.5,
                     left: Default::default(),
                     right: Default::default(),
-                };
-                filter.update();
-                filter
+                    sample_rate: 0
+                }
             }
         }
 
         impl EffectRenderTrait for $name {
-            fn render(&mut self, input: &[(f32, f32)], output: &mut [(f32, f32)]) {
+            fn render(&mut self, sample_rate: u32, input: &[(f32, f32)], output: &mut [(f32, f32)]) {
+                if self.sample_rate != sample_rate {
+                    self.sample_rate = sample_rate;
+
+                    self.left.tune(
+                        $kind,
+                        self.cutoff_frequency_hz / self.sample_rate as f32,
+                        self.gain,
+                        self.quality
+                    );
+
+                    self.right.tune(
+                        $kind,
+                        self.cutoff_frequency_hz / self.sample_rate as f32,
+                        self.gain,
+                        self.quality
+                    );
+                }
+
                 for ((input_left, input_right), (output_left, output_right)) in input.iter().zip(output) {
                     *output_left = self.left.feed(*input_left);
                     *output_right = self.right.feed(*input_right);
@@ -78,7 +98,7 @@ macro_rules! define_filter_effect {
             #[inline]
             pub fn set_gain(&mut self, gain: f32) {
                 self.gain = gain;
-                self.update();
+                self.sample_rate = 0;
             }
 
             /// Returns filter's gain coefficient.
@@ -92,7 +112,7 @@ macro_rules! define_filter_effect {
             #[inline]
             pub fn set_cutoff_frequency_hz(&mut self, freq: f32) {
                 self.cutoff_frequency_hz = freq;
-                self.update();
+                self.sample_rate = 0;
             }
 
             /// Returns a cutoff frequency of the filter in Hertz.
@@ -106,29 +126,13 @@ macro_rules! define_filter_effect {
             #[inline]
             pub fn set_quality(&mut self, quality: f32) {
                 self.quality = quality;
-                self.update();
+                self.sample_rate = 0;
             }
 
             /// Returns the quality of the filter.
             #[inline]
             pub fn quality(&self) -> f32 {
                 self.quality
-            }
-
-            fn update(&mut self) {
-                self.left.tune(
-                    $kind,
-                    self.cutoff_frequency_hz / SAMPLE_RATE as f32,
-                    self.gain,
-                    self.quality
-                );
-
-                self.right.tune(
-                    $kind,
-                    self.cutoff_frequency_hz / SAMPLE_RATE as f32,
-                    self.gain,
-                    self.quality
-                )
             }
         }
     };
