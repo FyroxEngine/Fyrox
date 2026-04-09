@@ -36,7 +36,7 @@ use std::{
 
 fn main() {
     // Initialize sound engine with default output device.
-    let engine = SoundEngine::new().unwrap();
+    let engine = SoundEngine::new(SoundEngine::DEFAULT_SAMPLE_RATE).unwrap();
 
     // Initialize new sound context.
     let context = SoundContext::new();

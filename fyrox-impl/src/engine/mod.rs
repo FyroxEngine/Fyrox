@@ -1431,7 +1431,7 @@ impl Engine {
         let (rx, tx) = channel();
         resource_manager.state().event_broadcaster.add(rx);
 
-        let sound_engine = SoundEngine::without_device();
+        let sound_engine = SoundEngine::without_device(SoundEngine::DEFAULT_SAMPLE_RATE);
 
         Ok(Self {
             graphics_context: GraphicsContext::Uninitialized(graphics_context_params),

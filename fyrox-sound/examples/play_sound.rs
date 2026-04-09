@@ -31,7 +31,7 @@ use std::{thread, time::Duration};
 
 fn main() {
     // Initialize sound engine with default output device.
-    let engine = SoundEngine::new().unwrap();
+    let engine = SoundEngine::new(SoundEngine::DEFAULT_SAMPLE_RATE).unwrap();
 
     // Create new context.
     let context = SoundContext::new();

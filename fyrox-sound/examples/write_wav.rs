@@ -31,7 +31,7 @@ use fyrox_sound::{
 
 fn main() {
     // Initialize sound engine without output device.
-    let engine = SoundEngine::without_device();
+    let engine = SoundEngine::without_device(SoundEngine::DEFAULT_SAMPLE_RATE);
 
     // Create new context.
     let context = SoundContext::new();

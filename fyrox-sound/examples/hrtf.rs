@@ -41,7 +41,7 @@ use std::{
 
 fn main() {
     // Initialize sound engine with default output device.
-    let engine = SoundEngine::new().unwrap();
+    let engine = SoundEngine::new(SoundEngine::DEFAULT_SAMPLE_RATE).unwrap();
 
     let hrir_path = PathBuf::from("examples/data/IRC_1002_C.bin");
     let hrir_sphere = HrirSphere::from_file(&hrir_path, engine.sample_rate()).unwrap();

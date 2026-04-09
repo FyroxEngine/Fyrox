@@ -37,7 +37,7 @@ pub struct SoundEngine(Arc<Mutex<State>>);
 
 impl Default for SoundEngine {
     fn default() -> Self {
-        Self::without_device()
+        Self::without_device(Self::DEFAULT_SAMPLE_RATE)
     }
 }
 
@@ -49,11 +49,14 @@ pub struct State {
 }
 
 impl SoundEngine {
+    /// Default sample rate of the sound engine.
+    pub const DEFAULT_SAMPLE_RATE: u32 = 44100;
+
     /// Creates new instance of the sound engine. It is possible to have multiple engines running at
     /// the same time, but you shouldn't do this because you can create multiple contexts which
     /// should cover 99% of use cases.
-    pub fn new() -> Result<Self, Box<dyn Error>> {
-        let engine = Self::without_device();
+    pub fn new(sample_rate: u32) -> Result<Self, Box<dyn Error>> {
+        let engine = Self::without_device(sample_rate);
         engine.initialize_audio_output_device()?;
         Ok(engine)
     }
@@ -61,9 +64,9 @@ impl SoundEngine {
     /// Creates new instance of a sound engine without OS audio output device (so called headless mode).
     /// The user should periodically run [`State::render`] if they want to implement their own sample sending
     /// method to an output device (or a file, etc.).
-    pub fn without_device() -> Self {
+    pub fn without_device(sample_rate: u32) -> Self {
         Self(Arc::new(Mutex::new(State {
-            sample_rate: 44100,
+            sample_rate,
             contexts: Default::default(),
             output_device: None,
         })))
