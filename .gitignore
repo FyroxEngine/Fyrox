@@ -18,7 +18,6 @@ settings.ron
 # Nix/NixOS
 .direnv/
 .envrc
-!flake.lock
 
 # from https://github.com/github/gitignore/blob/master/Global/VisualStudioCode.gitignore
 .vscode/*
