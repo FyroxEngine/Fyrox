@@ -29,17 +29,24 @@
   {
     devShells = forAllSystems ({ pkgs }: with pkgs; {
       default = mkShell rec {
-        buildInputs = [
-          rust-bin.stable.latest.default
-
+        nativeBuildInputs = [
           pkg-config
-          xorg.libxcb
+          rust-bin.stable.latest.default
+        ];
+
+        buildInputs = [
+          libx11
+          libxcb
           alsa-lib
           wayland
           libxkbcommon
           libGL
         ];
-        LD_LIBRARY_PATH = "${lib.makeLibraryPath buildInputs}";
+
+        LD_LIBRARY_PATH = lib.makeLibraryPath buildInputs;
+
+        # Remove this if you don't need LSP support
+        RUST_SRC_PATH = "${rust-bin.stable.latest.rust-src}/lib/rustlib/src/rust/library";
       };
     });
   };
