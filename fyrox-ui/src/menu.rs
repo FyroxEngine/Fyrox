@@ -269,7 +269,7 @@ impl Control for Menu {
             }
         } else if let Some(WidgetMessage::KeyDown(key_code)) = message.data() {
             if !message.handled() {
-                if keyboard_navigation(ui, *key_code, self, self.handle) {
+                if keyboard_navigation(ui, *key_code, self, self.handle.to_variant()) {
                     message.set_handled(true);
                 } else if *key_code == KeyCode::Escape {
                     ui.send(self.handle, MenuMessage::Deactivate);
@@ -463,6 +463,27 @@ impl MenuItem {
             WidgetMessage::Visibility(!self.items_container.is_empty()),
         );
     }
+
+    fn close_menu_chain(&self, ui: &UserInterface) {
+        let mut menu_item_ref_container = Some(self);
+        while let Some(menu_item_ref) = menu_item_ref_container {
+            let popup_handle =
+                menu_item_ref.find_by_criteria_up(ui, |n| n.has_component::<ContextMenu>());
+
+            ui.send(
+                menu_item_ref.handle,
+                MenuItemMessage::Close { deselect: true },
+            );
+
+            if let Ok(panel) = ui.try_get_of_type::<ContextMenu>(popup_handle) {
+                // Continue search from parent menu item of popup.
+                menu_item_ref_container = ui.try_get(panel.parent_menu_item).ok();
+            } else {
+                // Prevent infinite loops.
+                break;
+            }
+        }
+    }
 }
 
 // MenuItem uses popup to show its content, popup can be top-most only if it is
@@ -475,7 +496,7 @@ fn find_menu(from: Handle<UiNode>, ui: &UserInterface) -> Handle<UiNode> {
     while handle.is_some() {
         if let Some((_, panel)) = ui.find_component_up::<ContextMenu>(handle) {
             // Continue search from parent menu item of popup.
-            handle = panel.parent_menu_item;
+            handle = panel.parent_menu_item.to_base();
         } else {
             // Maybe we have Menu as parent for MenuItem.
             return ui.find_handle_up(handle, &mut |n| n.cast::<Menu>().is_some());
@@ -498,25 +519,6 @@ fn is_any_menu_item_contains_point(ui: &UserInterface, pt: Vector2<f32>) -> bool
         }
     }
     false
-}
-
-fn close_menu_chain(from: Handle<UiNode>, ui: &UserInterface) {
-    let mut handle = from;
-    while handle.is_some() {
-        let popup_handle = ui.find_handle_up(handle, &mut |n| n.has_component::<ContextMenu>());
-
-        if let Ok(panel) = ui.try_get_of_type::<ContextMenu>(popup_handle) {
-            if *panel.popup.is_open {
-                ui.send(popup_handle, PopupMessage::Close);
-            }
-
-            // Continue search from parent menu item of popup.
-            handle = panel.parent_menu_item;
-        } else {
-            // Prevent infinite loops.
-            break;
-        }
-    }
 }
 
 uuid_provider!(MenuItem = "72e002c6-6060-4583-b5b7-0c5500244fef");
@@ -564,7 +566,7 @@ impl Control for MenuItem {
                                 ui.send(menu, MenuMessage::Deactivate);
                             } else {
                                 // Or close the menu chain if menu item is in "orphaned" state.
-                                close_menu_chain(self.parent(), ui);
+                                self.close_menu_chain(ui);
                             }
                         }
                         message.set_handled(true);
@@ -722,7 +724,7 @@ impl Control for MenuItem {
                         if let Some(panel) = node.component_ref::<ContextMenu>() {
                             // Once we found popup in chain, we must extract handle
                             // of parent menu item to continue search.
-                            handle = panel.parent_menu_item;
+                            handle = panel.parent_menu_item.to_base();
                         } else {
                             handle = node.parent();
                         }
@@ -756,12 +758,8 @@ impl Control for MenuItem {
                         if !is_any_menu_item_contains_point(ui, ui.cursor_position())
                             && find_menu(self.parent(), ui).is_none()
                         {
-                            if *panel.popup.is_open {
-                                ui.send(*self.items_panel, PopupMessage::Close);
-                            }
-
                             // Close all other popups.
-                            close_menu_chain(self.parent(), ui);
+                            self.close_menu_chain(ui);
                         }
                     }
                 }
@@ -1138,7 +1136,7 @@ pub struct ContextMenu {
     #[component(include)]
     pub popup: Popup,
     /// Parent menu item of the context menu. Allows you to build chained context menus.
-    pub parent_menu_item: Handle<UiNode>,
+    pub parent_menu_item: Handle<MenuItem>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for ContextMenu {
@@ -1179,13 +1177,8 @@ impl Control for ContextMenu {
 
         if let Some(WidgetMessage::KeyDown(key_code)) = message.data() {
             if !message.handled() {
-                if let Ok(parent_menu_item) = ui.try_get_node(self.parent_menu_item) {
-                    if keyboard_navigation(
-                        ui,
-                        *key_code,
-                        parent_menu_item.deref(),
-                        self.parent_menu_item,
-                    ) {
+                if let Ok(parent_menu_item) = ui.try_get(self.parent_menu_item) {
+                    if keyboard_navigation(ui, *key_code, parent_menu_item, self.parent_menu_item) {
                         message.set_handled(true);
                     }
                 }
@@ -1197,7 +1190,7 @@ impl Control for ContextMenu {
 /// Creates [`ContextMenu`] widgets.
 pub struct ContextMenuBuilder {
     popup_builder: PopupBuilder,
-    parent_menu_item: Handle<UiNode>,
+    parent_menu_item: Handle<MenuItem>,
 }
 
 impl ContextMenuBuilder {
@@ -1210,7 +1203,7 @@ impl ContextMenuBuilder {
     }
 
     /// Sets the desired parent menu item.
-    pub fn with_parent_menu_item(mut self, parent_menu_item: Handle<UiNode>) -> Self {
+    pub fn with_parent_menu_item(mut self, parent_menu_item: Handle<MenuItem>) -> Self {
         self.parent_menu_item = parent_menu_item;
         self
     }
@@ -1234,7 +1227,7 @@ fn keyboard_navigation(
     ui: &UserInterface,
     key_code: KeyCode,
     parent_menu_item: &dyn Control,
-    parent_menu_item_handle: Handle<UiNode>,
+    parent_menu_item_handle: Handle<MenuItem>,
 ) -> bool {
     let Some(items_container) = parent_menu_item
         .query_component_ref(TypeId::of::<ItemsContainer>())
