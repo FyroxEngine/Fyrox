@@ -728,7 +728,7 @@ pub struct UserInterface {
     z_index_update_set: FxHashSet<Handle<UiNode>>,
     #[reflect(hidden)]
     pub default_font: FontResource,
-    pub default_font_size: f32,
+    pub font_size: f32,
     #[reflect(hidden)]
     double_click_entries: FxHashMap<MouseButton, DoubleClickEntry>,
     pub double_click_time_slice: f32,
@@ -774,7 +774,7 @@ impl Debug for UserInterface {
             .field("layout_events_sender", &self.layout_events_sender)
             .field("z_index_update_set", &self.z_index_update_set)
             .field("default_font", &self.default_font)
-            .field("default_font_size", &self.default_font_size)
+            .field("font_size", &self.font_size)
             .field("double_click_entries", &self.double_click_entries)
             .field("double_click_time_slice", &self.double_click_time_slice)
             .field("tooltip_appear_delay", &self.tooltip_appear_delay)
@@ -873,7 +873,7 @@ impl Clone for UserInterface {
             layout_events_sender,
             z_index_update_set: self.z_index_update_set.clone(),
             default_font: self.default_font.clone(),
-            default_font_size: self.default_font_size,
+            font_size: self.font_size,
             double_click_entries: self.double_click_entries.clone(),
             double_click_time_slice: self.double_click_time_slice,
             tooltip_appear_delay: self.tooltip_appear_delay,
@@ -1192,7 +1192,7 @@ impl UserInterface {
             layout_events_sender,
             z_index_update_set: Default::default(),
             default_font: BUILT_IN_FONT.resource(),
-            default_font_size: 14.0,
+            font_size: 14.0,
             double_click_entries: Default::default(),
             double_click_time_slice: 0.5, // 500 ms is standard in most operating systems.
             tooltip_appear_delay: 0.55,
@@ -1541,7 +1541,7 @@ impl UserInterface {
     }
 
     pub fn set_font_size(&mut self, font_size: f32) {
-        self.default_font_size = font_size;
+        self.font_size = font_size;
 
         fn notify_depth_first(node: Handle<UiNode>, ui: &UserInterface) {
             if let Ok(node_ref) = ui.try_get_node(node) {
@@ -1549,7 +1549,7 @@ impl UserInterface {
                     notify_depth_first(*child, ui);
                 }
 
-                ui.send(node, TextMessage::FontSize(ui.default_font_size.into()));
+                ui.send(node, TextMessage::FontSize(ui.font_size.into()));
             }
         }
 

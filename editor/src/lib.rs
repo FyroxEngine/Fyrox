@@ -2788,6 +2788,11 @@ impl Editor {
                     ui.set_style(style.clone());
                 }
             }
+            
+            let font_size = self.settings.general.ui_font_size;
+            if font_size != ui.font_size {
+                ui.set_font_size(font_size);
+            }
         }
     }
 
