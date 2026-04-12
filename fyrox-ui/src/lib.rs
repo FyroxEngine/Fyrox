@@ -316,15 +316,15 @@ use crate::{
     draw::{CommandTexture, Draw, DrawingContext},
     font::{FontResource, BUILT_IN_FONT},
     message::{
-        ButtonState, CursorIcon, KeyboardModifiers, MessageDirection, MouseButton, OsEvent,
-        UiMessage,
+        ButtonState, CursorIcon, DeliveryMode, KeyboardModifiers, MessageData, MessageDirection,
+        MouseButton, OsEvent, RoutingStrategy, UiMessage,
     },
-    message::{DeliveryMode, MessageData, RoutingStrategy},
     popup::{Placement, PopupMessage},
     style::{
         resource::{StyleResource, StyleResourceExt},
         Style, DEFAULT_STYLE,
     },
+    text::TextMessage,
     widget::{Widget, WidgetBuilder, WidgetMaterial, WidgetMessage},
 };
 use copypasta::ClipboardContext;
@@ -728,6 +728,7 @@ pub struct UserInterface {
     z_index_update_set: FxHashSet<Handle<UiNode>>,
     #[reflect(hidden)]
     pub default_font: FontResource,
+    pub default_font_size: f32,
     #[reflect(hidden)]
     double_click_entries: FxHashMap<MouseButton, DoubleClickEntry>,
     pub double_click_time_slice: f32,
@@ -773,6 +774,7 @@ impl Debug for UserInterface {
             .field("layout_events_sender", &self.layout_events_sender)
             .field("z_index_update_set", &self.z_index_update_set)
             .field("default_font", &self.default_font)
+            .field("default_font_size", &self.default_font_size)
             .field("double_click_entries", &self.double_click_entries)
             .field("double_click_time_slice", &self.double_click_time_slice)
             .field("tooltip_appear_delay", &self.tooltip_appear_delay)
@@ -871,6 +873,7 @@ impl Clone for UserInterface {
             layout_events_sender,
             z_index_update_set: self.z_index_update_set.clone(),
             default_font: self.default_font.clone(),
+            default_font_size: self.default_font_size,
             double_click_entries: self.double_click_entries.clone(),
             double_click_time_slice: self.double_click_time_slice,
             tooltip_appear_delay: self.tooltip_appear_delay,
@@ -1189,6 +1192,7 @@ impl UserInterface {
             layout_events_sender,
             z_index_update_set: Default::default(),
             default_font: BUILT_IN_FONT.resource(),
+            default_font_size: 14.0,
             double_click_entries: Default::default(),
             double_click_time_slice: 0.5, // 500 ms is standard in most operating systems.
             tooltip_appear_delay: 0.55,
@@ -1530,6 +1534,22 @@ impl UserInterface {
                 }
 
                 ui.send(node, WidgetMessage::Style(ui.style.clone()));
+            }
+        }
+
+        notify_depth_first(self.root_canvas, self);
+    }
+
+    pub fn set_font_size(&mut self, font_size: f32) {
+        self.default_font_size = font_size;
+
+        fn notify_depth_first(node: Handle<UiNode>, ui: &UserInterface) {
+            if let Ok(node_ref) = ui.try_get_node(node) {
+                for child in node_ref.children.iter() {
+                    notify_depth_first(*child, ui);
+                }
+
+                ui.send(node, TextMessage::FontSize(ui.default_font_size.into()));
             }
         }
 

@@ -81,10 +81,9 @@ pub struct GeneralSettings {
 
     #[serde(default = "default_style")]
     pub style: EditorStyle,
-    
+
     #[serde(default = "default_ui_font_size")]
     pub ui_font_size: f32,
-    
     // TODO
     // world_viewer_font_size // Hardcoded at: 11.0
     // tilemap_properties_tab_font_size // Hardcoded at: 10.0
