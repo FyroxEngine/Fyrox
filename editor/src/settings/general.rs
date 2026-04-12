@@ -81,6 +81,18 @@ pub struct GeneralSettings {
 
     #[serde(default = "default_style")]
     pub style: EditorStyle,
+    
+    #[serde(default = "default_ui_font_size")]
+    pub ui_font_size: f32,
+    
+    // TODO
+    // world_viewer_font_size // Hardcoded at: 11.0
+    // tilemap_properties_tab_font_size // Hardcoded at: 10.0
+    // asset_font_preview_font_size // Hardcoded at: 16.0
+}
+
+fn default_ui_font_size() -> f32 {
+    14.0
 }
 
 fn default_style() -> EditorStyle {
@@ -144,6 +156,7 @@ impl Default for GeneralSettings {
             generate_previews: default_generate_previews(),
             max_log_entries: default_max_log_entries(),
             style: EditorStyle::Dark,
+            ui_font_size: default_ui_font_size(),
         }
     }
 }
