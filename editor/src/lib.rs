@@ -116,7 +116,10 @@ use crate::{
             },
             screen::ScreenBuilder,
             stack_panel::StackPanelBuilder,
-            style::{resource::StyleResource, Style},
+            style::{
+                resource::{StyleResource, StyleResourceExt},
+                Style,
+            },
             text::{Text, TextBuilder, TextMessage},
             widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
@@ -798,6 +801,7 @@ impl Editor {
 
         let ui = engine.user_interfaces.first_mut();
         if let Some(style) = styles.get(&settings.general.style) {
+            style.set(Style::FONT_SIZE, settings.general.ui_font_size);
             ui.set_style(style.clone());
         }
 
@@ -2785,6 +2789,7 @@ impl Editor {
             let ui = self.engine.user_interfaces.first_mut();
             if let Some(style) = self.styles.get(&self.settings.general.style) {
                 if style != ui.style() {
+                    style.set(Style::FONT_SIZE, self.settings.general.ui_font_size);
                     ui.set_style(style.clone());
                 }
             }
