@@ -83,6 +83,7 @@ pub struct GeneralSettings {
     pub style: EditorStyle,
 
     #[serde(default = "default_ui_font_size")]
+    #[reflect(min_value = 8.0, max_value = 48.0, step = 1.0, precision = 0)]
     pub ui_font_size: f32,
     // TODO
     // world_viewer_font_size // Hardcoded at: 11.0
