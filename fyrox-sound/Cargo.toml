@@ -21,6 +21,10 @@ hrtf = "0.8.0"
 hound = "3.4.0"
 strum = "0.27"
 strum_macros = "0.27"
-tinyaudio = "2"
+tinyaudio = { version = "2", optional = true }
 serde = { version = "1", features = ["derive"] }
 symphonia = { version = "0.5.4", features = ["all-codecs"] }
+
+[features]
+default = ["output"]
+output = ["tinyaudio"]

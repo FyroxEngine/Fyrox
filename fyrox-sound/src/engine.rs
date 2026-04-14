@@ -45,6 +45,7 @@ impl Default for SoundEngine {
 pub struct State {
     sample_rate: u32,
     contexts: Vec<SoundContext>,
+    #[cfg(feature = "output")]
     output_device: Option<tinyaudio::OutputDevice>,
 }
 
@@ -68,6 +69,7 @@ impl SoundEngine {
         Self(Arc::new(Mutex::new(State {
             sample_rate,
             contexts: Default::default(),
+            #[cfg(feature = "output")]
             output_device: None,
         })))
     }
@@ -91,38 +93,44 @@ impl SoundEngine {
 
     /// Tries to initialize default audio output device.
     pub fn initialize_audio_output_device(&self) -> Result<(), Box<dyn Error>> {
-        let sample_rate = self.sample_rate() as usize;
-        let this = self.clone();
+        #[cfg(feature = "output")]
+        {
+            let sample_rate = self.sample_rate() as usize;
+            let this = self.clone();
 
-        let device = tinyaudio::run_output_device(
-            tinyaudio::OutputDeviceParameters {
-                sample_rate,
-                channels_count: 2,
-                channel_sample_count: SoundContext::SAMPLES_PER_CHANNEL,
-            },
-            {
-                move |buf| {
-                    // SAFETY: This is safe as long as channels count above is 2.
-                    let data = unsafe {
-                        std::slice::from_raw_parts_mut(
-                            buf.as_mut_ptr() as *mut (f32, f32),
-                            buf.len() / 2,
-                        )
-                    };
+            let device = tinyaudio::run_output_device(
+                tinyaudio::OutputDeviceParameters {
+                    sample_rate,
+                    channels_count: 2,
+                    channel_sample_count: SoundContext::SAMPLES_PER_CHANNEL,
+                },
+                {
+                    move |buf| {
+                        // SAFETY: This is safe as long as channels count above is 2.
+                        let data = unsafe {
+                            std::slice::from_raw_parts_mut(
+                                buf.as_mut_ptr() as *mut (f32, f32),
+                                buf.len() / 2,
+                            )
+                        };
 
-                    this.state().render(data);
-                }
-            },
-        )?;
+                        this.state().render(data);
+                    }
+                },
+            )?;
 
-        self.state().output_device = Some(device);
+            self.state().output_device = Some(device);
+        }
 
         Ok(())
     }
 
     /// Destroys current audio output device (if any).
     pub fn destroy_audio_output_device(&self) {
-        self.state().output_device = None;
+        #[cfg(feature = "output")]
+        {
+            self.state().output_device = None;
+        }
     }
 
     /// Provides direct access to actual engine data.
