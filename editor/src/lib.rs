@@ -2788,8 +2788,8 @@ impl Editor {
         if self.settings.try_save() {
             let ui = self.engine.user_interfaces.first_mut();
             if let Some(style) = self.styles.get(&self.settings.general.style) {
+                style.set(Style::FONT_SIZE, self.settings.general.ui_font_size);
                 if style != ui.style() {
-                    style.set(Style::FONT_SIZE, self.settings.general.ui_font_size);
                     ui.set_style(style.clone());
                 }
             }
