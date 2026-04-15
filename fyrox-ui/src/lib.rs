@@ -324,6 +324,7 @@ use crate::{
         resource::{StyleResource, StyleResourceExt},
         Style, DEFAULT_STYLE,
     },
+    text::TextMessage,
     widget::{Widget, WidgetBuilder, WidgetMaterial, WidgetMessage},
 };
 use copypasta::ClipboardContext;
@@ -1529,6 +1530,19 @@ impl UserInterface {
                 }
 
                 ui.send(node, WidgetMessage::Style(ui.style.clone()));
+                ui.send(
+                    node,
+                    TextMessage::FontSize(
+                        (ui.style.get(Style::FONT_SIZE) as Option<f32>)
+                            .unwrap()
+                            .into(),
+                    ),
+                );
+                // This WidgetMessage::Style replaces old style in `Widget`
+                // but does not update font size
+                // because `Widget` does not carry a "font" value
+                // therefore there is no "font" for it to update
+                // Then why is `font` stored in `Style`?
             }
         }
 

@@ -2786,11 +2786,27 @@ impl Editor {
         }
 
         if self.settings.try_save() {
+            println!("Need Update");
             let ui = self.engine.user_interfaces.first_mut();
+            println!("Old style font size: {}", ui.style().get(Style::FONT_SIZE).unwrap_or(0.0));
             if let Some(style) = self.styles.get(&self.settings.general.style) {
+                // ISSUE: They are the same resource ref
                 style.set(Style::FONT_SIZE, self.settings.general.ui_font_size);
+                println!("Got new style");
+                println!("New style font size: {}", style.get(Style::FONT_SIZE).unwrap_or(0.0));
+                println!("Again Old style font size: {}", ui.style().get(Style::FONT_SIZE).unwrap_or(0.0));
+                // ERROR: If two styles are generated from the same
+                // "make_style" function, they will always return same on comparison
+                // even if the inner contents are modified after creation
+                // This is because style comparisons only care about "resource handles"
                 if style != ui.style() {
+                    println!("Old/New style are different");
                     ui.set_style(style.clone());
+                }
+                if (ui.style().get(Style::FONT_SIZE) as Option<f32>).unwrap()
+                 != self.settings.general.ui_font_size {
+                     println!("Old/New font size are different");
+                     ui.set_style(style.clone());
                 }
             }
         }
