@@ -2366,6 +2366,45 @@ mod test {
     }
 
     #[test]
+    fn test_copy_node_inplace() {
+        let mut graph = Graph::new();
+
+        // Root_
+        //      |_A_
+        //          |_B
+        //          |_C_
+        //             |_D
+        let b;
+        let c;
+        let d;
+        let a = PivotBuilder::new(
+            BaseBuilder::new()
+                .with_name("A")
+                .with_child({
+                    b = PivotBuilder::new(BaseBuilder::new().with_name("B")).build(&mut graph);
+                    b
+                })
+                .with_child({
+                    c = PivotBuilder::new(BaseBuilder::new().with_name("C").with_child({
+                        d = PivotBuilder::new(BaseBuilder::new().with_name("D")).build(&mut graph);
+                        d
+                    }))
+                    .build(&mut graph);
+                    c
+                }),
+        )
+        .build(&mut graph);
+
+        let (a_copy, old_new_map) = graph.copy_node_inplace(a.to_base(), &mut |_, _| true);
+        let old_new_map = old_new_map.inner();
+
+        assert_eq!(old_new_map.get(&a.to_base()), Some(&a_copy));
+        assert!(old_new_map.get(&b.to_base()).is_some());
+        assert!(old_new_map.get(&c.to_base()).is_some());
+        assert!(old_new_map.get(&d.to_base()).is_some());
+    }
+
+    #[test]
     fn test_graph_search() {
         let mut graph = Graph::new();
 
