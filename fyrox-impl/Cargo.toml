@@ -93,7 +93,6 @@ opener = { version = "0.8", default-features = false, features = ["reveal"] }
 # === end of additional deps ===
 
 [features]
-enable_profiler = ["fyrox-core/enable_profiler"]
 mesh_analysis = []
 
 [target.'cfg(target_os = "android")'.dependencies]
