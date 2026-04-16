@@ -808,6 +808,47 @@ mod test {
         make_relative_path(Path::new("Cargo.toml").canonicalize().unwrap()).unwrap();
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn test_make_relative_path_with_symlinks() {
+        use std::os::unix::fs::symlink;
+
+        let cwd = std::env::current_dir().unwrap();
+        let tmp = std::env::temp_dir().join("fyrox_symlink_test");
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        let project_dir = tmp.join("project");
+        let real_assets = tmp.join("real_assets");
+        std::fs::create_dir_all(&project_dir).unwrap();
+        std::fs::create_dir_all(&real_assets).unwrap();
+        std::fs::write(real_assets.join("test.txt"), "hello").unwrap();
+        symlink(&real_assets, project_dir.join("data")).unwrap();
+
+        std::env::set_current_dir(&project_dir).unwrap();
+
+        let real_path = real_assets.join("test.txt");
+        let result = make_relative_path(&real_path).unwrap();
+        assert_eq!(result, Path::new("data/test.txt"));
+
+        let symlink_path = project_dir.join("data").join("test.txt");
+        let result = make_relative_path(&symlink_path).unwrap();
+        assert_eq!(result, Path::new("data/test.txt"));
+
+        let real_textures = tmp.join("real_textures");
+        let assets_dir = project_dir.join("assets");
+        std::fs::create_dir_all(&assets_dir).unwrap();
+        std::fs::create_dir_all(&real_textures).unwrap();
+        std::fs::write(real_textures.join("brick.png"), "img").unwrap();
+        symlink(&real_textures, assets_dir.join("textures")).unwrap();
+
+        let real_path = real_textures.join("brick.png");
+        let result = make_relative_path(&real_path).unwrap();
+        assert_eq!(result, Path::new("assets/textures/brick.png"));
+
+        std::env::set_current_dir(cwd).unwrap();
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
     #[test]
     fn tests_case_insensitive_str_comparison() {
         assert!(cmp_strings_case_insensitive("FooBar", "FOOBaR"));
