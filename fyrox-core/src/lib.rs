@@ -329,6 +329,23 @@ pub fn make_relative_path<P: AsRef<Path>>(path: P) -> Result<PathBuf, std::io::E
     } else {
         Path::new(".")
     };
+
+    let cwd = std::env::current_dir()?;
+
+    // Try without canonicalization first to preserve symlinks.
+    let non_canon_dir = if dir.is_absolute() {
+        dir.to_path_buf()
+    } else {
+        cwd.join(dir)
+    };
+    if non_canon_dir.is_dir() {
+        let non_canon_path = non_canon_dir.join(file_name);
+        if let Ok(relative_path) = non_canon_path.strip_prefix(&cwd) {
+            return Ok(replace_slashes(relative_path));
+        }
+    }
+
+    // Canonicalize to resolve `.` and `..` components.
     let canon_path = dir
         .canonicalize()
         .map_err(|err| {
@@ -338,13 +355,49 @@ pub fn make_relative_path<P: AsRef<Path>>(path: P) -> Result<PathBuf, std::io::E
             ))
         })?
         .join(file_name);
-    match canon_path.strip_prefix(std::env::current_dir()?.canonicalize()?) {
-        Ok(relative_path) => Ok(replace_slashes(relative_path)),
-        Err(err) => Err(std::io::Error::other(format!(
-            "unable to strip prefix from '{}'! Reason: {err}",
-            canon_path.display()
-        ))),
+    let canon_cwd = cwd.canonicalize()?;
+    if let Ok(relative_path) = canon_path.strip_prefix(&canon_cwd) {
+        return Ok(replace_slashes(relative_path));
     }
+
+    // Last resort: resolve via symlinks in cwd to map canonical paths back to project-relative paths.
+    if let Some(relative) = find_symlink_relative_path(&cwd, &canon_path) {
+        return Ok(replace_slashes(relative));
+    }
+
+    Err(std::io::Error::other(format!(
+        "unable to strip prefix from '{}'! Reason: prefix not found",
+        canon_path.display()
+    )))
+}
+
+/// Searches `base_dir` (up to 4 levels deep) for a symlink whose target is a prefix of
+/// `canon_path`, returning the relative path through that symlink.
+fn find_symlink_relative_path(base_dir: &Path, canon_path: &Path) -> Option<PathBuf> {
+    fn walk(dir: &Path, prefix: &Path, canon_path: &Path, depth: u32) -> Option<PathBuf> {
+        const MAX_DEPTH: u32 = 4;
+        if depth > MAX_DEPTH {
+            return None;
+        }
+        let entries = std::fs::read_dir(dir).ok()?;
+        for entry in entries.flatten() {
+            let entry_path = entry.path();
+            if entry_path.is_symlink() {
+                if let Ok(link_target) = entry_path.canonicalize() {
+                    if let Ok(rest) = canon_path.strip_prefix(&link_target) {
+                        let relative_link = entry_path.strip_prefix(prefix).ok()?;
+                        return Some(relative_link.join(rest));
+                    }
+                }
+            } else if entry_path.is_dir() {
+                if let Some(result) = walk(&entry_path, prefix, canon_path, depth + 1) {
+                    return Some(result);
+                }
+            }
+        }
+        None
+    }
+    walk(base_dir, base_dir, canon_path, 0)
 }
 
 /// "Transmutes" array of any sized type to a slice of bytes.
