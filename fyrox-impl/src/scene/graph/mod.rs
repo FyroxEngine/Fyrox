@@ -807,81 +807,6 @@ impl Graph {
         (root_handle, old_new_mapping)
     }
 
-    /// Creates deep copy of node with all children. This is relatively heavy operation!
-    /// In case if any error happened it returns `Handle::NONE`. This method can be used
-    /// to create exact copy of given node hierarchy. For example you can prepare rocket
-    /// model: case of rocket will be mesh, and fire from nozzle will be particle system,
-    /// and when you fire from rocket launcher you just need to create a copy of such
-    /// "prefab".
-    ///
-    /// # Implementation notes
-    ///
-    /// Returns tuple where first element is handle to copy of node, and second element -
-    /// old-to-new hash map, which can be used to easily find copy of node by its original.
-    ///
-    /// Filter allows to exclude some nodes from copied hierarchy. It must return false for
-    /// odd nodes. Filtering applied only to descendant nodes.
-    #[inline]
-    pub fn copy_node_inplace<F>(
-        &mut self,
-        node_handle: Handle<Node>,
-        filter: &mut F,
-    ) -> (Handle<Node>, NodeHandleMap<Node>)
-    where
-        F: FnMut(Handle<Node>, &Node) -> bool,
-    {
-        let mut old_new_mapping = NodeHandleMap::default();
-
-        let to_copy = self
-            .traverse_iter(node_handle)
-            .map(|(descendant_handle, descendant)| (descendant_handle, descendant.children.clone()))
-            .collect::<Vec<_>>();
-
-        let mut root_handle = Handle::NONE;
-
-        for (parent, children) in to_copy.iter() {
-            // Copy parent first.
-            let parent_copy = clear_links(self.pool[*parent].clone_box());
-            let parent_copy_handle = self.add_node(parent_copy);
-            old_new_mapping.insert(*parent, parent_copy_handle);
-
-            if root_handle.is_none() {
-                root_handle = parent_copy_handle;
-            }
-
-            // Copy children and link to new parent.
-            for &child in children {
-                if filter(child, &self.pool[child]) {
-                    let child_copy = clear_links(self.pool[child].clone_box());
-                    let child_copy_handle = self.add_node(child_copy);
-                    old_new_mapping.insert(child, child_copy_handle);
-                    self.link_nodes(child_copy_handle, parent_copy_handle);
-                }
-            }
-        }
-
-        remap_handles(&old_new_mapping, self);
-
-        (root_handle, old_new_mapping)
-    }
-
-    /// Creates copy of a node and breaks all connections with other nodes. Keep in mind that
-    /// this method may give unexpected results when the node has connections with other nodes.
-    /// For example if you'll try to copy a skinned mesh, its copy won't be skinned anymore -
-    /// you'll get just a "shallow" mesh. Also unlike [copy_node](struct.Graph.html#method.copy_node)
-    /// this method returns copied node directly, it does not inserts it in any graph.
-    #[inline]
-    pub fn copy_single_node(&self, node_handle: Handle<Node>) -> Node {
-        let node = &self.pool[node_handle];
-        let mut clone = clear_links(node.clone_box());
-        if let Some(ref mut mesh) = clone.cast_mut::<Mesh>() {
-            for surface in mesh.surfaces_mut() {
-                surface.bones.clear();
-            }
-        }
-        clone
-    }
-
     /// * `node_handle`: The handle of the node to copy.
     /// * `dest_graph`: A mutable borrow of the node graph that will contain the newly created copy.
     /// * `old_new_mapping`: A mutable hashmap of node handles which records which original nodes were copied to
@@ -945,6 +870,83 @@ impl Graph {
             &mut dest_graph[dest_copy_handle],
         );
         dest_copy_handle
+    }
+
+    /// Creates deep copy of node with all children. This is relatively heavy operation! Almost the
+    /// same as [`Self::copy_node`], but puts the cloned nodes directly to the same graph. In case
+    /// if any error happened it returns `Handle::NONE`. This method can be used to create exact copy
+    /// of given node hierarchy.
+    ///
+    /// # Implementation notes
+    ///
+    /// Returns tuple where first element is handle to copy of node, and second element - old-to-new
+    /// hash map, which can be used to easily find copy of node by its original.
+    ///
+    /// Filter allows to exclude some nodes from copied hierarchy. It must return false for odd nodes.
+    /// Filtering applied only to descendant nodes.
+    #[inline]
+    pub fn copy_node_inplace<F>(
+        &mut self,
+        node_handle: Handle<Node>,
+        filter: &mut F,
+    ) -> (Handle<Node>, NodeHandleMap<Node>)
+    where
+        F: FnMut(Handle<Node>, &Node) -> bool,
+    {
+        let mut old_new_mapping = NodeHandleMap::default();
+        let root_handle = self.copy_node_raw_in_place(node_handle, &mut old_new_mapping, filter);
+        remap_handles(&old_new_mapping, self);
+        (root_handle, old_new_mapping)
+    }
+
+    /// * `node_handle`: The handle of the node to copy.
+    /// * `old_new_mapping`: A mutable hashmap of node handles which records which original nodes were copied to
+    ///   become which new nodes.
+    /// * `filter`: A function that takes a node handle and a borrow of a node and returns a bool.
+    ///   The is called with the handle and node of each child of `node_handle` to determine if
+    ///   that child should be recursively copied, and then the same filter is applied to each recursive step.
+    fn copy_node_raw_in_place<F>(
+        &mut self,
+        root_handle: Handle<impl ObjectOrVariant<Node>>,
+        old_new_mapping: &mut NodeHandleMap<Node>,
+        filter: &mut F,
+    ) -> Handle<Node>
+    where
+        F: FnMut(Handle<Node>, &Node) -> bool,
+    {
+        let root_handle = root_handle.to_base();
+        let src_node = &self.pool[root_handle];
+        let dest_node = clear_links(src_node.clone_box());
+        let src_children = src_node.children().to_vec();
+        let dest_copy_handle = self.add_node(dest_node);
+        old_new_mapping.insert(root_handle, dest_copy_handle);
+        for src_child_handle in src_children {
+            if filter(src_child_handle, &self.pool[src_child_handle]) {
+                let dest_child_handle =
+                    self.copy_node_raw_in_place(src_child_handle, old_new_mapping, filter);
+                if !dest_child_handle.is_none() {
+                    self.link_nodes(dest_child_handle, dest_copy_handle);
+                }
+            }
+        }
+        dest_copy_handle
+    }
+
+    /// Creates copy of a node and breaks all connections with other nodes. Keep in mind that
+    /// this method may give unexpected results when the node has connections with other nodes.
+    /// For example if you'll try to copy a skinned mesh, its copy won't be skinned anymore -
+    /// you'll get just a "shallow" mesh. Also unlike [copy_node](struct.Graph.html#method.copy_node)
+    /// this method returns copied node directly, it does not inserts it in any graph.
+    #[inline]
+    pub fn copy_single_node(&self, node_handle: Handle<Node>) -> Node {
+        let node = &self.pool[node_handle];
+        let mut clone = clear_links(node.clone_box());
+        if let Some(ref mut mesh) = clone.cast_mut::<Mesh>() {
+            for surface in mesh.surfaces_mut() {
+                surface.bones.clear();
+            }
+        }
+        clone
     }
 
     /// Reconnects every node to the graph by calling its [`Base::on_connected_to_graph`](crate::scene::base::Base::on_connected_to_graph)
