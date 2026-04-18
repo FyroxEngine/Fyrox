@@ -35,6 +35,7 @@ use crate::fyrox::{
         BuildContext, Control, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
 };
+use crate::Editor;
 
 use fyrox::gui::message::MessageData;
 use fyrox::gui::style::resource::StyleResourceExt;
@@ -201,6 +202,7 @@ impl SocketBuilder {
                                 )
                                 .with_vertical_text_alignment(VerticalAlignment::Center)
                                 .with_text(format!("{:?}", self.index))
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx)
                             } else {
                                 Handle::NONE

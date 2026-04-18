@@ -32,6 +32,7 @@ use crate::{
             list_view::{ListViewBuilder, ListViewMessage},
             message::UiMessage,
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             text::TextMessage,
             text_box::TextBoxBuilder,
             utils::make_dropdown_list_option,
@@ -41,7 +42,7 @@ use crate::{
         },
     },
     message::MessageSender,
-    Message,
+    Editor, Message,
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::list_view::ListView;
@@ -97,6 +98,7 @@ impl ResourceCreator {
                                     .with_margin(Thickness::uniform(1.0)),
                             )
                             .with_text(&name_str)
+                            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                             .build(ctx);
                             name
                         })

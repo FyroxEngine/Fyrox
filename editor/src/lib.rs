@@ -554,7 +554,9 @@ pub struct SceneLoadingWindow {
 
 impl SceneLoadingWindow {
     pub fn new(ctx: &mut BuildContext) -> Self {
-        let scene_list_text = TextBuilder::new(WidgetBuilder::new()).build(ctx);
+        let scene_list_text = TextBuilder::new(WidgetBuilder::new())
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
+            .build(ctx);
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(100.0))
             .with_title(WindowTitle::text("Please wait..."))
             .can_close(false)
@@ -570,6 +572,7 @@ impl SceneLoadingWindow {
                             TextBuilder::new(
                                 WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
                             )
+                            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                             .with_wrap(WrapMode::Word)
                             .with_text(
                                 "Please wait until the following scene(s) are \
@@ -719,6 +722,8 @@ fn make_light_style() -> StyleResource {
 }
 
 impl Editor {
+    pub const UI_FONT_SIZE: &'static str = "Editor.UI.Font.Size";
+
     pub fn new(startup_data: Option<StartupData>) -> Self {
         Self::new_with_settings(startup_data, Default::default())
     }
@@ -801,7 +806,8 @@ impl Editor {
 
         let ui = engine.user_interfaces.first_mut();
         if let Some(style) = styles.get(&settings.general.style) {
-            style.set(Style::FONT_SIZE, settings.general.ui_font_size);
+            // style.set(Style::FONT_SIZE, settings.general.ui_font_size);
+            style.set(Self::UI_FONT_SIZE, settings.general.ui_font_size);
             ui.set_style(style.clone());
         }
 
@@ -2269,6 +2275,7 @@ impl Editor {
 
         TextBuilder::new(WidgetBuilder::new().with_desired_position(Vector2::new(300.0, 300.0)))
             .with_text("This is some text.")
+            .with_font_size(ui.build_ctx().style.property(Editor::UI_FONT_SIZE))
             .build(&mut ui.build_ctx());
 
         let entry = EditorSceneEntry::new_ui_scene(
@@ -2788,26 +2795,39 @@ impl Editor {
         if self.settings.try_save() {
             println!("Need Update");
             let ui = self.engine.user_interfaces.first_mut();
-            println!("Old style font size: {}", ui.style().get(Style::FONT_SIZE).unwrap_or(0.0));
+            println!(
+                "Old style font size: {}",
+                ui.style().get(Self::UI_FONT_SIZE).unwrap_or(0.0)
+            );
             if let Some(style) = self.styles.get(&self.settings.general.style) {
                 // ISSUE: They are the same resource ref
-                style.set(Style::FONT_SIZE, self.settings.general.ui_font_size);
+                // style.set(Style::FONT_SIZE, self.settings.general.ui_font_size);
+                style.set(Self::UI_FONT_SIZE, self.settings.general.ui_font_size);
                 println!("Got new style");
-                println!("New style font size: {}", style.get(Style::FONT_SIZE).unwrap_or(0.0));
-                println!("Again Old style font size: {}", ui.style().get(Style::FONT_SIZE).unwrap_or(0.0));
+                println!(
+                    "New style font size: {}",
+                    style.get(Self::UI_FONT_SIZE).unwrap_or(0.0)
+                );
+                println!(
+                    "Again Old style font size: {}",
+                    ui.style().get(Self::UI_FONT_SIZE).unwrap_or(0.0)
+                );
                 // ERROR: If two styles are generated from the same
                 // "make_style" function, they will always return same on comparison
                 // even if the inner contents are modified after creation
                 // This is because style comparisons only care about "resource handles"
                 if style != ui.style() {
                     println!("Old/New style are different");
+                    // ui.set_style(style.clone());
+                }
+                if (ui.style().get(Self::UI_FONT_SIZE) as Option<f32>).unwrap()
+                    != self.settings.general.ui_font_size
+                {
+                    println!("Old/New font size are different");
                     ui.set_style(style.clone());
                 }
-                if (ui.style().get(Style::FONT_SIZE) as Option<f32>).unwrap()
-                 != self.settings.general.ui_font_size {
-                     println!("Old/New font size are different");
-                     ui.set_style(style.clone());
-                }
+                // Update anyway
+                ui.set_style(style.clone());
             }
         }
     }

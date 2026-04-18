@@ -33,6 +33,7 @@ use crate::{
             progress_bar::{ProgressBar, ProgressBarBuilder, ProgressBarMessage},
             scroll_viewer::ScrollViewerBuilder,
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             text::{Text, TextBuilder, TextMessage},
             widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
@@ -45,7 +46,7 @@ use crate::{
         },
     },
     scene::GameScene,
-    Engine,
+    Editor, Engine,
 };
 use std::{
     path::PathBuf,
@@ -128,6 +129,7 @@ impl ProgressWindow {
                                 take different amount of time depending on the settings.",
                                 )
                                 .with_wrap(WrapMode::Word)
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx),
                         )
                         .with_child({
@@ -144,6 +146,7 @@ impl ProgressWindow {
                                     .with_horizontal_alignment(HorizontalAlignment::Center)
                                     .with_vertical_alignment(VerticalAlignment::Center),
                             )
+                            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                             .build(ctx);
                             text
                         })

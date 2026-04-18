@@ -34,6 +34,7 @@ use fyrox::gui::{
     list_view::{ListView, ListViewBuilder, ListViewMessage},
     scroll_viewer::ScrollViewerBuilder,
     stack_panel::StackPanelBuilder,
+    style::resource::StyleResourceExt,
     text::{TextBuilder, TextMessage},
     text_box::{TextBoxBuilder, TextCommitMode},
     utils::{make_arrow, ArrowDirection},
@@ -116,6 +117,7 @@ pub fn make_list_item(
                 .with_vertical_text_alignment(VerticalAlignment::Center)
                 .with_horizontal_text_alignment(HorizontalAlignment::Right)
                 .with_text(macro_name)
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx),
             )
             .with_child(
@@ -127,6 +129,7 @@ pub fn make_list_item(
                 .with_vertical_text_alignment(VerticalAlignment::Center)
                 .with_horizontal_text_alignment(HorizontalAlignment::Left)
                 .with_text(instance_name)
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx),
             ),
     )
@@ -242,6 +245,7 @@ impl MacroTab {
                 .with_margin(Thickness::uniform(2.0)),
         )
         .with_text("Macros:")
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
         let left_side = GridBuilder::new(
             WidgetBuilder::new()
@@ -263,10 +267,12 @@ impl MacroTab {
                 .with_margin(Thickness::right(4.0)),
         )
         .with_text("Name:")
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
         let name_field = TextBoxBuilder::new(WidgetBuilder::new().with_height(20.0).on_column(1))
             .with_text_commit_mode(TextCommitMode::Changed)
             .with_vertical_text_alignment(VerticalAlignment::Center)
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx);
         let remove_button = make_button(
             "Delete",

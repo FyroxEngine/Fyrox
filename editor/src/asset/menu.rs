@@ -23,9 +23,14 @@ use crate::{
     fyrox::{
         asset::manager::ResourceManager,
         core::{
-            futures::executor::block_on, log::Log, ok_or_return, pool::Handle,
-            pool::HandlesVecExtension, reflect::prelude::*, type_traits::prelude::*,
-            visitor::prelude::*, SafeLock,
+            futures::executor::block_on,
+            log::Log,
+            ok_or_return,
+            pool::{Handle, HandlesVecExtension},
+            reflect::prelude::*,
+            type_traits::prelude::*,
+            visitor::prelude::*,
+            SafeLock,
         },
         engine::Engine,
         graph::SceneGraph,
@@ -44,6 +49,7 @@ use crate::{
             },
             popup::{Placement, PopupBuilder, PopupMessage},
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             text::{TextBuilder, TextMessage},
             text_box::{TextBox, TextBoxBuilder, TextCommitMode},
             widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -53,7 +59,7 @@ use crate::{
         },
     },
     message::MessageSender,
-    Message,
+    Editor, Message,
 };
 use std::{
     fs::File,
@@ -163,6 +169,7 @@ impl AssetRenameDialogBuilder {
                         "Enter a new name for {old_file_name}.{extension} resource."
                     ))
                     .with_wrap(WrapMode::Word)
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx),
                 )
                 .with_child({
@@ -174,6 +181,7 @@ impl AssetRenameDialogBuilder {
                     )
                     .with_text(&old_file_name)
                     .with_text_commit_mode(TextCommitMode::Immediate)
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx);
                     name_field
                 })

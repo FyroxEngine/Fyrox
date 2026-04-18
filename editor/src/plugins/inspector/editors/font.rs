@@ -39,11 +39,13 @@ use crate::{
                 FieldAction, InspectorError, PropertyChanged,
             },
             message::{MessageDirection, UiMessage},
+            style::resource::StyleResourceExt,
             text::{TextBuilder, TextMessage},
             widget::{Widget, WidgetBuilder, WidgetMessage},
             BuildContext, Control, UiNode, UserInterface,
         },
     },
+    Editor,
 };
 
 use fyrox::asset::manager::ResourceManager;
@@ -180,6 +182,7 @@ impl FontFieldBuilder {
                     .with_wrap(WrapMode::Word)
                     .with_text(make_name(&resource_manager, &self.font))
                     .with_font(self.font.clone())
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx);
                 text_preview
             })

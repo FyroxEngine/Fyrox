@@ -61,7 +61,7 @@ use crate::{
     scene_viewer::gizmo::{SceneGizmo, SceneGizmoAction},
     settings::SettingsMessage,
     utils::enable_widget,
-    DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
+    DropdownListBuilder, Editor, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
     SceneContainer, Settings,
 };
 use fyrox::core::algebra::Vector2;
@@ -126,6 +126,7 @@ impl GridSnappingMenu {
                         .with_child(
                             TextBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
                                 .with_text("Grid Snapping")
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx),
                         )
                         .with_child({
@@ -142,6 +143,7 @@ impl GridSnappingMenu {
                         .with_child(
                             TextBuilder::new(WidgetBuilder::new().on_row(1).on_column(0))
                                 .with_text("X Step")
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx),
                         )
                         .with_child({
@@ -158,6 +160,7 @@ impl GridSnappingMenu {
                         .with_child(
                             TextBuilder::new(WidgetBuilder::new().on_row(2).on_column(0))
                                 .with_text("Y Step")
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx),
                         )
                         .with_child({
@@ -174,6 +177,7 @@ impl GridSnappingMenu {
                         .with_child(
                             TextBuilder::new(WidgetBuilder::new().on_row(3).on_column(0))
                                 .with_text("Z Step")
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx),
                         )
                         .with_child({
@@ -477,6 +481,7 @@ impl SceneViewer {
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .with_horizontal_text_alignment(HorizontalAlignment::Center)
         .with_wrap(WrapMode::Word)
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
 
         let scene_gizmo_image = ImageBuilder::new(
@@ -908,6 +913,14 @@ impl SceneViewer {
                     bottom: 2.0,
                 }))
                 .with_text(entry.name())
+                .with_font_size(
+                    engine
+                        .user_interfaces
+                        .first_mut()
+                        .build_ctx()
+                        .style
+                        .property(Editor::UI_FONT_SIZE),
+                )
                 .build(&mut engine.user_interfaces.first_mut().build_ctx())
                 .to_base();
 

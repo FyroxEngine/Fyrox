@@ -51,6 +51,7 @@ use crate::{
             numeric::{NumericUpDownBuilder, NumericUpDownMessage},
             scroll_viewer::ScrollViewerBuilder,
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             text::TextBuilder,
             utils::make_simple_tooltip,
             vec::{
@@ -133,6 +134,7 @@ fn make_item_container(ctx: &mut BuildContext, name: &str, item: Handle<UiNode>)
                 TextBuilder::new(WidgetBuilder::new())
                     .with_text(name)
                     .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx),
             )
             .with_child(item),
@@ -313,6 +315,7 @@ impl MaterialEditor {
                                     )
                                     .with_vertical_text_alignment(VerticalAlignment::Center)
                                     .with_text("Shader")
+                                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                     .build(ctx),
                                 )
                                 .with_child({

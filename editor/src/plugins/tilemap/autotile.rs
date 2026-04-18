@@ -96,6 +96,7 @@ fn make_list_item(text: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .with_horizontal_text_alignment(HorizontalAlignment::Left)
         .with_text(text)
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
     DecoratorBuilder::new(
         BorderBuilder::new(WidgetBuilder::new().with_child(content))
@@ -498,6 +499,7 @@ impl BrushMacro for AutoTileMacro {
         );
         let failure_log_label = TextBuilder::new(WidgetBuilder::new())
             .with_text("Failure Log Level")
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx);
         self.failure_log_list = make_failure_log_list(
             WidgetBuilder::new().on_column(1),
@@ -518,11 +520,13 @@ impl BrushMacro for AutoTileMacro {
             TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(5.0)))
                 .with_wrap(WrapMode::Word)
                 .with_text(PATTERN_PROP_DESC)
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx);
         let freq_prop_help_text =
             TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(5.0)))
                 .with_wrap(WrapMode::Word)
                 .with_text(FREQUENCY_PROP_DESC)
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx);
         let handle = StackPanelBuilder::new(
             WidgetBuilder::new()
@@ -578,6 +582,7 @@ impl BrushMacro for AutoTileMacro {
                 .with_child(
                     TextBuilder::new(WidgetBuilder::new().on_column(1))
                         .with_text("Adjacent")
+                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx),
                 )
                 .with_child(adjacent_toggle),
@@ -591,6 +596,7 @@ impl BrushMacro for AutoTileMacro {
                 .with_child(
                     TextBuilder::new(WidgetBuilder::new().on_column(1))
                         .with_text("Diagonal")
+                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx),
                 )
                 .with_child(diagonal_toggle),

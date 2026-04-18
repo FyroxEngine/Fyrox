@@ -38,6 +38,7 @@ use crate::fyrox::{
 };
 use crate::plugins::absm::selectable::{Selectable, SelectableMessage};
 use crate::plugins::absm::socket::Socket;
+use crate::Editor;
 use fyrox::core::pool::HandlesVecExtension;
 use fyrox::gui::border::Border;
 use fyrox::gui::button::Button;
@@ -381,6 +382,7 @@ where
                                 .with_vertical_text_alignment(VerticalAlignment::Center)
                                 .with_horizontal_text_alignment(HorizontalAlignment::Center)
                                 .with_text(format!("{} ({})", self.name, self.model_handle))
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx);
                                 name
                             })
@@ -433,6 +435,7 @@ where
                                                 .with_margin(Thickness::uniform(2.0)),
                                         )
                                         .with_text(title)
+                                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                         .build(ctx),
                                     ),
                             )

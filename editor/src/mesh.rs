@@ -32,6 +32,7 @@ use crate::{
             scroll_viewer::ScrollViewerBuilder,
             stack_panel::StackPanel,
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             text::{Text, TextBuilder, TextMessage},
             utils::make_simple_tooltip,
             widget::WidgetBuilder,
@@ -60,7 +61,7 @@ use crate::{
         GameScene, Selection,
     },
     world::selection::GraphSelection,
-    Message,
+    Editor, Message,
 };
 use fyrox::core::math::TriangleDefinition;
 use fyrox::gui::VerticalAlignment;
@@ -333,6 +334,7 @@ impl SurfaceDataViewer {
 
         let info =
             TextBuilder::new(WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Top))
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx);
 
         let content = GridBuilder::new(

@@ -36,6 +36,7 @@ use crate::{
             list_view::{ListView, ListViewBuilder, ListViewMessage},
             message::UiMessage,
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             text::TextBuilder,
             utils::{make_dropdown_list_option, make_simple_tooltip},
             widget::{WidgetBuilder, WidgetMessage},
@@ -61,8 +62,8 @@ use crate::{
         SelectionContainer,
     },
     utils::window_content,
-    ChangeSelectionCommand, Command, GameScene, GridBuilder, MessageDirection, Mode, Selection,
-    UserInterface,
+    ChangeSelectionCommand, Command, Editor, GameScene, GridBuilder, MessageDirection, Mode,
+    Selection, UserInterface,
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::dropdown_list::DropdownList;
@@ -246,6 +247,7 @@ impl AudioPanel {
                                         )
                                         .with_vertical_text_alignment(VerticalAlignment::Center)
                                         .with_text("DM")
+                                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                         .build(ctx),
                                     )
                                     .with_child({
@@ -277,6 +279,7 @@ impl AudioPanel {
                                         )
                                         .with_vertical_text_alignment(VerticalAlignment::Center)
                                         .with_text("Renderer")
+                                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                         .build(ctx),
                                     )
                                     .with_child({

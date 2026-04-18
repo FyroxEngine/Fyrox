@@ -35,6 +35,7 @@ use crate::fyrox::{
             FieldAction, InspectorError, PropertyChanged,
         },
         message::{MessageDirection, UiMessage},
+        style::resource::StyleResourceExt,
         text::TextBuilder,
         widget::{Widget, WidgetBuilder},
         window::WindowMessage,
@@ -43,6 +44,7 @@ use crate::fyrox::{
     scene::animation::spritesheet::prelude::*,
 };
 use crate::plugins::inspector::editors::spritesheet::window::SpriteSheetFramesEditorWindow;
+use crate::Editor;
 
 use fyrox::gui::button::Button;
 use fyrox::gui::message::MessageData;
@@ -116,6 +118,7 @@ impl SpriteSheetFramesPropertyEditor {
                             .on_column(0),
                     )
                     .with_text(format!("Frames: {}", container.len()))
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx),
                 )
                 .with_child({

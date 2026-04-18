@@ -145,6 +145,7 @@ fn make_list_item(ctx: &mut BuildContext, property: &TileSetPropertyLayer) -> Ha
                 .with_vertical_text_alignment(VerticalAlignment::Center)
                 .with_horizontal_text_alignment(HorizontalAlignment::Left)
                 .with_text(property.name.clone())
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx),
             ),
     )
@@ -179,6 +180,7 @@ fn make_value_widget(ctx: &mut BuildContext, value: NamableValue) -> Handle<Text
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .with_horizontal_text_alignment(HorizontalAlignment::Right)
         .with_text(text)
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx)
 }
 
@@ -207,6 +209,7 @@ fn make_name_list_item(ctx: &mut BuildContext, named_value: &NamedValue) -> Hand
                 .with_vertical_text_alignment(VerticalAlignment::Center)
                 .with_horizontal_text_alignment(HorizontalAlignment::Left)
                 .with_text(&named_value.name)
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx),
             ),
     )
@@ -298,6 +301,7 @@ impl PropertiesTab {
                 .with_margin(Thickness::uniform(2.0)),
         )
         .with_text("Properties:")
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
         let left_side = GridBuilder::new(
             WidgetBuilder::new()
@@ -319,6 +323,7 @@ impl PropertiesTab {
                 .with_margin(Thickness::right(4.0)),
         )
         .with_text("Name:")
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
         let name_text_1 = TextBuilder::new(
             WidgetBuilder::new()
@@ -326,10 +331,12 @@ impl PropertiesTab {
                 .with_margin(Thickness::right(4.0)),
         )
         .with_text("Name:")
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
         let name_field = TextBoxBuilder::new(WidgetBuilder::new().with_height(20.0).on_column(1))
             .with_vertical_text_alignment(VerticalAlignment::Center)
             .with_text_commit_mode(TextCommitMode::Changed)
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx);
         let remove_button = make_button(
             "Delete",
@@ -384,6 +391,7 @@ impl PropertiesTab {
         let value_name_field =
             TextBoxBuilder::new(WidgetBuilder::new().with_height(20.0).on_column(1))
                 .with_text_commit_mode(TextCommitMode::Changed)
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx);
         let edit_header = GridBuilder::new(
             WidgetBuilder::new()

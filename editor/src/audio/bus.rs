@@ -39,6 +39,7 @@ use crate::fyrox::{
     },
     scene::sound::{AudioBus, AudioBusGraph},
 };
+use crate::Editor;
 use fyrox::gui::dropdown_list::DropdownList;
 use fyrox::gui::list_view::ListView;
 use fyrox::gui::message::MessageData;
@@ -121,6 +122,7 @@ fn make_effect_names(names: &[String], ctx: &mut BuildContext) -> Vec<Handle<UiN
         )
         .with_text("No Effects")
         .with_horizontal_text_alignment(HorizontalAlignment::Center)
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx)
         .to_base()]
     } else {
@@ -130,6 +132,7 @@ fn make_effect_names(names: &[String], ctx: &mut BuildContext) -> Vec<Handle<UiN
                 TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                     .with_text(n)
                     .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx)
                     .to_base()
             })
@@ -200,6 +203,7 @@ impl AudioBusViewBuilder {
                                 .with_vertical_alignment(VerticalAlignment::Center),
                         )
                         .with_text(self.name)
+                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx);
                         name
                     }))

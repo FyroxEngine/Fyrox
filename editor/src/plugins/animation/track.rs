@@ -103,6 +103,7 @@ use crate::{
         Selection,
     },
     utils::{self},
+    Editor,
 };
 use fyrox::core::warn;
 use std::{
@@ -526,6 +527,7 @@ impl TrackViewBuilder {
                             .on_column(1),
                     )
                     .with_text(self.name)
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx);
                     name_text
                 }),
@@ -1526,6 +1528,9 @@ impl TrackList {
                                                 model_track_binding.target().index(),
                                                 model_track_binding.target().generation()
                                             ))
+                                            .with_font_size(
+                                                ctx.style.property(Editor::UI_FONT_SIZE),
+                                            )
                                             .build(ctx),
                                     )
                                     .build(ctx);
@@ -1601,6 +1606,9 @@ impl TrackList {
                                                     ),
                                                 )
                                                 .with_text(curve_name)
+                                                .with_font_size(
+                                                    ctx.style.property(Editor::UI_FONT_SIZE),
+                                                )
                                                 .build(ctx),
                                             ),
                                     )

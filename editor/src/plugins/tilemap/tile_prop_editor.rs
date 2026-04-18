@@ -119,6 +119,7 @@ impl TilePropertyEditor {
         let draw_button = make_draw_button(Some(0), ctx);
         let name_field = TextBuilder::new(WidgetBuilder::new())
             .with_text(prop_layer.name.clone())
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx);
         let value_field = match prop_layer.prop_type {
             TileSetPropertyType::I32 => {
@@ -132,6 +133,7 @@ impl TilePropertyEditor {
                     .to_base()
             }
             TileSetPropertyType::String => TextBoxBuilder::new(WidgetBuilder::new().on_column(1))
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx)
                 .to_base(),
             TileSetPropertyType::NineSlice => {

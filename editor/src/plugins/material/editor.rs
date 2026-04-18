@@ -45,6 +45,7 @@ use crate::{
                 FieldAction, InspectorError, PropertyChanged,
             },
             message::{MessageData, UiMessage},
+            style::resource::StyleResourceExt,
             text::{Text, TextBuilder, TextMessage},
             utils::{make_asset_preview_tooltip, make_simple_tooltip, ImageButtonBuilder},
             widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -56,7 +57,7 @@ use crate::{
     message::MessageSender,
     plugins::inspector::EditorEnvironment,
     utils::make_pick_button,
-    Message, MessageDirection,
+    Editor, Message, MessageDirection,
 };
 use std::{
     any::TypeId,
@@ -321,6 +322,7 @@ impl MaterialFieldEditorBuilder {
                         TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                             .with_text(make_name(&resource_manager, &material))
                             .with_vertical_text_alignment(VerticalAlignment::Center)
+                            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                             .build(ctx);
                     text
                 })

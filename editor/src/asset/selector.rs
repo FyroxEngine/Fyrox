@@ -61,6 +61,7 @@ use crate::{
             UserInterface, VerticalAlignment,
         },
     },
+    Editor,
 };
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
@@ -197,6 +198,7 @@ impl ItemBuilder {
                         .map(|file_name| file_name.to_string_lossy().to_string())
                         .unwrap_or_default(),
                 )
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx),
             ),
         )

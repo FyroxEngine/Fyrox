@@ -929,6 +929,7 @@ pub fn make_named_value_list_option(
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .with_horizontal_text_alignment(HorizontalAlignment::Left)
         .with_text(name)
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
     let grid = GridBuilder::new(WidgetBuilder::new().with_child(icon).with_child(text))
         .add_column(Column::strict(20.0))

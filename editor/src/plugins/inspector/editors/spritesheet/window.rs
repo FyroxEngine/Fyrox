@@ -44,6 +44,7 @@ use crate::fyrox::{
     scene::animation::spritesheet::prelude::*,
 };
 use crate::plugins::inspector::editors::spritesheet::SpriteSheetFramesPropertyEditorMessage;
+use crate::Editor;
 
 use fyrox::core::pool::HandlesVecExtension;
 use fyrox::gui::border::Border;
@@ -270,6 +271,7 @@ impl SpriteSheetFramesEditorWindow {
                             .with_tooltip(make_simple_tooltip(ctx, column_tooltip)),
                     )
                     .with_text("Width")
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx),
                 )
                 .with_child({
@@ -289,6 +291,7 @@ impl SpriteSheetFramesEditorWindow {
                             .with_tooltip(make_simple_tooltip(ctx, row_tooltip)),
                     )
                     .with_text("Height")
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx),
                 )
                 .with_child({

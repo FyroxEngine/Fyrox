@@ -29,12 +29,14 @@ use crate::fyrox::{
             InspectorError, PropertyChanged,
         },
         message::UiMessage,
+        style::resource::StyleResourceExt,
         text::{TextBuilder, TextMessage},
         widget::WidgetBuilder,
         Thickness, VerticalAlignment,
     },
     scene::mesh::buffer::TriangleBuffer,
 };
+use crate::Editor;
 use std::any::TypeId;
 
 #[derive(Debug)]
@@ -65,6 +67,7 @@ impl PropertyEditorDefinition for TriangleBufferPropertyEditorDefinition {
                     .with_vertical_alignment(VerticalAlignment::Center),
             )
             .with_text(triangle_buffer_description(value))
+            .with_font_size(ctx.build_context.style.property(Editor::UI_FONT_SIZE))
             .build(ctx.build_context),
         ))
     }

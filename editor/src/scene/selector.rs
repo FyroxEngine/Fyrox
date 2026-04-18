@@ -46,6 +46,7 @@ use crate::{
         },
     },
     utils::make_node_name,
+    Editor,
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::control_trait_proxy_impls;
@@ -152,6 +153,7 @@ impl HierarchyNode {
         .with_content(
             TextBuilder::new(WidgetBuilder::new().with_foreground(brush))
                 .with_text(make_node_name(&self.name, self.handle) + " - " + &self.inner_type_name)
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx),
         )
         .build(ctx)
@@ -592,6 +594,7 @@ impl NodeSelectorWindowBuilder {
                                 .join("\n"),
                     )
                     .with_wrap(WrapMode::Letter)
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx),
                 )
                 .with_child({
