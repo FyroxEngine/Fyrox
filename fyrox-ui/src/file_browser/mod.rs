@@ -34,11 +34,12 @@ use crate::{
         fs_tree::{sanitize_path, TreeItemPath},
         menu::ItemContextMenu,
     },
+    font::FontResource,
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
     message::{MessageData, UiMessage},
     scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
-    style::{resource::StyleResourceExt, Style},
+    style::{resource::StyleResourceExt, Style, StyledProperty},
     text::{TextBuilder, TextMessage},
     text_box::{TextBoxBuilder, TextCommitMode},
     tree::{Tree, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
@@ -571,6 +572,8 @@ pub struct FileBrowserBuilder {
     root: Option<PathBuf>,
     show_path: bool,
     no_items_text: String,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl FileBrowserBuilder {
@@ -582,6 +585,8 @@ impl FileBrowserBuilder {
             root: None,
             show_path: true,
             no_items_text: "This folder is empty".to_string(),
+            font: None,
+            font_size: None,
         }
     }
 
@@ -597,6 +602,16 @@ impl FileBrowserBuilder {
 
     pub fn with_no_items_text(mut self, no_items_text: impl AsRef<str>) -> Self {
         self.no_items_text = no_items_text.as_ref().to_string();
+        self
+    }
+
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
         self
     }
 
@@ -706,6 +721,11 @@ impl FileBrowserBuilder {
                                         .map(|p| p.to_string_lossy().to_string())
                                         .unwrap_or_default(),
                                 )
+                                .with_font_size(
+                                    self.font_size
+                                        .clone()
+                                        .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
+                                )
                                 .build(ctx);
                                 path_text
                             }),
@@ -732,6 +752,11 @@ impl FileBrowserBuilder {
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .with_horizontal_text_alignment(HorizontalAlignment::Center)
         .with_text(self.no_items_text)
+        .with_font_size(
+            self.font_size
+                .clone()
+                .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
+        )
         .build(ctx);
 
         let root_container = GridBuilder::new(
