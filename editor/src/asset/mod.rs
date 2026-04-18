@@ -63,8 +63,9 @@ use crate::{
     preview::PreviewPanel,
     scene::{commands::ChangeSelectionCommand, container::EditorSceneEntry, Selection},
     utils::window_content,
-    Message, Mode,
+    Editor, Message, Mode,
 };
+use fyrox::gui::style::resource::StyleResourceExt;
 use menu::AssetItemContextMenu;
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::{
@@ -321,6 +322,7 @@ impl AssetBrowser {
                     WidgetBuilder::new().on_column(0).with_tab_index(Some(0)),
                 )
                 .with_no_items_text("There are no subfolders. Right-click to add one.")
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .with_show_path(false)
                 .with_filter(PathFilter::folder())
                 .build(ctx);
