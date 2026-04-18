@@ -1152,11 +1152,9 @@ pub trait SceneGraph: 'static {
         &self,
         from: Handle<impl ObjectOrVariant<Self::Node>>,
     ) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
-        let from = from.to_base();
-        self.try_get_node(from).expect("Handle must be valid!");
         GraphTraverseIterator {
             graph: self,
-            stack: vec![from],
+            current_node_handle: from.to_base(),
         }
     }
 
@@ -1487,7 +1485,7 @@ pub trait SceneGraph: 'static {
 /// Iterator that traverses tree in depth and returns shared references to nodes.
 pub struct GraphTraverseIterator<'a, G: ?Sized, N> {
     graph: &'a G,
-    stack: Vec<Handle<N>>,
+    current_node_handle: Handle<N>,
 }
 
 impl<'a, G: ?Sized, N> Iterator for GraphTraverseIterator<'a, G, N>
@@ -1499,17 +1497,36 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(handle) = self.stack.pop() {
-            let node = self.graph.node(handle);
-
-            for child_handle in node.children() {
-                self.stack.push(*child_handle);
+        let current_node_handle = self.current_node_handle;
+        match self.graph.try_get(current_node_handle) {
+            Ok(current_node) => {
+                match current_node.children().first() {
+                    Some(first) => {
+                        self.current_node_handle = *first;
+                    }
+                    None => {
+                        let mut parent_handle = current_node.parent();
+                        while let Ok(parent) = self.graph.try_get(parent_handle) {
+                            let parent_children = parent.children();
+                            let next_child_index = 1 + parent_children
+                                .iter()
+                                .position(|h| *h == self.current_node_handle)
+                                .expect("must be in parent's list");
+                            if let Some(next_child_handle) = parent_children.get(next_child_index) {
+                                self.current_node_handle = *next_child_handle;
+                                return Some((current_node_handle, current_node));
+                            } else {
+                                self.current_node_handle = parent_handle;
+                                parent_handle = parent.parent();
+                            }
+                        }
+                        self.current_node_handle = Handle::NONE;
+                    }
+                }
+                Some((current_node_handle, current_node))
             }
-
-            return Some((handle, node));
+            Err(_) => None,
         }
-
-        None
     }
 }
 
@@ -2286,5 +2303,52 @@ mod test {
 
         assert_eq!(graph[c].parent, a);
         assert_eq!(graph[c].children, vec![d]);
+    }
+
+    #[test]
+    fn test_traverse_iter() {
+        let mut graph = Graph::default();
+
+        // Root_
+        //      |_A_
+        //      |   |_B
+        //      |   |_C_
+        //      |      |_D_
+        //      |         |_E
+        //      |_F
+        let root = graph.add_node(Node::new(Pivot::default()));
+        let e = graph.add_node(Node::new(Pivot::default()));
+        let d = graph.add_node(Node::new(Pivot {
+            base: Base {
+                children: vec![e],
+                ..Default::default()
+            },
+        }));
+        let c = graph.add_node(Node::new(Pivot {
+            base: Base {
+                children: vec![d],
+                ..Default::default()
+            },
+        }));
+        let b = graph.add_node(Node::new(Pivot::default()));
+        let a = graph.add_node(Node::new(Pivot {
+            base: Base {
+                children: vec![b, c],
+                ..Default::default()
+            },
+        }));
+        let f = graph.add_node(Node::new(Pivot::default()));
+        graph.link_nodes(a, root);
+        graph.link_nodes(f, root);
+
+        let mut iter = graph.traverse_handle_iter(root);
+        assert_eq!(iter.next(), Some(root));
+        assert_eq!(iter.next(), Some(a));
+        assert_eq!(iter.next(), Some(b));
+        assert_eq!(iter.next(), Some(c));
+        assert_eq!(iter.next(), Some(d));
+        assert_eq!(iter.next(), Some(e));
+        assert_eq!(iter.next(), Some(f));
+        assert_eq!(iter.next(), None);
     }
 }
