@@ -560,7 +560,11 @@ impl SceneViewer {
                 .add_column(Column::stretch())
                 .build(ctx),
             )
-            .with_title(WindowTitle::text("Scene Preview"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Scene Preview",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_tab_label("Scene")
             .build(ctx);
         Self {

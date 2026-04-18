@@ -32,6 +32,7 @@ use crate::{
                 FieldAction, InspectorError, PropertyChanged,
             },
             message::{MessageDirection, UiMessage},
+            style::resource::StyleResourceExt,
             widget::{Widget, WidgetBuilder},
             window::{WindowBuilder, WindowTitle},
             BuildContext, Control, UiNode, UserInterface,
@@ -41,6 +42,7 @@ use crate::{
     plugins::inspector::editors::shader::{
         ShaderSourceCodeEditor, ShaderSourceCodeEditorBuilder, ShaderSourceCodeEditorMessage,
     },
+    Editor,
 };
 use fyrox::gui::button::Button;
 use std::{any::TypeId, cell::RefCell};
@@ -64,7 +66,11 @@ impl Control for ShaderSourceCodeEditorField {
         if let Some(ButtonMessage::Click) = message.data() {
             self.editor = ShaderSourceCodeEditorBuilder::new(
                 WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(600.0))
-                    .with_title(WindowTitle::text("Edit Shader Source Code"))
+                    .with_title(WindowTitle::text_with_font_size(
+                        "Edit Shader Source Code",
+                        ui.default_font.clone(),
+                        ui.style().property(Editor::UI_FONT_SIZE),
+                    ))
                     .open(false),
             )
             .with_code(self.code.borrow().clone())

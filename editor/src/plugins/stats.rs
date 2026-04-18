@@ -76,7 +76,11 @@ impl EditorPlugin for EditorStatisticsPlugin {
                         .build(ctx);
                 self.window =
                     WindowBuilder::new(WidgetBuilder::new().with_width(200.0).with_height(130.0))
-                        .with_title(WindowTitle::text("Editor Statistics"))
+                        .with_title(WindowTitle::text_with_font_size(
+                            "Editor Statistics",
+                            ctx.default_font(),
+                            ctx.style.property(Editor::UI_FONT_SIZE),
+                        ))
                         .with_content(
                             StackPanelBuilder::new(WidgetBuilder::new().with_child(self.text))
                                 .build(ctx),

@@ -953,7 +953,11 @@ impl TrackList {
             {
                 self.node_selector = NodeSelectorWindowBuilder::new(
                     WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
-                        .with_title(WindowTitle::text("Select a Node To Animate")),
+                        .with_title(WindowTitle::text_with_font_size(
+                            "Select a Node To Animate",
+                            ui.default_font.clone(),
+                            ui.style().property(Editor::UI_FONT_SIZE),
+                        )),
                 )
                 .with_allowed_types(
                     [AllowedType {
@@ -1196,7 +1200,11 @@ impl TrackList {
             } else if message.destination() == self.context_menu.set_target {
                 self.context_menu.target_node_selector = NodeSelectorWindowBuilder::new(
                     WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
-                        .with_title(WindowTitle::text("Select a New Target Node")),
+                        .with_title(WindowTitle::text_with_font_size(
+                            "Select a New Target Node",
+                            ui.default_font.clone(),
+                            ui.style.property(Editor::UI_FONT_SIZE),
+                        )),
                 )
                 .with_hierarchy(HierarchyNode::from_scene_node(root, Handle::NONE, graph))
                 .build(&mut ui.build_ctx());
@@ -1301,7 +1309,11 @@ impl TrackList {
 
         let property_selector = PropertySelectorWindowBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
-                .with_title(WindowTitle::text("Select a Numeric Property To Animate"))
+                .with_title(WindowTitle::text_with_font_size(
+                    "Select a Numeric Property To Animate",
+                    ui.default_font.clone(),
+                    ui.style().property(Editor::UI_FONT_SIZE),
+                ))
                 .open(false),
         )
         .with_allowed_types(Some(FxHashSet::from_iter(define_allowed_types! {

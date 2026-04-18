@@ -366,7 +366,11 @@ impl AudioPanel {
                 .add_row(Row::strict(25.0))
                 .build(ctx),
             )
-            .with_title(WindowTitle::text("Audio Context"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Audio Context",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_tab_label("Audio")
             .build(ctx);
 

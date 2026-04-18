@@ -47,6 +47,7 @@ use crate::{
             inspector::editors::PropertyEditorDefinitionContainer,
             menu::{MenuItem, MenuItemMessage},
             message::UiMessage,
+            style::resource::StyleResourceExt,
             widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, UserInterface,
@@ -279,7 +280,11 @@ impl AbsmEditor {
         )
         .open(false)
         .with_content(content)
-        .with_title(WindowTitle::text("ABSM Editor"))
+        .with_title(WindowTitle::text_with_font_size(
+            "ABSM Editor",
+            ctx.default_font(),
+            ctx.style.property(Editor::UI_FONT_SIZE),
+        ))
         .with_tab_label("ABSM")
         .build(ctx);
 

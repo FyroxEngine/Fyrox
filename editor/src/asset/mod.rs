@@ -312,7 +312,11 @@ impl AssetBrowser {
         let folder_browser;
         let scroll_panel;
         let folder_browser_window = WindowBuilder::new(WidgetBuilder::new())
-            .with_title(WindowTitle::text("Folders"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Folders",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_tab_label("Folders")
             .can_close(false)
             .can_minimize(false)
@@ -331,7 +335,11 @@ impl AssetBrowser {
             .build(ctx);
 
         let main_window = WindowBuilder::new(WidgetBuilder::new())
-            .with_title(WindowTitle::text("Folder Content"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Folder Content",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_tab_label("Content")
             .can_close(false)
             .can_minimize(false)
@@ -384,7 +392,11 @@ impl AssetBrowser {
         .build(ctx);
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("AssetBrowser"))
-            .with_title(WindowTitle::text("Asset Browser"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Asset Browser",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_tab_label("Asset Browser")
             .with_content(docking_manager)
             .build(ctx);
@@ -518,10 +530,11 @@ impl AssetBrowser {
         self.current_path = path.to_path_buf();
         ui.send(
             self.main_window,
-            WindowMessage::Title(WindowTitle::text(format!(
-                "Folder Content - {}",
-                self.current_path.display()
-            ))),
+            WindowMessage::Title(WindowTitle::text_with_font_size(
+                format!("Folder Content - {}", self.current_path.display()),
+                ui.default_font.clone(),
+                ui.style().property(Editor::UI_FONT_SIZE),
+            )),
         );
         ui.send(
             self.add_resource,

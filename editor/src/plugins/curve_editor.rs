@@ -142,7 +142,11 @@ impl CurveEditorWindow {
         let save_changes_message_box = MessageBoxBuilder::new(
             WindowBuilder::new(WidgetBuilder::new())
                 .open(false)
-                .with_title(WindowTitle::text("Unsaved Changes")),
+                .with_title(WindowTitle::text_with_font_size(
+                    "Unsaved Changes",
+                    ctx.default_font(),
+                    ctx.style.property(Editor::UI_FONT_SIZE),
+                )),
         )
         .with_text(
             "You have unsaved changes, do you want to save it before closing the curve editor?",
@@ -153,7 +157,11 @@ impl CurveEditorWindow {
         let cancel_message_box = MessageBoxBuilder::new(
             WindowBuilder::new(WidgetBuilder::new())
                 .open(false)
-                .with_title(WindowTitle::text("Unsaved Changes")),
+                .with_title(WindowTitle::text_with_font_size(
+                    "Unsaved Changes",
+                    ctx.default_font(),
+                    ctx.style.property(Editor::UI_FONT_SIZE),
+                )),
         )
         .with_text("You have unsaved changes, do you want to quit the curve editor without saving?")
         .with_buttons(MessageBoxButtons::YesNo)
@@ -292,7 +300,11 @@ impl CurveEditorWindow {
                 .build(ctx),
             )
             .with_remove_on_close(true)
-            .with_title(WindowTitle::text("Curve Editor"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Curve Editor",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_tab_label("Curve")
             .build(ctx);
 

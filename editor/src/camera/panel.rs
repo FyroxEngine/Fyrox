@@ -26,6 +26,7 @@ use crate::{
         gui::{
             image::{Image, ImageBuilder, ImageMessage},
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
@@ -34,7 +35,7 @@ use crate::{
         scene::{camera::Camera, collider::BitMask},
     },
     scene::{GameScene, Selection},
-    Message,
+    Editor, Message,
 };
 
 pub struct CameraPreviewControlPanel {
@@ -51,7 +52,11 @@ impl CameraPreviewControlPanel {
                 .with_name("CameraPanel")
                 .with_min_size(Vector2::new(180.0, 225.0)),
         )
-        .with_title(WindowTitle::text("Camera Preview"))
+        .with_title(WindowTitle::text_with_font_size(
+            "Camera Preview",
+            ctx.default_font(),
+            ctx.style.property(Editor::UI_FONT_SIZE),
+        ))
         .with_content(
             StackPanelBuilder::new(
                 WidgetBuilder::new()

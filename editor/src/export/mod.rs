@@ -317,7 +317,11 @@ impl ExportWindow {
                 .add_column(Column::stretch())
                 .build(ctx),
             )
-            .with_title(WindowTitle::text("Export Project"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Export Project",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .build(ctx);
 
         Self {

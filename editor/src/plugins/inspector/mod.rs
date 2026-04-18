@@ -222,7 +222,11 @@ impl InspectorPlugin {
         let type_name_text;
         let docs_button;
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("Inspector"))
-            .with_title(WindowTitle::text("Inspector"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Inspector",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_tab_label("Inspector")
             .with_content(
                 GridBuilder::new(

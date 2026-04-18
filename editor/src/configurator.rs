@@ -107,7 +107,11 @@ impl Configurator {
         let work_dir_selector = FileSelectorBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                 .open(false)
-                .with_title(WindowTitle::text("Select Working Directory")),
+                .with_title(WindowTitle::text_with_font_size(
+                    "Select Working Directory",
+                    ctx.default_font(),
+                    ctx.style.property(Editor::UI_FONT_SIZE),
+                )),
         )
         .with_filter(PathFilter::folder())
         .build(ctx);
@@ -137,7 +141,11 @@ impl Configurator {
                 .with_height(250.0)
                 .with_min_size(Vector2::new(370.0, 250.0)),
         )
-        .with_title(WindowTitle::text("Configure Editor"))
+        .with_title(WindowTitle::text_with_font_size(
+            "Configure Editor",
+            ctx.default_font(),
+            ctx.style.property(Editor::UI_FONT_SIZE),
+        ))
         .open(false)
         .can_close(false)
         .with_content(

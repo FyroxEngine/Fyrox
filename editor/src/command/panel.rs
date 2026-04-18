@@ -110,7 +110,11 @@ impl CommandStackViewer {
         .build(ctx);
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("CommandStackPanel"))
-            .with_title(WindowTitle::text("Command Stack"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Command Stack",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_tab_label("Commands")
             .with_content(
                 GridBuilder::new(

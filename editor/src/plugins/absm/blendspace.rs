@@ -796,7 +796,11 @@ impl BlendSpaceEditor {
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(500.0).with_height(400.0))
             .open(false)
             .with_content(content)
-            .with_title(WindowTitle::text("Blend Space Editor"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Blend Space Editor",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_tab_label("Blend Space")
             .build(ctx);
 

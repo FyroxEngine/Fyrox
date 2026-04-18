@@ -317,7 +317,11 @@ pub fn make_save_file_selector(
                 .with_width(300.0)
                 .with_height(400.0),
         )
-        .with_title(WindowTitle::text("Save Scene As"))
+        .with_title(WindowTitle::text_with_font_size(
+            "Save Scene As",
+            ctx.default_font(),
+            ctx.style.property(Editor::UI_FONT_SIZE),
+        ))
         .open(false)
         .with_remove_on_close(true),
     )
@@ -397,7 +401,11 @@ impl SaveSceneConfirmationDialog {
             .can_close(false)
             .can_minimize(false)
             .open(false)
-            .with_title(WindowTitle::text("Unsaved changes")),
+            .with_title(WindowTitle::text_with_font_size(
+                "Unsaved changes",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            )),
         )
         .with_buttons(MessageBoxButtons::YesNoCancel)
         .build(ctx);
@@ -558,7 +566,11 @@ impl SceneLoadingWindow {
             .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx);
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(100.0))
-            .with_title(WindowTitle::text("Please wait..."))
+            .with_title(WindowTitle::text_with_font_size(
+                "Please wait...",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .can_close(false)
             .can_minimize(false)
             .open(false)
@@ -999,7 +1011,11 @@ impl Editor {
                 .can_close(false)
                 .can_minimize(false)
                 .open(false)
-                .with_title(WindowTitle::text("Unsaved changes")),
+                .with_title(WindowTitle::text_with_font_size(
+                    "Unsaved changes",
+                    ctx.default_font(),
+                    ctx.style.property(Editor::UI_FONT_SIZE),
+                )),
         )
         .with_buttons(MessageBoxButtons::YesNoCancel)
         .build(ctx);
@@ -1009,7 +1025,11 @@ impl Editor {
                 .can_close(false)
                 .can_minimize(false)
                 .open(false)
-                .with_title(WindowTitle::text("Validation failed!")),
+                .with_title(WindowTitle::text_with_font_size(
+                    "Validation failed!",
+                    ctx.default_font(),
+                    ctx.style.property(Editor::UI_FONT_SIZE),
+                )),
         )
         .with_buttons(MessageBoxButtons::Ok)
         .build(ctx);

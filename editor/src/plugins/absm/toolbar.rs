@@ -31,6 +31,7 @@ use crate::{
             input::{InputBox, InputBoxBuilder, InputBoxMessage, InputBoxResult},
             message::UiMessage,
             stack_panel::{StackPanel, StackPanelBuilder},
+            style::resource::StyleResourceExt,
             toggle::{ToggleButton, ToggleButtonMessage},
             utils::{make_dropdown_list_option, ImageButtonBuilder},
             widget::{WidgetBuilder, WidgetMessage},
@@ -54,6 +55,7 @@ use crate::{
         },
         Selection,
     },
+    Editor,
 };
 use std::any::TypeId;
 
@@ -189,7 +191,11 @@ impl Toolbar {
             if message.destination() == self.rename_layer {
                 self.rename_layer_input_box = InputBoxBuilder::new(
                     WindowBuilder::new(WidgetBuilder::new().with_width(320.0).with_height(120.0))
-                        .with_title(WindowTitle::text("Rename Layer"))
+                        .with_title(WindowTitle::text_with_font_size(
+                            "Rename Layer",
+                            ui.default_font.clone(),
+                            ui.style().property(Editor::UI_FONT_SIZE),
+                        ))
                         .open(false)
                         .with_remove_on_close(true),
                 )
@@ -200,7 +206,11 @@ impl Toolbar {
             } else if message.destination() == self.add_layer {
                 self.add_layer_input_box = InputBoxBuilder::new(
                     WindowBuilder::new(WidgetBuilder::new().with_width(320.0).with_height(120.0))
-                        .with_title(WindowTitle::text("Add Layer"))
+                        .with_title(WindowTitle::text_with_font_size(
+                            "Add Layer",
+                            ui.default_font.clone(),
+                            ui.style().property(Editor::UI_FONT_SIZE),
+                        ))
                         .open(false)
                         .with_remove_on_close(true),
                 )
@@ -255,7 +265,11 @@ impl Toolbar {
                             WidgetBuilder::new().with_width(300.0).with_height(400.0),
                         )
                         .open(false)
-                        .with_title(WindowTitle::text("Select nodes that will NOT be animated")),
+                        .with_title(WindowTitle::text_with_font_size(
+                            "Select nodes that will NOT be animated",
+                            ui.default_font.clone(),
+                            ui.style().property(Editor::UI_FONT_SIZE),
+                        )),
                     )
                     .with_allowed_types(
                         [AllowedType {

@@ -35,6 +35,7 @@ use crate::{
             },
             message::UiMessage,
             scroll_viewer::ScrollViewerBuilder,
+            style::resource::StyleResourceExt,
             widget::WidgetBuilder,
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, WidgetPool,
@@ -53,7 +54,7 @@ use crate::{
     plugins::inspector::EditorEnvironment,
     scene::{commands::GameSceneContext, controller::SceneController},
     ui_scene::UiScene,
-    GameScene, Message,
+    Editor, GameScene, Message,
 };
 use fyrox::gui::inspector::Inspector;
 use std::sync::{mpsc::Sender, Arc};
@@ -86,7 +87,11 @@ impl SceneSettingsWindow {
         )
         .open(false)
         .can_minimize(false)
-        .with_title(WindowTitle::text("Scene Settings"))
+        .with_title(WindowTitle::text_with_font_size(
+            "Scene Settings",
+            ctx.default_font(),
+            ctx.style.property(Editor::UI_FONT_SIZE),
+        ))
         .build(ctx);
 
         property_definitions.register_inheritable_inspectable::<Graph>();

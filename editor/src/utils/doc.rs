@@ -64,7 +64,11 @@ impl DocWindow {
                 })
                 .build(ctx),
         )
-        .with_title(WindowTitle::text("Documentation"))
+        .with_title(WindowTitle::text_with_font_size(
+            "Documentation",
+            ctx.default_font(),
+            ctx.style.property(Editor::UI_FONT_SIZE),
+        ))
         .build(ctx);
         Self { window, text }
     }

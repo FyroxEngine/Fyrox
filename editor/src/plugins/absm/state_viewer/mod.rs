@@ -58,6 +58,7 @@ use crate::plugins::absm::{
 use crate::scene::{commands::ChangeSelectionCommand, Selection};
 
 use crate::plugins::absm::canvas::AbsmCanvas;
+use crate::Editor;
 use fyrox::core::reflect::Reflect;
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
@@ -181,7 +182,11 @@ impl StateViewer {
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_close(false)
             .can_minimize(false)
-            .with_title(WindowTitle::text("State Viewer"))
+            .with_title(WindowTitle::text_with_font_size(
+                "State Viewer",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_content(
                 BorderBuilder::new(
                     WidgetBuilder::new()

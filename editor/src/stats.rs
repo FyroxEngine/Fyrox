@@ -64,7 +64,11 @@ impl StatisticsWindow {
                     })
                     .build(ctx),
             )
-            .with_title(WindowTitle::text("Rendering Statistics"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Rendering Statistics",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .build(ctx);
 
         ctx.inner().send(

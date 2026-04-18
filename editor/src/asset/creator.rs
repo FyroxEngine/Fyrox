@@ -84,7 +84,11 @@ impl ResourceCreator {
         let cancel;
         let resource_constructors_list;
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
-            .with_title(WindowTitle::text("Resource Creator"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Resource Creator",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .open(false)
             .with_content(
                 GridBuilder::new(

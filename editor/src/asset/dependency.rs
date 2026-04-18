@@ -93,7 +93,11 @@ impl DependencyViewer {
         let close;
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
             .open(false)
-            .with_title(WindowTitle::text("Dependency Viewer"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Dependency Viewer",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
