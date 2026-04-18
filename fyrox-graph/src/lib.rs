@@ -1154,7 +1154,9 @@ pub trait SceneGraph: 'static {
     ) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
         GraphTraverseIterator {
             graph: self,
+            start_node_handle: from.to_base(),
             current_node_handle: from.to_base(),
+            index: None,
         }
     }
 
@@ -1485,7 +1487,9 @@ pub trait SceneGraph: 'static {
 /// Iterator that traverses tree in depth and returns shared references to nodes.
 pub struct GraphTraverseIterator<'a, G: ?Sized, N> {
     graph: &'a G,
+    start_node_handle: Handle<N>,
     current_node_handle: Handle<N>,
+    index: Option<usize>,
 }
 
 impl<'a, G: ?Sized, N> Iterator for GraphTraverseIterator<'a, G, N>
@@ -1508,19 +1512,27 @@ where
                         let mut parent_handle = current_node.parent();
                         while let Ok(parent) = self.graph.try_get(parent_handle) {
                             let parent_children = parent.children();
-                            let next_child_index = 1 + parent_children
-                                .iter()
-                                .position(|h| *h == self.current_node_handle)
-                                .expect("must be in parent's list");
-                            if let Some(next_child_handle) = parent_children.get(next_child_index) {
+                            let index = self.index.get_or_insert_with(|| {
+                                parent_children
+                                    .iter()
+                                    .position(|h| *h == self.current_node_handle)
+                                    .expect("must be in parent's list")
+                            });
+                            *index += 1;
+                            if let Some(next_child_handle) = parent_children.get(*index) {
                                 self.current_node_handle = *next_child_handle;
                                 return Some((current_node_handle, current_node));
                             } else {
                                 self.current_node_handle = parent_handle;
+                                self.index = None;
                                 parent_handle = parent.parent();
+                                if self.current_node_handle == self.start_node_handle {
+                                    break;
+                                }
                             }
                         }
                         self.current_node_handle = Handle::NONE;
+                        self.index = None;
                     }
                 }
                 Some((current_node_handle, current_node))
@@ -2341,6 +2353,7 @@ mod test {
         graph.link_nodes(a, root);
         graph.link_nodes(f, root);
 
+        // test full depth traversal
         let mut iter = graph.traverse_handle_iter(root);
         assert_eq!(iter.next(), Some(root));
         assert_eq!(iter.next(), Some(a));
@@ -2349,6 +2362,12 @@ mod test {
         assert_eq!(iter.next(), Some(d));
         assert_eq!(iter.next(), Some(e));
         assert_eq!(iter.next(), Some(f));
+        assert_eq!(iter.next(), None);
+
+        // test sub-graph traversal
+        let mut iter = graph.traverse_handle_iter(d);
+        assert_eq!(iter.next(), Some(d));
+        assert_eq!(iter.next(), Some(e));
         assert_eq!(iter.next(), None);
     }
 }
