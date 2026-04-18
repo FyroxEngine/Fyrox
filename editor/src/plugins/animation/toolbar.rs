@@ -676,7 +676,11 @@ impl Toolbar {
         let import_file_selector = FileSelectorBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                 .open(false)
-                .with_title(WindowTitle::text("Select Animation To Import")),
+                .with_title(WindowTitle::text_with_font_size(
+                    "Select Animation To Import",
+                    ctx.default_font(),
+                    ctx.style.property(Editor::UI_FONT_SIZE),
+                )),
         )
         .with_filter(
             // TODO: Here we allow importing only FBX and GLTF files, but they can contain
@@ -795,7 +799,11 @@ impl Toolbar {
             } else if message.destination() == self.rename_current_animation {
                 self.rename_animation_input_box = InputBoxBuilder::new(
                     WindowBuilder::new(WidgetBuilder::new().with_width(320.0).with_height(120.0))
-                        .with_title(WindowTitle::text("Rename Animation"))
+                        .with_title(WindowTitle::text_with_font_size(
+                            "Rename Animation",
+                            ui.default_font.clone(),
+                            ui.style().property(Editor::UI_FONT_SIZE),
+                        ))
                         .open(false)
                         .with_remove_on_close(true),
                 )
@@ -815,7 +823,11 @@ impl Toolbar {
             } else if message.destination() == self.add_animation {
                 self.animation_name_input_box = InputBoxBuilder::new(
                     WindowBuilder::new(WidgetBuilder::new().with_width(320.0).with_height(120.0))
-                        .with_title(WindowTitle::text("New Animation Name"))
+                        .with_title(WindowTitle::text_with_font_size(
+                            "New Animation Name",
+                            ui.default_font.clone(),
+                            ui.style.property(Editor::UI_FONT_SIZE),
+                        ))
                         .open(false)
                         .with_remove_on_close(true),
                 )
@@ -926,7 +938,11 @@ impl Toolbar {
                 self.node_selector = NodeSelectorWindowBuilder::new(
                     WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                         .with_remove_on_close(true)
-                        .with_title(WindowTitle::text("Select a Target Node"))
+                        .with_title(WindowTitle::text_with_font_size(
+                            "Select a Target Node",
+                            ui.default_font.clone(),
+                            ui.style().property(Editor::UI_FONT_SIZE),
+                        ))
                         .open(false),
                 )
                 .with_allowed_types(

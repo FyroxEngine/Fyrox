@@ -41,6 +41,7 @@ use crate::{
             message::UiMessage,
             scroll_viewer::ScrollViewerBuilder,
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             utils::make_simple_tooltip,
             widget::WidgetBuilder,
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
@@ -1037,7 +1038,11 @@ impl RagdollWizard {
                 .with_name("RagdollWizard"),
         )
         .open(false)
-        .with_title(WindowTitle::text("Ragdoll Wizard"))
+        .with_title(WindowTitle::text_with_font_size(
+            "Ragdoll Wizard",
+            ctx.default_font(),
+            ctx.style.property(Editor::UI_FONT_SIZE),
+        ))
         .with_content(
             GridBuilder::new(
                 WidgetBuilder::new()

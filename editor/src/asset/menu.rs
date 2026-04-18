@@ -373,7 +373,11 @@ impl AssetItemContextMenu {
                         )
                         .open(false)
                         .with_remove_on_close(true)
-                        .with_title(WindowTitle::text("Confirm Deletion")),
+                        .with_title(WindowTitle::text_with_font_size(
+                            "Confirm Deletion",
+                            ui.default_font.clone(),
+                            ui.style().property(Editor::UI_FONT_SIZE),
+                        )),
                     )
                     .with_text(&text)
                     .with_buttons(MessageBoxButtons::YesNo)
@@ -502,19 +506,29 @@ impl AssetItemContextMenu {
                         item.path.extension(),
                         item.path.parent(),
                     ) {
-                        let dialog = AssetRenameDialogBuilder::new(
-                            WindowBuilder::new(
-                                WidgetBuilder::new().with_width(350.0).with_height(100.0),
-                            )
-                            .with_title(WindowTitle::text("Rename a Resource"))
-                            .with_remove_on_close(true)
-                            .open(false),
-                        )
-                        .build(
+                        let (old_file_name, extension_name, folder_name, old_path) = (
                             file_stem.to_string_lossy().to_string(),
                             extension.to_string_lossy().to_string(),
                             parent.to_string_lossy().to_string(),
                             item.path.clone(),
+                        );
+                        let dialog = AssetRenameDialogBuilder::new(
+                            WindowBuilder::new(
+                                WidgetBuilder::new().with_width(350.0).with_height(100.0),
+                            )
+                            .with_title(WindowTitle::text_with_font_size(
+                                "Rename a Resource",
+                                ui.default_font.clone(),
+                                ui.style().property(Editor::UI_FONT_SIZE),
+                            ))
+                            .with_remove_on_close(true)
+                            .open(false),
+                        )
+                        .build(
+                            old_file_name,
+                            extension_name,
+                            folder_name,
+                            old_path,
                             engine.resource_manager.clone(),
                             &mut ui.build_ctx(),
                         );

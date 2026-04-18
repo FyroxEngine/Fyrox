@@ -561,9 +561,14 @@ impl<'a> AssetSelectorWindowBuilder<'a> {
         resource_manager: ResourceManager,
         ui: &mut UserInterface,
     ) -> Handle<AssetSelectorWindow> {
+        let ctx = ui.build_ctx();
         let selector = AssetSelectorWindowBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
-                .with_title(WindowTitle::text("Select a Resource"))
+                .with_title(WindowTitle::text_with_font_size(
+                    "Select a Resource",
+                    ctx.default_font(),
+                    ctx.style.property(Editor::UI_FONT_SIZE),
+                ))
                 .with_remove_on_close(true)
                 .open(false),
         )

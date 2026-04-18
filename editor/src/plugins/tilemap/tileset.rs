@@ -445,10 +445,11 @@ impl TileSetEditor {
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(800.0).with_height(600.0))
             .open(false)
-            .with_title(WindowTitle::text(tile_set_to_title(
-                &resource_manager,
-                &tile_book,
-            )))
+            .with_title(WindowTitle::text_with_font_size(
+                tile_set_to_title(&resource_manager, &tile_book),
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_content(tab_control)
             .build(ctx);
 
@@ -511,10 +512,11 @@ impl TileSetEditor {
         self.tile_inspector.set_tile_resource(tile_book.clone(), ui);
         ui.send(
             self.window,
-            WindowMessage::Title(WindowTitle::text(tile_set_to_title(
-                resource_manager,
-                &tile_book,
-            ))),
+            WindowMessage::Title(WindowTitle::text_with_font_size(
+                tile_set_to_title(resource_manager, &tile_book),
+                ui.default_font.clone(),
+                ui.style().property(Editor::UI_FONT_SIZE),
+            )),
         );
         let mut state = self.state.lock_mut("set_tile_resource");
         if state.selection_palette() == self.pages_palette

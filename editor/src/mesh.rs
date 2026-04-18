@@ -353,7 +353,11 @@ impl SurfaceDataViewer {
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(650.0).with_height(400.0))
             .open(false)
-            .with_title(WindowTitle::text("Surface Data"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Surface Data",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_content(content)
             .build(ctx);
 

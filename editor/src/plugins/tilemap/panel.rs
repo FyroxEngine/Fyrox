@@ -386,7 +386,11 @@ impl TileMapPanel {
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(600.0))
             .open(false)
-            .with_title(WindowTitle::text("Tile Map Control Panel"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Tile Map Control Panel",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_content(content)
             .build(ctx);
 

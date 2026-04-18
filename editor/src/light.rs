@@ -118,7 +118,11 @@ impl ProgressWindow {
         let text;
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(120.0))
             .open(false)
-            .with_title(WindowTitle::text("Progress"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Progress",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()

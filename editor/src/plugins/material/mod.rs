@@ -298,7 +298,11 @@ impl MaterialEditor {
                 .with_name("MaterialEditor"),
         )
         .open(false)
-        .with_title(WindowTitle::text(Self::TITLE))
+        .with_title(WindowTitle::text_with_font_size(
+            Self::TITLE,
+            ctx.default_font(),
+            ctx.style.property(Editor::UI_FONT_SIZE),
+        ))
         .with_content(
             GridBuilder::new(
                 WidgetBuilder::new()
@@ -402,13 +406,14 @@ impl MaterialEditor {
                 .unwrap_or(PathBuf::from("Embedded"))
                 .to_string_lossy()
                 .to_string();
+            let ui = engine.user_interfaces.first();
             engine.user_interfaces.first().send(
                 self.window,
-                WindowMessage::Title(WindowTitle::text(format!(
-                    "{} - {}",
-                    Self::TITLE,
-                    material_name
-                ))),
+                WindowMessage::Title(WindowTitle::text_with_font_size(
+                    format!("{} - {}", Self::TITLE, material_name),
+                    ui.default_font.clone(),
+                    ui.style().property(Editor::UI_FONT_SIZE),
+                )),
             );
 
             engine.scenes[self.preview.scene()].graph[self.preview.model()]

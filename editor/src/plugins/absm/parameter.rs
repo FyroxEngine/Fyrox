@@ -39,6 +39,7 @@ use crate::{
             },
             message::UiMessage,
             scroll_viewer::ScrollViewerBuilder,
+            style::resource::StyleResourceExt,
             widget::WidgetBuilder,
             window::{WindowBuilder, WindowTitle},
             BuildContext, UserInterface,
@@ -46,7 +47,7 @@ use crate::{
     },
     message::MessageSender,
     plugins::absm::command::fetch_machine,
-    Message,
+    Editor, Message,
 };
 use fyrox::gui::inspector::Inspector;
 use fyrox::gui::window::Window;
@@ -71,7 +72,11 @@ impl ParameterPanel {
 
         let inspector;
         let window = WindowBuilder::new(WidgetBuilder::new())
-            .with_title(WindowTitle::text("Parameters"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Parameters",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_content(
                 ScrollViewerBuilder::new(WidgetBuilder::new())
                     .with_content({

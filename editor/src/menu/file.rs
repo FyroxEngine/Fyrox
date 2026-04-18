@@ -29,6 +29,7 @@ use crate::{
             menu::{self, MenuItemMessage},
             message::UiMessage,
             messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage},
+            style::resource::StyleResourceExt,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, UserInterface,
@@ -39,7 +40,7 @@ use crate::{
     message::MessageSender,
     scene::container::EditorSceneEntry,
     settings::{recent::RecentFiles, Settings},
-    Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
+    Editor, Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
 };
 use fyrox::core::parking_lot::Mutex;
 use fyrox::graph::SceneGraph;
@@ -122,7 +123,11 @@ impl FileMenu {
         let configure_message = MessageBoxBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(250.0).with_height(150.0))
                 .open(false)
-                .with_title(WindowTitle::text("Warning")),
+                .with_title(WindowTitle::text_with_font_size(
+                    "Warning",
+                    ctx.default_font(),
+                    ctx.style.property(Editor::UI_FONT_SIZE),
+                )),
         )
         .with_text("Cannot reconfigure editor while scene is open! Close scene first and retry.")
         .with_buttons(MessageBoxButtons::Ok)
@@ -258,7 +263,11 @@ impl FileMenu {
         let load_file_selector = FileSelectorBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                 .open(false)
-                .with_title(WindowTitle::text("Select a Scene To Load")),
+                .with_title(WindowTitle::text_with_font_size(
+                    "Select a Scene To Load",
+                    ctx.default_font(),
+                    ctx.style.property(Editor::UI_FONT_SIZE),
+                )),
         )
         .with_filter(
             PathFilter::new()

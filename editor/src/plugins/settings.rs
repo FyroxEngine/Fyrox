@@ -41,6 +41,7 @@ use crate::{
             scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
             searchbar::{SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
@@ -128,7 +129,11 @@ impl SettingsWindow {
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(700.0).with_height(800.0))
             .open(false)
-            .with_title(WindowTitle::text("Settings"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Settings",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_tab_label("Settings")
             .with_content(
                 GridBuilder::new(
