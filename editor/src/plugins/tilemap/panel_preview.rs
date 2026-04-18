@@ -281,6 +281,7 @@ impl PanelPreviewBuilder {
             handle_text: FormattedTextBuilder::new(ctx.inner().default_font.clone())
                 .with_constraint(Vector2::new(f32::INFINITY, f32::INFINITY))
                 .with_brush(Brush::Solid(Color::WHITE))
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(),
             handle_text_size: Vector2::default(),
         })

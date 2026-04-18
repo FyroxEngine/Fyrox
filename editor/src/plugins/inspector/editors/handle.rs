@@ -52,7 +52,7 @@ use crate::{
     message::MessageSender,
     scene::selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
     world::item::SceneItem,
-    Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
+    Editor, Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox::core::PhantomDataSendSync;
 use fyrox::gui::button::Button;
@@ -378,6 +378,7 @@ impl<T: Reflect> HandlePropertyEditorBuilder<T> {
         } else {
             "Err: Desync!".to_owned()
         })
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
         let locate_img = include_bytes!("../../../../resources/locate.png");
         let locate = make_button(ctx, locate_img, Color::repeat(180), 2, "Locate Object");

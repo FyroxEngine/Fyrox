@@ -18,31 +18,34 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::{
-    asset::{
-        graph::{ResourceDependencyGraph, ResourceGraphNode},
-        untyped::UntypedResource,
+use crate::{
+    fyrox::{
+        asset::{
+            graph::{ResourceDependencyGraph, ResourceGraphNode},
+            untyped::UntypedResource,
+        },
+        core::{log::Log, pool::Handle},
+        gui::{
+            button::{ButtonBuilder, ButtonMessage},
+            copypasta::ClipboardProvider,
+            grid::{Column, GridBuilder, Row},
+            message::UiMessage,
+            scroll_viewer::ScrollViewerBuilder,
+            stack_panel::StackPanelBuilder,
+            text::TextBuilder,
+            tree::{TreeBuilder, TreeRootBuilder, TreeRootMessage},
+            widget::WidgetBuilder,
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
+            VerticalAlignment,
+        },
     },
-    core::{log::Log, pool::Handle},
-    gui::{
-        button::{ButtonBuilder, ButtonMessage},
-        copypasta::ClipboardProvider,
-        grid::{Column, GridBuilder, Row},
-        message::UiMessage,
-        scroll_viewer::ScrollViewerBuilder,
-        stack_panel::StackPanelBuilder,
-        text::TextBuilder,
-        tree::{TreeBuilder, TreeRootBuilder, TreeRootMessage},
-        widget::WidgetBuilder,
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
-        VerticalAlignment,
-    },
+    Editor,
 };
-use fyrox::asset::manager::ResourceManager;
 use fyrox::gui::button::Button;
 use fyrox::gui::tree::{Tree, TreeRoot};
 use fyrox::gui::window::{Window, WindowAlignment};
+use fyrox::{asset::manager::ResourceManager, gui::style::resource::StyleResourceExt};
 
 pub struct DependencyViewer {
     pub window: Handle<Window>,
@@ -77,6 +80,7 @@ fn build_tree_recursively(
                 WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Center),
             )
             .with_text(format!("{name} ({data_type})"))
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx),
         )
         .build(ctx)

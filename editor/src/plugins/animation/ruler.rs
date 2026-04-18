@@ -43,6 +43,7 @@ use crate::fyrox::{
     },
 };
 use crate::menu::create_menu_item;
+use crate::Editor;
 
 use fyrox::gui::curve::{CurveTransformCell, STANDARD_GRID_SIZE};
 use fyrox::gui::menu::{ContextMenuBuilder, MenuItem};
@@ -470,7 +471,11 @@ impl RulerBuilder {
                 .with_foreground(ctx.style.property(Style::BRUSH_LIGHTER))
                 .build(ctx),
             transform: Default::default(),
-            text: RefCell::new(FormattedTextBuilder::new(ctx.default_font()).build()),
+            text: RefCell::new(
+                FormattedTextBuilder::new(ctx.default_font())
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
+                    .build(),
+            ),
             value: self.value,
             drag_context: None,
             signals: Default::default(),

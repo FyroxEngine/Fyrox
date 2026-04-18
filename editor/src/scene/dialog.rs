@@ -29,6 +29,7 @@ use crate::fyrox::{
         message::UiMessage,
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
+        style::resource::StyleResourceExt,
         text::{TextBuilder, TextMessage},
         text_box::TextBoxBuilder,
         widget::WidgetBuilder,
@@ -43,7 +44,7 @@ use crate::{
         commands::{make_delete_selection_command, selection_to_delete},
         GameScene,
     },
-    Message,
+    Editor, Message,
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::text_box::TextBox;
@@ -79,6 +80,7 @@ impl NodeRemovalDialog {
                             )
                             .with_wrap(WrapMode::Word)
                             .with_text(text)
+                            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                             .build(ctx),
                         )
                         .with_child(
@@ -93,6 +95,7 @@ impl NodeRemovalDialog {
                                 )
                                 .with_multiline(true)
                                 .with_wrap(WrapMode::Word)
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx);
                                 info_text
                             })

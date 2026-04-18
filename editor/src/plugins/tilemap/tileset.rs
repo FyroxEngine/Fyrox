@@ -135,6 +135,7 @@ fn make_tab(
         uuid,
         header: TextBuilder::new(WidgetBuilder::new().with_margin(TAB_MARGIN))
             .with_text(name)
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx)
             .to_base(),
         content,
@@ -165,6 +166,7 @@ fn make_button(
 fn make_label(name: &str, ctx: &mut BuildContext) -> Handle<Text> {
     TextBuilder::new(WidgetBuilder::new())
         .with_text(name)
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx)
 }
 
@@ -239,7 +241,9 @@ impl TileSetEditor {
         let remove;
         let all_pages;
         let all_tiles;
-        let cell_position = TextBuilder::new(WidgetBuilder::new()).build(ctx);
+        let cell_position = TextBuilder::new(WidgetBuilder::new())
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
+            .build(ctx);
         let pick_button = make_drawing_mode_button(
             ctx,
             20.0,

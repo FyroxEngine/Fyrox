@@ -236,6 +236,7 @@ impl InspectorPlugin {
                             )
                             .with_wrap(WrapMode::Word)
                             .with_text(warning_text_str)
+                            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                             .build(ctx);
                             warning_text
                         })
@@ -251,6 +252,7 @@ impl InspectorPlugin {
                                                 .on_column(0),
                                         )
                                         .with_wrap(WrapMode::NoWrap)
+                                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                         .build(ctx);
                                         type_name_text
                                     })

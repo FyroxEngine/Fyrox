@@ -40,6 +40,7 @@ use crate::fyrox::{
             PropertyFilter,
         },
         message::{MessageDirection, UiMessage},
+        style::resource::StyleResourceExt,
         text::TextBuilder,
         utils::make_simple_tooltip,
         widget::{Widget, WidgetBuilder},
@@ -50,7 +51,7 @@ use crate::fyrox::{
 use crate::plugins::inspector::EditorEnvironment;
 use crate::{
     settings::{general::ScriptEditor, SettingsData},
-    DropdownListBuilder,
+    DropdownListBuilder, Editor,
 };
 
 use fyrox::gui::button::Button;
@@ -345,6 +346,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
             TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(3.0)))
                 .with_text("Edit...")
                 .with_vertical_text_alignment(VerticalAlignment::Center)
+                .with_font_size(ctx.build_context.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx.build_context),
         )
         .build(ctx.build_context);

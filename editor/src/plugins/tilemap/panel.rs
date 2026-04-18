@@ -47,6 +47,7 @@ use crate::{
         gui::{
             grid::SizeMode,
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             text::{TextBuilder, TextMessage},
             window::Window,
         },
@@ -165,7 +166,9 @@ impl TileMapPanel {
     /// or the current active tool has changed, so the main purpose of the tile map panel is to manipulate
     /// this state.
     pub fn new(ctx: &mut BuildContext, state: TileDrawStateRef, sender: MessageSender) -> Self {
-        let tile_set_name = TextBuilder::new(WidgetBuilder::new().on_row(0)).build(ctx);
+        let tile_set_name = TextBuilder::new(WidgetBuilder::new().on_row(0))
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
+            .build(ctx);
         let preview = PanelPreviewBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(1.0))

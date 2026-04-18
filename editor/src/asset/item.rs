@@ -49,7 +49,7 @@ use crate::{
         scene::tilemap::{brush::TileMapBrush, tileset::TileSet},
     },
     message::MessageSender,
-    Message,
+    Editor, Message,
 };
 use fyrox::core::ok_or_return;
 use fyrox::gui::border::Border;
@@ -357,6 +357,7 @@ fn make_tooltip(ctx: &mut BuildContext, text: &str) -> RcUiNodeHandle {
                 )
                 .with_wrap(WrapMode::Letter)
                 .with_text(text)
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx),
             ),
     )
@@ -421,6 +422,7 @@ impl AssetItemBuilder {
                                 .to_string(),
                         )
                         .with_shadow(true)
+                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx),
                 ),
         )

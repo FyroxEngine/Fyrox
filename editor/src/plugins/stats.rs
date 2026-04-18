@@ -27,6 +27,7 @@ use crate::{
             message::UiMessage,
             stack_panel::StackPanelBuilder,
             text::{Text, TextBuilder, TextMessage},
+            style::resource::StyleResourceExt,
             widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             HorizontalAlignment, Thickness, VerticalAlignment,
@@ -71,6 +72,7 @@ impl EditorPlugin for EditorStatisticsPlugin {
                 let ctx = &mut ui.build_ctx();
                 self.text =
                     TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx);
                 self.window =
                     WindowBuilder::new(WidgetBuilder::new().with_width(200.0).with_height(130.0))

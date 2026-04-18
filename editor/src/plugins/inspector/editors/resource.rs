@@ -44,6 +44,7 @@ use crate::{
                 FieldAction, InspectorError, PropertyChanged,
             },
             message::{MessageData, MessageDirection, UiMessage},
+            style::resource::StyleResourceExt,
             text::{Text, TextBuilder, TextMessage},
             utils::{make_asset_preview_tooltip, ImageButtonBuilder},
             widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -53,7 +54,7 @@ use crate::{
     load_image,
     message::MessageSender,
     plugins::inspector::EditorEnvironment,
-    utils, Message,
+    utils, Editor, Message,
 };
 use std::{
     any::TypeId,
@@ -338,6 +339,7 @@ where
                                 )
                                 .with_vertical_text_alignment(VerticalAlignment::Center)
                                 .with_text(resource_path(&resource_manager, &self.resource))
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx);
                                 name
                             })

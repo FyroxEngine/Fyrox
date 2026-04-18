@@ -35,6 +35,7 @@ use crate::{
             list_view::{ListViewBuilder, ListViewMessage},
             message::UiMessage,
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             text::TextBuilder,
             text::TextMessage,
             text_box::TextBoxBuilder,
@@ -45,7 +46,7 @@ use crate::{
         },
     },
     message::MessageSender,
-    Engine, Message,
+    Editor, Engine, Message,
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::file_browser::FileSelector;
@@ -87,6 +88,7 @@ fn make_history_entry_widget(ctx: &mut BuildContext, entry: &HistoryEntry) -> Ha
                 TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::left(5.0)))
                     .with_text(format!("{}", entry.work_dir.display(),))
                     .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx),
             ),
     ))
@@ -146,6 +148,7 @@ impl Configurator {
                         TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                             .with_text(message)
                             .with_wrap(WrapMode::Word)
+                            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                             .build(ctx),
                     )
                     .with_child(
@@ -161,6 +164,7 @@ impl Configurator {
                                             .with_vertical_alignment(VerticalAlignment::Center),
                                     )
                                     .with_text("Working Directory")
+                                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                     .build(ctx),
                                 )
                                 .with_child({
@@ -178,6 +182,7 @@ impl Configurator {
                                             .unwrap(),
                                     )
                                     .with_vertical_text_alignment(VerticalAlignment::Center)
+                                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                     .build(ctx);
                                     tb_work_dir
                                 })
@@ -208,6 +213,7 @@ impl Configurator {
                         )
                         .with_text("Previous Configurations")
                         .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx),
                     )
                     .with_child({

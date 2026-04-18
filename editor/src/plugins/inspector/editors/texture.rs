@@ -39,6 +39,7 @@ use crate::{
                 FieldAction, InspectorError, PropertyChanged,
             },
             message::{MessageData, MessageDirection, UiMessage},
+            style::resource::StyleResourceExt,
             text::{Text, TextBuilder, TextMessage},
             utils::{make_asset_preview_tooltip, ImageButtonBuilder},
             widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -49,7 +50,7 @@ use crate::{
     load_image,
     message::MessageSender,
     plugins::inspector::EditorEnvironment,
-    utils, Message,
+    utils, Editor, Message,
 };
 use std::{
     any::TypeId,
@@ -224,6 +225,7 @@ impl TextureEditorBuilder {
                 .with_vertical_alignment(VerticalAlignment::Center),
         )
         .with_text(texture_name(self.texture.as_ref(), &resource_manager))
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
 
         let locate = ImageButtonBuilder::default()

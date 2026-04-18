@@ -68,6 +68,7 @@ use crate::{
         selector::{AllowedType, HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
         Selection,
     },
+    Editor,
 };
 use fyrox::core::color::Color;
 use fyrox::gui::utils::ImageButtonBuilder;
@@ -124,6 +125,7 @@ impl RootMotionDropdownArea {
             TextBuilder::new(WidgetBuilder::new().on_row(row).on_column(0))
                 .with_vertical_text_alignment(VerticalAlignment::Center)
                 .with_text(text)
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx)
         }
 
@@ -535,6 +537,7 @@ impl Toolbar {
                                     TextBuilder::new(WidgetBuilder::new())
                                         .with_vertical_text_alignment(VerticalAlignment::Center)
                                         .with_text("Enabled")
+                                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                         .build(ctx),
                                 )
                                 .build(ctx);

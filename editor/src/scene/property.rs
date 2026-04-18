@@ -41,6 +41,7 @@ use crate::fyrox::{
         BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     },
 };
+use crate::Editor;
 use fyrox::gui::button::Button;
 use fyrox::gui::control_trait_proxy_impls;
 use fyrox::gui::message::MessageData;
@@ -151,6 +152,7 @@ impl PropertyDescriptor {
             .with_content(
                 TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                     .with_text(name)
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx),
             )
             .build(ctx)

@@ -35,6 +35,7 @@ use crate::fyrox::{
         grid::{Column, GridBuilder, Row},
         message::UiMessage,
         numeric::{NumericUpDownBuilder, NumericUpDownMessage},
+        style::resource::StyleResourceExt,
         text::TextBuilder,
         widget::WidgetBuilder,
         BuildContext, Thickness, VerticalAlignment,
@@ -43,7 +44,7 @@ use crate::fyrox::{
 };
 use crate::{
     scene::{GameScene, Selection},
-    Message, FIXED_TIMESTEP,
+    Editor, Message, FIXED_TIMESTEP,
 };
 
 pub struct ParticleSystemPreviewControlPanel {
@@ -84,6 +85,7 @@ impl ParticleSystemPreviewControlPanel {
                                 .with_margin(Thickness::uniform(1.0)),
                         )
                         .with_text("Preview")
+                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx),
                     )
                     .build(ctx);
@@ -161,6 +163,7 @@ impl ParticleSystemPreviewControlPanel {
                                         .with_margin(Thickness::uniform(1.0)),
                                 )
                                 .with_text("Playback Time")
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx),
                             )
                             .with_child({

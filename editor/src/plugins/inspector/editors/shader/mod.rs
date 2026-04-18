@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::Editor;
 use fyrox::{
     core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     gui::{
@@ -25,6 +26,7 @@ use fyrox::{
         formatted_text::WrapMode,
         message::{MessageData, UiMessage},
         scroll_viewer::ScrollViewerBuilder,
+        style::resource::StyleResourceExt,
         text::TextMessage,
         text_box::{TextBox, TextBoxBuilder, TextCommitMode},
         widget::WidgetBuilder,
@@ -97,6 +99,7 @@ impl ShaderSourceCodeEditorBuilder {
         .with_padding(Thickness::uniform(2.0))
         .with_text_commit_mode(TextCommitMode::LostFocusPlusEnter)
         .with_text(&self.code.0)
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
 
         let content = ScrollViewerBuilder::new(WidgetBuilder::new())

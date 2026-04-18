@@ -23,6 +23,7 @@ use crate::fyrox::{
     gui::{
         formatted_text::WrapMode,
         scroll_viewer::ScrollViewerBuilder,
+        style::resource::StyleResourceExt,
         text::TextMessage,
         text_box::TextBoxBuilder,
         widget::WidgetBuilder,
@@ -30,6 +31,7 @@ use crate::fyrox::{
         BuildContext, Thickness, UserInterface,
     },
 };
+use crate::Editor;
 use fyrox::gui::text_box::TextBox;
 use fyrox::gui::window::{Window, WindowAlignment};
 
@@ -56,6 +58,7 @@ impl DocWindow {
                     )
                     .with_editable(false)
                     .with_wrap(WrapMode::Word)
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx);
                     text
                 })

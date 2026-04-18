@@ -38,7 +38,7 @@ use crate::{
     load_image,
     message::MessageSender,
     utils::window_content,
-    Message, Mode,
+    Editor, Message, Mode,
 };
 use fyrox::core::color::Color;
 use fyrox::gui::button::Button;
@@ -188,6 +188,7 @@ impl CommandStackViewer {
                         .with_foreground(brush),
                 )
                 .with_text(name)
+                .with_font_size(ui.build_ctx().style.property(Editor::UI_FONT_SIZE))
                 .build(&mut ui.build_ctx())
                 .to_base()
             })

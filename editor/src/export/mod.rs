@@ -54,7 +54,7 @@ use crate::{
         },
     },
     message::MessageSender,
-    Message,
+    Editor, Message,
 };
 use fyrox_build_tools::export::{BuildResult, ExportOptions};
 use std::sync::{
@@ -89,6 +89,7 @@ fn make_title_text(text: &str, row: usize, ctx: &mut BuildContext) -> Handle<Tex
             .with_margin(Thickness::uniform(2.0)),
     )
     .with_text(text)
+    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
     .build(ctx)
 }
 
@@ -143,6 +144,9 @@ impl ExportWindow {
                                                     HorizontalAlignment::Center,
                                                 )
                                                 .with_text(*p)
+                                                .with_font_size(
+                                                    ctx.style.property(Editor::UI_FONT_SIZE),
+                                                )
                                                 .build(ctx),
                                         ),
                                 ))
@@ -166,6 +170,7 @@ impl ExportWindow {
                     TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
                         .with_vertical_text_alignment(VerticalAlignment::Center)
                         .with_text("Build Target")
+                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx),
                 )
                 .with_child({
@@ -294,6 +299,7 @@ impl ExportWindow {
                             )
                             .with_wrap(WrapMode::Word)
                             .with_text(instructions)
+                            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                             .build(ctx),
                         )
                         .with_child(platform_section)
@@ -489,6 +495,7 @@ impl ExportWindow {
                 )
                 .with_wrap(WrapMode::Letter)
                 .with_text(format!("> {}", message.content))
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx);
 
                 ui.send(entry, WidgetMessage::link_with(self.log));
