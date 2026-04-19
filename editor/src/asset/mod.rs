@@ -329,6 +329,8 @@ impl AssetBrowser {
                 .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .with_show_path(false)
                 .with_filter(PathFilter::folder())
+                .with_font(ctx.default_font())
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx);
                 folder_browser
             })
@@ -533,7 +535,7 @@ impl AssetBrowser {
             WindowMessage::Title(WindowTitle::text_with_font_size(
                 format!("Folder Content - {}", self.current_path.display()),
                 ui.default_font.clone(),
-                ui.style().property(Editor::UI_FONT_SIZE),
+                ui.style.property(Editor::UI_FONT_SIZE),
             )),
         );
         ui.send(

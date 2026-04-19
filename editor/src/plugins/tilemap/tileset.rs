@@ -519,7 +519,7 @@ impl TileSetEditor {
             WindowMessage::Title(WindowTitle::text_with_font_size(
                 tile_set_to_title(resource_manager, &tile_book),
                 ui.default_font.clone(),
-                ui.style().property(Editor::UI_FONT_SIZE),
+                ui.style.property(Editor::UI_FONT_SIZE),
             )),
         );
         let mut state = self.state.lock_mut("set_tile_resource");

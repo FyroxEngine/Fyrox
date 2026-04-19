@@ -114,6 +114,8 @@ impl Configurator {
                 )),
         )
         .with_filter(PathFilter::folder())
+        .with_font(ctx.default_font())
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
 
         // Load history.

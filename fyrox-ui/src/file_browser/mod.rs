@@ -641,8 +641,10 @@ impl FileBrowserBuilder {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<FileBrowser> {
         // let item_context_menu = RcUiNodeHandle::new(ItemContextMenu::build(ctx), ctx.sender());
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
         let font_size = self
             .font_size
+            .clone()
             .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
         let item_context_menu = RcUiNodeHandle::new(
             ItemContextMenuBuilder::new()
@@ -697,7 +699,7 @@ impl FileBrowserBuilder {
                                         .with_tooltip(make_simple_tooltip(ctx, "Home Folder"))
                                         .with_margin(Thickness::uniform(1.0)),
                                 )
-                                .with_text("H")
+                                .with_text_and_font_size("H", font.clone(), font_size.clone())
                                 .build(ctx);
                                 home_dir
                             })
@@ -710,7 +712,7 @@ impl FileBrowserBuilder {
                                         .with_tooltip(make_simple_tooltip(ctx, "Desktop Folder"))
                                         .with_margin(Thickness::uniform(1.0)),
                                 )
-                                .with_text("D")
+                                .with_text_and_font_size("D", font.clone(), font_size.clone())
                                 .build(ctx);
                                 desktop_dir
                             })
@@ -730,6 +732,7 @@ impl FileBrowserBuilder {
                                         .map(|p| p.to_string_lossy().to_string())
                                         .unwrap_or_default(),
                                 )
+                                .with_font(font.clone())
                                 .with_font_size(font_size.clone())
                                 .build(ctx);
                                 path_text
@@ -757,6 +760,7 @@ impl FileBrowserBuilder {
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .with_horizontal_text_alignment(HorizontalAlignment::Center)
         .with_text(self.no_items_text)
+        .with_font(font.clone())
         .with_font_size(font_size.clone())
         .build(ctx);
 

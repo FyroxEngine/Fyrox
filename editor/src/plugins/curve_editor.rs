@@ -153,6 +153,8 @@ impl CurveEditorWindow {
             "You have unsaved changes, do you want to save it before closing the curve editor?",
         )
         .with_buttons(MessageBoxButtons::YesNoCancel)
+        .with_font(ctx.default_font())
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
 
         let cancel_message_box = MessageBoxBuilder::new(
@@ -166,6 +168,8 @@ impl CurveEditorWindow {
         )
         .with_text("You have unsaved changes, do you want to quit the curve editor without saving?")
         .with_buttons(MessageBoxButtons::YesNo)
+        .with_font(ctx.default_font())
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
 
         let curve_editor;

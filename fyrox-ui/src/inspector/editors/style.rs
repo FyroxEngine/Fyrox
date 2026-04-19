@@ -22,6 +22,7 @@
 //! adds a special "bind" button used to change style binding of the property.
 
 use crate::button::Button;
+use crate::font::FontResource;
 use crate::list_view::ListView;
 use crate::message::MessageData;
 use crate::window::WindowAlignment;
@@ -177,11 +178,27 @@ impl Control for StyledPropertySelector {
 
 pub struct StyledPropertySelectorBuilder {
     window_builder: WindowBuilder,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl StyledPropertySelectorBuilder {
     pub fn new(window_builder: WindowBuilder) -> Self {
-        Self { window_builder }
+        Self {
+            window_builder,
+            font: None,
+            font_size: None,
+        }
+    }
+
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
     }
 
     pub fn build(
@@ -221,6 +238,12 @@ impl StyledPropertySelectorBuilder {
         .with_items(items)
         .build(ctx);
 
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
+
         let ok;
         let cancel;
         let buttons = StackPanelBuilder::new(
@@ -234,7 +257,7 @@ impl StyledPropertySelectorBuilder {
                             .with_margin(Thickness::uniform(1.0))
                             .with_width(100.0),
                     )
-                    .with_text("OK")
+                    .with_text_and_font_size("OK", font.clone(), font_size.clone())
                     .build(ctx);
                     ok
                 })
@@ -244,7 +267,7 @@ impl StyledPropertySelectorBuilder {
                             .with_margin(Thickness::uniform(1.0))
                             .with_width(100.0),
                     )
-                    .with_text("Cancel")
+                    .with_text_and_font_size("Cancel", font.clone(), font_size.clone())
                     .build(ctx);
                     cancel
                 }),
