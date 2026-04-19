@@ -57,11 +57,12 @@ use crate::{
     settings::Settings,
     utils,
     world::WorldViewerItemContextMenu,
-    Engine, Message, PasteCommand,
+    Editor, Engine, Message, PasteCommand,
 };
 use fyrox::core::{uuid, Uuid};
 use fyrox::gui::file_browser::{FileSelector, FileType};
 use fyrox::gui::menu::MenuItem;
+use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::window::WindowAlignment;
 use std::{any::TypeId, path::PathBuf};
 
@@ -155,6 +156,7 @@ impl SceneNodeContextMenu {
                                 )
                                 .with_content(MenuItemContent::text("Create Child Node"))
                                 .with_items(create_child_entity_menu.root_items.clone())
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx);
                                 create_child
                             })
@@ -199,6 +201,7 @@ impl SceneNodeContextMenu {
                                 )
                                 .with_content(MenuItemContent::text("Create Parent Node"))
                                 .with_items(create_parent_entity_menu.root_items.clone())
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx);
                                 create_parent
                             })
@@ -210,6 +213,7 @@ impl SceneNodeContextMenu {
                                 )
                                 .with_content(MenuItemContent::text("Replace With Node"))
                                 .with_items(replace_with_menu.root_items.clone())
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx);
                                 replace_with
                             })

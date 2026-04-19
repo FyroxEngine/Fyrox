@@ -32,7 +32,7 @@ use crate::{
     },
     file_browser::{
         fs_tree::{sanitize_path, TreeItemPath},
-        menu::ItemContextMenu,
+        menu::ItemContextMenuBuilder,
     },
     font::FontResource,
     formatted_text::WrapMode,
@@ -640,7 +640,16 @@ impl FileBrowserBuilder {
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<FileBrowser> {
-        let item_context_menu = RcUiNodeHandle::new(ItemContextMenu::build(ctx), ctx.sender());
+        // let item_context_menu = RcUiNodeHandle::new(ItemContextMenu::build(ctx), ctx.sender());
+        let font_size = self
+            .font_size
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
+        let item_context_menu = RcUiNodeHandle::new(
+            ItemContextMenuBuilder::new()
+                .with_font_size(font_size.clone())
+                .build(ctx),
+            ctx.sender(),
+        );
 
         let fs_tree::FsTree {
             root_items: items,
@@ -721,11 +730,7 @@ impl FileBrowserBuilder {
                                         .map(|p| p.to_string_lossy().to_string())
                                         .unwrap_or_default(),
                                 )
-                                .with_font_size(
-                                    self.font_size
-                                        .clone()
-                                        .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
-                                )
+                                .with_font_size(font_size.clone())
                                 .build(ctx);
                                 path_text
                             }),
@@ -752,11 +757,7 @@ impl FileBrowserBuilder {
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .with_horizontal_text_alignment(HorizontalAlignment::Center)
         .with_text(self.no_items_text)
-        .with_font_size(
-            self.font_size
-                .clone()
-                .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
-        )
+        .with_font_size(font_size.clone())
         .build(ctx);
 
         let root_container = GridBuilder::new(

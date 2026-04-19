@@ -20,6 +20,8 @@
 
 use crate::menu::MenuItem;
 use crate::messagebox::MessageBox;
+use crate::style::resource::StyleResourceExt;
+use crate::style::{Style, StyledProperty};
 use crate::{
     core::{
         algebra::Vector2, log::Log, pool::Handle, reflect::prelude::*, uuid_provider,
@@ -183,7 +185,31 @@ impl Control for ItemContextMenu {
 }
 
 impl ItemContextMenu {
-    pub fn build(ctx: &mut BuildContext) -> Handle<ItemContextMenu> {
+    fn item_path(&self, ui: &UserInterface) -> Option<TreeItemPath> {
+        ui.try_get_node(self.base_menu.popup.placement.target())
+            .ok()
+            .and_then(|n| n.user_data_cloned::<TreeItemPath>())
+    }
+}
+
+pub struct ItemContextMenuBuilder {
+    font_size: Option<StyledProperty<f32>>,
+}
+
+impl ItemContextMenuBuilder {
+    pub fn new() -> Self {
+        Self { font_size: None }
+    }
+
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<ItemContextMenu> {
+        let font_size = self
+            .font_size
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
         let delete;
         let make_folder;
         let base_menu = ContextMenuBuilder::new(
@@ -200,6 +226,7 @@ impl ItemContextMenu {
                                 WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
                             )
                             .with_content(MenuItemContent::text("Delete"))
+                            .with_font_size(font_size.clone())
                             .build(ctx);
                             delete
                         })
@@ -208,6 +235,7 @@ impl ItemContextMenu {
                                 WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
                             )
                             .with_content(MenuItemContent::text("Make Folder"))
+                            .with_font_size(font_size.clone())
                             .build(ctx);
                             make_folder
                         }),
@@ -218,7 +246,7 @@ impl ItemContextMenu {
         )
         .build_context_menu(ctx);
 
-        let menu = Self {
+        let menu = ItemContextMenu {
             base_menu,
             delete,
             make_folder,
@@ -227,11 +255,5 @@ impl ItemContextMenu {
         };
 
         ctx.add(menu)
-    }
-
-    fn item_path(&self, ui: &UserInterface) -> Option<TreeItemPath> {
-        ui.try_get_node(self.base_menu.popup.placement.target())
-            .ok()
-            .and_then(|n| n.user_data_cloned::<TreeItemPath>())
     }
 }
