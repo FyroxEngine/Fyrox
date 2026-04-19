@@ -361,7 +361,11 @@ where
                                         .on_row(1)
                                         .on_column(0),
                                 )
-                                .with_text("+Input")
+                                .with_text_and_font_size(
+                                    "+Input",
+                                    ctx.default_font(),
+                                    ctx.style.property(Editor::UI_FONT_SIZE),
+                                )
                                 .build(ctx);
                                 add_input
                             }),
@@ -390,7 +394,11 @@ where
                                 edit = ButtonBuilder::new(
                                     WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                                 )
-                                .with_text("Edit")
+                                .with_text_and_font_size(
+                                    "Edit",
+                                    ctx.default_font(),
+                                    ctx.style.property(Editor::UI_FONT_SIZE),
+                                )
                                 .build(ctx);
                                 edit
                             } else {

@@ -339,7 +339,11 @@ impl AudioPanel {
                                                 .with_width(100.0)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
-                                        .with_text("Add Bus")
+                                        .with_text_and_font_size(
+                                            "Add Bus",
+                                            ctx.default_font(),
+                                            ctx.style.property(Editor::UI_FONT_SIZE),
+                                        )
                                         .build(ctx);
                                         add_bus
                                     })
@@ -351,7 +355,11 @@ impl AudioPanel {
                                                 .with_enabled(false)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
-                                        .with_text("Remove Bus")
+                                        .with_text_and_font_size(
+                                            "Remove Bus",
+                                            ctx.default_font(),
+                                            ctx.style.property(Editor::UI_FONT_SIZE),
+                                        )
                                         .build(ctx);
                                         remove_bus
                                     }),

@@ -198,7 +198,11 @@ impl AssetRenameDialogBuilder {
                                         .with_height(24.0)
                                         .with_tab_index(Some(1)),
                                 )
-                                .with_text("Rename")
+                                .with_text_and_font_size(
+                                    "Rename",
+                                    ctx.default_font(),
+                                    ctx.style.property(Editor::UI_FONT_SIZE),
+                                )
                                 .build(ctx);
                                 rename
                             })
@@ -210,7 +214,11 @@ impl AssetRenameDialogBuilder {
                                         .with_height(24.0)
                                         .with_tab_index(Some(2)),
                                 )
-                                .with_text("Cancel")
+                                .with_text_and_font_size(
+                                    "Cancel",
+                                    ctx.default_font(),
+                                    ctx.style.property(Editor::UI_FONT_SIZE),
+                                )
                                 .build(ctx);
                                 cancel
                             }),

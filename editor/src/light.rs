@@ -162,7 +162,11 @@ impl ProgressWindow {
                                     .with_height(25.0)
                                     .with_horizontal_alignment(HorizontalAlignment::Right),
                             )
-                            .with_text("Cancel")
+                            .with_text_and_font_size(
+                                "Cancel",
+                                ctx.default_font(),
+                                ctx.style.property(Editor::UI_FONT_SIZE),
+                            )
                             .build(ctx);
                             cancel
                         }),
@@ -297,7 +301,11 @@ impl LightPanel {
                                     generate = ButtonBuilder::new(
                                         WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
                                     )
-                                    .with_text("Generate Lightmap")
+                                    .with_text_and_font_size(
+                                        "Generate Lightmap",
+                                        ctx.default_font(),
+                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                    )
                                     .build(ctx);
                                     generate
                                 })
@@ -305,7 +313,11 @@ impl LightPanel {
                                     clear_lightmap = ButtonBuilder::new(
                                         WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
                                     )
-                                    .with_text("Clear Lightmap")
+                                    .with_text_and_font_size(
+                                        "Clear Lightmap",
+                                        ctx.default_font(),
+                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                    )
                                     .build(ctx);
                                     clear_lightmap
                                 }),

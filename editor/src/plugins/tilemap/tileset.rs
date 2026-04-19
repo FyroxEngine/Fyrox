@@ -159,7 +159,11 @@ fn make_button(
             .with_margin(Thickness::uniform(1.0))
             .with_tooltip(make_simple_tooltip(ctx, tooltip)),
     )
-    .with_text(title)
+    .with_text_and_font_size(
+        title,
+        ctx.default_font(),
+        ctx.style.property(Editor::UI_FONT_SIZE),
+    )
     .build(ctx)
 }
 

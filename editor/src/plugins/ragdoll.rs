@@ -1089,7 +1089,11 @@ impl RagdollWizard {
                                                 Tested only on Mixamo skeletons.",
                                             )),
                                     )
-                                    .with_text("Autofill")
+                                    .with_text_and_font_size(
+                                        "Autofill",
+                                        ctx.default_font(),
+                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                    )
                                     .build(ctx);
                                     autofill
                                 })
@@ -1099,7 +1103,11 @@ impl RagdollWizard {
                                             .with_width(100.0)
                                             .with_margin(Thickness::uniform(1.0)),
                                     )
-                                    .with_text("OK")
+                                    .with_text_and_font_size(
+                                        "OK",
+                                        ctx.default_font(),
+                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                    )
                                     .build(ctx);
                                     ok
                                 })
@@ -1109,7 +1117,11 @@ impl RagdollWizard {
                                             .with_width(100.0)
                                             .with_margin(Thickness::uniform(1.0)),
                                     )
-                                    .with_text("Cancel")
+                                    .with_text_and_font_size(
+                                        "Cancel",
+                                        ctx.default_font(),
+                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                    )
                                     .build(ctx);
                                     cancel
                                 }),

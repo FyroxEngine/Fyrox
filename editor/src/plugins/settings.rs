@@ -151,7 +151,11 @@ impl SettingsWindow {
                                                 .with_width(80.0)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
-                                        .with_text("Default")
+                                        .with_text_and_font_size(
+                                            "Default",
+                                            ctx.default_font(),
+                                            ctx.style.property(Editor::UI_FONT_SIZE),
+                                        )
                                         .build(ctx);
                                         default
                                     })
@@ -161,7 +165,11 @@ impl SettingsWindow {
                                                 .with_width(80.0)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
-                                        .with_text("OK")
+                                        .with_text_and_font_size(
+                                            "OK",
+                                            ctx.default_font(),
+                                            ctx.style.property(Editor::UI_FONT_SIZE),
+                                        )
                                         .build(ctx);
                                         ok
                                     }),
@@ -235,7 +243,11 @@ impl SettingsWindow {
                     ButtonBuilder::new(WidgetBuilder::new().with_user_data(Arc::new(Mutex::new(
                         GroupName(entry.property_tag.clone()),
                     ))))
-                    .with_text(&entry.property_display_name)
+                    .with_text_and_font_size(
+                        &entry.property_display_name,
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx)
                     .to_base()
                 })

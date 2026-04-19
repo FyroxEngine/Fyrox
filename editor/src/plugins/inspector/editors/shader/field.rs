@@ -110,7 +110,11 @@ impl ShaderSourceCodeEditorFieldBuilder {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<ShaderSourceCodeEditorField> {
         let button = ButtonBuilder::new(WidgetBuilder::new())
-            .with_text("Edit Source Code...")
+            .with_text_and_font_size(
+                "Edit Source Code...",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            )
             .build(ctx);
 
         let editor = ShaderSourceCodeEditorField {

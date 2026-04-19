@@ -278,7 +278,11 @@ impl MaterialFieldEditorBuilder {
                             .with_margin(Thickness::uniform(1.0))
                             .on_column(2),
                     )
-                    .with_text("Edit...")
+                    .with_text_and_font_size(
+                        "Edit...",
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx);
                     edit
                 })
@@ -290,7 +294,11 @@ impl MaterialFieldEditorBuilder {
                             .on_column(3)
                             .with_tooltip(make_simple_tooltip(ctx, make_unique_tooltip)),
                     )
-                    .with_text("Make Unique")
+                    .with_text_and_font_size(
+                        "Make Unique",
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx);
                     make_unique
                 }),

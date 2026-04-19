@@ -128,7 +128,11 @@ impl SpriteSheetFramesPropertyEditor {
                             .with_margin(Thickness::uniform(1.0))
                             .on_column(1),
                     )
-                    .with_text("Edit...")
+                    .with_text_and_font_size(
+                        "Edit...",
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx);
                     edit_button
                 }),

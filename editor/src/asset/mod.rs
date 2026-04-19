@@ -1007,7 +1007,11 @@ impl AssetBrowser {
                                             .with_width(100.0)
                                             .with_margin(Thickness::uniform(1.0)),
                                     )
-                                    .with_text("Apply")
+                                    .with_text_and_font_size(
+                                        "Apply",
+                                        ctx.default_font(),
+                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                    )
                                     .build(ctx);
                                     apply
                                 })
@@ -1017,7 +1021,11 @@ impl AssetBrowser {
                                             .with_width(100.0)
                                             .with_margin(Thickness::uniform(1.0)),
                                     )
-                                    .with_text("Revert")
+                                    .with_text_and_font_size(
+                                        "Revert",
+                                        ctx.default_font(),
+                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                    )
                                     .build(ctx);
                                     revert
                                 }),

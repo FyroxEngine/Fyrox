@@ -2290,7 +2290,11 @@ impl Editor {
                 .with_height(32.0)
                 .with_desired_position(Vector2::new(20.0, 20.0)),
         )
-        .with_text("Click Me!")
+        .with_text_and_font_size(
+            "Click Me!",
+            ui.default_font.clone(),
+            ui.style().property(Editor::UI_FONT_SIZE),
+        )
         .build(&mut ui.build_ctx());
 
         TextBuilder::new(WidgetBuilder::new().with_desired_position(Vector2::new(300.0, 300.0)))

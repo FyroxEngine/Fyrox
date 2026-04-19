@@ -101,7 +101,11 @@ fn make_resource_chooser(
         .with_pressed_brush(ctx.style.property(Style::BRUSH_LIGHTEST))
         .build(ctx),
     )
-    .with_text(text)
+    .with_text_and_font_size(
+        text,
+        ctx.default_font(),
+        ctx.style.property(Editor::UI_FONT_SIZE),
+    )
     .build(ctx)
 }
 
