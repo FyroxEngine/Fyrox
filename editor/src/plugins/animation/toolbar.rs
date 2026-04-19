@@ -272,7 +272,11 @@ impl RootMotionDropdownArea {
                         WindowBuilder::new(
                             WidgetBuilder::new().with_width(300.0).with_height(400.0),
                         )
-                        .with_title(WindowTitle::text("Select a Root Node"))
+                        .with_title(WindowTitle::text_with_font_size(
+                            "Select a Root Node",
+                            ui.default_font.clone(),
+                            ui.style().property(Editor::UI_FONT_SIZE),
+                        ))
                         .open(false),
                     )
                     .with_allowed_types(

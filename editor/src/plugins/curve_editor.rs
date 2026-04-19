@@ -193,6 +193,9 @@ impl CurveEditorWindow {
                                                             "New", "Ctrl+N",
                                                         ),
                                                     )
+                                                    .with_font_size(
+                                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                                    )
                                                     .build(ctx);
                                                 new
                                             },
@@ -202,6 +205,9 @@ impl CurveEditorWindow {
                                                         MenuItemContent::text_with_shortcut(
                                                             "Load", "Ctrl+L",
                                                         ),
+                                                    )
+                                                    .with_font_size(
+                                                        ctx.style.property(Editor::UI_FONT_SIZE),
                                                     )
                                                     .build(ctx);
                                                 load
@@ -213,10 +219,14 @@ impl CurveEditorWindow {
                                                             "Save", "Ctrl+S",
                                                         ),
                                                     )
+                                                    .with_font_size(
+                                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                                    )
                                                     .build(ctx);
                                                 save
                                             },
                                         ])
+                                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                         .build(ctx),
                                     MenuItemBuilder::new(WidgetBuilder::new())
                                         .with_content(MenuItemContent::text("Edit"))
@@ -228,6 +238,9 @@ impl CurveEditorWindow {
                                                             "Undo", "Ctrl+Z",
                                                         ),
                                                     )
+                                                    .with_font_size(
+                                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                                    )
                                                     .build(ctx);
                                                 undo
                                             },
@@ -238,10 +251,14 @@ impl CurveEditorWindow {
                                                             "Redo", "Ctrl+Y",
                                                         ),
                                                     )
+                                                    .with_font_size(
+                                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                                    )
                                                     .build(ctx);
                                                 redo
                                             },
                                         ])
+                                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                         .build(ctx),
                                 ])
                                 .build(ctx),

@@ -264,6 +264,7 @@ impl AssetItemContextMenu {
         fn item(text: &str, ctx: &mut BuildContext) -> Handle<MenuItem> {
             MenuItemBuilder::new(WidgetBuilder::new())
                 .with_content(MenuItemContent::text(text))
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx)
         }
 

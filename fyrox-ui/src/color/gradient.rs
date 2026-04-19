@@ -19,6 +19,8 @@
 // SOFTWARE.
 
 use crate::menu::{ContextMenuBuilder, MenuItem};
+use crate::style::resource::StyleResourceExt;
+use crate::style::{Style, StyledProperty};
 use crate::{
     brush::Brush,
     color::{ColorFieldBuilder, ColorFieldMessage},
@@ -329,6 +331,7 @@ impl ColorGradientEditor {
 pub struct ColorGradientEditorBuilder {
     widget_builder: WidgetBuilder,
     color_gradient: ColorGradient,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 fn create_color_points(
@@ -358,11 +361,17 @@ impl ColorGradientEditorBuilder {
         Self {
             widget_builder,
             color_gradient: Default::default(),
+            font_size: None,
         }
     }
 
     pub fn with_color_gradient(mut self, gradient: ColorGradient) -> Self {
         self.color_gradient = gradient;
+        self
+    }
+
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
         self
     }
 
@@ -392,9 +401,13 @@ impl ColorGradientEditorBuilder {
                     StackPanelBuilder::new(
                         WidgetBuilder::new()
                             .with_child({
-                                remove_point = MenuItemBuilder::new(WidgetBuilder::new())
-                                    .with_content(MenuItemContent::text("Remove Point"))
-                                    .build(ctx);
+                                remove_point =
+                                    MenuItemBuilder::new(WidgetBuilder::new())
+                                        .with_content(MenuItemContent::text("Remove Point"))
+                                        .with_font_size(self.font_size.unwrap_or_else(|| {
+                                            ctx.style.property(Style::FONT_SIZE)
+                                        }))
+                                        .build(ctx);
                                 remove_point
                             })
                             .with_child({

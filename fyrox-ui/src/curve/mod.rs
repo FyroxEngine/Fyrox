@@ -20,7 +20,7 @@
 
 use crate::message::{CursorIcon, MessageData};
 use crate::style::resource::StyleResourceExt;
-use crate::style::Style;
+use crate::style::{Style, StyledProperty};
 use crate::{
     brush::Brush,
     core::{
@@ -1731,6 +1731,7 @@ pub struct CurveEditorBuilder {
     max_zoom: Vector2<f32>,
     highlight_zones: Vec<HighlightZone>,
     show_background_curves: bool,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl CurveEditorBuilder {
@@ -1749,6 +1750,7 @@ impl CurveEditorBuilder {
             max_zoom: Vector2::new(1000.0, 1000.0),
             highlight_zones: Default::default(),
             show_background_curves: true,
+            font_size: None,
         }
     }
 
@@ -1813,6 +1815,11 @@ impl CurveEditorBuilder {
         self
     }
 
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<CurveEditor> {
         let background_curve_brush = ctx.style.get_or_default::<Brush>(Style::BRUSH_LIGHT);
         let key_brush = Brush::Solid(Color::opaque(140, 140, 140));
@@ -1823,6 +1830,9 @@ impl CurveEditorBuilder {
         }
 
         let curves = CurvesContainer::from_native(key_brush.clone(), &self.curves);
+        let font_size = self
+            .font_size
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
 
         let add_key;
         let remove;
@@ -1903,6 +1913,7 @@ impl CurveEditorBuilder {
                                 .with_child({
                                     add_key = MenuItemBuilder::new(WidgetBuilder::new())
                                         .with_content(MenuItemContent::text("Add Key"))
+                                        .with_font_size(font_size.clone())
                                         .build(ctx);
                                     add_key
                                 })
@@ -1911,6 +1922,7 @@ impl CurveEditorBuilder {
                                         WidgetBuilder::new().with_enabled(false),
                                     )
                                     .with_content(MenuItemContent::text("Remove"))
+                                    .with_font_size(font_size.clone())
                                     .build(ctx);
                                     remove
                                 })
@@ -1924,6 +1936,7 @@ impl CurveEditorBuilder {
                                             make_constant =
                                                 MenuItemBuilder::new(WidgetBuilder::new())
                                                     .with_content(MenuItemContent::text("Constant"))
+                                                    .with_font_size(font_size.clone())
                                                     .build(ctx);
                                             make_constant
                                         },
@@ -1931,34 +1944,40 @@ impl CurveEditorBuilder {
                                             make_linear =
                                                 MenuItemBuilder::new(WidgetBuilder::new())
                                                     .with_content(MenuItemContent::text("Linear"))
+                                                    .with_font_size(font_size.clone())
                                                     .build(ctx);
                                             make_linear
                                         },
                                         {
                                             make_cubic = MenuItemBuilder::new(WidgetBuilder::new())
                                                 .with_content(MenuItemContent::text("Cubic"))
+                                                .with_font_size(font_size.clone())
                                                 .build(ctx);
                                             make_cubic
                                         },
                                     ])
+                                    .with_font_size(font_size.clone())
                                     .build(ctx);
                                     key
                                 })
                                 .with_child({
                                     zoom_to_fit = MenuItemBuilder::new(WidgetBuilder::new())
                                         .with_content(MenuItemContent::text("Zoom To Fit"))
+                                        .with_font_size(font_size.clone())
                                         .build(ctx);
                                     zoom_to_fit
                                 })
                                 .with_child({
                                     copy_keys = MenuItemBuilder::new(WidgetBuilder::new())
                                         .with_content(MenuItemContent::text("Copy Selected Keys"))
+                                        .with_font_size(font_size.clone())
                                         .build(ctx);
                                     copy_keys
                                 })
                                 .with_child({
                                     paste_keys = MenuItemBuilder::new(WidgetBuilder::new())
                                         .with_content(MenuItemContent::text("Paste Keys"))
+                                        .with_font_size(font_size.clone())
                                         .build(ctx);
                                     paste_keys
                                 }),
@@ -1994,6 +2013,7 @@ impl CurveEditorBuilder {
             text: RefCell::new(
                 FormattedTextBuilder::new(ctx.default_font())
                     .with_brush(Brush::Solid(Color::opaque(100, 100, 100)))
+                    .with_font_size(font_size.clone())
                     .build(),
             ),
             context_menu: ContextMenu {

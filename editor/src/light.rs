@@ -251,7 +251,11 @@ impl LightPanel {
                 .with_width(300.0)
                 .with_height(400.0),
         )
-        .with_title(WindowTitle::text("Light Settings"))
+        .with_title(WindowTitle::text_with_font_size(
+            "Light Settings",
+            ctx.default_font(),
+            ctx.style.property(Editor::UI_FONT_SIZE),
+        ))
         .open(false)
         .with_content(
             GridBuilder::new(

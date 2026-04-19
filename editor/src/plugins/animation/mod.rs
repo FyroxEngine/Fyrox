@@ -332,7 +332,11 @@ impl AnimationEditor {
         )
         .with_content(content)
         .open(false)
-        .with_title(WindowTitle::text("Animation Editor"))
+        .with_title(WindowTitle::text_with_font_size(
+            "Animation Editor",
+            ctx.default_font(),
+            ctx.style.property(Editor::UI_FONT_SIZE),
+        ))
         .with_tab_label("Animation")
         .build(ctx);
 
