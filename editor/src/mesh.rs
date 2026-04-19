@@ -81,7 +81,11 @@ fn make_button(text: &str, tooltip: &str, ctx: &mut BuildContext) -> Handle<Butt
             .with_margin(Thickness::uniform(1.0))
             .with_tooltip(make_simple_tooltip(ctx, tooltip)),
     )
-    .with_text(text)
+    .with_text_and_font_size(
+        text,
+        ctx.default_font(),
+        ctx.style.property(Editor::UI_FONT_SIZE),
+    )
     .build(ctx)
 }
 

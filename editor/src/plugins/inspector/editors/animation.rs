@@ -35,10 +35,12 @@ use crate::fyrox::{
             FieldAction, InspectorError, PropertyChanged,
         },
         message::{MessageDirection, UiMessage},
+        style::resource::StyleResourceExt,
         widget::WidgetBuilder,
     },
 };
 use crate::plugins::inspector::EditorEnvironment;
+use crate::Editor;
 use crate::Message;
 
 use fyrox::core::reflect::Reflect;
@@ -184,7 +186,11 @@ where
     ) -> Result<PropertyEditorInstance, InspectorError> {
         Ok(PropertyEditorInstance::Simple {
             editor: ButtonBuilder::new(WidgetBuilder::new())
-                .with_text("Open Animation Editor...")
+                .with_text_and_font_size(
+                    "Open Animation Editor...",
+                    ctx.build_context.default_font(),
+                    ctx.build_context.style.property(Editor::UI_FONT_SIZE),
+                )
                 .build(ctx.build_context)
                 .to_base(),
         })
@@ -241,7 +247,11 @@ where
     ) -> Result<PropertyEditorInstance, InspectorError> {
         Ok(PropertyEditorInstance::Simple {
             editor: ButtonBuilder::new(WidgetBuilder::new())
-                .with_text("Open ABSM Editor...")
+                .with_text_and_font_size(
+                    "Open ABSM Editor...",
+                    ctx.build_context.default_font(),
+                    ctx.build_context.style.property(Editor::UI_FONT_SIZE),
+                )
                 .build(ctx.build_context)
                 .to_base(),
         })

@@ -511,7 +511,11 @@ impl<'a> AssetSelectorWindowBuilder<'a> {
                             .with_margin(Thickness::uniform(1.0))
                             .with_tab_index(Some(2)),
                     )
-                    .with_text("Select")
+                    .with_text_and_font_size(
+                        "Select",
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx);
                     ok
                 })
@@ -523,7 +527,11 @@ impl<'a> AssetSelectorWindowBuilder<'a> {
                             .with_margin(Thickness::uniform(1.0))
                             .with_tab_index(Some(3)),
                     )
-                    .with_text("Cancel")
+                    .with_text_and_font_size(
+                        "Cancel",
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx);
                     cancel
                 }),

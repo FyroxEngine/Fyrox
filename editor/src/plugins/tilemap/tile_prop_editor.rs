@@ -779,7 +779,11 @@ fn build_nine_button(
             .on_row(2 - y)
             .with_tab_index(tab_index),
     )
-    .with_text(specs.name.as_str())
+    .with_text_and_font_size(
+        specs.name.as_str(),
+        ctx.default_font(),
+        ctx.style.property(Editor::UI_FONT_SIZE),
+    )
     .with_back(
         DecoratorBuilder::new(
             BorderBuilder::new(

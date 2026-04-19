@@ -202,7 +202,11 @@ impl Configurator {
                                             .on_column(2)
                                             .with_margin(Thickness::uniform(1.0)),
                                     )
-                                    .with_text("...")
+                                    .with_text_and_font_size(
+                                        "...",
+                                        ctx.default_font(),
+                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                    )
                                     .build(ctx);
                                     select_work_dir
                                 }),
@@ -252,7 +256,11 @@ impl Configurator {
                                             .with_height(25.0)
                                             .with_margin(Thickness::uniform(1.0)),
                                     )
-                                    .with_text("OK")
+                                    .with_text_and_font_size(
+                                        "OK",
+                                        ctx.default_font(),
+                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                    )
                                     .build(ctx);
                                     ok
                                 }),

@@ -202,7 +202,11 @@ fn make_terrain_list_element(
             .on_column(4)
             .with_margin(Thickness::uniform(2.0)),
     )
-    .with_text("Delete")
+    .with_text_and_font_size(
+        "Delete",
+        ctx.default_font(),
+        ctx.style.property(Editor::UI_FONT_SIZE),
+    )
     .build(ctx);
     let handle = GridBuilder::new(
         WidgetBuilder::new()
@@ -596,7 +600,11 @@ impl BrushMacro for WfcMacro {
                 .on_column(1)
                 .with_margin(Thickness::uniform(1.0)),
         )
-        .with_text("Add")
+        .with_text_and_font_size(
+            "Add",
+            ctx.default_font(),
+            ctx.style.property(Editor::UI_FONT_SIZE),
+        )
         .build(ctx);
         let add_row_field = GridBuilder::new(
             WidgetBuilder::new()

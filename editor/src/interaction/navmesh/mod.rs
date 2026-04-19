@@ -111,7 +111,11 @@ impl NavmeshPanel {
                             connect_edges = ButtonBuilder::new(
                                 WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                             )
-                            .with_text("Connect Edges")
+                            .with_text_and_font_size(
+                                "Connect Edges",
+                                ctx.default_font(),
+                                ctx.style.property(Editor::UI_FONT_SIZE),
+                            )
                             .build(ctx);
                             connect_edges
                         }))

@@ -170,7 +170,11 @@ impl RootMotionDropdownArea {
                                 .on_row(1)
                                 .on_column(1),
                         )
-                        .with_text("<Unassigned>")
+                        .with_text_and_font_size(
+                            "<Unassigned>",
+                            ctx.default_font(),
+                            ctx.style.property(Editor::UI_FONT_SIZE),
+                        )
                         .build(ctx);
                         select_node
                     })

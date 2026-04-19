@@ -268,7 +268,11 @@ impl ExportWindow {
                             .with_width(100.0)
                             .with_margin(Thickness::uniform(2.0)),
                     )
-                    .with_text("Export")
+                    .with_text_and_font_size(
+                        "Export",
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx);
                     export
                 })
@@ -278,7 +282,11 @@ impl ExportWindow {
                             .with_width(100.0)
                             .with_margin(Thickness::uniform(2.0)),
                     )
-                    .with_text("Cancel")
+                    .with_text_and_font_size(
+                        "Cancel",
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx);
                     cancel
                 }),

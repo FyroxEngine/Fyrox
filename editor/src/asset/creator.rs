@@ -127,7 +127,11 @@ impl ResourceCreator {
                                                 .with_width(100.0)
                                                 .with_height(22.0),
                                         )
-                                        .with_text("OK")
+                                        .with_text_and_font_size(
+                                            "OK",
+                                            ctx.default_font(),
+                                            ctx.style.property(Editor::UI_FONT_SIZE),
+                                        )
                                         .build(ctx);
                                         ok
                                     })
@@ -138,7 +142,11 @@ impl ResourceCreator {
                                                 .with_width(100.0)
                                                 .with_height(22.0),
                                         )
-                                        .with_text("Cancel")
+                                        .with_text_and_font_size(
+                                            "Cancel",
+                                            ctx.default_font(),
+                                            ctx.style.property(Editor::UI_FONT_SIZE),
+                                        )
                                         .build(ctx);
                                         cancel
                                     }),

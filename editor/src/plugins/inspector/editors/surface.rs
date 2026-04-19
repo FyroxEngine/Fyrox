@@ -220,7 +220,11 @@ impl SurfaceDataPropertyEditor {
                 .with_width(55.0)
                 .with_height(22.0),
         )
-        .with_text("View...")
+        .with_text_and_font_size(
+            "View...",
+            ctx.default_font(),
+            ctx.style.property(Editor::UI_FONT_SIZE),
+        )
         .build(ctx);
 
         let select = make_pick_button(1, ctx);

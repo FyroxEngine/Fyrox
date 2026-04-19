@@ -330,7 +330,11 @@ impl SpriteSheetFramesEditorWindow {
                             .with_width(70.0)
                             .with_margin(Thickness::uniform(1.0)),
                     )
-                    .with_text("OK")
+                    .with_text_and_font_size(
+                        "OK",
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx);
                     ok
                 })
@@ -340,7 +344,11 @@ impl SpriteSheetFramesEditorWindow {
                             .with_width(70.0)
                             .with_margin(Thickness::uniform(1.0)),
                     )
-                    .with_text("Cancel")
+                    .with_text_and_font_size(
+                        "Cancel",
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx);
                     cancel
                 }),

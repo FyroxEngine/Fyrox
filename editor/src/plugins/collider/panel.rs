@@ -40,10 +40,11 @@ use crate::{
     message::MessageSender,
     plugins::collider::ColliderShapeInteractionMode,
     scene::{commands::GameSceneContext, GameScene, Selection},
-    Message,
+    Editor, Message,
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::stack_panel::StackPanel;
+use fyrox::gui::style::resource::StyleResourceExt;
 
 pub struct ColliderControlPanel {
     pub root_widget: Handle<StackPanel>,
@@ -92,7 +93,11 @@ impl ColliderControlPanel {
                             .with_height(24.0)
                             .with_tooltip(make_simple_tooltip(ctx, try_fit_tooltip)),
                     )
-                    .with_text("Try Fit")
+                    .with_text_and_font_size(
+                        "Try Fit",
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx);
                     fit
                 })
@@ -103,7 +108,11 @@ impl ColliderControlPanel {
                             .with_height(24.0)
                             .with_tooltip(make_simple_tooltip(ctx, edit_tooltip)),
                     )
-                    .with_text("Edit")
+                    .with_text_and_font_size(
+                        "Edit",
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx);
                     edit
                 }),
