@@ -1730,7 +1730,11 @@ impl Editor {
 
     fn set_editor_mode(&mut self) {
         match std::mem::replace(&mut self.mode, Mode::Edit) {
-            Mode::Play { mut process, .. } => {
+            Mode::Play {
+                mut process,
+                active,
+            } => {
+                active.store(false, Ordering::SeqCst);
                 Log::verify(process.kill());
                 self.on_mode_changed();
             }
