@@ -328,6 +328,8 @@ pub fn make_save_file_selector(
     .with_mode(FileSelectorMode::Save { default_file_name })
     .with_filter(PathFilter::new().with_file_type(file_type))
     .with_path("./")
+    .with_font(ctx.default_font())
+    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
     .build(ctx)
 }
 
@@ -408,6 +410,8 @@ impl SaveSceneConfirmationDialog {
             )),
         )
         .with_buttons(MessageBoxButtons::YesNoCancel)
+        .with_font(ctx.default_font())
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
 
         Self {
@@ -1018,6 +1022,8 @@ impl Editor {
                 )),
         )
         .with_buttons(MessageBoxButtons::YesNoCancel)
+        .with_font(ctx.default_font())
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
 
         let validation_message_box = MessageBoxBuilder::new(
@@ -1032,6 +1038,8 @@ impl Editor {
                 )),
         )
         .with_buttons(MessageBoxButtons::Ok)
+        .with_font(ctx.default_font())
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
 
         let save_scene_dialog = SaveSceneConfirmationDialog::new(ctx);
@@ -2293,7 +2301,7 @@ impl Editor {
         .with_text_and_font_size(
             "Click Me!",
             ui.default_font.clone(),
-            ui.style().property(Editor::UI_FONT_SIZE),
+            ui.style.property(Editor::UI_FONT_SIZE),
         )
         .build(&mut ui.build_ctx());
 
@@ -2821,7 +2829,7 @@ impl Editor {
             let ui = self.engine.user_interfaces.first_mut();
             println!(
                 "Old style font size: {}",
-                ui.style().get(Self::UI_FONT_SIZE).unwrap_or(0.0)
+                ui.style.get(Self::UI_FONT_SIZE).unwrap_or(0.0)
             );
             if let Some(style) = self.styles.get(&self.settings.general.style) {
                 // ISSUE: They are the same resource ref
@@ -2834,7 +2842,7 @@ impl Editor {
                 );
                 println!(
                     "Again Old style font size: {}",
-                    ui.style().get(Self::UI_FONT_SIZE).unwrap_or(0.0)
+                    ui.style.get(Self::UI_FONT_SIZE).unwrap_or(0.0)
                 );
                 // ERROR: If two styles are generated from the same
                 // "make_style" function, they will always return same on comparison

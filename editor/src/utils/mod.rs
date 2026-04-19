@@ -34,11 +34,12 @@ use crate::{
             BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
     },
-    load_image,
+    load_image, Editor,
 };
 use fyrox::core::pool::ObjectOrVariant;
 use fyrox::gui::button::Button;
 use fyrox::gui::file_browser::{FileSelector, FileSelectorMode, FileType};
+use fyrox::gui::style::resource::StyleResourceExt;
 use std::{fs::File, path::Path};
 
 pub mod doc;
@@ -113,6 +114,8 @@ pub fn create_file_selector(
     )
     .with_filter(PathFilter::new().with_file_type(file_type))
     .with_mode(mode)
+    .with_font(ctx.default_font())
+    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
     .build(ctx)
 }
 

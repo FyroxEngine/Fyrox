@@ -21,7 +21,9 @@
 use crate::button::Button;
 use crate::dropdown_list::DropdownList;
 use crate::file_browser::FileBrowser;
+use crate::font::FontResource;
 use crate::messagebox::MessageBox;
+use crate::style::StyledProperty;
 use crate::text_box::TextBox;
 use crate::{
     border::BorderBuilder,
@@ -318,6 +320,8 @@ pub struct FileSelectorBuilder {
     path: PathBuf,
     root: Option<PathBuf>,
     selected_file_type: Option<usize>,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl FileSelectorBuilder {
@@ -329,6 +333,8 @@ impl FileSelectorBuilder {
             root: None,
             filter: Default::default(),
             selected_file_type: None,
+            font: None,
+            font_size: None,
         }
     }
 
@@ -357,13 +363,33 @@ impl FileSelectorBuilder {
         self
     }
 
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<FileSelector> {
         let browser;
         let ok;
         let cancel;
 
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
+
         if self.window_builder.title.is_none() {
-            self.window_builder.title = Some(WindowTitle::text("Select File"));
+            self.window_builder.title = Some(WindowTitle::text_with_font_size(
+                "Select File",
+                font.clone(),
+                font_size.clone(),
+            ));
         }
 
         let file_name;
@@ -381,6 +407,8 @@ impl FileSelectorBuilder {
                             .with_vertical_alignment(VerticalAlignment::Center),
                     )
                     .with_text("File Name:")
+                    .with_font(font.clone())
+                    .with_font_size(font_size.clone())
                     .build(ctx),
                 )
                 .with_child({
@@ -399,6 +427,8 @@ impl FileSelectorBuilder {
                             default_file_name: ref default_file_name_no_extension,
                         } => default_file_name_no_extension.to_string_lossy().to_string(),
                     })
+                    .with_font(font.clone())
+                    .with_font_size(font_size.clone())
                     .build(ctx);
                     file_name
                 }),
@@ -431,6 +461,8 @@ impl FileSelectorBuilder {
                             .with_vertical_alignment(VerticalAlignment::Center),
                     )
                     .with_text("File Type:")
+                    .with_font(font.clone())
+                    .with_font_size(font_size.clone())
                     .build(ctx),
                 )
                 .with_child({
@@ -466,6 +498,8 @@ impl FileSelectorBuilder {
                     .with_filter(self.filter.clone())
                     .with_path(self.path.clone())
                     .with_opt_root(self.root)
+                    .with_font(font.clone())
+                    .with_font_size(font_size.clone())
                     .build(ctx);
                     browser
                 }),
@@ -498,10 +532,14 @@ impl FileSelectorBuilder {
                             .with_enabled(ok_enabled),
                     )
                     .with_ok_back(ctx)
-                    .with_text(match &self.mode {
-                        FileSelectorMode::Open => "Open",
-                        FileSelectorMode::Save { .. } => "Save",
-                    })
+                    .with_text_and_font_size(
+                        match &self.mode {
+                            FileSelectorMode::Open => "Open",
+                            FileSelectorMode::Save { .. } => "Save",
+                        },
+                        font.clone(),
+                        font_size.clone(),
+                    )
                     .build(ctx);
                     ok
                 })
@@ -514,7 +552,7 @@ impl FileSelectorBuilder {
                             .with_height(25.0),
                     )
                     .with_cancel_back(ctx)
-                    .with_text("Cancel")
+                    .with_text_and_font_size("Cancel", font.clone(), font_size.clone())
                     .build(ctx);
                     cancel
                 }),

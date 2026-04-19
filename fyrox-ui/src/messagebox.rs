@@ -31,19 +31,22 @@ use crate::{
         algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         visitor::prelude::*,
     },
+    font::FontResource,
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
     message::UiMessage,
     stack_panel::StackPanelBuilder,
+    style::StyledProperty,
     text::{TextBuilder, TextMessage},
     widget::{Widget, WidgetBuilder},
     window::{Window, WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, Control, HorizontalAlignment, Orientation, RestrictionEntry, Thickness, UiNode,
-    UserInterface,
+    BuildContext, Control, HorizontalAlignment, Orientation, RestrictionEntry, Style, Thickness,
+    UiNode, UserInterface,
 };
 
 use crate::button::Button;
 use crate::message::MessageData;
+use crate::style::resource::StyleResourceExt;
 use crate::text::Text;
 use crate::window::WindowAlignment;
 use fyrox_core::uuid_provider;
@@ -281,6 +284,8 @@ pub struct MessageBoxBuilder<'b> {
     window_builder: WindowBuilder,
     buttons: MessageBoxButtons,
     text: &'b str,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl<'b> MessageBoxBuilder<'b> {
@@ -290,6 +295,8 @@ impl<'b> MessageBoxBuilder<'b> {
             window_builder,
             buttons: MessageBoxButtons::Ok,
             text: "",
+            font: None,
+            font_size: None,
         }
     }
 
@@ -305,8 +312,26 @@ impl<'b> MessageBoxBuilder<'b> {
         self
     }
 
+    /// Sets a desired font of the message box.
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    /// Sets a desired font size property of the message box.
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
     /// Finished message box building and adds it to the user interface.
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<MessageBox> {
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
+
         let ok_yes;
         let mut no = Default::default();
         let mut cancel = Default::default();
@@ -331,7 +356,7 @@ impl<'b> MessageBoxBuilder<'b> {
                                 .on_row(1)
                                 .with_horizontal_alignment(HorizontalAlignment::Center),
                         )
-                        .with_text("OK")
+                        .with_text_and_font_size("OK", font.clone(), font_size.clone())
                         .build(ctx);
                         ok_yes
                     })
@@ -361,7 +386,7 @@ impl<'b> MessageBoxBuilder<'b> {
                                             .with_width(80.0)
                                             .with_margin(Thickness::uniform(1.0)),
                                     )
-                                    .with_text("Yes")
+                                    .with_text_and_font_size("Yes", font.clone(), font_size.clone())
                                     .build(ctx);
                                     ok_yes
                                 })
@@ -371,7 +396,7 @@ impl<'b> MessageBoxBuilder<'b> {
                                             .with_width(80.0)
                                             .with_margin(Thickness::uniform(1.0)),
                                     )
-                                    .with_text("No")
+                                    .with_text_and_font_size("No", font.clone(), font_size.clone())
                                     .build(ctx);
                                     no
                                 }),
@@ -405,7 +430,7 @@ impl<'b> MessageBoxBuilder<'b> {
                                             .with_width(80.0)
                                             .with_margin(Thickness::uniform(1.0)),
                                     )
-                                    .with_text("Yes")
+                                    .with_text_and_font_size("Yes", font.clone(), font_size.clone())
                                     .build(ctx);
                                     ok_yes
                                 })
@@ -415,7 +440,7 @@ impl<'b> MessageBoxBuilder<'b> {
                                             .with_width(80.0)
                                             .with_margin(Thickness::uniform(1.0)),
                                     )
-                                    .with_text("No")
+                                    .with_text_and_font_size("No", font.clone(), font_size.clone())
                                     .build(ctx);
                                     no
                                 })
@@ -425,7 +450,11 @@ impl<'b> MessageBoxBuilder<'b> {
                                             .with_width(80.0)
                                             .with_margin(Thickness::uniform(1.0)),
                                     )
-                                    .with_text("Cancel")
+                                    .with_text_and_font_size(
+                                        "Cancel",
+                                        font.clone(),
+                                        font_size.clone(),
+                                    )
                                     .build(ctx);
                                     cancel
                                 }),

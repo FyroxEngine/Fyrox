@@ -269,7 +269,7 @@ impl<T: Reflect> Control for HandlePropertyEditor<T> {
                         .with_title(WindowTitle::text_with_font_size(
                             "Select a Node",
                             ui.default_font.clone(),
-                            ui.style().property(Editor::UI_FONT_SIZE),
+                            ui.style.property(Editor::UI_FONT_SIZE),
                         ))
                         .open(false),
                 )

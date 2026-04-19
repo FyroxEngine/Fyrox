@@ -131,6 +131,8 @@ impl FileMenu {
         )
         .with_text("Cannot reconfigure editor while scene is open! Close scene first and retry.")
         .with_buttons(MessageBoxButtons::Ok)
+        .with_font(ctx.default_font())
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
 
         let recent_files = make_recent_files_items(ctx, &settings.recent);
@@ -282,6 +284,8 @@ impl FileMenu {
                         .with_description("User Interface"),
                 ),
         )
+        .with_font(ctx.default_font())
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
 
         Self {

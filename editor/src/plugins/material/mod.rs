@@ -412,7 +412,7 @@ impl MaterialEditor {
                 WindowMessage::Title(WindowTitle::text_with_font_size(
                     format!("{} - {}", Self::TITLE, material_name),
                     ui.default_font.clone(),
-                    ui.style().property(Editor::UI_FONT_SIZE),
+                    ui.style.property(Editor::UI_FONT_SIZE),
                 )),
             );
 

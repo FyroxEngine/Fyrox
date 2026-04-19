@@ -279,7 +279,7 @@ impl RootMotionDropdownArea {
                         .with_title(WindowTitle::text_with_font_size(
                             "Select a Root Node",
                             ui.default_font.clone(),
-                            ui.style().property(Editor::UI_FONT_SIZE),
+                            ui.style.property(Editor::UI_FONT_SIZE),
                         ))
                         .open(false),
                     )
@@ -699,6 +699,8 @@ impl Toolbar {
                 .with_file_type(FileType::new_extension("gltf"))
                 .with_file_type(FileType::new_extension("glb")),
         )
+        .with_font(ctx.default_font())
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
 
         let root_motion_dropdown_area = RootMotionDropdownArea::new(ctx);
@@ -810,7 +812,7 @@ impl Toolbar {
                         .with_title(WindowTitle::text_with_font_size(
                             "Rename Animation",
                             ui.default_font.clone(),
-                            ui.style().property(Editor::UI_FONT_SIZE),
+                            ui.style.property(Editor::UI_FONT_SIZE),
                         ))
                         .open(false)
                         .with_remove_on_close(true),
@@ -823,6 +825,8 @@ impl Toolbar {
                         .map(|a| a.name().to_string())
                         .unwrap_or_else(|| "Animation".to_string()),
                 )
+                .with_font(ui.default_font.clone())
+                .with_font_size(ui.style.property(Editor::UI_FONT_SIZE))
                 .build(&mut ui.build_ctx());
                 ui.send(
                     self.rename_animation_input_box,
@@ -841,6 +845,8 @@ impl Toolbar {
                 )
                 .with_text("Type the name for the new animation:")
                 .with_value("Animation".to_string())
+                .with_font(ui.default_font.clone())
+                .with_font_size(ui.style.property(Editor::UI_FONT_SIZE))
                 .build(&mut ui.build_ctx());
                 ui.send(self.animation_name_input_box, InputBoxMessage::open_as_is());
             } else if message.destination() == self.clone_current_animation {
@@ -949,7 +955,7 @@ impl Toolbar {
                         .with_title(WindowTitle::text_with_font_size(
                             "Select a Target Node",
                             ui.default_font.clone(),
-                            ui.style().property(Editor::UI_FONT_SIZE),
+                            ui.style.property(Editor::UI_FONT_SIZE),
                         ))
                         .open(false),
                 )

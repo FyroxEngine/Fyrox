@@ -194,13 +194,15 @@ impl Toolbar {
                         .with_title(WindowTitle::text_with_font_size(
                             "Rename Layer",
                             ui.default_font.clone(),
-                            ui.style().property(Editor::UI_FONT_SIZE),
+                            ui.style.property(Editor::UI_FONT_SIZE),
                         ))
                         .open(false)
                         .with_remove_on_close(true),
                 )
                 .with_text("Type the new name for the selected layer:")
                 .with_value("Layer".to_string())
+                .with_font(ui.default_font.clone())
+                .with_font_size(ui.style.property(Editor::UI_FONT_SIZE))
                 .build(&mut ui.build_ctx());
                 ui.send(self.rename_layer_input_box, InputBoxMessage::open_as_is());
             } else if message.destination() == self.add_layer {
@@ -209,13 +211,15 @@ impl Toolbar {
                         .with_title(WindowTitle::text_with_font_size(
                             "Add Layer",
                             ui.default_font.clone(),
-                            ui.style().property(Editor::UI_FONT_SIZE),
+                            ui.style.property(Editor::UI_FONT_SIZE),
                         ))
                         .open(false)
                         .with_remove_on_close(true),
                 )
                 .with_text("Type the name for the new layer:")
                 .with_value("Layer".to_string())
+                .with_font(ui.default_font.clone())
+                .with_font_size(ui.style.property(Editor::UI_FONT_SIZE))
                 .build(&mut ui.build_ctx());
                 ui.send(self.add_layer_input_box, InputBoxMessage::open_as_is());
             } else if message.destination() == self.edit_mask {
@@ -268,7 +272,7 @@ impl Toolbar {
                         .with_title(WindowTitle::text_with_font_size(
                             "Select nodes that will NOT be animated",
                             ui.default_font.clone(),
-                            ui.style().property(Editor::UI_FONT_SIZE),
+                            ui.style.property(Editor::UI_FONT_SIZE),
                         )),
                     )
                     .with_allowed_types(

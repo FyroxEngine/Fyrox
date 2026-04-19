@@ -956,7 +956,7 @@ impl TrackList {
                         .with_title(WindowTitle::text_with_font_size(
                             "Select a Node To Animate",
                             ui.default_font.clone(),
-                            ui.style().property(Editor::UI_FONT_SIZE),
+                            ui.style.property(Editor::UI_FONT_SIZE),
                         )),
                 )
                 .with_allowed_types(
@@ -1312,7 +1312,7 @@ impl TrackList {
                 .with_title(WindowTitle::text_with_font_size(
                     "Select a Numeric Property To Animate",
                     ui.default_font.clone(),
-                    ui.style().property(Editor::UI_FONT_SIZE),
+                    ui.style.property(Editor::UI_FONT_SIZE),
                 ))
                 .open(false),
         )

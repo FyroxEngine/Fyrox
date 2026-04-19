@@ -385,10 +385,12 @@ impl AssetItemContextMenu {
                         .with_title(WindowTitle::text_with_font_size(
                             "Confirm Deletion",
                             ui.default_font.clone(),
-                            ui.style().property(Editor::UI_FONT_SIZE),
+                            ui.style.property(Editor::UI_FONT_SIZE),
                         )),
                     )
                     .with_text(&text)
+                    .with_font(ui.default_font.clone())
+                    .with_font_size(ui.style.property(Editor::UI_FONT_SIZE))
                     .with_buttons(MessageBoxButtons::YesNo)
                     .build(&mut ui.build_ctx());
 
@@ -528,7 +530,7 @@ impl AssetItemContextMenu {
                             .with_title(WindowTitle::text_with_font_size(
                                 "Rename a Resource",
                                 ui.default_font.clone(),
-                                ui.style().property(Editor::UI_FONT_SIZE),
+                                ui.style.property(Editor::UI_FONT_SIZE),
                             ))
                             .with_remove_on_close(true)
                             .open(false),

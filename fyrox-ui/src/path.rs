@@ -25,6 +25,8 @@
 
 use crate::button::Button;
 use crate::file_browser::{FileSelector, PathFilter};
+use crate::font::FontResource;
+use crate::style::StyledProperty;
 use crate::text_box::TextBox;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
@@ -35,11 +37,12 @@ use crate::{
     file_browser::{FileSelectorBuilder, FileSelectorMessage},
     grid::{Column, GridBuilder, Row},
     message::{MessageData, UiMessage},
+    style::resource::StyleResourceExt,
     text::TextMessage,
     text_box::TextBoxBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, Control, Thickness, UiNode, UserInterface,
+    BuildContext, Control, Style, Thickness, UiNode, UserInterface,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{path::Path, path::PathBuf};
@@ -168,6 +171,8 @@ pub struct PathEditorBuilder {
     widget_builder: WidgetBuilder,
     path: PathBuf,
     file_types: PathFilter,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl PathEditorBuilder {
@@ -177,6 +182,8 @@ impl PathEditorBuilder {
             widget_builder,
             path: Default::default(),
             file_types: Default::default(),
+            font: None,
+            font_size: None,
         }
     }
 
@@ -192,8 +199,26 @@ impl PathEditorBuilder {
         self
     }
 
+    /// Sets the desired font of the path editor.
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    /// Sets the desired font size property of the path editor.
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
     /// Finishes widget building and adds it to the user interface returning a handle to the instance.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<PathEditor> {
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
+
         let text_field;
         let select;
         let grid = GridBuilder::new(
@@ -206,6 +231,8 @@ impl PathEditorBuilder {
                     )
                     .with_text(self.path.to_string_lossy())
                     .with_editable(false)
+                    .with_font(font.clone())
+                    .with_font_size(font_size.clone())
                     .build(ctx);
                     text_field
                 })
@@ -216,7 +243,7 @@ impl PathEditorBuilder {
                             .with_width(30.0)
                             .with_margin(Thickness::uniform(1.0)),
                     )
-                    .with_text("...")
+                    .with_text_and_font_size("...", font.clone(), font_size.clone())
                     .build(ctx);
                     select
                 }),

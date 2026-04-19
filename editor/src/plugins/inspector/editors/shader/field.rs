@@ -69,7 +69,7 @@ impl Control for ShaderSourceCodeEditorField {
                     .with_title(WindowTitle::text_with_font_size(
                         "Edit Shader Source Code",
                         ui.default_font.clone(),
-                        ui.style().property(Editor::UI_FONT_SIZE),
+                        ui.style.property(Editor::UI_FONT_SIZE),
                     ))
                     .open(false),
             )
