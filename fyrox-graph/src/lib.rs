@@ -1152,7 +1152,22 @@ pub trait SceneGraph: 'static {
         &self,
         from: Handle<impl ObjectOrVariant<Self::Node>>,
     ) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
-        GraphTraverseIterator {
+        GraphTraverseIteratorRef {
+            graph: self,
+            start_node_handle: from.to_base(),
+            current_node_handle: from.to_base(),
+            index: None,
+        }
+    }
+
+    /// Create a graph depth traversal iterator that yields a pair of the node handle and the mutable
+    /// reference to this node.
+    #[inline]
+    fn traverse_iter_mut(
+        &mut self,
+        from: Handle<impl ObjectOrVariant<Self::Node>>,
+    ) -> impl Iterator<Item = (Handle<Self::Node>, &mut Self::Node)> {
+        GraphTraverseIteratorMut {
             graph: self,
             start_node_handle: from.to_base(),
             current_node_handle: from.to_base(),
@@ -1485,14 +1500,14 @@ pub trait SceneGraph: 'static {
 }
 
 /// Iterator that traverses tree in depth and returns shared references to nodes.
-pub struct GraphTraverseIterator<'a, G: ?Sized, N> {
+pub struct GraphTraverseIteratorRef<'a, G: ?Sized, N> {
     graph: &'a G,
     start_node_handle: Handle<N>,
     current_node_handle: Handle<N>,
     index: Option<usize>,
 }
 
-impl<'a, G: ?Sized, N> Iterator for GraphTraverseIterator<'a, G, N>
+impl<'a, G: ?Sized, N> Iterator for GraphTraverseIteratorRef<'a, G, N>
 where
     G: SceneGraph<Node = N>,
     N: SceneGraphNode,
@@ -1536,6 +1551,80 @@ where
                     }
                 }
                 Some((current_node_handle, current_node))
+            }
+            Err(_) => None,
+        }
+    }
+}
+
+/// Iterator that traverses tree in depth and returns shared references to nodes.
+pub struct GraphTraverseIteratorMut<'a, G: ?Sized, N> {
+    graph: &'a mut G,
+    start_node_handle: Handle<N>,
+    current_node_handle: Handle<N>,
+    index: Option<usize>,
+}
+
+impl<'a, G: ?Sized, N> Iterator for GraphTraverseIteratorMut<'a, G, N>
+where
+    G: SceneGraph<Node = N>,
+    N: SceneGraphNode,
+{
+    type Item = (Handle<N>, &'a mut N);
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        let current_node_handle = self.current_node_handle;
+
+        // SAFETY: This is safe, because we're borrowing the nodes directly from the graph.
+        // By doing this transmute we're essentially telling the compiler that the 'a lifetime
+        // is valid for the returned items.
+        let graph = unsafe { std::mem::transmute::<&'_ mut G, &'a mut G>(self.graph) };
+
+        match graph.try_get_mut(current_node_handle) {
+            Ok(current_node) => {
+                match current_node.children().first() {
+                    Some(first) => {
+                        self.current_node_handle = *first;
+                    }
+                    None => {
+                        let mut parent_handle = current_node.parent();
+                        while let Ok(parent) = graph.try_get(parent_handle) {
+                            let parent_children = parent.children();
+                            let index = self.index.get_or_insert_with(|| {
+                                parent_children
+                                    .iter()
+                                    .position(|h| *h == self.current_node_handle)
+                                    .expect("must be in parent's list")
+                            });
+                            *index += 1;
+                            if let Some(next_child_handle) = parent_children.get(*index) {
+                                self.current_node_handle = *next_child_handle;
+                                return Some((
+                                    current_node_handle,
+                                    graph
+                                        .try_get_mut(current_node_handle)
+                                        .expect("must be valid"),
+                                ));
+                            } else {
+                                self.current_node_handle = parent_handle;
+                                self.index = None;
+                                parent_handle = parent.parent();
+                                if self.current_node_handle == self.start_node_handle {
+                                    break;
+                                }
+                            }
+                        }
+                        self.current_node_handle = Handle::NONE;
+                        self.index = None;
+                    }
+                }
+                Some((
+                    current_node_handle,
+                    graph
+                        .try_get_mut(current_node_handle)
+                        .expect("must be valid"),
+                ))
             }
             Err(_) => None,
         }
@@ -2353,7 +2442,7 @@ mod test {
         graph.link_nodes(a, root);
         graph.link_nodes(f, root);
 
-        // test full depth traversal
+        // test full depth traversal (immutable)
         let mut iter = graph.traverse_handle_iter(root);
         assert_eq!(iter.next(), Some(root));
         assert_eq!(iter.next(), Some(a));
@@ -2364,10 +2453,33 @@ mod test {
         assert_eq!(iter.next(), Some(f));
         assert_eq!(iter.next(), None);
 
-        // test sub-graph traversal
+        drop(iter);
+
+        // test sub-graph traversal (immutable)
         let mut iter = graph.traverse_handle_iter(d);
         assert_eq!(iter.next(), Some(d));
         assert_eq!(iter.next(), Some(e));
         assert_eq!(iter.next(), None);
+
+        drop(iter);
+
+        // test full depth traversal (mutable)
+        let mut iter_mut = graph.traverse_iter_mut(root).map(|(h, _)| h);
+        assert_eq!(iter_mut.next(), Some(root));
+        assert_eq!(iter_mut.next(), Some(a));
+        assert_eq!(iter_mut.next(), Some(b));
+        assert_eq!(iter_mut.next(), Some(c));
+        assert_eq!(iter_mut.next(), Some(d));
+        assert_eq!(iter_mut.next(), Some(e));
+        assert_eq!(iter_mut.next(), Some(f));
+        assert_eq!(iter_mut.next(), None);
+
+        drop(iter_mut);
+
+        // test sub-graph traversal (mutable)
+        let mut iter_mut = graph.traverse_iter_mut(d).map(|(h, _)| h);
+        assert_eq!(iter_mut.next(), Some(d));
+        assert_eq!(iter_mut.next(), Some(e));
+        assert_eq!(iter_mut.next(), None);
     }
 }
