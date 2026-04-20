@@ -58,6 +58,8 @@ pub struct ItemContextMenu {
     pub make_folder: Handle<MenuItem>,
     pub delete_message_box: Cell<Handle<MessageBox>>,
     pub folder_name_dialog: Handle<FolderNameDialog>,
+    pub font: FontResource,
+    pub font_size: StyledProperty<f32>,
 }
 
 impl Deref for ItemContextMenu {
@@ -120,12 +122,18 @@ impl Control for ItemContextMenu {
                             WindowBuilder::new(
                                 WidgetBuilder::new().with_width(250.0).with_height(100.0),
                             )
-                            .with_title(WindowTitle::text("Confirm Action"))
+                            .with_title(WindowTitle::text_with_font_size(
+                                "Confirm Action",
+                                self.font.clone(),
+                                self.font_size.clone(),
+                            ))
                             .open(false),
                         )
                         .with_text(
                             format!("Delete {} file?", tree_item_path.path().display()).as_str(),
                         )
+                        .with_font(self.font.clone())
+                        .with_font_size(self.font_size.clone())
                         .with_buttons(MessageBoxButtons::YesNo)
                         .build(&mut ui.build_ctx()),
                     );
@@ -139,7 +147,10 @@ impl Control for ItemContextMenu {
                     );
                 }
             } else if message.destination() == self.make_folder {
-                self.folder_name_dialog = FolderNameDialogBuilder::new().build_and_open(ui);
+                self.folder_name_dialog = FolderNameDialogBuilder::new()
+                    .with_font(self.font.clone())
+                    .with_font_size(self.font_size.clone())
+                    .build_and_open(ui);
             }
         }
     }
@@ -267,6 +278,8 @@ impl ItemContextMenuBuilder {
             make_folder,
             delete_message_box: Default::default(),
             folder_name_dialog: Default::default(),
+            font: font,
+            font_size: font_size,
         };
 
         ctx.add(menu)

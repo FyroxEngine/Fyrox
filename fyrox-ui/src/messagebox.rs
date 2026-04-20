@@ -344,6 +344,8 @@ impl<'b> MessageBoxBuilder<'b> {
                             WidgetBuilder::new().with_margin(Thickness::uniform(4.0)),
                         )
                         .with_text(self.text)
+                        .with_font(font.clone())
+                        .with_font_size(font_size.clone())
                         .with_wrap(WrapMode::Word)
                         .build(ctx);
                         text
@@ -372,6 +374,8 @@ impl<'b> MessageBoxBuilder<'b> {
                         text = TextBuilder::new(WidgetBuilder::new())
                             .with_text(self.text)
                             .with_wrap(WrapMode::Word)
+                            .with_font(font.clone())
+                            .with_font_size(font_size.clone())
                             .build(ctx);
                         text
                     })
@@ -416,6 +420,8 @@ impl<'b> MessageBoxBuilder<'b> {
                         text = TextBuilder::new(WidgetBuilder::new())
                             .with_text(self.text)
                             .with_wrap(WrapMode::Word)
+                            .with_font(font.clone())
+                            .with_font_size(font_size.clone())
                             .build(ctx);
                         text
                     })
