@@ -20,14 +20,15 @@
 
 use crate::{
     fyrox::{
-        core::pool::Handle,
+        core::{pool::Handle, uuid, Uuid},
+        engine::ApplicationLoopController,
         gui::{
-            menu::MenuItemMessage,
+            menu::{MenuItem, MenuItemMessage},
             message::UiMessage,
             stack_panel::StackPanelBuilder,
-            text::{TextBuilder, TextMessage},
+            text::{Text, TextBuilder, TextMessage},
             widget::{WidgetBuilder, WidgetMessage},
-            window::{WindowBuilder, WindowMessage},
+            window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             HorizontalAlignment, Thickness, VerticalAlignment,
         },
     },
@@ -35,31 +36,27 @@ use crate::{
     plugin::EditorPlugin,
     Editor,
 };
-use fyrox::core::{uuid, Uuid};
-use fyrox::engine::ApplicationLoopController;
-use fyrox::gui::menu::MenuItem;
-use fyrox::gui::text::Text;
-use fyrox::gui::window::{Window, WindowAlignment, WindowTitle};
 
-/// Editor UI statistics, useful to track number of active widgets and memory consumption.
+/// Editor statistics, useful to track number of active widgets, memory consumption, and other
+/// various useful information.
 
 #[derive(Default)]
-pub struct UiStatisticsPlugin {
+pub struct EditorStatisticsPlugin {
     window: Handle<Window>,
     text: Handle<Text>,
     open_ui_stats: Handle<MenuItem>,
 }
 
-impl UiStatisticsPlugin {
-    pub const UI_STATISTICS: Uuid = uuid!("6331d1a4-3194-4b80-a95b-1558c61e1b1a");
+impl EditorStatisticsPlugin {
+    pub const EDITOR_STATISTICS: Uuid = uuid!("6331d1a4-3194-4b80-a95b-1558c61e1b1a");
 }
 
-impl EditorPlugin for UiStatisticsPlugin {
+impl EditorPlugin for EditorStatisticsPlugin {
     fn on_start(&mut self, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first_mut();
         let ctx = &mut ui.build_ctx();
         self.open_ui_stats =
-            create_menu_item("Editor UI Statistics", Self::UI_STATISTICS, vec![], ctx);
+            create_menu_item("Editor Statistics", Self::EDITOR_STATISTICS, vec![], ctx);
         ui.send(
             editor.menu.utils_menu.menu,
             MenuItemMessage::AddItem(self.open_ui_stats),
@@ -76,8 +73,8 @@ impl EditorPlugin for UiStatisticsPlugin {
                     TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                         .build(ctx);
                 self.window =
-                    WindowBuilder::new(WidgetBuilder::new().with_width(200.0).with_height(100.0))
-                        .with_title(WindowTitle::text("Editor UI Statistics"))
+                    WindowBuilder::new(WidgetBuilder::new().with_width(200.0).with_height(130.0))
+                        .with_title(WindowTitle::text("Editor Statistics"))
                         .with_content(
                             StackPanelBuilder::new(WidgetBuilder::new().with_child(self.text))
                                 .build(ctx),
@@ -121,16 +118,27 @@ impl EditorPlugin for UiStatisticsPlugin {
             .iter()
             .fold(0, |acc, node| acc + node.self_size());
 
-        ui.send(
-            self.text,
-            TextMessage::Text(format!(
-                "Widget Count: {}\nMemory Used: {:.3} Mb.\n\
-                Drawing Commands: {}\nProcessed Messages: {}\n",
-                ui.nodes().alive_count(),
-                total_memory as f32 / (1024.0 * 1024.0),
-                ui.drawing_context.get_commands().len(),
-                editor.processed_ui_messages
-            )),
+        let widget_count = ui.nodes().alive_count();
+        let memory_used = total_memory as f32 / (1024.0 * 1024.0);
+        let drawing_commands = ui.drawing_context.get_commands().len();
+        let processed_ui_messages = editor.processed_ui_messages;
+        let loaded_assets = editor
+            .engine
+            .resource_manager
+            .state()
+            .count_loaded_resources();
+
+        let text = format!(
+            "Ui Statistics:\n\
+             \tWidget Count: {widget_count}\n\
+             \tMemory Used: {memory_used:.3} Mb.\n\
+             \tDrawing Commands: {drawing_commands}\n\
+             \tProcessed Messages: {processed_ui_messages}\n\
+             Asset Statistics:\n\
+             \tLoaded Assets: {loaded_assets}
+             ",
         );
+
+        ui.send(self.text, TextMessage::Text(text));
     }
 }

@@ -161,7 +161,7 @@ use crate::{
         probe::ReflectionProbePlugin,
         ragdoll::RagdollPlugin,
         settings::SettingsPlugin,
-        stats::UiStatisticsPlugin,
+        stats::EditorStatisticsPlugin,
         tilemap::TileMapEditorPlugin,
     },
     scene::{
@@ -1064,7 +1064,7 @@ impl Editor {
                 .with(SettingsPlugin::default())
                 .with(AnimationEditorPlugin::default())
                 .with(AbsmEditorPlugin::default())
-                .with(UiStatisticsPlugin::default())
+                .with(EditorStatisticsPlugin::default())
                 .with(CurveEditorPlugin::default())
                 .with(ReflectionProbePlugin::default())
                 .with(inspector_plugin),
