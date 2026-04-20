@@ -478,6 +478,12 @@ impl MenuItem {
             if let Ok(panel) = ui.try_get_of_type::<ContextMenu>(popup_handle) {
                 // Continue search from parent menu item of popup.
                 menu_item_ref_container = ui.try_get(panel.parent_menu_item).ok();
+
+                // A menu item could be a direct child of some popup that does not belong to some
+                // other menu item. In this case we also want to close the popup.
+                if menu_item_ref_container.is_none() {
+                    ui.send(popup_handle, PopupMessage::Close);
+                }
             } else {
                 // Prevent infinite loops.
                 break;
