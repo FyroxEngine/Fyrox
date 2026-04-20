@@ -648,6 +648,7 @@ impl FileBrowserBuilder {
             .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
         let item_context_menu = RcUiNodeHandle::new(
             ItemContextMenuBuilder::new()
+                .with_font(font.clone())
                 .with_font_size(font_size.clone())
                 .build(ctx),
             ctx.sender(),

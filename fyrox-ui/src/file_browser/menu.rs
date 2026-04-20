@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::font::FontResource;
 use crate::menu::MenuItem;
 use crate::messagebox::MessageBox;
 use crate::style::resource::StyleResourceExt;
@@ -29,7 +30,7 @@ use crate::{
     },
     draw::DrawingContext,
     file_browser::{
-        dialog::{FolderNameDialog, FolderNameDialogMessage},
+        dialog::{FolderNameDialog, FolderNameDialogBuilder, FolderNameDialogMessage},
         fs_tree::TreeItemPath,
     },
     menu::{ContextMenu, ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
@@ -138,7 +139,7 @@ impl Control for ItemContextMenu {
                     );
                 }
             } else if message.destination() == self.make_folder {
-                self.folder_name_dialog = FolderNameDialog::build_and_open(ui);
+                self.folder_name_dialog = FolderNameDialogBuilder::new().build_and_open(ui);
             }
         }
     }
@@ -194,12 +195,21 @@ impl ItemContextMenu {
 }
 
 pub struct ItemContextMenuBuilder {
+    font: Option<FontResource>,
     font_size: Option<StyledProperty<f32>>,
 }
 
 impl ItemContextMenuBuilder {
     pub fn new() -> Self {
-        Self { font_size: None }
+        Self {
+            font: None,
+            font_size: None,
+        }
+    }
+
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
     }
 
     pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
@@ -208,8 +218,10 @@ impl ItemContextMenuBuilder {
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<ItemContextMenu> {
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
         let font_size = self
             .font_size
+            .clone()
             .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
         let delete;
         let make_folder;
@@ -227,6 +239,7 @@ impl ItemContextMenuBuilder {
                                 WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
                             )
                             .with_content(MenuItemContent::text("Delete"))
+                            .with_font(font.clone())
                             .with_font_size(font_size.clone())
                             .build(ctx);
                             delete
@@ -236,6 +249,7 @@ impl ItemContextMenuBuilder {
                                 WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
                             )
                             .with_content(MenuItemContent::text("Make Folder"))
+                            .with_font(font.clone())
                             .with_font_size(font_size.clone())
                             .build(ctx);
                             make_folder
