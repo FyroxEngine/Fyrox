@@ -35,6 +35,7 @@ use crate::{
 use fxhash::FxHashSet;
 
 pub use event::Event;
+use fyrox_core::algebra::Vector2;
 use fyrox_core::pool::Handle;
 use fyrox_core::{find_by_name_mut, find_by_name_ref};
 pub use layer::MachineLayer;
@@ -242,6 +243,26 @@ impl<T: EntityId> Machine<T> {
         }
 
         self
+    }
+
+    /// Shortcut for `set_parameter(id, Parameter::Rule(rule))`.
+    pub fn set_rule(&mut self, id: &str, rule: bool) -> &mut Self {
+        self.set_parameter(id, Parameter::Rule(rule))
+    }
+
+    /// Shortcut for `set_parameter(id, Parameter::Weight(weight))`.
+    pub fn set_weight(&mut self, id: &str, weight: f32) -> &mut Self {
+        self.set_parameter(id, Parameter::Weight(weight))
+    }
+
+    /// Shortcut for `set_parameter(id, Parameter::Index(index))`.
+    pub fn set_index(&mut self, id: &str, index: u32) -> &mut Self {
+        self.set_parameter(id, Parameter::Index(index))
+    }
+
+    /// Shortcut for `set_parameter(id, Parameter::SamplingPoint(sampling_point))`.
+    pub fn set_sampling_point(&mut self, id: &str, sampling_point: Vector2<f32>) -> &mut Self {
+        self.set_parameter(id, Parameter::SamplingPoint(sampling_point))
     }
 
     /// Returns a shared reference to the container with all parameters used by the animation blending state machine.
