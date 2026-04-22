@@ -309,22 +309,21 @@ impl Control for AlphaBar {
             if let Some(msg) = message.data::<WidgetMessage>() {
                 if message.direction() == MessageDirection::FromWidget {
                     match *msg {
-                        WidgetMessage::MouseDown { button, .. } => {
-                            if button == MouseButton::Left {
-                                self.is_picking = true;
-                                ui.capture_mouse(self.handle);
-                            }
+                        WidgetMessage::MouseDown {
+                            button: MouseButton::Left,
+                            ..
+                        } => {
+                            self.is_picking = true;
+                            ui.capture_mouse(self.handle);
                         }
-                        WidgetMessage::MouseMove { pos, .. } => {
-                            if self.is_picking {
-                                ui.send(self.handle, AlphaBarMessage::Alpha(self.alpha_at(pos)))
-                            }
+                        WidgetMessage::MouseMove { pos, .. } if self.is_picking => {
+                            ui.send(self.handle, AlphaBarMessage::Alpha(self.alpha_at(pos)))
                         }
-                        WidgetMessage::MouseUp { button, .. } => {
-                            if self.is_picking && button == MouseButton::Left {
-                                self.is_picking = false;
-                                ui.release_mouse_capture();
-                            }
+                        WidgetMessage::MouseUp { button, .. }
+                            if self.is_picking && button == MouseButton::Left =>
+                        {
+                            self.is_picking = false;
+                            ui.release_mouse_capture();
                         }
                         _ => (),
                     }
@@ -470,22 +469,22 @@ impl Control for HueBar {
             if let Some(msg) = message.data::<WidgetMessage>() {
                 if message.direction() == MessageDirection::FromWidget {
                     match *msg {
-                        WidgetMessage::MouseDown { button, .. } => {
-                            if button == MouseButton::Left {
-                                self.is_picking = true;
-                                ui.capture_mouse(self.handle);
-                            }
+                        WidgetMessage::MouseDown {
+                            button: MouseButton::Left,
+                            ..
+                        } => {
+                            self.is_picking = true;
+                            ui.capture_mouse(self.handle);
                         }
-                        WidgetMessage::MouseMove { pos, .. } => {
-                            if self.is_picking {
-                                ui.send(self.handle, HueBarMessage::Hue(self.hue_at(pos)))
-                            }
+                        WidgetMessage::MouseMove { pos, .. } if self.is_picking => {
+                            ui.send(self.handle, HueBarMessage::Hue(self.hue_at(pos)))
                         }
-                        WidgetMessage::MouseUp { button, .. } => {
-                            if self.is_picking && button == MouseButton::Left {
-                                self.is_picking = false;
-                                ui.release_mouse_capture();
-                            }
+                        WidgetMessage::MouseUp {
+                            button: MouseButton::Left,
+                            ..
+                        } if self.is_picking => {
+                            self.is_picking = false;
+                            ui.release_mouse_capture();
                         }
                         _ => (),
                     }
@@ -645,34 +644,34 @@ impl Control for SaturationBrightnessField {
             if let Some(msg) = message.data::<WidgetMessage>() {
                 if message.direction() == MessageDirection::FromWidget {
                     match *msg {
-                        WidgetMessage::MouseDown { button, .. } => {
-                            if button == MouseButton::Left {
-                                self.is_picking = true;
-                                ui.capture_mouse(self.handle);
-                            }
+                        WidgetMessage::MouseDown {
+                            button: MouseButton::Left,
+                            ..
+                        } => {
+                            self.is_picking = true;
+                            ui.capture_mouse(self.handle);
                         }
-                        WidgetMessage::MouseMove { pos, .. } => {
-                            if self.is_picking {
-                                ui.send(
-                                    self.handle,
-                                    SaturationBrightnessFieldMessage::Brightness(
-                                        self.brightness_at(pos),
-                                    ),
-                                );
+                        WidgetMessage::MouseMove { pos, .. } if self.is_picking => {
+                            ui.send(
+                                self.handle,
+                                SaturationBrightnessFieldMessage::Brightness(
+                                    self.brightness_at(pos),
+                                ),
+                            );
 
-                                ui.send(
-                                    self.handle,
-                                    SaturationBrightnessFieldMessage::Saturation(
-                                        self.saturation_at(pos),
-                                    ),
-                                );
-                            }
+                            ui.send(
+                                self.handle,
+                                SaturationBrightnessFieldMessage::Saturation(
+                                    self.saturation_at(pos),
+                                ),
+                            );
                         }
-                        WidgetMessage::MouseUp { button, .. } => {
-                            if self.is_picking && button == MouseButton::Left {
-                                self.is_picking = false;
-                                ui.release_mouse_capture();
-                            }
+                        WidgetMessage::MouseUp {
+                            button: MouseButton::Left,
+                            ..
+                        } if self.is_picking => {
+                            self.is_picking = false;
+                            ui.release_mouse_capture();
                         }
                         _ => (),
                     }

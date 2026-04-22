@@ -203,19 +203,18 @@ impl Control for CheckBox {
 
         if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
-                WidgetMessage::MouseDown { button, .. } => {
+                WidgetMessage::MouseDown { button, .. }
                     if *button == MouseButton::Left
                         && (message.destination() == self.handle()
                             || self.widget.has_descendant(message.destination(), ui))
-                    {
+                    => {
                         ui.capture_mouse(self.handle());
                     }
-                }
-                WidgetMessage::MouseUp { button, .. } => {
+                WidgetMessage::MouseUp { button, .. }
                     if *button == MouseButton::Left
                         && (message.destination() == self.handle()
                             || self.widget.has_descendant(message.destination(), ui))
-                    {
+                    => {
                         ui.release_mouse_capture();
 
                         if let Some(value) = *self.checked {
@@ -226,14 +225,12 @@ impl Control for CheckBox {
                             ui.send(self.handle(), CheckBoxMessage::Check(Some(true)));
                         }
                     }
-                }
-                WidgetMessage::KeyDown(key_code) => {
-                    if !message.handled() && *key_code == KeyCode::Space {
+                WidgetMessage::KeyDown(key_code)
+                    if !message.handled() && *key_code == KeyCode::Space => {
                         let checked = self.checked.map(|checked| !checked);
                         ui.send(self.handle, CheckBoxMessage::Check(checked));
                         message.set_handled(true);
                     }
-                }
                 _ => (),
             }
         } else if let Some(&CheckBoxMessage::Check(value)) = message.data_for(self.handle) {

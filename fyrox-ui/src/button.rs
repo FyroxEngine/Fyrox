@@ -195,16 +195,15 @@ impl Control for Button {
                         message.set_handled(true);
                         self.repeat_timer.replace(None);
                     }
-                    WidgetMessage::KeyDown(key_code) => {
+                    WidgetMessage::KeyDown(key_code)
                         if !message.handled()
                             && (*key_code == KeyCode::Enter
                                 || *key_code == KeyCode::NumpadEnter
                                 || *key_code == KeyCode::Space)
-                        {
+                        => {
                             ui.post(self.handle, ButtonMessage::Click);
                             message.set_handled(true);
                         }
-                    }
                     _ => (),
                 }
             }

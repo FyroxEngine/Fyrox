@@ -458,7 +458,7 @@ fn create_surfaces(
         surfaces.push(surface);
     } else {
         assert_eq!(data_set.len(), model.materials.len());
-        for (&material_handle, data) in model.materials.iter().zip(data_set.into_iter()) {
+        for (&material_handle, data) in model.materials.iter().zip(data_set) {
             let mut surface_data = data.base_mesh_builder.build();
             surface_data.blend_shapes_container =
                 make_blend_shapes_container(&surface_data.vertex_buffer, data.blend_shapes);

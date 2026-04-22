@@ -436,7 +436,7 @@ impl SceneLoader {
         ));
 
         // Wait everything.
-        let results = join_all(used_resources.into_iter()).await;
+        let results = join_all(used_resources).await;
 
         for result in results {
             if let Err(err) = result {

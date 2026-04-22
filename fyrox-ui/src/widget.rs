@@ -1255,51 +1255,42 @@ impl Widget {
                     *self.foreground = foreground.clone();
                 }
                 WidgetMessage::Name(name) => self.name = ImmutableString::new(name),
-                &WidgetMessage::Width(width) => {
-                    if *self.width != width {
+                &WidgetMessage::Width(width)
+                    if *self.width != width => {
                         self.set_width_notify(width);
                     }
-                }
-                &WidgetMessage::Height(height) => {
-                    if *self.height != height {
+                &WidgetMessage::Height(height)
+                    if *self.height != height => {
                         self.set_height_notify(height);
                     }
-                }
-                WidgetMessage::VerticalAlignment(vertical_alignment) => {
-                    if *self.vertical_alignment != *vertical_alignment {
+                WidgetMessage::VerticalAlignment(vertical_alignment)
+                    if *self.vertical_alignment != *vertical_alignment => {
                         self.set_vertical_alignment(*vertical_alignment);
                     }
-                }
-                WidgetMessage::HorizontalAlignment(horizontal_alignment) => {
-                    if *self.horizontal_alignment != *horizontal_alignment {
+                WidgetMessage::HorizontalAlignment(horizontal_alignment)
+                    if *self.horizontal_alignment != *horizontal_alignment => {
                         self.set_horizontal_alignment(*horizontal_alignment);
                     }
-                }
-                WidgetMessage::MaxSize(max_size) => {
-                    if *self.max_size != *max_size {
+                WidgetMessage::MaxSize(max_size)
+                    if *self.max_size != *max_size => {
                         self.set_max_size_notify(*max_size);
                     }
-                }
-                WidgetMessage::MinSize(min_size) => {
-                    if *self.min_size != *min_size {
+                WidgetMessage::MinSize(min_size)
+                    if *self.min_size != *min_size => {
                         self.set_min_size_notify(*min_size);
                     }
-                }
-                &WidgetMessage::Row(row) => {
-                    if *self.row != row {
+                &WidgetMessage::Row(row)
+                    if *self.row != row => {
                         self.set_row_notify(row);
                     }
-                }
-                &WidgetMessage::Column(column) => {
-                    if *self.column != column {
+                &WidgetMessage::Column(column)
+                    if *self.column != column => {
                         self.set_column_notify(column);
                     }
-                }
-                &WidgetMessage::Margin(margin) => {
-                    if *self.margin != margin {
+                &WidgetMessage::Margin(margin)
+                    if *self.margin != margin => {
                         self.set_margin_notify(margin);
                     }
-                }
                 WidgetMessage::HitTestVisibility(hit_test_visibility) => {
                     self.hit_test_visibility
                         .set_value_and_mark_modified(*hit_test_visibility);
@@ -1307,11 +1298,10 @@ impl Widget {
                 &WidgetMessage::Visibility(visibility) => {
                     self.set_visibility(visibility);
                 }
-                &WidgetMessage::DesiredPosition(pos) => {
-                    if *self.desired_local_position != pos {
+                &WidgetMessage::DesiredPosition(pos)
+                    if *self.desired_local_position != pos => {
                         self.set_desired_local_position_notify(pos);
                     }
-                }
                 &WidgetMessage::Enabled(enabled) => {
                     self.invalidate_layout();
                     self.enabled.set_value_and_mark_modified(enabled);
@@ -1319,20 +1309,18 @@ impl Widget {
                 &WidgetMessage::Cursor(icon) => {
                     self.cursor.set_value_and_mark_modified(icon);
                 }
-                WidgetMessage::LayoutTransform(transform) => {
-                    if &self.layout_transform != transform {
+                WidgetMessage::LayoutTransform(transform)
+                    if &self.layout_transform != transform => {
                         self.set_layout_transform(*transform);
                     }
-                }
                 WidgetMessage::RenderTransform(transform) => {
                     self.set_render_transform(*transform);
                 }
-                WidgetMessage::ZIndex(index) => {
-                    if *self.z_index != *index {
+                WidgetMessage::ZIndex(index)
+                    if *self.z_index != *index => {
                         self.set_z_index(*index);
                         self.invalidate_layout();
                     }
-                }
                 WidgetMessage::SortChildren(predicate) => {
                     self.children
                         .sort_unstable_by(|a, b| predicate.0(*a, *b, ui));

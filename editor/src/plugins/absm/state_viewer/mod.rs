@@ -306,8 +306,8 @@ impl StateViewer {
 
                             sender.do_command(CommandGroup::from(commands));
                         }
-                        AbsmCanvasMessage::SelectionChanged(selection) => {
-                            if message.direction() == MessageDirection::FromWidget {
+                        AbsmCanvasMessage::SelectionChanged(selection)
+                            if message.direction() == MessageDirection::FromWidget => {
                                 let selection = Selection::new(AbsmSelection {
                                     absm_node_handle,
                                     layer: Some(layer_index),
@@ -331,7 +331,6 @@ impl StateViewer {
                                     sender.do_command(ChangeSelectionCommand::new(selection));
                                 }
                             }
-                        }
                         AbsmCanvasMessage::CommitConnection {
                             source_socket,
                             dest_socket,

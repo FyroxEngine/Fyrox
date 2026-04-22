@@ -192,8 +192,8 @@ where
             }
         } else if let Some(msg) = message.data_for::<AbsmNodeMessage>(self.handle) {
             match msg {
-                AbsmNodeMessage::InputSockets(input_sockets) => {
-                    if input_sockets != &self.base.input_sockets {
+                AbsmNodeMessage::InputSockets(input_sockets)
+                    if input_sockets != &self.base.input_sockets => {
                         for &child in ui[self.input_sockets_panel].children() {
                             ui.send(child, WidgetMessage::Remove);
                         }
@@ -204,21 +204,18 @@ where
 
                         self.base.input_sockets.clone_from(input_sockets);
                     }
-                }
-                AbsmNodeMessage::NormalBrush(color) => {
-                    if &self.normal_brush != color {
+                AbsmNodeMessage::NormalBrush(color)
+                    if &self.normal_brush != color => {
                         self.normal_brush = color.clone();
                         self.update_colors(ui);
                     }
-                }
-                AbsmNodeMessage::SelectedBrush(color) => {
-                    if &self.selected_brush != color {
+                AbsmNodeMessage::SelectedBrush(color)
+                    if &self.selected_brush != color => {
                         self.selected_brush = color.clone();
                         self.update_colors(ui);
                     }
-                }
-                AbsmNodeMessage::Name(name) => {
-                    if &self.name_value != name {
+                AbsmNodeMessage::Name(name)
+                    if &self.name_value != name => {
                         self.name_value.clone_from(name);
 
                         ui.send(
@@ -229,7 +226,6 @@ where
                             )),
                         );
                     }
-                }
                 AbsmNodeMessage::SetActive(active) => {
                     let (thickness, brush) = if *active {
                         (

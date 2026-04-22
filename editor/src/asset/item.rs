@@ -273,27 +273,23 @@ impl Control for AssetItem {
 
         if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
-                WidgetMessage::MouseDown { button, .. } => {
-                    if !message.handled() && !ui.keyboard_modifiers().alt {
-                        if let MouseButton::Left | MouseButton::Right = *button {
-                            message.set_handled(true);
-                            ui.send(self.handle(), AssetItemMessage::Select(true));
-                        }
-                    }
+                WidgetMessage::MouseDown {
+                    button: MouseButton::Left | MouseButton::Right,
+                    ..
+                } if !message.handled() && !ui.keyboard_modifiers().alt => {
+                    message.set_handled(true);
+                    ui.send(self.handle(), AssetItemMessage::Select(true));
                 }
-                WidgetMessage::DragOver(dropped) => {
+                WidgetMessage::DragOver(dropped)
                     if ui
                         .try_get_of_type::<AssetItem>(*dropped)
                         .ok()
-                        .is_some_and(|dropped| dropped.can_be_dropped_to(self))
-                    {
-                        ui.send(
-                            self.text_border,
-                            WidgetMessage::Foreground(
-                                ui.style.property(Self::TEXT_BORDER_DROP_BRUSH),
-                            ),
-                        );
-                    }
+                        .is_some_and(|dropped| dropped.can_be_dropped_to(self)) =>
+                {
+                    ui.send(
+                        self.text_border,
+                        WidgetMessage::Foreground(ui.style.property(Self::TEXT_BORDER_DROP_BRUSH)),
+                    );
                 }
                 WidgetMessage::MouseLeave => {
                     ui.send(
@@ -306,19 +302,15 @@ impl Control for AssetItem {
                 WidgetMessage::Drop(dropped) => {
                     self.try_post_move_to_message(ui, *dropped);
                 }
-                WidgetMessage::DoubleClick { button, .. } => {
-                    if *button == MouseButton::Left {
-                        self.open();
-                    }
+                WidgetMessage::DoubleClick { button, .. } if *button == MouseButton::Left => {
+                    self.open();
                 }
                 _ => {}
             }
         } else if let Some(msg) = message.data::<AssetItemMessage>() {
             match msg {
-                AssetItemMessage::Select(select) => {
-                    if message.destination() == self.handle() {
-                        self.set_selected(*select, ui);
-                    }
+                AssetItemMessage::Select(select) if message.destination() == self.handle() => {
+                    self.set_selected(*select, ui);
                 }
                 AssetItemMessage::Icon {
                     texture,

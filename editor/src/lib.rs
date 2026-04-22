@@ -3008,22 +3008,21 @@ impl Editor {
                                 self.focused = *focused;
                                 self.try_process_file_system_events();
                             }
-                            WindowEvent::Moved(new_position) => {
+                            WindowEvent::Moved(new_position)
                                 // Allow the window to go outside the screen bounds by a little. This
                                 // happens when the window is maximized.
-                                if new_position.x > -50 && new_position.y > -50 {
+                                if new_position.x > -50 && new_position.y > -50 => {
                                     self.settings.windows.window_position.x = new_position.x as f32;
                                     self.settings.windows.window_position.y = new_position.y as f32;
                                 }
-                            }
                             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                                 set_ui_scaling(
                                     self.engine.user_interfaces.first(),
                                     *scale_factor as f32,
                                 );
                             }
-                            WindowEvent::RedrawRequested => {
-                                if self.is_active() {
+                            WindowEvent::RedrawRequested
+                                if self.is_active() => {
                                     let entry = self.scenes.current_scene_entry_mut();
                                     entry
                                         .controller
@@ -3035,7 +3034,6 @@ impl Editor {
                                         .current_scene_controller_mut()
                                         .on_after_render(&mut self.engine);
                                 }
-                            }
                             _ => (),
                         }
 

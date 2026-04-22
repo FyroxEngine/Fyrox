@@ -789,15 +789,15 @@ impl SceneViewer {
                     WidgetMessage::MouseMove { pos, .. } => {
                         entry.on_mouse_move(pos, screen_bounds, engine, settings);
                     }
-                    WidgetMessage::KeyUp(key) => {
-                        if entry.on_key_up(key, engine, &settings.key_bindings) {
-                            message.set_handled(true);
-                        }
+                    WidgetMessage::KeyUp(key)
+                        if entry.on_key_up(key, engine, &settings.key_bindings) =>
+                    {
+                        message.set_handled(true);
                     }
-                    WidgetMessage::KeyDown(key) => {
-                        if entry.on_key_down(key, engine, &settings.key_bindings) {
-                            message.set_handled(true);
-                        }
+                    WidgetMessage::KeyDown(key)
+                        if entry.on_key_down(key, engine, &settings.key_bindings) =>
+                    {
+                        message.set_handled(true);
                     }
                     WidgetMessage::MouseEnter => {
                         entry.on_mouse_enter(screen_bounds, engine, settings);
@@ -816,18 +816,20 @@ impl SceneViewer {
             } else if message.destination() == self.scene_gizmo_image {
                 if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
                     match *msg {
-                        WidgetMessage::MouseDown { button, pos, .. } => {
-                            if button == MouseButton::Left {
-                                let rel_pos = pos - ui[self.scene_gizmo_image].screen_position();
-                                self.scene_gizmo.drag_context = Some(gizmo::DragContext {
-                                    initial_click_pos: rel_pos,
-                                    initial_rotation: gizmo::CameraRotation {
-                                        pitch: game_scene.camera_controller.pitch(),
-                                        yaw: game_scene.camera_controller.yaw(),
-                                    },
-                                });
-                                ui.capture_mouse(self.scene_gizmo_image);
-                            }
+                        WidgetMessage::MouseDown {
+                            button: MouseButton::Left,
+                            pos,
+                            ..
+                        } => {
+                            let rel_pos = pos - ui[self.scene_gizmo_image].screen_position();
+                            self.scene_gizmo.drag_context = Some(gizmo::DragContext {
+                                initial_click_pos: rel_pos,
+                                initial_rotation: gizmo::CameraRotation {
+                                    pitch: game_scene.camera_controller.pitch(),
+                                    yaw: game_scene.camera_controller.yaw(),
+                                },
+                            });
+                            ui.capture_mouse(self.scene_gizmo_image);
                         }
                         WidgetMessage::MouseUp { pos, button } => {
                             if button == MouseButton::Left {

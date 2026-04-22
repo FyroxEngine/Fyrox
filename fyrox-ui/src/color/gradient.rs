@@ -535,24 +535,22 @@ impl Control for ColorPoint {
             if message.direction() == MessageDirection::FromWidget {
                 if let Some(msg) = message.data::<WidgetMessage>() {
                     match msg {
-                        WidgetMessage::MouseDown { button, .. } => {
-                            if *button == MouseButton::Left {
+                        WidgetMessage::MouseDown { button, .. }
+                            if *button == MouseButton::Left => {
                                 ui.capture_mouse(self.handle);
 
                                 self.dragging = true;
                             }
-                        }
-                        WidgetMessage::MouseUp { button, .. } => {
-                            if *button == MouseButton::Left {
+                        WidgetMessage::MouseUp { button, .. }
+                            if *button == MouseButton::Left => {
                                 ui.release_mouse_capture();
 
                                 self.dragging = false;
 
                                 ui.post(self.handle, ColorPointMessage::Location(self.location));
                             }
-                        }
-                        WidgetMessage::MouseMove { pos, .. } => {
-                            if self.dragging {
+                        WidgetMessage::MouseMove { pos, .. }
+                            if self.dragging => {
                                 let parent_canvas = ui.node(self.parent);
 
                                 let cursor_x_local_to_parent =
@@ -564,7 +562,6 @@ impl Control for ColorPoint {
 
                                 self.invalidate_layout();
                             }
-                        }
                         _ => (),
                     }
                 }

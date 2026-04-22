@@ -560,8 +560,8 @@ impl Control for MenuItem {
                         }
                     }
                 }
-                WidgetMessage::MouseUp { .. } => {
-                    if !message.handled() {
+                WidgetMessage::MouseUp { .. }
+                    if !message.handled() => {
                         if self.items_container.is_empty() || *self.clickable_when_not_empty {
                             ui.post(self.handle(), MenuItemMessage::Click);
                         }
@@ -577,7 +577,6 @@ impl Control for MenuItem {
                         }
                         message.set_handled(true);
                     }
-                }
                 WidgetMessage::MouseEnter => {
                     // While parent menu active it is possible to open submenus
                     // by simple mouse hover.
@@ -595,19 +594,17 @@ impl Control for MenuItem {
                         ui.send(self.handle(), MenuItemMessage::Open);
                     }
                 }
-                WidgetMessage::MouseLeave => {
-                    if !self.is_opened(ui) {
+                WidgetMessage::MouseLeave
+                    if !self.is_opened(ui) => {
                         ui.send(self.handle, MenuItemMessage::Select(false));
                     }
-                }
-                WidgetMessage::KeyDown(key_code) => {
-                    if !message.handled() && *self.is_selected && *key_code == KeyCode::Enter {
+                WidgetMessage::KeyDown(key_code)
+                    if !message.handled() && *self.is_selected && *key_code == KeyCode::Enter => {
                         ui.post(self.handle, MenuItemMessage::Click);
                         let menu = find_menu(self.parent(), ui);
                         ui.send(menu, MenuMessage::Deactivate);
                         message.set_handled(true);
                     }
-                }
                 _ => {}
             }
         } else if let Some(msg) = message.data_for::<MenuItemMessage>(self.handle) {

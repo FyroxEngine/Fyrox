@@ -225,8 +225,8 @@ fn apply_tag(
     font: &FontResource,
 ) {
     match (label, argument) {
-        ("i", None) => {
-            if font.is_ok() {
+        ("i", None)
+            if font.is_ok() => {
                 let font = font.data_ref();
                 update_font(
                     runs,
@@ -236,9 +236,8 @@ fn apply_tag(
                     font.bold_italic.as_ref(),
                 );
             }
-        }
-        ("b", None) => {
-            if font.is_ok() {
+        ("b", None)
+            if font.is_ok() => {
                 let font = font.data_ref();
                 update_font(
                     runs,
@@ -248,7 +247,6 @@ fn apply_tag(
                     font.bold_italic.as_ref(),
                 );
             }
-        }
         ("size" | "s", Some(size)) => {
             if let Ok(size) = size.parse() {
                 runs.push(Run::new(range).with_size(size));

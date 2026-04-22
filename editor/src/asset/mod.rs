@@ -606,7 +606,7 @@ impl AssetBrowser {
         resources.sort();
 
         // Generate items.
-        for path in folders.into_iter().chain(resources.into_iter()) {
+        for path in folders.into_iter().chain(resources) {
             let asset_item = self.add_asset(&path, ui, resource_manager, message_sender);
 
             if let Some(item_to_select) = item_to_select.as_ref() {
@@ -691,11 +691,10 @@ impl AssetBrowser {
         if let Some(msg) = message.data::<AssetItemMessage>() {
             let asset_item = message.destination();
             match msg {
-                AssetItemMessage::Select(true) => {
-                    if ui.has_descendant_or_equal(asset_item, self.content_panel) {
+                AssetItemMessage::Select(true)
+                    if ui.has_descendant_or_equal(asset_item, self.content_panel) => {
                         self.on_asset_selected(asset_item, sender.clone(), entry, engine);
                     }
-                }
                 AssetItemMessage::MoveTo {
                     src_item_path,
                     dest_dir,

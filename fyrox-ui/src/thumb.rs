@@ -130,8 +130,8 @@ impl Control for Thumb {
 
         if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
-                WidgetMessage::MouseDown { pos, button } => {
-                    if !message.handled() && *button == MouseButton::Left {
+                WidgetMessage::MouseDown { pos, button }
+                    if !message.handled() && *button == MouseButton::Left => {
                         ui.capture_mouse(self.handle);
                         message.set_handled(true);
                         self.click_pos = *pos;
@@ -142,9 +142,8 @@ impl Control for Thumb {
                             },
                         );
                     }
-                }
-                WidgetMessage::MouseUp { button, .. } => {
-                    if ui.captured_node() == self.handle && *button == MouseButton::Left {
+                WidgetMessage::MouseUp { button, .. }
+                    if ui.captured_node() == self.handle && *button == MouseButton::Left => {
                         ui.post(
                             self.handle,
                             ThumbMessage::DragCompleted {
@@ -154,9 +153,8 @@ impl Control for Thumb {
 
                         ui.release_mouse_capture();
                     }
-                }
-                WidgetMessage::MouseMove { pos, state } => {
-                    if ui.captured_node() == self.handle && state.left == ButtonState::Pressed {
+                WidgetMessage::MouseMove { pos, state }
+                    if ui.captured_node() == self.handle && state.left == ButtonState::Pressed => {
                         ui.post(
                             self.handle,
                             ThumbMessage::DragDelta {
@@ -168,7 +166,6 @@ impl Control for Thumb {
                             },
                         );
                     }
-                }
                 _ => (),
             }
         }

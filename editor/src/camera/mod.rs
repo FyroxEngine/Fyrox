@@ -457,8 +457,8 @@ impl CameraController {
         let is_perspective = graph[self.camera].projection().is_perspective();
 
         match button {
-            MouseButton::Right => {
-                if is_perspective {
+            MouseButton::Right
+                if is_perspective => {
                     if modifiers.shift {
                         self.mouse_control_mode = MouseControlMode::Drag {
                             initial_position: self.position(graph),
@@ -472,7 +472,6 @@ impl CameraController {
                         self.z_offset = 0.0;
                     }
                 }
-            }
             MouseButton::Middle => {
                 if is_perspective {
                     self.mouse_control_mode = MouseControlMode::OrbitalRotation;

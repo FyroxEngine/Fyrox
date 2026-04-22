@@ -422,17 +422,16 @@ impl<T: NumericType> Control for NumericUpDown<T> {
             }
         } else if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
-                WidgetMessage::MouseDown { button, pos, .. } => {
+                WidgetMessage::MouseDown { button, pos, .. }
                     // We can activate dragging either by clicking on increase or decrease buttons.
                     if *button == MouseButton::Left
                         && (ui[*self.increase].has_descendant(message.destination(), ui)
                             || ui[*self.decrease].has_descendant(message.destination(), ui))
-                    {
+                    => {
                         self.drag_context = Some(DragContext::PreDrag {
                             start_mouse_pos: pos.y,
                         });
                     }
-                }
                 WidgetMessage::MouseMove { pos, .. } => {
                     if let Some(drag_context) = self.drag_context.as_ref() {
                         match drag_context {

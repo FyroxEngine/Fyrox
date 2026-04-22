@@ -1240,8 +1240,8 @@ impl Control for TextBox {
                         // others are used directly to enter text.
                         message.set_handled(true);
                     }
-                    WidgetMessage::Focus => {
-                        if message.direction() == MessageDirection::FromWidget {
+                    WidgetMessage::Focus
+                        if message.direction() == MessageDirection::FromWidget => {
                             self.reset_blink();
                             self.has_focus = true;
                             let end = self.end_position();
@@ -1261,9 +1261,8 @@ impl Control for TextBox {
                                     .extend_from_slice(self.formatted_text.borrow().get_raw_text());
                             }
                         }
-                    }
-                    WidgetMessage::Unfocus => {
-                        if message.direction() == MessageDirection::FromWidget {
+                    WidgetMessage::Unfocus
+                        if message.direction() == MessageDirection::FromWidget => {
                             self.selection_range.set_value_and_mark_modified(None);
                             self.invalidate_visual();
                             self.has_focus = false;
@@ -1283,9 +1282,8 @@ impl Control for TextBox {
                             self.recent.clear();
                             self.recent.shrink_to(0);
                         }
-                    }
-                    WidgetMessage::MouseDown { pos, button } => {
-                        if *button == MouseButton::Left {
+                    WidgetMessage::MouseDown { pos, button }
+                        if *button == MouseButton::Left => {
                             let select = ui.keyboard_modifiers().shift;
                             if !select {
                                 self.selection_range.set_value_and_mark_modified(None);
@@ -1301,7 +1299,6 @@ impl Control for TextBox {
 
                             ui.capture_mouse(self.handle());
                         }
-                    }
                     WidgetMessage::DoubleClick {
                         button: MouseButton::Left,
                     } => {
@@ -1311,13 +1308,12 @@ impl Control for TextBox {
                             }
                         }
                     }
-                    WidgetMessage::MouseMove { pos, .. } => {
-                        if self.selecting {
+                    WidgetMessage::MouseMove { pos, .. }
+                        if self.selecting => {
                             if let Some(position) = self.screen_pos_to_text_pos(*pos) {
                                 self.move_caret(position, true);
                             }
                         }
-                    }
                     WidgetMessage::MouseUp { .. } => {
                         self.selecting = false;
                         ui.release_mouse_capture();

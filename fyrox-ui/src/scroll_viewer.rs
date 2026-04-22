@@ -273,8 +273,8 @@ impl Control for ScrollViewer {
         } else if let Some(msg) = message.data::<ScrollBarMessage>() {
             if message.direction() == MessageDirection::FromWidget {
                 match msg {
-                    ScrollBarMessage::Value(new_value) => {
-                        if !message.handled() {
+                    ScrollBarMessage::Value(new_value)
+                        if !message.handled() => {
                             if message.destination() == self.v_scroll_bar
                                 && self.v_scroll_bar.is_some()
                             {
@@ -291,7 +291,6 @@ impl Control for ScrollViewer {
                                 );
                             }
                         }
-                    }
                     &ScrollBarMessage::MaxValue(_) => {
                         if message.destination() == self.v_scroll_bar && self.v_scroll_bar.is_some()
                         {

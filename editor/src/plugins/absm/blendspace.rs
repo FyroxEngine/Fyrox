@@ -373,8 +373,8 @@ impl Control for BlendSpaceField {
 
         if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
-                WidgetMessage::MouseDown { button, .. } => {
-                    if *button == MouseButton::Left {
+                WidgetMessage::MouseDown { button, .. }
+                    if *button == MouseButton::Left => {
                         if let Some(pos) =
                             self.points.iter().position(|p| message.destination() == *p)
                         {
@@ -387,7 +387,6 @@ impl Control for BlendSpaceField {
 
                         ui.capture_mouse(self.handle);
                     }
-                }
                 WidgetMessage::MouseUp { button, pos, .. } => {
                     if let Some(drag_context) = self.drag_context.take() {
                         if *button == MouseButton::Left {
@@ -894,10 +893,10 @@ impl BlendSpaceEditor {
                     if message.destination() == self.field {
                         if let Some(msg) = message.data::<BlendSpaceFieldMessage>() {
                             match *msg {
-                                BlendSpaceFieldMessage::SamplingPoint(point) => {
+                                BlendSpaceFieldMessage::SamplingPoint(point)
                                     if is_preview_mode_active
                                         && message.direction() == MessageDirection::FromWidget
-                                    {
+                                    => {
                                         let param = blend_space.sampling_parameter().to_string();
                                         if let Some(Parameter::SamplingPoint(param)) =
                                             machine.parameters_mut().get_mut(&param)
@@ -905,7 +904,6 @@ impl BlendSpaceEditor {
                                             *param = point;
                                         }
                                     }
-                                }
                                 BlendSpaceFieldMessage::MovePoint { index, position } => {
                                     sender.do_command(SetBlendSpacePointPositionCommand {
                                         node_handle: selection.absm_node_handle,

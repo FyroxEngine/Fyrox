@@ -721,22 +721,20 @@ impl NodeTrait for Collider {
                     }
                 }
             }
-            ColliderShape::Heightfield(heightfield) => {
-                if !scene.graph.is_valid_handle(heightfield.geometry_source.0) {
+            ColliderShape::Heightfield(heightfield)
+                if !scene.graph.is_valid_handle(heightfield.geometry_source.0) => {
                     message += &format!(
                         "Heightfield shape data handle {} is invalid!",
                         heightfield.geometry_source.0
                     );
                 }
-            }
-            ColliderShape::TileMap(tile_map) => {
-                if !scene.graph.is_valid_handle(tile_map.tile_map.0) {
+            ColliderShape::TileMap(tile_map)
+                if !scene.graph.is_valid_handle(tile_map.tile_map.0) => {
                     message += &format!(
                         "Tile map shape data handle {} is invalid!",
                         tile_map.tile_map.0
                     );
                 }
-            }
             _ => (),
         }
 

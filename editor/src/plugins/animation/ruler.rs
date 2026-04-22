@@ -322,8 +322,8 @@ impl Control for Ruler {
         } else if let Some(msg) = message.data::<WidgetMessage>() {
             if message.direction() == MessageDirection::FromWidget {
                 match msg {
-                    WidgetMessage::MouseDown { pos, button } => {
-                        if *button == MouseButton::Left {
+                    WidgetMessage::MouseDown { pos, button }
+                        if *button == MouseButton::Left => {
                             ui.capture_mouse(self.handle);
 
                             for signal in self.signals.borrow_mut().iter_mut() {
@@ -354,9 +354,8 @@ impl Control for Ruler {
                                 });
                             }
                         }
-                    }
-                    WidgetMessage::MouseUp { button, pos } => {
-                        if *button == MouseButton::Left {
+                    WidgetMessage::MouseUp { button, pos }
+                        if *button == MouseButton::Left => {
                             ui.release_mouse_capture();
 
                             if let Some(drag_context) = self.drag_context.take() {
@@ -379,7 +378,6 @@ impl Control for Ruler {
                                 }
                             }
                         }
-                    }
                     WidgetMessage::MouseMove { pos, .. } => {
                         if let Some(drag_context) = self.drag_context.as_ref() {
                             match drag_context.entity {

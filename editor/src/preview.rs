@@ -326,15 +326,14 @@ impl PreviewPanel {
                         self.mode = Mode::Move;
                     }
                 }
-                WidgetMessage::MouseUp { button, .. } => {
+                WidgetMessage::MouseUp { button, .. }
                     if (button == MouseButton::Left || button == MouseButton::Middle)
                         && self.mode != Mode::None
                         && !message.handled()
-                    {
+                    => {
                         engine.user_interfaces.first_mut().release_mouse_capture();
                         self.mode = Mode::None;
                     }
-                }
                 WidgetMessage::MouseWheel { amount, .. } => {
                     let step = 0.1;
                     let k = 1.0 - amount.signum() * step;

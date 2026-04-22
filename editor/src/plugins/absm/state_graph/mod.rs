@@ -182,8 +182,8 @@ impl StateGraphViewer {
                     AbsmCanvasMessage::CommitTransition {
                         source_node,
                         dest_node,
-                    } => {
-                        if message.direction() == MessageDirection::FromWidget {
+                    }
+                        if message.direction() == MessageDirection::FromWidget => {
                             let source = fetch_state_node_model_handle(*source_node, ui);
                             let dest = fetch_state_node_model_handle(*dest_node, ui);
                             sender.do_command(AddTransitionCommand::new(
@@ -192,7 +192,6 @@ impl StateGraphViewer {
                                 Transition::new("Transition", source, dest, 1.0, ""),
                             ));
                         }
-                    }
                     AbsmCanvasMessage::CommitDrag { entries } => {
                         let commands = entries
                             .iter()
@@ -212,8 +211,8 @@ impl StateGraphViewer {
 
                         sender.do_command(CommandGroup::from(commands));
                     }
-                    AbsmCanvasMessage::SelectionChanged(selection) => {
-                        if message.direction() == MessageDirection::FromWidget {
+                    AbsmCanvasMessage::SelectionChanged(selection)
+                        if message.direction() == MessageDirection::FromWidget => {
                             let selection = Selection::new(AbsmSelection {
                                 absm_node_handle,
                                 layer: Some(layer_index),
@@ -243,12 +242,11 @@ impl StateGraphViewer {
                                 sender.do_command(ChangeSelectionCommand::new(selection));
                             }
                         }
-                    }
                     AbsmCanvasMessage::CommitTransitionToAllNodes {
                         source_node,
                         dest_nodes,
-                    } => {
-                        if message.direction() == MessageDirection::FromWidget {
+                    }
+                        if message.direction() == MessageDirection::FromWidget => {
                             let source = fetch_state_node_model_handle(*source_node, ui);
                             let commands = dest_nodes
                                 .iter()
@@ -264,7 +262,6 @@ impl StateGraphViewer {
 
                             sender.do_command(CommandGroup::from(commands));
                         }
-                    }
                     _ => (),
                 }
             }

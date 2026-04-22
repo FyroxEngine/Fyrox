@@ -1043,12 +1043,9 @@ impl ResourceManagerState {
     /// only on external resources, or if your game doing some heavy calculations this value
     /// can be combined with progress of your tasks.
     pub fn loading_progress(&self) -> usize {
-        let registered = self.count_registered_resources();
-        if registered > 0 {
-            self.count_loaded_resources() * 100 / registered
-        } else {
-            100
-        }
+        (self.count_loaded_resources() * 100)
+            .checked_div(self.count_registered_resources())
+            .unwrap_or(100)
     }
 
     fn try_get_event(&self) -> Option<Event> {

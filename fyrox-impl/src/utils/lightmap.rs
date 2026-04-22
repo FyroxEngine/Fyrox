@@ -272,12 +272,9 @@ pub struct ProgressData {
 impl ProgressData {
     /// Returns progress percentage in [0; 100] range.
     pub fn progress_percent(&self) -> u32 {
-        let iterations = self.max_iterations.load(atomic::Ordering::SeqCst);
-        if iterations > 0 {
-            self.progress.load(atomic::Ordering::SeqCst) * 100 / iterations
-        } else {
-            0
-        }
+        (self.progress.load(atomic::Ordering::SeqCst) * 100)
+            .checked_div(self.max_iterations.load(atomic::Ordering::SeqCst))
+            .unwrap_or(0)
     }
 
     /// Returns current stage.

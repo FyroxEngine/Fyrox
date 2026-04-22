@@ -465,8 +465,8 @@ impl Control for Tree {
                             }
                         }
                     }
-                    WidgetMessage::DoubleClick { button } => {
-                        if *button == MouseButton::Left {
+                    WidgetMessage::DoubleClick { button }
+                        if *button == MouseButton::Left => {
                             // Mimic click on expander button to have uniform behavior.
                             ui.send(
                                 self.expander,
@@ -475,7 +475,6 @@ impl Control for Tree {
 
                             message.set_handled(true);
                         }
-                    }
                     _ => (),
                 }
             }
