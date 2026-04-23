@@ -1905,6 +1905,8 @@ impl Engine {
                 .collect::<VecDeque<_>>();
 
             while let Some(ui) = uis.pop_front() {
+                let mut processed_messages = 0;
+
                 while let Some(message) = self
                     .user_interfaces
                     .try_get_mut(ui)
@@ -1935,6 +1937,17 @@ impl Engine {
                             plugin.on_ui_message(&mut context, &message, ui),
                             &mut self.error_queue,
                         );
+                    }
+
+                    processed_messages += 1;
+
+                    if processed_messages >= 8192 {
+                        warn!(
+                            "Potential infinite message loop detected \
+                            while processing message:\n{message:?}\nfrom {ui} user interface!\n\
+                            Consider sending a message via send_sync to break the loop."
+                        );
+                        break;
                     }
                 }
             }
