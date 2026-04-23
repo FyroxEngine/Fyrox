@@ -22,8 +22,9 @@
 
 use crate::{
     core::{
-        log::Log,
+        info,
         notify::{self, EventKind, RecommendedWatcher, RecursiveMode, Watcher},
+        warn,
     },
     plugin::{DynamicPlugin, Plugin},
 };
@@ -128,30 +129,44 @@ impl DyLibDynamicPlugin {
     where
         P: AsRef<Path> + 'static,
     {
+        let path = path.as_ref();
+
+        info!(
+            "Trying to create a new dylib plugin at {} path...",
+            path.display()
+        );
+
+        let current_exe = std::env::current_exe().map_err(|e| e.to_string())?;
+
         let source_lib_path = if use_relative_paths {
-            let exe_folder = std::env::current_exe()
-                .map_err(|e| e.to_string())?
+            let exe_folder = current_exe
                 .parent()
                 .map(|p| p.to_path_buf())
                 .unwrap_or_default();
 
-            exe_folder.join(path.as_ref())
+            exe_folder.join(path)
         } else {
-            path.as_ref().to_path_buf()
+            path.to_path_buf()
         };
 
         let plugin = if reload_when_changed {
+            info!(
+                "Trying to set up file system watcher for {} dylib...",
+                source_lib_path.display()
+            );
+
             // Make sure each process will its own copy of the module. This is needed to prevent
             // issues when there are two or more running processes and a library of the plugin
             // changes. If the library is present in one instance in both (or more) processes, then
             // it is impossible to replace it on disk. To prevent this, we need to add a suffix with
             // executable name.
-            let mut suffix = std::env::current_exe()
-                .ok()
-                .and_then(|p| p.file_stem().map(|s| s.to_owned()))
+            let mut suffix = current_exe
+                .file_stem()
+                .map(|s| s.to_owned())
                 .unwrap_or_default();
             suffix.push(".module");
             let lib_path = source_lib_path.with_extension(suffix);
+
             try_copy_library(&source_lib_path, &lib_path)?;
 
             let need_reload = Arc::new(AtomicBool::new(false));
@@ -164,10 +179,10 @@ impl DyLibDynamicPlugin {
                         if let EventKind::Modify(_) | EventKind::Create(_) = event.kind {
                             need_reload_clone.store(true, atomic::Ordering::Relaxed);
 
-                            Log::warn(format!(
+                            warn!(
                                 "Plugin {} was changed. Performing hot reloading...",
                                 source_lib_path_clone.display()
-                            ))
+                            )
                         }
                     }
                 })
@@ -177,9 +192,7 @@ impl DyLibDynamicPlugin {
                 .watch(&source_lib_path, RecursiveMode::NonRecursive)
                 .map_err(|e| e.to_string())?;
 
-            Log::info(format!(
-                "Watching for changes in plugin {source_lib_path:?}..."
-            ));
+            info!("Watching for changes in plugin {source_lib_path:?}...");
 
             DyLibDynamicPlugin {
                 state: PluginState::Loaded(DyLibHandle::load(lib_path.as_os_str())?),
@@ -233,20 +246,20 @@ impl DynamicPlugin for DyLibDynamicPlugin {
 
         self.state = PluginState::Unloaded;
 
-        Log::info(format!(
+        info!(
             "Plugin {:?} was unloaded successfully!",
             self.source_lib_path
-        ));
+        );
 
         // Replace the module.
         try_copy_library(&self.source_lib_path, &self.lib_path)?;
 
-        Log::info(format!(
+        info!(
             "{:?} plugin's module {} was successfully cloned to {}.",
             self.source_lib_path,
             self.source_lib_path.display(),
             self.lib_path.display()
-        ));
+        );
 
         let mut dynamic = DyLibHandle::load(&self.lib_path)?;
 
@@ -256,10 +269,10 @@ impl DynamicPlugin for DyLibDynamicPlugin {
 
         self.need_reload.store(false, atomic::Ordering::Relaxed);
 
-        Log::info(format!(
+        info!(
             "Plugin {:?} was reloaded successfully!",
             self.source_lib_path
-        ));
+        );
 
         Ok(())
     }
@@ -296,6 +309,12 @@ impl PluginState {
 }
 
 fn try_copy_library(source_lib_path: &Path, lib_path: &Path) -> Result<(), String> {
+    info!(
+        "Trying to copy {} dylib to {} path...",
+        source_lib_path.display(),
+        lib_path.display()
+    );
+
     if let Err(err) = std::fs::copy(source_lib_path, lib_path) {
         // The library could already be copied and loaded, thus cannot be replaced. For
         // example - by the running editor, that also uses hot reloading. Check for matching
