@@ -86,8 +86,10 @@ pub struct GridDimension {
     pub desired_size: f32,
     /// Measured size of the dimension. It could be considered as "output" parameter of the dimension
     /// that will be filled after measurement layout step. It is used to calculate the grid's desired size.
+    #[reflect(read_only)]
     pub actual_size: f32,
     /// Local position along the axis of the dimension after arrangement step.
+    #[reflect(hidden)]
     pub location: f32,
     /// The number of children in this dimension that still need to be measured before the size is known.
     /// For Auto rows and columns, this is initially the number of nodes in that row or column,
