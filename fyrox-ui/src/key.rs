@@ -256,30 +256,28 @@ impl Control for HotKeyEditor {
                                 | KeyCode::ShiftRight
                                 | KeyCode::AltLeft
                                 | KeyCode::AltRight
-                        )
-                    => {
-                        ui.send(
-                            self.handle,
-                            HotKeyEditorMessage::Value(HotKey::Some {
-                                code: *key,
-                                modifiers: ui.keyboard_modifiers,
-                            }),
-                        );
+                        ) =>
+                {
+                    ui.send(
+                        self.handle,
+                        HotKeyEditorMessage::Value(HotKey::Some {
+                            code: *key,
+                            modifiers: ui.keyboard_modifiers,
+                        }),
+                    );
 
-                        message.set_handled(true);
-                    }
-                WidgetMessage::MouseDown { button, .. }
-                    if *button == MouseButton::Left => {
-                        if *self.editing {
-                            self.set_editing(false, ui);
-                        } else {
-                            self.set_editing(true, ui);
-                        }
-                    }
-                WidgetMessage::Unfocus
-                    if *self.editing => {
+                    message.set_handled(true);
+                }
+                WidgetMessage::MouseDown { button, .. } if *button == MouseButton::Left => {
+                    if *self.editing {
                         self.set_editing(false, ui);
+                    } else {
+                        self.set_editing(true, ui);
                     }
+                }
+                WidgetMessage::Unfocus if *self.editing => {
+                    self.set_editing(false, ui);
+                }
                 _ => (),
             }
         }
@@ -467,18 +465,16 @@ impl Control for KeyBindingEditor {
 
                     message.set_handled(true);
                 }
-                WidgetMessage::MouseDown { button, .. }
-                    if *button == MouseButton::Left => {
-                        if *self.editing {
-                            self.set_editing(false, ui);
-                        } else {
-                            self.set_editing(true, ui);
-                        }
-                    }
-                WidgetMessage::Unfocus
-                    if *self.editing => {
+                WidgetMessage::MouseDown { button, .. } if *button == MouseButton::Left => {
+                    if *self.editing {
                         self.set_editing(false, ui);
+                    } else {
+                        self.set_editing(true, ui);
                     }
+                }
+                WidgetMessage::Unfocus if *self.editing => {
+                    self.set_editing(false, ui);
+                }
                 _ => (),
             }
         }

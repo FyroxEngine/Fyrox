@@ -105,16 +105,17 @@ impl FbxScene {
                         nodes,
                     )?));
                 }
-                "Video"
-                    if object.get_attrib(2)?.as_string() == "Clip" => {
-                        component_handle = components
-                            .spawn(FbxComponent::Video(FbxVideo::read(*object_handle, nodes)?));
-                    }
+                "Video" if object.get_attrib(2)?.as_string() == "Clip" => {
+                    component_handle = components
+                        .spawn(FbxComponent::Video(FbxVideo::read(*object_handle, nodes)?));
+                }
                 "NodeAttribute"
-                    if object.attrib_count() > 2 && object.get_attrib(2)?.as_string() == "Light" => {
-                        component_handle = components
-                            .spawn(FbxComponent::Light(FbxLight::read(*object_handle, nodes)?));
-                    }
+                    if object.attrib_count() > 2
+                        && object.get_attrib(2)?.as_string() == "Light" =>
+                {
+                    component_handle = components
+                        .spawn(FbxComponent::Light(FbxLight::read(*object_handle, nodes)?));
+                }
                 "AnimationCurve" => {
                     component_handle = components.spawn(FbxComponent::AnimationCurve(
                         FbxAnimationCurve::read(*object_handle, nodes)?,

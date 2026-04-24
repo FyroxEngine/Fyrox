@@ -2289,129 +2289,129 @@ impl UserInterface {
             match msg {
                 WidgetMessage::Focus
                     if self.nodes.is_valid_handle(message.destination())
-                        && message.direction() == MessageDirection::ToWidget
-                    => {
-                        self.request_focus(message.destination());
-                    }
+                        && message.direction() == MessageDirection::ToWidget =>
+                {
+                    self.request_focus(message.destination());
+                }
                 WidgetMessage::Unfocus
                     if self.nodes.is_valid_handle(message.destination())
-                        && message.direction() == MessageDirection::ToWidget
-                    => {
-                        self.request_focus(self.root_canvas);
-                    }
-                WidgetMessage::Topmost
-                    if self.nodes.is_valid_handle(message.destination()) => {
-                        self.make_topmost(message.destination());
-                    }
-                WidgetMessage::Lowermost
-                    if self.nodes.is_valid_handle(message.destination()) => {
-                        self.make_lowermost(message.destination());
-                    }
-                WidgetMessage::Unlink
-                    if self.nodes.is_valid_handle(message.destination()) => {
-                        self.unlink_node(message.destination());
+                        && message.direction() == MessageDirection::ToWidget =>
+                {
+                    self.request_focus(self.root_canvas);
+                }
+                WidgetMessage::Topmost if self.nodes.is_valid_handle(message.destination()) => {
+                    self.make_topmost(message.destination());
+                }
+                WidgetMessage::Lowermost if self.nodes.is_valid_handle(message.destination()) => {
+                    self.make_lowermost(message.destination());
+                }
+                WidgetMessage::Unlink if self.nodes.is_valid_handle(message.destination()) => {
+                    self.unlink_node(message.destination());
 
-                        let node = &self.nodes[message.destination()];
-                        let new_position = self.screen_to_root_canvas_space(node.screen_position());
-                        self.send(
-                            message.destination(),
-                            WidgetMessage::DesiredPosition(new_position),
-                        );
-                    }
+                    let node = &self.nodes[message.destination()];
+                    let new_position = self.screen_to_root_canvas_space(node.screen_position());
+                    self.send(
+                        message.destination(),
+                        WidgetMessage::DesiredPosition(new_position),
+                    );
+                }
                 &WidgetMessage::LinkWith(parent)
                     if self.nodes.is_valid_handle(message.destination())
-                        && self.nodes.is_valid_handle(parent)
-                    => {
-                        self.link_nodes(message.destination(), parent, false);
-                    }
+                        && self.nodes.is_valid_handle(parent) =>
+                {
+                    self.link_nodes(message.destination(), parent, false);
+                }
                 &WidgetMessage::LinkWithReverse(parent)
                     if self.nodes.is_valid_handle(message.destination())
-                        && self.nodes.is_valid_handle(parent)
-                    => {
-                        self.link_nodes(message.destination(), parent, true);
-                    }
+                        && self.nodes.is_valid_handle(parent) =>
+                {
+                    self.link_nodes(message.destination(), parent, true);
+                }
                 WidgetMessage::ReplaceChildren(children)
-                    if self.nodes.is_valid_handle(message.destination()) => {
-                        let old_children = self.node(message.destination()).children().to_vec();
-                        for child in old_children.iter() {
-                            if self.nodes.is_valid_handle(*child) {
-                                if children.contains(child) {
-                                    self.unlink_node(*child);
-                                } else {
-                                    self.remove_node(*child);
-                                }
-                            }
-                        }
-                        for &child in children.iter() {
-                            if self.nodes.is_valid_handle(child) {
-                                self.link_nodes(child, message.destination(), false);
+                    if self.nodes.is_valid_handle(message.destination()) =>
+                {
+                    let old_children = self.node(message.destination()).children().to_vec();
+                    for child in old_children.iter() {
+                        if self.nodes.is_valid_handle(*child) {
+                            if children.contains(child) {
+                                self.unlink_node(*child);
+                            } else {
+                                self.remove_node(*child);
                             }
                         }
                     }
-                WidgetMessage::Remove
-                    if self.nodes.is_valid_handle(message.destination()) => {
-                        self.remove_node(message.destination());
+                    for &child in children.iter() {
+                        if self.nodes.is_valid_handle(child) {
+                            self.link_nodes(child, message.destination(), false);
+                        }
                     }
+                }
+                WidgetMessage::Remove if self.nodes.is_valid_handle(message.destination()) => {
+                    self.remove_node(message.destination());
+                }
                 WidgetMessage::ContextMenu(context_menu)
-                    if self.nodes.is_valid_handle(message.destination()) => {
-                        let node = self.nodes.borrow_mut(message.destination());
-                        node.set_context_menu(context_menu.clone());
-                    }
+                    if self.nodes.is_valid_handle(message.destination()) =>
+                {
+                    let node = self.nodes.borrow_mut(message.destination());
+                    node.set_context_menu(context_menu.clone());
+                }
                 WidgetMessage::Tooltip(tooltip)
-                    if self.nodes.is_valid_handle(message.destination()) => {
-                        let node = self.nodes.borrow_mut(message.destination());
-                        node.set_tooltip(tooltip.clone());
-                    }
-                WidgetMessage::Center
-                    if self.nodes.is_valid_handle(message.destination()) => {
-                        let node = self.node(message.destination());
-                        let size = node.actual_initial_size();
-                        let parent = node.parent();
-                        let parent_size = if parent.is_some() {
-                            self.node(parent).actual_initial_size()
-                        } else {
-                            self.screen_size
-                        };
+                    if self.nodes.is_valid_handle(message.destination()) =>
+                {
+                    let node = self.nodes.borrow_mut(message.destination());
+                    node.set_tooltip(tooltip.clone());
+                }
+                WidgetMessage::Center if self.nodes.is_valid_handle(message.destination()) => {
+                    let node = self.node(message.destination());
+                    let size = node.actual_initial_size();
+                    let parent = node.parent();
+                    let parent_size = if parent.is_some() {
+                        self.node(parent).actual_initial_size()
+                    } else {
+                        self.screen_size
+                    };
 
-                        self.send(
-                            message.destination(),
-                            WidgetMessage::DesiredPosition((parent_size - size).scale(0.5)),
-                        );
-                    }
+                    self.send(
+                        message.destination(),
+                        WidgetMessage::DesiredPosition((parent_size - size).scale(0.5)),
+                    );
+                }
                 WidgetMessage::RenderTransform(_)
-                    if self.nodes.is_valid_handle(message.destination()) => {
-                        self.update_visual_transform(message.destination());
-                    }
+                    if self.nodes.is_valid_handle(message.destination()) =>
+                {
+                    self.update_visual_transform(message.destination());
+                }
                 WidgetMessage::AdjustPositionToFit
-                    if self.nodes.is_valid_handle(message.destination()) => {
-                        let node = self.node(message.destination());
-                        let mut position = node.actual_local_position();
-                        let size = node.actual_initial_size();
-                        let parent = node.parent();
-                        let parent_size = if parent.is_some() {
-                            self.node(parent).actual_initial_size()
-                        } else {
-                            self.screen_size
-                        };
+                    if self.nodes.is_valid_handle(message.destination()) =>
+                {
+                    let node = self.node(message.destination());
+                    let mut position = node.actual_local_position();
+                    let size = node.actual_initial_size();
+                    let parent = node.parent();
+                    let parent_size = if parent.is_some() {
+                        self.node(parent).actual_initial_size()
+                    } else {
+                        self.screen_size
+                    };
 
-                        if position.x < 0.0 {
-                            position.x = 0.0;
-                        }
-                        if position.x + size.x > parent_size.x {
-                            position.x -= (position.x + size.x) - parent_size.x;
-                        }
-                        if position.y < 0.0 {
-                            position.y = 0.0;
-                        }
-                        if position.y + size.y > parent_size.y {
-                            position.y -= (position.y + size.y) - parent_size.y;
-                        }
-
-                        self.send(
-                            message.destination(),
-                            WidgetMessage::DesiredPosition(position),
-                        );
+                    if position.x < 0.0 {
+                        position.x = 0.0;
                     }
+                    if position.x + size.x > parent_size.x {
+                        position.x -= (position.x + size.x) - parent_size.x;
+                    }
+                    if position.y < 0.0 {
+                        position.y = 0.0;
+                    }
+                    if position.y + size.y > parent_size.y {
+                        position.y -= (position.y + size.y) - parent_size.y;
+                    }
+
+                    self.send(
+                        message.destination(),
+                        WidgetMessage::DesiredPosition(position),
+                    );
+                }
                 WidgetMessage::Align {
                     relative_to,
                     horizontal_alignment,
@@ -2488,38 +2488,36 @@ impl UserInterface {
                     }
                 }
                 WidgetMessage::MouseUp { button, .. }
-                    if *button == MouseButton::Right && !message.handled() => {
-                        if let Ok(picked) = self.nodes.try_borrow(self.picked_node) {
-                            // Get the context menu from the current node or a parent node
-                            let (context_menu, target) = if picked.context_menu().is_some() {
-                                (picked.context_menu(), self.picked_node)
+                    if *button == MouseButton::Right && !message.handled() =>
+                {
+                    if let Ok(picked) = self.nodes.try_borrow(self.picked_node) {
+                        // Get the context menu from the current node or a parent node
+                        let (context_menu, target) = if picked.context_menu().is_some() {
+                            (picked.context_menu(), self.picked_node)
+                        } else {
+                            let parent_handle =
+                                picked.find_by_criteria_up(self, |n| n.context_menu().is_some());
+
+                            if let Ok(parent) = self.nodes.try_borrow(parent_handle) {
+                                (parent.context_menu(), parent_handle)
                             } else {
-                                let parent_handle = picked
-                                    .find_by_criteria_up(self, |n| n.context_menu().is_some());
-
-                                if let Ok(parent) = self.nodes.try_borrow(parent_handle) {
-                                    (parent.context_menu(), parent_handle)
-                                } else {
-                                    (None, Handle::NONE)
-                                }
-                            };
-
-                            // Display context menu
-                            if let Some(context_menu) = context_menu {
-                                self.send(
-                                    context_menu.handle(),
-                                    PopupMessage::Placement(Placement::Cursor(target)),
-                                );
-                                self.send(context_menu.handle(), PopupMessage::Open);
-                                // Send Event messages to the widget that was clicked on,
-                                // not to the widget that has the context menu.
-                                self.send(
-                                    context_menu.handle(),
-                                    PopupMessage::Owner(self.picked_node),
-                                );
+                                (None, Handle::NONE)
                             }
+                        };
+
+                        // Display context menu
+                        if let Some(context_menu) = context_menu {
+                            self.send(
+                                context_menu.handle(),
+                                PopupMessage::Placement(Placement::Cursor(target)),
+                            );
+                            self.send(context_menu.handle(), PopupMessage::Open);
+                            // Send Event messages to the widget that was clicked on,
+                            // not to the widget that has the context menu.
+                            self.send(context_menu.handle(), PopupMessage::Owner(self.picked_node));
                         }
                     }
+                }
                 _ => {}
             }
         }

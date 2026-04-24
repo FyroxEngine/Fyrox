@@ -332,60 +332,55 @@ impl Control for ScrollBar {
         } else if let Some(msg) = message.data::<WidgetMessage>() {
             if message.destination() == *self.indicator {
                 match msg {
-                    WidgetMessage::MouseDown { pos, .. }
-                        if self.indicator.is_some() => {
-                            let indicator_pos = ui.nodes.borrow(*self.indicator).screen_position();
-                            self.is_dragging = true;
-                            self.offset = indicator_pos - *pos;
-                            ui.capture_mouse(*self.indicator);
-                            message.set_handled(true);
-                        }
+                    WidgetMessage::MouseDown { pos, .. } if self.indicator.is_some() => {
+                        let indicator_pos = ui.nodes.borrow(*self.indicator).screen_position();
+                        self.is_dragging = true;
+                        self.offset = indicator_pos - *pos;
+                        ui.capture_mouse(*self.indicator);
+                        message.set_handled(true);
+                    }
                     WidgetMessage::MouseUp { .. } => {
                         self.is_dragging = false;
                         ui.release_mouse_capture();
                         message.set_handled(true);
                     }
-                    WidgetMessage::MouseMove { pos: mouse_pos, .. }
-                        if self.indicator.is_some() => {
-                            let indicator_canvas = &ui[*self.indicator_canvas];
-                            let indicator_size =
-                                ui.nodes.borrow(*self.indicator).actual_global_size();
-                            if self.is_dragging {
-                                let percent = match *self.orientation {
-                                    Orientation::Horizontal => {
-                                        let span = indicator_canvas.actual_global_size().x
-                                            - indicator_size.x;
-                                        let offset = mouse_pos.x
-                                            - indicator_canvas.screen_position().x
-                                            + self.offset.x;
-                                        if span > 0.0 {
-                                            (offset / span).clamp(0.0, 1.0)
-                                        } else {
-                                            0.0
-                                        }
+                    WidgetMessage::MouseMove { pos: mouse_pos, .. } if self.indicator.is_some() => {
+                        let indicator_canvas = &ui[*self.indicator_canvas];
+                        let indicator_size = ui.nodes.borrow(*self.indicator).actual_global_size();
+                        if self.is_dragging {
+                            let percent = match *self.orientation {
+                                Orientation::Horizontal => {
+                                    let span =
+                                        indicator_canvas.actual_global_size().x - indicator_size.x;
+                                    let offset = mouse_pos.x - indicator_canvas.screen_position().x
+                                        + self.offset.x;
+                                    if span > 0.0 {
+                                        (offset / span).clamp(0.0, 1.0)
+                                    } else {
+                                        0.0
                                     }
-                                    Orientation::Vertical => {
-                                        let span = indicator_canvas.actual_global_size().y
-                                            - indicator_size.y;
-                                        let offset = mouse_pos.y
-                                            - indicator_canvas.screen_position().y
-                                            + self.offset.y;
-                                        if span > 0.0 {
-                                            (offset / span).clamp(0.0, 1.0)
-                                        } else {
-                                            0.0
-                                        }
+                                }
+                                Orientation::Vertical => {
+                                    let span =
+                                        indicator_canvas.actual_global_size().y - indicator_size.y;
+                                    let offset = mouse_pos.y - indicator_canvas.screen_position().y
+                                        + self.offset.y;
+                                    if span > 0.0 {
+                                        (offset / span).clamp(0.0, 1.0)
+                                    } else {
+                                        0.0
                                     }
-                                };
-                                ui.send(
-                                    self.handle(),
-                                    ScrollBarMessage::Value(
-                                        *self.min + percent * (*self.max - *self.min),
-                                    ),
-                                );
-                                message.set_handled(true);
-                            }
+                                }
+                            };
+                            ui.send(
+                                self.handle(),
+                                ScrollBarMessage::Value(
+                                    *self.min + percent * (*self.max - *self.min),
+                                ),
+                            );
+                            message.set_handled(true);
                         }
+                    }
                     _ => (),
                 }
             }

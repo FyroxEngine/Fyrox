@@ -81,21 +81,21 @@ impl Control for Socket {
         if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
                 WidgetMessage::MouseDown { button, pos }
-                    if *button == MouseButton::Left && message.destination() == self.pin => {
-                        self.click_position = Some(*pos);
+                    if *button == MouseButton::Left && message.destination() == self.pin =>
+                {
+                    self.click_position = Some(*pos);
 
-                        ui.capture_mouse(self.handle());
+                    ui.capture_mouse(self.handle());
 
-                        message.set_handled(true);
-                    }
-                WidgetMessage::MouseUp { button, .. }
-                    if *button == MouseButton::Left => {
-                        self.click_position = None;
+                    message.set_handled(true);
+                }
+                WidgetMessage::MouseUp { button, .. } if *button == MouseButton::Left => {
+                    self.click_position = None;
 
-                        ui.release_mouse_capture();
+                    ui.release_mouse_capture();
 
-                        message.set_handled(true);
-                    }
+                    message.set_handled(true);
+                }
                 WidgetMessage::MouseMove { pos, .. } => {
                     if let Some(click_position) = self.click_position {
                         if click_position.metric_distance(pos) >= 5.0 {

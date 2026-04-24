@@ -563,37 +563,37 @@ impl Control for Tile {
                 &WidgetMessage::MouseDown { .. }
                     if !message.handled()
                         && message.destination() == self.splitter
-                        && !has_one_minimized(ui, &self.content)
-                    => {
-                        message.set_handled(true);
-                        self.dragging_splitter = true;
-                        ui.capture_mouse(self.splitter);
-                    }
+                        && !has_one_minimized(ui, &self.content) =>
+                {
+                    message.set_handled(true);
+                    self.dragging_splitter = true;
+                    ui.capture_mouse(self.splitter);
+                }
                 &WidgetMessage::MouseUp { .. }
-                    if !message.handled() && message.destination() == self.splitter => {
-                        message.set_handled(true);
-                        self.dragging_splitter = false;
-                        ui.release_mouse_capture();
-                    }
-                &WidgetMessage::MouseMove { pos, .. }
-                    if self.dragging_splitter => {
-                        let bounds = self.screen_bounds();
-                        match self.content {
-                            TileContent::VerticalTiles {
-                                ref mut splitter, ..
-                            } => {
-                                *splitter = ((pos.y - bounds.y()) / bounds.h()).clamp(0.0, 1.0);
-                                self.invalidate_layout();
-                            }
-                            TileContent::HorizontalTiles {
-                                ref mut splitter, ..
-                            } => {
-                                *splitter = ((pos.x - bounds.x()) / bounds.w()).clamp(0.0, 1.0);
-                                self.invalidate_layout();
-                            }
-                            _ => (),
+                    if !message.handled() && message.destination() == self.splitter =>
+                {
+                    message.set_handled(true);
+                    self.dragging_splitter = false;
+                    ui.release_mouse_capture();
+                }
+                &WidgetMessage::MouseMove { pos, .. } if self.dragging_splitter => {
+                    let bounds = self.screen_bounds();
+                    match self.content {
+                        TileContent::VerticalTiles {
+                            ref mut splitter, ..
+                        } => {
+                            *splitter = ((pos.y - bounds.y()) / bounds.h()).clamp(0.0, 1.0);
+                            self.invalidate_layout();
                         }
+                        TileContent::HorizontalTiles {
+                            ref mut splitter, ..
+                        } => {
+                            *splitter = ((pos.x - bounds.x()) / bounds.w()).clamp(0.0, 1.0);
+                            self.invalidate_layout();
+                        }
+                        _ => (),
                     }
+                }
                 WidgetMessage::Unlink => {
                     // Check if this tile can be removed: only if it is split and sub-tiles are empty.
                     match self.content {
@@ -740,13 +740,14 @@ impl Control for Tile {
                 }
                 WindowMessage::Close => match self.content {
                     TileContent::MultiWindow { ref windows, .. }
-                        if windows.contains(&message.destination().to_variant()) => {
-                            let window = ui
-                                .node(message.destination())
-                                .cast::<Window>()
-                                .expect("must be window");
-                            self.undock(window, ui);
-                        }
+                        if windows.contains(&message.destination().to_variant()) =>
+                    {
+                        let window = ui
+                            .node(message.destination())
+                            .cast::<Window>()
+                            .expect("must be window");
+                        self.undock(window, ui);
+                    }
                     TileContent::VerticalTiles { tiles, .. }
                     | TileContent::HorizontalTiles { tiles, .. } => {
                         let closed_window = message.destination().to_variant();
@@ -879,18 +880,19 @@ impl Control for Tile {
                             if self.drop_anchor.get().is_some() {
                                 match &self.content {
                                     TileContent::Empty
-                                        if self.drop_anchor.get() == self.center_anchor => {
-                                            ui.send(
-                                                self.handle,
-                                                TileMessage::Content(TileContent::Window(
-                                                    message.destination().to_variant(),
-                                                )),
-                                            );
-                                            ui.send(
-                                                message.destination(),
-                                                WidgetMessage::LinkWith(self.handle),
-                                            );
-                                        }
+                                        if self.drop_anchor.get() == self.center_anchor =>
+                                    {
+                                        ui.send(
+                                            self.handle,
+                                            TileMessage::Content(TileContent::Window(
+                                                message.destination().to_variant(),
+                                            )),
+                                        );
+                                        ui.send(
+                                            message.destination(),
+                                            WidgetMessage::LinkWith(self.handle),
+                                        );
+                                    }
                                     TileContent::Window(_) | TileContent::MultiWindow { .. } => {
                                         if self.drop_anchor.get() == self.left_anchor {
                                             // Split horizontally, dock to left.

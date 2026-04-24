@@ -182,16 +182,15 @@ impl StateGraphViewer {
                     AbsmCanvasMessage::CommitTransition {
                         source_node,
                         dest_node,
+                    } if message.direction() == MessageDirection::FromWidget => {
+                        let source = fetch_state_node_model_handle(*source_node, ui);
+                        let dest = fetch_state_node_model_handle(*dest_node, ui);
+                        sender.do_command(AddTransitionCommand::new(
+                            absm_node_handle,
+                            layer_index,
+                            Transition::new("Transition", source, dest, 1.0, ""),
+                        ));
                     }
-                        if message.direction() == MessageDirection::FromWidget => {
-                            let source = fetch_state_node_model_handle(*source_node, ui);
-                            let dest = fetch_state_node_model_handle(*dest_node, ui);
-                            sender.do_command(AddTransitionCommand::new(
-                                absm_node_handle,
-                                layer_index,
-                                Transition::new("Transition", source, dest, 1.0, ""),
-                            ));
-                        }
                     AbsmCanvasMessage::CommitDrag { entries } => {
                         let commands = entries
                             .iter()
@@ -212,56 +211,56 @@ impl StateGraphViewer {
                         sender.do_command(CommandGroup::from(commands));
                     }
                     AbsmCanvasMessage::SelectionChanged(selection)
-                        if message.direction() == MessageDirection::FromWidget => {
-                            let selection = Selection::new(AbsmSelection {
-                                absm_node_handle,
-                                layer: Some(layer_index),
-                                entities: selection
-                                    .iter()
-                                    .filter_map(|n| {
-                                        let node_ref = ui.node(*n);
+                        if message.direction() == MessageDirection::FromWidget =>
+                    {
+                        let selection = Selection::new(AbsmSelection {
+                            absm_node_handle,
+                            layer: Some(layer_index),
+                            entities: selection
+                                .iter()
+                                .filter_map(|n| {
+                                    let node_ref = ui.node(*n);
 
-                                        if let Some(state_node) =
-                                            node_ref.query_component::<AbsmNode<State<Handle<N>>>>()
-                                        {
-                                            Some(SelectedEntity::State(state_node.model_handle))
-                                        } else {
-                                            node_ref.query_component::<TransitionView>().map(
-                                                |state_node| {
-                                                    SelectedEntity::Transition(
-                                                        state_node.model_handle.into(),
-                                                    )
-                                                },
-                                            )
-                                        }
-                                    })
-                                    .collect::<Vec<_>>(),
-                            });
+                                    if let Some(state_node) =
+                                        node_ref.query_component::<AbsmNode<State<Handle<N>>>>()
+                                    {
+                                        Some(SelectedEntity::State(state_node.model_handle))
+                                    } else {
+                                        node_ref.query_component::<TransitionView>().map(
+                                            |state_node| {
+                                                SelectedEntity::Transition(
+                                                    state_node.model_handle.into(),
+                                                )
+                                            },
+                                        )
+                                    }
+                                })
+                                .collect::<Vec<_>>(),
+                        });
 
-                            if !selection.is_empty() && &selection != editor_selection {
-                                sender.do_command(ChangeSelectionCommand::new(selection));
-                            }
+                        if !selection.is_empty() && &selection != editor_selection {
+                            sender.do_command(ChangeSelectionCommand::new(selection));
                         }
+                    }
                     AbsmCanvasMessage::CommitTransitionToAllNodes {
                         source_node,
                         dest_nodes,
-                    }
-                        if message.direction() == MessageDirection::FromWidget => {
-                            let source = fetch_state_node_model_handle(*source_node, ui);
-                            let commands = dest_nodes
-                                .iter()
-                                .map(|node| {
-                                    let dest_state = fetch_state_node_model_handle(*node, ui);
-                                    Command::new(AddTransitionCommand::new(
-                                        absm_node_handle,
-                                        layer_index,
-                                        Transition::new("Transition", source, dest_state, 1.0, ""),
-                                    ))
-                                })
-                                .collect::<Vec<_>>();
+                    } if message.direction() == MessageDirection::FromWidget => {
+                        let source = fetch_state_node_model_handle(*source_node, ui);
+                        let commands = dest_nodes
+                            .iter()
+                            .map(|node| {
+                                let dest_state = fetch_state_node_model_handle(*node, ui);
+                                Command::new(AddTransitionCommand::new(
+                                    absm_node_handle,
+                                    layer_index,
+                                    Transition::new("Transition", source, dest_state, 1.0, ""),
+                                ))
+                            })
+                            .collect::<Vec<_>>();
 
-                            sender.do_command(CommandGroup::from(commands));
-                        }
+                        sender.do_command(CommandGroup::from(commands));
+                    }
                     _ => (),
                 }
             }

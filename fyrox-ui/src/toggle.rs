@@ -92,14 +92,13 @@ impl Control for ToggleButton {
                     WidgetMessage::MouseDown { .. } => {
                         ui.capture_mouse(self.handle());
                     }
-                    WidgetMessage::MouseUp { .. }
-                        if ui.captured_node() == self.handle() => {
-                            let new_state = !self.is_toggled;
+                    WidgetMessage::MouseUp { .. } if ui.captured_node() == self.handle() => {
+                        let new_state = !self.is_toggled;
 
-                            ui.send(self.handle(), ToggleButtonMessage::Toggled(new_state));
+                        ui.send(self.handle(), ToggleButtonMessage::Toggled(new_state));
 
-                            ui.release_mouse_capture();
-                        }
+                        ui.release_mouse_capture();
+                    }
                     _ => {}
                 }
             }

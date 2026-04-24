@@ -307,30 +307,29 @@ impl StateViewer {
                             sender.do_command(CommandGroup::from(commands));
                         }
                         AbsmCanvasMessage::SelectionChanged(selection)
-                            if message.direction() == MessageDirection::FromWidget => {
-                                let selection = Selection::new(AbsmSelection {
-                                    absm_node_handle,
-                                    layer: Some(layer_index),
-                                    entities: selection
-                                        .iter()
-                                        .filter_map(|n| {
-                                            let node_ref = ui.node(*n);
+                            if message.direction() == MessageDirection::FromWidget =>
+                        {
+                            let selection = Selection::new(AbsmSelection {
+                                absm_node_handle,
+                                layer: Some(layer_index),
+                                entities: selection
+                                    .iter()
+                                    .filter_map(|n| {
+                                        let node_ref = ui.node(*n);
 
-                                            node_ref
-                                                .query_component::<AbsmNode<PoseNode<Handle<N>>>>()
-                                                .map(|state_node| {
-                                                    SelectedEntity::PoseNode(
-                                                        state_node.model_handle,
-                                                    )
-                                                })
-                                        })
-                                        .collect::<Vec<_>>(),
-                                });
+                                        node_ref
+                                            .query_component::<AbsmNode<PoseNode<Handle<N>>>>()
+                                            .map(|state_node| {
+                                                SelectedEntity::PoseNode(state_node.model_handle)
+                                            })
+                                    })
+                                    .collect::<Vec<_>>(),
+                            });
 
-                                if !selection.is_empty() && &selection != editor_selection {
-                                    sender.do_command(ChangeSelectionCommand::new(selection));
-                                }
+                            if !selection.is_empty() && &selection != editor_selection {
+                                sender.do_command(ChangeSelectionCommand::new(selection));
                             }
+                        }
                         AbsmCanvasMessage::CommitConnection {
                             source_socket,
                             dest_socket,

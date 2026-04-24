@@ -535,33 +535,29 @@ impl Control for ColorPoint {
             if message.direction() == MessageDirection::FromWidget {
                 if let Some(msg) = message.data::<WidgetMessage>() {
                     match msg {
-                        WidgetMessage::MouseDown { button, .. }
-                            if *button == MouseButton::Left => {
-                                ui.capture_mouse(self.handle);
+                        WidgetMessage::MouseDown { button, .. } if *button == MouseButton::Left => {
+                            ui.capture_mouse(self.handle);
 
-                                self.dragging = true;
-                            }
-                        WidgetMessage::MouseUp { button, .. }
-                            if *button == MouseButton::Left => {
-                                ui.release_mouse_capture();
+                            self.dragging = true;
+                        }
+                        WidgetMessage::MouseUp { button, .. } if *button == MouseButton::Left => {
+                            ui.release_mouse_capture();
 
-                                self.dragging = false;
+                            self.dragging = false;
 
-                                ui.post(self.handle, ColorPointMessage::Location(self.location));
-                            }
-                        WidgetMessage::MouseMove { pos, .. }
-                            if self.dragging => {
-                                let parent_canvas = ui.node(self.parent);
+                            ui.post(self.handle, ColorPointMessage::Location(self.location));
+                        }
+                        WidgetMessage::MouseMove { pos, .. } if self.dragging => {
+                            let parent_canvas = ui.node(self.parent);
 
-                                let cursor_x_local_to_parent =
-                                    parent_canvas.screen_to_local(*pos).x;
+                            let cursor_x_local_to_parent = parent_canvas.screen_to_local(*pos).x;
 
-                                self.location = (cursor_x_local_to_parent
-                                    / parent_canvas.actual_local_size().x)
-                                    .clamp(0.0, 1.0);
+                            self.location = (cursor_x_local_to_parent
+                                / parent_canvas.actual_local_size().x)
+                                .clamp(0.0, 1.0);
 
-                                self.invalidate_layout();
-                            }
+                            self.invalidate_layout();
+                        }
                         _ => (),
                     }
                 }

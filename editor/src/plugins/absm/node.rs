@@ -193,39 +193,34 @@ where
         } else if let Some(msg) = message.data_for::<AbsmNodeMessage>(self.handle) {
             match msg {
                 AbsmNodeMessage::InputSockets(input_sockets)
-                    if input_sockets != &self.base.input_sockets => {
-                        for &child in ui[self.input_sockets_panel].children() {
-                            ui.send(child, WidgetMessage::Remove);
-                        }
+                    if input_sockets != &self.base.input_sockets =>
+                {
+                    for &child in ui[self.input_sockets_panel].children() {
+                        ui.send(child, WidgetMessage::Remove);
+                    }
 
-                        for &socket in input_sockets {
-                            ui.send(socket, WidgetMessage::link_with(self.input_sockets_panel));
-                        }
+                    for &socket in input_sockets {
+                        ui.send(socket, WidgetMessage::link_with(self.input_sockets_panel));
+                    }
 
-                        self.base.input_sockets.clone_from(input_sockets);
-                    }
-                AbsmNodeMessage::NormalBrush(color)
-                    if &self.normal_brush != color => {
-                        self.normal_brush = color.clone();
-                        self.update_colors(ui);
-                    }
-                AbsmNodeMessage::SelectedBrush(color)
-                    if &self.selected_brush != color => {
-                        self.selected_brush = color.clone();
-                        self.update_colors(ui);
-                    }
-                AbsmNodeMessage::Name(name)
-                    if &self.name_value != name => {
-                        self.name_value.clone_from(name);
+                    self.base.input_sockets.clone_from(input_sockets);
+                }
+                AbsmNodeMessage::NormalBrush(color) if &self.normal_brush != color => {
+                    self.normal_brush = color.clone();
+                    self.update_colors(ui);
+                }
+                AbsmNodeMessage::SelectedBrush(color) if &self.selected_brush != color => {
+                    self.selected_brush = color.clone();
+                    self.update_colors(ui);
+                }
+                AbsmNodeMessage::Name(name) if &self.name_value != name => {
+                    self.name_value.clone_from(name);
 
-                        ui.send(
-                            self.name,
-                            TextMessage::Text(format!(
-                                "{} ({})",
-                                self.name_value, self.model_handle
-                            )),
-                        );
-                    }
+                    ui.send(
+                        self.name,
+                        TextMessage::Text(format!("{} ({})", self.name_value, self.model_handle)),
+                    );
+                }
                 AbsmNodeMessage::SetActive(active) => {
                     let (thickness, brush) = if *active {
                         (

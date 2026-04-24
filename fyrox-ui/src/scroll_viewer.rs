@@ -273,24 +273,22 @@ impl Control for ScrollViewer {
         } else if let Some(msg) = message.data::<ScrollBarMessage>() {
             if message.direction() == MessageDirection::FromWidget {
                 match msg {
-                    ScrollBarMessage::Value(new_value)
-                        if !message.handled() => {
-                            if message.destination() == self.v_scroll_bar
-                                && self.v_scroll_bar.is_some()
-                            {
-                                ui.send(
-                                    self.scroll_panel,
-                                    ScrollPanelMessage::VerticalScroll(*new_value),
-                                );
-                            } else if message.destination() == self.h_scroll_bar
-                                && self.h_scroll_bar.is_some()
-                            {
-                                ui.send(
-                                    self.scroll_panel,
-                                    ScrollPanelMessage::HorizontalScroll(*new_value),
-                                );
-                            }
+                    ScrollBarMessage::Value(new_value) if !message.handled() => {
+                        if message.destination() == self.v_scroll_bar && self.v_scroll_bar.is_some()
+                        {
+                            ui.send(
+                                self.scroll_panel,
+                                ScrollPanelMessage::VerticalScroll(*new_value),
+                            );
+                        } else if message.destination() == self.h_scroll_bar
+                            && self.h_scroll_bar.is_some()
+                        {
+                            ui.send(
+                                self.scroll_panel,
+                                ScrollPanelMessage::HorizontalScroll(*new_value),
+                            );
                         }
+                    }
                     &ScrollBarMessage::MaxValue(_) => {
                         if message.destination() == self.v_scroll_bar && self.v_scroll_bar.is_some()
                         {

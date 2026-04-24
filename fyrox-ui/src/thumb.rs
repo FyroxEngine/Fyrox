@@ -131,41 +131,44 @@ impl Control for Thumb {
         if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
                 WidgetMessage::MouseDown { pos, button }
-                    if !message.handled() && *button == MouseButton::Left => {
-                        ui.capture_mouse(self.handle);
-                        message.set_handled(true);
-                        self.click_pos = *pos;
-                        ui.post(
-                            self.handle,
-                            ThumbMessage::DragStarted {
-                                position: self.actual_local_position(),
-                            },
-                        );
-                    }
+                    if !message.handled() && *button == MouseButton::Left =>
+                {
+                    ui.capture_mouse(self.handle);
+                    message.set_handled(true);
+                    self.click_pos = *pos;
+                    ui.post(
+                        self.handle,
+                        ThumbMessage::DragStarted {
+                            position: self.actual_local_position(),
+                        },
+                    );
+                }
                 WidgetMessage::MouseUp { button, .. }
-                    if ui.captured_node() == self.handle && *button == MouseButton::Left => {
-                        ui.post(
-                            self.handle,
-                            ThumbMessage::DragCompleted {
-                                position: self.actual_local_position(),
-                            },
-                        );
+                    if ui.captured_node() == self.handle && *button == MouseButton::Left =>
+                {
+                    ui.post(
+                        self.handle,
+                        ThumbMessage::DragCompleted {
+                            position: self.actual_local_position(),
+                        },
+                    );
 
-                        ui.release_mouse_capture();
-                    }
+                    ui.release_mouse_capture();
+                }
                 WidgetMessage::MouseMove { pos, state }
-                    if ui.captured_node() == self.handle && state.left == ButtonState::Pressed => {
-                        ui.post(
-                            self.handle,
-                            ThumbMessage::DragDelta {
-                                offset: self
-                                    .visual_transform()
-                                    .try_inverse()
-                                    .unwrap_or_default()
-                                    .transform_vector(&(*pos - self.click_pos)),
-                            },
-                        );
-                    }
+                    if ui.captured_node() == self.handle && state.left == ButtonState::Pressed =>
+                {
+                    ui.post(
+                        self.handle,
+                        ThumbMessage::DragDelta {
+                            offset: self
+                                .visual_transform()
+                                .try_inverse()
+                                .unwrap_or_default()
+                                .transform_vector(&(*pos - self.click_pos)),
+                        },
+                    );
+                }
                 _ => (),
             }
         }

@@ -465,16 +465,15 @@ impl Control for Tree {
                             }
                         }
                     }
-                    WidgetMessage::DoubleClick { button }
-                        if *button == MouseButton::Left => {
-                            // Mimic click on expander button to have uniform behavior.
-                            ui.send(
-                                self.expander,
-                                CheckBoxMessage::Check(Some(!self.is_expanded)),
-                            );
+                    WidgetMessage::DoubleClick { button } if *button == MouseButton::Left => {
+                        // Mimic click on expander button to have uniform behavior.
+                        ui.send(
+                            self.expander,
+                            CheckBoxMessage::Check(Some(!self.is_expanded)),
+                        );
 
-                            message.set_handled(true);
-                        }
+                        message.set_handled(true);
+                    }
                     _ => (),
                 }
             }

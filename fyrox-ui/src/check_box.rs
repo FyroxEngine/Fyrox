@@ -206,31 +206,32 @@ impl Control for CheckBox {
                 WidgetMessage::MouseDown { button, .. }
                     if *button == MouseButton::Left
                         && (message.destination() == self.handle()
-                            || self.widget.has_descendant(message.destination(), ui))
-                    => {
-                        ui.capture_mouse(self.handle());
-                    }
+                            || self.widget.has_descendant(message.destination(), ui)) =>
+                {
+                    ui.capture_mouse(self.handle());
+                }
                 WidgetMessage::MouseUp { button, .. }
                     if *button == MouseButton::Left
                         && (message.destination() == self.handle()
-                            || self.widget.has_descendant(message.destination(), ui))
-                    => {
-                        ui.release_mouse_capture();
+                            || self.widget.has_descendant(message.destination(), ui)) =>
+                {
+                    ui.release_mouse_capture();
 
-                        if let Some(value) = *self.checked {
-                            // Invert state if it is defined.
-                            ui.send(self.handle(), CheckBoxMessage::Check(Some(!value)));
-                        } else {
-                            // Switch from undefined state to checked.
-                            ui.send(self.handle(), CheckBoxMessage::Check(Some(true)));
-                        }
+                    if let Some(value) = *self.checked {
+                        // Invert state if it is defined.
+                        ui.send(self.handle(), CheckBoxMessage::Check(Some(!value)));
+                    } else {
+                        // Switch from undefined state to checked.
+                        ui.send(self.handle(), CheckBoxMessage::Check(Some(true)));
                     }
+                }
                 WidgetMessage::KeyDown(key_code)
-                    if !message.handled() && *key_code == KeyCode::Space => {
-                        let checked = self.checked.map(|checked| !checked);
-                        ui.send(self.handle, CheckBoxMessage::Check(checked));
-                        message.set_handled(true);
-                    }
+                    if !message.handled() && *key_code == KeyCode::Space =>
+                {
+                    let checked = self.checked.map(|checked| !checked);
+                    ui.send(self.handle, CheckBoxMessage::Check(checked));
+                    message.set_handled(true);
+                }
                 _ => (),
             }
         } else if let Some(&CheckBoxMessage::Check(value)) = message.data_for(self.handle) {

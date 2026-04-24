@@ -539,10 +539,9 @@ impl Control for Window {
                 }
             }
             match msg {
-                WidgetMessage::Unlink
-                    if message.destination() == self.handle() => {
-                        self.initial_position = self.screen_position();
-                    }
+                WidgetMessage::Unlink if message.destination() == self.handle() => {
+                    self.initial_position = self.screen_position();
+                }
                 WidgetMessage::KeyDown(key_code)
                     if self.close_by_esc
                         && !self.is_docked(ui)

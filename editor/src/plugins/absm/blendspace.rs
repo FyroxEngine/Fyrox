@@ -373,20 +373,18 @@ impl Control for BlendSpaceField {
 
         if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
-                WidgetMessage::MouseDown { button, .. }
-                    if *button == MouseButton::Left => {
-                        if let Some(pos) =
-                            self.points.iter().position(|p| message.destination() == *p)
-                        {
-                            self.drag_context = Some(DragContext::Point { point: pos });
+                WidgetMessage::MouseDown { button, .. } if *button == MouseButton::Left => {
+                    if let Some(pos) = self.points.iter().position(|p| message.destination() == *p)
+                    {
+                        self.drag_context = Some(DragContext::Point { point: pos });
 
-                            ui.send(self.points[pos], BlendSpaceFieldPointMessage::Select);
-                        } else {
-                            self.drag_context = Some(DragContext::SamplingPoint);
-                        }
-
-                        ui.capture_mouse(self.handle);
+                        ui.send(self.points[pos], BlendSpaceFieldPointMessage::Select);
+                    } else {
+                        self.drag_context = Some(DragContext::SamplingPoint);
                     }
+
+                    ui.capture_mouse(self.handle);
+                }
                 WidgetMessage::MouseUp { button, pos, .. } => {
                     if let Some(drag_context) = self.drag_context.take() {
                         if *button == MouseButton::Left {
@@ -895,15 +893,15 @@ impl BlendSpaceEditor {
                             match *msg {
                                 BlendSpaceFieldMessage::SamplingPoint(point)
                                     if is_preview_mode_active
-                                        && message.direction() == MessageDirection::FromWidget
-                                    => {
-                                        let param = blend_space.sampling_parameter().to_string();
-                                        if let Some(Parameter::SamplingPoint(param)) =
-                                            machine.parameters_mut().get_mut(&param)
-                                        {
-                                            *param = point;
-                                        }
+                                        && message.direction() == MessageDirection::FromWidget =>
+                                {
+                                    let param = blend_space.sampling_parameter().to_string();
+                                    if let Some(Parameter::SamplingPoint(param)) =
+                                        machine.parameters_mut().get_mut(&param)
+                                    {
+                                        *param = point;
                                     }
+                                }
                                 BlendSpaceFieldMessage::MovePoint { index, position } => {
                                     sender.do_command(SetBlendSpacePointPositionCommand {
                                         node_handle: selection.absm_node_handle,

@@ -221,19 +221,18 @@ impl Control for DropdownList {
             match msg {
                 WidgetMessage::MouseDown { .. }
                     if (message.destination() == self.handle()
-                        || self.widget.has_descendant(message.destination(), ui))
-                    => {
+                        || self.widget.has_descendant(message.destination(), ui)) =>
+                {
+                    ui.send(self.handle, DropdownListMessage::Open);
+                }
+                WidgetMessage::KeyDown(key_code) if !message.handled() => {
+                    if *key_code == KeyCode::ArrowDown {
                         ui.send(self.handle, DropdownListMessage::Open);
+                    } else if *key_code == KeyCode::ArrowUp {
+                        ui.send(self.handle, DropdownListMessage::Close);
                     }
-                WidgetMessage::KeyDown(key_code)
-                    if !message.handled() => {
-                        if *key_code == KeyCode::ArrowDown {
-                            ui.send(self.handle, DropdownListMessage::Open);
-                        } else if *key_code == KeyCode::ArrowUp {
-                            ui.send(self.handle, DropdownListMessage::Close);
-                        }
-                        message.set_handled(true);
-                    }
+                    message.set_handled(true);
+                }
                 _ => (),
             }
         } else if let Some(msg) = message.data_for::<DropdownListMessage>(self.handle()) {

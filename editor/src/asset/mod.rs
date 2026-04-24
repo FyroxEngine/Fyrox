@@ -692,9 +692,10 @@ impl AssetBrowser {
             let asset_item = message.destination();
             match msg {
                 AssetItemMessage::Select(true)
-                    if ui.has_descendant_or_equal(asset_item, self.content_panel) => {
-                        self.on_asset_selected(asset_item, sender.clone(), entry, engine);
-                    }
+                    if ui.has_descendant_or_equal(asset_item, self.content_panel) =>
+                {
+                    self.on_asset_selected(asset_item, sender.clone(), entry, engine);
+                }
                 AssetItemMessage::MoveTo {
                     src_item_path,
                     dest_dir,

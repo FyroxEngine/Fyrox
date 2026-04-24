@@ -1063,19 +1063,21 @@ impl NodeTrait for Collider {
                 }
             }
             ColliderShape::Heightfield(heightfield)
-                if !scene.graph.is_valid_handle(heightfield.geometry_source.0) => {
-                    message += &format!(
-                        "Heightfield data source {} handle is invalid!",
-                        heightfield.geometry_source.0
-                    );
-                }
+                if !scene.graph.is_valid_handle(heightfield.geometry_source.0) =>
+            {
+                message += &format!(
+                    "Heightfield data source {} handle is invalid!",
+                    heightfield.geometry_source.0
+                );
+            }
             ColliderShape::Polyhedron(polyhedron)
-                if !scene.graph.is_valid_handle(polyhedron.geometry_source.0) => {
-                    message += &format!(
-                        "Polyhedron data source {} handle is invalid!",
-                        polyhedron.geometry_source.0
-                    );
-                }
+                if !scene.graph.is_valid_handle(polyhedron.geometry_source.0) =>
+            {
+                message += &format!(
+                    "Polyhedron data source {} handle is invalid!",
+                    polyhedron.geometry_source.0
+                );
+            }
             _ => (),
         }
 
