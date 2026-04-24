@@ -118,4 +118,9 @@ impl ScriptConstructorContainer {
     pub fn map(&self) -> MutexGuard<BTreeMap<Uuid, ScriptConstructor>> {
         self.map.safe_lock()
     }
+
+    /// Removes all registered constructors.
+    pub fn clear(&self) {
+        self.map().clear();
+    }
 }

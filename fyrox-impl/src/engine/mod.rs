@@ -164,6 +164,12 @@ impl SerializationContext {
             script_constructors: ScriptConstructorContainer::new(),
         }
     }
+
+    /// Removes all registered constructors.
+    pub fn clear(&self) {
+        self.node_constructors.clear();
+        self.script_constructors.clear();
+    }
 }
 
 /// Performance statistics.
@@ -2818,6 +2824,16 @@ impl Drop for Engine {
             self.scenes.remove(handle);
         }
 
+        // Clear everything that may potentially store a dynamic plugin entity.
+        if let GraphicsContext::Initialized(ref mut graphics_context) = self.graphics_context {
+            graphics_context.renderer.clear_render_passes();
+        }
+        self.user_interfaces.clear();
+        self.scenes.clear();
+        self.serialization_context.clear();
+        self.widget_constructors.clear();
+        self.dyn_type_constructors.clear();
+
         // Finally disable plugins.
         self.enable_plugins(
             None,
@@ -2826,6 +2842,11 @@ impl Drop for Engine {
                 running: &Default::default(),
             },
         );
+
+        // Must be last, otherwise the engine will crash on shutdown when compiled in native code
+        // hot reloading. This may happen if some of the dynamic plugin entities are dropped after
+        // the parent plugin.
+        self.plugins.clear();
     }
 }
 

@@ -386,4 +386,8 @@ impl DynTypeConstructorContainer {
     pub fn inner(&self) -> MutexGuard<FxHashMap<Uuid, DynTypeConstructorDefinition>> {
         self.map.safe_lock()
     }
+
+    pub fn clear(&self) {
+        self.inner().clear();
+    }
 }

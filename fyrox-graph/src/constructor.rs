@@ -176,4 +176,9 @@ impl<Node, Ctx> GraphNodeConstructorContainer<Node, Ctx> {
     pub fn map(&self) -> MutexGuard<'_, FxHashMap<Uuid, GraphNodeConstructor<Node, Ctx>>> {
         self.map.safe_lock()
     }
+
+    /// Removes all registered constructors.
+    pub fn clear(&self) {
+        self.map().clear();
+    }
 }
