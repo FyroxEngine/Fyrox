@@ -865,7 +865,11 @@ impl Editor {
             load_image!("../resources/clear.png"),
             true,
         );
-        let inspector_plugin = InspectorPlugin::new(ctx);
+        let inspector_plugin = InspectorPlugin::new(
+            ctx,
+            Some(ctx.default_font()),
+            Some(ctx.style.property(Editor::UI_FONT_SIZE)),
+        );
         let bbcode_panel = BBCodePanel::new(inspector_plugin.head, ctx);
         let particle_system_control_panel =
             ParticleSystemPreviewControlPanel::new(inspector_plugin.head, ctx);
@@ -874,7 +878,12 @@ impl Editor {
         let audio_preview_panel = AudioPreviewPanel::new(inspector_plugin.head, ctx);
         let doc_window = DocWindow::new(ctx);
         let node_removal_dialog = NodeRemovalDialog::new(ctx);
-        let scene_settings = SceneSettingsWindow::new(ctx, property_editors.clone());
+        let scene_settings = SceneSettingsWindow::new(
+            ctx,
+            property_editors.clone(),
+            Some(ctx.default_font()),
+            Some(ctx.style.property(Editor::UI_FONT_SIZE)),
+        );
 
         let docking_manager;
         let root_grid = GridBuilder::new(

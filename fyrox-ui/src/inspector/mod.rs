@@ -36,6 +36,7 @@ use crate::{
         visitor::prelude::*,
     },
     expander::ExpanderBuilder,
+    font::FontResource,
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
     inspector::editors::{
@@ -46,6 +47,7 @@ use crate::{
     message::{DeliveryMode, MessageData, MessageDirection, UiMessage},
     popup::{Popup, PopupBuilder, PopupMessage},
     stack_panel::{StackPanel, StackPanelBuilder},
+    style::{resource::StyleResourceExt, Style, StyledProperty},
     text::{Text, TextBuilder},
     utils::{make_arrow, make_simple_tooltip, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -835,6 +837,8 @@ pub struct InspectorContext {
     /// [`crate::core::variable::InheritableVariable`] properties, primarily to hide "Revert" button
     /// when it does nothing (when there's no parent object).
     pub has_parent_object: bool,
+    pub font: Option<FontResource>,
+    pub font_size: Option<StyledProperty<f32>>,
 }
 
 impl PartialEq for InspectorContext {
@@ -862,6 +866,8 @@ impl Default for InspectorContext {
             object_type_id: ().type_id(),
             name_column_width: 150.0,
             has_parent_object: false,
+            font: None,
+            font_size: None,
         }
     }
 }
@@ -975,6 +981,21 @@ fn create_header(ctx: &mut BuildContext, text: &str, layer_index: usize) -> Hand
         .build(ctx)
 }
 
+fn create_header_with_font_size(
+    ctx: &mut BuildContext,
+    text: &str,
+    layer_index: usize,
+    font: FontResource,
+    font_size: StyledProperty<f32>,
+) -> Handle<Text> {
+    TextBuilder::new(WidgetBuilder::new().with_margin(make_property_margin(layer_index)))
+        .with_text(text)
+        .with_vertical_text_alignment(VerticalAlignment::Center)
+        .with_font(font)
+        .with_font_size(font_size)
+        .build(ctx)
+}
+
 fn make_tooltip(ctx: &mut BuildContext, text: &str) -> Option<RcUiNodeHandle> {
     if text.is_empty() {
         None
@@ -1055,6 +1076,8 @@ pub struct InspectorContextArgs<'a, 'b, 'c> {
     /// [`crate::core::variable::InheritableVariable`] properties, primarily to hide "Revert" button
     /// when it does nothing (when there's no parent object).
     pub has_parent_object: bool,
+    pub font: Option<FontResource>,
+    pub font_size: Option<StyledProperty<f32>>,
 }
 
 impl InspectorContext {
@@ -1083,6 +1106,8 @@ impl InspectorContext {
             name_column_width,
             base_path,
             has_parent_object,
+            font,
+            font_size,
         } = context;
 
         let mut entries = Vec::new();
@@ -1128,13 +1153,23 @@ impl InspectorContext {
                             name_column_width,
                             base_path: property_path.clone(),
                             has_parent_object,
+                            font: font.clone(),
+                            font_size: font_size.clone(),
                         },
                     ) {
                         Ok(instance) => {
                             let (container, editor) = match instance {
                                 PropertyEditorInstance::Simple { editor } => (
                                     make_simple_property_container(
-                                        create_header(ctx, info.display_name, layer_index),
+                                        create_header_with_font_size(
+                                            ctx,
+                                            info.display_name,
+                                            layer_index,
+                                            font.clone().unwrap_or_else(|| ctx.default_font()),
+                                            font_size.clone().unwrap_or_else(|| {
+                                                ctx.style.property(Style::FONT_SIZE)
+                                            }),
+                                        ),
                                         editor,
                                         &description,
                                         name_column_width,
@@ -1170,7 +1205,15 @@ impl InspectorContext {
                                 "Unable to create property editor instance: Reason {e:?}"
                             ));
                             make_simple_property_container(
-                                create_header(ctx, info.display_name, layer_index),
+                                create_header_with_font_size(
+                                    ctx,
+                                    info.display_name,
+                                    layer_index,
+                                    font.clone().unwrap_or_else(|| ctx.default_font()),
+                                    font_size
+                                        .clone()
+                                        .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
+                                ),
                                 TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
                                     .with_wrap(WrapMode::Word)
                                     .with_vertical_text_alignment(VerticalAlignment::Center)
@@ -1189,7 +1232,15 @@ impl InspectorContext {
                     editors.push(editor);
                 } else {
                     editors.push(make_simple_property_container(
-                        create_header(ctx, info.display_name, layer_index),
+                        create_header_with_font_size(
+                            ctx,
+                            info.display_name,
+                            layer_index,
+                            font.clone().unwrap_or_else(|| ctx.default_font()),
+                            font_size
+                                .clone()
+                                .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
+                        ),
                         TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
                             .with_wrap(WrapMode::Word)
                             .with_vertical_text_alignment(VerticalAlignment::Center)
@@ -1266,6 +1317,8 @@ impl InspectorContext {
             object_type_id: object_type_id(object),
             name_column_width,
             has_parent_object,
+            font,
+            font_size,
         }
     }
 
@@ -1318,6 +1371,8 @@ impl InspectorContext {
                             name_column_width: self.name_column_width,
                             base_path: base_path.clone(),
                             has_parent_object: self.has_parent_object,
+                            font: self.font.clone(),
+                            font_size: self.font_size.clone(),
                         };
 
                         match constructor.property_editor.create_message(ctx) {

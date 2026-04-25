@@ -261,6 +261,8 @@ where
                         name_column_width: ctx.name_column_width,
                         base_path: ctx.base_path.clone(),
                         has_parent_object: ctx.has_parent_object,
+                        font: ctx.font,
+                        font_size: ctx.font_size,
                     })?;
 
             let wrapper = InheritablePropertyEditorBuilder::new(WidgetBuilder::new())
@@ -355,6 +357,8 @@ where
                     name_column_width: ctx.name_column_width,
                     base_path: ctx.base_path.clone(),
                     has_parent_object: ctx.has_parent_object,
+                    font: ctx.font,
+                    font_size: ctx.font_size,
                 });
         }
 

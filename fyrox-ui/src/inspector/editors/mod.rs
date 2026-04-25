@@ -189,6 +189,8 @@ pub struct PropertyEditorBuildContext<'a, 'b, 'c, 'd> {
     /// [`crate::core::variable::InheritableVariable`] properties, primarily to hide "Revert" button
     /// when it does nothing (when there's no parent object).
     pub has_parent_object: bool,
+    pub font: Option<FontResource>,
+    pub font_size: Option<StyledProperty<f32>>,
 }
 
 /// This structure is passed to [PropertyEditorDefinition::create_message] in order to generate a message that will
@@ -229,6 +231,8 @@ pub struct PropertyEditorMessageContext<'a, 'b, 'c> {
     /// [`crate::core::variable::InheritableVariable`] properties, primarily to hide "Revert" button
     /// when it does nothing (when there's no parent object).
     pub has_parent_object: bool,
+    pub font: Option<FontResource>,
+    pub font_size: Option<StyledProperty<f32>>,
 }
 
 /// The details relevant to translating a message from an editor widget into

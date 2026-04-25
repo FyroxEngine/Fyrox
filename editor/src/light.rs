@@ -271,6 +271,8 @@ impl LightPanel {
                                 .on_row(0),
                         )
                         .with_content({
+                            let font = Some(ctx.default_font());
+                            let font_size = Some(ctx.style.property(Editor::UI_FONT_SIZE));
                             inspector = InspectorBuilder::new(
                                 WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                             )
@@ -285,6 +287,8 @@ impl LightPanel {
                                 name_column_width: 150.0,
                                 base_path: Default::default(),
                                 has_parent_object: false,
+                                font: font,
+                                font_size: font_size,
                             }))
                             .build(ctx);
                             inspector

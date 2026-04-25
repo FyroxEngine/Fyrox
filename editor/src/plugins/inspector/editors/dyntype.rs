@@ -29,7 +29,6 @@ use crate::{
             },
             dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
             grid::{GridBuilder, GridDimension},
-            inspector::InspectorContextArgs,
             inspector::{
                 editors::{
                     PropertyEditorBuildContext, PropertyEditorDefinition,
@@ -37,19 +36,19 @@ use crate::{
                     PropertyEditorMessageContext, PropertyEditorTranslationContext,
                 },
                 make_expander_container, FieldAction, Inspector, InspectorBuilder,
-                InspectorContext, InspectorEnvironment, InspectorError, InspectorMessage,
-                PropertyChanged, PropertyFilter,
+                InspectorContext, InspectorContextArgs, InspectorEnvironment, InspectorError,
+                InspectorMessage, PropertyChanged, PropertyFilter,
             },
-            message::MessageData,
-            message::{MessageDirection, UiMessage},
+            message::{MessageData, MessageDirection, UiMessage},
             utils::make_dropdown_list_option,
             widget::{Widget, WidgetBuilder},
             BuildContext, Control, UiNode, UserInterface,
         },
     },
     plugins::inspector::EditorEnvironment,
+    Editor,
 };
-use fyrox::core::dyntype::DynTypeWrapper;
+use fyrox::{core::dyntype::DynTypeWrapper, gui::style::resource::StyleResourceExt};
 use std::{
     any::TypeId,
     cell::Cell,
@@ -154,6 +153,8 @@ impl DynTypePropertyEditorBuilder {
         ctx: &mut BuildContext,
     ) -> Handle<DynTypePropertyEditor> {
         let context = dyntype_container.value_ref().as_ref().map(|dyn_type| {
+            let font = Some(ctx.default_font());
+            let font_size = Some(ctx.style.property(Editor::UI_FONT_SIZE));
             InspectorContext::from_object(InspectorContextArgs {
                 object: *dyn_type,
                 ctx,
@@ -165,6 +166,8 @@ impl DynTypePropertyEditorBuilder {
                 name_column_width,
                 base_path: Default::default(),
                 has_parent_object,
+                font: font,
+                font_size: font_size,
             })
         });
 
@@ -357,6 +360,8 @@ impl PropertyEditorDefinition for DynTypePropertyEditorDefinition {
                         name_column_width: ctx.name_column_width,
                         base_path: Default::default(),
                         has_parent_object: ctx.has_parent_object,
+                        font: ctx.font,
+                        font_size: ctx.font_size,
                     })
                 })
                 .unwrap_or_default();
