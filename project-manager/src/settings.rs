@@ -244,6 +244,8 @@ impl SettingsWindow {
             name_column_width: 170.0,
             base_path: Default::default(),
             has_parent_object: false,
+            font: None,
+            font_size: None,
         });
         let inspector =
             InspectorBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))

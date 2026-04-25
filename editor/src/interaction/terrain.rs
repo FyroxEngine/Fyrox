@@ -633,6 +633,8 @@ impl BrushPanel {
         property_editors.insert(make_brush_target_enum_property_editor_definition());
         property_editors.insert(make_brush_shape_enum_property_editor_definition());
 
+        let font = Some(ctx.default_font());
+        let font_size = Some(ctx.style.property(Editor::UI_FONT_SIZE));
         let context = InspectorContext::from_object(InspectorContextArgs {
             object: brush,
             ctx,
@@ -644,6 +646,8 @@ impl BrushPanel {
             name_column_width: 150.0,
             base_path: Default::default(),
             has_parent_object: false,
+            font: font,
+            font_size: font_size,
         });
 
         let inspector;

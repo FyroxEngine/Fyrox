@@ -230,6 +230,8 @@ impl ScriptPropertyEditorBuilder {
         ctx: &mut BuildContext,
     ) -> Handle<ScriptPropertyEditor> {
         let context = script.as_ref().map(|script| {
+            let font = Some(ctx.default_font());
+            let font_size = Some(ctx.style.property(Editor::UI_FONT_SIZE));
             InspectorContext::from_object(InspectorContextArgs {
                 object: script,
                 ctx,
@@ -241,6 +243,8 @@ impl ScriptPropertyEditorBuilder {
                 name_column_width,
                 base_path: Default::default(),
                 has_parent_object,
+                font: font,
+                font_size: font_size,
             })
         });
 
@@ -464,6 +468,8 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                         name_column_width: ctx.name_column_width,
                         base_path: Default::default(),
                         has_parent_object: ctx.has_parent_object,
+                        font: ctx.font,
+                        font_size: ctx.font_size,
                     })
                 })
                 .unwrap_or_default();
