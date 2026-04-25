@@ -716,6 +716,8 @@ fn make_light_style() -> StyleResource {
 }
 
 impl Editor {
+    pub const UI_FONT_SIZE: &'static str = "Editor.UI.Font.Size";
+
     pub fn new(startup_data: Option<StartupData>) -> Self {
         Self::new_with_settings(startup_data, Default::default())
     }
