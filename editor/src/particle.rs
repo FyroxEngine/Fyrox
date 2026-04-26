@@ -85,6 +85,7 @@ impl ParticleSystemPreviewControlPanel {
                                 .with_margin(Thickness::uniform(1.0)),
                         )
                         .with_text("Preview")
+                        .with_font(ctx.default_font())
                         .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx),
                     )
@@ -191,6 +192,8 @@ impl ParticleSystemPreviewControlPanel {
                                 .with_min_value(0.0f32)
                                 .with_max_value(10.0 * 60.0) // 10 Minutes
                                 .with_value(0.0f32)
+                                .with_font(ctx.default_font())
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx);
                                 time
                             })

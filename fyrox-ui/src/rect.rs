@@ -28,9 +28,11 @@ use crate::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         visitor::prelude::*,
     },
+    font::FontResource,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
     numeric::NumericType,
+    style::{resource::StyleResourceExt, Style, StyledProperty},
     text::TextBuilder,
     vec::{VecEditorBuilder, VecEditorMessage},
     widget::{Widget, WidgetBuilder},
@@ -235,9 +237,11 @@ where
 {
     widget_builder: WidgetBuilder,
     value: Rect<T>,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
-fn create_field<T: NumericType>(
+fn _create_field<T: NumericType>(
     ctx: &mut BuildContext,
     name: &str,
     value: Vector2<T>,
@@ -268,6 +272,41 @@ fn create_field<T: NumericType>(
     (grid, editor)
 }
 
+fn create_field_with_font_size<T: NumericType>(
+    ctx: &mut BuildContext,
+    name: &str,
+    value: Vector2<T>,
+    row: usize,
+    font: FontResource,
+    font_size: StyledProperty<f32>,
+) -> (Handle<Grid>, Handle<VecEditor<T, 2>>) {
+    let editor;
+    let grid = GridBuilder::new(
+        WidgetBuilder::new()
+            .with_margin(Thickness::left(10.0))
+            .on_row(row)
+            .with_child(
+                TextBuilder::new(WidgetBuilder::new())
+                    .with_text(name)
+                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .with_font(font)
+                    .with_font_size(font_size)
+                    .build(ctx),
+            )
+            .with_child({
+                editor = VecEditorBuilder::new(WidgetBuilder::new().on_column(1))
+                    .with_value(value)
+                    .build(ctx);
+                editor
+            }),
+    )
+    .add_column(Column::strict(70.0))
+    .add_column(Column::stretch())
+    .add_row(Row::stretch())
+    .build(ctx);
+    (grid, editor)
+}
+
 impl<T> RectEditorBuilder<T>
 where
     T: NumericType,
@@ -277,6 +316,8 @@ where
         Self {
             widget_builder,
             value: Default::default(),
+            font: None,
+            font_size: None,
         }
     }
 
@@ -286,10 +327,41 @@ where
         self
     }
 
+    /// Sets the desired font.
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    /// Sets the desired font size.
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
     /// Finished rect editor widget building and adds it to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<RectEditor<T>> {
-        let (position_grid, position) = create_field(ctx, "Position", self.value.position, 0);
-        let (size_grid, size) = create_field(ctx, "Size", self.value.size, 1);
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
+        let (position_grid, position) = create_field_with_font_size(
+            ctx,
+            "Position",
+            self.value.position,
+            0,
+            font.clone(),
+            font_size.clone(),
+        );
+        let (size_grid, size) = create_field_with_font_size(
+            ctx,
+            "Size",
+            self.value.size,
+            1,
+            font.clone(),
+            font_size.clone(),
+        );
         let node = RectEditor {
             widget: self
                 .widget_builder

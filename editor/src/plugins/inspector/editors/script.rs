@@ -18,47 +18,51 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::{
-    core::{
-        log::Log, parking_lot::Mutex, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        uuid_provider, visitor::prelude::*,
-    },
-    engine::SerializationContext,
-    graph::SceneGraph,
-    gui::{
-        button::{ButtonBuilder, ButtonMessage},
-        dropdown_list::{DropdownList, DropdownListMessage},
-        grid::{GridBuilder, GridDimension},
-        inspector::{
-            editors::{
-                PropertyEditorBuildContext, PropertyEditorDefinition,
-                PropertyEditorDefinitionContainer, PropertyEditorInstance,
-                PropertyEditorMessageContext, PropertyEditorTranslationContext,
-            },
-            make_expander_container, FieldAction, Inspector, InspectorBuilder, InspectorContext,
-            InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged,
-            PropertyFilter,
-        },
-        message::{MessageDirection, UiMessage},
-        style::resource::StyleResourceExt,
-        text::TextBuilder,
-        utils::make_simple_tooltip,
-        widget::{Widget, WidgetBuilder},
-        BuildContext, Control, UiNode, UserInterface,
-    },
-    script::Script,
-};
-use crate::plugins::inspector::EditorEnvironment;
 use crate::{
+    fyrox::{
+        core::{
+            log::Log, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
+            type_traits::prelude::*, uuid_provider, visitor::prelude::*,
+        },
+        engine::SerializationContext,
+        graph::SceneGraph,
+        gui::{
+            button::{ButtonBuilder, ButtonMessage},
+            dropdown_list::{DropdownList, DropdownListMessage},
+            grid::{GridBuilder, GridDimension},
+            inspector::{
+                editors::{
+                    PropertyEditorBuildContext, PropertyEditorDefinition,
+                    PropertyEditorDefinitionContainer, PropertyEditorInstance,
+                    PropertyEditorMessageContext, PropertyEditorTranslationContext,
+                },
+                make_expander_container, FieldAction, Inspector, InspectorBuilder,
+                InspectorContext, InspectorEnvironment, InspectorError, InspectorMessage,
+                PropertyChanged, PropertyFilter,
+            },
+            message::{MessageDirection, UiMessage},
+            style::resource::StyleResourceExt,
+            text::TextBuilder,
+            utils::make_simple_tooltip,
+            widget::{Widget, WidgetBuilder},
+            BuildContext, Control, UiNode, UserInterface,
+            {
+                button::Button,
+                font::FontResource,
+                inspector::InspectorContextArgs,
+                message::MessageData,
+                style::{Style, StyledProperty},
+                utils::make_dropdown_list_option,
+                Thickness, VerticalAlignment,
+            },
+        },
+        script::Script,
+    },
+    plugins::inspector::EditorEnvironment,
     settings::{general::ScriptEditor, SettingsData},
-    DropdownListBuilder, Editor,
+    DropdownListBuilder,
 };
 
-use fyrox::gui::button::Button;
-use fyrox::gui::inspector::InspectorContextArgs;
-use fyrox::gui::message::MessageData;
-use fyrox::gui::utils::make_dropdown_list_option;
-use fyrox::gui::{Thickness, VerticalAlignment};
 use std::{
     any::TypeId,
     cell::Cell,
@@ -207,11 +211,27 @@ impl Control for ScriptPropertyEditor {
 
 pub struct ScriptPropertyEditorBuilder {
     widget_builder: WidgetBuilder,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl ScriptPropertyEditorBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
-        Self { widget_builder }
+        Self {
+            widget_builder,
+            font: None,
+            font_size: None,
+        }
+    }
+
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
     }
 
     pub fn build(
@@ -230,8 +250,6 @@ impl ScriptPropertyEditorBuilder {
         ctx: &mut BuildContext,
     ) -> Handle<ScriptPropertyEditor> {
         let context = script.as_ref().map(|script| {
-            let font = Some(ctx.default_font());
-            let font_size = Some(ctx.style.property(Editor::UI_FONT_SIZE));
             InspectorContext::from_object(InspectorContextArgs {
                 object: script,
                 ctx,
@@ -243,8 +261,8 @@ impl ScriptPropertyEditorBuilder {
                 name_column_width,
                 base_path: Default::default(),
                 has_parent_object,
-                font: font,
-                font_size: font_size,
+                font: self.font,
+                font_size: self.font_size,
             })
         });
 
@@ -350,7 +368,16 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
             TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(3.0)))
                 .with_text("Edit...")
                 .with_vertical_text_alignment(VerticalAlignment::Center)
-                .with_font_size(ctx.build_context.style.property(Editor::UI_FONT_SIZE))
+                .with_font(
+                    ctx.font
+                        .clone()
+                        .unwrap_or_else(|| ctx.build_context.default_font()),
+                )
+                .with_font_size(
+                    ctx.font_size
+                        .clone()
+                        .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+                )
                 .build(ctx.build_context),
         )
         .build(ctx.build_context);
@@ -372,20 +399,31 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
             ctx.property_info.doc,
             script_selector_panel,
             {
-                editor = ScriptPropertyEditorBuilder::new(WidgetBuilder::new()).build(
-                    open_in_ide,
-                    variant_selector,
-                    value.as_ref().map(|s| s.id()),
-                    ctx.environment.clone(),
-                    ctx.layer_index,
-                    ctx.generate_property_string_values,
-                    ctx.filter,
-                    value,
-                    ctx.definition_container.clone(),
-                    ctx.name_column_width,
-                    ctx.has_parent_object,
-                    ctx.build_context,
-                );
+                editor = ScriptPropertyEditorBuilder::new(WidgetBuilder::new())
+                    .with_font(
+                        ctx.font
+                            .clone()
+                            .unwrap_or_else(|| ctx.build_context.default_font()),
+                    )
+                    .with_font_size(
+                        ctx.font_size
+                            .clone()
+                            .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+                    )
+                    .build(
+                        open_in_ide,
+                        variant_selector,
+                        value.as_ref().map(|s| s.id()),
+                        ctx.environment.clone(),
+                        ctx.layer_index,
+                        ctx.generate_property_string_values,
+                        ctx.filter,
+                        value,
+                        ctx.definition_container.clone(),
+                        ctx.name_column_width,
+                        ctx.has_parent_object,
+                        ctx.build_context,
+                    );
                 editor
             },
             ctx.name_column_width,

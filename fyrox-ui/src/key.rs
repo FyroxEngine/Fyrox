@@ -23,7 +23,10 @@
 
 #![warn(missing_docs)]
 
+use crate::font::FontResource;
 use crate::message::MessageData;
+use crate::style::resource::StyleResourceExt;
+use crate::style::{Style, StyledProperty};
 use crate::text::Text;
 use crate::{
     brush::Brush,
@@ -296,6 +299,8 @@ impl Control for HotKeyEditor {
 pub struct HotKeyEditorBuilder {
     widget_builder: WidgetBuilder,
     value: HotKey,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl HotKeyEditorBuilder {
@@ -304,6 +309,8 @@ impl HotKeyEditorBuilder {
         Self {
             widget_builder,
             value: HotKey::NotSet,
+            font: None,
+            font_size: None,
         }
     }
 
@@ -313,10 +320,28 @@ impl HotKeyEditorBuilder {
         self
     }
 
+    /// Sets a desired font of the hot key editor.
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    /// Sets a desired font size property of the hot key editor.
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
     /// Finishes widget building and adds it to the user interface, returning a handle to the new instance.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<HotKeyEditor> {
         let text = TextBuilder::new(WidgetBuilder::new())
             .with_text(format!("{}", self.value))
+            .with_font(self.font.clone().unwrap_or_else(|| ctx.default_font()))
+            .with_font_size(
+                self.font_size
+                    .clone()
+                    .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
+            )
             .build(ctx);
 
         let editor = HotKeyEditor {
@@ -493,6 +518,8 @@ impl Control for KeyBindingEditor {
 pub struct KeyBindingEditorBuilder {
     widget_builder: WidgetBuilder,
     value: KeyBinding,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl KeyBindingEditorBuilder {
@@ -501,6 +528,8 @@ impl KeyBindingEditorBuilder {
         Self {
             widget_builder,
             value: KeyBinding::NotSet,
+            font: None,
+            font_size: None,
         }
     }
 
@@ -510,10 +539,28 @@ impl KeyBindingEditorBuilder {
         self
     }
 
+    /// Sets a desired font of the editor.
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    /// Sets a desired font size property of the editor.
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
     /// Finishes widget building and adds the new widget instance to the user interface, returning a handle of it.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<KeyBindingEditor> {
         let text = TextBuilder::new(WidgetBuilder::new())
             .with_text(format!("{}", self.value))
+            .with_font(self.font.clone().unwrap_or_else(|| ctx.default_font()))
+            .with_font_size(
+                self.font_size
+                    .clone()
+                    .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
+            )
             .build(ctx);
 
         let editor = KeyBindingEditor {

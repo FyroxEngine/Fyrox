@@ -231,6 +231,8 @@ impl TileSetEditor {
         let tile_set_field =
             ResourceFieldBuilder::<TileSet>::new(WidgetBuilder::new().on_column(1), sender.clone())
                 .with_resource(tile_book.get_tile_set())
+                .with_font(ctx.default_font())
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx, icon_request_sender.clone(), resource_manager.clone());
         let tile_set_selector = GridBuilder::new(
             WidgetBuilder::new()
@@ -291,6 +293,8 @@ impl TileSetEditor {
         let color_label = make_label("Material Tint", ctx);
         let color_field = ColorFieldBuilder::new(WidgetBuilder::new().on_column(1))
             .with_color(DEFAULT_MATERIAL_COLOR)
+            .with_font(ctx.default_font())
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx);
         let color_control = GridBuilder::new(
             WidgetBuilder::new()

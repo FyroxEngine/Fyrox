@@ -29,6 +29,7 @@ use crate::{
         FieldAction, InspectorError, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
+    style::{resource::StyleResourceExt, Style},
     text::TextMessage,
     text_box::{TextBoxBuilder, TextCommitMode},
     widget::WidgetBuilder,
@@ -59,6 +60,16 @@ impl PropertyEditorDefinition for StringPropertyEditorDefinition {
             .with_text_commit_mode(TextCommitMode::Changed)
             .with_text(value)
             .with_vertical_text_alignment(VerticalAlignment::Center)
+            .with_font(
+                ctx.font
+                    .clone()
+                    .unwrap_or_else(|| ctx.build_context.default_font()),
+            )
+            .with_font_size(
+                ctx.font_size
+                    .clone()
+                    .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+            )
             .build(ctx.build_context),
         ))
     }

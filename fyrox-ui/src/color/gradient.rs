@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::font::FontResource;
 use crate::menu::{ContextMenuBuilder, MenuItem};
 use crate::style::resource::StyleResourceExt;
 use crate::style::{Style, StyledProperty};
@@ -331,6 +332,7 @@ impl ColorGradientEditor {
 pub struct ColorGradientEditorBuilder {
     widget_builder: WidgetBuilder,
     color_gradient: ColorGradient,
+    font: Option<FontResource>,
     font_size: Option<StyledProperty<f32>>,
 }
 
@@ -361,6 +363,7 @@ impl ColorGradientEditorBuilder {
         Self {
             widget_builder,
             color_gradient: Default::default(),
+            font: None,
             font_size: None,
         }
     }
@@ -370,12 +373,23 @@ impl ColorGradientEditorBuilder {
         self
     }
 
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
     pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
         self.font_size = Some(font_size);
         self
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<ColorGradientEditor> {
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
+
         let add_point;
         let context_menu = ContextMenuBuilder::new(
             PopupBuilder::new(WidgetBuilder::new())
@@ -383,6 +397,8 @@ impl ColorGradientEditorBuilder {
                     StackPanelBuilder::new(WidgetBuilder::new().with_child({
                         add_point = MenuItemBuilder::new(WidgetBuilder::new())
                             .with_content(MenuItemContent::text("Add Point"))
+                            .with_font(font.clone())
+                            .with_font_size(font_size.clone())
                             .build(ctx);
                         add_point
                     }))
@@ -401,18 +417,18 @@ impl ColorGradientEditorBuilder {
                     StackPanelBuilder::new(
                         WidgetBuilder::new()
                             .with_child({
-                                remove_point =
-                                    MenuItemBuilder::new(WidgetBuilder::new())
-                                        .with_content(MenuItemContent::text("Remove Point"))
-                                        .with_font_size(self.font_size.unwrap_or_else(|| {
-                                            ctx.style.property(Style::FONT_SIZE)
-                                        }))
-                                        .build(ctx);
+                                remove_point = MenuItemBuilder::new(WidgetBuilder::new())
+                                    .with_content(MenuItemContent::text("Remove Point"))
+                                    .with_font(font.clone())
+                                    .with_font_size(font_size.clone())
+                                    .build(ctx);
                                 remove_point
                             })
                             .with_child({
                                 selector_field =
                                     ColorFieldBuilder::new(WidgetBuilder::new().with_height(18.0))
+                                        .with_font(font.clone())
+                                        .with_font_size(font_size.clone())
                                         .build(ctx);
                                 selector_field
                             }),

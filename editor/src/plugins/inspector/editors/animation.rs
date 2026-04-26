@@ -40,10 +40,10 @@ use crate::fyrox::{
     },
 };
 use crate::plugins::inspector::EditorEnvironment;
-use crate::Editor;
 use crate::Message;
 
 use fyrox::core::reflect::Reflect;
+use fyrox::gui::style::Style;
 use fyrox::gui::utils::make_dropdown_list_option_universal;
 use std::{
     any::TypeId,
@@ -188,8 +188,9 @@ where
             editor: ButtonBuilder::new(WidgetBuilder::new())
                 .with_text_and_font_size(
                     "Open Animation Editor...",
-                    ctx.build_context.default_font(),
-                    ctx.build_context.style.property(Editor::UI_FONT_SIZE),
+                    ctx.font.unwrap_or_else(|| ctx.build_context.default_font()),
+                    ctx.font_size
+                        .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
                 )
                 .build(ctx.build_context)
                 .to_base(),
@@ -249,8 +250,9 @@ where
             editor: ButtonBuilder::new(WidgetBuilder::new())
                 .with_text_and_font_size(
                     "Open ABSM Editor...",
-                    ctx.build_context.default_font(),
-                    ctx.build_context.style.property(Editor::UI_FONT_SIZE),
+                    ctx.font.unwrap_or_else(|| ctx.build_context.default_font()),
+                    ctx.font_size
+                        .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
                 )
                 .build(ctx.build_context)
                 .to_base(),

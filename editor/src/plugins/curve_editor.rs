@@ -197,6 +197,7 @@ impl CurveEditorWindow {
                                                             "New", "Ctrl+N",
                                                         ),
                                                     )
+                                                    .with_font(ctx.default_font())
                                                     .with_font_size(
                                                         ctx.style.property(Editor::UI_FONT_SIZE),
                                                     )
@@ -210,6 +211,7 @@ impl CurveEditorWindow {
                                                             "Load", "Ctrl+L",
                                                         ),
                                                     )
+                                                    .with_font(ctx.default_font())
                                                     .with_font_size(
                                                         ctx.style.property(Editor::UI_FONT_SIZE),
                                                     )
@@ -223,6 +225,7 @@ impl CurveEditorWindow {
                                                             "Save", "Ctrl+S",
                                                         ),
                                                     )
+                                                    .with_font(ctx.default_font())
                                                     .with_font_size(
                                                         ctx.style.property(Editor::UI_FONT_SIZE),
                                                     )
@@ -230,6 +233,7 @@ impl CurveEditorWindow {
                                                 save
                                             },
                                         ])
+                                        .with_font(ctx.default_font())
                                         .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                         .build(ctx),
                                     MenuItemBuilder::new(WidgetBuilder::new())
@@ -242,6 +246,7 @@ impl CurveEditorWindow {
                                                             "Undo", "Ctrl+Z",
                                                         ),
                                                     )
+                                                    .with_font(ctx.default_font())
                                                     .with_font_size(
                                                         ctx.style.property(Editor::UI_FONT_SIZE),
                                                     )
@@ -255,6 +260,7 @@ impl CurveEditorWindow {
                                                             "Redo", "Ctrl+Y",
                                                         ),
                                                     )
+                                                    .with_font(ctx.default_font())
                                                     .with_font_size(
                                                         ctx.style.property(Editor::UI_FONT_SIZE),
                                                     )
@@ -262,6 +268,7 @@ impl CurveEditorWindow {
                                                 redo
                                             },
                                         ])
+                                        .with_font(ctx.default_font())
                                         .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                         .build(ctx),
                                 ])
@@ -277,6 +284,8 @@ impl CurveEditorWindow {
                                         curve_editor = CurveEditorBuilder::new(
                                             WidgetBuilder::new().with_enabled(false),
                                         )
+                                        .with_font(ctx.default_font())
+                                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                         .build(ctx);
                                         curve_editor
                                     }),

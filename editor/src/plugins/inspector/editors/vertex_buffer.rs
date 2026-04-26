@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use fyrox::gui::style::Style;
+
 use crate::fyrox::{
     gui::{
         inspector::{
@@ -35,7 +37,6 @@ use crate::fyrox::{
     },
     scene::mesh::buffer::VertexBuffer,
 };
-use crate::Editor;
 use std::any::TypeId;
 
 #[derive(Debug)]
@@ -67,7 +68,11 @@ impl PropertyEditorDefinition for VertexBufferPropertyEditorDefinition {
                     .with_vertical_alignment(VerticalAlignment::Center),
             )
             .with_text(vertex_buffer_description(value))
-            .with_font_size(ctx.build_context.style.property(Editor::UI_FONT_SIZE))
+            .with_font(ctx.font.unwrap_or_else(|| ctx.build_context.default_font()))
+            .with_font_size(
+                ctx.font_size
+                    .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+            )
             .build(ctx.build_context),
         ))
     }

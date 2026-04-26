@@ -716,14 +716,20 @@ impl MacroPropertyValueField {
         let textbox = match &value {
             Element::I32(v) => NumericUpDownBuilder::<i32>::new(wb)
                 .with_value(*v)
+                .with_font(ctx.default_font())
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx)
                 .to_base(),
             Element::F32(v) => NumericUpDownBuilder::<f32>::new(wb)
                 .with_value(*v)
+                .with_font(ctx.default_font())
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx)
                 .to_base(),
             Element::I8(v) => NumericUpDownBuilder::<i8>::new(wb)
                 .with_value(*v)
+                .with_font(ctx.default_font())
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx)
                 .to_base(),
             Element::String(v) => TextBoxBuilder::new(wb)

@@ -974,7 +974,7 @@ pub fn make_expander_container(
         .to_base()
 }
 
-fn create_header(ctx: &mut BuildContext, text: &str, layer_index: usize) -> Handle<Text> {
+fn _create_header(ctx: &mut BuildContext, text: &str, layer_index: usize) -> Handle<Text> {
     TextBuilder::new(WidgetBuilder::new().with_margin(make_property_margin(layer_index)))
         .with_text(text)
         .with_vertical_text_alignment(VerticalAlignment::Center)
@@ -1221,6 +1221,12 @@ impl InspectorContext {
                                         "Unable to create property \
                                                     editor instance: Reason {e:?}"
                                     ))
+                                    .with_font(font.clone().unwrap_or_else(|| ctx.default_font()))
+                                    .with_font_size(
+                                        font_size.clone().unwrap_or_else(|| {
+                                            ctx.style.property(Style::FONT_SIZE)
+                                        }),
+                                    )
                                     .build(ctx),
                                 &description,
                                 name_column_width,
@@ -1248,6 +1254,12 @@ impl InspectorContext {
                                 "Property Editor Is Missing For Type {}!",
                                 info.value.type_name()
                             ))
+                            .with_font(font.clone().unwrap_or_else(|| ctx.default_font()))
+                            .with_font_size(
+                                font_size
+                                    .clone()
+                                    .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
+                            )
                             .build(ctx),
                         &description,
                         name_column_width,

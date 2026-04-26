@@ -278,6 +278,8 @@ impl SpriteSheetFramesEditorWindow {
                     width = NumericUpDownBuilder::new(WidgetBuilder::new().on_column(1).on_row(0))
                         .with_min_value(0)
                         .with_value(container.size().x)
+                        .with_font(ctx.default_font())
+                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx);
                     width
                 })
@@ -298,6 +300,8 @@ impl SpriteSheetFramesEditorWindow {
                     height = NumericUpDownBuilder::new(WidgetBuilder::new().on_column(1).on_row(1))
                         .with_min_value(0)
                         .with_value(container.size().y)
+                        .with_font(ctx.default_font())
+                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx);
                     height
                 }),

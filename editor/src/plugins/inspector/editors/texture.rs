@@ -18,6 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use fyrox::gui::{
+    font::FontResource,
+    style::{Style, StyledProperty},
+};
+
 use crate::{
     asset::{item::AssetItem, preview::cache::IconRequest, selector::AssetSelectorMixin},
     fyrox::{
@@ -50,7 +55,7 @@ use crate::{
     load_image,
     message::MessageSender,
     plugins::inspector::EditorEnvironment,
-    utils, Editor, Message,
+    utils, Message,
 };
 use std::{
     any::TypeId,
@@ -179,6 +184,8 @@ impl TextureEditor {
 pub struct TextureEditorBuilder {
     widget_builder: WidgetBuilder,
     texture: Option<TextureResource>,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl TextureEditorBuilder {
@@ -186,11 +193,25 @@ impl TextureEditorBuilder {
         Self {
             widget_builder,
             texture: None,
+            font: None,
+            font_size: None,
         }
     }
 
     pub fn with_texture(mut self, texture: Option<TextureResource>) -> Self {
         self.texture = texture;
+        self
+    }
+
+    /// Sets the desired font for the editor.
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    /// Sets the desired font size property of the editor.
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
         self
     }
 
@@ -201,6 +222,12 @@ impl TextureEditorBuilder {
         icon_request_sender: Sender<IconRequest>,
         resource_manager: ResourceManager,
     ) -> Handle<TextureEditor> {
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
+
         let image = ImageBuilder::new(
             WidgetBuilder::new()
                 .on_column(0)
@@ -225,7 +252,8 @@ impl TextureEditorBuilder {
                 .with_vertical_alignment(VerticalAlignment::Center),
         )
         .with_text(texture_name(self.texture.as_ref(), &resource_manager))
-        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
+        .with_font(font.clone())
+        .with_font_size(font_size.clone())
         .build(ctx);
 
         let locate = ImageButtonBuilder::default()
@@ -319,6 +347,11 @@ impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
         Ok(PropertyEditorInstance::simple(
             TextureEditorBuilder::new(WidgetBuilder::new().with_min_size(Vector2::new(0.0, 17.0)))
                 .with_texture(value.clone())
+                .with_font(ctx.font.unwrap_or_else(|| ctx.build_context.default_font()))
+                .with_font_size(
+                    ctx.font_size
+                        .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+                )
                 .build(
                     ctx.build_context,
                     environment.sender.clone(),

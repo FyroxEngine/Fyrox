@@ -283,6 +283,11 @@ impl AnimationEditor {
                                                                 .on_row(1),
                                                         )
                                                         .with_show_x_values(false)
+                                                        .with_font(ctx.default_font())
+                                                        .with_font_size(
+                                                            ctx.style
+                                                                .property(Editor::UI_FONT_SIZE),
+                                                        )
                                                         .build(ctx);
                                                         curve_editor
                                                     }),

@@ -1888,6 +1888,8 @@ impl CurveEditorBuilder {
                                                         .on_row(0)
                                                         .on_column(1),
                                                 )
+                                                .with_font(font.clone())
+                                                .with_font_size(font_size.clone())
                                                 .build(ctx);
                                                 key_location
                                             })
@@ -1913,6 +1915,8 @@ impl CurveEditorBuilder {
                                                         .on_row(1)
                                                         .on_column(1),
                                                 )
+                                                .with_font(font.clone())
+                                                .with_font_size(font_size.clone())
                                                 .build(ctx);
                                                 key_value
                                             }),

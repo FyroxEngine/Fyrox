@@ -300,16 +300,19 @@ impl AudioPanel {
                                         renderer
                                     })
                                     .with_child({
-                                        hrir_resource =
-                                            ResourceFieldBuilder::<HrirSphereResourceData>::new(
-                                                WidgetBuilder::new().with_tab_index(Some(2)),
-                                                sender,
-                                            )
-                                            .build(
-                                                ctx,
-                                                icon_request_sender,
-                                                engine.resource_manager.clone(),
-                                            );
+                                        hrir_resource = ResourceFieldBuilder::<
+                                            HrirSphereResourceData,
+                                        >::new(
+                                            WidgetBuilder::new().with_tab_index(Some(2)),
+                                            sender,
+                                        )
+                                        .with_font(ctx.default_font())
+                                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
+                                        .build(
+                                            ctx,
+                                            icon_request_sender,
+                                            engine.resource_manager.clone(),
+                                        );
                                         hrir_resource
                                     }),
                             )

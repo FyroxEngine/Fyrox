@@ -30,6 +30,7 @@ use crate::{
     matrix::{MatrixEditorBuilder, MatrixEditorMessage},
     message::{MessageDirection, UiMessage},
     numeric::NumericType,
+    style::{resource::StyleResourceExt, Style},
     widget::WidgetBuilder,
     Thickness,
 };
@@ -83,6 +84,11 @@ impl<const R: usize, const C: usize, T: NumericType> PropertyEditorDefinition
                         .unwrap_or_else(T::one),
                 ))
                 .with_value(*value)
+                .with_font(ctx.font.unwrap_or_else(|| ctx.build_context.default_font()))
+                .with_font_size(
+                    ctx.font_size
+                        .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+                )
                 .build(ctx.build_context),
         ))
     }

@@ -31,10 +31,12 @@ use crate::{
         visitor::prelude::*,
     },
     draw::{CommandTexture, Draw, DrawingContext},
+    font::FontResource,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, MouseButton, UiMessage},
     numeric::{NumericUpDownBuilder, NumericUpDownMessage},
     popup::{Placement, PopupBuilder, PopupMessage},
+    style::{resource::StyleResourceExt, Style, StyledProperty},
     text::TextBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
@@ -958,9 +960,11 @@ impl Control for ColorPicker {
 pub struct ColorPickerBuilder {
     widget_builder: WidgetBuilder,
     color: Color,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
-fn make_text_mark(ctx: &mut BuildContext, text: &str, row: usize, column: usize) -> Handle<Text> {
+fn _make_text_mark(ctx: &mut BuildContext, text: &str, row: usize, column: usize) -> Handle<Text> {
     TextBuilder::new(
         WidgetBuilder::new()
             .with_vertical_alignment(VerticalAlignment::Center)
@@ -971,7 +975,27 @@ fn make_text_mark(ctx: &mut BuildContext, text: &str, row: usize, column: usize)
     .build(ctx)
 }
 
-fn make_input_field(
+fn make_text_mark_with_font_size(
+    ctx: &mut BuildContext,
+    text: &str,
+    row: usize,
+    column: usize,
+    font: FontResource,
+    font_size: StyledProperty<f32>,
+) -> Handle<Text> {
+    TextBuilder::new(
+        WidgetBuilder::new()
+            .with_vertical_alignment(VerticalAlignment::Center)
+            .on_row(row)
+            .on_column(column),
+    )
+    .with_text(text)
+    .with_font(font)
+    .with_font_size(font_size)
+    .build(ctx)
+}
+
+fn _make_input_field(
     ctx: &mut BuildContext,
     value: f32,
     max_value: f32,
@@ -992,16 +1016,53 @@ fn make_input_field(
     .build(ctx)
 }
 
+fn make_input_field_with_font_size(
+    ctx: &mut BuildContext,
+    value: f32,
+    max_value: f32,
+    row: usize,
+    column: usize,
+    font: FontResource,
+    font_size: StyledProperty<f32>,
+) -> Handle<NumericUpDown<f32>> {
+    NumericUpDownBuilder::new(
+        WidgetBuilder::new()
+            .with_margin(Thickness::uniform(1.0))
+            .on_row(row)
+            .on_column(column),
+    )
+    .with_value(value)
+    .with_min_value(0.0)
+    .with_max_value(max_value)
+    .with_precision(0)
+    .with_step(1.0)
+    .with_font(font)
+    .with_font_size(font_size)
+    .build(ctx)
+}
+
 impl ColorPickerBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             color: Color::WHITE,
+            font: None,
+            font_size: None,
         }
     }
 
     pub fn with_color(mut self, color: Color) -> Self {
         self.color = color;
+        self
+    }
+
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
         self
     }
 
@@ -1019,42 +1080,153 @@ impl ColorPickerBuilder {
         let alpha;
         let hsv = Hsv::from(self.color);
 
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
+
         let numerics_grid = GridBuilder::new(
             WidgetBuilder::new()
                 .on_row(1)
-                .with_child(make_text_mark(ctx, "R", 0, 0))
+                .with_child(make_text_mark_with_font_size(
+                    ctx,
+                    "R",
+                    0,
+                    0,
+                    font.clone(),
+                    font_size.clone(),
+                ))
                 .with_child({
-                    red = make_input_field(ctx, self.color.r as f32, 255.0, 0, 1);
+                    red = make_input_field_with_font_size(
+                        ctx,
+                        self.color.r as f32,
+                        255.0,
+                        0,
+                        1,
+                        font.clone(),
+                        font_size.clone(),
+                    );
                     red
                 })
-                .with_child(make_text_mark(ctx, "G", 1, 0))
+                .with_child(make_text_mark_with_font_size(
+                    ctx,
+                    "G",
+                    1,
+                    0,
+                    font.clone(),
+                    font_size.clone(),
+                ))
                 .with_child({
-                    green = make_input_field(ctx, self.color.g as f32, 255.0, 1, 1);
+                    green = make_input_field_with_font_size(
+                        ctx,
+                        self.color.g as f32,
+                        255.0,
+                        1,
+                        1,
+                        font.clone(),
+                        font_size.clone(),
+                    );
                     green
                 })
-                .with_child(make_text_mark(ctx, "B", 2, 0))
+                .with_child(make_text_mark_with_font_size(
+                    ctx,
+                    "B",
+                    2,
+                    0,
+                    font.clone(),
+                    font_size.clone(),
+                ))
                 .with_child({
-                    blue = make_input_field(ctx, self.color.b as f32, 255.0, 2, 1);
+                    blue = make_input_field_with_font_size(
+                        ctx,
+                        self.color.b as f32,
+                        255.0,
+                        2,
+                        1,
+                        font.clone(),
+                        font_size.clone(),
+                    );
                     blue
                 })
-                .with_child(make_text_mark(ctx, "H", 0, 2))
+                .with_child(make_text_mark_with_font_size(
+                    ctx,
+                    "H",
+                    0,
+                    2,
+                    font.clone(),
+                    font_size.clone(),
+                ))
                 .with_child({
-                    hue = make_input_field(ctx, hsv.hue(), 360.0, 0, 3);
+                    hue = make_input_field_with_font_size(
+                        ctx,
+                        hsv.hue(),
+                        360.0,
+                        0,
+                        3,
+                        font.clone(),
+                        font_size.clone(),
+                    );
                     hue
                 })
-                .with_child(make_text_mark(ctx, "S", 1, 2))
+                .with_child(make_text_mark_with_font_size(
+                    ctx,
+                    "S",
+                    1,
+                    2,
+                    font.clone(),
+                    font_size.clone(),
+                ))
                 .with_child({
-                    saturation = make_input_field(ctx, hsv.saturation(), 100.0, 1, 3);
+                    saturation = make_input_field_with_font_size(
+                        ctx,
+                        hsv.saturation(),
+                        100.0,
+                        1,
+                        3,
+                        font.clone(),
+                        font_size.clone(),
+                    );
                     saturation
                 })
-                .with_child(make_text_mark(ctx, "B", 2, 2))
+                .with_child(make_text_mark_with_font_size(
+                    ctx,
+                    "B",
+                    2,
+                    2,
+                    font.clone(),
+                    font_size.clone(),
+                ))
                 .with_child({
-                    brightness = make_input_field(ctx, hsv.brightness(), 100.0, 2, 3);
+                    brightness = make_input_field_with_font_size(
+                        ctx,
+                        hsv.brightness(),
+                        100.0,
+                        2,
+                        3,
+                        font.clone(),
+                        font_size.clone(),
+                    );
                     brightness
                 })
-                .with_child(make_text_mark(ctx, "A", 3, 0))
+                .with_child(make_text_mark_with_font_size(
+                    ctx,
+                    "A",
+                    3,
+                    0,
+                    font.clone(),
+                    font_size.clone(),
+                ))
                 .with_child({
-                    alpha = make_input_field(ctx, self.color.a as f32, 255.0, 3, 1);
+                    alpha = make_input_field_with_font_size(
+                        ctx,
+                        self.color.a as f32,
+                        255.0,
+                        3,
+                        1,
+                        font.clone(),
+                        font_size.clone(),
+                    );
                     alpha
                 }),
         )
@@ -1249,6 +1421,8 @@ impl Control for ColorField {
 pub struct ColorFieldBuilder {
     widget_builder: WidgetBuilder,
     color: Color,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl ColorFieldBuilder {
@@ -1256,11 +1430,23 @@ impl ColorFieldBuilder {
         Self {
             widget_builder,
             color: Color::WHITE,
+            font: None,
+            font_size: None,
         }
     }
 
     pub fn with_color(mut self, color: Color) -> Self {
         self.color = color;
+        self
+    }
+
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
         self
     }
 
@@ -1270,6 +1456,12 @@ impl ColorFieldBuilder {
             .with_content({
                 picker = ColorPickerBuilder::new(WidgetBuilder::new())
                     .with_color(self.color)
+                    .with_font(self.font.clone().unwrap_or_else(|| ctx.default_font()))
+                    .with_font_size(
+                        self.font_size
+                            .clone()
+                            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
+                    )
                     .build(ctx);
                 picker
             })

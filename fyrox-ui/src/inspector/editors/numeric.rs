@@ -29,6 +29,7 @@ use crate::{
     },
     message::{MessageDirection, UiMessage},
     numeric::{NumericType, NumericUpDownBuilder, NumericUpDownMessage},
+    style::{resource::StyleResourceExt, Style},
     widget::WidgetBuilder,
     Thickness,
 };
@@ -88,6 +89,11 @@ where
                 )
                 .with_precision(ctx.property_info.precision.unwrap_or(3))
                 .with_value(*value)
+                .with_font(ctx.font.unwrap_or_else(|| ctx.build_context.default_font()))
+                .with_font_size(
+                    ctx.font_size
+                        .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+                )
                 .build(ctx.build_context),
         ))
     }
