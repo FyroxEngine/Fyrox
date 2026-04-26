@@ -196,6 +196,8 @@ fn make_terrain_list_element(
     )
     .with_value(frequency)
     .with_min_value(0.0)
+    .with_font(ctx.default_font())
+    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
     .build(ctx);
     let delete_button = ButtonBuilder::new(
         WidgetBuilder::new()
@@ -554,6 +556,8 @@ impl BrushMacro for WfcMacro {
         let attempts = instance.max_attempts;
         self.attempts_field = NumericUpDownBuilder::new(WidgetBuilder::new().on_column(1))
             .with_value(attempts)
+            .with_font(ctx.default_font())
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx);
         self.edges_toggle = CheckBoxBuilder::new(WidgetBuilder::new())
             .checked(Some(constrain_edges))

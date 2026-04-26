@@ -38,7 +38,7 @@ use crate::{
     message::{DeliveryMode, MessageData, MessageDirection, UiMessage},
     resources,
     stack_panel::{StackPanel, StackPanelBuilder},
-    style::StyledProperty,
+    style::{resource::StyleResourceExt, Style, StyledProperty},
     utils::ImageButtonBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
@@ -520,6 +520,11 @@ where
                 .with_generate_property_string_values(ctx.generate_property_string_values)
                 .with_filter(ctx.filter)
                 .with_immutable_collection(ctx.property_info.immutable_collection)
+                .with_font(ctx.font.unwrap_or_else(|| ctx.build_context.default_font()))
+                .with_font_size(
+                    ctx.font_size
+                        .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+                )
                 .build(
                     ctx.build_context,
                     ctx.property_info,

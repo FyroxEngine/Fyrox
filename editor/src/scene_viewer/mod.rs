@@ -154,6 +154,8 @@ impl GridSnappingMenu {
                                     .with_tab_index(Some(1)),
                             )
                             .with_value(settings.move_mode_settings.x_snap_step)
+                            .with_font(ctx.default_font())
+                            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                             .build(ctx);
                             x_step
                         })
@@ -171,6 +173,8 @@ impl GridSnappingMenu {
                                     .with_tab_index(Some(2)),
                             )
                             .with_value(settings.move_mode_settings.y_snap_step)
+                            .with_font(ctx.default_font())
+                            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                             .build(ctx);
                             y_step
                         })
@@ -188,6 +192,8 @@ impl GridSnappingMenu {
                                     .with_tab_index(Some(3)),
                             )
                             .with_value(settings.move_mode_settings.z_snap_step)
+                            .with_font(ctx.default_font())
+                            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                             .build(ctx);
                             z_step
                         }),

@@ -257,6 +257,8 @@ impl UiView for Color {
     fn make_view(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         ColorFieldBuilder::new(WidgetBuilder::new())
             .with_color(self)
+            .with_font(ctx.default_font())
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx)
             .to_base()
     }
@@ -319,6 +321,7 @@ impl MaterialEditor {
                                     )
                                     .with_vertical_text_alignment(VerticalAlignment::Center)
                                     .with_text("Shader")
+                                    .with_font(ctx.default_font())
                                     .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                     .build(ctx),
                                 )
@@ -330,6 +333,8 @@ impl MaterialEditor {
                                             .with_tooltip(shader_tooltip),
                                         sender,
                                     )
+                                    .with_font(ctx.default_font())
+                                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                     .build(
                                         ctx,
                                         icon_request_sender,
@@ -474,6 +479,8 @@ impl MaterialEditor {
                             .with_tooltip(make_simple_tooltip(ctx, &path)),
                     )
                     .with_texture(texture)
+                    .with_font(ctx.default_font())
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(
                         ctx,
                         sender.clone(),
@@ -537,6 +544,8 @@ impl MaterialEditor {
                     Kind::Bool { value } => value.make_view(ctx),
                     Kind::Color { r, g, b, a } => ColorFieldBuilder::new(WidgetBuilder::new())
                         .with_color(Color::from_rgba(*r, *g, *b, *a))
+                        .with_font(ctx.default_font())
+                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx)
                         .to_base(),
                 };

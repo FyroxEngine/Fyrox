@@ -395,6 +395,7 @@ impl PropertiesTab {
         let value_name_field =
             TextBoxBuilder::new(WidgetBuilder::new().with_height(20.0).on_column(1))
                 .with_text_commit_mode(TextCommitMode::Changed)
+                .with_font(ctx.default_font())
                 .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx);
         let edit_header = GridBuilder::new(
@@ -414,24 +415,32 @@ impl PropertiesTab {
                 .on_row(1)
                 .with_height(30.0),
         )
+        .with_font(ctx.default_font())
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
         let i8_field = NumericUpDownBuilder::<i8>::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(8.0))
                 .with_visibility(false),
         )
+        .with_font(ctx.default_font())
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
         let i32_field = NumericUpDownBuilder::<i32>::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(8.0))
                 .with_visibility(true),
         )
+        .with_font(ctx.default_font())
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
         let f32_field = NumericUpDownBuilder::<f32>::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(8.0))
                 .with_visibility(false),
         )
+        .with_font(ctx.default_font())
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
         let edit_content = GridBuilder::new(
             WidgetBuilder::new()

@@ -620,6 +620,8 @@ impl Toolbar {
                                         )),
                                 )
                                 .with_value(1.0)
+                                .with_font(ctx.default_font())
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx);
                                 speed
                             })
@@ -652,6 +654,8 @@ impl Toolbar {
                                 )
                                 .with_min_value(0.0)
                                 .with_value(0.0)
+                                .with_font(ctx.default_font())
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx);
                                 time_slice_start
                             })
@@ -668,6 +672,8 @@ impl Toolbar {
                                 )
                                 .with_min_value(0.0)
                                 .with_value(1.0)
+                                .with_font(ctx.default_font())
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx);
                                 time_slice_end
                             }),

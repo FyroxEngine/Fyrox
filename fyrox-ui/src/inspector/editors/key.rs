@@ -31,6 +31,7 @@ use crate::{
         KeyBindingEditorMessage,
     },
     message::{MessageDirection, UiMessage},
+    style::{resource::StyleResourceExt, Style},
     widget::WidgetBuilder,
     Thickness,
 };
@@ -52,6 +53,11 @@ impl PropertyEditorDefinition for HotKeyPropertyEditorDefinition {
         Ok(PropertyEditorInstance::simple(
             HotKeyEditorBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                 .with_value(value.clone())
+                .with_font(ctx.font.unwrap_or_else(|| ctx.build_context.default_font()))
+                .with_font_size(
+                    ctx.font_size
+                        .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+                )
                 .build(ctx.build_context),
         ))
     }
@@ -97,6 +103,11 @@ impl PropertyEditorDefinition for KeyBindingPropertyEditorDefinition {
         Ok(PropertyEditorInstance::simple(
             KeyBindingEditorBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                 .with_value(value.clone())
+                .with_font(ctx.font.unwrap_or_else(|| ctx.build_context.default_font()))
+                .with_font_size(
+                    ctx.font_size
+                        .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+                )
                 .build(ctx.build_context),
         ))
     }

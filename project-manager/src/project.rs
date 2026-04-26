@@ -23,6 +23,7 @@ use crate::{
     settings::{Project, Settings},
     utils,
 };
+use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::{
     core::pool::Handle,
     gui::{
@@ -34,7 +35,7 @@ use fyrox::{
         message::{MessageDirection, UiMessage},
         path::{PathEditor, PathEditorBuilder, PathEditorMessage},
         stack_panel::StackPanelBuilder,
-        style::{self, resource::StyleResourceExt},
+        style::{self},
         text::{Text, TextBuilder, TextMessage},
         text_box::{TextBox, TextBoxBuilder, TextCommitMode},
         utils::make_dropdown_list_option,
@@ -149,6 +150,8 @@ impl ProjectWizard {
         )
         .with_path(&path)
         .with_file_types(PathFilter::folder())
+        .with_font(ctx.default_font())
+        .with_font_size(ctx.style.property(fyrox::gui::style::Style::FONT_SIZE)) // OMG Bruh
         .build(ctx);
 
         let name_field = TextBoxBuilder::new(

@@ -56,8 +56,10 @@ use crate::{
 };
 use fyrox::core::PhantomDataSendSync;
 use fyrox::gui::button::Button;
+use fyrox::gui::font::FontResource;
 use fyrox::gui::image::Image;
 use fyrox::gui::message::MessageData;
+use fyrox::gui::style::StyledProperty;
 use fyrox::gui::text::Text;
 use fyrox::gui::window::WindowAlignment;
 use std::{
@@ -323,6 +325,8 @@ struct HandlePropertyEditorBuilder<T: Reflect> {
     widget_builder: WidgetBuilder,
     value: Handle<T>,
     sender: MessageSender,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 fn make_icon(data: &[u8], color: Color, ctx: &mut BuildContext) -> Handle<Image> {
@@ -362,6 +366,8 @@ impl<T: Reflect> HandlePropertyEditorBuilder<T> {
             widget_builder,
             sender,
             value: Default::default(),
+            font: None,
+            font_size: None,
         }
     }
 
@@ -370,7 +376,25 @@ impl<T: Reflect> HandlePropertyEditorBuilder<T> {
         self
     }
 
+    /// Sets the desired font of the editor.
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    /// Sets a desired font size property of the editor.
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext) -> Handle<HandlePropertyEditor<T>> {
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
+
         let text = TextBuilder::new(
             WidgetBuilder::new()
                 .on_column(0)
@@ -382,7 +406,8 @@ impl<T: Reflect> HandlePropertyEditorBuilder<T> {
         } else {
             "Err: Desync!".to_owned()
         })
-        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
+        .with_font(font.clone())
+        .with_font_size(font_size.clone())
         .build(ctx);
         let locate_img = include_bytes!("../../../../resources/locate.png");
         let locate = make_button(ctx, locate_img, Color::repeat(180), 2, "Locate Object");
@@ -475,6 +500,11 @@ impl<T: Reflect> PropertyEditorDefinition for NodeHandlePropertyEditorDefinition
 
         let editor = HandlePropertyEditorBuilder::new(WidgetBuilder::new(), sender.clone())
             .with_value(*value)
+            .with_font(ctx.font.unwrap_or_else(|| ctx.build_context.default_font()))
+            .with_font_size(
+                ctx.font_size
+                    .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+            )
             .build(ctx.build_context);
 
         request_name_sync(&sender, editor.to_base(), ErasedHandle::from(*value));

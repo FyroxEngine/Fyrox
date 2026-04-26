@@ -46,9 +46,14 @@ use crate::{
         },
     },
     plugins::inspector::EditorEnvironment,
-    Editor,
 };
-use fyrox::{core::dyntype::DynTypeWrapper, gui::style::resource::StyleResourceExt};
+use fyrox::{
+    core::dyntype::DynTypeWrapper,
+    gui::{
+        font::FontResource,
+        style::{resource::StyleResourceExt, Style, StyledProperty},
+    },
+};
 use std::{
     any::TypeId,
     cell::Cell,
@@ -131,11 +136,27 @@ impl Control for DynTypePropertyEditor {
 
 pub struct DynTypePropertyEditorBuilder {
     widget_builder: WidgetBuilder,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl DynTypePropertyEditorBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
-        Self { widget_builder }
+        Self {
+            widget_builder,
+            font: None,
+            font_size: None,
+        }
+    }
+
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
     }
 
     pub fn build(
@@ -153,8 +174,6 @@ impl DynTypePropertyEditorBuilder {
         ctx: &mut BuildContext,
     ) -> Handle<DynTypePropertyEditor> {
         let context = dyntype_container.value_ref().as_ref().map(|dyn_type| {
-            let font = Some(ctx.default_font());
-            let font_size = Some(ctx.style.property(Editor::UI_FONT_SIZE));
             InspectorContext::from_object(InspectorContextArgs {
                 object: *dyn_type,
                 ctx,
@@ -166,8 +185,8 @@ impl DynTypePropertyEditorBuilder {
                 name_column_width,
                 base_path: Default::default(),
                 has_parent_object,
-                font: font,
-                font_size: font_size,
+                font: self.font,
+                font_size: self.font_size,
             })
         });
 
@@ -266,19 +285,25 @@ impl PropertyEditorDefinition for DynTypePropertyEditorDefinition {
             ctx.property_info.doc,
             dyn_type_selector_panel,
             {
-                editor = DynTypePropertyEditorBuilder::new(WidgetBuilder::new()).build(
-                    variant_selector,
-                    value.value_ref().map(|s| s.type_uuid()),
-                    ctx.environment.clone(),
-                    ctx.layer_index,
-                    ctx.generate_property_string_values,
-                    ctx.filter,
-                    value,
-                    ctx.definition_container.clone(),
-                    ctx.name_column_width,
-                    ctx.has_parent_object,
-                    ctx.build_context,
-                );
+                editor = DynTypePropertyEditorBuilder::new(WidgetBuilder::new())
+                    .with_font(ctx.font.unwrap_or_else(|| ctx.build_context.default_font()))
+                    .with_font_size(
+                        ctx.font_size
+                            .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+                    )
+                    .build(
+                        variant_selector,
+                        value.value_ref().map(|s| s.type_uuid()),
+                        ctx.environment.clone(),
+                        ctx.layer_index,
+                        ctx.generate_property_string_values,
+                        ctx.filter,
+                        value,
+                        ctx.definition_container.clone(),
+                        ctx.name_column_width,
+                        ctx.has_parent_object,
+                        ctx.build_context,
+                    );
                 editor
             },
             ctx.name_column_width,

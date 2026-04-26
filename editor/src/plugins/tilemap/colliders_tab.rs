@@ -236,6 +236,8 @@ impl CollidersTab {
                 .on_row(1)
                 .with_height(30.0),
         )
+        .with_font(ctx.default_font())
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
         let data_panel = GridBuilder::new(
             WidgetBuilder::new()
