@@ -130,7 +130,7 @@ impl ClippingGeometry {
 pub struct Command {
     /// Clipping bounds, should be used for scissor-test. Screen-space.
     pub clip_bounds: Rect<f32>,
-    /// Total bounds of command's geometry. Screen-space.
+    /// Total bounds of command's geometry. Local space.
     pub bounds: Rect<f32>,
     /// Brush defines the visual appearance of rendered geometry.
     pub brush: Brush,

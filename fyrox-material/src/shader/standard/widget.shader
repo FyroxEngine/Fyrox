@@ -29,12 +29,14 @@
 
                     out vec2 texCoord;
                     out vec4 color;
+                    out vec2 localPosition;
 
                     void main()
                     {
                         texCoord = vertexTexCoord;
                         color = vertexColor;
 
+                        localPosition = vertexPosition;
                         vec3 worldSpaceVertex = fyrox_widgetData.worldMatrix * vec3(vertexPosition, 1.0);
                         gl_Position = fyrox_widgetData.projectionMatrix * vec4(worldSpaceVertex, 1.0);
                     }
@@ -47,6 +49,7 @@
 
                     in vec2 texCoord;
                     in vec4 color;
+                    in vec2 localPosition;
 
                     float project_point(vec2 a, vec2 b, vec2 p) {
                         vec2 ab = b - a;
@@ -68,7 +71,7 @@
                     void main()
                     {
                         vec2 size = vec2(fyrox_widgetData.boundsMax.x - fyrox_widgetData.boundsMin.x, fyrox_widgetData.boundsMax.y - fyrox_widgetData.boundsMin.y);
-                        vec2 localPosition = (vec2(gl_FragCoord.x, fyrox_widgetData.resolution.y - gl_FragCoord.y) - fyrox_widgetData.boundsMin) / size;
+                        vec2 normalizedPosition = (localPosition - fyrox_widgetData.boundsMin) / size;
 
                         if (fyrox_widgetData.brushType == 0) {
                             // Solid color
@@ -79,10 +82,10 @@
 
                             if (fyrox_widgetData.brushType == 1) {
                                 // Linear gradient
-                                t = project_point(fyrox_widgetData.gradientOrigin, fyrox_widgetData.gradientEnd, localPosition);
+                                t = project_point(fyrox_widgetData.gradientOrigin, fyrox_widgetData.gradientEnd, normalizedPosition);
                             } else if (fyrox_widgetData.brushType == 2) {
                                 // Radial gradient
-                                t = clamp(length(localPosition - fyrox_widgetData.gradientOrigin), 0.0, 1.0);
+                                t = clamp(length(normalizedPosition - fyrox_widgetData.gradientOrigin), 0.0, 1.0);
                             }
 
                             int current = find_stop_index(t);

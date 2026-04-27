@@ -323,19 +323,20 @@
 //!
 //! | Name                | Type        | Description                                                |
 //! |---------------------|-------------|------------------------------------------------------------|
-//! | worldViewProjection | `mat4`      | World-to-clip-space transformation matrix.                 |
+//! | projectionMatrix    | `mat4`      | World-to-clip-space transformation matrix.                 |
+//! | worldMatrix         | `mat3`      | Local-to-world-space transformation matrix.                |
 //! | solidColor          | `vec4`      | RGBA color.                                                |
 //! | gradientColors      | `vec4[16]`  | A set of gradient colors.                                  |
 //! | gradientStops       | `float[16]` | A set of normalized (0.0-1.0) stops along the axis.        |
-//! | gradientOrigin      | `vec2`      | Origin position of the gradient (local coordinates).       |
-//! | gradientEnd         | `vec2`      | End position of the gradient (local coordinates).          |
+//! | gradientOrigin      | `vec2`      | Origin position of the gradient (normalized coordinates).  |
+//! | gradientEnd         | `vec2`      | End position of the gradient (normalized coordinates).     |
 //! | gradientPointCount  | `int`       | Total number of gradient points.                           |
 //! | resolution          | `vec2`      | Frame buffer size to which the widget is drawn to.         |
-//! | boundsMin           | `vec2`      | Top-left point of the screen space bounding rectangle.     |
-//! | boundsMax           | `vec2`      | Right-bottom point of the screen space bounding rectangle. |
+//! | boundsMin           | `vec2`      | Top-left point of the local space bounding rectangle.      |
+//! | boundsMax           | `vec2`      | Right-bottom point of the local space bounding rectangle.  |
 //! | isFont              | `bool`      | `true` if the widget is a text, `false` - otherwise.       |
 //! | opacity             | `float`     | Opacity (0.0-1.0 range).                                   |
-//! | brushType           | `int`       | Brush type (0 solid, 1-linear gradient, 2-radial gradient  |
+//! | brushType           | `int`       | Brush type (0-solid, 1-linear gradient, 2-radial gradient  |
 //!
 //! # Code generation
 //!
