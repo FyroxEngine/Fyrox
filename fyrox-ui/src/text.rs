@@ -403,12 +403,9 @@ impl Control for Text {
 
         if message.destination() == self.handle() {
             if let Some(msg) = message.data::<WidgetMessage>() {
-                match msg {
-                    WidgetMessage::Style(style) => {
-                        self.formatted_text.borrow_mut().set_style(style);
-                        self.invalidate_layout();
-                    }
-                    _ => {}
+                if let WidgetMessage::Style(style) = msg {
+                    self.formatted_text.borrow_mut().set_style(style);
+                    self.invalidate_layout();
                 }
             } else if let Some(msg) = message.data::<TextMessage>() {
                 let mut text_ref = self.formatted_text.borrow_mut();

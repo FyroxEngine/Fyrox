@@ -727,6 +727,7 @@ impl FormattedText {
         self
     }
 
+    /// Sets desired style.
     pub fn set_style(&mut self, style: &StyleResource) -> &mut Self {
         self.font_size.update(style);
         self
