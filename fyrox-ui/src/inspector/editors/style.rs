@@ -208,6 +208,12 @@ impl StyledPropertySelectorBuilder {
         style_property_name: ImmutableString,
         ctx: &mut BuildContext,
     ) -> Handle<StyledPropertySelector> {
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
+
         let style_data = target_style.data_ref();
         let (items, property_list): (Vec<_>, Vec<_>) = style_data
             .all_properties()
@@ -216,7 +222,12 @@ impl StyledPropertySelectorBuilder {
             .filter_map(|container| {
                 if container.value.value_type_id() == target_type {
                     Some((
-                        make_dropdown_list_option(ctx, &container.name),
+                        make_dropdown_list_option(
+                            ctx,
+                            &container.name,
+                            font.clone(),
+                            font_size.clone(),
+                        ),
                         container.name.clone(),
                     ))
                 } else {
@@ -237,12 +248,6 @@ impl StyledPropertySelectorBuilder {
         .with_selection(selection.map(|i| vec![i]).unwrap_or_default())
         .with_items(items)
         .build(ctx);
-
-        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
-        let font_size = self
-            .font_size
-            .clone()
-            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
 
         let ok;
         let cancel;
@@ -305,17 +310,26 @@ impl StyledPropertySelectorBuilder {
     }
 
     pub fn build_and_open_window(
+        self,
         target_style: &StyleResource,
         target_type: TypeId,
         style_property_name: ImmutableString,
         ctx: &mut BuildContext,
     ) -> Handle<StyledPropertySelector> {
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
+
         let window = StyledPropertySelectorBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(200.0))
                 .with_title(WindowTitle::text("Select A Style Property"))
                 .with_remove_on_close(true)
                 .open(false),
         )
+        .with_font(font)
+        .with_font_size(font_size)
         .build(target_style, target_type, style_property_name, ctx);
 
         ctx.inner().send(
@@ -355,7 +369,10 @@ impl Control for StyledPropertyEditor {
         if let Some(target_style) = self.target_style.as_ref() {
             if let Some(ButtonMessage::Click) = message.data() {
                 if message.destination() == self.bind {
-                    self.selector = StyledPropertySelectorBuilder::build_and_open_window(
+                    self.selector = StyledPropertySelectorBuilder::new(WindowBuilder::new(
+                        WidgetBuilder::new(),
+                    ))
+                    .build_and_open_window(
                         target_style,
                         self.target_type_id,
                         self.style_property_name.clone(),

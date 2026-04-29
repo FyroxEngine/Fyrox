@@ -40,7 +40,7 @@ use crate::{
         PropertyChanged, PropertyFilter,
     },
     message::{MessageData, UiMessage},
-    style::StyledProperty,
+    style::{resource::StyleResourceExt, Style, StyledProperty},
     utils::make_dropdown_list_option,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface,
@@ -421,7 +421,18 @@ where
         .with_items(
             names
                 .into_iter()
-                .map(|name| make_dropdown_list_option(ctx.build_context, &name))
+                .map(|name| {
+                    make_dropdown_list_option(
+                        ctx.build_context,
+                        &name,
+                        ctx.font
+                            .clone()
+                            .unwrap_or_else(|| ctx.build_context.default_font()),
+                        ctx.font_size
+                            .clone()
+                            .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+                    )
+                })
                 .collect::<Vec<_>>(),
         )
         .with_close_on_selection(true)

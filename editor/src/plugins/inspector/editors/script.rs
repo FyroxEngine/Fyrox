@@ -27,8 +27,9 @@ use crate::{
         engine::SerializationContext,
         graph::SceneGraph,
         gui::{
-            button::{ButtonBuilder, ButtonMessage},
+            button::{Button, ButtonBuilder, ButtonMessage},
             dropdown_list::{DropdownList, DropdownListMessage},
+            font::FontResource,
             grid::{GridBuilder, GridDimension},
             inspector::{
                 editors::{
@@ -37,30 +38,21 @@ use crate::{
                     PropertyEditorMessageContext, PropertyEditorTranslationContext,
                 },
                 make_expander_container, FieldAction, Inspector, InspectorBuilder,
-                InspectorContext, InspectorEnvironment, InspectorError, InspectorMessage,
-                PropertyChanged, PropertyFilter,
+                InspectorContext, InspectorContextArgs, InspectorEnvironment, InspectorError,
+                InspectorMessage, PropertyChanged, PropertyFilter,
             },
-            message::{MessageDirection, UiMessage},
-            style::resource::StyleResourceExt,
+            message::{MessageData, MessageDirection, UiMessage},
+            style::{resource::StyleResourceExt, Style, StyledProperty},
             text::TextBuilder,
-            utils::make_simple_tooltip,
+            utils::{make_dropdown_list_option, make_simple_tooltip},
             widget::{Widget, WidgetBuilder},
-            BuildContext, Control, UiNode, UserInterface,
-            {
-                button::Button,
-                font::FontResource,
-                inspector::InspectorContextArgs,
-                message::MessageData,
-                style::{Style, StyledProperty},
-                utils::make_dropdown_list_option,
-                Thickness, VerticalAlignment,
-            },
+            BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
         script::Script,
     },
     plugins::inspector::EditorEnvironment,
     settings::{general::ScriptEditor, SettingsData},
-    DropdownListBuilder,
+    DropdownListBuilder, Editor,
 };
 
 use std::{
@@ -290,7 +282,12 @@ fn create_items(
     ctx: &mut BuildContext,
 ) -> Vec<Handle<UiNode>> {
     let mut items = vec![{
-        let empty = make_dropdown_list_option(ctx, "<No Script>");
+        let empty = make_dropdown_list_option(
+            ctx,
+            "<No Script>",
+            ctx.default_font(),
+            ctx.style.property(Editor::UI_FONT_SIZE),
+        );
         ctx[empty].user_data = Some(Arc::new(Mutex::new((
             Uuid::default(),
             Option::<String>::None,
@@ -300,7 +297,12 @@ fn create_items(
 
     items.extend(serialization_context.script_constructors.map().iter().map(
         |(type_uuid, constructor)| {
-            let item = make_dropdown_list_option(ctx, &constructor.name);
+            let item = make_dropdown_list_option(
+                ctx,
+                &constructor.name,
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            );
 
             ctx[item].user_data = Some(Arc::new(Mutex::new((
                 *type_uuid,

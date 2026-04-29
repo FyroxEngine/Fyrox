@@ -22,7 +22,12 @@ use crate::{
     command::{Command, CommandGroup},
     fyrox::{
         asset::manager::ResourceManager,
-        core::{futures::executor::block_on, log::Log, pool::ErasedHandle, pool::Handle},
+        core::{
+            color::Color,
+            futures::executor::block_on,
+            log::Log,
+            pool::{ErasedHandle, Handle},
+        },
         generic_animation::{Animation, AnimationContainer, RootMotionSettings},
         graph::{PrefabData, SceneGraph, SceneGraphNode},
         gui::{
@@ -39,10 +44,10 @@ use crate::{
             message::{MessageDirection, UiMessage},
             numeric::{NumericUpDown, NumericUpDownBuilder, NumericUpDownMessage},
             popup::{Placement, Popup, PopupBuilder, PopupMessage},
-            style::{resource::StyleResourceExt, Style},
+            style::{resource::StyleResourceExt, Style, StyledProperty},
             text::{Text, TextBuilder, TextMessage},
             toggle::{ToggleButton, ToggleButtonMessage},
-            utils::{make_dropdown_list_option_universal, make_simple_tooltip},
+            utils::{make_dropdown_list_option_universal, make_simple_tooltip, ImageButtonBuilder},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
@@ -64,14 +69,14 @@ use crate::{
     },
     scene::{
         commands::ChangeSelectionCommand,
-        selector::NodeSelectorWindow,
-        selector::{AllowedType, HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
+        selector::{
+            AllowedType, HierarchyNode, NodeSelectorMessage, NodeSelectorWindow,
+            NodeSelectorWindowBuilder,
+        },
         Selection,
     },
     Editor,
 };
-use fyrox::core::color::Color;
-use fyrox::gui::utils::ImageButtonBuilder;
 use std::any::TypeId;
 
 enum ImportMode {
@@ -1107,10 +1112,19 @@ impl Toolbar {
         G: SceneGraph<Node = N>,
         N: SceneGraphNode,
     {
+        let font = ui.build_ctx().default_font();
+        let font_size: StyledProperty<f32> = ui.build_ctx().style.property(Editor::UI_FONT_SIZE);
         let new_items = animations
             .pair_iter()
             .map(|(h, a)| {
-                make_dropdown_list_option_universal(&mut ui.build_ctx(), a.name(), 22.0, h)
+                make_dropdown_list_option_universal(
+                    &mut ui.build_ctx(),
+                    a.name(),
+                    22.0,
+                    h,
+                    font.clone(),
+                    font_size.clone(),
+                )
             })
             .collect();
 

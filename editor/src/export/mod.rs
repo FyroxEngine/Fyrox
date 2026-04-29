@@ -43,7 +43,7 @@ use crate::{
             message::UiMessage,
             scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
             stack_panel::{StackPanel, StackPanelBuilder},
-            style::{resource::StyleResourceExt, Style},
+            style::{resource::StyleResourceExt, Style, StyledProperty},
             text::{Text, TextBuilder},
             utils::make_dropdown_list_option,
             widget::{WidgetBuilder, WidgetMessage},
@@ -170,6 +170,7 @@ impl ExportWindow {
                     TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
                         .with_vertical_text_alignment(VerticalAlignment::Center)
                         .with_text("Build Target")
+                        .with_font(ctx.default_font())
                         .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx),
                 )
@@ -179,7 +180,14 @@ impl ExportWindow {
                             .with_items(
                                 build_targets
                                     .iter()
-                                    .map(|opt| make_dropdown_list_option(ctx, opt))
+                                    .map(|opt| {
+                                        make_dropdown_list_option(
+                                            ctx,
+                                            opt,
+                                            ctx.default_font(),
+                                            ctx.style.property(Style::FONT_SIZE),
+                                        )
+                                    })
                                     .collect::<Vec<_>>(),
                             )
                             .with_selected(0)
@@ -448,10 +456,20 @@ impl ExportWindow {
                 }
                 self.build_targets = build_targets.clone();
 
+                let font = ui.build_ctx().default_font();
+                let font_size: StyledProperty<f32> =
+                    ui.build_ctx().style.property(Style::FONT_SIZE);
                 let ui_items = self
                     .build_targets
                     .iter()
-                    .map(|name| make_dropdown_list_option(&mut ui.build_ctx(), name))
+                    .map(|name| {
+                        make_dropdown_list_option(
+                            &mut ui.build_ctx(),
+                            name,
+                            font.clone(),
+                            font_size.clone(),
+                        )
+                    })
                     .collect::<Vec<_>>();
 
                 ui.send(

@@ -20,31 +20,31 @@
 
 //! Animation selector for `Handle<Animation>` fields.
 
-use crate::fyrox::generic_animation::EntityId;
-use crate::fyrox::{
-    core::pool::Handle,
-    gui::{
-        button::{ButtonBuilder, ButtonMessage},
-        dropdown_list::{DropdownListBuilder, DropdownListMessage},
-        generic_animation::machine::Machine,
-        inspector::{
-            editors::{
-                PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
-                PropertyEditorMessageContext, PropertyEditorTranslationContext,
+use crate::{
+    fyrox::{
+        core::{pool::Handle, reflect::Reflect},
+        generic_animation::EntityId,
+        gui::{
+            button::{ButtonBuilder, ButtonMessage},
+            dropdown_list::{DropdownListBuilder, DropdownListMessage},
+            generic_animation::machine::Machine,
+            inspector::{
+                editors::{
+                    PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+                    PropertyEditorMessageContext, PropertyEditorTranslationContext,
+                },
+                FieldAction, InspectorError, PropertyChanged,
             },
-            FieldAction, InspectorError, PropertyChanged,
+            message::{MessageDirection, UiMessage},
+            style::{resource::StyleResourceExt, Style},
+            utils::make_dropdown_list_option_universal,
+            widget::WidgetBuilder,
         },
-        message::{MessageDirection, UiMessage},
-        style::resource::StyleResourceExt,
-        widget::WidgetBuilder,
     },
+    plugins::inspector::EditorEnvironment,
+    Editor, Message,
 };
-use crate::plugins::inspector::EditorEnvironment;
-use crate::Message;
 
-use fyrox::core::reflect::Reflect;
-use fyrox::gui::style::Style;
-use fyrox::gui::utils::make_dropdown_list_option_universal;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -83,6 +83,10 @@ where
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<Handle<T>>()?;
         let environment = EditorEnvironment::try_get_from(&ctx.environment)?;
+        let font = ctx.font.unwrap_or_else(|| ctx.build_context.default_font());
+        let font_size = ctx
+            .font_size
+            .unwrap_or_else(|| ctx.build_context.style.property(Editor::UI_FONT_SIZE));
         Ok(PropertyEditorInstance::simple(
             DropdownListBuilder::new(WidgetBuilder::new())
                 .with_items(
@@ -95,6 +99,8 @@ where
                                 &d.name,
                                 22.0,
                                 *value,
+                                font.clone(),
+                                font_size.clone(),
                             )
                         })
                         .collect(),

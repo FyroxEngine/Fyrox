@@ -172,8 +172,18 @@ impl ProjectWizard {
                 .on_column(1),
         )
         .with_items(vec![
-            make_dropdown_list_option(ctx, "2D"),
-            make_dropdown_list_option(ctx, "3D"),
+            make_dropdown_list_option(
+                ctx,
+                "2D",
+                ctx.default_font(),
+                ctx.style.property(fyrox::gui::style::Style::FONT_SIZE),
+            ),
+            make_dropdown_list_option(
+                ctx,
+                "3D",
+                ctx.default_font(),
+                ctx.style.property(fyrox::gui::style::Style::FONT_SIZE),
+            ),
         ])
         .with_selected(1)
         .build(ctx);
@@ -186,11 +196,36 @@ impl ProjectWizard {
                 .on_column(1),
         )
         .with_items(vec![
-            make_dropdown_list_option(ctx, "None"),
-            make_dropdown_list_option(ctx, "Git"),
-            make_dropdown_list_option(ctx, "Mercurial"),
-            make_dropdown_list_option(ctx, "Pijul"),
-            make_dropdown_list_option(ctx, "Fossil"),
+            make_dropdown_list_option(
+                ctx,
+                "None",
+                ctx.default_font(),
+                ctx.style.property(fyrox::gui::style::Style::FONT_SIZE),
+            ),
+            make_dropdown_list_option(
+                ctx,
+                "Git",
+                ctx.default_font(),
+                ctx.style.property(fyrox::gui::style::Style::FONT_SIZE),
+            ),
+            make_dropdown_list_option(
+                ctx,
+                "Mercurial",
+                ctx.default_font(),
+                ctx.style.property(fyrox::gui::style::Style::FONT_SIZE),
+            ),
+            make_dropdown_list_option(
+                ctx,
+                "Pijul",
+                ctx.default_font(),
+                ctx.style.property(fyrox::gui::style::Style::FONT_SIZE),
+            ),
+            make_dropdown_list_option(
+                ctx,
+                "Fossil",
+                ctx.default_font(),
+                ctx.style.property(fyrox::gui::style::Style::FONT_SIZE),
+            ),
         ])
         .with_selected(1)
         .build(ctx);
