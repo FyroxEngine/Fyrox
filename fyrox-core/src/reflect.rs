@@ -1035,8 +1035,6 @@ impl dyn Reflect {
             return;
         }
 
-        func(path, field_info, self);
-
         let mut done = false;
 
         self.as_inheritable_variable(&mut |variable| {
@@ -1053,6 +1051,8 @@ impl dyn Reflect {
         if done {
             return;
         }
+
+        func(path, field_info, self);
 
         self.as_array(&mut |array| {
             if let Some(array) = array {
@@ -1577,11 +1577,22 @@ pub use delegate_reflect;
 #[cfg(test)]
 mod test {
     use super::prelude::*;
+    use crate::variable::InheritableVariable;
     use std::any::TypeId;
     use std::collections::HashMap;
 
+    #[derive(Reflect, Clone, Default, PartialEq, Debug)]
+    enum Enum {
+        #[default]
+        Empty,
+        Stuff {
+            field: u32,
+        },
+    }
+
     #[derive(Reflect, Clone, Default, Debug)]
     struct Foo {
+        enum_field: InheritableVariable<Enum>,
         bar: Bar,
         baz: f32,
         collection: Vec<Item>,
@@ -1601,6 +1612,7 @@ mod test {
     #[test]
     fn enumerate_fields_recursively() {
         let foo = Foo {
+            enum_field: Enum::Stuff { field: 123 }.into(),
             bar: Default::default(),
             baz: 0.0,
             collection: vec![Item::default()],
@@ -1615,16 +1627,25 @@ mod test {
             &[],
         );
 
+        foo.resolve_path("enum_field.Stuff@field", &mut |result| {
+            let enum_field = result.expect("the field must exist!");
+            enum_field.downcast_ref::<u32>(&mut |result| {
+                assert_eq!(*result.expect("the type must be u32"), 123);
+            });
+        });
+
         assert_eq!(names[0], "");
-        assert_eq!(names[1], "bar");
-        assert_eq!(names[2], "bar.stuff");
-        assert_eq!(names[3], "baz");
-        assert_eq!(names[4], "collection");
-        assert_eq!(names[5], "collection[0]");
-        assert_eq!(names[6], "collection[0].payload");
-        assert_eq!(names[7], "hash_map");
-        assert_eq!(names[8], "hash_map[Foobar]");
-        assert_eq!(names[9], "hash_map[Foobar].payload");
+        assert_eq!(names[1], "enum_field");
+        assert_eq!(names[2], "enum_field.Stuff@field");
+        assert_eq!(names[3], "bar");
+        assert_eq!(names[4], "bar.stuff");
+        assert_eq!(names[5], "baz");
+        assert_eq!(names[6], "collection");
+        assert_eq!(names[7], "collection[0]");
+        assert_eq!(names[8], "collection[0].payload");
+        assert_eq!(names[9], "hash_map");
+        assert_eq!(names[10], "hash_map[Foobar]");
+        assert_eq!(names[11], "hash_map[Foobar].payload");
     }
 
     #[derive(Reflect, Clone, Debug)]

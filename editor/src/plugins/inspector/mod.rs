@@ -61,6 +61,7 @@ use crate::{
     Editor, Message, WidgetMessage, WrapMode,
 };
 use fyrox::core::color::Color;
+use fyrox::core::err;
 use fyrox::gui::button::Button;
 use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::text::Text;
@@ -454,11 +455,19 @@ impl EditorPlugin for InspectorPlugin {
                             &*entry.controller,
                             &editor.engine.scenes,
                             &mut |entity_info| {
-                                entity_info.entity.resolve_path(path, &mut |result| {
-                                    if let Ok(result) = result {
-                                        self.clipboard = result.try_clone_box();
-                                    }
-                                });
+                                entity_info
+                                    .entity
+                                    .resolve_path(path, &mut |result| match result {
+                                        Ok(result) => {
+                                            self.clipboard = result.try_clone_box();
+                                        }
+                                        Err(err) => {
+                                            err!(
+                                                "Failed to resolve property on attempt to \
+                                                copy value at path {path}. Reason: {err:?}"
+                                            );
+                                        }
+                                    });
                             },
                         );
                     }
@@ -479,20 +488,28 @@ impl EditorPlugin for InspectorPlugin {
                             &*entry.controller,
                             &editor.engine.scenes,
                             &mut |entity_info| {
-                                entity_info.entity.resolve_path(path, &mut |result| {
-                                    if let Ok(property) = result {
-                                        can_clone = property.try_clone_box().is_some();
+                                entity_info
+                                    .entity
+                                    .resolve_path(path, &mut |result| match result {
+                                        Ok(property) => {
+                                            can_clone = property.try_clone_box().is_some();
 
-                                        if let Some(value) = self.clipboard.as_ref() {
-                                            value.as_any(&mut |value| {
-                                                property.as_any(&mut |property| {
-                                                    can_paste =
-                                                        property.type_id() == value.type_id();
+                                            if let Some(value) = self.clipboard.as_ref() {
+                                                value.as_any(&mut |value| {
+                                                    property.as_any(&mut |property| {
+                                                        can_paste =
+                                                            property.type_id() == value.type_id();
+                                                    })
                                                 })
-                                            })
+                                            }
                                         }
-                                    }
-                                });
+                                        Err(err) => {
+                                            err!(
+                                                "Failed to resolve property on attempt to fetch \
+                                                status at path {path}. Reason: {err:?}"
+                                            );
+                                        }
+                                    });
                             },
                         );
 
