@@ -126,6 +126,8 @@ pub struct FileBrowser {
     #[visit(skip)]
     #[reflect(hidden)]
     pub watcher: Option<notify::RecommendedWatcher>,
+    font: FontResource,
+    font_size: StyledProperty<f32>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for FileBrowser {
@@ -157,6 +159,8 @@ impl Clone for FileBrowser {
             fs_events: self.fs_events.clone(),
             item_context_menu: self.item_context_menu.clone(),
             watcher: None,
+            font: self.font.clone(),
+            font_size: self.font_size.clone(),
         }
     }
 }
@@ -191,6 +195,8 @@ impl FileBrowser {
             &self.filter,
             self.item_context_menu.clone(),
             &mut ui.build_ctx(),
+            self.font.clone(),
+            self.font_size.clone(),
         );
 
         ui.send(self.tree_root, TreeRootMessage::Items(fs_tree.root_items));
@@ -329,6 +335,8 @@ impl FileBrowser {
                 self.item_context_menu.clone(),
                 &self.filter,
                 ui,
+                self.font.clone(),
+                self.font_size.clone(),
             );
         }
     }
@@ -425,6 +433,8 @@ impl FileBrowser {
                     self.item_context_menu.clone(),
                     &self.filter,
                     ui,
+                    self.font.clone(),
+                    self.font_size.clone(),
                 )
             }
         } else {
@@ -665,6 +675,8 @@ impl FileBrowserBuilder {
             &self.filter,
             item_context_menu.clone(),
             ctx,
+            font.clone(),
+            font_size.clone(),
         );
 
         let root_path = sanitized_root.map(TreeItemPath::root);
@@ -800,6 +812,8 @@ impl FileBrowserBuilder {
             item_context_menu,
             no_items_message,
             fs_events: Default::default(),
+            font: font,
+            font_size: font_size,
         };
         let file_browser_handle = ctx.add(browser);
         let sender = ctx.sender();

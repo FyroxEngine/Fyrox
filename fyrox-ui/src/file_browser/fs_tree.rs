@@ -19,6 +19,8 @@
 // SOFTWARE.
 
 use crate::file_browser::PathFilter;
+use crate::font::FontResource;
+use crate::style::StyledProperty;
 use crate::{
     core::{err, pool::Handle},
     grid::{Column, GridBuilder, Row},
@@ -120,6 +122,8 @@ pub fn build_tree_item<P: AsRef<Path>>(
     expanded: bool,
     filter: &PathFilter,
     ctx: &mut BuildContext,
+    font: FontResource,
+    font_size: StyledProperty<f32>,
 ) -> Handle<Tree> {
     let content = GridBuilder::new(
         WidgetBuilder::new()
@@ -154,6 +158,8 @@ pub fn build_tree_item<P: AsRef<Path>>(
                         .replace('\\', ""),
                 )
                 .with_vertical_text_alignment(VerticalAlignment::Center)
+                .with_font(font)
+                .with_font_size(font_size)
                 .build(ctx),
             ),
     )
@@ -184,8 +190,19 @@ pub fn build_tree<P: AsRef<Path>>(
     menu: RcUiNodeHandle,
     filter: &PathFilter,
     ui: &mut UserInterface,
+    font: FontResource,
+    font_size: StyledProperty<f32>,
 ) -> Handle<Tree> {
-    let subtree = build_tree_item(path, parent_path, menu, false, filter, &mut ui.build_ctx());
+    let subtree = build_tree_item(
+        path,
+        parent_path,
+        menu,
+        false,
+        filter,
+        &mut ui.build_ctx(),
+        font,
+        font_size,
+    );
     if ui[parent].has_component::<TreeRoot>() {
         ui.send(parent, TreeRootMessage::AddItem(subtree));
     } else {
@@ -330,6 +347,8 @@ impl RootsCollection {
         menu: &RcUiNodeHandle,
         filter: &PathFilter,
         ctx: &mut BuildContext,
+        font: FontResource,
+        font_size: StyledProperty<f32>,
     ) -> Self {
         if root.is_none() {
             fn disk_letter(components: &[Component]) -> Option<u8> {
@@ -358,6 +377,8 @@ impl RootsCollection {
                     is_disk_part_of_path,
                     filter,
                     ctx,
+                    font.clone(),
+                    font_size.clone(),
                 );
 
                 if is_disk_part_of_path {
@@ -383,6 +404,8 @@ pub fn build_single_folder(
     menu: RcUiNodeHandle,
     filter: &PathFilter,
     ui: &mut UserInterface,
+    font: FontResource,
+    font_size: StyledProperty<f32>,
 ) {
     let Ok(entries) = read_dir_entries(parent_path, filter) else {
         err!(
@@ -400,6 +423,8 @@ pub fn build_single_folder(
             menu.clone(),
             filter,
             ui,
+            font.clone(),
+            font_size.clone(),
         );
     }
 }
@@ -434,6 +459,8 @@ impl FsTree {
         filter: &PathFilter,
         menu: RcUiNodeHandle,
         ctx: &mut BuildContext,
+        font: FontResource,
+        font_size: StyledProperty<f32>,
     ) -> std::io::Result<Self> {
         let SanitizedPath {
             path,
@@ -446,7 +473,15 @@ impl FsTree {
         let RootsCollection {
             items: mut root_items,
             root_item: mut parent,
-        } = RootsCollection::new(&dest_path_components, root, &menu, filter, ctx);
+        } = RootsCollection::new(
+            &dest_path_components,
+            root,
+            &menu,
+            filter,
+            ctx,
+            font.clone(),
+            font_size.clone(),
+        );
 
         let mut path_item = Handle::NONE;
 
@@ -485,6 +520,8 @@ impl FsTree {
                         is_part_of_final_path,
                         filter,
                         ctx,
+                        font.clone(),
+                        font_size.clone(),
                     );
 
                     if parent.is_some() {
@@ -521,8 +558,10 @@ impl FsTree {
         filter: &PathFilter,
         menu: RcUiNodeHandle,
         ctx: &mut BuildContext,
+        font: FontResource,
+        font_size: StyledProperty<f32>,
     ) -> Self {
-        match Self::new(root, path, filter, menu, ctx) {
+        match Self::new(root, path, filter, menu, ctx, font, font_size) {
             Ok(fs_tree) => fs_tree,
             Err(err) => {
                 err!(
