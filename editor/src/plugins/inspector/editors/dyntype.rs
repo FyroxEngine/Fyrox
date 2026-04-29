@@ -213,13 +213,23 @@ fn create_items(
     ctx: &mut BuildContext,
 ) -> Vec<Handle<UiNode>> {
     let mut items = vec![{
-        let empty = make_dropdown_list_option(ctx, "<Not Set>");
+        let empty = make_dropdown_list_option(
+            ctx,
+            "<Not Set>",
+            ctx.default_font(),
+            ctx.style.property(Style::FONT_SIZE),
+        );
         ctx[empty].user_data = Some(Arc::new(Mutex::new(Uuid::default())));
         empty
     }];
 
     items.extend(constructors.inner().iter().map(|(type_uuid, constructor)| {
-        let item = make_dropdown_list_option(ctx, &constructor.name);
+        let item = make_dropdown_list_option(
+            ctx,
+            &constructor.name,
+            ctx.default_font(),
+            ctx.style.property(Style::FONT_SIZE),
+        );
         ctx[item].user_data = Some(Arc::new(Mutex::new(*type_uuid)));
         item
     }));

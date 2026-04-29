@@ -266,7 +266,14 @@ impl AudioPanel {
                                         .with_items(
                                             DistanceModel::VARIANTS
                                                 .iter()
-                                                .map(|v| make_dropdown_list_option(ctx, v))
+                                                .map(|v| {
+                                                    make_dropdown_list_option(
+                                                        ctx,
+                                                        v,
+                                                        ctx.default_font(),
+                                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                                    )
+                                                })
                                                 .collect::<Vec<_>>(),
                                         )
                                         .build(ctx);
@@ -293,7 +300,14 @@ impl AudioPanel {
                                         .with_items(
                                             Renderer::VARIANTS
                                                 .iter()
-                                                .map(|v| make_dropdown_list_option(ctx, v))
+                                                .map(|v| {
+                                                    make_dropdown_list_option(
+                                                        ctx,
+                                                        v,
+                                                        ctx.default_font(),
+                                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                                    )
+                                                })
                                                 .collect::<Vec<_>>(),
                                         )
                                         .build(ctx);

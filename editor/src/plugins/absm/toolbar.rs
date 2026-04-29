@@ -31,7 +31,7 @@ use crate::{
             input::{InputBox, InputBoxBuilder, InputBoxMessage, InputBoxResult},
             message::UiMessage,
             stack_panel::{StackPanel, StackPanelBuilder},
-            style::resource::StyleResourceExt,
+            style::{resource::StyleResourceExt, Style, StyledProperty},
             toggle::{ToggleButton, ToggleButtonMessage},
             utils::{make_dropdown_list_option, ImageButtonBuilder},
             widget::{WidgetBuilder, WidgetMessage},
@@ -394,10 +394,19 @@ impl Toolbar {
         G: SceneGraph<Node = N, Prefab = P>,
         N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
     {
+        let font = ui.build_ctx().default_font();
+        let font_size: StyledProperty<f32> = ui.build_ctx().style.property(Style::FONT_SIZE);
         let layers = machine
             .layers()
             .iter()
-            .map(|l| make_dropdown_list_option(&mut ui.build_ctx(), l.name()))
+            .map(|l| {
+                make_dropdown_list_option(
+                    &mut ui.build_ctx(),
+                    l.name(),
+                    font.clone(),
+                    font_size.clone(),
+                )
+            })
             .collect();
 
         ui.send_sync(self.layers, DropdownListMessage::Items(layers));

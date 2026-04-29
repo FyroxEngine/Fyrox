@@ -441,10 +441,20 @@ impl FileSelectorBuilder {
         let mut filter_items = self
             .filter
             .iter()
-            .map(|file_type| make_dropdown_list_option(ctx, &file_type.to_string()))
+            .map(|file_type| {
+                make_dropdown_list_option(
+                    ctx,
+                    &file_type.to_string(),
+                    font.clone(),
+                    font_size.clone(),
+                )
+            })
             .collect::<Vec<_>>();
 
-        filter_items.insert(0, make_dropdown_list_option(ctx, "All Supported"));
+        filter_items.insert(
+            0,
+            make_dropdown_list_option(ctx, "All Supported", font.clone(), font_size.clone()),
+        );
 
         let extension_selector;
         let extension_grid = GridBuilder::new(

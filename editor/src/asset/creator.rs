@@ -74,6 +74,8 @@ impl ResourceCreator {
                 items.push(make_dropdown_list_option(
                     ctx,
                     make_pretty_type_name(&constructor.type_name),
+                    ctx.default_font(),
+                    ctx.style.property(Editor::UI_FONT_SIZE),
                 ))
             }
         }

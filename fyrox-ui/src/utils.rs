@@ -23,6 +23,7 @@ use crate::{
     button::{Button, ButtonBuilder},
     core::{algebra::Vector2, color::Color, parking_lot::Mutex, pool::Handle, Uuid},
     decorator::DecoratorBuilder,
+    font::FontResource,
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
     image::{Image, ImageBuilder},
@@ -226,6 +227,8 @@ pub fn make_dropdown_list_option_universal<T: Send + 'static>(
     name: &str,
     height: f32,
     user_data: T,
+    font: FontResource,
+    font_size: StyledProperty<f32>,
 ) -> Handle<UiNode> {
     adjust_decorator(
         DecoratorBuilder::new(
@@ -238,6 +241,8 @@ pub fn make_dropdown_list_option_universal<T: Send + 'static>(
                             .with_vertical_text_alignment(VerticalAlignment::Center)
                             .with_horizontal_text_alignment(HorizontalAlignment::Left)
                             .with_text(name)
+                            .with_font(font)
+                            .with_font_size(font_size)
                             .build(ctx),
                     ),
             )
@@ -250,7 +255,12 @@ pub fn make_dropdown_list_option_universal<T: Send + 'static>(
     .to_base()
 }
 
-pub fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
+pub fn make_dropdown_list_option(
+    ctx: &mut BuildContext,
+    name: &str,
+    font: FontResource,
+    font_size: StyledProperty<f32>,
+) -> Handle<UiNode> {
     adjust_decorator(
         DecoratorBuilder::new(
             BorderBuilder::new(
@@ -263,6 +273,8 @@ pub fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<U
                     .with_vertical_text_alignment(VerticalAlignment::Center)
                     .with_horizontal_text_alignment(HorizontalAlignment::Left)
                     .with_text(name)
+                    .with_font(font)
+                    .with_font_size(font_size)
                     .build(ctx),
                 ),
             )
@@ -279,6 +291,8 @@ pub fn make_dropdown_list_option_with_height(
     ctx: &mut BuildContext,
     name: &str,
     height: f32,
+    font: FontResource,
+    font_size: StyledProperty<f32>,
 ) -> Handle<UiNode> {
     adjust_decorator(
         DecoratorBuilder::new(
@@ -288,6 +302,8 @@ pub fn make_dropdown_list_option_with_height(
                         .with_vertical_text_alignment(VerticalAlignment::Center)
                         .with_horizontal_text_alignment(HorizontalAlignment::Left)
                         .with_text(name)
+                        .with_font(font)
+                        .with_font_size(font_size)
                         .build(ctx),
                 ),
             )

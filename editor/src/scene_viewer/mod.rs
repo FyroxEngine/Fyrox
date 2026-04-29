@@ -332,8 +332,20 @@ impl SceneViewer {
                         WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                     )
                     .with_items(vec![
-                        make_dropdown_list_option_with_height(ctx, "3D", 22.0),
-                        make_dropdown_list_option_with_height(ctx, "2D", 22.0),
+                        make_dropdown_list_option_with_height(
+                            ctx,
+                            "3D",
+                            22.0,
+                            ctx.default_font(),
+                            ctx.style.property(Editor::UI_FONT_SIZE),
+                        ),
+                        make_dropdown_list_option_with_height(
+                            ctx,
+                            "2D",
+                            22.0,
+                            ctx.default_font(),
+                            ctx.style.property(Editor::UI_FONT_SIZE),
+                        ),
                     ])
                     .with_close_on_selection(true)
                     .with_selected(0)
@@ -349,7 +361,14 @@ impl SceneViewer {
                         GraphicsDebugSwitches::iter()
                             .zip(GraphicsDebugSwitches::VARIANTS.iter())
                             .map(|(variant, v)| {
-                                make_dropdown_list_option_universal(ctx, v, 22.0, variant)
+                                make_dropdown_list_option_universal(
+                                    ctx,
+                                    v,
+                                    22.0,
+                                    variant,
+                                    ctx.default_font(),
+                                    ctx.style.property(Editor::UI_FONT_SIZE),
+                                )
                             })
                             .collect::<Vec<_>>(),
                     )
@@ -389,7 +408,14 @@ impl SceneViewer {
                                         .build
                                         .profiles
                                         .iter()
-                                        .map(|p| make_dropdown_list_option(ctx, &p.name))
+                                        .map(|p| {
+                                            make_dropdown_list_option(
+                                                ctx,
+                                                &p.name,
+                                                ctx.default_font(),
+                                                ctx.style.property(Editor::UI_FONT_SIZE),
+                                            )
+                                        })
                                         .collect::<Vec<_>>(),
                                 )
                                 .with_close_on_selection(true)
