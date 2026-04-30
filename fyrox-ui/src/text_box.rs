@@ -1316,6 +1316,10 @@ impl Control for TextBox {
                         self.selecting = false;
                         ui.release_mouse_capture();
                     }
+                    WidgetMessage::Style(style) => {
+                        self.formatted_text.borrow_mut().set_style(style);
+                        self.invalidate_layout();
+                    }
                     _ => {}
                 }
             } else if let Some(msg) = message.data::<TextMessage>() {
