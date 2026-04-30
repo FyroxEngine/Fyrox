@@ -298,7 +298,7 @@ pub struct EventAction {
 pub struct AbsmEventProvider {
     widget: Widget,
     actions: InheritableVariable<Vec<EventAction>>,
-    absm: InheritableVariable<Handle<UiNode>>,
+    absm: InheritableVariable<Handle<AnimationBlendingStateMachine>>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for AbsmEventProvider {
@@ -322,7 +322,7 @@ impl AbsmEventProvider {
             return;
         };
 
-        let Ok(absm) = ui.try_get_mut_of_type::<AnimationBlendingStateMachine>(*self.absm) else {
+        let Ok(absm) = ui.try_get_mut(*self.absm) else {
             return;
         };
 
@@ -364,7 +364,7 @@ impl Control for AbsmEventProvider {
 pub struct AbsmEventProviderBuilder {
     widget_builder: WidgetBuilder,
     actions: Vec<EventAction>,
-    absm: Handle<UiNode>,
+    absm: Handle<AnimationBlendingStateMachine>,
 }
 
 impl AbsmEventProviderBuilder {
@@ -381,7 +381,7 @@ impl AbsmEventProviderBuilder {
         self
     }
 
-    pub fn with_absm(mut self, absm: Handle<UiNode>) -> Self {
+    pub fn with_absm(mut self, absm: Handle<AnimationBlendingStateMachine>) -> Self {
         self.absm = absm;
         self
     }

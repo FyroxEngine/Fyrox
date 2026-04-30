@@ -240,16 +240,26 @@ impl Control for CheckBox {
 
                 ui.try_send_response(message);
 
-                if self.check_mark.is_some() {
-                    match value {
-                        None => {
+                match value {
+                    None => {
+                        if self.check_mark.is_some() {
                             ui.send(*self.check_mark, WidgetMessage::Visibility(false));
+                        }
+                        if self.uncheck_mark.is_some() {
                             ui.send(*self.uncheck_mark, WidgetMessage::Visibility(false));
+                        }
+                        if self.undefined_mark.is_some() {
                             ui.send(*self.undefined_mark, WidgetMessage::Visibility(true));
                         }
-                        Some(value) => {
+                    }
+                    Some(value) => {
+                        if self.check_mark.is_some() {
                             ui.send(*self.check_mark, WidgetMessage::Visibility(value));
+                        }
+                        if self.uncheck_mark.is_some() {
                             ui.send(*self.uncheck_mark, WidgetMessage::Visibility(!value));
+                        }
+                        if self.undefined_mark.is_some() {
                             ui.send(*self.undefined_mark, WidgetMessage::Visibility(false));
                         }
                     }
