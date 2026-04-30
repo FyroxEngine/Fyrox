@@ -73,11 +73,13 @@ use crate::{
         GameScene, Selection, SelectionContainer,
     },
     settings::Settings,
+    Editor,
 };
 
 use fyrox::gui::button::Button;
 use fyrox::gui::image::Image;
 use fyrox::gui::inspector::InspectorContextArgs;
+use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::window::{Window, WindowAlignment};
 use fyrox::scene::mesh::Mesh;
 use std::sync::mpsc::channel;
@@ -631,6 +633,8 @@ impl BrushPanel {
         property_editors.insert(make_brush_target_enum_property_editor_definition());
         property_editors.insert(make_brush_shape_enum_property_editor_definition());
 
+        let font = Some(ctx.default_font());
+        let font_size = Some(ctx.style.property(Editor::UI_FONT_SIZE));
         let context = InspectorContext::from_object(InspectorContextArgs {
             object: brush,
             ctx,
@@ -642,6 +646,8 @@ impl BrushPanel {
             name_column_width: 150.0,
             base_path: Default::default(),
             has_parent_object: false,
+            font: font,
+            font_size: font_size,
         });
 
         let inspector;
@@ -655,7 +661,11 @@ impl BrushPanel {
                 inspector
             })
             .open(false)
-            .with_title(WindowTitle::text("Brush Options"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Brush Options",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .build(ctx);
 
         Self { window, inspector }

@@ -111,6 +111,7 @@ pub trait TileEditor: Send {
 fn make_label(name: &str, ctx: &mut BuildContext) -> Handle<Text> {
     TextBuilder::new(WidgetBuilder::new())
         .with_text(name)
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx)
 }
 
@@ -202,6 +203,8 @@ impl TileMaterialEditor {
         let draw_button = make_draw_button("Apply material to tiles", ctx, None);
         let material = DEFAULT_TILE_MATERIAL.deep_copy();
         let material_field = MaterialFieldEditorBuilder::new(WidgetBuilder::new().on_column(2))
+            .with_font(ctx.default_font())
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(
                 ctx,
                 sender,
@@ -450,6 +453,8 @@ impl TileColorEditor {
         let color = Color::default();
         let field = ColorFieldBuilder::new(WidgetBuilder::new().on_column(2))
             .with_color(color)
+            .with_font(ctx.default_font())
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx);
         Self {
             handle: make_drawable_field("Color", draw_button, field, ctx),

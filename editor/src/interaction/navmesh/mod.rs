@@ -37,6 +37,7 @@ use crate::{
             grid::{Column, GridBuilder, Row},
             message::{KeyCode, UiMessage},
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, Orientation, Thickness, UserInterface,
@@ -66,7 +67,7 @@ use crate::{
     },
     settings::Settings,
     utils::window_content,
-    Mode,
+    Editor, Mode,
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::image::Image;
@@ -97,7 +98,11 @@ impl NavmeshPanel {
         let connect_edges;
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("NavmeshPanel"))
             .open(false)
-            .with_title(WindowTitle::text("Navmesh"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Navmesh",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_tab_label("Navmesh")
             .with_content(
                 GridBuilder::new(
@@ -106,7 +111,11 @@ impl NavmeshPanel {
                             connect_edges = ButtonBuilder::new(
                                 WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                             )
-                            .with_text("Connect Edges")
+                            .with_text_and_font_size(
+                                "Connect Edges",
+                                ctx.default_font(),
+                                ctx.style.property(Editor::UI_FONT_SIZE),
+                            )
                             .build(ctx);
                             connect_edges
                         }))

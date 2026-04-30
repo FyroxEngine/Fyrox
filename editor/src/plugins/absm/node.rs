@@ -38,6 +38,7 @@ use crate::fyrox::{
 };
 use crate::plugins::absm::selectable::{Selectable, SelectableMessage};
 use crate::plugins::absm::socket::Socket;
+use crate::Editor;
 use fyrox::core::pool::HandlesVecExtension;
 use fyrox::gui::border::Border;
 use fyrox::gui::button::Button;
@@ -360,7 +361,11 @@ where
                                         .on_row(1)
                                         .on_column(0),
                                 )
-                                .with_text("+Input")
+                                .with_text_and_font_size(
+                                    "+Input",
+                                    ctx.default_font(),
+                                    ctx.style.property(Editor::UI_FONT_SIZE),
+                                )
                                 .build(ctx);
                                 add_input
                             }),
@@ -381,6 +386,7 @@ where
                                 .with_vertical_text_alignment(VerticalAlignment::Center)
                                 .with_horizontal_text_alignment(HorizontalAlignment::Center)
                                 .with_text(format!("{} ({})", self.name, self.model_handle))
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx);
                                 name
                             })
@@ -388,7 +394,11 @@ where
                                 edit = ButtonBuilder::new(
                                     WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                                 )
-                                .with_text("Edit")
+                                .with_text_and_font_size(
+                                    "Edit",
+                                    ctx.default_font(),
+                                    ctx.style.property(Editor::UI_FONT_SIZE),
+                                )
                                 .build(ctx);
                                 edit
                             } else {
@@ -433,6 +443,7 @@ where
                                                 .with_margin(Thickness::uniform(2.0)),
                                         )
                                         .with_text(title)
+                                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                         .build(ctx),
                                     ),
                             )

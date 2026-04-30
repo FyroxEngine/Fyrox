@@ -18,6 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use fyrox::gui::{
+    font::FontResource,
+    style::{Style, StyledProperty},
+};
+
 use crate::{
     fyrox::{
         core::{
@@ -47,6 +52,7 @@ use crate::{
             inspector::editors::PropertyEditorDefinitionContainer,
             menu::{MenuItem, MenuItemMessage},
             message::UiMessage,
+            style::resource::StyleResourceExt,
             widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, UserInterface,
@@ -221,10 +227,13 @@ impl AbsmEditor {
     pub fn new(
         ctx: &mut BuildContext,
         property_editors: Arc<PropertyEditorDefinitionContainer>,
+        font: Option<FontResource>,
+        font_size: Option<StyledProperty<f32>>,
     ) -> Self {
         let state_graph_viewer = StateGraphViewer::new(ctx);
         let state_viewer = StateViewer::new(ctx);
-        let parameter_panel = ParameterPanel::new(ctx, property_editors);
+        let parameter_panel =
+            ParameterPanel::new(ctx, property_editors, font.clone(), font_size.clone());
         let blend_space_editor = BlendSpaceEditor::new(ctx);
 
         let docking_manager = DockingManagerBuilder::new(
@@ -279,7 +288,13 @@ impl AbsmEditor {
         )
         .open(false)
         .with_content(content)
-        .with_title(WindowTitle::text("ABSM Editor"))
+        .with_title(WindowTitle::text_with_font_size(
+            "ABSM Editor",
+            font.clone().unwrap_or_else(|| ctx.default_font()),
+            font_size
+                .clone()
+                .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
+        ))
         .with_tab_label("ABSM")
         .build(ctx);
 
@@ -744,9 +759,12 @@ impl AbsmEditorPlugin {
         &mut self,
         ui: &mut UserInterface,
         property_editors: Arc<PropertyEditorDefinitionContainer>,
+        font: Option<FontResource>,
+        font_size: Option<StyledProperty<f32>>,
     ) -> &mut AbsmEditor {
-        self.absm_editor
-            .get_or_insert_with(|| AbsmEditor::new(&mut ui.build_ctx(), property_editors))
+        self.absm_editor.get_or_insert_with(|| {
+            AbsmEditor::new(&mut ui.build_ctx(), property_editors, font, font_size)
+        })
     }
 }
 
@@ -756,7 +774,12 @@ impl EditorPlugin for AbsmEditorPlugin {
 
         if let Some(layout) = editor.settings.windows.layout.as_ref() {
             if layout.has_window(AbsmEditor::WINDOW_NAME) {
-                self.get_or_create_absm_editor(ui, editor.property_editors.clone());
+                self.get_or_create_absm_editor(
+                    ui,
+                    editor.property_editors.clone(),
+                    Some(ui.default_font.clone()),
+                    Some(ui.style().property(Editor::UI_FONT_SIZE)),
+                );
             }
         }
 
@@ -881,7 +904,12 @@ impl EditorPlugin for AbsmEditorPlugin {
     fn on_message(&mut self, message: &Message, editor: &mut Editor) {
         if let Message::OpenAbsmEditor = message {
             let ui = editor.engine.user_interfaces.first_mut();
-            let absm_editor = self.get_or_create_absm_editor(ui, editor.property_editors.clone());
+            let absm_editor = self.get_or_create_absm_editor(
+                ui,
+                editor.property_editors.clone(),
+                Some(ui.default_font.clone()),
+                Some(ui.style().property(Editor::UI_FONT_SIZE)),
+            );
 
             absm_editor.open(ui);
 
@@ -926,7 +954,7 @@ mod test {
     fn test_deletion() {
         let screen_size = Vector2::new(100.0, 100.0);
         let mut ui = UserInterface::new(screen_size);
-        let editor = AbsmEditor::new(&mut ui.build_ctx(), Default::default());
+        let editor = AbsmEditor::new(&mut ui.build_ctx(), Default::default(), None, None);
         editor.destroy(&ui, Handle::NONE);
         ui.update(screen_size, 1.0 / 60.0, &Default::default());
         while ui.poll_message().is_some() {}

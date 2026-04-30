@@ -47,6 +47,7 @@ use crate::{
         gui::{
             grid::SizeMode,
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             text::{TextBuilder, TextMessage},
             window::Window,
         },
@@ -100,7 +101,11 @@ fn make_resource_chooser(
         .with_pressed_brush(ctx.style.property(Style::BRUSH_LIGHTEST))
         .build(ctx),
     )
-    .with_text(text)
+    .with_text_and_font_size(
+        text,
+        ctx.default_font(),
+        ctx.style.property(Editor::UI_FONT_SIZE),
+    )
     .build(ctx)
 }
 
@@ -165,7 +170,9 @@ impl TileMapPanel {
     /// or the current active tool has changed, so the main purpose of the tile map panel is to manipulate
     /// this state.
     pub fn new(ctx: &mut BuildContext, state: TileDrawStateRef, sender: MessageSender) -> Self {
-        let tile_set_name = TextBuilder::new(WidgetBuilder::new().on_row(0)).build(ctx);
+        let tile_set_name = TextBuilder::new(WidgetBuilder::new().on_row(0))
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
+            .build(ctx);
         let preview = PanelPreviewBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(1.0))
@@ -383,7 +390,11 @@ impl TileMapPanel {
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(600.0))
             .open(false)
-            .with_title(WindowTitle::text("Tile Map Control Panel"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Tile Map Control Panel",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_content(content)
             .build(ctx);
 

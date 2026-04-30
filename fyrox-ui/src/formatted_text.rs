@@ -25,7 +25,7 @@ use crate::{
         variable::InheritableVariable, visitor::prelude::*,
     },
     font::{Font, FontGlyph, FontHeight, FontResource, BUILT_IN_FONT},
-    style::StyledProperty,
+    style::{resource::StyleResource, StyledProperty},
     HorizontalAlignment, Thickness, VerticalAlignment,
 };
 use fyrox_resource::state::{LoadError, ResourceState};
@@ -724,6 +724,11 @@ impl FormattedText {
     /// Sets desired shadow offset in units.
     pub fn set_shadow_offset(&mut self, offset: Vector2<f32>) -> &mut Self {
         self.shadow_offset.set_value_and_mark_modified(offset);
+        self
+    }
+
+    pub fn set_style(&mut self, style: &StyleResource) -> &mut Self {
+        self.font_size.update(style);
         self
     }
 

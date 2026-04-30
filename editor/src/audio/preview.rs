@@ -30,6 +30,7 @@ use crate::{
             message::UiMessage,
             scroll_bar::{ScrollBar, ScrollBarBuilder, ScrollBarMessage},
             stack_panel::StackPanel,
+            style::resource::StyleResourceExt,
             text::TextBuilder,
             widget::{WidgetBuilder, WidgetMessage},
             BuildContext, Thickness, VerticalAlignment,
@@ -40,7 +41,7 @@ use crate::{
         },
     },
     scene::{GameScene, Selection},
-    Message,
+    Editor, Message,
 };
 
 pub struct AudioPreviewPanel {
@@ -60,7 +61,11 @@ fn make_button(text: &str, column: usize, ctx: &mut BuildContext) -> Handle<Butt
             .on_column(column)
             .with_margin(Thickness::uniform(1.0)),
     )
-    .with_text(text)
+    .with_text_and_font_size(
+        text,
+        ctx.default_font(),
+        ctx.style.property(Editor::UI_FONT_SIZE),
+    )
     .build(ctx)
 }
 
@@ -92,6 +97,7 @@ impl AudioPreviewPanel {
                                             .with_vertical_alignment(VerticalAlignment::Center),
                                     )
                                     .with_text("Preview")
+                                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                     .build(ctx),
                                 )
                                 .build(ctx);
@@ -132,6 +138,7 @@ impl AudioPreviewPanel {
                                 )
                                 .with_vertical_text_alignment(VerticalAlignment::Center)
                                 .with_text("Time, s")
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx),
                             )
                             .with_child({
@@ -143,6 +150,7 @@ impl AudioPreviewPanel {
                                 .show_value(true)
                                 .with_value_precision(2)
                                 .with_min(0.0)
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx);
                                 time
                             }),

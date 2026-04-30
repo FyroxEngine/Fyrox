@@ -29,7 +29,6 @@ use crate::{
             },
             dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
             grid::{GridBuilder, GridDimension},
-            inspector::InspectorContextArgs,
             inspector::{
                 editors::{
                     PropertyEditorBuildContext, PropertyEditorDefinition,
@@ -37,11 +36,10 @@ use crate::{
                     PropertyEditorMessageContext, PropertyEditorTranslationContext,
                 },
                 make_expander_container, FieldAction, Inspector, InspectorBuilder,
-                InspectorContext, InspectorEnvironment, InspectorError, InspectorMessage,
-                PropertyChanged, PropertyFilter,
+                InspectorContext, InspectorContextArgs, InspectorEnvironment, InspectorError,
+                InspectorMessage, PropertyChanged, PropertyFilter,
             },
-            message::MessageData,
-            message::{MessageDirection, UiMessage},
+            message::{MessageData, MessageDirection, UiMessage},
             utils::make_dropdown_list_option,
             widget::{Widget, WidgetBuilder},
             BuildContext, Control, UiNode, UserInterface,
@@ -49,7 +47,13 @@ use crate::{
     },
     plugins::inspector::EditorEnvironment,
 };
-use fyrox::core::dyntype::DynTypeWrapper;
+use fyrox::{
+    core::dyntype::DynTypeWrapper,
+    gui::{
+        font::FontResource,
+        style::{resource::StyleResourceExt, Style, StyledProperty},
+    },
+};
 use std::{
     any::TypeId,
     cell::Cell,
@@ -132,11 +136,27 @@ impl Control for DynTypePropertyEditor {
 
 pub struct DynTypePropertyEditorBuilder {
     widget_builder: WidgetBuilder,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl DynTypePropertyEditorBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
-        Self { widget_builder }
+        Self {
+            widget_builder,
+            font: None,
+            font_size: None,
+        }
+    }
+
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
     }
 
     pub fn build(
@@ -165,6 +185,8 @@ impl DynTypePropertyEditorBuilder {
                 name_column_width,
                 base_path: Default::default(),
                 has_parent_object,
+                font: self.font,
+                font_size: self.font_size,
             })
         });
 
@@ -191,13 +213,23 @@ fn create_items(
     ctx: &mut BuildContext,
 ) -> Vec<Handle<UiNode>> {
     let mut items = vec![{
-        let empty = make_dropdown_list_option(ctx, "<Not Set>");
+        let empty = make_dropdown_list_option(
+            ctx,
+            "<Not Set>",
+            ctx.default_font(),
+            ctx.style.property(Style::FONT_SIZE),
+        );
         ctx[empty].user_data = Some(Arc::new(Mutex::new(Uuid::default())));
         empty
     }];
 
     items.extend(constructors.inner().iter().map(|(type_uuid, constructor)| {
-        let item = make_dropdown_list_option(ctx, &constructor.name);
+        let item = make_dropdown_list_option(
+            ctx,
+            &constructor.name,
+            ctx.default_font(),
+            ctx.style.property(Style::FONT_SIZE),
+        );
         ctx[item].user_data = Some(Arc::new(Mutex::new(*type_uuid)));
         item
     }));
@@ -263,19 +295,25 @@ impl PropertyEditorDefinition for DynTypePropertyEditorDefinition {
             ctx.property_info.doc,
             dyn_type_selector_panel,
             {
-                editor = DynTypePropertyEditorBuilder::new(WidgetBuilder::new()).build(
-                    variant_selector,
-                    value.value_ref().map(|s| s.type_uuid()),
-                    ctx.environment.clone(),
-                    ctx.layer_index,
-                    ctx.generate_property_string_values,
-                    ctx.filter,
-                    value,
-                    ctx.definition_container.clone(),
-                    ctx.name_column_width,
-                    ctx.has_parent_object,
-                    ctx.build_context,
-                );
+                editor = DynTypePropertyEditorBuilder::new(WidgetBuilder::new())
+                    .with_font(ctx.font.unwrap_or_else(|| ctx.build_context.default_font()))
+                    .with_font_size(
+                        ctx.font_size
+                            .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+                    )
+                    .build(
+                        variant_selector,
+                        value.value_ref().map(|s| s.type_uuid()),
+                        ctx.environment.clone(),
+                        ctx.layer_index,
+                        ctx.generate_property_string_values,
+                        ctx.filter,
+                        value,
+                        ctx.definition_container.clone(),
+                        ctx.name_column_width,
+                        ctx.has_parent_object,
+                        ctx.build_context,
+                    );
                 editor
             },
             ctx.name_column_width,
@@ -357,6 +395,8 @@ impl PropertyEditorDefinition for DynTypePropertyEditorDefinition {
                         name_column_width: ctx.name_column_width,
                         base_path: Default::default(),
                         has_parent_object: ctx.has_parent_object,
+                        font: ctx.font,
+                        font_size: ctx.font_size,
                     })
                 })
                 .unwrap_or_default();

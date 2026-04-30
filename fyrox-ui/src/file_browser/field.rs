@@ -20,6 +20,9 @@
 
 use crate::button::Button;
 use crate::file_browser::FileSelector;
+use crate::font::FontResource;
+use crate::style::resource::StyleResourceExt;
+use crate::style::{Style, StyledProperty};
 use crate::text_box::TextBox;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
@@ -140,6 +143,8 @@ impl Control for FileSelectorField {
 pub struct FileSelectorFieldBuilder {
     widget_builder: WidgetBuilder,
     path: PathBuf,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl FileSelectorFieldBuilder {
@@ -147,6 +152,8 @@ impl FileSelectorFieldBuilder {
         Self {
             widget_builder,
             path: Default::default(),
+            font: None,
+            font_size: None,
         }
     }
 
@@ -155,7 +162,23 @@ impl FileSelectorFieldBuilder {
         self
     }
 
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext) -> Handle<FileSelectorField> {
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
+
         let select;
         let path_field;
         let field = FileSelectorField {
@@ -169,6 +192,8 @@ impl FileSelectorFieldBuilder {
                                 path_field = TextBoxBuilder::new(WidgetBuilder::new().on_column(0))
                                     .with_text(self.path.to_string_lossy())
                                     .with_vertical_text_alignment(VerticalAlignment::Center)
+                                    .with_font(font.clone())
+                                    .with_font_size(font_size.clone())
                                     .build(ctx);
                                 path_field
                             })
@@ -176,7 +201,7 @@ impl FileSelectorFieldBuilder {
                                 select = ButtonBuilder::new(
                                     WidgetBuilder::new().on_column(1).with_width(25.0),
                                 )
-                                .with_text("...")
+                                .with_text_and_font_size("...", font.clone(), font_size.clone())
                                 .build(ctx);
                                 select
                             }),

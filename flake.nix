@@ -31,16 +31,19 @@
       default = mkShell rec {
         nativeBuildInputs = [
           pkg-config
+          rust-analyzer
           rust-bin.stable.latest.default
         ];
 
         buildInputs = [
           libx11
           libxcb
-          alsa-lib
-          wayland
+          libxcursor
+          libxi
           libxkbcommon
           libGL
+          alsa-lib
+          wayland
         ];
 
         LD_LIBRARY_PATH = lib.makeLibraryPath buildInputs;

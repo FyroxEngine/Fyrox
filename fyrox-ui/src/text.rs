@@ -36,6 +36,7 @@ use crate::{
     style::{resource::StyleResourceExt, Style, StyledProperty},
     widget::{Widget, WidgetBuilder},
     BBCode, BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
+    WidgetMessage,
 };
 use fyrox_core::algebra::Matrix3;
 use fyrox_core::variable::InheritableVariable;
@@ -401,7 +402,15 @@ impl Control for Text {
         self.widget.handle_routed_message(ui, message);
 
         if message.destination() == self.handle() {
-            if let Some(msg) = message.data::<TextMessage>() {
+            if let Some(msg) = message.data::<WidgetMessage>() {
+                match msg {
+                    WidgetMessage::Style(style) => {
+                        self.formatted_text.borrow_mut().set_style(style);
+                        self.invalidate_layout();
+                    }
+                    _ => {}
+                }
+            } else if let Some(msg) = message.data::<TextMessage>() {
                 let mut text_ref = self.formatted_text.borrow_mut();
                 match msg {
                     TextMessage::BBCode(text) => {

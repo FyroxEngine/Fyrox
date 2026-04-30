@@ -63,8 +63,9 @@ use crate::{
     preview::PreviewPanel,
     scene::{commands::ChangeSelectionCommand, container::EditorSceneEntry, Selection},
     utils::window_content,
-    Message, Mode,
+    Editor, Message, Mode,
 };
+use fyrox::gui::style::resource::StyleResourceExt;
 use menu::AssetItemContextMenu;
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::{
@@ -311,7 +312,11 @@ impl AssetBrowser {
         let folder_browser;
         let scroll_panel;
         let folder_browser_window = WindowBuilder::new(WidgetBuilder::new())
-            .with_title(WindowTitle::text("Folders"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Folders",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_tab_label("Folders")
             .can_close(false)
             .can_minimize(false)
@@ -323,13 +328,19 @@ impl AssetBrowser {
                 .with_no_items_text("There are no subfolders. Right-click to add one.")
                 .with_show_path(false)
                 .with_filter(PathFilter::folder())
+                .with_font(ctx.default_font())
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx);
                 folder_browser
             })
             .build(ctx);
 
         let main_window = WindowBuilder::new(WidgetBuilder::new())
-            .with_title(WindowTitle::text("Folder Content"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Folder Content",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_tab_label("Content")
             .can_close(false)
             .can_minimize(false)
@@ -382,7 +393,11 @@ impl AssetBrowser {
         .build(ctx);
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("AssetBrowser"))
-            .with_title(WindowTitle::text("Asset Browser"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Asset Browser",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_tab_label("Asset Browser")
             .with_content(docking_manager)
             .build(ctx);
@@ -516,10 +531,11 @@ impl AssetBrowser {
         self.current_path = path.to_path_buf();
         ui.send(
             self.main_window,
-            WindowMessage::Title(WindowTitle::text(format!(
-                "Folder Content - {}",
-                self.current_path.display()
-            ))),
+            WindowMessage::Title(WindowTitle::text_with_font_size(
+                format!("Folder Content - {}", self.current_path.display()),
+                ui.default_font.clone(),
+                ui.style.property(Editor::UI_FONT_SIZE),
+            )),
         );
         ui.send(
             self.add_resource,
@@ -992,7 +1008,11 @@ impl AssetBrowser {
                                             .with_width(100.0)
                                             .with_margin(Thickness::uniform(1.0)),
                                     )
-                                    .with_text("Apply")
+                                    .with_text_and_font_size(
+                                        "Apply",
+                                        ctx.default_font(),
+                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                    )
                                     .build(ctx);
                                     apply
                                 })
@@ -1002,7 +1022,11 @@ impl AssetBrowser {
                                             .with_width(100.0)
                                             .with_margin(Thickness::uniform(1.0)),
                                     )
-                                    .with_text("Revert")
+                                    .with_text_and_font_size(
+                                        "Revert",
+                                        ctx.default_font(),
+                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                    )
                                     .build(ctx);
                                     revert
                                 }),

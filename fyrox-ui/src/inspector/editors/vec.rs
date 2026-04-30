@@ -29,6 +29,7 @@ use crate::{
     },
     message::{MessageDirection, UiMessage},
     numeric::NumericType,
+    style::{resource::StyleResourceExt, Style},
     vec::{VecEditorBuilder, VecEditorMessage},
     widget::WidgetBuilder,
     Thickness,
@@ -81,6 +82,11 @@ impl<T: NumericType, const D: usize> PropertyEditorDefinition
                         .unwrap_or_else(T::one),
                 ))
                 .with_value(*value)
+                .with_font(ctx.font.unwrap_or_else(|| ctx.build_context.default_font()))
+                .with_font_size(
+                    ctx.font_size
+                        .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+                )
                 .build(ctx.build_context),
         ))
     }

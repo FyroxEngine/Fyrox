@@ -28,6 +28,7 @@ use crate::{
         ComponentProvider, TypeUuidProvider,
     },
     dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
+    font::FontResource,
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition,
@@ -39,6 +40,7 @@ use crate::{
         PropertyChanged, PropertyFilter,
     },
     message::{MessageData, UiMessage},
+    style::{resource::StyleResourceExt, Style, StyledProperty},
     utils::make_dropdown_list_option,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface,
@@ -99,6 +101,12 @@ pub struct EnumPropertyEditor<T: InspectableEnum> {
     #[visit(skip)]
     #[reflect(hidden)]
     pub has_parent_object: bool,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    pub font: Option<FontResource>,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    pub font_size: Option<StyledProperty<f32>>,
 }
 
 impl<T: InspectableEnum> Debug for EnumPropertyEditor<T> {
@@ -122,6 +130,8 @@ impl<T: InspectableEnum> Clone for EnumPropertyEditor<T> {
             name_column_width: self.name_column_width,
             base_path: self.base_path.clone(),
             has_parent_object: self.has_parent_object,
+            font: self.font.clone(),
+            font_size: self.font_size.clone(),
         }
     }
 }
@@ -170,6 +180,8 @@ impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
                 name_column_width: self.name_column_width,
                 base_path: self.base_path.clone(),
                 has_parent_object: self.has_parent_object,
+                font: self.font.clone(),
+                font_size: self.font_size.clone(),
             });
 
             ui.send(self.inspector, InspectorMessage::Context(ctx));
@@ -203,6 +215,8 @@ pub struct EnumPropertyEditorBuilder {
     layer_index: usize,
     generate_property_string_values: bool,
     filter: PropertyFilter,
+    pub font: Option<FontResource>,
+    pub font_size: Option<StyledProperty<f32>>,
 }
 
 impl EnumPropertyEditorBuilder {
@@ -215,6 +229,8 @@ impl EnumPropertyEditorBuilder {
             layer_index: 0,
             generate_property_string_values: false,
             filter: Default::default(),
+            font: None,
+            font_size: None,
         }
     }
 
@@ -254,6 +270,16 @@ impl EnumPropertyEditorBuilder {
         self
     }
 
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
     pub fn build<T: InspectableEnum>(
         self,
         ctx: &mut BuildContext,
@@ -278,6 +304,8 @@ impl EnumPropertyEditorBuilder {
             name_column_width,
             base_path: base_path.clone(),
             has_parent_object,
+            font: self.font.clone(),
+            font_size: self.font_size.clone(),
         });
 
         let inspector = InspectorBuilder::new(WidgetBuilder::new())
@@ -301,6 +329,8 @@ impl EnumPropertyEditorBuilder {
             name_column_width,
             base_path,
             has_parent_object,
+            font: self.font.clone(),
+            font_size: self.font_size.clone(),
         };
 
         ctx.add(editor)
@@ -391,7 +421,18 @@ where
         .with_items(
             names
                 .into_iter()
-                .map(|name| make_dropdown_list_option(ctx.build_context, &name))
+                .map(|name| {
+                    make_dropdown_list_option(
+                        ctx.build_context,
+                        &name,
+                        ctx.font
+                            .clone()
+                            .unwrap_or_else(|| ctx.build_context.default_font()),
+                        ctx.font_size
+                            .clone()
+                            .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+                    )
+                })
                 .collect::<Vec<_>>(),
         )
         .with_close_on_selection(true)
@@ -473,6 +514,8 @@ where
                 name_column_width: ctx.name_column_width,
                 base_path: ctx.base_path.clone(),
                 has_parent_object: ctx.has_parent_object,
+                font: ctx.font,
+                font_size: ctx.font_size,
             });
 
             Ok(Some(UiMessage::for_widget(

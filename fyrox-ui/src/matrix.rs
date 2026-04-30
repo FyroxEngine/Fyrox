@@ -22,9 +22,11 @@ use crate::{
     core::{
         num_traits, pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
     },
+    font::FontResource,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
     numeric::{NumericType, NumericUpDownBuilder, NumericUpDownMessage},
+    style::{resource::StyleResourceExt, Style, StyledProperty},
     widget::WidgetBuilder,
     BuildContext, Control, Thickness, UiNode, UserInterface, Widget,
 };
@@ -35,7 +37,7 @@ use crate::numeric::NumericUpDown;
 use fyrox_core::pool::HandlesVecExtension;
 use std::ops::{Deref, DerefMut};
 
-fn make_numeric_input<T: NumericType>(
+fn _make_numeric_input<T: NumericType>(
     ctx: &mut BuildContext,
     column: usize,
     row: usize,
@@ -63,6 +65,41 @@ fn make_numeric_input<T: NumericType>(
     .with_max_value(max)
     .with_step(step)
     .with_editable(editable)
+    .build(ctx)
+}
+
+fn make_numeric_input_with_font_size<T: NumericType>(
+    ctx: &mut BuildContext,
+    column: usize,
+    row: usize,
+    value: T,
+    min: T,
+    max: T,
+    step: T,
+    editable: bool,
+    precision: usize,
+    font: FontResource,
+    font_size: StyledProperty<f32>,
+) -> Handle<NumericUpDown<T>> {
+    NumericUpDownBuilder::new(
+        WidgetBuilder::new()
+            .on_row(row)
+            .on_column(column)
+            .with_margin(Thickness {
+                left: 1.0,
+                top: 0.0,
+                right: 1.0,
+                bottom: 0.0,
+            }),
+    )
+    .with_precision(precision)
+    .with_value(value)
+    .with_min_value(min)
+    .with_max_value(max)
+    .with_step(step)
+    .with_editable(editable)
+    .with_font(font)
+    .with_font_size(font_size)
     .build(ctx)
 }
 
@@ -205,6 +242,8 @@ where
     max: SMatrix<T, R, C>,
     step: SMatrix<T, R, C>,
     precision: usize,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl<const R: usize, const C: usize, T> MatrixEditorBuilder<R, C, T>
@@ -220,6 +259,8 @@ where
             max: SMatrix::repeat(T::max_value()),
             step: SMatrix::repeat(T::one()),
             precision: 3,
+            font: None,
+            font_size: None,
         }
     }
 
@@ -253,13 +294,28 @@ where
         self
     }
 
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext) -> Handle<MatrixEditor<R, C, T>> {
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
         let mut fields = Vec::new();
         let mut children = Vec::new();
 
         for row in 0..R {
             for column in 0..C {
-                let field = make_numeric_input(
+                let field = make_numeric_input_with_font_size(
                     ctx,
                     column,
                     row,
@@ -269,6 +325,8 @@ where
                     self.step[(row, column)],
                     self.editable,
                     self.precision,
+                    font.clone(),
+                    font_size.clone(),
                 );
                 children.push(field);
                 fields.push(field);

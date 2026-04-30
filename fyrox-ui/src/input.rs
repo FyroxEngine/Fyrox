@@ -29,16 +29,19 @@ use crate::{
         algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         variable::InheritableVariable, visitor::prelude::*,
     },
+    font::FontResource,
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
     message::{KeyCode, MessageData, UiMessage},
     stack_panel::StackPanelBuilder,
+    style::resource::StyleResourceExt,
+    style::StyledProperty,
     text::{Text, TextBuilder, TextMessage},
     text_box::{TextBox, TextBoxBuilder, TextCommitMode},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-    VerticalAlignment,
+    BuildContext, Control, HorizontalAlignment, Orientation, Style, Thickness, UiNode,
+    UserInterface, VerticalAlignment,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
@@ -209,6 +212,8 @@ pub struct InputBoxBuilder<'b> {
     window_builder: WindowBuilder,
     text: &'b str,
     value: String,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl<'b> InputBoxBuilder<'b> {
@@ -218,6 +223,8 @@ impl<'b> InputBoxBuilder<'b> {
             window_builder,
             text: "",
             value: Default::default(),
+            font: None,
+            font_size: None,
         }
     }
 
@@ -233,8 +240,23 @@ impl<'b> InputBoxBuilder<'b> {
         self
     }
 
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
     /// Finished input box building and adds it to the user interface.
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<InputBox> {
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
         let ok;
         let cancel;
         let text;
@@ -246,6 +268,8 @@ impl<'b> InputBoxBuilder<'b> {
                         TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(4.0)))
                             .with_text(self.text)
                             .with_wrap(WrapMode::Word)
+                            .with_font(font.clone())
+                            .with_font_size(font_size.clone())
                             .build(ctx);
                     text
                 })
@@ -260,6 +284,8 @@ impl<'b> InputBoxBuilder<'b> {
                     .with_vertical_text_alignment(VerticalAlignment::Center)
                     .with_text_commit_mode(TextCommitMode::Immediate)
                     .with_text(&self.value)
+                    .with_font(font.clone())
+                    .with_font_size(font_size.clone())
                     .build(ctx);
                     value_box
                 })
@@ -277,7 +303,7 @@ impl<'b> InputBoxBuilder<'b> {
                                         .with_width(80.0)
                                         .with_horizontal_alignment(HorizontalAlignment::Center),
                                 )
-                                .with_text("OK")
+                                .with_text_and_font_size("OK", font.clone(), font_size.clone())
                                 .build(ctx);
                                 ok
                             })
@@ -289,7 +315,7 @@ impl<'b> InputBoxBuilder<'b> {
                                         .with_width(80.0)
                                         .with_horizontal_alignment(HorizontalAlignment::Center),
                                 )
-                                .with_text("Cancel")
+                                .with_text_and_font_size("Cancel", font.clone(), font_size.clone())
                                 .build(ctx);
                                 cancel
                             }),

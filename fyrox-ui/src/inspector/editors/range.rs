@@ -29,6 +29,7 @@ use crate::{
     message::{MessageDirection, UiMessage},
     numeric::NumericType,
     range::{RangeEditorBuilder, RangeEditorMessage},
+    style::{resource::StyleResourceExt, Style},
     widget::WidgetBuilder,
 };
 use std::{any::TypeId, marker::PhantomData, ops::Range};
@@ -60,6 +61,11 @@ impl<T: NumericType> PropertyEditorDefinition for RangePropertyEditorDefinition<
         Ok(PropertyEditorInstance::simple(
             RangeEditorBuilder::new(WidgetBuilder::new())
                 .with_value(value.clone())
+                .with_font(ctx.font.unwrap_or_else(|| ctx.build_context.default_font()))
+                .with_font_size(
+                    ctx.font_size
+                        .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+                )
                 .build(ctx.build_context),
         ))
     }

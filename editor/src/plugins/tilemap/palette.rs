@@ -46,6 +46,7 @@ use crate::{
             formatted_text::{FormattedText, FormattedTextBuilder},
             message::CursorIcon,
             message::{KeyCode, MessageDirection, MouseButton, UiMessage},
+            style::resource::StyleResourceExt,
             widget::{Widget, WidgetBuilder, WidgetMessage},
             BuildContext, Control, UiNode, UserInterface,
         },
@@ -2076,6 +2077,7 @@ impl PaletteWidgetBuilder {
             slice_mode: false,
             position_text: FormattedTextBuilder::new(ctx.inner().default_font.clone())
                 .with_brush(Brush::Solid(Color::WHITE))
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(),
             selecting_tiles: FxHashSet::default(),
             highlight: FxHashMap::default(),

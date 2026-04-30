@@ -31,6 +31,7 @@ use crate::{
             input::{InputBox, InputBoxBuilder, InputBoxMessage, InputBoxResult},
             message::UiMessage,
             stack_panel::{StackPanel, StackPanelBuilder},
+            style::{resource::StyleResourceExt, Style, StyledProperty},
             toggle::{ToggleButton, ToggleButtonMessage},
             utils::{make_dropdown_list_option, ImageButtonBuilder},
             widget::{WidgetBuilder, WidgetMessage},
@@ -54,6 +55,7 @@ use crate::{
         },
         Selection,
     },
+    Editor,
 };
 use std::any::TypeId;
 
@@ -189,23 +191,35 @@ impl Toolbar {
             if message.destination() == self.rename_layer {
                 self.rename_layer_input_box = InputBoxBuilder::new(
                     WindowBuilder::new(WidgetBuilder::new().with_width(320.0).with_height(120.0))
-                        .with_title(WindowTitle::text("Rename Layer"))
+                        .with_title(WindowTitle::text_with_font_size(
+                            "Rename Layer",
+                            ui.default_font.clone(),
+                            ui.style.property(Editor::UI_FONT_SIZE),
+                        ))
                         .open(false)
                         .with_remove_on_close(true),
                 )
                 .with_text("Type the new name for the selected layer:")
                 .with_value("Layer".to_string())
+                .with_font(ui.default_font.clone())
+                .with_font_size(ui.style.property(Editor::UI_FONT_SIZE))
                 .build(&mut ui.build_ctx());
                 ui.send(self.rename_layer_input_box, InputBoxMessage::open_as_is());
             } else if message.destination() == self.add_layer {
                 self.add_layer_input_box = InputBoxBuilder::new(
                     WindowBuilder::new(WidgetBuilder::new().with_width(320.0).with_height(120.0))
-                        .with_title(WindowTitle::text("Add Layer"))
+                        .with_title(WindowTitle::text_with_font_size(
+                            "Add Layer",
+                            ui.default_font.clone(),
+                            ui.style.property(Editor::UI_FONT_SIZE),
+                        ))
                         .open(false)
                         .with_remove_on_close(true),
                 )
                 .with_text("Type the name for the new layer:")
                 .with_value("Layer".to_string())
+                .with_font(ui.default_font.clone())
+                .with_font_size(ui.style.property(Editor::UI_FONT_SIZE))
                 .build(&mut ui.build_ctx());
                 ui.send(self.add_layer_input_box, InputBoxMessage::open_as_is());
             } else if message.destination() == self.edit_mask {
@@ -255,7 +269,11 @@ impl Toolbar {
                             WidgetBuilder::new().with_width(300.0).with_height(400.0),
                         )
                         .open(false)
-                        .with_title(WindowTitle::text("Select nodes that will NOT be animated")),
+                        .with_title(WindowTitle::text_with_font_size(
+                            "Select nodes that will NOT be animated",
+                            ui.default_font.clone(),
+                            ui.style.property(Editor::UI_FONT_SIZE),
+                        )),
                     )
                     .with_allowed_types(
                         [AllowedType {
@@ -376,10 +394,19 @@ impl Toolbar {
         G: SceneGraph<Node = N, Prefab = P>,
         N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
     {
+        let font = ui.build_ctx().default_font();
+        let font_size: StyledProperty<f32> = ui.build_ctx().style.property(Style::FONT_SIZE);
         let layers = machine
             .layers()
             .iter()
-            .map(|l| make_dropdown_list_option(&mut ui.build_ctx(), l.name()))
+            .map(|l| {
+                make_dropdown_list_option(
+                    &mut ui.build_ctx(),
+                    l.name(),
+                    font.clone(),
+                    font_size.clone(),
+                )
+            })
             .collect();
 
         ui.send_sync(self.layers, DropdownListMessage::Items(layers));

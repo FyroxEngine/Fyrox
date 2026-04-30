@@ -54,6 +54,7 @@ use crate::{
 use fyrox::core::reflect::Reflect;
 use fyrox::gui::button::Button;
 use fyrox::gui::grid::Grid;
+use fyrox::gui::style::resource::StyleResourceExt;
 
 pub struct ReflectionProbePreviewControlPanel {
     pub root_widget: Handle<Grid>,
@@ -75,7 +76,11 @@ impl ReflectionProbePreviewControlPanel {
                             .with_vertical_alignment(VerticalAlignment::Center)
                             .with_margin(Thickness::uniform(1.0)),
                     )
-                    .with_text("Update")
+                    .with_text_and_font_size(
+                        "Update",
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx);
                     update
                 })
@@ -87,7 +92,11 @@ impl ReflectionProbePreviewControlPanel {
                             .with_vertical_alignment(VerticalAlignment::Center)
                             .with_margin(Thickness::uniform(1.0)),
                     )
-                    .with_text("Adjust")
+                    .with_text_and_font_size(
+                        "Adjust",
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx);
                     adjust
                 }),

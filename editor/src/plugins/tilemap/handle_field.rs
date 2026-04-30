@@ -26,6 +26,7 @@ use crate::fyrox::gui::{
     define_widget_deref,
     grid::{Column, GridBuilder, Row},
     stack_panel::StackPanelBuilder,
+    style::resource::StyleResourceExt,
     text::{TextBuilder, TextMessage},
     text_box::TextBoxBuilder,
     widget::Widget,
@@ -77,6 +78,7 @@ fn value_to_string(value: Option<TileDefinitionHandle>) -> String {
 fn make_label(name: &str, ctx: &mut BuildContext) -> Handle<Text> {
     TextBuilder::new(WidgetBuilder::new())
         .with_text(name)
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx)
 }
 
@@ -136,6 +138,7 @@ impl TileHandleFieldBuilder {
     pub fn build(self, ctx: &mut BuildContext) -> Handle<TileHandleField> {
         let field = TextBoxBuilder::new(WidgetBuilder::new().on_column(1))
             .with_text(value_to_string(self.value))
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx);
         let goto_button = make_drawing_mode_button(
             ctx,

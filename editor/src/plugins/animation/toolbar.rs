@@ -22,7 +22,12 @@ use crate::{
     command::{Command, CommandGroup},
     fyrox::{
         asset::manager::ResourceManager,
-        core::{futures::executor::block_on, log::Log, pool::ErasedHandle, pool::Handle},
+        core::{
+            color::Color,
+            futures::executor::block_on,
+            log::Log,
+            pool::{ErasedHandle, Handle},
+        },
         generic_animation::{Animation, AnimationContainer, RootMotionSettings},
         graph::{PrefabData, SceneGraph, SceneGraphNode},
         gui::{
@@ -39,10 +44,10 @@ use crate::{
             message::{MessageDirection, UiMessage},
             numeric::{NumericUpDown, NumericUpDownBuilder, NumericUpDownMessage},
             popup::{Placement, Popup, PopupBuilder, PopupMessage},
-            style::{resource::StyleResourceExt, Style},
+            style::{resource::StyleResourceExt, Style, StyledProperty},
             text::{Text, TextBuilder, TextMessage},
             toggle::{ToggleButton, ToggleButtonMessage},
-            utils::{make_dropdown_list_option_universal, make_simple_tooltip},
+            utils::{make_dropdown_list_option_universal, make_simple_tooltip, ImageButtonBuilder},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
@@ -64,13 +69,14 @@ use crate::{
     },
     scene::{
         commands::ChangeSelectionCommand,
-        selector::NodeSelectorWindow,
-        selector::{AllowedType, HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
+        selector::{
+            AllowedType, HierarchyNode, NodeSelectorMessage, NodeSelectorWindow,
+            NodeSelectorWindowBuilder,
+        },
         Selection,
     },
+    Editor,
 };
-use fyrox::core::color::Color;
-use fyrox::gui::utils::ImageButtonBuilder;
 use std::any::TypeId;
 
 enum ImportMode {
@@ -124,6 +130,7 @@ impl RootMotionDropdownArea {
             TextBuilder::new(WidgetBuilder::new().on_row(row).on_column(0))
                 .with_vertical_text_alignment(VerticalAlignment::Center)
                 .with_text(text)
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx)
         }
 
@@ -168,7 +175,11 @@ impl RootMotionDropdownArea {
                                 .on_row(1)
                                 .on_column(1),
                         )
-                        .with_text("<Unassigned>")
+                        .with_text_and_font_size(
+                            "<Unassigned>",
+                            ctx.default_font(),
+                            ctx.style.property(Editor::UI_FONT_SIZE),
+                        )
                         .build(ctx);
                         select_node
                     })
@@ -270,7 +281,11 @@ impl RootMotionDropdownArea {
                         WindowBuilder::new(
                             WidgetBuilder::new().with_width(300.0).with_height(400.0),
                         )
-                        .with_title(WindowTitle::text("Select a Root Node"))
+                        .with_title(WindowTitle::text_with_font_size(
+                            "Select a Root Node",
+                            ui.default_font.clone(),
+                            ui.style.property(Editor::UI_FONT_SIZE),
+                        ))
                         .open(false),
                     )
                     .with_allowed_types(
@@ -535,6 +550,7 @@ impl Toolbar {
                                     TextBuilder::new(WidgetBuilder::new())
                                         .with_vertical_text_alignment(VerticalAlignment::Center)
                                         .with_text("Enabled")
+                                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                         .build(ctx),
                                 )
                                 .build(ctx);
@@ -609,6 +625,8 @@ impl Toolbar {
                                         )),
                                 )
                                 .with_value(1.0)
+                                .with_font(ctx.default_font())
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx);
                                 speed
                             })
@@ -641,6 +659,8 @@ impl Toolbar {
                                 )
                                 .with_min_value(0.0)
                                 .with_value(0.0)
+                                .with_font(ctx.default_font())
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx);
                                 time_slice_start
                             })
@@ -657,6 +677,8 @@ impl Toolbar {
                                 )
                                 .with_min_value(0.0)
                                 .with_value(1.0)
+                                .with_font(ctx.default_font())
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx);
                                 time_slice_end
                             }),
@@ -673,7 +695,11 @@ impl Toolbar {
         let import_file_selector = FileSelectorBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                 .open(false)
-                .with_title(WindowTitle::text("Select Animation To Import")),
+                .with_title(WindowTitle::text_with_font_size(
+                    "Select Animation To Import",
+                    ctx.default_font(),
+                    ctx.style.property(Editor::UI_FONT_SIZE),
+                )),
         )
         .with_filter(
             // TODO: Here we allow importing only FBX and GLTF files, but they can contain
@@ -684,6 +710,8 @@ impl Toolbar {
                 .with_file_type(FileType::new_extension("gltf"))
                 .with_file_type(FileType::new_extension("glb")),
         )
+        .with_font(ctx.default_font())
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
 
         let root_motion_dropdown_area = RootMotionDropdownArea::new(ctx);
@@ -792,7 +820,11 @@ impl Toolbar {
             } else if message.destination() == self.rename_current_animation {
                 self.rename_animation_input_box = InputBoxBuilder::new(
                     WindowBuilder::new(WidgetBuilder::new().with_width(320.0).with_height(120.0))
-                        .with_title(WindowTitle::text("Rename Animation"))
+                        .with_title(WindowTitle::text_with_font_size(
+                            "Rename Animation",
+                            ui.default_font.clone(),
+                            ui.style.property(Editor::UI_FONT_SIZE),
+                        ))
                         .open(false)
                         .with_remove_on_close(true),
                 )
@@ -804,6 +836,8 @@ impl Toolbar {
                         .map(|a| a.name().to_string())
                         .unwrap_or_else(|| "Animation".to_string()),
                 )
+                .with_font(ui.default_font.clone())
+                .with_font_size(ui.style.property(Editor::UI_FONT_SIZE))
                 .build(&mut ui.build_ctx());
                 ui.send(
                     self.rename_animation_input_box,
@@ -812,12 +846,18 @@ impl Toolbar {
             } else if message.destination() == self.add_animation {
                 self.animation_name_input_box = InputBoxBuilder::new(
                     WindowBuilder::new(WidgetBuilder::new().with_width(320.0).with_height(120.0))
-                        .with_title(WindowTitle::text("New Animation Name"))
+                        .with_title(WindowTitle::text_with_font_size(
+                            "New Animation Name",
+                            ui.default_font.clone(),
+                            ui.style.property(Editor::UI_FONT_SIZE),
+                        ))
                         .open(false)
                         .with_remove_on_close(true),
                 )
                 .with_text("Type the name for the new animation:")
                 .with_value("Animation".to_string())
+                .with_font(ui.default_font.clone())
+                .with_font_size(ui.style.property(Editor::UI_FONT_SIZE))
                 .build(&mut ui.build_ctx());
                 ui.send(self.animation_name_input_box, InputBoxMessage::open_as_is());
             } else if message.destination() == self.clone_current_animation {
@@ -923,7 +963,11 @@ impl Toolbar {
                 self.node_selector = NodeSelectorWindowBuilder::new(
                     WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                         .with_remove_on_close(true)
-                        .with_title(WindowTitle::text("Select a Target Node"))
+                        .with_title(WindowTitle::text_with_font_size(
+                            "Select a Target Node",
+                            ui.default_font.clone(),
+                            ui.style.property(Editor::UI_FONT_SIZE),
+                        ))
                         .open(false),
                 )
                 .with_allowed_types(
@@ -1068,10 +1112,19 @@ impl Toolbar {
         G: SceneGraph<Node = N>,
         N: SceneGraphNode,
     {
+        let font = ui.build_ctx().default_font();
+        let font_size: StyledProperty<f32> = ui.build_ctx().style.property(Editor::UI_FONT_SIZE);
         let new_items = animations
             .pair_iter()
             .map(|(h, a)| {
-                make_dropdown_list_option_universal(&mut ui.build_ctx(), a.name(), 22.0, h)
+                make_dropdown_list_option_universal(
+                    &mut ui.build_ctx(),
+                    a.name(),
+                    22.0,
+                    h,
+                    font.clone(),
+                    font_size.clone(),
+                )
             })
             .collect();
 

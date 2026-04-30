@@ -20,6 +20,7 @@
 
 use super::*;
 use crate::command::{Command, CommandContext, CommandTrait};
+use crate::Editor;
 use fyrox::gui::dropdown_list::DropdownList;
 use fyrox::gui::message::{DeliveryMode, MessageData};
 use fyrox::{
@@ -33,6 +34,7 @@ use fyrox::{
         dropdown_list::{DropdownListBuilder, DropdownListMessage},
         grid::{Column, GridBuilder, Row},
         numeric::{NumericUpDownBuilder, NumericUpDownMessage},
+        style::resource::StyleResourceExt,
         text::{TextBuilder, TextMessage},
         text_box::TextBoxBuilder,
     },
@@ -708,22 +710,33 @@ impl MacroPropertyValueField {
         use TileSetPropertyValueElement as Element;
         let label = TextBuilder::new(WidgetBuilder::new())
             .with_text(label)
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx);
         let wb = WidgetBuilder::new().on_column(1);
         let textbox = match &value {
             Element::I32(v) => NumericUpDownBuilder::<i32>::new(wb)
                 .with_value(*v)
+                .with_font(ctx.default_font())
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx)
                 .to_base(),
             Element::F32(v) => NumericUpDownBuilder::<f32>::new(wb)
                 .with_value(*v)
+                .with_font(ctx.default_font())
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx)
                 .to_base(),
             Element::I8(v) => NumericUpDownBuilder::<i8>::new(wb)
                 .with_value(*v)
+                .with_font(ctx.default_font())
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx)
                 .to_base(),
-            Element::String(v) => TextBoxBuilder::new(wb).with_text(v).build(ctx).to_base(),
+            Element::String(v) => TextBoxBuilder::new(wb)
+                .with_text(v)
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
+                .build(ctx)
+                .to_base(),
         };
         let list = if let Ok(value) = value.try_into() {
             let (index, items) = make_index_and_value_list(prop, value, ctx);
@@ -884,6 +897,7 @@ fn make_item(text: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
         WidgetBuilder::new().with_child(
             TextBuilder::new(WidgetBuilder::new())
                 .with_text(text)
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx),
         ),
     ))
@@ -948,6 +962,7 @@ impl MacroPropertyField {
     ) -> Self {
         let label = TextBuilder::new(WidgetBuilder::new())
             .with_text(label)
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx);
         let (index, items) = make_index_and_items(prop_type, value, tile_set, ctx);
         let list = DropdownListBuilder::new(WidgetBuilder::new().on_column(1))

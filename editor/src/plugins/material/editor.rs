@@ -18,6 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use fyrox::gui::{
+    font::FontResource,
+    style::{Style, StyledProperty},
+};
+
 use crate::{
     asset::{
         item::{AssetItem, AssetItemMessage},
@@ -45,6 +50,7 @@ use crate::{
                 FieldAction, InspectorError, PropertyChanged,
             },
             message::{MessageData, UiMessage},
+            style::resource::StyleResourceExt,
             text::{Text, TextBuilder, TextMessage},
             utils::{make_asset_preview_tooltip, make_simple_tooltip, ImageButtonBuilder},
             widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -202,6 +208,8 @@ impl Control for MaterialFieldEditor {
 
 pub struct MaterialFieldEditorBuilder {
     widget_builder: WidgetBuilder,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 fn make_name(resource_manager: &ResourceManager, material: &MaterialResource) -> String {
@@ -236,7 +244,23 @@ fn make_name(resource_manager: &ResourceManager, material: &MaterialResource) ->
 
 impl MaterialFieldEditorBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
-        Self { widget_builder }
+        Self {
+            widget_builder,
+            font: None,
+            font_size: None,
+        }
+    }
+
+    /// Sets a desired font of the editor.
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    /// Sets a desired font size property of the editor.
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
     }
 
     pub fn build(
@@ -255,6 +279,11 @@ impl MaterialFieldEditorBuilder {
         let make_unique_tooltip = "Creates a deep copy of the material, making a separate version of the material. \
         Useful when you need to change some properties in the material, but only on some nodes that uses the material.";
 
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
         let buttons = GridBuilder::new(
             WidgetBuilder::new()
                 .on_row(1)
@@ -277,7 +306,7 @@ impl MaterialFieldEditorBuilder {
                             .with_margin(Thickness::uniform(1.0))
                             .on_column(2),
                     )
-                    .with_text("Edit...")
+                    .with_text_and_font_size("Edit...", font.clone(), font_size.clone())
                     .build(ctx);
                     edit
                 })
@@ -289,7 +318,7 @@ impl MaterialFieldEditorBuilder {
                             .on_column(3)
                             .with_tooltip(make_simple_tooltip(ctx, make_unique_tooltip)),
                     )
-                    .with_text("Make Unique")
+                    .with_text_and_font_size("Make Unique", font.clone(), font_size.clone())
                     .build(ctx);
                     make_unique
                 }),
@@ -321,6 +350,8 @@ impl MaterialFieldEditorBuilder {
                         TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                             .with_text(make_name(&resource_manager, &material))
                             .with_vertical_text_alignment(VerticalAlignment::Center)
+                            .with_font(font.clone())
+                            .with_font_size(font_size.clone())
                             .build(ctx);
                     text
                 })
@@ -388,13 +419,19 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
         let value = ctx.property_info.cast_value::<MaterialResource>()?;
         let environment = EditorEnvironment::try_get_from(&ctx.environment)?;
         Ok(PropertyEditorInstance::simple(
-            MaterialFieldEditorBuilder::new(WidgetBuilder::new()).build(
-                ctx.build_context,
-                self.sender.safe_lock().clone(),
-                value.clone(),
-                environment.icon_request_sender.clone(),
-                environment.resource_manager.clone(),
-            ),
+            MaterialFieldEditorBuilder::new(WidgetBuilder::new())
+                .with_font(ctx.font.unwrap_or_else(|| ctx.build_context.default_font()))
+                .with_font_size(
+                    ctx.font_size
+                        .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+                )
+                .build(
+                    ctx.build_context,
+                    self.sender.safe_lock().clone(),
+                    value.clone(),
+                    environment.icon_request_sender.clone(),
+                    environment.resource_manager.clone(),
+                ),
         ))
     }
 

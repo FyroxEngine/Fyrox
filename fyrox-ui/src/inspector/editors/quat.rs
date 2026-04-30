@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::style::resource::StyleResourceExt;
+use crate::style::Style;
 use crate::vec::Vec3Editor;
 use crate::{
     core::{
@@ -97,6 +99,11 @@ where
                     euler.1.to_degrees(),
                     euler.2.to_degrees(),
                 ))
+                .with_font(ctx.font.unwrap_or_else(|| ctx.build_context.default_font()))
+                .with_font_size(
+                    ctx.font_size
+                        .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+                )
                 .build(ctx.build_context),
         ))
     }

@@ -60,13 +60,15 @@ use crate::{
     utils::window_content,
     Editor, Message, WidgetMessage, WrapMode,
 };
-use fyrox::core::color::Color;
-use fyrox::core::err;
 use fyrox::gui::button::Button;
 use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::text::Text;
 use fyrox::gui::utils::ImageButtonBuilder;
 use fyrox::gui::window::Window;
+use fyrox::{
+    core::{color::Color, err},
+    gui::{font::FontResource, style::StyledProperty},
+};
 use std::{any::Any, sync::mpsc::Sender, sync::Arc};
 
 pub mod editors;
@@ -127,6 +129,8 @@ pub struct InspectorPlugin {
     type_name_text: Handle<Text>,
     docs_button: Handle<Button>,
     clipboard: Option<Box<dyn Reflect>>,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 fn fetch_available_animations(
@@ -202,7 +206,11 @@ fn is_out_of_sync(sync_errors: &[InspectorError]) -> bool {
 }
 
 impl InspectorPlugin {
-    pub fn new(ctx: &mut BuildContext) -> Self {
+    pub fn new(
+        ctx: &mut BuildContext,
+        font: Option<FontResource>,
+        font_size: Option<StyledProperty<f32>>,
+    ) -> Self {
         let warning_text_str =
             "Multiple objects are selected, showing properties of the first object only!\
             Only common properties will be editable!";
@@ -222,7 +230,13 @@ impl InspectorPlugin {
         let type_name_text;
         let docs_button;
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("Inspector"))
-            .with_title(WindowTitle::text("Inspector"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Inspector",
+                font.clone().unwrap_or_else(|| ctx.default_font()),
+                font_size
+                    .clone()
+                    .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
+            ))
             .with_tab_label("Inspector")
             .with_content(
                 GridBuilder::new(
@@ -237,6 +251,12 @@ impl InspectorPlugin {
                             )
                             .with_wrap(WrapMode::Word)
                             .with_text(warning_text_str)
+                            .with_font(font.clone().unwrap_or_else(|| ctx.default_font()))
+                            .with_font_size(
+                                font_size
+                                    .clone()
+                                    .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
+                            )
                             .build(ctx);
                             warning_text
                         })
@@ -252,6 +272,12 @@ impl InspectorPlugin {
                                                 .on_column(0),
                                         )
                                         .with_wrap(WrapMode::NoWrap)
+                                        .with_font(
+                                            font.clone().unwrap_or_else(|| ctx.default_font()),
+                                        )
+                                        .with_font_size(font_size.clone().unwrap_or_else(|| {
+                                            ctx.style.property(Style::FONT_SIZE)
+                                        }))
                                         .build(ctx);
                                         type_name_text
                                     })
@@ -298,6 +324,8 @@ impl InspectorPlugin {
             docs_button,
             clipboard: None,
             footer,
+            font,
+            font_size,
         }
     }
 
@@ -345,6 +373,8 @@ impl InspectorPlugin {
             name_column_width: 150.0,
             base_path: Default::default(),
             has_parent_object,
+            font: self.font.clone(),
+            font_size: self.font_size.clone(),
         });
 
         ui.send(self.inspector, InspectorMessage::Context(context));

@@ -44,6 +44,7 @@ use crate::fyrox::{
     scene::animation::spritesheet::prelude::*,
 };
 use crate::plugins::inspector::editors::spritesheet::SpriteSheetFramesPropertyEditorMessage;
+use crate::Editor;
 
 use fyrox::core::pool::HandlesVecExtension;
 use fyrox::gui::border::Border;
@@ -270,12 +271,15 @@ impl SpriteSheetFramesEditorWindow {
                             .with_tooltip(make_simple_tooltip(ctx, column_tooltip)),
                     )
                     .with_text("Width")
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx),
                 )
                 .with_child({
                     width = NumericUpDownBuilder::new(WidgetBuilder::new().on_column(1).on_row(0))
                         .with_min_value(0)
                         .with_value(container.size().x)
+                        .with_font(ctx.default_font())
+                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx);
                     width
                 })
@@ -289,12 +293,15 @@ impl SpriteSheetFramesEditorWindow {
                             .with_tooltip(make_simple_tooltip(ctx, row_tooltip)),
                     )
                     .with_text("Height")
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx),
                 )
                 .with_child({
                     height = NumericUpDownBuilder::new(WidgetBuilder::new().on_column(1).on_row(1))
                         .with_min_value(0)
                         .with_value(container.size().y)
+                        .with_font(ctx.default_font())
+                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx);
                     height
                 }),
@@ -328,7 +335,11 @@ impl SpriteSheetFramesEditorWindow {
                             .with_width(70.0)
                             .with_margin(Thickness::uniform(1.0)),
                     )
-                    .with_text("OK")
+                    .with_text_and_font_size(
+                        "OK",
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx);
                     ok
                 })
@@ -338,7 +349,11 @@ impl SpriteSheetFramesEditorWindow {
                             .with_width(70.0)
                             .with_margin(Thickness::uniform(1.0)),
                     )
-                    .with_text("Cancel")
+                    .with_text_and_font_size(
+                        "Cancel",
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx);
                     cancel
                 }),
@@ -400,7 +415,11 @@ impl SpriteSheetFramesEditorWindow {
             )
             .open(false)
             .can_minimize(false)
-            .with_title(WindowTitle::text("Sprite Sheet Frames Editor"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Sprite Sheet Frames Editor",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_tab_label("Sprite Sheet Frames")
             .build_window(ctx),
             animation: SpriteSheetAnimation::with_container(container),

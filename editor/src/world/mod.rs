@@ -53,7 +53,7 @@ use crate::{
     message::MessageSender,
     utils::window_content,
     world::item::{DropAnchor, SceneItem, SceneItemBuilder, SceneItemMessage},
-    Mode, Settings,
+    Editor, Mode, Settings,
 };
 use fyrox::core::color::Color;
 use fyrox::core::pool::HandlesVecExtension;
@@ -328,7 +328,11 @@ impl WorldViewer {
         .build(ctx);
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("WorldOutliner"))
-            .with_title(WindowTitle::text("World Viewer"))
+            .with_title(WindowTitle::text_with_font_size(
+                "World Viewer",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_tab_label("World")
             .with_content(
                 GridBuilder::new(

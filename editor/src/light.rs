@@ -33,6 +33,7 @@ use crate::{
             progress_bar::{ProgressBar, ProgressBarBuilder, ProgressBarMessage},
             scroll_viewer::ScrollViewerBuilder,
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             text::{Text, TextBuilder, TextMessage},
             widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
@@ -45,7 +46,7 @@ use crate::{
         },
     },
     scene::GameScene,
-    Engine,
+    Editor, Engine,
 };
 use std::{
     path::PathBuf,
@@ -117,7 +118,11 @@ impl ProgressWindow {
         let text;
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(120.0))
             .open(false)
-            .with_title(WindowTitle::text("Progress"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Progress",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
@@ -128,6 +133,7 @@ impl ProgressWindow {
                                 take different amount of time depending on the settings.",
                                 )
                                 .with_wrap(WrapMode::Word)
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx),
                         )
                         .with_child({
@@ -144,6 +150,7 @@ impl ProgressWindow {
                                     .with_horizontal_alignment(HorizontalAlignment::Center)
                                     .with_vertical_alignment(VerticalAlignment::Center),
                             )
+                            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                             .build(ctx);
                             text
                         })
@@ -155,7 +162,11 @@ impl ProgressWindow {
                                     .with_height(25.0)
                                     .with_horizontal_alignment(HorizontalAlignment::Right),
                             )
-                            .with_text("Cancel")
+                            .with_text_and_font_size(
+                                "Cancel",
+                                ctx.default_font(),
+                                ctx.style.property(Editor::UI_FONT_SIZE),
+                            )
                             .build(ctx);
                             cancel
                         }),
@@ -244,7 +255,11 @@ impl LightPanel {
                 .with_width(300.0)
                 .with_height(400.0),
         )
-        .with_title(WindowTitle::text("Light Settings"))
+        .with_title(WindowTitle::text_with_font_size(
+            "Light Settings",
+            ctx.default_font(),
+            ctx.style.property(Editor::UI_FONT_SIZE),
+        ))
         .open(false)
         .with_content(
             GridBuilder::new(
@@ -256,6 +271,8 @@ impl LightPanel {
                                 .on_row(0),
                         )
                         .with_content({
+                            let font = Some(ctx.default_font());
+                            let font_size = Some(ctx.style.property(Editor::UI_FONT_SIZE));
                             inspector = InspectorBuilder::new(
                                 WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                             )
@@ -270,6 +287,8 @@ impl LightPanel {
                                 name_column_width: 150.0,
                                 base_path: Default::default(),
                                 has_parent_object: false,
+                                font: font,
+                                font_size: font_size,
                             }))
                             .build(ctx);
                             inspector
@@ -286,7 +305,11 @@ impl LightPanel {
                                     generate = ButtonBuilder::new(
                                         WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
                                     )
-                                    .with_text("Generate Lightmap")
+                                    .with_text_and_font_size(
+                                        "Generate Lightmap",
+                                        ctx.default_font(),
+                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                    )
                                     .build(ctx);
                                     generate
                                 })
@@ -294,7 +317,11 @@ impl LightPanel {
                                     clear_lightmap = ButtonBuilder::new(
                                         WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
                                     )
-                                    .with_text("Clear Lightmap")
+                                    .with_text_and_font_size(
+                                        "Clear Lightmap",
+                                        ctx.default_font(),
+                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                    )
                                     .build(ctx);
                                     clear_lightmap
                                 }),

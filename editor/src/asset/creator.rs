@@ -32,6 +32,7 @@ use crate::{
             list_view::{ListViewBuilder, ListViewMessage},
             message::UiMessage,
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             text::TextMessage,
             text_box::TextBoxBuilder,
             utils::make_dropdown_list_option,
@@ -41,7 +42,7 @@ use crate::{
         },
     },
     message::MessageSender,
-    Message,
+    Editor, Message,
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::list_view::ListView;
@@ -73,6 +74,8 @@ impl ResourceCreator {
                 items.push(make_dropdown_list_option(
                     ctx,
                     make_pretty_type_name(&constructor.type_name),
+                    ctx.default_font(),
+                    ctx.style.property(Editor::UI_FONT_SIZE),
                 ))
             }
         }
@@ -83,7 +86,11 @@ impl ResourceCreator {
         let cancel;
         let resource_constructors_list;
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
-            .with_title(WindowTitle::text("Resource Creator"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Resource Creator",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .open(false)
             .with_content(
                 GridBuilder::new(
@@ -97,6 +104,7 @@ impl ResourceCreator {
                                     .with_margin(Thickness::uniform(1.0)),
                             )
                             .with_text(&name_str)
+                            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                             .build(ctx);
                             name
                         })
@@ -121,7 +129,11 @@ impl ResourceCreator {
                                                 .with_width(100.0)
                                                 .with_height(22.0),
                                         )
-                                        .with_text("OK")
+                                        .with_text_and_font_size(
+                                            "OK",
+                                            ctx.default_font(),
+                                            ctx.style.property(Editor::UI_FONT_SIZE),
+                                        )
                                         .build(ctx);
                                         ok
                                     })
@@ -132,7 +144,11 @@ impl ResourceCreator {
                                                 .with_width(100.0)
                                                 .with_height(22.0),
                                         )
-                                        .with_text("Cancel")
+                                        .with_text_and_font_size(
+                                            "Cancel",
+                                            ctx.default_font(),
+                                            ctx.style.property(Editor::UI_FONT_SIZE),
+                                        )
                                         .build(ctx);
                                         cancel
                                     }),

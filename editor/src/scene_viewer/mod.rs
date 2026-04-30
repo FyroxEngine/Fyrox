@@ -61,7 +61,7 @@ use crate::{
     scene_viewer::gizmo::{SceneGizmo, SceneGizmoAction},
     settings::SettingsMessage,
     utils::enable_widget,
-    DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
+    DropdownListBuilder, Editor, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
     SceneContainer, Settings,
 };
 use fyrox::core::algebra::Vector2;
@@ -126,6 +126,7 @@ impl GridSnappingMenu {
                         .with_child(
                             TextBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
                                 .with_text("Grid Snapping")
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx),
                         )
                         .with_child({
@@ -142,6 +143,7 @@ impl GridSnappingMenu {
                         .with_child(
                             TextBuilder::new(WidgetBuilder::new().on_row(1).on_column(0))
                                 .with_text("X Step")
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx),
                         )
                         .with_child({
@@ -152,12 +154,15 @@ impl GridSnappingMenu {
                                     .with_tab_index(Some(1)),
                             )
                             .with_value(settings.move_mode_settings.x_snap_step)
+                            .with_font(ctx.default_font())
+                            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                             .build(ctx);
                             x_step
                         })
                         .with_child(
                             TextBuilder::new(WidgetBuilder::new().on_row(2).on_column(0))
                                 .with_text("Y Step")
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx),
                         )
                         .with_child({
@@ -168,12 +173,15 @@ impl GridSnappingMenu {
                                     .with_tab_index(Some(2)),
                             )
                             .with_value(settings.move_mode_settings.y_snap_step)
+                            .with_font(ctx.default_font())
+                            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                             .build(ctx);
                             y_step
                         })
                         .with_child(
                             TextBuilder::new(WidgetBuilder::new().on_row(3).on_column(0))
                                 .with_text("Z Step")
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx),
                         )
                         .with_child({
@@ -184,6 +192,8 @@ impl GridSnappingMenu {
                                     .with_tab_index(Some(3)),
                             )
                             .with_value(settings.move_mode_settings.z_snap_step)
+                            .with_font(ctx.default_font())
+                            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                             .build(ctx);
                             z_step
                         }),
@@ -322,8 +332,20 @@ impl SceneViewer {
                         WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                     )
                     .with_items(vec![
-                        make_dropdown_list_option_with_height(ctx, "3D", 22.0),
-                        make_dropdown_list_option_with_height(ctx, "2D", 22.0),
+                        make_dropdown_list_option_with_height(
+                            ctx,
+                            "3D",
+                            22.0,
+                            ctx.default_font(),
+                            ctx.style.property(Editor::UI_FONT_SIZE),
+                        ),
+                        make_dropdown_list_option_with_height(
+                            ctx,
+                            "2D",
+                            22.0,
+                            ctx.default_font(),
+                            ctx.style.property(Editor::UI_FONT_SIZE),
+                        ),
                     ])
                     .with_close_on_selection(true)
                     .with_selected(0)
@@ -339,7 +361,14 @@ impl SceneViewer {
                         GraphicsDebugSwitches::iter()
                             .zip(GraphicsDebugSwitches::VARIANTS.iter())
                             .map(|(variant, v)| {
-                                make_dropdown_list_option_universal(ctx, v, 22.0, variant)
+                                make_dropdown_list_option_universal(
+                                    ctx,
+                                    v,
+                                    22.0,
+                                    variant,
+                                    ctx.default_font(),
+                                    ctx.style.property(Editor::UI_FONT_SIZE),
+                                )
                             })
                             .collect::<Vec<_>>(),
                     )
@@ -379,7 +408,14 @@ impl SceneViewer {
                                         .build
                                         .profiles
                                         .iter()
-                                        .map(|p| make_dropdown_list_option(ctx, &p.name))
+                                        .map(|p| {
+                                            make_dropdown_list_option(
+                                                ctx,
+                                                &p.name,
+                                                ctx.default_font(),
+                                                ctx.style.property(Editor::UI_FONT_SIZE),
+                                            )
+                                        })
                                         .collect::<Vec<_>>(),
                                 )
                                 .with_close_on_selection(true)
@@ -477,6 +513,7 @@ impl SceneViewer {
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .with_horizontal_text_alignment(HorizontalAlignment::Center)
         .with_wrap(WrapMode::Word)
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
 
         let scene_gizmo_image = ImageBuilder::new(
@@ -555,7 +592,11 @@ impl SceneViewer {
                 .add_column(Column::stretch())
                 .build(ctx),
             )
-            .with_title(WindowTitle::text("Scene Preview"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Scene Preview",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_tab_label("Scene")
             .build(ctx);
         Self {
@@ -908,6 +949,14 @@ impl SceneViewer {
                     bottom: 2.0,
                 }))
                 .with_text(entry.name())
+                .with_font_size(
+                    engine
+                        .user_interfaces
+                        .first_mut()
+                        .build_ctx()
+                        .style
+                        .property(Editor::UI_FONT_SIZE),
+                )
                 .build(&mut engine.user_interfaces.first_mut().build_ctx())
                 .to_base();
 

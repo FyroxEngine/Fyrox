@@ -19,6 +19,9 @@
 // SOFTWARE.
 
 use crate::button::Button;
+use crate::font::FontResource;
+use crate::style::resource::StyleResourceExt;
+use crate::style::{Style, StyledProperty};
 use crate::text_box::TextBox;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
@@ -75,16 +78,43 @@ impl Control for FolderNameDialog {
     }
 }
 
-impl FolderNameDialog {
-    pub fn build_and_open(ui: &mut UserInterface) -> Handle<FolderNameDialog> {
+pub struct FolderNameDialogBuilder {
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
+}
+
+impl FolderNameDialogBuilder {
+    pub fn new() -> Self {
+        Self {
+            font: None,
+            font_size: None,
+        }
+    }
+
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
+    pub fn build_and_open(self, ui: &mut UserInterface) -> Handle<FolderNameDialog> {
         let ctx = &mut ui.build_ctx();
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
         let ok = ButtonBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(1.0))
                 .with_width(80.0)
                 .with_tab_index(Some(1)),
         )
-        .with_text("OK")
+        .with_text_and_font_size("OK", font.clone(), font_size.clone())
         .build(ctx);
 
         let cancel = ButtonBuilder::new(
@@ -93,7 +123,7 @@ impl FolderNameDialog {
                 .with_width(80.0)
                 .with_tab_index(Some(2)),
         )
-        .with_text("Cancel")
+        .with_text_and_font_size("Cancel", font.clone(), font_size.clone())
         .build(ctx);
 
         let buttons = StackPanelBuilder::new(
@@ -116,12 +146,18 @@ impl FolderNameDialog {
                 .with_tab_index(Some(0)),
         )
         .with_empty_text_placeholder(EmptyTextPlaceholder::Text("Enter a new folder name"))
+        .with_font(font.clone())
+        .with_font_size(font_size.clone())
         .build(ctx);
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(220.0).with_height(80.0))
             .open(false)
             .with_remove_on_close(true)
-            .with_title(WindowTitle::text("New Folder Name"))
+            .with_title(WindowTitle::text_with_font_size(
+                "New Folder Name",
+                font.clone(),
+                font_size.clone(),
+            ))
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
@@ -136,7 +172,7 @@ impl FolderNameDialog {
             )
             .build_window(ctx);
 
-        let dialog = Self {
+        let dialog = FolderNameDialog {
             window,
             folder_name_tb,
             folder_name: Default::default(),

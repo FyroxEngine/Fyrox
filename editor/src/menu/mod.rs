@@ -38,13 +38,14 @@ use crate::{
     scene::{container::EditorSceneEntry, controller::SceneController},
     settings::Settings,
     stats::StatisticsWindow,
-    Engine, Mode, SceneSettingsWindow,
+    Editor, Engine, Mode, SceneSettingsWindow,
 };
 use fyrox::asset::manager::ResourceManager;
 use fyrox::core::Uuid;
 use fyrox::gui::file_browser::FileType;
 use fyrox::gui::image::{Image, ImageBuilder};
 use fyrox::gui::menu::MenuItem;
+use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::texture::TextureResource;
 use fyrox::gui::window::Window;
 use std::path::PathBuf;
@@ -107,6 +108,7 @@ pub fn create_root_menu_item(
     )
     .with_content(MenuItemContent::text_centered(text))
     .with_items(items)
+    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
     .build(ctx)
 }
 
@@ -123,6 +125,7 @@ pub fn create_menu_item(
     )
     .with_content(MenuItemContent::text(text))
     .with_items(items)
+    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
     .build(ctx)
 }
 
@@ -153,6 +156,7 @@ pub fn create_menu_item_shortcut(
     )
     .with_content(icon)
     .with_items(items)
+    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
     .build(ctx)
 }
 

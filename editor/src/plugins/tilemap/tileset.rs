@@ -135,6 +135,7 @@ fn make_tab(
         uuid,
         header: TextBuilder::new(WidgetBuilder::new().with_margin(TAB_MARGIN))
             .with_text(name)
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx)
             .to_base(),
         content,
@@ -158,13 +159,18 @@ fn make_button(
             .with_margin(Thickness::uniform(1.0))
             .with_tooltip(make_simple_tooltip(ctx, tooltip)),
     )
-    .with_text(title)
+    .with_text_and_font_size(
+        title,
+        ctx.default_font(),
+        ctx.style.property(Editor::UI_FONT_SIZE),
+    )
     .build(ctx)
 }
 
 fn make_label(name: &str, ctx: &mut BuildContext) -> Handle<Text> {
     TextBuilder::new(WidgetBuilder::new())
         .with_text(name)
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx)
 }
 
@@ -225,6 +231,8 @@ impl TileSetEditor {
         let tile_set_field =
             ResourceFieldBuilder::<TileSet>::new(WidgetBuilder::new().on_column(1), sender.clone())
                 .with_resource(tile_book.get_tile_set())
+                .with_font(ctx.default_font())
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx, icon_request_sender.clone(), resource_manager.clone());
         let tile_set_selector = GridBuilder::new(
             WidgetBuilder::new()
@@ -239,7 +247,9 @@ impl TileSetEditor {
         let remove;
         let all_pages;
         let all_tiles;
-        let cell_position = TextBuilder::new(WidgetBuilder::new()).build(ctx);
+        let cell_position = TextBuilder::new(WidgetBuilder::new())
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
+            .build(ctx);
         let pick_button = make_drawing_mode_button(
             ctx,
             20.0,
@@ -283,6 +293,8 @@ impl TileSetEditor {
         let color_label = make_label("Material Tint", ctx);
         let color_field = ColorFieldBuilder::new(WidgetBuilder::new().on_column(1))
             .with_color(DEFAULT_MATERIAL_COLOR)
+            .with_font(ctx.default_font())
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx);
         let color_control = GridBuilder::new(
             WidgetBuilder::new()
@@ -441,10 +453,11 @@ impl TileSetEditor {
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(800.0).with_height(600.0))
             .open(false)
-            .with_title(WindowTitle::text(tile_set_to_title(
-                &resource_manager,
-                &tile_book,
-            )))
+            .with_title(WindowTitle::text_with_font_size(
+                tile_set_to_title(&resource_manager, &tile_book),
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_content(tab_control)
             .build(ctx);
 
@@ -507,10 +520,11 @@ impl TileSetEditor {
         self.tile_inspector.set_tile_resource(tile_book.clone(), ui);
         ui.send(
             self.window,
-            WindowMessage::Title(WindowTitle::text(tile_set_to_title(
-                resource_manager,
-                &tile_book,
-            ))),
+            WindowMessage::Title(WindowTitle::text_with_font_size(
+                tile_set_to_title(resource_manager, &tile_book),
+                ui.default_font.clone(),
+                ui.style.property(Editor::UI_FONT_SIZE),
+            )),
         );
         let mut state = self.state.lock_mut("set_tile_resource");
         if state.selection_palette() == self.pages_palette

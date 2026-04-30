@@ -119,23 +119,31 @@ impl TilePropertyEditor {
         let draw_button = make_draw_button(Some(0), ctx);
         let name_field = TextBuilder::new(WidgetBuilder::new())
             .with_text(prop_layer.name.clone())
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx);
         let value_field = match prop_layer.prop_type {
             TileSetPropertyType::I32 => {
                 NumericUpDownBuilder::<i32>::new(WidgetBuilder::new().on_column(1))
+                    .with_font(ctx.default_font())
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx)
                     .to_base()
             }
             TileSetPropertyType::F32 => {
                 NumericUpDownBuilder::<f32>::new(WidgetBuilder::new().on_column(1))
+                    .with_font(ctx.default_font())
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx)
                     .to_base()
             }
             TileSetPropertyType::String => TextBoxBuilder::new(WidgetBuilder::new().on_column(1))
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx)
                 .to_base(),
             TileSetPropertyType::NineSlice => {
                 NumericUpDownBuilder::<i8>::new(WidgetBuilder::new().on_column(1))
+                    .with_font(ctx.default_font())
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx)
                     .to_base()
             }
@@ -777,7 +785,11 @@ fn build_nine_button(
             .on_row(2 - y)
             .with_tab_index(tab_index),
     )
-    .with_text(specs.name.as_str())
+    .with_text_and_font_size(
+        specs.name.as_str(),
+        ctx.default_font(),
+        ctx.style.property(Editor::UI_FONT_SIZE),
+    )
     .with_back(
         DecoratorBuilder::new(
             BorderBuilder::new(

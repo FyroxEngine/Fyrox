@@ -24,6 +24,7 @@ use crate::{
         color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
         visitor::prelude::*, PhantomDataSendSync,
     },
+    font::FontResource,
     grid::{Column, GridBuilder, Row},
     inspector::{
         editors::{
@@ -37,6 +38,7 @@ use crate::{
     message::{DeliveryMode, MessageData, MessageDirection, UiMessage},
     resources,
     stack_panel::{StackPanel, StackPanelBuilder},
+    style::{resource::StyleResourceExt, Style, StyledProperty},
     utils::ImageButtonBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
@@ -190,6 +192,8 @@ where
     generate_property_string_values: bool,
     filter: PropertyFilter,
     immutable_collection: bool,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 fn create_item_views(items: &[Item], ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
@@ -226,6 +230,8 @@ fn create_items<'a, 'b, T, I>(
     name_column_width: f32,
     base_path: String,
     has_parent_object: bool,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 ) -> Result<Vec<Item>, InspectorError>
 where
     T: CollectionItem,
@@ -268,6 +274,8 @@ where
                         name_column_width,
                         base_path: format!("{base_path}[{index}]"),
                         has_parent_object,
+                        font: font.clone(),
+                        font_size: font_size.clone(),
                     })?;
 
             if let PropertyEditorInstance::Simple { editor } = editor {
@@ -317,6 +325,8 @@ where
             generate_property_string_values: false,
             filter: Default::default(),
             immutable_collection: false,
+            font: None,
+            font_size: None,
         }
     }
 
@@ -366,6 +376,16 @@ where
         self
     }
 
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
     pub fn build(
         self,
         ctx: &mut BuildContext,
@@ -393,6 +413,8 @@ where
                 name_column_width,
                 base_path,
                 has_parent_object,
+                self.font,
+                self.font_size,
             )?
         } else {
             Vec::new()
@@ -498,6 +520,11 @@ where
                 .with_generate_property_string_values(ctx.generate_property_string_values)
                 .with_filter(ctx.filter)
                 .with_immutable_collection(ctx.property_info.immutable_collection)
+                .with_font(ctx.font.unwrap_or_else(|| ctx.build_context.default_font()))
+                .with_font_size(
+                    ctx.font_size
+                        .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+                )
                 .build(
                     ctx.build_context,
                     ctx.property_info,
@@ -533,6 +560,8 @@ where
             name_column_width,
             base_path,
             has_parent_object,
+            font,
+            font_size,
         } = ctx;
 
         let instance_ref = if let Some(instance) = ui.node(instance).cast::<CollectionEditor<T>>() {
@@ -560,6 +589,8 @@ where
                 name_column_width,
                 base_path,
                 has_parent_object,
+                font,
+                font_size,
             )?;
 
             Ok(Some(UiMessage::for_widget(
@@ -609,6 +640,8 @@ where
                                 name_column_width,
                                 base_path: format!("{base_path}[{index}]"),
                                 has_parent_object,
+                                font: font.clone(),
+                                font_size: font_size.clone(),
                             })?
                     {
                         // TODO: Refactor `create_message` into `create_messages` to support multiple

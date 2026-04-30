@@ -316,10 +316,9 @@ use crate::{
     draw::{CommandTexture, Draw, DrawingContext},
     font::{FontResource, BUILT_IN_FONT},
     message::{
-        ButtonState, CursorIcon, KeyboardModifiers, MessageDirection, MouseButton, OsEvent,
-        UiMessage,
+        ButtonState, CursorIcon, DeliveryMode, KeyboardModifiers, MessageData, MessageDirection,
+        MouseButton, OsEvent, RoutingStrategy, UiMessage,
     },
-    message::{DeliveryMode, MessageData, RoutingStrategy},
     popup::{Placement, PopupMessage},
     style::{
         resource::{StyleResource, StyleResourceExt},
@@ -1530,6 +1529,11 @@ impl UserInterface {
                 }
 
                 ui.send(node, WidgetMessage::Style(ui.style.clone()));
+                // This WidgetMessage::Style replaces old style in `Widget`
+                // but does not update font size
+                // because `Widget` does not carry a "font" value
+                // therefore there is no "font" for it to update
+                // Then why is `font` stored in `Style`?
             }
         }
 

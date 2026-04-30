@@ -142,21 +142,33 @@ impl CurveEditorWindow {
         let save_changes_message_box = MessageBoxBuilder::new(
             WindowBuilder::new(WidgetBuilder::new())
                 .open(false)
-                .with_title(WindowTitle::text("Unsaved Changes")),
+                .with_title(WindowTitle::text_with_font_size(
+                    "Unsaved Changes",
+                    ctx.default_font(),
+                    ctx.style.property(Editor::UI_FONT_SIZE),
+                )),
         )
         .with_text(
             "You have unsaved changes, do you want to save it before closing the curve editor?",
         )
         .with_buttons(MessageBoxButtons::YesNoCancel)
+        .with_font(ctx.default_font())
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
 
         let cancel_message_box = MessageBoxBuilder::new(
             WindowBuilder::new(WidgetBuilder::new())
                 .open(false)
-                .with_title(WindowTitle::text("Unsaved Changes")),
+                .with_title(WindowTitle::text_with_font_size(
+                    "Unsaved Changes",
+                    ctx.default_font(),
+                    ctx.style.property(Editor::UI_FONT_SIZE),
+                )),
         )
         .with_text("You have unsaved changes, do you want to quit the curve editor without saving?")
         .with_buttons(MessageBoxButtons::YesNo)
+        .with_font(ctx.default_font())
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
 
         let curve_editor;
@@ -185,6 +197,10 @@ impl CurveEditorWindow {
                                                             "New", "Ctrl+N",
                                                         ),
                                                     )
+                                                    .with_font(ctx.default_font())
+                                                    .with_font_size(
+                                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                                    )
                                                     .build(ctx);
                                                 new
                                             },
@@ -194,6 +210,10 @@ impl CurveEditorWindow {
                                                         MenuItemContent::text_with_shortcut(
                                                             "Load", "Ctrl+L",
                                                         ),
+                                                    )
+                                                    .with_font(ctx.default_font())
+                                                    .with_font_size(
+                                                        ctx.style.property(Editor::UI_FONT_SIZE),
                                                     )
                                                     .build(ctx);
                                                 load
@@ -205,10 +225,16 @@ impl CurveEditorWindow {
                                                             "Save", "Ctrl+S",
                                                         ),
                                                     )
+                                                    .with_font(ctx.default_font())
+                                                    .with_font_size(
+                                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                                    )
                                                     .build(ctx);
                                                 save
                                             },
                                         ])
+                                        .with_font(ctx.default_font())
+                                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                         .build(ctx),
                                     MenuItemBuilder::new(WidgetBuilder::new())
                                         .with_content(MenuItemContent::text("Edit"))
@@ -220,6 +246,10 @@ impl CurveEditorWindow {
                                                             "Undo", "Ctrl+Z",
                                                         ),
                                                     )
+                                                    .with_font(ctx.default_font())
+                                                    .with_font_size(
+                                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                                    )
                                                     .build(ctx);
                                                 undo
                                             },
@@ -230,10 +260,16 @@ impl CurveEditorWindow {
                                                             "Redo", "Ctrl+Y",
                                                         ),
                                                     )
+                                                    .with_font(ctx.default_font())
+                                                    .with_font_size(
+                                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                                    )
                                                     .build(ctx);
                                                 redo
                                             },
                                         ])
+                                        .with_font(ctx.default_font())
+                                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                         .build(ctx),
                                 ])
                                 .build(ctx),
@@ -248,6 +284,8 @@ impl CurveEditorWindow {
                                         curve_editor = CurveEditorBuilder::new(
                                             WidgetBuilder::new().with_enabled(false),
                                         )
+                                        .with_font(ctx.default_font())
+                                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                         .build(ctx);
                                         curve_editor
                                     }),
@@ -266,7 +304,11 @@ impl CurveEditorWindow {
                                                 .with_margin(Thickness::uniform(1.0))
                                                 .with_width(100.0),
                                         )
-                                        .with_text("OK")
+                                        .with_text_and_font_size(
+                                            "OK",
+                                            ctx.default_font(),
+                                            ctx.style.property(Editor::UI_FONT_SIZE),
+                                        )
                                         .build(ctx);
                                         ok
                                     })
@@ -276,7 +318,11 @@ impl CurveEditorWindow {
                                                 .with_margin(Thickness::uniform(1.0))
                                                 .with_width(100.0),
                                         )
-                                        .with_text("Cancel")
+                                        .with_text_and_font_size(
+                                            "Cancel",
+                                            ctx.default_font(),
+                                            ctx.style.property(Editor::UI_FONT_SIZE),
+                                        )
                                         .build(ctx);
                                         cancel
                                     }),
@@ -292,7 +338,11 @@ impl CurveEditorWindow {
                 .build(ctx),
             )
             .with_remove_on_close(true)
-            .with_title(WindowTitle::text("Curve Editor"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Curve Editor",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_tab_label("Curve")
             .build(ctx);
 

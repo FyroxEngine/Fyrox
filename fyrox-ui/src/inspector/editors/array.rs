@@ -23,18 +23,19 @@ use crate::{
         pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
         visitor::prelude::*, PhantomDataSendSync,
     },
+    font::FontResource,
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition,
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        make_expander_container, CollectionAction, FieldAction, InspectorEnvironment,
-        InspectorError, PropertyChanged,
+        make_expander_container, make_property_margin, CollectionAction, FieldAction,
+        InspectorEnvironment, InspectorError, PropertyChanged, PropertyFilter,
     },
-    inspector::{make_property_margin, PropertyFilter},
     message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
+    style::StyledProperty,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
@@ -98,6 +99,8 @@ where
     layer_index: usize,
     generate_property_string_values: bool,
     filter: PropertyFilter,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 fn create_item_views(items: &[Item]) -> Vec<Handle<UiNode>> {
@@ -122,6 +125,8 @@ fn create_items<'a, 'b, T, I>(
     name_column_width: f32,
     base_path: String,
     has_parent_object: bool,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 ) -> Result<Vec<Item>, InspectorError>
 where
     T: Reflect,
@@ -166,6 +171,8 @@ where
                         name_column_width,
                         base_path: format!("{base_path}[{index}]"),
                         has_parent_object,
+                        font: font.clone(),
+                        font_size: font_size.clone(),
                     })?;
 
             if let PropertyEditorInstance::Simple { editor } = editor {
@@ -200,6 +207,8 @@ where
             layer_index: 0,
             generate_property_string_values: false,
             filter: Default::default(),
+            font: None,
+            font_size: None,
         }
     }
 
@@ -239,6 +248,16 @@ where
         self
     }
 
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
     pub fn build(
         self,
         ctx: &mut BuildContext,
@@ -265,6 +284,8 @@ where
                 name_column_width,
                 base_path,
                 has_parent_object,
+                self.font,
+                self.font_size,
             )?
         } else {
             Vec::new()
@@ -377,6 +398,8 @@ where
             name_column_width,
             base_path,
             has_parent_object,
+            font,
+            font_size,
         } = ctx;
 
         let instance_ref = if let Some(instance) = ui.node(instance).cast::<ArrayEditor>() {
@@ -433,6 +456,8 @@ where
                             name_column_width,
                             base_path: format!("{base_path}[{index}]"),
                             has_parent_object,
+                            font: font.clone(),
+                            font_size: font_size.clone(),
                         })?
                 {
                     // TODO: Refactor `create_message` into `create_messages` to support multiple

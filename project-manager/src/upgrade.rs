@@ -19,23 +19,20 @@
 // SOFTWARE.
 
 use crate::{settings::Project, utils, utils::make_button};
-use fyrox::gui::button::Button;
-use fyrox::gui::dropdown_list::DropdownList;
-use fyrox::gui::text_box::TextBox;
-use fyrox::gui::window::{Window, WindowAlignment};
 use fyrox::{
     core::{log::Log, pool::Handle},
     gui::{
-        button::ButtonMessage,
-        dropdown_list::{DropdownListBuilder, DropdownListMessage},
+        button::{Button, ButtonMessage},
+        dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
         grid::{Column, GridBuilder, Row},
         message::UiMessage,
         stack_panel::StackPanelBuilder,
+        style::resource::StyleResourceExt,
         text::{TextBuilder, TextMessage},
-        text_box::TextBoxBuilder,
+        text_box::{TextBox, TextBoxBuilder},
         utils::make_dropdown_list_option,
         widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage, WindowTitle},
+        window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
         VerticalAlignment,
     },
@@ -117,9 +114,24 @@ impl UpgradeTool {
         )
         .with_close_on_selection(true)
         .with_items(vec![
-            make_dropdown_list_option(ctx, "Specific"),
-            make_dropdown_list_option(ctx, "Local"),
-            make_dropdown_list_option(ctx, "Nightly"),
+            make_dropdown_list_option(
+                ctx,
+                "Specific",
+                ctx.default_font(),
+                ctx.style.property(fyrox::gui::style::Style::FONT_SIZE),
+            ),
+            make_dropdown_list_option(
+                ctx,
+                "Local",
+                ctx.default_font(),
+                ctx.style.property(fyrox::gui::style::Style::FONT_SIZE),
+            ),
+            make_dropdown_list_option(
+                ctx,
+                "Nightly",
+                ctx.default_font(),
+                ctx.style.property(fyrox::gui::style::Style::FONT_SIZE),
+            ),
         ])
         .with_selected(selected_version.index())
         .build(ctx);

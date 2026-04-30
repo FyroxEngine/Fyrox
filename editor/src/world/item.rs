@@ -42,7 +42,7 @@ use crate::{
     load_image,
     message::MessageSender,
     utils::make_node_name,
-    Message,
+    Editor, Message,
 };
 
 use crate::world::SceneItemIcon;
@@ -335,6 +335,7 @@ impl SceneItemBuilder {
                         self.entity_handle.index(),
                         self.entity_handle.generation()
                     ))
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx);
                     text_name
                 }),

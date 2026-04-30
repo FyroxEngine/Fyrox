@@ -32,6 +32,7 @@ use crate::{
                 FieldAction, InspectorError, PropertyChanged,
             },
             message::{MessageDirection, UiMessage},
+            style::resource::StyleResourceExt,
             widget::{Widget, WidgetBuilder},
             window::{WindowBuilder, WindowTitle},
             BuildContext, Control, UiNode, UserInterface,
@@ -41,8 +42,13 @@ use crate::{
     plugins::inspector::editors::shader::{
         ShaderSourceCodeEditor, ShaderSourceCodeEditorBuilder, ShaderSourceCodeEditorMessage,
     },
+    Editor,
 };
-use fyrox::gui::button::Button;
+use fyrox::gui::{
+    button::Button,
+    font::FontResource,
+    style::{Style, StyledProperty},
+};
 use std::{any::TypeId, cell::RefCell};
 
 #[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider, ComponentProvider)]
@@ -64,7 +70,11 @@ impl Control for ShaderSourceCodeEditorField {
         if let Some(ButtonMessage::Click) = message.data() {
             self.editor = ShaderSourceCodeEditorBuilder::new(
                 WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(600.0))
-                    .with_title(WindowTitle::text("Edit Shader Source Code"))
+                    .with_title(WindowTitle::text_with_font_size(
+                        "Edit Shader Source Code",
+                        ui.default_font.clone(),
+                        ui.style.property(Editor::UI_FONT_SIZE),
+                    ))
                     .open(false),
             )
             .with_code(self.code.borrow().clone())
@@ -87,6 +97,8 @@ impl Control for ShaderSourceCodeEditorField {
 pub struct ShaderSourceCodeEditorFieldBuilder {
     widget_builder: WidgetBuilder,
     code: ShaderSourceCode,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl ShaderSourceCodeEditorFieldBuilder {
@@ -94,6 +106,8 @@ impl ShaderSourceCodeEditorFieldBuilder {
         Self {
             widget_builder,
             code: Default::default(),
+            font: None,
+            font_size: None,
         }
     }
 
@@ -102,9 +116,27 @@ impl ShaderSourceCodeEditorFieldBuilder {
         self
     }
 
+    /// Sets the desired font of the editor.
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    /// Sets a desired font size property of the editor.
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext) -> Handle<ShaderSourceCodeEditorField> {
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
+
         let button = ButtonBuilder::new(WidgetBuilder::new())
-            .with_text("Edit Source Code...")
+            .with_text_and_font_size("Edit Source Code...", font.clone(), font_size.clone())
             .build(ctx);
 
         let editor = ShaderSourceCodeEditorField {
@@ -138,6 +170,11 @@ impl PropertyEditorDefinition for ShaderSourceCodeEditorDefinition {
         Ok(PropertyEditorInstance::Simple {
             editor: ShaderSourceCodeEditorFieldBuilder::new(WidgetBuilder::new())
                 .with_code(value.clone())
+                .with_font(ctx.font.unwrap_or_else(|| ctx.build_context.default_font()))
+                .with_font_size(
+                    ctx.font_size
+                        .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+                )
                 .build(ctx.build_context)
                 .transmute(),
         })

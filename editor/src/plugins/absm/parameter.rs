@@ -39,6 +39,7 @@ use crate::{
             },
             message::UiMessage,
             scroll_viewer::ScrollViewerBuilder,
+            style::resource::StyleResourceExt,
             widget::WidgetBuilder,
             window::{WindowBuilder, WindowTitle},
             BuildContext, UserInterface,
@@ -48,21 +49,29 @@ use crate::{
     plugins::absm::command::fetch_machine,
     Message,
 };
-use fyrox::gui::inspector::Inspector;
 use fyrox::gui::window::Window;
 use fyrox::gui::Thickness;
+use fyrox::gui::{
+    font::FontResource,
+    inspector::Inspector,
+    style::{Style, StyledProperty},
+};
 use std::sync::Arc;
 
 pub struct ParameterPanel {
     pub window: Handle<Window>,
     inspector: Handle<Inspector>,
     property_editors: Arc<PropertyEditorDefinitionContainer>,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl ParameterPanel {
     pub fn new(
         ctx: &mut BuildContext,
         property_editors: Arc<PropertyEditorDefinitionContainer>,
+        font: Option<FontResource>,
+        font_size: Option<StyledProperty<f32>>,
     ) -> Self {
         property_editors
             .insert(VecCollectionPropertyEditorDefinition::<ParameterDefinition>::new());
@@ -71,7 +80,13 @@ impl ParameterPanel {
 
         let inspector;
         let window = WindowBuilder::new(WidgetBuilder::new())
-            .with_title(WindowTitle::text("Parameters"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Parameters",
+                font.clone().unwrap_or_else(|| ctx.default_font()),
+                font_size
+                    .clone()
+                    .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
+            ))
             .with_content(
                 ScrollViewerBuilder::new(WidgetBuilder::new())
                     .with_content({
@@ -91,6 +106,8 @@ impl ParameterPanel {
             window,
             inspector,
             property_editors,
+            font,
+            font_size,
         }
     }
 
@@ -112,6 +129,8 @@ impl ParameterPanel {
                     name_column_width: 150.0,
                     base_path: Default::default(),
                     has_parent_object: false,
+                    font: self.font.clone(),
+                    font_size: self.font_size.clone(),
                 })
             })
             .unwrap_or_default();

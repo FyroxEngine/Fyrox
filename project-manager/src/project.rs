@@ -23,6 +23,7 @@ use crate::{
     settings::{Project, Settings},
     utils,
 };
+use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::{
     core::pool::Handle,
     gui::{
@@ -34,7 +35,7 @@ use fyrox::{
         message::{MessageDirection, UiMessage},
         path::{PathEditor, PathEditorBuilder, PathEditorMessage},
         stack_panel::StackPanelBuilder,
-        style::{self, resource::StyleResourceExt},
+        style::{self},
         text::{Text, TextBuilder, TextMessage},
         text_box::{TextBox, TextBoxBuilder, TextCommitMode},
         utils::make_dropdown_list_option,
@@ -149,6 +150,8 @@ impl ProjectWizard {
         )
         .with_path(&path)
         .with_file_types(PathFilter::folder())
+        .with_font(ctx.default_font())
+        .with_font_size(ctx.style.property(fyrox::gui::style::Style::FONT_SIZE)) // OMG Bruh
         .build(ctx);
 
         let name_field = TextBoxBuilder::new(
@@ -169,8 +172,18 @@ impl ProjectWizard {
                 .on_column(1),
         )
         .with_items(vec![
-            make_dropdown_list_option(ctx, "2D"),
-            make_dropdown_list_option(ctx, "3D"),
+            make_dropdown_list_option(
+                ctx,
+                "2D",
+                ctx.default_font(),
+                ctx.style.property(fyrox::gui::style::Style::FONT_SIZE),
+            ),
+            make_dropdown_list_option(
+                ctx,
+                "3D",
+                ctx.default_font(),
+                ctx.style.property(fyrox::gui::style::Style::FONT_SIZE),
+            ),
         ])
         .with_selected(1)
         .build(ctx);
@@ -183,11 +196,36 @@ impl ProjectWizard {
                 .on_column(1),
         )
         .with_items(vec![
-            make_dropdown_list_option(ctx, "None"),
-            make_dropdown_list_option(ctx, "Git"),
-            make_dropdown_list_option(ctx, "Mercurial"),
-            make_dropdown_list_option(ctx, "Pijul"),
-            make_dropdown_list_option(ctx, "Fossil"),
+            make_dropdown_list_option(
+                ctx,
+                "None",
+                ctx.default_font(),
+                ctx.style.property(fyrox::gui::style::Style::FONT_SIZE),
+            ),
+            make_dropdown_list_option(
+                ctx,
+                "Git",
+                ctx.default_font(),
+                ctx.style.property(fyrox::gui::style::Style::FONT_SIZE),
+            ),
+            make_dropdown_list_option(
+                ctx,
+                "Mercurial",
+                ctx.default_font(),
+                ctx.style.property(fyrox::gui::style::Style::FONT_SIZE),
+            ),
+            make_dropdown_list_option(
+                ctx,
+                "Pijul",
+                ctx.default_font(),
+                ctx.style.property(fyrox::gui::style::Style::FONT_SIZE),
+            ),
+            make_dropdown_list_option(
+                ctx,
+                "Fossil",
+                ctx.default_font(),
+                ctx.style.property(fyrox::gui::style::Style::FONT_SIZE),
+            ),
         ])
         .with_selected(1)
         .build(ctx);

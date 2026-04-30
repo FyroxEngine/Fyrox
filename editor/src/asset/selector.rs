@@ -61,6 +61,7 @@ use crate::{
             UserInterface, VerticalAlignment,
         },
     },
+    Editor,
 };
 use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
@@ -197,6 +198,7 @@ impl ItemBuilder {
                         .map(|file_name| file_name.to_string_lossy().to_string())
                         .unwrap_or_default(),
                 )
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx),
             ),
         )
@@ -509,7 +511,11 @@ impl<'a> AssetSelectorWindowBuilder<'a> {
                             .with_margin(Thickness::uniform(1.0))
                             .with_tab_index(Some(2)),
                     )
-                    .with_text("Select")
+                    .with_text_and_font_size(
+                        "Select",
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx);
                     ok
                 })
@@ -521,7 +527,11 @@ impl<'a> AssetSelectorWindowBuilder<'a> {
                             .with_margin(Thickness::uniform(1.0))
                             .with_tab_index(Some(3)),
                     )
-                    .with_text("Cancel")
+                    .with_text_and_font_size(
+                        "Cancel",
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx);
                     cancel
                 }),
@@ -559,9 +569,14 @@ impl<'a> AssetSelectorWindowBuilder<'a> {
         resource_manager: ResourceManager,
         ui: &mut UserInterface,
     ) -> Handle<AssetSelectorWindow> {
+        let ctx = ui.build_ctx();
         let selector = AssetSelectorWindowBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
-                .with_title(WindowTitle::text("Select a Resource"))
+                .with_title(WindowTitle::text_with_font_size(
+                    "Select a Resource",
+                    ctx.default_font(),
+                    ctx.style.property(Editor::UI_FONT_SIZE),
+                ))
                 .with_remove_on_close(true)
                 .open(false),
         )

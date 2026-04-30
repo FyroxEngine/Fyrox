@@ -116,7 +116,10 @@ use crate::{
             },
             screen::ScreenBuilder,
             stack_panel::StackPanelBuilder,
-            style::{resource::StyleResource, Style},
+            style::{
+                resource::{StyleResource, StyleResourceExt},
+                Style,
+            },
             text::{Text, TextBuilder, TextMessage},
             widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
@@ -314,13 +317,19 @@ pub fn make_save_file_selector(
                 .with_width(300.0)
                 .with_height(400.0),
         )
-        .with_title(WindowTitle::text("Save Scene As"))
+        .with_title(WindowTitle::text_with_font_size(
+            "Save Scene As",
+            ctx.default_font(),
+            ctx.style.property(Editor::UI_FONT_SIZE),
+        ))
         .open(false)
         .with_remove_on_close(true),
     )
     .with_mode(FileSelectorMode::Save { default_file_name })
     .with_filter(PathFilter::new().with_file_type(file_type))
     .with_path("./")
+    .with_font(ctx.default_font())
+    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
     .build(ctx)
 }
 
@@ -394,9 +403,15 @@ impl SaveSceneConfirmationDialog {
             .can_close(false)
             .can_minimize(false)
             .open(false)
-            .with_title(WindowTitle::text("Unsaved changes")),
+            .with_title(WindowTitle::text_with_font_size(
+                "Unsaved changes",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            )),
         )
         .with_buttons(MessageBoxButtons::YesNoCancel)
+        .with_font(ctx.default_font())
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
 
         Self {
@@ -551,9 +566,15 @@ pub struct SceneLoadingWindow {
 
 impl SceneLoadingWindow {
     pub fn new(ctx: &mut BuildContext) -> Self {
-        let scene_list_text = TextBuilder::new(WidgetBuilder::new()).build(ctx);
+        let scene_list_text = TextBuilder::new(WidgetBuilder::new())
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
+            .build(ctx);
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(100.0))
-            .with_title(WindowTitle::text("Please wait..."))
+            .with_title(WindowTitle::text_with_font_size(
+                "Please wait...",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .can_close(false)
             .can_minimize(false)
             .open(false)
@@ -567,6 +588,7 @@ impl SceneLoadingWindow {
                             TextBuilder::new(
                                 WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
                             )
+                            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                             .with_wrap(WrapMode::Word)
                             .with_text(
                                 "Please wait until the following scene(s) are \
@@ -716,6 +738,8 @@ fn make_light_style() -> StyleResource {
 }
 
 impl Editor {
+    pub const UI_FONT_SIZE: &'static str = "Editor.UI.Font.Size";
+
     pub fn new(startup_data: Option<StartupData>) -> Self {
         Self::new_with_settings(startup_data, Default::default())
     }
@@ -798,6 +822,8 @@ impl Editor {
 
         let ui = engine.user_interfaces.first_mut();
         if let Some(style) = styles.get(&settings.general.style) {
+            // style.set(Style::FONT_SIZE, settings.general.ui_font_size);
+            style.set(Self::UI_FONT_SIZE, settings.general.ui_font_size);
             ui.set_style(style.clone());
         }
 
@@ -839,7 +865,11 @@ impl Editor {
             load_image!("../resources/clear.png"),
             true,
         );
-        let inspector_plugin = InspectorPlugin::new(ctx);
+        let inspector_plugin = InspectorPlugin::new(
+            ctx,
+            Some(ctx.default_font()),
+            Some(ctx.style.property(Editor::UI_FONT_SIZE)),
+        );
         let bbcode_panel = BBCodePanel::new(inspector_plugin.head, ctx);
         let particle_system_control_panel =
             ParticleSystemPreviewControlPanel::new(inspector_plugin.head, ctx);
@@ -848,7 +878,12 @@ impl Editor {
         let audio_preview_panel = AudioPreviewPanel::new(inspector_plugin.head, ctx);
         let doc_window = DocWindow::new(ctx);
         let node_removal_dialog = NodeRemovalDialog::new(ctx);
-        let scene_settings = SceneSettingsWindow::new(ctx, property_editors.clone());
+        let scene_settings = SceneSettingsWindow::new(
+            ctx,
+            property_editors.clone(),
+            Some(ctx.default_font()),
+            Some(ctx.style.property(Editor::UI_FONT_SIZE)),
+        );
 
         let docking_manager;
         let root_grid = GridBuilder::new(
@@ -989,9 +1024,15 @@ impl Editor {
                 .can_close(false)
                 .can_minimize(false)
                 .open(false)
-                .with_title(WindowTitle::text("Unsaved changes")),
+                .with_title(WindowTitle::text_with_font_size(
+                    "Unsaved changes",
+                    ctx.default_font(),
+                    ctx.style.property(Editor::UI_FONT_SIZE),
+                )),
         )
         .with_buttons(MessageBoxButtons::YesNoCancel)
+        .with_font(ctx.default_font())
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
 
         let validation_message_box = MessageBoxBuilder::new(
@@ -999,9 +1040,15 @@ impl Editor {
                 .can_close(false)
                 .can_minimize(false)
                 .open(false)
-                .with_title(WindowTitle::text("Validation failed!")),
+                .with_title(WindowTitle::text_with_font_size(
+                    "Validation failed!",
+                    ctx.default_font(),
+                    ctx.style.property(Editor::UI_FONT_SIZE),
+                )),
         )
         .with_buttons(MessageBoxButtons::Ok)
+        .with_font(ctx.default_font())
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
 
         let save_scene_dialog = SaveSceneConfirmationDialog::new(ctx);
@@ -2260,11 +2307,16 @@ impl Editor {
                 .with_height(32.0)
                 .with_desired_position(Vector2::new(20.0, 20.0)),
         )
-        .with_text("Click Me!")
+        .with_text_and_font_size(
+            "Click Me!",
+            ui.default_font.clone(),
+            ui.style.property(Editor::UI_FONT_SIZE),
+        )
         .build(&mut ui.build_ctx());
 
         TextBuilder::new(WidgetBuilder::new().with_desired_position(Vector2::new(300.0, 300.0)))
             .with_text("This is some text.")
+            .with_font_size(ui.build_ctx().style.property(Editor::UI_FONT_SIZE))
             .build(&mut ui.build_ctx());
 
         let entry = EditorSceneEntry::new_ui_scene(
@@ -2782,11 +2834,41 @@ impl Editor {
         }
 
         if self.settings.try_save() {
+            println!("Need Update");
             let ui = self.engine.user_interfaces.first_mut();
+            println!(
+                "Old style font size: {}",
+                ui.style.get(Self::UI_FONT_SIZE).unwrap_or(0.0)
+            );
             if let Some(style) = self.styles.get(&self.settings.general.style) {
+                // ISSUE: They are the same resource ref
+                // style.set(Style::FONT_SIZE, self.settings.general.ui_font_size);
+                style.set(Self::UI_FONT_SIZE, self.settings.general.ui_font_size);
+                println!("Got new style");
+                println!(
+                    "New style font size: {}",
+                    style.get(Self::UI_FONT_SIZE).unwrap_or(0.0)
+                );
+                println!(
+                    "Again Old style font size: {}",
+                    ui.style.get(Self::UI_FONT_SIZE).unwrap_or(0.0)
+                );
+                // ERROR: If two styles are generated from the same
+                // "make_style" function, they will always return same on comparison
+                // even if the inner contents are modified after creation
+                // This is because style comparisons only care about "resource handles"
                 if style != ui.style() {
+                    println!("Old/New style are different");
+                    // ui.set_style(style.clone());
+                }
+                if (ui.style().get(Self::UI_FONT_SIZE) as Option<f32>).unwrap()
+                    != self.settings.general.ui_font_size
+                {
+                    println!("Old/New font size are different");
                     ui.set_style(style.clone());
                 }
+                // Update anyway
+                ui.set_style(style.clone());
             }
         }
     }

@@ -27,9 +27,11 @@ use crate::{
     button::{Button, ButtonMessage},
     core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     define_widget_deref,
+    font::FontResource,
     grid::{Column, GridBuilder, Row},
     message::{MessageData, UiMessage},
     resources,
+    style::{resource::StyleResourceExt, Style, StyledProperty},
     text::{Text, TextBuilder, TextMessage},
     utils::ImageButtonBuilder,
     widget::{Widget, WidgetBuilder},
@@ -112,6 +114,8 @@ impl Control for UuidEditor {
 pub struct UuidEditorBuilder {
     widget_builder: WidgetBuilder,
     value: Uuid,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl UuidEditorBuilder {
@@ -120,12 +124,26 @@ impl UuidEditorBuilder {
         Self {
             widget_builder,
             value: Default::default(),
+            font: None,
+            font_size: None,
         }
     }
 
     /// Sets a desired value of the [`UuidEditor`].
     pub fn with_value(mut self, value: Uuid) -> Self {
         self.value = value;
+        self
+    }
+
+    /// Sets a desired font of the [`UuidEditor`]
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    /// Sets a desired font size property of the [`UuidEditor`]
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
         self
     }
 
@@ -144,6 +162,12 @@ impl UuidEditorBuilder {
                             .with_vertical_alignment(VerticalAlignment::Center),
                     )
                     .with_text(self.value.to_string())
+                    .with_font(self.font.clone().unwrap_or_else(|| ctx.default_font()))
+                    .with_font_size(
+                        self.font_size
+                            .clone()
+                            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
+                    )
                     .build(ctx);
                     text
                 })

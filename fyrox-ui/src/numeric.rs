@@ -22,8 +22,9 @@
 
 #![warn(missing_docs)]
 
+use crate::font::FontResource;
 use crate::style::resource::StyleResourceExt;
-use crate::style::Style;
+use crate::style::{Style, StyledProperty};
 use crate::{
     border::BorderBuilder,
     button::{ButtonBuilder, ButtonMessage},
@@ -581,6 +582,8 @@ pub struct NumericUpDownBuilder<T: NumericType> {
     precision: usize,
     editable: bool,
     drag_value_scaling: f32,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 fn make_button(
@@ -629,6 +632,8 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
             precision: 3,
             editable: true,
             drag_value_scaling: 0.1,
+            font: None,
+            font_size: None,
         }
     }
 
@@ -684,6 +689,18 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
         self
     }
 
+    /// Sets the desired font of the widget.
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    /// Sets a desired font size of the widget.
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
     /// Finishes [`NumericUpDown`] widget creation and adds the new instance to the user interface and returns a handle to it.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<NumericUpDown<T>> {
         let increase;
@@ -699,6 +716,11 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
         .with_stroke_thickness(Thickness::uniform(1.0).into())
         .build(ctx);
 
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
         let text = format!("{:.1$}", self.value, self.precision);
         let formatted_value = text.parse::<T>().unwrap_or(self.value);
         let grid = GridBuilder::new(
@@ -710,6 +732,8 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
                         .with_text_commit_mode(TextCommitMode::Changed)
                         .with_text(text)
                         .with_editable(self.editable)
+                        .with_font(font.clone())
+                        .with_font_size(font_size.clone())
                         .build(ctx);
                     field
                 })

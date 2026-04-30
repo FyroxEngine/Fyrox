@@ -35,6 +35,7 @@ use crate::{
             },
             message::UiMessage,
             scroll_viewer::ScrollViewerBuilder,
+            style::resource::StyleResourceExt,
             widget::WidgetBuilder,
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, WidgetPool,
@@ -55,19 +56,25 @@ use crate::{
     ui_scene::UiScene,
     GameScene, Message,
 };
+use fyrox::gui::font::FontResource;
 use fyrox::gui::inspector::Inspector;
+use fyrox::gui::style::{Style, StyledProperty};
 use std::sync::{mpsc::Sender, Arc};
 
 pub struct SceneSettingsWindow {
     pub window: Handle<Window>,
     inspector: Handle<Inspector>,
     property_definitions: Arc<PropertyEditorDefinitionContainer>,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl SceneSettingsWindow {
     pub fn new(
         ctx: &mut BuildContext,
         property_definitions: Arc<PropertyEditorDefinitionContainer>,
+        font: Option<FontResource>,
+        font_size: Option<StyledProperty<f32>>,
     ) -> Self {
         let inspector;
         let window = WindowBuilder::new(
@@ -86,7 +93,13 @@ impl SceneSettingsWindow {
         )
         .open(false)
         .can_minimize(false)
-        .with_title(WindowTitle::text("Scene Settings"))
+        .with_title(WindowTitle::text_with_font_size(
+            "Scene Settings",
+            font.clone().unwrap_or_else(|| ctx.default_font()),
+            font_size
+                .clone()
+                .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
+        ))
         .build(ctx);
 
         property_definitions.register_inheritable_inspectable::<Graph>();
@@ -100,6 +113,8 @@ impl SceneSettingsWindow {
             window,
             inspector,
             property_definitions,
+            font,
+            font_size,
         }
     }
 
@@ -186,6 +201,8 @@ impl SceneSettingsWindow {
             name_column_width: 150.0,
             base_path: Default::default(),
             has_parent_object: false,
+            font: self.font.clone(),
+            font_size: self.font_size.clone(),
         });
 
         ui.send(self.inspector, InspectorMessage::Context(context));

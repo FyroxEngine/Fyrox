@@ -24,6 +24,7 @@
 //! See [`TileColliderEditor`] for more information.
 
 use super::*;
+use crate::Editor;
 use commands::SetTileSetTilesCommand;
 use fyrox::core::pool::ObjectOrVariant;
 use fyrox::gui::border::Border;
@@ -44,6 +45,7 @@ use fyrox::{
         image::ImageBuilder,
         message::UiMessage,
         stack_panel::StackPanelBuilder,
+        style::resource::StyleResourceExt,
         text::{TextBuilder, TextMessage},
         text_box::{TextBoxBuilder, TextCommitMode},
         utils::make_simple_tooltip,
@@ -109,6 +111,7 @@ pub fn make_list_option(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .with_horizontal_text_alignment(HorizontalAlignment::Left)
         .with_text(name)
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
     DecoratorBuilder::new(
         BorderBuilder::new(WidgetBuilder::new().with_child(text))
@@ -142,16 +145,19 @@ impl TileColliderEditor {
         let show_button = make_show_button(Some(1), ctx);
         let name_field = TextBuilder::new(WidgetBuilder::new().on_column(3))
             .with_text(collider_layer.name.clone())
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx);
         let custom_field =
             TextBoxBuilder::new(WidgetBuilder::new().with_visibility(value.is_custom()))
                 .with_multiline(true)
                 .with_wrap(WrapMode::Word)
                 .with_text_commit_mode(TextCommitMode::Changed)
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx);
         let error_field = TextBuilder::new(WidgetBuilder::new().with_visibility(false))
             .with_wrap(WrapMode::Word)
             .with_horizontal_text_alignment(HorizontalAlignment::Center)
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx);
         let index = collider_to_index(&value).unwrap_or_default();
         let list = DropdownListBuilder::new(WidgetBuilder::new().on_column(4))
