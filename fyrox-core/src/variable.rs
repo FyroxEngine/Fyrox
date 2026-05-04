@@ -555,7 +555,7 @@ where
     ) -> Result<Option<Box<dyn Reflect>>, InheritError> {
         let mut result: Result<Option<Box<dyn Reflect>>, InheritError> = Ok(None);
 
-        match parent.inner_value_ref().as_any_raw().downcast_ref::<T>() {
+        match (parent.inner_value_ref() as &dyn Any).downcast_ref::<T>() {
             Some(parent_value) => {
                 if !self.is_modified() {
                     let mut parent_value_clone = parent_value.clone();
@@ -807,14 +807,14 @@ pub fn mark_inheritable_properties_modified(object: &mut dyn Reflect, ignored_ty
 
 #[cfg(test)]
 mod test {
-    use std::cell::RefCell;
-    use std::{cell::Cell, ops::DerefMut};
-
     use crate::{
         reflect::{prelude::*, ReflectInheritableVariable},
         variable::{try_inherit_properties, InheritableVariable, VariableFlags},
         visitor::{Visit, Visitor},
     };
+    use std::any::Any;
+    use std::cell::RefCell;
+    use std::{cell::Cell, ops::DerefMut};
 
     #[derive(Reflect, Clone, Debug, PartialEq)]
     struct Foo {
@@ -1216,9 +1216,7 @@ mod test {
     fn inheritable_variable_ref_cell() {
         let v = InheritableVariable::new_modified(RefCell::new(123u32));
         assert_eq!(
-            v.inner_value_ref()
-                .as_any_raw()
-                .downcast_ref::<RefCell<u32>>(),
+            (v.inner_value_ref() as &dyn Any).downcast_ref::<RefCell<u32>>(),
             Some(&RefCell::new(123u32))
         );
     }
