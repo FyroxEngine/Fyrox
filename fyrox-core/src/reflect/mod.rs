@@ -1284,7 +1284,7 @@ macro_rules! blank_reflect {
             &[]
         }
 
-        fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
+        fn try_clone_box(&self) -> Option<Box<dyn $crate::reflect::Reflect>> {
             Some(Box::new(self.clone()))
         }
 
@@ -1308,44 +1308,51 @@ macro_rules! blank_reflect {
             env!("CARGO_PKG_NAME")
         }
 
-        fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
+        fn fields_ref(&self, func: &mut dyn FnMut(&[$crate::reflect::FieldRef])) {
             func(&[])
         }
 
         #[inline]
-        fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
+        fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [$crate::reflect::FieldMut])) {
             func(&mut [])
         }
 
-        fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        fn into_any(self: Box<Self>) -> Box<dyn std::any::Any> {
             self
         }
 
-        fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
+        fn as_any(&self, func: &mut dyn FnMut(&dyn std::any::Any)) {
             func(self)
         }
 
-        fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
+        fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn std::any::Any)) {
             func(self)
         }
 
-        fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+        fn as_reflect(&self, func: &mut dyn FnMut(&dyn $crate::reflect::Reflect)) {
             func(self)
         }
 
-        fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+        fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn $crate::reflect::Reflect)) {
             func(self)
         }
 
-        fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+        fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn $crate::reflect::Reflect>)) {
             func(if name == "self" { Some(self) } else { None })
         }
 
-        fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
+        fn field_mut(
+            &mut self,
+            name: &str,
+            func: &mut dyn FnMut(Option<&mut dyn $crate::reflect::Reflect>),
+        ) {
             func(if name == "self" { Some(self) } else { None })
         }
 
-        fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+        fn set(
+            &mut self,
+            value: Box<dyn $crate::reflect::Reflect>,
+        ) -> Result<Box<dyn $crate::reflect::Reflect>, Box<dyn $crate::reflect::Reflect>> {
             let this = std::mem::replace(self, value.take()?);
             Ok(Box::new(this))
         }
