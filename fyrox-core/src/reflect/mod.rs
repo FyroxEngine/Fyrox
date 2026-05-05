@@ -21,6 +21,7 @@
 //! Runtime reflection
 
 mod external_impls;
+mod map;
 mod std_impls;
 
 pub use fyrox_core_derive::Reflect;
@@ -30,6 +31,8 @@ use std::{
     fmt::{self, Debug, Display, Formatter},
     mem::ManuallyDrop,
 };
+
+pub use map::*;
 
 pub mod prelude {
     pub use super::{
@@ -452,26 +455,6 @@ pub trait ReflectList: ReflectArray {
         index: usize,
         value: Box<dyn Reflect>,
     ) -> Result<(), Box<dyn Reflect>>;
-}
-
-pub trait ReflectHashMap: Reflect {
-    fn reflect_insert(
-        &mut self,
-        key: Box<dyn Reflect>,
-        value: Box<dyn Reflect>,
-    ) -> Option<Box<dyn Reflect>>;
-    fn reflect_len(&self) -> usize;
-    fn reflect_get(&self, key: &dyn Reflect, func: &mut dyn FnMut(Option<&dyn Reflect>));
-    fn reflect_get_mut(
-        &mut self,
-        key: &dyn Reflect,
-        func: &mut dyn FnMut(Option<&mut dyn Reflect>),
-    );
-    fn reflect_get_nth_value_ref(&self, index: usize) -> Option<&dyn Reflect>;
-    fn reflect_get_nth_value_mut(&mut self, index: usize) -> Option<&mut dyn Reflect>;
-    fn reflect_get_at(&self, index: usize) -> Option<(&dyn Reflect, &dyn Reflect)>;
-    fn reflect_get_at_mut(&mut self, index: usize) -> Option<(&dyn Reflect, &mut dyn Reflect)>;
-    fn reflect_remove(&mut self, key: &dyn Reflect, func: &mut dyn FnMut(Option<Box<dyn Reflect>>));
 }
 
 pub trait ReflectInheritableVariable: Reflect {
