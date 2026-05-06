@@ -149,7 +149,8 @@ impl PropertyDescriptor {
             ))))
             .with_items(items)
             .with_content(
-                TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                TextBuilder::new()
+                    .with_widget_builder(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                     .with_text(name)
                     .build(ctx),
             )

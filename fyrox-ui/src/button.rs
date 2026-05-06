@@ -291,7 +291,7 @@ impl ButtonContent {
 
     fn build(&self, ctx: &mut BuildContext) -> Handle<UiNode> {
         match self {
-            Self::Text { text, font, size } => TextBuilder::new(WidgetBuilder::new())
+            Self::Text { text, font, size } => TextBuilder::new()
                 .with_text(text)
                 .with_horizontal_text_alignment(HorizontalAlignment::Center)
                 .with_vertical_text_alignment(VerticalAlignment::Center)

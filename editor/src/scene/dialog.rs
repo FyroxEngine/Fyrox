@@ -72,14 +72,15 @@ impl NodeRemovalDialog {
                 GridBuilder::new(
                     WidgetBuilder::new()
                         .with_child(
-                            TextBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(0)
-                                    .with_margin(Thickness::uniform(1.0)),
-                            )
-                            .with_wrap(WrapMode::Word)
-                            .with_text(text)
-                            .build(ctx),
+                            TextBuilder::new()
+                                .with_widget_builder(
+                                    WidgetBuilder::new()
+                                        .on_row(0)
+                                        .with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_wrap(WrapMode::Word)
+                                .with_text(text)
+                                .build(ctx),
                         )
                         .with_child(
                             ScrollViewerBuilder::new(

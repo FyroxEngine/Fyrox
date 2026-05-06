@@ -456,9 +456,7 @@ fn make_button(
 }
 
 fn make_label(name: &str, ctx: &mut BuildContext) -> Handle<Text> {
-    TextBuilder::new(WidgetBuilder::new())
-        .with_text(name)
-        .build(ctx)
+    TextBuilder::new().with_text(name).build(ctx)
 }
 
 fn highlight_tool_button(button: Handle<Button>, highlight: bool, ui: &UserInterface) {

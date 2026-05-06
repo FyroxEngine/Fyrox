@@ -973,14 +973,15 @@ fn create_tab_header(label: String, ctx: &mut BuildContext) -> Handle<UiNode> {
         right: 4.0,
         bottom: 2.0,
     };
-    TextBuilder::new(
-        WidgetBuilder::new()
-            .with_min_size(min_size)
-            .with_margin(margin),
-    )
-    .with_text(label)
-    .build(ctx)
-    .to_base()
+    TextBuilder::new()
+        .with_widget_builder(
+            WidgetBuilder::new()
+                .with_min_size(min_size)
+                .with_margin(margin),
+        )
+        .with_text(label)
+        .build(ctx)
+        .to_base()
 }
 
 impl Tile {

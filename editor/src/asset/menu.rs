@@ -153,16 +153,17 @@ impl AssetRenameDialogBuilder {
         let content = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child(
-                    TextBuilder::new(
-                        WidgetBuilder::new()
-                            .on_row(0)
-                            .with_margin(Thickness::uniform(2.0)),
-                    )
-                    .with_text(format!(
-                        "Enter a new name for {old_file_name}.{extension} resource."
-                    ))
-                    .with_wrap(WrapMode::Word)
-                    .build(ctx),
+                    TextBuilder::new()
+                        .with_widget_builder(
+                            WidgetBuilder::new()
+                                .on_row(0)
+                                .with_margin(Thickness::uniform(2.0)),
+                        )
+                        .with_text(format!(
+                            "Enter a new name for {old_file_name}.{extension} resource."
+                        ))
+                        .with_wrap(WrapMode::Word)
+                        .build(ctx),
                 )
                 .with_child({
                     name_field = TextBoxBuilder::new(

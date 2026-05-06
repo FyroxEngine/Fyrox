@@ -721,17 +721,18 @@ impl FileBrowserBuilder {
         .add_rows(vec![Row::auto(), Row::stretch()])
         .build(ctx);
 
-        let no_items_message = TextBuilder::new(
-            WidgetBuilder::new()
-                .with_foreground(ctx.style.property(Style::BRUSH_BRIGHT))
-                .with_visibility(items_count == 0)
-                .with_hit_test_visibility(false),
-        )
-        .with_wrap(WrapMode::Word)
-        .with_vertical_text_alignment(VerticalAlignment::Center)
-        .with_horizontal_text_alignment(HorizontalAlignment::Center)
-        .with_text(self.no_items_text)
-        .build(ctx);
+        let no_items_message = TextBuilder::new()
+            .with_widget_builder(
+                WidgetBuilder::new()
+                    .with_foreground(ctx.style.property(Style::BRUSH_BRIGHT))
+                    .with_visibility(items_count == 0)
+                    .with_hit_test_visibility(false),
+            )
+            .with_wrap(WrapMode::Word)
+            .with_vertical_text_alignment(VerticalAlignment::Center)
+            .with_horizontal_text_alignment(HorizontalAlignment::Center)
+            .with_text(self.no_items_text)
+            .build(ctx);
 
         let root_container = GridBuilder::new(
             WidgetBuilder::new()

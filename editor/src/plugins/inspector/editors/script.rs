@@ -341,7 +341,8 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                 .with_tooltip(make_simple_tooltip(ctx.build_context, "Open in IDE")),
         )
         .with_content(
-            TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(3.0)))
+            TextBuilder::new()
+                .with_widget_builder(WidgetBuilder::new().with_margin(Thickness::uniform(3.0)))
                 .with_text("Edit...")
                 .with_vertical_text_alignment(VerticalAlignment::Center)
                 .build(ctx.build_context),

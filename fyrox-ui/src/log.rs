@@ -323,22 +323,25 @@ impl LogPanel {
                         ctx.style.property(Style::BRUSH_DARK)
                     })
                     .with_child(
-                        TextBuilder::new(
-                            WidgetBuilder::new()
-                                .with_margin(Thickness::uniform(2.0))
-                                .with_foreground(match msg.kind {
-                                    MessageKind::Information => {
-                                        ctx.style.property(Style::BRUSH_INFORMATION)
-                                    }
-                                    MessageKind::Warning => {
-                                        ctx.style.property(Style::BRUSH_WARNING)
-                                    }
-                                    MessageKind::Error => ctx.style.property(Style::BRUSH_ERROR),
-                                }),
-                        )
-                        .with_vertical_text_alignment(VerticalAlignment::Center)
-                        .with_text(text)
-                        .build(ctx),
+                        TextBuilder::new()
+                            .with_widget_builder(
+                                WidgetBuilder::new()
+                                    .with_margin(Thickness::uniform(2.0))
+                                    .with_foreground(match msg.kind {
+                                        MessageKind::Information => {
+                                            ctx.style.property(Style::BRUSH_INFORMATION)
+                                        }
+                                        MessageKind::Warning => {
+                                            ctx.style.property(Style::BRUSH_WARNING)
+                                        }
+                                        MessageKind::Error => {
+                                            ctx.style.property(Style::BRUSH_ERROR)
+                                        }
+                                    }),
+                            )
+                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                            .with_text(text)
+                            .build(ctx),
                     ),
             )
             .build(ctx);

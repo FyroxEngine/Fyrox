@@ -906,16 +906,18 @@ fn make_expander_check_box(
         } else {
             format!("{property_name}\n\n{property_description}")
         };
-        TextBuilder::new(
-            WidgetBuilder::new()
-                .with_opt_tooltip(make_tooltip(ctx, &description))
-                .with_height(16.0)
-                .with_margin(Thickness::left(2.0)),
-        )
-        .with_vertical_text_alignment(VerticalAlignment::Center)
-        .with_text(property_name)
-        .build(ctx)
-    })
+        TextBuilder::new()
+            .with_widget_builder(
+                WidgetBuilder::new()
+                    .with_opt_tooltip(make_tooltip(ctx, &description))
+                    .with_height(16.0)
+                    .with_margin(Thickness::left(2.0)),
+            )
+            .with_vertical_text_alignment(VerticalAlignment::Center)
+            .with_text(property_name)
+            .build(ctx),
+        }
+    )
     .checked(Some(true))
     .with_check_mark(make_arrow(ctx, ArrowDirection::Bottom, 8.0))
     .with_uncheck_mark(make_arrow(ctx, ArrowDirection::Right, 8.0))
@@ -965,7 +967,8 @@ pub fn make_expander_container(
 }
 
 fn create_header(ctx: &mut BuildContext, text: &str, layer_index: usize) -> Handle<Text> {
-    TextBuilder::new(WidgetBuilder::new().with_margin(make_property_margin(layer_index)))
+    TextBuilder::new()
+        .with_widget_builder(WidgetBuilder::new().with_margin(make_property_margin(layer_index)))
         .with_text(text)
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .build(ctx)
@@ -1181,7 +1184,10 @@ impl InspectorContext {
                             ));
                             make_simple_property_container(
                                 create_header(ctx, info.display_name, layer_index),
-                                TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
+                                TextBuilder::new()
+                                    .with_widget_builder(
+                                        WidgetBuilder::new().on_row(i).on_column(1),
+                                    )
                                     .with_wrap(WrapMode::Word)
                                     .with_vertical_text_alignment(VerticalAlignment::Center)
                                     .with_text(format!(
@@ -1201,7 +1207,8 @@ impl InspectorContext {
                 } else {
                     editors.push(make_simple_property_container(
                         create_header(ctx, info.display_name, layer_index),
-                        TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
+                        TextBuilder::new()
+                            .with_widget_builder(WidgetBuilder::new().on_row(i).on_column(1))
                             .with_wrap(WrapMode::Word)
                             .with_vertical_text_alignment(VerticalAlignment::Center)
                             .with_text(format!(

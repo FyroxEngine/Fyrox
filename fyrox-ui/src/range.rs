@@ -275,14 +275,15 @@ where
                         WidgetBuilder::new()
                             .with_child(start)
                             .with_child(
-                                TextBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_column(1)
-                                        .with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_vertical_text_alignment(VerticalAlignment::Center)
-                                .with_text("..")
-                                .build(ctx),
+                                TextBuilder::new()
+                                    .with_widget_builder(
+                                        WidgetBuilder::new()
+                                            .on_column(1)
+                                            .with_margin(Thickness::uniform(1.0)),
+                                    )
+                                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                                    .with_text("..")
+                                    .build(ctx),
                             )
                             .with_child(end),
                     )

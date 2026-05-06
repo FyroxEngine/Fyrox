@@ -128,12 +128,13 @@ fn make_remove_button(ctx: &mut BuildContext) -> Handle<Button> {
 
 impl ItemHeader {
     fn new(name: String, has_cell: bool, ctx: &mut BuildContext) -> Self {
-        let label = TextBuilder::new(
-            WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Center),
-        )
-        .with_vertical_text_alignment(VerticalAlignment::Center)
-        .with_text(name)
-        .build(ctx);
+        let label = TextBuilder::new()
+            .with_widget_builder(
+                WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Center),
+            )
+            .with_vertical_text_alignment(VerticalAlignment::Center)
+            .with_text(name)
+            .build(ctx);
         let button = if has_cell {
             make_remove_button(ctx)
         } else {

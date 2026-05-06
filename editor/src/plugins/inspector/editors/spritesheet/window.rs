@@ -261,16 +261,17 @@ impl SpriteSheetFramesEditorWindow {
                 .on_column(0)
                 .on_row(1)
                 .with_child(
-                    TextBuilder::new(
-                        WidgetBuilder::new()
-                            .with_margin(Thickness::uniform(2.0))
-                            .on_column(0)
-                            .on_row(0)
-                            .with_vertical_alignment(VerticalAlignment::Center)
-                            .with_tooltip(make_simple_tooltip(ctx, column_tooltip)),
-                    )
-                    .with_text("Width")
-                    .build(ctx),
+                    TextBuilder::new()
+                        .with_widget_builder(
+                            WidgetBuilder::new()
+                                .with_margin(Thickness::uniform(2.0))
+                                .on_column(0)
+                                .on_row(0)
+                                .with_vertical_alignment(VerticalAlignment::Center)
+                                .with_tooltip(make_simple_tooltip(ctx, column_tooltip)),
+                        )
+                        .with_text("Width")
+                        .build(ctx),
                 )
                 .with_child({
                     width = NumericUpDownBuilder::new(WidgetBuilder::new().on_column(1).on_row(0))
@@ -280,16 +281,17 @@ impl SpriteSheetFramesEditorWindow {
                     width
                 })
                 .with_child(
-                    TextBuilder::new(
-                        WidgetBuilder::new()
-                            .with_margin(Thickness::uniform(2.0))
-                            .on_column(0)
-                            .on_row(1)
-                            .with_vertical_alignment(VerticalAlignment::Center)
-                            .with_tooltip(make_simple_tooltip(ctx, row_tooltip)),
-                    )
-                    .with_text("Height")
-                    .build(ctx),
+                    TextBuilder::new()
+                        .with_widget_builder(
+                            WidgetBuilder::new()
+                                .with_margin(Thickness::uniform(2.0))
+                                .on_column(0)
+                                .on_row(1)
+                                .with_vertical_alignment(VerticalAlignment::Center)
+                                .with_tooltip(make_simple_tooltip(ctx, row_tooltip)),
+                        )
+                        .with_text("Height")
+                        .build(ctx),
                 )
                 .with_child({
                     height = NumericUpDownBuilder::new(WidgetBuilder::new().on_column(1).on_row(1))

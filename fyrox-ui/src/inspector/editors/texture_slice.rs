@@ -599,37 +599,27 @@ impl TextureSliceEditorWindowBuilder {
         parent_editor: Handle<UiNode>,
         ctx: &mut BuildContext,
     ) -> Handle<TextureSliceEditorWindow> {
-        let region_text = TextBuilder::new(WidgetBuilder::new())
-            .with_text("Texture Region")
-            .build(ctx);
+        let region_text = TextBuilder::new().with_text("Texture Region").build(ctx);
         let region =
             RectEditorBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                 .with_value(*self.texture_slice.texture_region)
                 .build(ctx);
-        let left_margin_text = TextBuilder::new(WidgetBuilder::new())
-            .with_text("Left Margin")
-            .build(ctx);
+        let left_margin_text = TextBuilder::new().with_text("Left Margin").build(ctx);
         let left_margin =
             NumericUpDownBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                 .with_value(*self.texture_slice.left_margin)
                 .build(ctx);
-        let right_margin_text = TextBuilder::new(WidgetBuilder::new())
-            .with_text("Right Margin")
-            .build(ctx);
+        let right_margin_text = TextBuilder::new().with_text("Right Margin").build(ctx);
         let right_margin =
             NumericUpDownBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                 .with_value(*self.texture_slice.right_margin)
                 .build(ctx);
-        let top_margin_text = TextBuilder::new(WidgetBuilder::new())
-            .with_text("Top Margin")
-            .build(ctx);
+        let top_margin_text = TextBuilder::new().with_text("Top Margin").build(ctx);
         let top_margin =
             NumericUpDownBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                 .with_value(*self.texture_slice.top_margin)
                 .build(ctx);
-        let bottom_margin_text = TextBuilder::new(WidgetBuilder::new())
-            .with_text("Bottom Margin")
-            .build(ctx);
+        let bottom_margin_text = TextBuilder::new().with_text("Bottom Margin").build(ctx);
         let bottom_margin =
             NumericUpDownBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                 .with_value(*self.texture_slice.bottom_margin)

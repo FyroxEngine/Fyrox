@@ -37,11 +37,7 @@ impl BBCodePanel {
         let root_widget = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .with_visibility(false)
-                .with_child(
-                    TextBuilder::new(WidgetBuilder::new())
-                        .with_text("BBCode")
-                        .build(ctx),
-                )
+                .with_child(TextBuilder::new().with_text("BBCode").build(ctx))
                 .with_child(text_box),
         )
         .build(ctx);

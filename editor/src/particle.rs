@@ -78,13 +78,14 @@ impl ParticleSystemPreviewControlPanel {
                             .with_margin(Thickness::uniform(1.0)),
                     )
                     .with_content(
-                        TextBuilder::new(
-                            WidgetBuilder::new()
-                                .with_vertical_alignment(VerticalAlignment::Center)
-                                .with_margin(Thickness::uniform(1.0)),
-                        )
-                        .with_text("Preview")
-                        .build(ctx),
+                        TextBuilder::new()
+                            .with_widget_builder(
+                                WidgetBuilder::new()
+                                    .with_vertical_alignment(VerticalAlignment::Center)
+                                    .with_margin(Thickness::uniform(1.0)),
+                            )
+                            .with_text("Preview")
+                            .build(ctx),
                     )
                     .build(ctx);
                     preview
@@ -154,14 +155,15 @@ impl ParticleSystemPreviewControlPanel {
                             .on_row(1)
                             .on_column(0)
                             .with_child(
-                                TextBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_column(0)
-                                        .with_vertical_alignment(VerticalAlignment::Center)
-                                        .with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_text("Playback Time")
-                                .build(ctx),
+                                TextBuilder::new()
+                                    .with_widget_builder(
+                                        WidgetBuilder::new()
+                                            .on_column(0)
+                                            .with_vertical_alignment(VerticalAlignment::Center)
+                                            .with_margin(Thickness::uniform(1.0)),
+                                    )
+                                    .with_text("Playback Time")
+                                    .build(ctx),
                             )
                             .with_child({
                                 time = NumericUpDownBuilder::new(

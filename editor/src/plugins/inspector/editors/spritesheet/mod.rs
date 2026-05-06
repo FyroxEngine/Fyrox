@@ -108,13 +108,14 @@ impl SpriteSheetFramesPropertyEditor {
         let grid = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child(
-                    TextBuilder::new(
-                        WidgetBuilder::new()
-                            .with_margin(Thickness::uniform(1.0))
-                            .on_column(0),
-                    )
-                    .with_text(format!("Frames: {}", container.len()))
-                    .build(ctx),
+                    TextBuilder::new()
+                        .with_widget_builder(
+                            WidgetBuilder::new()
+                                .with_margin(Thickness::uniform(1.0))
+                                .on_column(0),
+                        )
+                        .with_text(format!("Frames: {}", container.len()))
+                        .build(ctx),
                 )
                 .with_child({
                     edit_button = ButtonBuilder::new(

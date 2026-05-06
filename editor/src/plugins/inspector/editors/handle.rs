@@ -367,18 +367,19 @@ impl<T: Reflect> HandlePropertyEditorBuilder<T> {
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<HandlePropertyEditor<T>> {
-        let text = TextBuilder::new(
-            WidgetBuilder::new()
-                .on_column(0)
-                .with_vertical_alignment(VerticalAlignment::Center),
-        )
-        .with_vertical_text_alignment(VerticalAlignment::Center)
-        .with_text(if self.value.is_none() {
-            "Unassigned".to_owned()
-        } else {
-            "Err: Desync!".to_owned()
-        })
-        .build(ctx);
+        let text = TextBuilder::new()
+            .with_widget_builder(
+                WidgetBuilder::new()
+                    .on_column(0)
+                    .with_vertical_alignment(VerticalAlignment::Center),
+            )
+            .with_vertical_text_alignment(VerticalAlignment::Center)
+            .with_text(if self.value.is_none() {
+                "Unassigned".to_owned()
+            } else {
+                "Err: Desync!".to_owned()
+            })
+            .build(ctx);
         let locate_img = include_bytes!("../../../../resources/locate.png");
         let locate = make_button(ctx, locate_img, Color::repeat(180), 2, "Locate Object");
         let select_img = include_bytes!("../../../../resources/select_in_wv.png");

@@ -1850,17 +1850,18 @@ impl CurveEditorBuilder {
                                         WidgetBuilder::new()
                                             .with_enabled(false)
                                             .with_child(
-                                                TextBuilder::new(
-                                                    WidgetBuilder::new()
-                                                        .with_vertical_alignment(
-                                                            VerticalAlignment::Center,
-                                                        )
-                                                        .with_margin(Thickness::uniform(1.0))
-                                                        .on_row(0)
-                                                        .on_column(0),
-                                                )
-                                                .with_text("Location")
-                                                .build(ctx),
+                                                TextBuilder::new()
+                                                    .with_widget_builder(
+                                                        WidgetBuilder::new()
+                                                            .with_vertical_alignment(
+                                                                VerticalAlignment::Center,
+                                                            )
+                                                            .with_margin(Thickness::uniform(1.0))
+                                                            .on_row(0)
+                                                            .on_column(0),
+                                                    )
+                                                    .with_text("Location")
+                                                    .build(ctx),
                                             )
                                             .with_child({
                                                 key_location = NumericUpDownBuilder::<f32>::new(
@@ -1873,17 +1874,18 @@ impl CurveEditorBuilder {
                                                 key_location
                                             })
                                             .with_child(
-                                                TextBuilder::new(
-                                                    WidgetBuilder::new()
-                                                        .with_vertical_alignment(
-                                                            VerticalAlignment::Center,
-                                                        )
-                                                        .with_margin(Thickness::uniform(1.0))
-                                                        .on_row(1)
-                                                        .on_column(0),
-                                                )
-                                                .with_text("Value")
-                                                .build(ctx),
+                                                TextBuilder::new()
+                                                    .with_widget_builder(
+                                                        WidgetBuilder::new()
+                                                            .with_vertical_alignment(
+                                                                VerticalAlignment::Center,
+                                                            )
+                                                            .with_margin(Thickness::uniform(1.0))
+                                                            .on_row(1)
+                                                            .on_column(0),
+                                                    )
+                                                    .with_text("Value")
+                                                    .build(ctx),
                                             )
                                             .with_child({
                                                 key_value = NumericUpDownBuilder::<f32>::new(

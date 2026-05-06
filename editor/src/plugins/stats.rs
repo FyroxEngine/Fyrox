@@ -70,9 +70,9 @@ impl EditorPlugin for EditorStatisticsPlugin {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.open_ui_stats && self.window.is_none() {
                 let ctx = &mut ui.build_ctx();
-                self.text =
-                    TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
-                        .build(ctx);
+                self.text = TextBuilder::new()
+                    .with_widget_builder(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                    .build(ctx);
                 self.window =
                     WindowBuilder::new(WidgetBuilder::new().with_width(200.0).with_height(130.0))
                         .with_title(WindowTitle::text("Editor Statistics"))

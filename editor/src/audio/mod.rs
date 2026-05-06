@@ -243,13 +243,14 @@ impl AudioPanel {
                                 WidgetBuilder::new()
                                     .on_row(0)
                                     .with_child(
-                                        TextBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_vertical_text_alignment(VerticalAlignment::Center)
-                                        .with_text("DM")
-                                        .build(ctx),
+                                        TextBuilder::new()
+                                            .with_widget_builder(
+                                                WidgetBuilder::new()
+                                                    .with_margin(Thickness::uniform(1.0)),
+                                            )
+                                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                                            .with_text("DM")
+                                            .build(ctx),
                                     )
                                     .with_child({
                                         distance_model = DropdownListBuilder::new(
@@ -274,13 +275,14 @@ impl AudioPanel {
                                         distance_model
                                     })
                                     .with_child(
-                                        TextBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_vertical_text_alignment(VerticalAlignment::Center)
-                                        .with_text("Renderer")
-                                        .build(ctx),
+                                        TextBuilder::new()
+                                            .with_widget_builder(
+                                                WidgetBuilder::new()
+                                                    .with_margin(Thickness::uniform(1.0)),
+                                            )
+                                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                                            .with_text("Renderer")
+                                            .build(ctx),
                                     )
                                     .with_child({
                                         renderer = DropdownListBuilder::new(

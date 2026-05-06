@@ -123,7 +123,8 @@ impl ProgressWindow {
                 GridBuilder::new(
                     WidgetBuilder::new()
                         .with_child(
-                            TextBuilder::new(WidgetBuilder::new().on_row(0))
+                            TextBuilder::new()
+                                .with_widget_builder(WidgetBuilder::new().on_row(0))
                                 .with_text(
                                     "Please wait until light map is fully generated. It may \
                                 take different amount of time depending on the settings.",
@@ -139,13 +140,14 @@ impl ProgressWindow {
                             progress_bar
                         })
                         .with_child({
-                            text = TextBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(1)
-                                    .with_horizontal_alignment(HorizontalAlignment::Center)
-                                    .with_vertical_alignment(VerticalAlignment::Center),
-                            )
-                            .build(ctx);
+                            text = TextBuilder::new()
+                                .with_widget_builder(
+                                    WidgetBuilder::new()
+                                        .on_row(1)
+                                        .with_horizontal_alignment(HorizontalAlignment::Center)
+                                        .with_vertical_alignment(VerticalAlignment::Center),
+                                )
+                                .build(ctx);
                             text
                         })
                         .with_child({

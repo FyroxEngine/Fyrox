@@ -237,7 +237,7 @@ fn create_field<T: NumericType>(
             .with_margin(Thickness::left(10.0))
             .on_row(row)
             .with_child(
-                TextBuilder::new(WidgetBuilder::new())
+                TextBuilder::new()
                     .with_text(name)
                     .with_vertical_text_alignment(VerticalAlignment::Center)
                     .build(ctx),

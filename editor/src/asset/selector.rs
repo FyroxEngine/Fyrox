@@ -181,22 +181,23 @@ impl ItemBuilder {
 
         let content = GridBuilder::new(
             WidgetBuilder::new().with_child(image).with_child(
-                TextBuilder::new(
-                    WidgetBuilder::new()
-                        .on_row(1)
-                        .with_width(64.0)
-                        .with_margin(Thickness::uniform(1.0)),
-                )
-                .with_vertical_text_alignment(VerticalAlignment::Top)
-                .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                .with_wrap(WrapMode::Word)
-                .with_text(
-                    self.path
-                        .file_name()
-                        .map(|file_name| file_name.to_string_lossy().to_string())
-                        .unwrap_or_default(),
-                )
-                .build(ctx),
+                TextBuilder::new()
+                    .with_widget_builder(
+                        WidgetBuilder::new()
+                            .on_row(1)
+                            .with_width(64.0)
+                            .with_margin(Thickness::uniform(1.0)),
+                    )
+                    .with_vertical_text_alignment(VerticalAlignment::Top)
+                    .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                    .with_wrap(WrapMode::Word)
+                    .with_text(
+                        self.path
+                            .file_name()
+                            .map(|file_name| file_name.to_string_lossy().to_string())
+                            .unwrap_or_default(),
+                    )
+                    .build(ctx),
             ),
         )
         .add_row(Row::auto())

@@ -199,33 +199,35 @@ fn make_project_item(
     .with_opt_texture(load_image(include_bytes!("../resources/flame.png")))
     .build(ctx);
 
-    let engine_version = TextBuilder::new(
-        WidgetBuilder::new()
-            .with_foreground(ctx.style.property(Style::BRUSH_BRIGHTEST))
-            .with_margin(Thickness {
-                left: 0.0,
-                top: 6.0,
-                right: 3.0,
-                bottom: 0.0,
-            }),
-    )
-    .with_font_size(13.0.into())
-    .with_text(engine_version)
-    .build(ctx);
+    let engine_version = TextBuilder::new()
+        .with_widget_builder(
+            WidgetBuilder::new()
+                .with_foreground(ctx.style.property(Style::BRUSH_BRIGHTEST))
+                .with_margin(Thickness {
+                    left: 0.0,
+                    top: 6.0,
+                    right: 3.0,
+                    bottom: 0.0,
+                }),
+        )
+        .with_font_size(13.0.into())
+        .with_text(engine_version)
+        .build(ctx);
 
-    let size_text = TextBuilder::new(
-        WidgetBuilder::new()
-            .with_foreground(ctx.style.property(Style::BRUSH_BRIGHTEST))
-            .with_margin(Thickness {
-                left: 0.0,
-                top: 6.0,
-                right: 8.0,
-                bottom: 0.0,
-            }),
-    )
-    .with_font_size(13.0.into())
-    .with_text("Size: N/A")
-    .build(ctx);
+    let size_text = TextBuilder::new()
+        .with_widget_builder(
+            WidgetBuilder::new()
+                .with_foreground(ctx.style.property(Style::BRUSH_BRIGHTEST))
+                .with_margin(Thickness {
+                    left: 0.0,
+                    top: 6.0,
+                    right: 8.0,
+                    bottom: 0.0,
+                }),
+        )
+        .with_font_size(13.0.into())
+        .with_text("Size: N/A")
+        .build(ctx);
 
     if let Some(project_dir) = Path::new(path).parent().map(|p| p.to_path_buf()) {
         std::thread::spawn(move || {
@@ -253,27 +255,29 @@ fn make_project_item(
             .on_column(1)
             .with_child(info)
             .with_child(
-                TextBuilder::new(
-                    WidgetBuilder::new()
-                        .on_row(0)
-                        .with_margin(Thickness::uniform(2.0))
-                        .with_vertical_alignment(VerticalAlignment::Center),
-                )
-                .with_font_size(18.0.into())
-                .with_text(name)
-                .build(ctx),
+                TextBuilder::new()
+                    .with_widget_builder(
+                        WidgetBuilder::new()
+                            .on_row(0)
+                            .with_margin(Thickness::uniform(2.0))
+                            .with_vertical_alignment(VerticalAlignment::Center),
+                    )
+                    .with_font_size(18.0.into())
+                    .with_text(name)
+                    .build(ctx),
             )
             .with_child(
-                TextBuilder::new(
-                    WidgetBuilder::new()
-                        .on_row(1)
-                        .with_foreground(ctx.style.property(Style::BRUSH_BRIGHTEST))
-                        .with_margin(Thickness::uniform(2.0))
-                        .with_vertical_alignment(VerticalAlignment::Center),
-                )
-                .with_font_size(13.0.into())
-                .with_text(path.to_string_lossy())
-                .build(ctx),
+                TextBuilder::new()
+                    .with_widget_builder(
+                        WidgetBuilder::new()
+                            .on_row(1)
+                            .with_foreground(ctx.style.property(Style::BRUSH_BRIGHTEST))
+                            .with_margin(Thickness::uniform(2.0))
+                            .with_vertical_alignment(VerticalAlignment::Center),
+                    )
+                    .with_font_size(13.0.into())
+                    .with_text(path.to_string_lossy())
+                    .build(ctx),
             ),
     )
     .add_column(Column::stretch())
@@ -359,20 +363,21 @@ impl ProjectManager {
             WidgetBuilder::new()
                 .with_visibility(!is_ready)
                 .with_child(
-                    TextBuilder::new(
-                        WidgetBuilder::new()
-                            .on_column(0)
-                            .with_margin(Thickness::uniform(2.0))
-                            .with_foreground(Brush::Solid(Color::RED).into()),
-                    )
-                    .with_text(
-                        "Rust is not installed, please click the button at the right \
+                    TextBuilder::new()
+                        .with_widget_builder(
+                            WidgetBuilder::new()
+                                .on_column(0)
+                                .with_margin(Thickness::uniform(2.0))
+                                .with_foreground(Brush::Solid(Color::RED).into()),
+                        )
+                        .with_text(
+                            "Rust is not installed, please click the button at the right \
                         and follow build instructions for your platform. Also make sure that cargo \
                         is added to PATH environment variable!",
-                    )
-                    .with_font_size(18.0.into())
-                    .with_wrap(WrapMode::Word)
-                    .build(ctx),
+                        )
+                        .with_font_size(18.0.into())
+                        .with_wrap(WrapMode::Word)
+                        .build(ctx),
                 )
                 .with_child(download),
         )
@@ -460,15 +465,16 @@ impl ProjectManager {
                         .build(ctx),
                     )
                     .with_child({
-                        message_count = TextBuilder::new(
-                            WidgetBuilder::new()
-                                .on_column(1)
-                                .with_margin(Thickness::uniform(1.0))
-                                .with_vertical_alignment(VerticalAlignment::Center)
-                                .with_foreground(Brush::Solid(Color::GOLD).into()),
-                        )
-                        .with_text("0")
-                        .build(ctx);
+                        message_count = TextBuilder::new()
+                            .with_widget_builder(
+                                WidgetBuilder::new()
+                                    .on_column(1)
+                                    .with_margin(Thickness::uniform(1.0))
+                                    .with_vertical_alignment(VerticalAlignment::Center)
+                                    .with_foreground(Brush::Solid(Color::GOLD).into()),
+                            )
+                            .with_text("0")
+                            .build(ctx);
                         message_count
                     }),
             )
@@ -644,7 +650,8 @@ impl ProjectManager {
                 .with_tooltip(make_simple_tooltip(ctx, hot_reload_tooltip)),
         )
         .with_content(
-            TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::left(2.0)))
+            TextBuilder::new()
+                .with_widget_builder(WidgetBuilder::new().with_margin(Thickness::left(2.0)))
                 .with_text("Hot Reloading")
                 .with_vertical_text_alignment(VerticalAlignment::Center)
                 .build(ctx),
@@ -689,17 +696,17 @@ impl ProjectManager {
         .with_items(make_project_items(&settings, "", &project_size_sender, ctx).to_base())
         .build(ctx);
 
-        let no_projects_warning =
-            TextBuilder::new(WidgetBuilder::new().with_visibility(settings.projects.is_empty()))
-                .with_text(
-                    "At this moment you don't have any existing projects.\n\
+        let no_projects_warning = TextBuilder::new()
+            .with_widget_builder(WidgetBuilder::new().with_visibility(settings.projects.is_empty()))
+            .with_text(
+                "At this moment you don't have any existing projects.\n\
                         Click \"+Create\" button to create a new project or \"Import\" an \
                         existing one.",
-                )
-                .with_font_size(16.0f32.into())
-                .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                .with_vertical_text_alignment(VerticalAlignment::Center)
-                .build(ctx);
+            )
+            .with_font_size(16.0f32.into())
+            .with_horizontal_text_alignment(HorizontalAlignment::Center)
+            .with_vertical_text_alignment(VerticalAlignment::Center)
+            .build(ctx);
 
         let border = BorderBuilder::new(
             WidgetBuilder::new()

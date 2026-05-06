@@ -368,13 +368,14 @@ where
                         WidgetBuilder::new()
                             .on_column(1)
                             .with_child({
-                                name = TextBuilder::new(
-                                    WidgetBuilder::new().with_width(150.0).with_height(75.0),
-                                )
-                                .with_vertical_text_alignment(VerticalAlignment::Center)
-                                .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                                .with_text(format!("{} ({})", self.name, self.model_handle))
-                                .build(ctx);
+                                name = TextBuilder::new()
+                                    .with_widget_builder(
+                                        WidgetBuilder::new().with_width(150.0).with_height(75.0),
+                                    )
+                                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                                    .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                                    .with_text(format!("{} ({})", self.name, self.model_handle))
+                                    .build(ctx);
                                 name
                             })
                             .with_child(if self.editable {
@@ -417,16 +418,19 @@ where
                                     .with_height(24.0)
                                     .with_background(ctx.style.property(Style::BRUSH_DARKER))
                                     .with_child(
-                                        TextBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_vertical_alignment(VerticalAlignment::Center)
-                                                .with_horizontal_alignment(
-                                                    HorizontalAlignment::Center,
-                                                )
-                                                .with_margin(Thickness::uniform(2.0)),
-                                        )
-                                        .with_text(title)
-                                        .build(ctx),
+                                        TextBuilder::new()
+                                            .with_widget_builder(
+                                                WidgetBuilder::new()
+                                                    .with_vertical_alignment(
+                                                        VerticalAlignment::Center,
+                                                    )
+                                                    .with_horizontal_alignment(
+                                                        HorizontalAlignment::Center,
+                                                    )
+                                                    .with_margin(Thickness::uniform(2.0)),
+                                            )
+                                            .with_text(title)
+                                            .build(ctx),
                                     ),
                             )
                             .with_pad_by_corner_radius(false)

@@ -102,20 +102,21 @@ impl BuildWindow {
                             GridBuilder::new(
                                 WidgetBuilder::new()
                                     .with_child(
-                                        TextBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness {
-                                                    left: 5.0,
-                                                    top: 1.0,
-                                                    right: 1.0,
-                                                    bottom: 1.0,
-                                                })
-                                                .on_column(0),
-                                        )
-                                        .with_text(format!(
-                                            "Please wait while {project_name} is building..."
-                                        ))
-                                        .build(ctx),
+                                        TextBuilder::new()
+                                            .with_widget_builder(
+                                                WidgetBuilder::new()
+                                                    .with_margin(Thickness {
+                                                        left: 5.0,
+                                                        top: 1.0,
+                                                        right: 1.0,
+                                                        bottom: 1.0,
+                                                    })
+                                                    .on_column(0),
+                                            )
+                                            .with_text(format!(
+                                                "Please wait while {project_name} is building..."
+                                            ))
+                                            .build(ctx),
                                     )
                                     .with_child({
                                         progress_indicator = ImageBuilder::new(
@@ -151,9 +152,7 @@ impl BuildWindow {
                                         scroll_viewer =
                                             ScrollViewerBuilder::new(WidgetBuilder::new())
                                                 .with_content({
-                                                    log_text =
-                                                        TextBuilder::new(WidgetBuilder::new())
-                                                            .build(ctx);
+                                                    log_text = TextBuilder::new().build(ctx);
                                                     log_text
                                                 })
                                                 .build(ctx);

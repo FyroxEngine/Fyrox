@@ -70,7 +70,7 @@ pub fn make_button(
 
     ButtonBuilder::new(widget_builder)
         .with_content(
-            TextBuilder::new(WidgetBuilder::new())
+            TextBuilder::new()
                 .with_text(text)
                 .with_font_size(16.0.into())
                 .with_vertical_text_alignment(VerticalAlignment::Center)

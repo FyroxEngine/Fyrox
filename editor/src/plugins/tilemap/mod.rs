@@ -924,7 +924,8 @@ pub fn make_named_value_list_option(
             .with_background(Brush::Solid(color).into()),
     )
     .build(ctx);
-    let text = TextBuilder::new(WidgetBuilder::new().on_column(1))
+    let text = TextBuilder::new()
+        .with_widget_builder(WidgetBuilder::new().on_column(1))
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .with_horizontal_text_alignment(HorizontalAlignment::Left)
         .with_text(name)

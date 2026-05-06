@@ -108,18 +108,20 @@ fn make_items(buses: &[(Handle<AudioBus>, String)], ctx: &mut BuildContext) -> V
 
 fn make_effect_names(names: &[String], ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
     if names.is_empty() {
-        vec![TextBuilder::new(
-            WidgetBuilder::new().with_foreground(ctx.style.property(Style::BRUSH_LIGHTER)),
-        )
-        .with_text("No Effects")
-        .with_horizontal_text_alignment(HorizontalAlignment::Center)
-        .build(ctx)
-        .to_base()]
+        vec![TextBuilder::new()
+            .with_widget_builder(
+                WidgetBuilder::new().with_foreground(ctx.style.property(Style::BRUSH_LIGHTER)),
+            )
+            .with_text("No Effects")
+            .with_horizontal_text_alignment(HorizontalAlignment::Center)
+            .build(ctx)
+            .to_base()]
     } else {
         names
             .iter()
             .map(|n| {
-                TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                TextBuilder::new()
+                    .with_widget_builder(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                     .with_text(n)
                     .with_horizontal_text_alignment(HorizontalAlignment::Center)
                     .build(ctx)
@@ -186,13 +188,14 @@ impl AudioBusViewBuilder {
             WidgetBuilder::new()
                 .with_child(
                     BorderBuilder::new(WidgetBuilder::new().on_row(0).on_column(0).with_child({
-                        name = TextBuilder::new(
-                            WidgetBuilder::new()
-                                .with_horizontal_alignment(HorizontalAlignment::Center)
-                                .with_vertical_alignment(VerticalAlignment::Center),
-                        )
-                        .with_text(self.name)
-                        .build(ctx);
+                        name = TextBuilder::new()
+                            .with_widget_builder(
+                                WidgetBuilder::new()
+                                    .with_horizontal_alignment(HorizontalAlignment::Center)
+                                    .with_vertical_alignment(VerticalAlignment::Center),
+                            )
+                            .with_text(self.name)
+                            .build(ctx);
                         name
                     }))
                     .build(ctx),

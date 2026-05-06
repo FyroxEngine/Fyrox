@@ -53,10 +53,11 @@ impl StatisticsWindow {
             .with_content(
                 ScrollViewerBuilder::new(WidgetBuilder::new())
                     .with_content({
-                        text = TextBuilder::new(
-                            WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
-                        )
-                        .build(ctx);
+                        text = TextBuilder::new()
+                            .with_widget_builder(
+                                WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
+                            )
+                            .build(ctx);
                         text
                     })
                     .build(ctx),

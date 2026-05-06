@@ -218,14 +218,15 @@ impl TextureEditorBuilder {
 
         let select = utils::make_pick_button(2, ctx);
 
-        let path = TextBuilder::new(
-            WidgetBuilder::new()
-                .on_column(1)
-                .with_margin(Thickness::uniform(1.0))
-                .with_vertical_alignment(VerticalAlignment::Center),
-        )
-        .with_text(texture_name(self.texture.as_ref(), &resource_manager))
-        .build(ctx);
+        let path = TextBuilder::new()
+            .with_widget_builder(
+                WidgetBuilder::new()
+                    .on_column(1)
+                    .with_margin(Thickness::uniform(1.0))
+                    .with_vertical_alignment(VerticalAlignment::Center),
+            )
+            .with_text(texture_name(self.texture.as_ref(), &resource_manager))
+            .build(ctx);
 
         let locate = ImageButtonBuilder::default()
             .on_column(3)

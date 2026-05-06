@@ -73,11 +73,12 @@ fn build_tree_recursively(
     TreeBuilder::new(WidgetBuilder::new())
         .with_items(children)
         .with_content(
-            TextBuilder::new(
-                WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Center),
-            )
-            .with_text(format!("{name} ({data_type})"))
-            .build(ctx),
+            TextBuilder::new()
+                .with_widget_builder(
+                    WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Center),
+                )
+                .with_text(format!("{name} ({data_type})"))
+                .build(ctx),
         )
         .build(ctx)
 }

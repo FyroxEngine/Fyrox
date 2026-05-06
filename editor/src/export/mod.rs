@@ -82,14 +82,15 @@ pub struct ExportWindow {
 }
 
 fn make_title_text(text: &str, row: usize, ctx: &mut BuildContext) -> Handle<Text> {
-    TextBuilder::new(
-        WidgetBuilder::new()
-            .on_row(row)
-            .with_foreground(ctx.style.property(ExportWindow::TITLE_BRUSH))
-            .with_margin(Thickness::uniform(2.0)),
-    )
-    .with_text(text)
-    .build(ctx)
+    TextBuilder::new()
+        .with_widget_builder(
+            WidgetBuilder::new()
+                .on_row(row)
+                .with_foreground(ctx.style.property(ExportWindow::TITLE_BRUSH))
+                .with_margin(Thickness::uniform(2.0)),
+        )
+        .with_text(text)
+        .build(ctx)
 }
 
 impl ExportWindow {
@@ -135,7 +136,7 @@ impl ExportWindow {
                                         .with_height(50.0)
                                         .with_margin(Thickness::uniform(1.0))
                                         .with_child(
-                                            TextBuilder::new(WidgetBuilder::new())
+                                            TextBuilder::new()
                                                 .with_vertical_text_alignment(
                                                     VerticalAlignment::Center,
                                                 )
@@ -163,7 +164,10 @@ impl ExportWindow {
             WidgetBuilder::new()
                 .on_row(2)
                 .with_child(
-                    TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
+                    TextBuilder::new()
+                        .with_widget_builder(
+                            WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
+                        )
                         .with_vertical_text_alignment(VerticalAlignment::Center)
                         .with_text("Build Target")
                         .build(ctx),
@@ -288,14 +292,15 @@ impl ExportWindow {
                 GridBuilder::new(
                     WidgetBuilder::new()
                         .with_child(
-                            TextBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(0)
-                                    .with_margin(Thickness::uniform(2.0)),
-                            )
-                            .with_wrap(WrapMode::Word)
-                            .with_text(instructions)
-                            .build(ctx),
+                            TextBuilder::new()
+                                .with_widget_builder(
+                                    WidgetBuilder::new()
+                                        .on_row(0)
+                                        .with_margin(Thickness::uniform(2.0)),
+                                )
+                                .with_wrap(WrapMode::Word)
+                                .with_text(instructions)
+                                .build(ctx),
                         )
                         .with_child(platform_section)
                         .with_child(grid)
@@ -483,14 +488,15 @@ impl ExportWindow {
                     MessageKind::Warning => ctx.style.property(Style::BRUSH_WARNING),
                     MessageKind::Error => ctx.style.property(Style::BRUSH_ERROR),
                 };
-                let entry = TextBuilder::new(
-                    WidgetBuilder::new()
-                        .with_margin(Thickness::uniform(1.0))
-                        .with_foreground(foreground),
-                )
-                .with_wrap(WrapMode::Letter)
-                .with_text(format!("> {}", message.content))
-                .build(ctx);
+                let entry = TextBuilder::new()
+                    .with_widget_builder(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(1.0))
+                            .with_foreground(foreground),
+                    )
+                    .with_wrap(WrapMode::Letter)
+                    .with_text(format!("> {}", message.content))
+                    .build(ctx);
 
                 ui.send(entry, WidgetMessage::link_with(self.log));
                 ui.send(self.log_scroll_viewer, ScrollViewerMessage::ScrollToEnd);

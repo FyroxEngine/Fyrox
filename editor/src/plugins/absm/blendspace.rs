@@ -622,13 +622,14 @@ impl BlendSpaceFieldPointBuilder {
                 .with_cursor(Some(CursorIcon::Grab))
                 .with_clip_to_bounds(false)
                 .with_child(
-                    TextBuilder::new(
-                        WidgetBuilder::new()
-                            .with_margin(Thickness::left(10.0))
-                            .with_clip_to_bounds(false),
-                    )
-                    .with_text(format!("{:?}", self.index))
-                    .build(ctx),
+                    TextBuilder::new()
+                        .with_widget_builder(
+                            WidgetBuilder::new()
+                                .with_margin(Thickness::left(10.0))
+                                .with_clip_to_bounds(false),
+                        )
+                        .with_text(format!("{:?}", self.index))
+                        .build(ctx),
                 )
                 .with_width(10.0)
                 .with_height(10.0)
@@ -679,37 +680,46 @@ impl BlendSpaceEditor {
                             GridBuilder::new(
                                 WidgetBuilder::new()
                                     .with_child({
-                                        max_y = TextBuilder::new(
-                                            WidgetBuilder::new()
-                                                .on_row(0)
-                                                .with_margin(Thickness::uniform(1.0))
-                                                .with_height(22.0)
-                                                .with_vertical_alignment(VerticalAlignment::Top),
-                                        )
-                                        .build(ctx);
+                                        max_y = TextBuilder::new()
+                                            .with_widget_builder(
+                                                WidgetBuilder::new()
+                                                    .on_row(0)
+                                                    .with_margin(Thickness::uniform(1.0))
+                                                    .with_height(22.0)
+                                                    .with_vertical_alignment(
+                                                        VerticalAlignment::Top,
+                                                    ),
+                                            )
+                                            .build(ctx);
                                         max_y
                                     })
                                     .with_child({
-                                        y_axis_name = TextBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_height(22.0)
-                                                .on_row(1)
-                                                .with_margin(Thickness::uniform(1.0))
-                                                .with_vertical_alignment(VerticalAlignment::Center),
-                                        )
-                                        .with_vertical_text_alignment(VerticalAlignment::Center)
-                                        .build(ctx);
+                                        y_axis_name = TextBuilder::new()
+                                            .with_widget_builder(
+                                                WidgetBuilder::new()
+                                                    .with_height(22.0)
+                                                    .on_row(1)
+                                                    .with_margin(Thickness::uniform(1.0))
+                                                    .with_vertical_alignment(
+                                                        VerticalAlignment::Center,
+                                                    ),
+                                            )
+                                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                                            .build(ctx);
                                         y_axis_name
                                     })
                                     .with_child({
-                                        min_y = TextBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_height(22.0)
-                                                .on_row(2)
-                                                .with_margin(Thickness::uniform(1.0))
-                                                .with_vertical_alignment(VerticalAlignment::Bottom),
-                                        )
-                                        .build(ctx);
+                                        min_y = TextBuilder::new()
+                                            .with_widget_builder(
+                                                WidgetBuilder::new()
+                                                    .with_height(22.0)
+                                                    .on_row(2)
+                                                    .with_margin(Thickness::uniform(1.0))
+                                                    .with_vertical_alignment(
+                                                        VerticalAlignment::Bottom,
+                                                    ),
+                                            )
+                                            .build(ctx);
                                         min_y
                                     }),
                             )
@@ -726,44 +736,49 @@ impl BlendSpaceEditor {
                                     .on_row(1)
                                     .on_column(1)
                                     .with_child({
-                                        min_x = TextBuilder::new(
-                                            WidgetBuilder::new()
-                                                .on_column(0)
-                                                .with_margin(Thickness::uniform(1.0))
-                                                .with_width(50.0)
-                                                .with_horizontal_alignment(
-                                                    HorizontalAlignment::Left,
-                                                ),
-                                        )
-                                        .build(ctx);
+                                        min_x = TextBuilder::new()
+                                            .with_widget_builder(
+                                                WidgetBuilder::new()
+                                                    .on_column(0)
+                                                    .with_margin(Thickness::uniform(1.0))
+                                                    .with_width(50.0)
+                                                    .with_horizontal_alignment(
+                                                        HorizontalAlignment::Left,
+                                                    ),
+                                            )
+                                            .build(ctx);
                                         min_x
                                     })
                                     .with_child({
-                                        x_axis_name = TextBuilder::new(
-                                            WidgetBuilder::new()
-                                                .on_column(1)
-                                                .with_margin(Thickness::uniform(1.0))
-                                                .with_width(50.0)
-                                                .with_horizontal_alignment(
-                                                    HorizontalAlignment::Center,
-                                                ),
-                                        )
-                                        .with_vertical_text_alignment(VerticalAlignment::Center)
-                                        .build(ctx);
+                                        x_axis_name = TextBuilder::new()
+                                            .with_widget_builder(
+                                                WidgetBuilder::new()
+                                                    .on_column(1)
+                                                    .with_margin(Thickness::uniform(1.0))
+                                                    .with_width(50.0)
+                                                    .with_horizontal_alignment(
+                                                        HorizontalAlignment::Center,
+                                                    ),
+                                            )
+                                            .with_vertical_text_alignment(VerticalAlignment::Center)
+                                            .build(ctx);
                                         x_axis_name
                                     })
                                     .with_child({
-                                        max_x = TextBuilder::new(
-                                            WidgetBuilder::new()
-                                                .on_column(2)
-                                                .with_margin(Thickness::uniform(1.0))
-                                                .with_width(50.0)
-                                                .with_horizontal_alignment(
-                                                    HorizontalAlignment::Right,
-                                                ),
-                                        )
-                                        .with_horizontal_text_alignment(HorizontalAlignment::Right)
-                                        .build(ctx);
+                                        max_x = TextBuilder::new()
+                                            .with_widget_builder(
+                                                WidgetBuilder::new()
+                                                    .on_column(2)
+                                                    .with_margin(Thickness::uniform(1.0))
+                                                    .with_width(50.0)
+                                                    .with_horizontal_alignment(
+                                                        HorizontalAlignment::Right,
+                                                    ),
+                                            )
+                                            .with_horizontal_text_alignment(
+                                                HorizontalAlignment::Right,
+                                            )
+                                            .build(ctx);
                                         max_x
                                     }),
                             )

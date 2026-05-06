@@ -124,7 +124,8 @@ impl GridSnappingMenu {
                     WidgetBuilder::new()
                         .with_margin(Thickness::uniform(2.0))
                         .with_child(
-                            TextBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
+                            TextBuilder::new()
+                                .with_widget_builder(WidgetBuilder::new().on_row(0).on_column(0))
                                 .with_text("Grid Snapping")
                                 .build(ctx),
                         )
@@ -140,7 +141,8 @@ impl GridSnappingMenu {
                             enabled
                         })
                         .with_child(
-                            TextBuilder::new(WidgetBuilder::new().on_row(1).on_column(0))
+                            TextBuilder::new()
+                                .with_widget_builder(WidgetBuilder::new().on_row(1).on_column(0))
                                 .with_text("X Step")
                                 .build(ctx),
                         )
@@ -156,7 +158,8 @@ impl GridSnappingMenu {
                             x_step
                         })
                         .with_child(
-                            TextBuilder::new(WidgetBuilder::new().on_row(2).on_column(0))
+                            TextBuilder::new()
+                                .with_widget_builder(WidgetBuilder::new().on_row(2).on_column(0))
                                 .with_text("Y Step")
                                 .build(ctx),
                         )
@@ -172,7 +175,8 @@ impl GridSnappingMenu {
                             y_step
                         })
                         .with_child(
-                            TextBuilder::new(WidgetBuilder::new().on_row(3).on_column(0))
+                            TextBuilder::new()
+                                .with_widget_builder(WidgetBuilder::new().on_row(3).on_column(0))
                                 .with_text("Z Step")
                                 .build(ctx),
                         )
@@ -468,7 +472,7 @@ impl SceneViewer {
         .add_row(Row::stretch())
         .build(ctx);
 
-        let no_scene_reminder = TextBuilder::new(
+        let no_scene_reminder = TextBuilder::new().with_widget_builder(
             WidgetBuilder::new()
                 .with_hit_test_visibility(false)
                 .with_foreground(ctx.style.property(Style::BRUSH_DARKEST)),
@@ -901,15 +905,16 @@ impl SceneViewer {
         // Add any missing tabs.
         for entry in scenes.iter() {
             if tabs.iter().all(|tab| tab.uuid != entry.id) {
-                let header = TextBuilder::new(WidgetBuilder::new().with_margin(Thickness {
-                    left: 4.0,
-                    top: 2.0,
-                    right: 4.0,
-                    bottom: 2.0,
-                }))
-                .with_text(entry.name())
-                .build(&mut engine.user_interfaces.first_mut().build_ctx())
-                .to_base();
+                let header = TextBuilder::new()
+                    .with_widget_builder(WidgetBuilder::new().with_margin(Thickness {
+                        left: 4.0,
+                        top: 2.0,
+                        right: 4.0,
+                        bottom: 2.0,
+                    }))
+                    .with_text(entry.name())
+                    .build(&mut engine.user_interfaces.first_mut().build_ctx())
+                    .to_base();
 
                 engine.user_interfaces.first().send_sync(
                     self.tab_control,

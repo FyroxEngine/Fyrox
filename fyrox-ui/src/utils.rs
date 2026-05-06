@@ -155,14 +155,15 @@ pub fn make_simple_tooltip(ctx: &mut BuildContext, text: &str) -> RcUiNodeHandle
             .with_background(Brush::Solid(Color::opaque(230, 230, 230)).into())
             .with_width(300.0)
             .with_child(
-                TextBuilder::new(
-                    WidgetBuilder::new()
-                        .with_margin(Thickness::uniform(2.0))
-                        .with_foreground(ctx.style.property(Style::BRUSH_DARKER)),
-                )
-                .with_wrap(WrapMode::Word)
-                .with_text(text)
-                .build(ctx),
+                TextBuilder::new()
+                    .with_widget_builder(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(2.0))
+                            .with_foreground(ctx.style.property(Style::BRUSH_DARKER)),
+                    )
+                    .with_wrap(WrapMode::Word)
+                    .with_text(text)
+                    .build(ctx),
             ),
     )
     .build(ctx);
@@ -235,7 +236,8 @@ pub fn make_dropdown_list_option_universal<T: Send + 'static>(
                     .with_height(height)
                     .with_user_data(Arc::new(Mutex::new(user_data)))
                     .with_child(
-                        TextBuilder::new(WidgetBuilder::new().with_margin(text_margin()))
+                        TextBuilder::new()
+                            .with_widget_builder(WidgetBuilder::new().with_margin(text_margin()))
                             .with_vertical_text_alignment(VerticalAlignment::Center)
                             .with_horizontal_text_alignment(HorizontalAlignment::Left)
                             .with_text(name)
@@ -256,15 +258,16 @@ pub fn make_dropdown_list_option(ctx: &mut BuildContext, name: &str) -> Handle<U
         DecoratorBuilder::new(
             BorderBuilder::new(
                 WidgetBuilder::new().with_child(
-                    TextBuilder::new(
-                        WidgetBuilder::new()
-                            .with_margin(text_margin())
-                            .with_vertical_alignment(VerticalAlignment::Center),
-                    )
-                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                    .with_horizontal_text_alignment(HorizontalAlignment::Left)
-                    .with_text(name)
-                    .build(ctx),
+                    TextBuilder::new()
+                        .with_widget_builder(
+                            WidgetBuilder::new()
+                                .with_margin(text_margin())
+                                .with_vertical_alignment(VerticalAlignment::Center),
+                        )
+                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                        .with_horizontal_text_alignment(HorizontalAlignment::Left)
+                        .with_text(name)
+                        .build(ctx),
                 ),
             )
             .with_corner_radius(4.0f32.into())
@@ -285,7 +288,8 @@ pub fn make_dropdown_list_option_with_height(
         DecoratorBuilder::new(
             BorderBuilder::new(
                 WidgetBuilder::new().with_height(height).with_child(
-                    TextBuilder::new(WidgetBuilder::new().with_margin(text_margin()))
+                    TextBuilder::new()
+                        .with_widget_builder(WidgetBuilder::new().with_margin(text_margin()))
                         .with_vertical_text_alignment(VerticalAlignment::Center)
                         .with_horizontal_text_alignment(HorizontalAlignment::Left)
                         .with_text(name)
@@ -535,22 +539,23 @@ pub fn make_text_and_image_button_with_tooltip(
                     .build(ctx),
                 )
                 .with_child(
-                    TextBuilder::new(
-                        WidgetBuilder::new()
-                            .on_row(0)
-                            .on_column(1)
-                            .with_vertical_alignment(VerticalAlignment::Center)
-                            .with_horizontal_alignment(HorizontalAlignment::Center)
-                            .with_margin(Thickness {
-                                left: 4.0,
-                                top: margin,
-                                right: 8.0,
-                                bottom: margin,
-                            }),
-                    )
-                    .with_font_size(font_size.into())
-                    .with_text(text)
-                    .build(ctx),
+                    TextBuilder::new()
+                        .with_widget_builder(
+                            WidgetBuilder::new()
+                                .on_row(0)
+                                .on_column(1)
+                                .with_vertical_alignment(VerticalAlignment::Center)
+                                .with_horizontal_alignment(HorizontalAlignment::Center)
+                                .with_margin(Thickness {
+                                    left: 4.0,
+                                    top: margin,
+                                    right: 8.0,
+                                    bottom: margin,
+                                }),
+                        )
+                        .with_font_size(font_size.into())
+                        .with_text(text)
+                        .build(ctx),
                 ),
         )
         .add_column(Column::auto())

@@ -331,9 +331,11 @@ impl SurfaceDataViewer {
 
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
 
-        let info =
-            TextBuilder::new(WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Top))
-                .build(ctx);
+        let info = TextBuilder::new()
+            .with_widget_builder(
+                WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Top),
+            )
+            .build(ctx);
 
         let content = GridBuilder::new(
             WidgetBuilder::new()

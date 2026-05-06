@@ -350,14 +350,15 @@ fn make_tooltip(ctx: &mut BuildContext, text: &str) -> RcUiNodeHandle {
             .with_background(ctx.style.property(Style::BRUSH_TEXT))
             .with_max_size(Vector2::new(300.0, f32::INFINITY))
             .with_child(
-                TextBuilder::new(
-                    WidgetBuilder::new()
-                        .with_margin(Thickness::uniform(2.0))
-                        .with_foreground(ctx.style.property(Style::BRUSH_DARKER)),
-                )
-                .with_wrap(WrapMode::Letter)
-                .with_text(text)
-                .build(ctx),
+                TextBuilder::new()
+                    .with_widget_builder(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(2.0))
+                            .with_foreground(ctx.style.property(Style::BRUSH_DARKER)),
+                    )
+                    .with_wrap(WrapMode::Letter)
+                    .with_text(text)
+                    .build(ctx),
             ),
     )
     .build(ctx);
@@ -409,7 +410,10 @@ impl AssetItemBuilder {
                         .property(AssetItem::DESELECTED_TEXT_BORDER_BACKGROUND),
                 )
                 .with_child(
-                    TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
+                    TextBuilder::new()
+                        .with_widget_builder(
+                            WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
+                        )
                         .with_vertical_text_alignment(VerticalAlignment::Center)
                         .with_horizontal_text_alignment(HorizontalAlignment::Center)
                         .with_wrap(WrapMode::Word)
