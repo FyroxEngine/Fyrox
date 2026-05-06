@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//! `Reflect` implementations for `std` types
+//! `Reflect` implementations
 
 use crate::{
     delegate_reflect,
@@ -28,6 +28,7 @@ use crate::{
     SafeLock,
 };
 use fyrox_core_derive::impl_reflect;
+use nalgebra::*;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -37,6 +38,29 @@ use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
+
+impl_reflect! {
+    pub struct Matrix<T: Copy + 'static, R: Dim + 'static, C: Dim + 'static, S: Copy + Debug + FieldValue + 'static> {
+        pub data: S,
+        // _phantoms: PhantomData<(T, R, C)>,
+    }
+}
+
+impl_reflect! {
+    pub struct ArrayStorage<T: Copy + Debug + Reflect, const R: usize, const C: usize>(pub [[T; R]; C]);
+}
+
+impl_reflect! {
+    pub struct Unit<T: Copy + Debug + 'static> {
+        // pub(crate) value: T,
+    }
+}
+
+impl_reflect! {
+    pub struct Quaternion<T: Copy + Debug + Reflect> {
+        pub coords: Vector4<T>,
+    }
+}
 
 macro_rules! impl_blank_reflect {
     ( $( $ty:ty ),* $(,)? ) => {

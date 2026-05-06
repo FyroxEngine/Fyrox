@@ -22,13 +22,12 @@
 
 mod array;
 mod error;
-mod external_impls;
 mod field;
 mod handle;
+mod impls;
 mod inherit;
 mod macros;
 mod map;
-mod std_impls;
 
 use crate::sstorage::ImmutableString;
 
