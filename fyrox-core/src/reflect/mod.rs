@@ -20,6 +20,8 @@
 
 //! Runtime reflection
 
+mod array;
+mod error;
 mod external_impls;
 mod macros;
 mod map;
@@ -34,11 +36,13 @@ use crate::{
 pub use fyrox_core_derive::Reflect;
 use std::{
     any::{Any, TypeId},
-    fmt::{self, Debug, Display, Formatter},
+    fmt::{self, Debug},
     mem::ManuallyDrop,
     ops::Deref,
 };
 
+pub use array::*;
+pub use error::*;
 pub use macros::*;
 pub use map::*;
 
@@ -82,37 +86,6 @@ impl<T: Reflect> FieldValue for T {
 
     fn type_name(&self) -> &'static str {
         std::any::type_name::<T>()
-    }
-}
-
-/// An error that can occur during "type casting"
-#[derive(Debug)]
-pub enum CastError {
-    /// Given type does not match expected.
-    TypeMismatch {
-        /// A name of the field.
-        property_name: String,
-
-        /// Expected type identifier.
-        expected_type_id: TypeId,
-
-        /// Actual type identifier.
-        actual_type_id: TypeId,
-    },
-}
-
-impl std::error::Error for CastError {}
-
-impl Display for CastError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            CastError::TypeMismatch { property_name, .. } => {
-                write!(
-                    f,
-                    "Given type does not match expected for property {property_name:?}"
-                )
-            }
-        }
     }
 }
 
@@ -446,25 +419,6 @@ pub trait ReflectHandle: Reflect {
     fn reflect_as_erased(&self) -> ErasedHandle;
 }
 
-/// [`Reflect`] sub trait for working with slices.
-pub trait ReflectArray: Reflect {
-    fn reflect_index(&self, index: usize) -> Option<&dyn Reflect>;
-    fn reflect_index_mut(&mut self, index: usize) -> Option<&mut dyn Reflect>;
-    fn reflect_len(&self) -> usize;
-}
-
-/// [`Reflect`] sub trait for working with `Vec`-like types
-pub trait ReflectList: ReflectArray {
-    fn reflect_push(&mut self, value: Box<dyn Reflect>) -> Result<(), Box<dyn Reflect>>;
-    fn reflect_pop(&mut self) -> Option<Box<dyn Reflect>>;
-    fn reflect_remove(&mut self, index: usize) -> Option<Box<dyn Reflect>>;
-    fn reflect_insert(
-        &mut self,
-        index: usize,
-        value: Box<dyn Reflect>,
-    ) -> Result<(), Box<dyn Reflect>>;
-}
-
 pub trait ReflectInheritableVariable: Reflect {
     /// Tries to inherit a value from parent. It will succeed only if the current variable is
     /// not marked as modified.
@@ -499,52 +453,6 @@ pub trait ReflectInheritableVariable: Reflect {
 
     /// Returns a shared reference to wrapped value without marking the variable itself as modified.
     fn inner_value_ref(&self) -> &dyn Reflect;
-}
-
-/// An error returned from a failed path string query.
-#[derive(Debug, PartialEq, Eq)]
-pub enum ReflectPathError<'a> {
-    // syntax errors
-    UnclosedBrackets { s: &'a str },
-    InvalidIndexSyntax { s: &'a str },
-
-    // access errors
-    UnknownField { s: &'a str },
-    NoItemForIndex { s: &'a str },
-
-    // type cast errors
-    InvalidDowncast,
-    NotAnArray,
-}
-
-impl std::error::Error for ReflectPathError<'_> {}
-
-impl Display for ReflectPathError<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            ReflectPathError::UnclosedBrackets { s } => {
-                write!(f, "unclosed brackets: `{s}`")
-            }
-            ReflectPathError::InvalidIndexSyntax { s } => {
-                write!(f, "not index syntax: `{s}`")
-            }
-            ReflectPathError::UnknownField { s } => {
-                write!(f, "given unknown field: `{s}`")
-            }
-            ReflectPathError::NoItemForIndex { s } => {
-                write!(f, "no item for index: `{s}`")
-            }
-            ReflectPathError::InvalidDowncast => {
-                write!(
-                    f,
-                    "failed to downcast to the target type after path resolution"
-                )
-            }
-            ReflectPathError::NotAnArray => {
-                write!(f, "tried to resolve index access, but the reflect type does not implement list API")
-            }
-        }
-    }
 }
 
 pub trait ResolvePath {
@@ -856,69 +764,6 @@ impl ResolvePath for dyn Reflect {
                 Err(err) => func(Err(err)),
             }),
             Err(err) => func(Err(err)),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum SetFieldError {
-    NoSuchField {
-        name: String,
-        value: Box<dyn Reflect>,
-    },
-    InvalidValue {
-        field_type_name: &'static str,
-        value: Box<dyn Reflect>,
-    },
-}
-
-impl std::error::Error for SetFieldError {}
-
-impl Display for SetFieldError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            SetFieldError::NoSuchField { name, value } => {
-                write!(f, "No such field as {name:?} for value {value:?}")
-            }
-            SetFieldError::InvalidValue {
-                field_type_name,
-                value,
-            } => write!(
-                f,
-                "Invalid value for field type {field_type_name}: {value:?}"
-            ),
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum SetFieldByPathError<'p> {
-    InvalidPath {
-        value: Box<dyn Reflect>,
-        reason: ReflectPathError<'p>,
-    },
-    InvalidValue {
-        field_type_name: &'static str,
-        value: Box<dyn Reflect>,
-    },
-    SetFieldError(SetFieldError),
-}
-
-impl std::error::Error for SetFieldByPathError<'_> {}
-
-impl Display for SetFieldByPathError<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            SetFieldByPathError::InvalidPath { value, reason } => {
-                write!(f, "Invalid path: {value:?}. Reason: {reason}")
-            }
-            SetFieldByPathError::InvalidValue {
-                field_type_name,
-                value,
-            } => {
-                write!(f, "Invalid value: {value:?}. Type: {field_type_name}")
-            }
-            SetFieldByPathError::SetFieldError(set_field_error) => Display::fmt(set_field_error, f),
         }
     }
 }
