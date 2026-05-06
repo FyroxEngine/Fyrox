@@ -492,15 +492,15 @@ where
     }
 
     #[inline]
-    fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
-        self.value.field(name, func)
+    fn find_field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+        self.value.find_field(name, func)
     }
 
     #[inline]
-    fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
+    fn find_field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
         // Any modifications inside of compound structs must mark the variable as modified.
         self.mark_modified_and_need_sync();
-        self.value.field_mut(name, func)
+        self.value.find_field_mut(name, func)
     }
 
     #[inline]

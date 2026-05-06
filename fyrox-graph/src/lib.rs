@@ -1795,12 +1795,12 @@ mod test {
             self.0.deref_mut().set_field(field, value, func)
         }
 
-        fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
-            self.0.deref().field(name, func)
+        fn find_field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+            self.0.deref().find_field(name, func)
         }
 
-        fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
-            self.0.deref_mut().field_mut(name, func)
+        fn find_field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
+            self.0.deref_mut().find_field_mut(name, func)
         }
 
         fn derived_types() -> &'static [TypeId] {

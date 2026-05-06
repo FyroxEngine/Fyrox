@@ -200,7 +200,7 @@ fn struct_set_field_body(ty_args: &args::TypeArgs) -> Option<TokenStream2> {
                 }
                 Err(current) => {
                     let mut field_type_name = "(none)";
-                    self.field_mut(name, &mut |field| { field_type_name = field.unwrap().type_name() });
+                    self.find_field_mut(name, &mut |field| { field_type_name = field.unwrap().type_name() });
                     Err(SetFieldError::InvalidValue{field_type_name, value: current})
                 }
             })
@@ -214,7 +214,7 @@ fn struct_set_field_body(ty_args: &args::TypeArgs) -> Option<TokenStream2> {
             )*
             _ => {
                 let mut opt_value = Some(value);
-                self.field_mut(name, &mut move |field| {
+                self.find_field_mut(name, &mut move |field| {
                     let value = opt_value.take().unwrap();
                     match field {
                         Some(f) => func(f.set(value).map_err(|value| SetFieldError::InvalidValue {

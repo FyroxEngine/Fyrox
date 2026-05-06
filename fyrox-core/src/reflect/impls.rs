@@ -220,14 +220,14 @@ macro_rules! impl_reflect_inner_mutability {
             guard.set_field(field, value, func)
         }
 
-        fn field(&$self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+        fn find_field(&$self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
             let guard = $acquire_lock_guard;
-            guard.field(name, func)
+            guard.find_field(name, func)
         }
 
-        fn field_mut(&mut $self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
+        fn find_field_mut(&mut $self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
             let mut guard = $acquire_lock_guard;
-            guard.field_mut(name, func)
+            guard.find_field_mut(name, func)
         }
 
         fn as_array(&$self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {

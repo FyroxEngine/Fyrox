@@ -158,7 +158,7 @@ pub trait Reflect: Any + Debug {
         Self: Sized;
 
     /// Calls user method specified with `#[reflect(setter = ..)]` or falls back to
-    /// [`Reflect::field_mut`]
+    /// [`Reflect::find_field_mut`]
     #[allow(clippy::type_complexity)]
     fn set_field(
         &mut self,
@@ -167,7 +167,7 @@ pub trait Reflect: Any + Debug {
         func: &mut dyn FnMut(Result<Box<dyn Reflect>, SetFieldError>),
     ) {
         let mut opt_value = Some(value);
-        self.field_mut(field_name, &mut move |field| {
+        self.find_field_mut(field_name, &mut move |field| {
             let value = opt_value.take().unwrap();
             match field {
                 Some(f) => func(f.set(value).map_err(|value| SetFieldError::InvalidValue {
@@ -182,7 +182,7 @@ pub trait Reflect: Any + Debug {
         });
     }
 
-    fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+    fn find_field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
         self.fields_ref(&mut |fields| {
             func(
                 fields
@@ -193,7 +193,7 @@ pub trait Reflect: Any + Debug {
         });
     }
 
-    fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
+    fn find_field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
         self.fields_mut(&mut |fields| {
             func(
                 fields
@@ -676,14 +676,14 @@ pub trait GetField {
 
 impl<R: Reflect> GetField for R {
     fn get_field<T: 'static>(&self, name: &str, func: &mut dyn FnMut(Option<&T>)) {
-        self.field(name, &mut |field| match field {
+        self.find_field(name, &mut |field| match field {
             None => func(None),
             Some(reflect) => reflect.as_any(&mut |any| func(any.downcast_ref())),
         })
     }
 
     fn get_field_mut<T: 'static>(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut T>)) {
-        self.field_mut(name, &mut |field| match field {
+        self.find_field_mut(name, &mut |field| match field {
             None => func(None),
             Some(reflect) => reflect.as_any_mut(&mut |any| func(any.downcast_mut())),
         })
@@ -788,7 +788,7 @@ impl<'p> Component<'p> {
         func: &mut dyn FnMut(Result<&dyn Reflect, ReflectPathError<'p>>),
     ) {
         match self {
-            Self::Field(path) => reflect.field(path, &mut |field| {
+            Self::Field(path) => reflect.find_field(path, &mut |field| {
                 func(field.ok_or(ReflectPathError::UnknownField { s: path }))
             }),
             Self::Index(path) => {
@@ -819,7 +819,7 @@ impl<'p> Component<'p> {
         func: &mut dyn FnMut(Result<&mut dyn Reflect, ReflectPathError<'p>>),
     ) {
         match self {
-            Self::Field(path) => reflect.field_mut(path, &mut |field| {
+            Self::Field(path) => reflect.find_field_mut(path, &mut |field| {
                 func(field.ok_or(ReflectPathError::UnknownField { s: path }))
             }),
             Self::Index(path) => {

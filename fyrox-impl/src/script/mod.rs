@@ -784,12 +784,12 @@ impl Reflect for Script {
         self.instance.deref_mut().set(value)
     }
 
-    fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
-        self.instance.deref().field(name, func)
+    fn find_field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+        self.instance.deref().find_field(name, func)
     }
 
-    fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
-        self.instance.deref_mut().field_mut(name, func)
+    fn find_field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
+        self.instance.deref_mut().find_field_mut(name, func)
     }
 
     fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {

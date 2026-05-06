@@ -60,16 +60,20 @@ macro_rules! newtype_reflect {
             self.0.set(value)
         }
 
-        fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn $crate::reflect::Reflect>)) {
-            self.0.field(name, func)
+        fn find_field(
+            &self,
+            name: &str,
+            func: &mut dyn FnMut(Option<&dyn $crate::reflect::Reflect>),
+        ) {
+            self.0.find_field(name, func)
         }
 
-        fn field_mut(
+        fn find_field_mut(
             &mut self,
             name: &str,
             func: &mut dyn FnMut(Option<&mut dyn $crate::reflect::Reflect>),
         ) {
-            self.0.field_mut(name, func)
+            self.0.find_field_mut(name, func)
         }
 
         fn as_array(&self, func: &mut dyn FnMut(Option<&dyn $crate::reflect::ReflectArray>)) {
@@ -203,16 +207,20 @@ macro_rules! delegate_reflect {
             self.deref_mut().set(value)
         }
 
-        fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn $crate::reflect::Reflect>)) {
-            self.deref().field(name, func)
+        fn find_field(
+            &self,
+            name: &str,
+            func: &mut dyn FnMut(Option<&dyn $crate::reflect::Reflect>),
+        ) {
+            self.deref().find_field(name, func)
         }
 
-        fn field_mut(
+        fn find_field_mut(
             &mut self,
             name: &str,
             func: &mut dyn FnMut(Option<&mut dyn $crate::reflect::Reflect>),
         ) {
-            self.deref_mut().field_mut(name, func)
+            self.deref_mut().find_field_mut(name, func)
         }
 
         fn as_array(&self, func: &mut dyn FnMut(Option<&dyn $crate::reflect::ReflectArray>)) {
@@ -342,11 +350,15 @@ macro_rules! blank_reflect {
             func(self)
         }
 
-        fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn $crate::reflect::Reflect>)) {
+        fn find_field(
+            &self,
+            name: &str,
+            func: &mut dyn FnMut(Option<&dyn $crate::reflect::Reflect>),
+        ) {
             func(if name == "self" { Some(self) } else { None })
         }
 
-        fn field_mut(
+        fn find_field_mut(
             &mut self,
             name: &str,
             func: &mut dyn FnMut(Option<&mut dyn $crate::reflect::Reflect>),

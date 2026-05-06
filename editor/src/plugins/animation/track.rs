@@ -868,7 +868,7 @@ impl TrackList {
                                 adder.add(values)
                             }
                         }
-                        ValueBinding::Property { name, .. } => node_ref.field(name, &mut |value| {
+                        ValueBinding::Property { name, .. } => node_ref.find_field(name, &mut |value| {
                             if let Some(value) = value {
                                 value.as_any(&mut |any| {
                                     let curves = track.data_container().curves_ref();
