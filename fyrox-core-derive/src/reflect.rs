@@ -301,7 +301,6 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
     )
 }
 
-#[allow(clippy::too_many_arguments)]
 fn gen_impl(
     ty_args: &args::TypeArgs,
     set_field: Option<TokenStream2>,
