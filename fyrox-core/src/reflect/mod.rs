@@ -157,6 +157,13 @@ pub trait Reflect: Any + Debug {
     where
         Self: Sized;
 
+    /// Returns the total number of fields.
+    fn fields_count(&self) -> usize {
+        let mut count = 0;
+        self.fields_ref(&mut |fields| count = fields.len());
+        count
+    }
+
     /// Calls user method specified with `#[reflect(setter = ..)]` or falls back to
     /// [`Reflect::find_field_mut`]
     #[allow(clippy::type_complexity)]
@@ -991,6 +998,8 @@ mod test {
         assert_eq!(names[9], "hash_map");
         assert_eq!(names[10], "hash_map[Foobar]");
         assert_eq!(names[11], "hash_map[Foobar].payload");
+
+        assert_eq!(foo.fields_count(), 5);
     }
 
     #[derive(Reflect, Clone, Debug)]
