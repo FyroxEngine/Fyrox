@@ -154,6 +154,19 @@ impl Clone for DynTypeWrapper {
     }
 }
 
+static CONTENT_METADATA: FieldMetadata = FieldMetadata {
+    name: "Content",
+    display_name: "Content",
+    tag: "",
+    read_only: false,
+    immutable_collection: false,
+    min_value: None,
+    max_value: None,
+    step: None,
+    precision: None,
+    doc: "",
+};
+
 impl Reflect for DynTypeWrapper {
     fn source_path() -> &'static str {
         file!()
@@ -185,20 +198,8 @@ impl Reflect for DynTypeWrapper {
 
     fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
         func(&[{
-            static METADATA: FieldMetadata = FieldMetadata {
-                name: "Content",
-                display_name: "Content",
-                tag: "",
-                read_only: false,
-                immutable_collection: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                doc: "",
-            };
             FieldRef {
-                metadata: &METADATA,
+                metadata: &CONTENT_METADATA,
                 value: &*self.0,
             }
         }])
@@ -206,20 +207,8 @@ impl Reflect for DynTypeWrapper {
 
     fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
         func(&mut [{
-            static METADATA: FieldMetadata = FieldMetadata {
-                name: "Content",
-                display_name: "Content",
-                tag: "",
-                read_only: false,
-                immutable_collection: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                doc: "",
-            };
             FieldMut {
-                metadata: &METADATA,
+                metadata: &CONTENT_METADATA,
                 value: &mut *self.0,
             }
         }])
@@ -252,6 +241,28 @@ impl Reflect for DynTypeWrapper {
 
     fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
         Some(Box::new(self.clone()))
+    }
+
+    fn get_field_direct_ref(&self, index: usize) -> Option<FieldRef> {
+        if index == 0 {
+            Some(FieldRef {
+                metadata: &CONTENT_METADATA,
+                value: &*self.0,
+            })
+        } else {
+            None
+        }
+    }
+
+    fn get_field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
+        if index == 0 {
+            Some(FieldMut {
+                metadata: &CONTENT_METADATA,
+                value: &mut *self.0,
+            })
+        } else {
+            None
+        }
     }
 }
 

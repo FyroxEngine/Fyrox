@@ -33,7 +33,14 @@ use syn::Index;
 
 pub fn impl_reflect(ty_args: &args::TypeArgs) -> TokenStream2 {
     if ty_args.hide_all {
-        return self::gen_impl(ty_args, None, quote!(func(&[])), quote!(func(&mut [])));
+        return self::gen_impl(
+            ty_args,
+            None,
+            quote!(func(&[])),
+            quote!(func(&mut [])),
+            quote! {None},
+            quote! {None},
+        );
     }
 
     match &ty_args.data {
@@ -65,6 +72,35 @@ pub fn gen_fields_metadata_body(
 
     quote! {
         #(#props,)*
+    }
+}
+
+pub fn gen_fields_getter_body(
+    props: &[Property],
+    field_getters: &[TokenStream2],
+    field_args: &ast::Fields<args::FieldArgs>,
+    is_mut: bool,
+) -> TokenStream2 {
+    let props = field_args
+        .fields
+        .iter()
+        .enumerate()
+        .filter(|(_i, f)| !f.hidden)
+        .zip(props.iter().zip(field_getters))
+        .map(|((i, field), (prop, field_getter))| {
+            let field_definition =
+                self::quote_field_prop(&prop.value, i, field_getter, field, is_mut);
+            quote! {
+                if reflect_argument_index == #i {
+                    return Some(#field_definition);
+                }
+            }
+        });
+
+    quote! {
+        #(#props)*
+
+        None
     }
 }
 
@@ -166,6 +202,9 @@ fn impl_reflect_struct(ty_args: &args::TypeArgs, field_args: &args::Fields) -> T
     let metadata_ref = gen_fields_metadata_body(&props, &fields, field_args, false);
     let metadata_mut = gen_fields_metadata_body(&props, &field_muts, field_args, true);
 
+    let getter_ref = gen_fields_getter_body(&props, &fields, field_args, false);
+    let getter_mut = gen_fields_getter_body(&props, &field_muts, field_args, true);
+
     let set_field_body = self::struct_set_field_body(ty_args);
     self::gen_impl(
         ty_args,
@@ -176,6 +215,8 @@ fn impl_reflect_struct(ty_args: &args::TypeArgs, field_args: &args::Fields) -> T
         quote! {
             func(&mut [#metadata_mut])
         },
+        getter_ref,
+        getter_mut,
     )
 }
 
@@ -233,8 +274,10 @@ fn struct_set_field_body(ty_args: &args::TypeArgs) -> Option<TokenStream2> {
 }
 
 fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs]) -> TokenStream2 {
-    let mut fields_ref_ref = Vec::new();
-    let mut fields_mut = Vec::new();
+    let mut fields_refs = Vec::new();
+    let mut fields_muts = Vec::new();
+    let mut getter_refs = Vec::new();
+    let mut getter_muts = Vec::new();
     for v in variant_args.iter() {
         let fields = v
             .fields
@@ -266,19 +309,30 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
         let metadata_ref = gen_fields_metadata_body(&props, &fields, &v.fields, false);
         let metadata_mut = gen_fields_metadata_body(&props, &field_muts, &v.fields, true);
 
-        fields_ref_ref.push(quote! {
+        let getter_ref = gen_fields_getter_body(&props, &fields, &v.fields, false);
+        let getter_mut = gen_fields_getter_body(&props, &field_muts, &v.fields, true);
+
+        fields_refs.push(quote! {
             #matcher => func(&[#metadata_ref]),
         });
 
-        fields_mut.push(quote! {
+        fields_muts.push(quote! {
             #matcher => func(&mut [#metadata_mut]),
+        });
+
+        getter_refs.push(quote! {
+             #matcher => { #getter_ref },
+        });
+
+        getter_muts.push(quote! {
+             #matcher => { #getter_mut },
         });
     }
 
     let fields_metadata_ref_body = quote! {
         match self {
             #(
-                #fields_ref_ref
+                #fields_refs
             )*
             _ => func(&[])
         }
@@ -287,9 +341,27 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
     let fields_metadata_mut_body = quote! {
         match self {
             #(
-                #fields_mut
+                #fields_muts
             )*
             _ => func(&mut [])
+        }
+    };
+
+    let fields_getter_ref_body = quote! {
+        match self {
+            #(
+                #getter_refs
+            )*
+            _ => None
+        }
+    };
+
+    let fields_getter_mut_body = quote! {
+        match self {
+            #(
+                #getter_muts
+            )*
+            _ => None
         }
     };
 
@@ -298,6 +370,8 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
         None,
         fields_metadata_ref_body,
         fields_metadata_mut_body,
+        fields_getter_ref_body,
+        fields_getter_mut_body,
     )
 }
 
@@ -306,6 +380,8 @@ fn gen_impl(
     set_field: Option<TokenStream2>,
     metadata_ref: TokenStream2,
     metadata_mut: TokenStream2,
+    getter_ref: TokenStream2,
+    getter_mut: TokenStream2,
 ) -> TokenStream2 {
     let ty_ident = &ty_args.ident;
     let generics = ty_args.impl_generics();
@@ -404,6 +480,14 @@ fn gen_impl(
                 };
                 let this = std::mem::replace(self, value);
                 Ok(Box::new(this))
+            }
+
+            fn get_field_direct_ref(&self, reflect_argument_index: usize) -> Option<FieldRef> {
+                #getter_ref
+            }
+
+            fn get_field_direct_mut(&mut self, reflect_argument_index: usize) -> Option<FieldMut> {
+                #getter_mut
             }
 
             #set_field

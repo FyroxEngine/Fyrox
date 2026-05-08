@@ -542,6 +542,14 @@ where
     ) {
         func(Some(self))
     }
+
+    fn get_field_direct_ref(&self, index: usize) -> Option<FieldRef> {
+        self.value.get_field_direct_ref(index)
+    }
+
+    fn get_field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
+        self.value.get_field_direct_mut(index)
+    }
 }
 
 impl<T> ReflectInheritableVariable for InheritableVariable<T>

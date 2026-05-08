@@ -157,6 +157,26 @@ pub trait Reflect: Any + Debug {
     where
         Self: Sized;
 
+    /// Tries to get a shared reference to a field at the specified index. Returns [`None`] in two cases:
+    /// 1) The type does not have such field
+    /// 2) The type uses interior mutability. This case is special - pretty much every type with
+    ///    interior mutability (Mutex, RefCell, etc.) requires holding some sort of lock guard
+    ///    while the giving access to its content. This method returns the field reference directly,
+    ///    but returning a lock guard would require boxing which in most cases would ruin performance.
+    ///    If you need to get a field reference for types with interior mutability, then use
+    ///    [`Reflect::fields_ref`] instead.
+    fn get_field_direct_ref(&self, index: usize) -> Option<FieldRef>;
+
+    /// Tries to get a mutable reference to a field at the specified index. Returns [`None`] in two cases:
+    /// 1) The type does not have such field
+    /// 2) The type uses interior mutability. This case is special - pretty much every type with
+    ///    interior mutability (Mutex, RefCell, etc.) requires holding some sort of lock guard
+    ///    while the giving access to its content. This method returns the field reference directly,
+    ///    but returning a lock guard would require boxing which in most cases would ruin performance.
+    ///    If you need to get a field reference for types with interior mutability, then use
+    ///    [`Reflect::fields_ref`] instead.
+    fn get_field_direct_mut(&mut self, index: usize) -> Option<FieldMut>;
+
     /// Returns the total number of fields.
     fn fields_count(&self) -> usize {
         let mut count = 0;

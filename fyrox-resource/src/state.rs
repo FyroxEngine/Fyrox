@@ -161,6 +161,14 @@ impl Reflect for ResourceDataWrapper {
         env!("CARGO_PKG_NAME")
     }
 
+    fn get_field_direct_ref(&self, index: usize) -> Option<FieldRef<'_, '_>> {
+        self.deref().get_field_direct_ref(index)
+    }
+
+    fn get_field_direct_mut(&mut self, index: usize) -> Option<FieldMut<'_, '_>> {
+        self.deref_mut().get_field_direct_mut(index)
+    }
+
     fn set_field(
         &mut self,
         field: &str,

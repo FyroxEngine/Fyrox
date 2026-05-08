@@ -1814,6 +1814,14 @@ mod test {
         fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
             Some(Box::new(self.clone()))
         }
+
+        fn get_field_direct_ref(&self, index: usize) -> Option<FieldRef<'_, '_>> {
+            self.0.deref().get_field_direct_ref(index)
+        }
+
+        fn get_field_direct_mut(&mut self, index: usize) -> Option<FieldMut<'_, '_>> {
+            self.0.deref_mut().get_field_direct_mut(index)
+        }
     }
 
     impl NameProvider for Node {

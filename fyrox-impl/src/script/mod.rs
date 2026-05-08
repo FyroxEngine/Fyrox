@@ -811,6 +811,14 @@ impl Reflect for Script {
     fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
         Some(Box::new(self.clone()))
     }
+
+    fn get_field_direct_ref(&self, index: usize) -> Option<FieldRef> {
+        self.instance.deref().get_field_direct_ref(index)
+    }
+
+    fn get_field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
+        self.instance.deref_mut().get_field_direct_mut(index)
+    }
 }
 
 impl Deref for Script {

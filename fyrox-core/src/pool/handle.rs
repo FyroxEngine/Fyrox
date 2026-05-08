@@ -212,6 +212,38 @@ impl<T: Reflect> Reflect for Handle<T> {
     fn as_handle_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectHandle>)) {
         func(Some(self))
     }
+
+    fn get_field_direct_ref(&self, index: usize) -> Option<FieldRef> {
+        if index == 0 {
+            Some(FieldRef {
+                metadata: &INDEX_METADATA,
+                value: &self.index,
+            })
+        } else if index == 1 {
+            Some(FieldRef {
+                metadata: &GENERATION_METADATA,
+                value: &self.generation,
+            })
+        } else {
+            None
+        }
+    }
+
+    fn get_field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
+        if index == 0 {
+            Some(FieldMut {
+                metadata: &INDEX_METADATA,
+                value: &mut self.index,
+            })
+        } else if index == 1 {
+            Some(FieldMut {
+                metadata: &GENERATION_METADATA,
+                value: &mut self.generation,
+            })
+        } else {
+            None
+        }
+    }
 }
 
 impl<T> Copy for Handle<T> {}

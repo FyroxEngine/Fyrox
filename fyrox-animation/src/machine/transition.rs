@@ -27,13 +27,12 @@ use crate::{
 };
 use fyrox_core::uuid::{uuid, Uuid};
 use fyrox_core::{NameProvider, TypeUuidProvider};
-use std::any::{type_name, Any, TypeId};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 macro_rules! define_two_args_node {
     ($(#[$meta:meta])* $name:ident) => {
         $(#[$meta])*
-        #[derive(Debug, Clone, PartialEq)]
+        #[derive(Debug, Clone, PartialEq, Reflect, Visit)]
         pub struct $name <T:EntityId> {
             /// Left argument.
             pub lhs: Box<LogicNode<T>>,
@@ -47,164 +46,6 @@ macro_rules! define_two_args_node {
                     lhs: Box::new(LogicNode::Parameter(Default::default())),
                     rhs: Box::new(LogicNode::Parameter(Default::default())),
                 }
-            }
-        }
-
-        impl<T:EntityId> Visit for $name<T> {
-            fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-                let mut guard = visitor.enter_region(name)?;
-
-                self.lhs.visit("Lhs", &mut guard)?;
-                self.rhs.visit("Rhs", &mut guard)?;
-
-                Ok(())
-            }
-        }
-
-        impl<T:EntityId> Reflect for $name<T> {
-            fn source_path() -> &'static str {
-                file!()
-            }
-
-            fn derived_types() -> &'static [TypeId] {
-                &[]
-            }
-
-            fn query_derived_types(&self) -> &'static [TypeId] {
-                Self::derived_types()
-            }
-
-            fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
-                Some(Box::new(self.clone()))
-            }
-
-            fn type_name(&self) -> &'static str {
-                type_name::<Self>()
-            }
-
-            fn doc(&self) -> &'static str {
-                ""
-            }
-
-            fn assembly_name(&self) -> &'static str {
-                env!("CARGO_PKG_NAME")
-            }
-
-            fn type_assembly_name() -> &'static str {
-                env!("CARGO_PKG_NAME")
-            }
-
-            fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
-                func(&[
-                    {
-                        static METADATA: FieldMetadata = FieldMetadata {
-                            name: "Lhs",
-                            display_name: "Lhs",
-                            tag: "",
-                            read_only: false,
-                            immutable_collection: false,
-                            min_value: None,
-                            max_value: None,
-                            step: None,
-                            precision: None,
-                            doc: "",
-                        };
-
-                        FieldRef {
-                            metadata: &METADATA,
-                            value: &*self.lhs,
-                        }
-                    },
-                    {
-                        static METADATA: FieldMetadata = FieldMetadata {
-                            name: "Rhs",
-                            display_name: "Rhs",
-                            tag: "",
-                            read_only: false,
-                            immutable_collection: false,
-                            min_value: None,
-                            max_value: None,
-                            step: None,
-                            precision: None,doc: "",
-                        };
-
-                        FieldRef {
-                            metadata: &METADATA,
-                            value: &*self.rhs,
-                        }
-                    },
-                ])
-            }
-
-            fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
-                func(&mut [
-                    {
-                        static METADATA: FieldMetadata = FieldMetadata {
-                            name: "Lhs",
-                            display_name: "Lhs",
-                            tag: "",
-                            read_only: false,
-                            immutable_collection: false,
-                            min_value: None,
-                            max_value: None,
-                            step: None,
-                            precision: None,
-                            doc: "",
-                        };
-
-                        FieldMut {
-                            metadata: &METADATA,
-                            value: &mut *self.lhs,
-                        }
-                    },
-                    {
-                        static METADATA: FieldMetadata = FieldMetadata {
-                            name: "Rhs",
-                            display_name: "Rhs",
-                            tag: "",
-                            read_only: false,
-                            immutable_collection: false,
-                            min_value: None,
-                            max_value: None,
-                            step: None,
-                            precision: None,doc: "",
-                        };
-
-                        FieldMut {
-                            metadata: &METADATA,
-                            value: &mut *self.rhs,
-                        }
-                    },
-                ])
-            }
-
-
-            fn into_any(self: Box<Self>) -> Box<dyn Any> {
-                self
-            }
-
-            fn as_any(&self, func: &mut dyn FnMut(&dyn ::core::any::Any)) {
-                func(self)
-            }
-
-            fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn ::core::any::Any)) {
-                func(self)
-            }
-
-            fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
-                func(self)
-            }
-
-            fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
-                func(self)
-            }
-
-            fn set(
-                &mut self,
-                value: Box<dyn Reflect>,
-            ) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
-                let this = std::mem::replace(self, value.take()?);
-                Ok(Box::new(this))
             }
         }
     };
@@ -224,7 +65,7 @@ define_two_args_node!(
 );
 
 /// Calculates logical NOT of an argument. Output value will be `true` if the value of the argument is `false`.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Reflect, Visit)]
 pub struct NotNode<T: EntityId> {
     /// Argument to be negated.
     pub lhs: Box<LogicNode<T>>,
@@ -235,119 +76,6 @@ impl<T: EntityId> Default for NotNode<T> {
         Self {
             lhs: Box::new(LogicNode::Parameter(Default::default())),
         }
-    }
-}
-
-impl<T: EntityId> Visit for NotNode<T> {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut guard = visitor.enter_region(name)?;
-
-        self.lhs.visit("Lhs", &mut guard)?;
-
-        Ok(())
-    }
-}
-
-impl<T: EntityId> Reflect for NotNode<T> {
-    fn source_path() -> &'static str {
-        file!()
-    }
-
-    fn derived_types() -> &'static [TypeId] {
-        &[]
-    }
-
-    fn query_derived_types(&self) -> &'static [TypeId] {
-        Self::derived_types()
-    }
-
-    fn type_name(&self) -> &'static str {
-        type_name::<Self>()
-    }
-
-    fn doc(&self) -> &'static str {
-        ""
-    }
-
-    fn assembly_name(&self) -> &'static str {
-        env!("CARGO_PKG_NAME")
-    }
-
-    fn type_assembly_name() -> &'static str {
-        env!("CARGO_PKG_NAME")
-    }
-
-    fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
-        func(&[{
-            static METADATA: FieldMetadata = FieldMetadata {
-                name: "Lhs",
-                display_name: "Lhs",
-                tag: "",
-                read_only: false,
-                immutable_collection: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                doc: "",
-            };
-
-            FieldRef {
-                metadata: &METADATA,
-                value: &*self.lhs,
-            }
-        }])
-    }
-
-    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
-        func(&mut [{
-            static METADATA: FieldMetadata = FieldMetadata {
-                name: "Lhs",
-                display_name: "Lhs",
-                tag: "",
-                read_only: false,
-                immutable_collection: false,
-                min_value: None,
-                max_value: None,
-                step: None,
-                precision: None,
-                doc: "",
-            };
-
-            FieldMut {
-                metadata: &METADATA,
-                value: &mut *self.lhs,
-            }
-        }])
-    }
-
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
-
-    fn as_any(&self, func: &mut dyn FnMut(&dyn ::core::any::Any)) {
-        func(self)
-    }
-
-    fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn ::core::any::Any)) {
-        func(self)
-    }
-
-    fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
-        func(self)
-    }
-
-    fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
-        func(self)
-    }
-
-    fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
-        let this = std::mem::replace(self, value.take()?);
-        Ok(Box::new(this))
-    }
-
-    fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
-        Some(Box::new(self.clone()))
     }
 }
 
