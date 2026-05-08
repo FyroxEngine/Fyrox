@@ -347,6 +347,28 @@ impl dyn Reflect {
         None
     }
 
+    /// Tries to downcast self to the specified type, or if it is not possible, tries to find a
+    /// field of the specified type.
+    pub fn self_or_field_ref_of_type<T: Reflect>(&self) -> Option<&T> {
+        if let Some(value) = (self as &dyn Any).downcast_ref::<T>() {
+            Some(value)
+        } else {
+            self.first_field_ref_of_type()
+        }
+    }
+
+    /// Tries to downcast self to the specified type, or if it is not possible, tries to find a
+    /// field of the specified type.
+    pub fn self_or_field_mut_of_type<T: Reflect>(&mut self) -> Option<&mut T> {
+        // SAFETY: See the comment in `first_field_mut_of_type` method.
+        let this = unsafe { &mut *(self as *mut Self) };
+        if let Some(value) = (self as &mut dyn Any).downcast_mut::<T>() {
+            Some(value)
+        } else {
+            this.first_field_mut_of_type()
+        }
+    }
+
     /// Sets a field by its path in the given entity. This method always uses [`Reflect::set_field`] which means,
     /// that it will always call custom property setters.
     #[inline]
