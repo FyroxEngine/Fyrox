@@ -226,11 +226,11 @@ where
         env!("CARGO_PKG_NAME")
     }
 
-    fn get_field_direct_ref(&self, _index: usize) -> Option<FieldRef> {
+    fn field_direct_ref(&self, _index: usize) -> Option<FieldRef> {
         None
     }
 
-    fn get_field_direct_mut(&mut self, _index: usize) -> Option<FieldMut> {
+    fn field_direct_mut(&mut self, _index: usize) -> Option<FieldMut> {
         None
     }
 

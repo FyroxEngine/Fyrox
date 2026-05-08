@@ -210,13 +210,13 @@ macro_rules! impl_reflect_inner_mutability {
             guard.set(value)
         }
 
-        fn get_field_direct_ref(&self, index: usize) -> Option<FieldRef> {
+        fn field_direct_ref(&self, index: usize) -> Option<FieldRef> {
             warn!("Cannot get a direct field ref {index}, because it is \
                 not supported for types with interior mutability.");
             None
         }
 
-        fn get_field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
+        fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
             warn!("Cannot get a direct field ref {index}, because it is \
                 not supported for types with interior mutability.");
             None

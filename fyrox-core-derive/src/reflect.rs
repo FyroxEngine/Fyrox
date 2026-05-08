@@ -482,11 +482,11 @@ fn gen_impl(
                 Ok(Box::new(this))
             }
 
-            fn get_field_direct_ref(&self, reflect_argument_index: usize) -> Option<FieldRef> {
+            fn field_direct_ref(&self, reflect_argument_index: usize) -> Option<FieldRef> {
                 #getter_ref
             }
 
-            fn get_field_direct_mut(&mut self, reflect_argument_index: usize) -> Option<FieldMut> {
+            fn field_direct_mut(&mut self, reflect_argument_index: usize) -> Option<FieldMut> {
                 #getter_mut
             }
 

@@ -812,12 +812,12 @@ impl Reflect for Script {
         Some(Box::new(self.clone()))
     }
 
-    fn get_field_direct_ref(&self, index: usize) -> Option<FieldRef> {
-        self.instance.deref().get_field_direct_ref(index)
+    fn field_direct_ref(&self, index: usize) -> Option<FieldRef> {
+        self.instance.deref().field_direct_ref(index)
     }
 
-    fn get_field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
-        self.instance.deref_mut().get_field_direct_mut(index)
+    fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
+        self.instance.deref_mut().field_direct_mut(index)
     }
 }
 

@@ -243,7 +243,7 @@ impl Reflect for DynTypeWrapper {
         Some(Box::new(self.clone()))
     }
 
-    fn get_field_direct_ref(&self, index: usize) -> Option<FieldRef> {
+    fn field_direct_ref(&self, index: usize) -> Option<FieldRef> {
         if index == 0 {
             Some(FieldRef {
                 metadata: &CONTENT_METADATA,
@@ -254,7 +254,7 @@ impl Reflect for DynTypeWrapper {
         }
     }
 
-    fn get_field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
+    fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
         if index == 0 {
             Some(FieldMut {
                 metadata: &CONTENT_METADATA,

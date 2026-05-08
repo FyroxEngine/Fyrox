@@ -200,12 +200,12 @@ macro_rules! delegate_reflect {
             self.deref_mut().as_reflect_mut(func)
         }
 
-        fn get_field_direct_ref(&self, index: usize) -> Option<FieldRef> {
-            self.deref().get_field_direct_ref(index)
+        fn field_direct_ref(&self, index: usize) -> Option<FieldRef> {
+            self.deref().field_direct_ref(index)
         }
 
-        fn get_field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
-            self.deref_mut().get_field_direct_mut(index)
+        fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
+            self.deref_mut().field_direct_mut(index)
         }
 
         fn set(
@@ -374,11 +374,11 @@ macro_rules! blank_reflect {
             func(if name == "self" { Some(self) } else { None })
         }
 
-        fn get_field_direct_ref(&self, _index: usize) -> Option<$crate::reflect::FieldRef> {
+        fn field_direct_ref(&self, _index: usize) -> Option<$crate::reflect::FieldRef> {
             None
         }
 
-        fn get_field_direct_mut(&mut self, _index: usize) -> Option<$crate::reflect::FieldMut> {
+        fn field_direct_mut(&mut self, _index: usize) -> Option<$crate::reflect::FieldMut> {
             None
         }
 

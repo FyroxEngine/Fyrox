@@ -165,7 +165,7 @@ pub trait Reflect: Any + Debug {
     ///    but returning a lock guard would require boxing which in most cases would ruin performance.
     ///    If you need to get a field reference for types with interior mutability, then use
     ///    [`Reflect::fields_ref`] instead.
-    fn get_field_direct_ref(&self, index: usize) -> Option<FieldRef>;
+    fn field_direct_ref(&self, index: usize) -> Option<FieldRef>;
 
     /// Tries to get a mutable reference to a field at the specified index. Returns [`None`] in two cases:
     /// 1) The type does not have such field
@@ -175,7 +175,7 @@ pub trait Reflect: Any + Debug {
     ///    but returning a lock guard would require boxing which in most cases would ruin performance.
     ///    If you need to get a field reference for types with interior mutability, then use
     ///    [`Reflect::fields_ref`] instead.
-    fn get_field_direct_mut(&mut self, index: usize) -> Option<FieldMut>;
+    fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut>;
 
     /// Returns the total number of fields.
     fn fields_count(&self) -> usize {
@@ -305,6 +305,46 @@ impl dyn Reflect {
     #[inline]
     pub fn downcast_mut<T: Reflect>(&mut self, func: &mut dyn FnMut(Option<&mut T>)) {
         self.as_any_mut(&mut |any| func(any.downcast_mut::<T>()))
+    }
+
+    /// Tries to find the first field of the given type. This method internally uses
+    /// [`Reflect::field_direct_ref`] with all of its limitations.
+    #[inline]
+    pub fn first_field_ref_of_type<T: Reflect>(&self) -> Option<&T> {
+        let count = self.fields_count();
+
+        for i in 0..count {
+            if let Some(field) = self.field_direct_ref(i) {
+                if let Some(typed_field) = (field.value as &dyn Any).downcast_ref::<T>() {
+                    return Some(typed_field);
+                }
+            }
+        }
+
+        None
+    }
+
+    /// Tries to find the first field of the given type. This method internally uses
+    /// [`Reflect::field_direct_ref`] with all of its limitations.
+    #[inline]
+    pub fn first_field_mut_of_type<T: Reflect>(&mut self) -> Option<&mut T> {
+        let count = self.fields_count();
+
+        for i in 0..count {
+            // SAFETY: Current implementation of borrow checker is just dumb. When a reborrow of self
+            // happens in every iteration of the loop, it assigns a new lifetime to the new reference.
+            // This way the returned reference has a different lifetime than in the method definition.
+            // The following unsafe block reborrows self with the correct lifetime, while the initial
+            // reference is not used so this is absolutely safe.
+            let this = unsafe { &mut *(self as *mut Self) };
+            if let Some(field) = this.field_direct_mut(i) {
+                if let Some(typed_field) = (field.value as &mut dyn Any).downcast_mut::<T>() {
+                    return Some(typed_field);
+                }
+            }
+        }
+
+        None
     }
 
     /// Sets a field by its path in the given entity. This method always uses [`Reflect::set_field`] which means,
@@ -983,10 +1023,12 @@ mod test {
 
     #[test]
     fn enumerate_fields_recursively() {
+        let baz = 123.321;
+
         let foo = Foo {
             enum_field: Enum::Stuff { field: 123 }.into(),
             bar: Default::default(),
-            baz: 0.0,
+            baz,
             collection: vec![Item::default()],
             hash_map: [("Foobar".to_string(), Item::default())].into(),
         };
@@ -1020,6 +1062,13 @@ mod test {
         assert_eq!(names[11], "hash_map[Foobar].payload");
 
         assert_eq!(foo.fields_count(), 5);
+
+        assert_eq!(
+            (&foo as &dyn Reflect)
+                .first_field_ref_of_type::<f32>()
+                .unwrap(),
+            &baz
+        );
     }
 
     #[derive(Reflect, Clone, Debug)]

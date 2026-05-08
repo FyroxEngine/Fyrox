@@ -213,7 +213,7 @@ impl<T: Reflect> Reflect for Handle<T> {
         func(Some(self))
     }
 
-    fn get_field_direct_ref(&self, index: usize) -> Option<FieldRef> {
+    fn field_direct_ref(&self, index: usize) -> Option<FieldRef> {
         if index == 0 {
             Some(FieldRef {
                 metadata: &INDEX_METADATA,
@@ -229,7 +229,7 @@ impl<T: Reflect> Reflect for Handle<T> {
         }
     }
 
-    fn get_field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
+    fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
         if index == 0 {
             Some(FieldMut {
                 metadata: &INDEX_METADATA,
