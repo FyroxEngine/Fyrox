@@ -315,10 +315,10 @@ impl dyn Reflect {
     /// [`Reflect::field_direct_ref`] with all of its limitations.
     #[inline]
     pub fn first_field_ref_of_type<T: Reflect>(&self) -> Option<&T> {
-        let count = self.fields_count();
+        let count = self.as_reflect_direct().fields_count();
 
         for i in 0..count {
-            if let Some(field) = self.field_direct_ref(i) {
+            if let Some(field) = self.as_reflect_direct().field_direct_ref(i) {
                 if let Some(typed_field) = (field.value as &dyn Any).downcast_ref::<T>() {
                     return Some(typed_field);
                 }
@@ -332,7 +332,7 @@ impl dyn Reflect {
     /// [`Reflect::field_direct_ref`] with all of its limitations.
     #[inline]
     pub fn first_field_mut_of_type<T: Reflect>(&mut self) -> Option<&mut T> {
-        let count = self.fields_count();
+        let count = self.as_reflect_direct().fields_count();
 
         for i in 0..count {
             // SAFETY: Current implementation of borrow checker is just dumb. When a reborrow of self
@@ -340,7 +340,7 @@ impl dyn Reflect {
             // This way the returned reference has a different lifetime than in the method definition.
             // The following unsafe block reborrows self with the correct lifetime, while the initial
             // reference is not used so this is absolutely safe.
-            let this = unsafe { &mut *(self as *mut Self) };
+            let this = unsafe { &mut *(self as *mut Self) }.as_reflect_mut_direct();
             if let Some(field) = this.field_direct_mut(i) {
                 if let Some(typed_field) = (field.value as &mut dyn Any).downcast_mut::<T>() {
                     return Some(typed_field);
