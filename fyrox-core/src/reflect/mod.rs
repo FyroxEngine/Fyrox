@@ -70,6 +70,16 @@ pub mod prelude {
 /// - `#[reflect(derived_type = "Type")]` - marks the type for which the attribute is added as a
 /// subtype for the `Type`.
 ///
+/// ### Direct vs Indirect Access
+///
+/// There are two kinds of methods that can be used to access internals of an object. The preferred
+/// one is called indirect - such methods accepts a closure that will be called by the method. These
+/// methods support types with interior mutability (Mutex, RefCell, etc.), but cannot give you a
+/// direct reference outside the provided closure. This is essential limitation to support types with
+/// interior mutability (for example, mutex requires holding some sort of a lock guard while accessing
+/// its content). Indirect access can be quite annoying to use, and it is possible to get direct
+/// access to the fields by the price of not supporting types with interior mutability.
+///
 /// ### Field attributes
 ///
 /// - `#[reflect(hidden)]` - hides the field from reflection.
