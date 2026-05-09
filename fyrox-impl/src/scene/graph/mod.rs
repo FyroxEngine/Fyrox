@@ -78,7 +78,7 @@ use bitflags::bitflags;
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_material::MaterialResourceExtension;
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     fmt::{Debug, Display, Formatter, Write},
     ops::{Deref, Index, IndexMut},
     sync::mpsc::{channel, Receiver, Sender},
@@ -1915,7 +1915,7 @@ impl Graph {
         handle: Handle<impl ObjectOrVariant<Node>>,
     ) -> Result<&C, GraphError>
     where
-        C: Any,
+        C: Reflect,
     {
         let handle = handle.to_base();
         let node = self.try_get_node(handle)?;
@@ -1935,7 +1935,7 @@ impl Graph {
         handle: Handle<impl ObjectOrVariant<Node>>,
     ) -> Result<&mut C, GraphError>
     where
-        C: Any,
+        C: Reflect,
     {
         let handle = handle.to_base();
         let node = self.try_get_node_mut(handle)?;
@@ -2242,7 +2242,7 @@ mod test {
     use fyrox_resource::untyped::ResourceKind;
     use std::{fs, path::Path, sync::Arc};
 
-    #[derive(Clone, Debug, PartialEq, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+    #[derive(Clone, Debug, PartialEq, Reflect, Visit, TypeUuidProvider)]
     #[type_uuid(id = "722feb80-a10b-4ee0-8cef-5d1473df8457")]
     struct MyScript {
         foo: String,
@@ -2251,7 +2251,7 @@ mod test {
 
     impl ScriptTrait for MyScript {}
 
-    #[derive(Clone, Debug, PartialEq, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+    #[derive(Clone, Debug, PartialEq, Reflect, Visit, TypeUuidProvider)]
     #[type_uuid(id = "722feb80-a10b-4ee0-8cef-5d1473df8458")]
     struct MyOtherScript {
         baz: u32,

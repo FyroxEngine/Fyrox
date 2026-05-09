@@ -36,10 +36,9 @@ use fyrox_core::{
     pool::Handle,
     reflect::prelude::*,
     variable::{self, InheritableVariable},
-    ComponentProvider, NameProvider, Uuid,
+    NameProvider, Uuid,
 };
 use fyrox_resource::{untyped::UntypedResource, Resource, TypedResourceData};
-use std::any::Any;
 use std::cmp::Ordering;
 use std::fmt::{Debug, Formatter};
 use std::{
@@ -468,7 +467,7 @@ fn reset_property_modified_flag(entity: &mut dyn Reflect, path: &str) {
     })
 }
 
-pub trait SceneGraphNode: ComponentProvider + Reflect + NameProvider + Clone + 'static {
+pub trait SceneGraphNode: Reflect + NameProvider + Clone + 'static {
     type Base: Clone;
     type SceneGraph: SceneGraph<Node = Self>;
     type ResourceData: PrefabData<Graph = Self::SceneGraph>;
@@ -630,21 +629,19 @@ pub trait SceneGraphNode: ComponentProvider + Reflect + NameProvider + Clone + '
 
     /// Tries to borrow a component of given type.
     #[inline]
-    fn component_ref<T: Any>(&self) -> Option<&T> {
-        ComponentProvider::query_component_ref(self, TypeId::of::<T>())
-            .and_then(|c| c.downcast_ref())
+    fn component_ref<T: Reflect>(&self) -> Option<&T> {
+        (self as &dyn Reflect).self_or_field_ref_of_type::<T>()
     }
 
     /// Tries to borrow a component of given type.
     #[inline]
-    fn component_mut<T: Any>(&mut self) -> Option<&mut T> {
-        ComponentProvider::query_component_mut(self, TypeId::of::<T>())
-            .and_then(|c| c.downcast_mut())
+    fn component_mut<T: Reflect>(&mut self) -> Option<&mut T> {
+        (self as &mut dyn Reflect).self_or_field_mut_of_type::<T>()
     }
 
     /// Checks if the node has a component of given type.
     #[inline]
-    fn has_component<T: Any>(&self) -> bool {
+    fn has_component<T: Reflect>(&self) -> bool {
         self.component_ref::<T>().is_some()
     }
 }
@@ -885,34 +882,26 @@ pub trait SceneGraph: 'static {
     #[inline]
     fn try_get_of_type<T>(&self, handle: Handle<Self::Node>) -> Result<&T, PoolError>
     where
-        T: 'static,
+        T: Reflect,
     {
-        self.try_get_node(handle)
-            .and_then(|n| {
-                n.query_component_ref(TypeId::of::<T>())
-                    .ok_or(PoolError::NoSuchComponent(handle.into()))
-            })
-            .and_then(|c| {
-                c.downcast_ref()
-                    .ok_or(PoolError::InvalidType(handle.into()))
-            })
+        self.try_get_node(handle).and_then(|n| {
+            (n as &dyn Reflect)
+                .self_or_field_ref_of_type()
+                .ok_or(PoolError::NoSuchComponent(handle.into()))
+        })
     }
 
     /// Tries to mutably borrow a node and fetch its component of specified type.
     #[inline]
     fn try_get_mut_of_type<T>(&mut self, handle: Handle<Self::Node>) -> Result<&mut T, PoolError>
     where
-        T: 'static,
+        T: Reflect,
     {
-        self.try_get_node_mut(handle)
-            .and_then(|n| {
-                n.query_component_mut(TypeId::of::<T>())
-                    .ok_or(PoolError::NoSuchComponent(handle.into()))
-            })
-            .and_then(|c| {
-                c.downcast_mut()
-                    .ok_or(PoolError::InvalidType(handle.into()))
-            })
+        self.try_get_node_mut(handle).and_then(|n| {
+            (n as &mut dyn Reflect)
+                .self_or_field_mut_of_type()
+                .ok_or(PoolError::NoSuchComponent(handle.into()))
+        })
     }
 
     /// Tries to borrow a node by the given handle and checks if it has a component of the specified
@@ -920,7 +909,7 @@ pub trait SceneGraph: 'static {
     #[inline]
     fn has_component<T>(&self, handle: Handle<impl ObjectOrVariant<Self::Node>>) -> bool
     where
-        T: 'static,
+        T: Reflect,
     {
         self.try_get_of_type::<T>(handle.to_base()).is_ok()
     }
@@ -990,12 +979,11 @@ pub trait SceneGraph: 'static {
         node_handle: Handle<impl ObjectOrVariant<Self::Node>>,
     ) -> Option<(Handle<Self::Node>, &T)>
     where
-        T: 'static,
+        T: Reflect,
     {
         self.find_up_map(node_handle, &mut |node| {
-            node.query_component_ref(TypeId::of::<T>())
+            (node as &dyn Reflect).self_or_field_ref_of_type::<T>()
         })
-        .and_then(|(handle, c)| c.downcast_ref::<T>().map(|typed| (handle, typed)))
     }
 
     #[inline]
@@ -1004,12 +992,11 @@ pub trait SceneGraph: 'static {
         node_handle: Handle<impl ObjectOrVariant<Self::Node>>,
     ) -> Option<(Handle<Self::Node>, &T)>
     where
-        T: 'static,
+        T: Reflect,
     {
         self.find_map(node_handle, &mut |node| {
-            node.query_component_ref(TypeId::of::<T>())
+            (node as &dyn Reflect).self_or_field_ref_of_type::<T>()
         })
-        .and_then(|(handle, c)| c.downcast_ref::<T>().map(|typed| (handle, typed)))
     }
 
     /// Searches for a node up the tree starting from the specified node using the specified closure. Returns a tuple
@@ -1699,7 +1686,7 @@ mod test {
 
     define_as_any_trait!(NodeAsAny => NodeTrait);
 
-    pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + ComponentProvider + NodeAsAny {}
+    pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + NodeAsAny {}
 
     // Essentially implements ObjectOrVariant for NodeTrait types.
     // See ObjectOrVariantHelper for the cause of the indirection.
@@ -1712,7 +1699,7 @@ mod test {
         }
     }
 
-    #[derive(ComponentProvider, Debug)]
+    #[derive(Debug)]
     pub struct Node(Box<dyn NodeTrait>);
 
     impl Clone for Node {
@@ -1821,6 +1808,18 @@ mod test {
 
         fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut<'_, '_>> {
             self.0.deref_mut().field_direct_mut(index)
+        }
+
+        fn fields_count(&self) -> usize {
+            self.0.fields_count()
+        }
+
+        fn as_reflect_direct(&self) -> &dyn Reflect {
+            self.0.as_reflect_direct()
+        }
+
+        fn as_reflect_mut_direct(&mut self) -> &mut dyn Reflect {
+            self.0.as_reflect_mut_direct()
         }
     }
 
@@ -2185,7 +2184,7 @@ mod test {
         }
     }
 
-    #[derive(Clone, Reflect, Visit, Default, Debug, ComponentProvider)]
+    #[derive(Clone, Reflect, Visit, Default, Debug)]
     #[reflect(derived_type = "Node")]
     pub struct Pivot {
         base: Base,
@@ -2207,7 +2206,7 @@ mod test {
         }
     }
 
-    #[derive(Clone, Reflect, Visit, Default, Debug, ComponentProvider)]
+    #[derive(Clone, Reflect, Visit, Default, Debug)]
     #[reflect(derived_type = "Node")]
     pub struct RigidBody {
         base: Base,
@@ -2229,7 +2228,7 @@ mod test {
         }
     }
 
-    #[derive(Clone, Reflect, Visit, Default, Debug, ComponentProvider)]
+    #[derive(Clone, Reflect, Visit, Default, Debug)]
     #[reflect(derived_type = "Node")]
     pub struct Joint {
         base: Base,
@@ -2266,6 +2265,8 @@ mod test {
         graph.link_nodes(b, root);
         graph.link_nodes(c, root);
         graph.link_nodes(d, root);
+
+        assert!(graph.try_get_of_type::<Pivot>(a).is_ok());
 
         let root_ref = &mut graph[root];
         assert_eq!(root_ref.set_child_position(a, 0), Some(0));

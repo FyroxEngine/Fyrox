@@ -46,7 +46,6 @@ use fyrox_core::pool::ObjectOrVariant;
 use fyrox_core::visitor::error::VisitError;
 use serde::{Deserialize, Serialize};
 use std::{
-    any::Any,
     cell::Cell,
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
@@ -1000,7 +999,7 @@ impl Base {
     #[inline]
     pub fn try_get_script_component<C>(&self) -> Option<&C>
     where
-        C: Any,
+        C: Reflect,
     {
         self.scripts
             .iter()
@@ -1013,7 +1012,7 @@ impl Base {
     #[inline]
     pub fn try_get_script_component_mut<C>(&mut self) -> Option<&mut C>
     where
-        C: Any,
+        C: Reflect,
     {
         self.scripts
             .iter_mut()

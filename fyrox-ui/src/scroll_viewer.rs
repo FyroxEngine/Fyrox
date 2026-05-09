@@ -26,8 +26,7 @@
 
 use crate::{
     core::{
-        algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        uuid_provider, visitor::prelude::*,
+        algebra::Vector2, pool::Handle, reflect::prelude::*, uuid_provider, visitor::prelude::*,
     },
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
@@ -169,7 +168,7 @@ impl ScrollViewerMessage {
 ///     ui.send(scroll_viewer, ScrollViewerMessage::BringIntoView(child))
 /// }
 /// ```
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct ScrollViewer {
     /// Base widget of the scroll viewer.

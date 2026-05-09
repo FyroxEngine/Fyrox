@@ -161,7 +161,7 @@ struct DragContext {
     entity: DragEntity,
 }
 
-#[derive(Clone, Visit, Reflect, ComponentProvider)]
+#[derive(Clone, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct Ruler {
     widget: Widget,

@@ -72,7 +72,7 @@ pub enum ScriptPropertyEditorMessage {
 }
 impl MessageData for ScriptPropertyEditorMessage {}
 
-#[derive(Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Clone, Debug, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct ScriptPropertyEditor {
     widget: Widget,

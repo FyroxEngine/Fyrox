@@ -42,7 +42,6 @@ use crate::{
 };
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::SceneGraph;
-use std::any::{Any, TypeId};
 use std::ops::{Deref, DerefMut};
 
 /// Scene specific root motion settings.
@@ -139,7 +138,6 @@ impl LayerMaskExt for LayerMask {
 
 type MachineType = InheritableVariable<Machine>;
 type AnimationPlayerHandle = InheritableVariable<Handle<AnimationPlayer>>;
-type AnimationPlayerUntypedHandle = InheritableVariable<Handle<Node>>;
 
 /// Animation blending state machine (ABSM) is a node that takes multiple animations from an animation player and
 /// mixes them in arbitrary way into one animation. Usually, ABSMs are used to animate humanoid characters in games,
@@ -228,40 +226,6 @@ pub struct AnimationBlendingStateMachine {
     base: Base,
     machine: MachineType,
     animation_player: AnimationPlayerHandle,
-}
-
-impl ComponentProvider for AnimationBlendingStateMachine {
-    fn query_component_ref(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else if type_id == TypeId::of::<MachineType>() {
-            Some(&self.machine)
-        } else if type_id == TypeId::of::<AnimationPlayerUntypedHandle>() {
-            Some(unsafe {
-                std::mem::transmute::<&AnimationPlayerHandle, &AnimationPlayerUntypedHandle>(
-                    &self.animation_player,
-                )
-            })
-        } else {
-            None
-        }
-    }
-
-    fn query_component_mut(&mut self, type_id: TypeId) -> Option<&mut dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else if type_id == TypeId::of::<MachineType>() {
-            Some(&mut self.machine)
-        } else if type_id == TypeId::of::<AnimationPlayerUntypedHandle>() {
-            Some(unsafe {
-                std::mem::transmute::<&mut AnimationPlayerHandle, &mut AnimationPlayerUntypedHandle>(
-                    &mut self.animation_player,
-                )
-            })
-        } else {
-            None
-        }
-    }
 }
 
 impl AnimationBlendingStateMachine {

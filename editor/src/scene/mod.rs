@@ -96,6 +96,7 @@ use crate::{
     world::selection::GraphSelection,
     Message, Settings,
 };
+use fyrox::core::blank_reflect_ref;
 use fyrox::engine::GraphicsContext;
 use fyrox::gui::file_browser::FileType;
 use fyrox::scene::collider::BitMask;
@@ -1204,6 +1205,10 @@ impl dyn SelectionContainer {
 
 #[derive(Debug, Default)]
 pub struct Selection(pub Option<Box<dyn SelectionContainer>>);
+
+impl Reflect for &'static mut Selection {
+    blank_reflect_ref!();
+}
 
 impl PartialEq for Selection {
     fn eq(&self, other: &Self) -> bool {

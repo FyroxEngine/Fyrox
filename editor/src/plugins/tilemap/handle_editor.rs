@@ -79,7 +79,7 @@ impl MessageData for TileDefinitionHandleEditorMessage {}
 /// pair is the page coordinates and the second pair is the tile coordinates.
 /// When editing the handle, one need merely type four integers. Whatever
 /// characters separate the integers are ignored, so "1 2 3 4" would be accepted.
-#[derive(Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
+#[derive(Clone, Debug, Visit, Reflect, TypeUuidProvider)]
 #[reflect(derived_type = "UiNode")]
 #[type_uuid(id = "60146cf0-33e3-4757-8e66-e7196324271f")]
 pub struct TileDefinitionHandleEditor {

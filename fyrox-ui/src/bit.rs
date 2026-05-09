@@ -116,7 +116,7 @@ impl<T: BitContainer> ConstructorProvider<UiNode, UserInterface> for BitField<T>
     }
 }
 
-#[derive(Default, Clone, Reflect, Visit, Debug, ComponentProvider)]
+#[derive(Default, Clone, Reflect, Visit, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct BitField<T>
 where

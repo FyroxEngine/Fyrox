@@ -118,7 +118,7 @@ impl<T: NumericType> MessageData for RectEditorMessage<T> {}
 ///     }
 /// }
 /// ```
-#[derive(Default, Debug, Clone, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Debug, Clone, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct RectEditor<T>
 where

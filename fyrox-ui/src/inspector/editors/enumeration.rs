@@ -25,7 +25,7 @@ use crate::{
         reflect::{prelude::*, Reflect},
         uuid::{uuid, Uuid},
         visitor::prelude::*,
-        ComponentProvider, TypeUuidProvider,
+        TypeUuidProvider,
     },
     dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
     inspector::{
@@ -66,7 +66,7 @@ pub enum EnumPropertyEditorMessage {
 }
 impl MessageData for EnumPropertyEditorMessage {}
 
-#[derive(Visit, Reflect, ComponentProvider)]
+#[derive(Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct EnumPropertyEditor<T: InspectableEnum> {
     pub widget: Widget,

@@ -29,8 +29,8 @@ use crate::text_box::TextBox;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
-        pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
-        variable::InheritableVariable, visitor::prelude::*,
+        pool::Handle, reflect::prelude::*, uuid_provider, variable::InheritableVariable,
+        visitor::prelude::*,
     },
     file_browser::{FileSelectorBuilder, FileSelectorMessage},
     grid::{Column, GridBuilder, Row},
@@ -74,7 +74,7 @@ impl MessageData for PathEditorMessage {}
 ///
 /// To receive the changes, listen to [`PathEditorMessage::Path`] and check for its direction, it should be [`crate::message::MessageDirection::FromWidget`].
 /// To set a new path value, send [`PathEditorMessage::Path`] message, but with [`crate::message::MessageDirection::ToWidget`].
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct PathEditor {
     /// Base widget of the editor.

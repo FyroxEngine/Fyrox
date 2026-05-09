@@ -140,7 +140,7 @@ pub enum UpdateMode {
 ///     .build(graph)
 /// }
 /// ```
-#[derive(Clone, Reflect, Debug, Visit, ComponentProvider, TypeUuidProvider)]
+#[derive(Clone, Reflect, Debug, Visit, TypeUuidProvider)]
 #[type_uuid(id = "7e0c138f-e371-4045-bd2c-ff5b165c7ee6")]
 #[reflect(derived_type = "Node")]
 #[visit(optional, post_visit_method = "on_visited")]

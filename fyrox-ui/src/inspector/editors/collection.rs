@@ -61,7 +61,7 @@ pub trait CollectionItem: Clone + Reflect + Default + TypeUuidProvider + Send + 
 
 impl<T> CollectionItem for T where T: Clone + Reflect + Default + TypeUuidProvider + Send + 'static {}
 
-#[derive(Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Debug, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct CollectionEditor<T: CollectionItem> {
     pub widget: Widget,

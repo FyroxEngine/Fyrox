@@ -26,7 +26,6 @@ use fyrox::plugin::error::GameResult;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, UnitVector3, Vector3},
-        impl_component_provider,
         math::curve::{Curve, CurveKey, CurveKeyKind},
         math::Vector3Ext,
         reflect::prelude::*,
@@ -201,7 +200,6 @@ impl Default for FlyingCameraController {
     }
 }
 
-impl_component_provider!(FlyingCameraController);
 uuid_provider!(FlyingCameraController = "8d9e2feb-8c61-482c-8ba4-b0b13b201113");
 
 impl ScriptTrait for FlyingCameraController {

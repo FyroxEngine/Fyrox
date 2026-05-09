@@ -27,7 +27,6 @@ use crate::fyrox::{
         algebra::{Point2, Vector2},
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid_provider,
         visitor::prelude::*,
     },
@@ -53,7 +52,7 @@ pub enum ThumbMessage {
 }
 impl MessageData for ThumbMessage {}
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct Thumb {
     widget: Widget,

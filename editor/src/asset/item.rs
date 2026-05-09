@@ -26,8 +26,8 @@ use crate::{
         asset::{manager::ResourceManager, untyped::UntypedResource, Resource, TypedResourceData},
         core::{
             algebra::Vector2, color::Color, futures::executor::block_on, make_relative_path,
-            parking_lot::lock_api::Mutex, pool::Handle, reflect::prelude::*,
-            type_traits::prelude::*, uuid_provider, visitor::prelude::*,
+            parking_lot::lock_api::Mutex, pool::Handle, reflect::prelude::*, uuid_provider,
+            visitor::prelude::*,
         },
         graph::SceneGraph,
         gui::{
@@ -80,7 +80,7 @@ pub enum AssetItemMessage {
 impl MessageData for AssetItemMessage {}
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Visit, Reflect, ComponentProvider)]
+#[derive(Debug, Clone, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct AssetItem {
     widget: Widget,

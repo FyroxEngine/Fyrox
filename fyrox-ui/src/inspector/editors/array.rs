@@ -20,8 +20,7 @@
 
 use crate::{
     core::{
-        pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
-        visitor::prelude::*, PhantomDataSendSync,
+        pool::Handle, reflect::prelude::*, uuid_provider, visitor::prelude::*, PhantomDataSendSync,
     },
     inspector::{
         editors::{
@@ -55,7 +54,7 @@ pub enum ArrayEditorMessage {
 }
 impl MessageData for ArrayEditorMessage {}
 
-#[derive(Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Clone, Debug, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct ArrayEditor {
     pub widget: Widget,

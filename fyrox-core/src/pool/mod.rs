@@ -40,7 +40,7 @@
 //! indirections that might cause cache invalidation. This is the so called cache
 //! friendliness.
 
-use crate::{reflect::prelude::*, visitor::prelude::*, ComponentProvider};
+use crate::{reflect::prelude::*, visitor::prelude::*};
 use std::cell::UnsafeCell;
 use std::fmt::{Display, Formatter};
 use std::{
@@ -200,6 +200,14 @@ where
     #[inline]
     fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
         func(self)
+    }
+
+    fn as_reflect_direct(&self) -> &dyn Reflect {
+        self
+    }
+
+    fn as_reflect_mut_direct(&mut self) -> &mut dyn Reflect {
+        self
     }
 
     #[inline]
@@ -1414,24 +1422,20 @@ where
 
 impl<T, P> Pool<T, P>
 where
-    T: ComponentProvider,
+    T: Reflect,
     P: PayloadContainer<Element = T> + 'static,
 {
     /// Tries to mutably borrow an object and fetch its component of specified type.
     #[inline]
     pub fn try_get_component_of_type<C>(&self, handle: Handle<T>) -> Result<&C, PoolError>
     where
-        C: 'static,
+        C: Reflect,
     {
-        self.try_borrow(handle)
-            .and_then(|n| {
-                n.query_component_ref(TypeId::of::<C>())
-                    .ok_or(PoolError::NoSuchComponent(handle.into()))
-            })
-            .and_then(|c| {
-                c.downcast_ref()
-                    .ok_or(PoolError::InvalidType(handle.into()))
-            })
+        self.try_borrow(handle).and_then(|n| {
+            (n as &dyn Reflect)
+                .self_or_field_ref_of_type::<C>()
+                .ok_or(PoolError::NoSuchComponent(handle.into()))
+        })
     }
 
     /// Tries to mutably borrow an object and fetch its component of specified type.
@@ -1441,17 +1445,13 @@ where
         handle: Handle<T>,
     ) -> Result<&mut C, PoolError>
     where
-        C: 'static,
+        C: Reflect,
     {
-        self.try_borrow_mut(handle)
-            .and_then(|n| {
-                n.query_component_mut(TypeId::of::<C>())
-                    .ok_or(PoolError::NoSuchComponent(handle.into()))
-            })
-            .and_then(|c| {
-                c.downcast_mut()
-                    .ok_or(PoolError::InvalidType(handle.into()))
-            })
+        self.try_borrow_mut(handle).and_then(|n| {
+            (n as &mut dyn Reflect)
+                .self_or_field_mut_of_type::<C>()
+                .ok_or(PoolError::NoSuchComponent(handle.into()))
+        })
     }
 }
 

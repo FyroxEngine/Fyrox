@@ -67,7 +67,7 @@ use crate::{
 };
 use fyrox::gui::UiNode;
 use fyrox::scene::node::Node;
-use std::any::{Any, TypeId};
+use std::any::Any;
 
 pub mod command;
 mod ruler;
@@ -229,11 +229,9 @@ where
         .try_get_node(handle)
         .ok()
         .and_then(|n| {
-            n.query_component_ref(TypeId::of::<
-                InheritableVariable<AnimationContainer<Handle<N>>>,
-            >())
+            (n as &dyn Reflect)
+                .first_field_ref_of_type::<InheritableVariable<AnimationContainer<Handle<N>>>>()
         })
-        .and_then(|a| a.downcast_ref::<InheritableVariable<AnimationContainer<Handle<N>>>>())
         .map(|v| v.get_value_ref())
 }
 

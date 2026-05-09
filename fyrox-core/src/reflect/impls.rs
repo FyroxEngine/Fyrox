@@ -25,7 +25,7 @@ use crate::{
     reflect::{blank_reflect, prelude::*},
     sstorage::ImmutableString,
     uuid::Uuid,
-    warn, SafeLock,
+    SafeLock,
 };
 use fyrox_core_derive::impl_reflect;
 use nalgebra::*;
@@ -205,20 +205,26 @@ macro_rules! impl_reflect_inner_mutability {
             (*guard).as_reflect_mut(func)
         }
 
+        fn as_reflect_direct(&self) -> &dyn $crate::reflect::Reflect {
+            // xxx_direct methods cannot hold the lock, so return self here.
+            self
+        }
+
+        fn as_reflect_mut_direct(&mut self) -> &mut dyn $crate::reflect::Reflect {
+            // xxx_direct methods cannot hold the lock, so return self here.
+            self
+        }
+
         fn set(&mut $self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
             let mut guard = $acquire_lock_guard;
             guard.set(value)
         }
 
-        fn field_direct_ref(&self, index: usize) -> Option<FieldRef> {
-            warn!("Cannot get a direct field ref {index}, because it is \
-                not supported for types with interior mutability.");
+        fn field_direct_ref(&self, _index: usize) -> Option<FieldRef> {
             None
         }
 
-        fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
-            warn!("Cannot get a direct field ref {index}, because it is \
-                not supported for types with interior mutability.");
+        fn field_direct_mut(&mut self, _index: usize) -> Option<FieldMut> {
             None
         }
 

@@ -77,7 +77,7 @@ use fyrox_graph::SceneGraph;
 ///
 /// This example shows how to create a simple confirmation dialog, that allows a user to use Tab key
 /// to cycle from one button to another. A focused button then can be "clicked" using Enter key.
-#[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider)]
 #[type_uuid(id = "135d347b-5019-4743-906c-6df5c295a3be")]
 #[reflect(derived_type = "UiNode")]
 pub struct NavigationLayer {

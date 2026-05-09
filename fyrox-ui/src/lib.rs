@@ -358,6 +358,7 @@ pub use alignment::*;
 pub use build::*;
 pub use control::*;
 use fyrox_core::algebra::Point2;
+use fyrox_core::blank_reflect_ref;
 use fyrox_core::dyntype::{DynTypeConstructorContainer, DynTypeContainer};
 use fyrox_core::pool::PoolError;
 pub use fyrox_texture as texture;
@@ -742,6 +743,10 @@ pub struct UserInterface {
     /// the render mode is set to [`RenderMode::OnChanges`].
     pub need_render: bool,
     pub user_data: DynTypeContainer,
+}
+
+impl Reflect for &'static mut UserInterface {
+    blank_reflect_ref!();
 }
 
 impl Debug for UserInterface {

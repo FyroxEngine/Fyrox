@@ -143,13 +143,11 @@ impl BoundValueCollectionExt for BoundValueCollection {
 /// Animation player is a node that contains multiple animations. It updates and plays all the animations.
 /// The node could be a source of animations for animation blending state machines. To learn more about
 /// animations, see [`Animation`] docs.
-#[derive(Visit, Reflect, Clone, Debug, ComponentProvider)]
+#[derive(Visit, Reflect, Clone, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct AnimationPlayer {
     widget: Widget,
-    #[component(include)]
     pub(crate) animations: InheritableVariable<AnimationContainer>,
-    #[component(include)]
     auto_apply: bool,
 }
 

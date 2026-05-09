@@ -41,7 +41,7 @@ pub enum FolderNameDialogMessage {
 }
 impl MessageData for FolderNameDialogMessage {}
 
-#[derive(Clone, Visit, Reflect, Default, Debug, TypeUuidProvider, ComponentProvider)]
+#[derive(Clone, Visit, Reflect, Default, Debug, TypeUuidProvider)]
 #[type_uuid(id = "832f63b8-1372-49b8-8ce5-7564920343a8")]
 #[reflect(derived_type = "UiNode")]
 pub struct FolderNameDialog {

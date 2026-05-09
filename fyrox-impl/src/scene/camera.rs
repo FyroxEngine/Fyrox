@@ -353,7 +353,7 @@ impl Default for Exposure {
 ///
 /// Each camera forces engine to re-render same scene one more time, which may cause almost double load
 /// of your GPU.
-#[derive(Debug, Visit, Reflect, Clone, ComponentProvider)]
+#[derive(Debug, Visit, Reflect, Clone)]
 #[reflect(derived_type = "Node")]
 pub struct Camera {
     base: Base,

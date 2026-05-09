@@ -22,8 +22,8 @@ use crate::menu::MenuItem;
 use crate::messagebox::MessageBox;
 use crate::{
     core::{
-        algebra::Vector2, log::Log, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        uuid_provider, visitor::prelude::*,
+        algebra::Vector2, log::Log, pool::Handle, reflect::prelude::*, uuid_provider,
+        visitor::prelude::*,
     },
     draw::DrawingContext,
     file_browser::{
@@ -46,10 +46,9 @@ use std::{
     sync::mpsc::Sender,
 };
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct ItemContextMenu {
-    #[component(include)]
     pub base_menu: ContextMenu,
     pub delete: Handle<MenuItem>,
     pub make_folder: Handle<MenuItem>,

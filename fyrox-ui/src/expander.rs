@@ -28,7 +28,7 @@ use crate::message::MessageData;
 use crate::{
     check_box::{CheckBoxBuilder, CheckBoxMessage},
     core::pool::Handle,
-    core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
+    core::{reflect::prelude::*, visitor::prelude::*},
     grid::{Column, GridBuilder, Row},
     message::UiMessage,
     utils::{make_arrow, ArrowDirection},
@@ -151,7 +151,7 @@ impl MessageData for ExpanderMessage {}
 ///
 /// To switch expander state at runtime, send [`ExpanderMessage::Expand`] to your Expander widget instance with
 /// [`crate::message::MessageDirection::ToWidget`].
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct Expander {
     /// Base widget of the expander.

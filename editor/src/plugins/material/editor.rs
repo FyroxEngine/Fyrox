@@ -27,8 +27,8 @@ use crate::{
     fyrox::{
         asset::{core::pool::Handle, manager::ResourceManager, state::ResourceState},
         core::{
-            color::Color, log::Log, parking_lot::Mutex, reflect::prelude::*,
-            type_traits::prelude::*, uuid_provider, visitor::prelude::*, SafeLock,
+            color::Color, log::Log, parking_lot::Mutex, reflect::prelude::*, uuid_provider,
+            visitor::prelude::*, SafeLock,
         },
         graph::SceneGraph,
         gui::{
@@ -71,7 +71,7 @@ pub enum MaterialFieldMessage {
 }
 impl MessageData for MaterialFieldMessage {}
 
-#[derive(Clone, Visit, Reflect, ComponentProvider)]
+#[derive(Clone, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct MaterialFieldEditor {
     widget: Widget,

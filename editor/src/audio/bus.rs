@@ -19,10 +19,7 @@
 // SOFTWARE.
 
 use crate::fyrox::{
-    core::{
-        pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
-        visitor::prelude::*,
-    },
+    core::{pool::Handle, reflect::prelude::*, uuid_provider, visitor::prelude::*},
     gui::{
         border::BorderBuilder,
         decorator::DecoratorBuilder,
@@ -56,7 +53,7 @@ pub enum AudioBusViewMessage {
 }
 impl MessageData for AudioBusViewMessage {}
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct AudioBusView {
     widget: Widget,

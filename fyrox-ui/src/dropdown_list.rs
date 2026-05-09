@@ -27,8 +27,8 @@
 use crate::{
     border::BorderBuilder,
     core::{
-        algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        uuid_provider, variable::InheritableVariable, visitor::prelude::*,
+        algebra::Vector2, pool::Handle, reflect::prelude::*, uuid_provider,
+        variable::InheritableVariable, visitor::prelude::*,
     },
     grid::{Column, Grid, GridBuilder, Row},
     list_view::{ListView, ListViewBuilder, ListViewMessage},
@@ -167,7 +167,7 @@ impl MessageData for DropdownListMessage {}
 ///
 /// A dropdown list could be opened and closed manually using [`DropdownListMessage::Open`] and
 /// [`DropdownListMessage::Close`] messages.  
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct DropdownList {
     /// Base widget of the dropdown list.

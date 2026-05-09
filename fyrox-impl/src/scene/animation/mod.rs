@@ -243,13 +243,11 @@ impl BoundValueCollectionExt for BoundValueCollection {
 /// The example creates a bounce animation first - it is a simple animation that animates position of a given node
 /// (`animated_node`). Only then it creates an animation player node with an animation container with a single animation.
 /// To understand why this is so complicated, see the docs of [`Animation`].
-#[derive(Visit, Reflect, Clone, Debug, ComponentProvider)]
+#[derive(Visit, Reflect, Clone, Debug)]
 #[reflect(derived_type = "Node")]
 pub struct AnimationPlayer {
     base: Base,
-    #[component(include)]
     animations: InheritableVariable<AnimationContainer>,
-    #[component(include)]
     auto_apply: bool,
 }
 

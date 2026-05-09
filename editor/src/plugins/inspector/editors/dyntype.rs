@@ -64,7 +64,7 @@ pub enum DynTypePropertyEditorMessage {
 }
 impl MessageData for DynTypePropertyEditorMessage {}
 
-#[derive(Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Clone, Debug, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct DynTypePropertyEditor {
     widget: Widget,

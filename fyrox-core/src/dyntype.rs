@@ -264,6 +264,14 @@ impl Reflect for DynTypeWrapper {
             None
         }
     }
+
+    fn as_reflect_direct(&self) -> &dyn Reflect {
+        self
+    }
+
+    fn as_reflect_mut_direct(&mut self) -> &mut dyn Reflect {
+        self
+    }
 }
 
 /// "Nullable" container for a dyntype. This container is essentially a wrapper for [`Option`] that
@@ -379,9 +387,16 @@ pub struct DynTypeConstructorDefinition {
 }
 
 /// A set of constructors that allows to create a dyntype by its type uuid.
-#[derive(Default)]
+#[derive(Default, Reflect)]
+#[reflect(hide_all, non_cloneable)] // TODO
 pub struct DynTypeConstructorContainer {
     map: Mutex<FxHashMap<Uuid, DynTypeConstructorDefinition>>,
+}
+
+impl Debug for DynTypeConstructorContainer {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "DynTypeConstructorContainer")
+    }
 }
 
 impl DynTypeConstructorContainer {

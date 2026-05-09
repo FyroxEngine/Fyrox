@@ -31,7 +31,7 @@ use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
         algebra::Vector2, color::Color, log::Log, math::Rect, pool::Handle, reflect::prelude::*,
-        type_traits::prelude::*, uuid_provider, visitor::prelude::*,
+        uuid_provider, visitor::prelude::*,
     },
     decorator::DecoratorBuilder,
     font::FontResource,
@@ -216,7 +216,7 @@ pub enum WindowSizeState {
 /// to interact with anything else until the modal is dismissed.
 ///
 /// Any window can be set and unset as a modal via the *modal* function.
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct Window {
     /// Base widget of the window.

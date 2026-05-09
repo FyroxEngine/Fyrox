@@ -25,7 +25,6 @@ use crate::fyrox::{
         math::Rect,
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid_provider,
         visitor::prelude::*,
     },
@@ -112,7 +111,7 @@ impl MessageData for AbsmCanvasMessage {
     }
 }
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct AbsmCanvas {
     widget: Widget,
@@ -194,7 +193,7 @@ impl AbsmCanvas {
         ui: &UserInterface,
     ) -> Handle<UiNode>
     where
-        T: 'static,
+        T: Reflect,
     {
         if ui
             .try_get_node(node_handle)

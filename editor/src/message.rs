@@ -24,6 +24,7 @@ use crate::{
         core::{
             log::Log,
             pool::{ErasedHandle, Handle},
+            reflect::prelude::*,
             uuid::Uuid,
         },
         gui::{inspector::PropertyChanged, UiNode},
@@ -123,7 +124,8 @@ pub enum Message {
     SetAssetBrowserCurrentDir(PathBuf),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Reflect)]
+#[reflect(hide_all)]
 pub struct MessageSender(pub Sender<Message>);
 
 impl Default for MessageSender {

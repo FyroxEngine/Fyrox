@@ -34,7 +34,7 @@ use std::sync::mpsc::Sender;
 
 /// A simple widget that opens a popup when clicked. It could be used to create dropdown menus that
 /// consolidates content of a group.
-#[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider)]
 #[type_uuid(id = "c0a4c51b-f041-453b-a89d-7ceb5394e321")]
 #[reflect(derived_type = "UiNode")]
 pub struct DropdownMenu {

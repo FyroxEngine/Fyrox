@@ -57,7 +57,7 @@ use std::ops::{Deref, DerefMut};
 ///
 /// 2D sound sources (with spatial blend == 0.0) are not influenced by listener's position and
 /// orientation.
-#[derive(Visit, Reflect, Default, Clone, Debug, ComponentProvider)]
+#[derive(Visit, Reflect, Default, Clone, Debug)]
 #[reflect(derived_type = "Node")]
 pub struct Listener {
     base: Base,

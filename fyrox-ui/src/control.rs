@@ -19,8 +19,8 @@
 // SOFTWARE.
 
 use crate::{
+    core::TypeUuidProvider,
     core::{algebra::Vector2, pool::Handle, reflect::Reflect, uuid::Uuid, visitor::Visit},
-    core::{ComponentProvider, TypeUuidProvider},
     draw::DrawingContext,
     message::{OsEvent, UiMessage},
     widget::Widget,
@@ -154,9 +154,7 @@ macro_rules! control_trait_proxy_impls {
 }
 
 /// Trait for all UI controls in library.
-pub trait Control:
-    BaseControl + Deref<Target = Widget> + DerefMut + Reflect + Visit + ComponentProvider
-{
+pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + Visit {
     /// Brief debugging information about this node.
     fn summary(&self) -> String {
         use std::fmt::Write;
@@ -458,10 +456,10 @@ pub trait Control:
 // See ObjectOrVariantHelper for the cause of the indirection.
 impl<T: Control> ObjectOrVariantHelper<UiNode, T> for PhantomData<T> {
     fn convert_to_dest_type_helper(node: &UiNode) -> Option<&T> {
-        (node.0.deref() as &dyn ComponentProvider).component_ref()
+        (node.0.deref() as &dyn Reflect).self_or_field_ref_of_type()
     }
 
     fn convert_to_dest_type_helper_mut(node: &mut UiNode) -> Option<&mut T> {
-        (node.0.deref_mut() as &mut dyn ComponentProvider).component_mut()
+        (node.0.deref_mut() as &mut dyn Reflect).self_or_field_mut_of_type()
     }
 }

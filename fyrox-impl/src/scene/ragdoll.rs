@@ -88,7 +88,7 @@ impl Limb {
 /// to create a ragdoll is to use the editor, and the ragdoll wizard in particular. However, if
 /// you're brave enough you can read this code <https://github.com/FyroxEngine/Fyrox/blob/master/editor/src/utils/ragdoll.rs> -
 /// it creates a ragdoll using a humanoid skeleton.  
-#[derive(Clone, Reflect, Visit, Debug, Default, ComponentProvider)]
+#[derive(Clone, Reflect, Visit, Debug, Default)]
 #[reflect(derived_type = "Node")]
 #[visit(optional)]
 pub struct Ragdoll {

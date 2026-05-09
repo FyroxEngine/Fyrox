@@ -24,10 +24,7 @@
 #![warn(missing_docs)]
 
 use crate::{
-    core::{
-        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*,
-    },
+    core::{algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     message::{MessageData, UiMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Orientation, UiNode, UserInterface,
@@ -110,7 +107,7 @@ impl MessageData for StackPanelMessage {}
 ///     .build(ctx);
 /// # }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct StackPanel {
     /// Base widget of the stack panel.

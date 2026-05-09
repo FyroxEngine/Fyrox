@@ -20,14 +20,21 @@
 
 use crate::fyrox::{
     core::pool::Handle,
+    core::reflect::prelude::*,
     scene::{graph::Graph, node::Node, Scene},
 };
 use crate::{scene::GraphSelection, Engine};
+use fyrox::core::blank_reflect_ref;
 use std::collections::HashMap;
 
+#[derive(Debug)]
 pub struct Clipboard {
     graph: Graph,
     empty: bool,
+}
+
+impl Reflect for &'static mut Clipboard {
+    blank_reflect_ref!();
 }
 
 impl Default for Clipboard {

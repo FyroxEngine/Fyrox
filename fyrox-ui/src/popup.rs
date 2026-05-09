@@ -27,8 +27,8 @@ use crate::message::MessageData;
 use crate::{
     border::BorderBuilder,
     core::{
-        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        uuid_provider, variable::InheritableVariable, visitor::prelude::*,
+        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, uuid_provider,
+        variable::InheritableVariable, visitor::prelude::*,
     },
     message::{ButtonState, KeyCode, OsEvent, UiMessage},
     style::{resource::StyleResourceExt, Style},
@@ -286,7 +286,7 @@ impl Placement {
 ///
 /// Popup widget can automatically adjust its position to always remain on screen, which is useful for tooltips, dropdown lists,
 /// etc. To enable this option, use [`PopupBuilder::with_smart_placement`] with `true` as the first argument.
-#[derive(Default, Clone, Visit, Debug, Reflect, ComponentProvider)]
+#[derive(Default, Clone, Visit, Debug, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct Popup {
     /// Base widget of the popup.

@@ -24,40 +24,38 @@ use crate::fyrox::{
         reflect::{
             is_path_to_array_element, Reflect, ResolvePath, SetFieldByPathError, SetFieldError,
         },
-        some_or_return, ComponentProvider,
+        some_or_return,
     },
     gui::inspector::{PropertyAction, PropertyChanged},
 };
 use std::{
-    any::{type_name, TypeId},
+    any::type_name,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut, RangeBounds},
 };
 
 pub mod panel;
 
-pub trait CommandContext: ComponentProvider {}
+pub trait CommandContext: Reflect {}
 
 impl dyn CommandContext + '_ {
     pub fn component_ref<T>(&self) -> Option<&T>
     where
-        T: 'static,
+        T: Reflect,
     {
-        self.query_component_ref(TypeId::of::<T>())
-            .and_then(|c| c.downcast_ref())
+        (self as &dyn Reflect).self_or_field_ref_of_type()
     }
 
     pub fn component_mut<T>(&mut self) -> Option<&mut T>
     where
-        T: 'static,
+        T: Reflect,
     {
-        self.query_component_mut(TypeId::of::<T>())
-            .and_then(|c| c.downcast_mut())
+        (self as &mut dyn Reflect).self_or_field_mut_of_type()
     }
 
     pub fn get<T>(&self) -> &T
     where
-        T: 'static,
+        T: Reflect,
     {
         self.component_ref().unwrap_or_else(|| {
             panic!(
@@ -69,7 +67,7 @@ impl dyn CommandContext + '_ {
 
     pub fn get_mut<T>(&mut self) -> &mut T
     where
-        T: 'static,
+        T: Reflect,
     {
         self.component_mut().unwrap_or_else(|| {
             panic!(

@@ -75,7 +75,7 @@ where
 }
 impl<const R: usize, const C: usize, T: NumericType> MessageData for MatrixEditorMessage<R, C, T> {}
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct MatrixEditor<const R: usize, const C: usize, T>
 where

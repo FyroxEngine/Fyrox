@@ -57,7 +57,7 @@ pub enum ColorGradientEditorMessage {
 }
 impl MessageData for ColorGradientEditorMessage {}
 
-#[derive(Default, Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
+#[derive(Default, Clone, Debug, Visit, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "50d00eb7-f30b-4973-8a36-03d6b8f007ec")]
 #[reflect(derived_type = "UiNode")]
 pub struct ColorGradientField {
@@ -183,7 +183,7 @@ impl ColorGradientFieldBuilder {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
+#[derive(Default, Clone, Debug, Visit, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "82843d8b-1972-46e6-897c-9619b74059cc")]
 #[reflect(derived_type = "UiNode")]
 pub struct ColorGradientEditor {
@@ -470,7 +470,7 @@ pub enum ColorPointMessage {
 }
 impl MessageData for ColorPointMessage {}
 
-#[derive(Default, Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
+#[derive(Default, Clone, Debug, Visit, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "a493a603-3451-4005-8c80-559707729e70")]
 #[reflect(derived_type = "UiNode")]
 pub struct ColorPoint {
@@ -603,7 +603,7 @@ impl ColorPointBuilder {
     }
 }
 
-#[derive(Clone, Visit, Reflect, Debug, TypeUuidProvider, ComponentProvider)]
+#[derive(Clone, Visit, Reflect, Debug, TypeUuidProvider)]
 #[type_uuid(id = "2608955a-4095-4fd1-af71-99bcdf2600f0")]
 #[reflect(derived_type = "UiNode")]
 pub struct ColorPointsCanvas {

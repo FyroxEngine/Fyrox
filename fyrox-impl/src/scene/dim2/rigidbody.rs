@@ -90,7 +90,7 @@ pub(crate) enum ApplyAction {
 ///
 /// Rigid body that does not move for some time will go asleep. This means that the body will not
 /// move unless it is woken up by some other moving body. This feature allows to save CPU resources.
-#[derive(Visit, Reflect, ComponentProvider)]
+#[derive(Visit, Reflect)]
 #[reflect(derived_type = "Node")]
 pub struct RigidBody {
     base: Base,

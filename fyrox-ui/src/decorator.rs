@@ -27,8 +27,8 @@ use crate::{
     border::{Border, BorderBuilder},
     brush::Brush,
     core::{
-        algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        uuid_provider, variable::InheritableVariable, visitor::prelude::*,
+        algebra::Vector2, pool::Handle, reflect::prelude::*, uuid_provider,
+        variable::InheritableVariable, visitor::prelude::*,
     },
     draw::DrawingContext,
     message::{MessageData, UiMessage},
@@ -86,11 +86,10 @@ impl MessageData for DecoratorMessage {}
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct Decorator {
     /// Base widget of the decorator.
-    #[component(include)]
     pub border: Border,
     /// Current brush used for `Normal` state.
     pub normal_brush: InheritableVariable<StyledProperty<Brush>>,

@@ -32,6 +32,7 @@ use crate::{
         log::Log,
         notify, ok_or_continue,
         parking_lot::{Mutex, MutexGuard},
+        reflect::prelude::*,
         task::TaskPool,
         watcher::FileSystemWatcher,
         SafeLock, TypeUuidProvider, Uuid,
@@ -116,7 +117,8 @@ pub struct ResourceManagerState {
 ///
 /// It is a simple wrapper over [`ResourceManagerState`] that can be shared (cloned). In other words,
 /// it is just a strong reference to the inner state.
-#[derive(Clone)]
+#[derive(Clone, Reflect)]
+#[reflect(hide_all)] // Inner content is hidden.
 pub struct ResourceManager {
     state: Arc<Mutex<ResourceManagerState>>,
 }
@@ -2082,7 +2084,6 @@ mod test {
         ResourceData,
     };
     use fyrox_core::{
-        reflect::prelude::*,
         uuid::{uuid, Uuid},
         visitor::{Visit, VisitResult, Visitor},
         TypeUuidProvider,

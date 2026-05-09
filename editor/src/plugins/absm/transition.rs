@@ -26,7 +26,6 @@ use crate::fyrox::{
         math::Rect,
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid_provider,
         visitor::prelude::*,
     },
@@ -56,13 +55,12 @@ pub enum TransitionMessage {
 }
 impl MessageData for TransitionMessage {}
 
-#[derive(Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Clone, Debug, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct TransitionView {
     widget: Widget,
     pub segment: Segment,
     pub model_handle: ErasedHandle,
-    #[component(include)]
     selectable: Selectable,
     activity_factor: f32,
 }

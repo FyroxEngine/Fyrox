@@ -91,7 +91,7 @@ where
 }
 impl<T: NumericType, const D: usize> MessageData for VecEditorMessage<T, D> {}
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct VecEditor<T, const D: usize>
 where

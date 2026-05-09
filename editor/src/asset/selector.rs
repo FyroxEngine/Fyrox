@@ -79,7 +79,7 @@ pub enum AssetSelectorMessage {
 }
 impl MessageData for AssetSelectorMessage {}
 
-#[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+#[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider)]
 #[type_uuid(id = "aa4f0726-8d25-4c90-add1-92ba392310c6")]
 struct Item {
     pub widget: Widget,
@@ -230,7 +230,7 @@ impl ItemBuilder {
     }
 }
 
-#[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+#[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider)]
 #[type_uuid(id = "970bb83b-51e8-48e7-8050-f97bf0ac470b")]
 pub struct AssetSelector {
     pub widget: Widget,
@@ -384,7 +384,7 @@ impl<'a> AssetSelectorBuilder<'a> {
     }
 }
 
-#[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+#[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider)]
 #[type_uuid(id = "c348ad3d-52a6-40ad-a5e4-bf63fefe1906")]
 pub struct AssetSelectorWindow {
     pub window: Window,

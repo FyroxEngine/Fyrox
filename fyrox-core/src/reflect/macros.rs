@@ -200,6 +200,14 @@ macro_rules! delegate_reflect {
             self.deref_mut().as_reflect_mut(func)
         }
 
+        fn as_reflect_direct(&self) -> &dyn $crate::reflect::Reflect {
+            self.deref().as_reflect_direct()
+        }
+
+        fn as_reflect_mut_direct(&mut self) -> &mut dyn $crate::reflect::Reflect {
+            self.deref_mut().as_reflect_mut_direct()
+        }
+
         fn field_direct_ref(&self, index: usize) -> Option<FieldRef> {
             self.deref().field_direct_ref(index)
         }
@@ -288,6 +296,10 @@ macro_rules! delegate_reflect {
         ) {
             self.deref_mut().as_hash_map_mut(func)
         }
+
+        fn fields_count(&self) -> usize {
+            self.deref().fields_count()
+        }
     };
 }
 
@@ -307,6 +319,115 @@ macro_rules! blank_reflect {
 
         fn try_clone_box(&self) -> Option<Box<dyn $crate::reflect::Reflect>> {
             Some(Box::new(self.clone()))
+        }
+
+        fn query_derived_types(&self) -> &'static [std::any::TypeId] {
+            Self::derived_types()
+        }
+
+        fn type_name(&self) -> &'static str {
+            std::any::type_name::<Self>()
+        }
+
+        fn doc(&self) -> &'static str {
+            ""
+        }
+
+        fn assembly_name(&self) -> &'static str {
+            env!("CARGO_PKG_NAME")
+        }
+
+        fn type_assembly_name() -> &'static str {
+            env!("CARGO_PKG_NAME")
+        }
+
+        fn fields_ref(&self, func: &mut dyn FnMut(&[$crate::reflect::FieldRef])) {
+            func(&[])
+        }
+
+        #[inline]
+        fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [$crate::reflect::FieldMut])) {
+            func(&mut [])
+        }
+
+        fn into_any(self: Box<Self>) -> Box<dyn std::any::Any> {
+            self
+        }
+
+        fn as_any(&self, func: &mut dyn FnMut(&dyn std::any::Any)) {
+            func(self)
+        }
+
+        fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn std::any::Any)) {
+            func(self)
+        }
+
+        fn as_reflect(&self, func: &mut dyn FnMut(&dyn $crate::reflect::Reflect)) {
+            func(self)
+        }
+
+        fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn $crate::reflect::Reflect)) {
+            func(self)
+        }
+
+        fn as_reflect_direct(&self) -> &dyn $crate::reflect::Reflect {
+            self
+        }
+
+        fn as_reflect_mut_direct(&mut self) -> &mut dyn $crate::reflect::Reflect {
+            self
+        }
+
+        fn find_field(
+            &self,
+            name: &str,
+            func: &mut dyn FnMut(Option<&dyn $crate::reflect::Reflect>),
+        ) {
+            func(if name == "self" { Some(self) } else { None })
+        }
+
+        fn find_field_mut(
+            &mut self,
+            name: &str,
+            func: &mut dyn FnMut(Option<&mut dyn $crate::reflect::Reflect>),
+        ) {
+            func(if name == "self" { Some(self) } else { None })
+        }
+
+        fn field_direct_ref(&self, _index: usize) -> Option<$crate::reflect::FieldRef> {
+            None
+        }
+
+        fn field_direct_mut(&mut self, _index: usize) -> Option<$crate::reflect::FieldMut> {
+            None
+        }
+
+        fn set(
+            &mut self,
+            value: Box<dyn $crate::reflect::Reflect>,
+        ) -> Result<Box<dyn $crate::reflect::Reflect>, Box<dyn $crate::reflect::Reflect>> {
+            let this = std::mem::replace(self, value.take()?);
+            Ok(Box::new(this))
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! blank_reflect_ref {
+    () => {
+        fn source_path() -> &'static str {
+            file!()
+        }
+
+        fn derived_types() -> &'static [std::any::TypeId]
+        where
+            Self: Sized,
+        {
+            &[]
+        }
+
+        fn try_clone_box(&self) -> Option<Box<dyn $crate::reflect::Reflect>> {
+            None
         }
 
         fn query_derived_types(&self) -> &'static [std::any::TypeId] {
@@ -388,6 +509,14 @@ macro_rules! blank_reflect {
         ) -> Result<Box<dyn $crate::reflect::Reflect>, Box<dyn $crate::reflect::Reflect>> {
             let this = std::mem::replace(self, value.take()?);
             Ok(Box::new(this))
+        }
+
+        fn as_reflect_direct(&self) -> &dyn $crate::reflect::Reflect {
+            self
+        }
+
+        fn as_reflect_mut_direct(&mut self) -> &mut dyn $crate::reflect::Reflect {
+            self
         }
     };
 }

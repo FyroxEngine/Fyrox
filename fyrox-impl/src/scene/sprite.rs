@@ -154,7 +154,7 @@ impl VertexTrait for SpriteVertex {
 /// **does not** reuse it. Ideally, you should reuse the shared material across multiple instances
 /// to get the best possible performance. Otherwise, each your sprite will be put in a separate batch
 /// which will force your GPU to render a single sprite in dedicated draw call which is quite slow.
-#[derive(Debug, Reflect, Clone, ComponentProvider, Visit)]
+#[derive(Debug, Reflect, Clone, Visit)]
 #[reflect(derived_type = "Node")]
 pub struct Sprite {
     base: Base,

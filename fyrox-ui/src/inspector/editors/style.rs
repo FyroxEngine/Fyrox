@@ -77,7 +77,7 @@ pub enum StyledPropertyEditorMessage {
 }
 impl MessageData for StyledPropertyEditorMessage {}
 
-#[derive(Debug, Clone, Visit, Reflect, ComponentProvider, TypeUuidProvider)]
+#[derive(Debug, Clone, Visit, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "3a863a0f-7414-44f5-a7aa-7a6668a6d406")]
 #[reflect(derived_type = "UiNode")]
 pub struct StyledPropertySelector {
@@ -308,7 +308,7 @@ impl StyledPropertySelectorBuilder {
     }
 }
 
-#[derive(Debug, Clone, Visit, Reflect, ComponentProvider, TypeUuidProvider)]
+#[derive(Debug, Clone, Visit, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "1b8fb74a-3911-4b44-bb71-1a0382ebb9a7")]
 #[reflect(derived_type = "UiNode")]
 pub struct StyledPropertyEditor {
@@ -563,8 +563,8 @@ where
                 })
                 .with_target_type_id(TypeId::of::<T>())
                 .with_style_resource(ctx.environment.as_ref().and_then(|env| {
-                    (&**env as &dyn ComponentProvider)
-                        .component_ref::<Option<StyleResource>>()
+                    (&**env as &dyn Reflect)
+                        .first_field_ref_of_type::<Option<StyleResource>>()
                         .cloned()
                         .flatten()
                 }))

@@ -31,7 +31,6 @@ use crate::{
         log::Log,
         pool::{Handle, ObjectOrVariant},
         reflect::{prelude::*, CastError, Reflect},
-        type_traits::prelude::*,
         uuid_provider,
         visitor::prelude::*,
     },
@@ -436,9 +435,8 @@ impl MessageData for InspectorMessage {}
 /// [fyroxed_base::inspector::EditorEnvironment](https://docs.rs/fyroxed_base/latest/fyroxed_base/inspector/struct.EditorEnvironment.html).
 /// Instead, when a property editor needs to talk to the application using the Inspector,
 /// it can attempt to cast InspectorEnvironment to whatever type it might be.
-pub trait InspectorEnvironment: Any + Send + Sync + ComponentProvider {
+pub trait InspectorEnvironment: Send + Sync + Reflect {
     fn name(&self) -> String;
-    fn as_any(&self) -> &dyn Any;
 }
 
 /// Inspector is a widget, that allows you to generate visual representation for internal fields an arbitrary
@@ -522,7 +520,7 @@ pub trait InspectorEnvironment: Any + Send + Sync + ComponentProvider {
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct Inspector {
     pub widget: Widget,

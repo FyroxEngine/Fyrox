@@ -206,7 +206,7 @@ struct TreeData {
     pub derived_type_ids: Vec<TypeId>,
 }
 
-#[derive(Debug, Clone, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
+#[derive(Debug, Clone, Visit, Reflect, TypeUuidProvider)]
 #[reflect(derived_type = "UiNode")]
 #[type_uuid(id = "1d718f90-323c-492d-b057-98d47495900a")]
 pub struct NodeSelector {
@@ -427,11 +427,10 @@ impl NodeSelectorBuilder {
     }
 }
 
-#[derive(Debug, Clone, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
+#[derive(Debug, Clone, Visit, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "5bb00f15-d6ec-4f0e-af7e-9472b0e290b4")]
 #[reflect(derived_type = "UiNode")]
 pub struct NodeSelectorWindow {
-    #[component(include)]
     window: Window,
     selector: Handle<NodeSelector>,
     ok: Handle<Button>,

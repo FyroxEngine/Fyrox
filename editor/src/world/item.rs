@@ -22,7 +22,7 @@ use crate::{
     fyrox::{
         core::{
             algebra::Vector2, color::Color, pool::ErasedHandle, pool::Handle, reflect::prelude::*,
-            type_traits::prelude::*, uuid_provider, visitor::prelude::*,
+            uuid_provider, visitor::prelude::*,
         },
         graph::SceneGraph,
         gui::{
@@ -71,10 +71,9 @@ pub enum DropAnchor {
     OnTop,
 }
 
-#[derive(Visit, Reflect, ComponentProvider)]
+#[derive(Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct SceneItem {
-    #[component(include)]
     pub tree: Tree,
     text_name: Handle<Text>,
     name_value: String,

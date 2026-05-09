@@ -25,8 +25,8 @@
 
 use crate::{
     core::{
-        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        uuid_provider, visitor::prelude::*,
+        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, uuid_provider,
+        visitor::prelude::*,
     },
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
@@ -108,7 +108,7 @@ use std::cell::Cell;
 ///     .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct Screen {
     /// Base widget of the screen.

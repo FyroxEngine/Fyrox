@@ -23,30 +23,31 @@ use crate::{
     fyrox::{
         asset::manager::ResourceManager,
         core::{
+            color::Color,
             dyntype::DynTypeConstructorContainer,
+            err,
             log::{Log, MessageKind},
             pool::{ErasedHandle, Handle},
             reflect::prelude::*,
-            type_traits::prelude::*,
         },
         engine::SerializationContext,
         graph::SceneGraph,
         gui::{
             border::BorderBuilder,
-            button::ButtonMessage,
+            button::{Button, ButtonMessage},
             grid::{Column, GridBuilder, Row},
-            inspector::InspectorContextArgs,
             inspector::{
                 editors::PropertyEditorDefinitionContainer, InspectorBuilder, InspectorContext,
-                InspectorEnvironment, InspectorError, InspectorMessage,
+                InspectorContextArgs, InspectorEnvironment, InspectorError, InspectorMessage,
             },
             message::{MessageDirection, UiMessage},
             scroll_viewer::ScrollViewerBuilder,
-            stack_panel::StackPanelBuilder,
+            stack_panel::{StackPanel, StackPanelBuilder},
             style::{resource::StyleResource, resource::StyleResourceExt, Style},
-            text::{TextBuilder, TextMessage},
+            text::{Text, TextBuilder, TextMessage},
+            utils::ImageButtonBuilder,
             widget::WidgetBuilder,
-            window::{WindowBuilder, WindowTitle},
+            window::{Window, WindowBuilder, WindowTitle},
             BuildContext, Thickness, UiNode, UserInterface,
         },
         scene::SceneContainer,
@@ -60,35 +61,31 @@ use crate::{
     utils::window_content,
     Editor, Message, WidgetMessage, WrapMode,
 };
-use fyrox::core::color::Color;
-use fyrox::core::err;
-use fyrox::gui::button::Button;
-use fyrox::gui::stack_panel::StackPanel;
-use fyrox::gui::text::Text;
-use fyrox::gui::utils::ImageButtonBuilder;
-use fyrox::gui::window::Window;
 use std::{any::Any, sync::mpsc::Sender, sync::Arc};
 
 pub mod editors;
 pub mod handlers;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Reflect, Debug)]
 pub struct AnimationDefinition {
     name: String,
     handle: ErasedHandle,
 }
 
-#[derive(ComponentProvider)]
+#[derive(Reflect, Clone, Debug)]
+#[reflect(non_cloneable)]
 pub struct EditorEnvironment {
     pub resource_manager: ResourceManager,
+    #[reflect(hidden)]
     pub serialization_context: Arc<SerializationContext>,
+    #[reflect(hidden)]
     pub dyn_type_constructors: Arc<DynTypeConstructorContainer>,
     /// List of animations definitions (name + handle). It is filled only if current selection
     /// is `AnimationBlendingStateMachine`. The list is filled using ABSM's animation player.
     pub available_animations: Vec<AnimationDefinition>,
     pub sender: MessageSender,
+    #[reflect(hidden)]
     pub icon_request_sender: Sender<IconRequest>,
-    #[component(include)]
     pub style: Option<StyleResource>,
 }
 
@@ -99,8 +96,7 @@ impl EditorEnvironment {
         let environment = &**environment.as_ref().ok_or(InspectorError::Custom(
             "Missing InspectorEnvironment".into(),
         ))?;
-        environment
-            .as_any()
+        (environment as &dyn Any)
             .downcast_ref::<Self>()
             .ok_or(InspectorError::Custom(format!(
                 "Expected InspectorEnvironment to be EditorEnvironment, found: {}",
@@ -112,9 +108,6 @@ impl EditorEnvironment {
 impl InspectorEnvironment for EditorEnvironment {
     fn name(&self) -> String {
         format!("EditorEnvironment:{:?}", self.type_id())
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }
 

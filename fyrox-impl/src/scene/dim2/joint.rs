@@ -164,7 +164,7 @@ impl JointLocalFrames {
 
 /// Joint is used to restrict motion of two rigid bodies. There are numerous examples of joints in
 /// real life: door hinge, ball joints in human arms, etc.
-#[derive(Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Visit, Reflect, Debug)]
 #[reflect(derived_type = "Node")]
 pub struct Joint {
     base: Base,

@@ -108,7 +108,7 @@ use std::ops::{Deref, DerefMut};
 ///         .build(graph)
 /// }
 /// ```
-#[derive(Debug, Visit, Default, Clone, Reflect, ComponentProvider)]
+#[derive(Debug, Visit, Default, Clone, Reflect)]
 #[reflect(derived_type = "Node")]
 pub struct Decal {
     base: Base,

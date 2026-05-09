@@ -487,7 +487,7 @@ impl ResourceTilePosition {
 
 /// Tile is a base block of a tile map. It has a position and a handle of tile definition, stored
 /// in the respective tile set.
-#[derive(Clone, Reflect, Default, Debug, PartialEq, Visit, ComponentProvider, TypeUuidProvider)]
+#[derive(Clone, Reflect, Default, Debug, PartialEq, Visit, TypeUuidProvider)]
 #[type_uuid(id = "e429ca1b-a311-46c3-b580-d5a2f49db7e2")]
 pub struct Tile {
     /// Position of the tile (in grid coordinates).
@@ -951,7 +951,7 @@ impl OrthoTransform for TileRenderData {
 /// which contains all the pages that may be referenced by the tile map's handles.
 ///
 /// Optional [`TileMapEffect`] objects may be included in the `TileMap` to change how it renders.
-#[derive(Reflect, Debug, ComponentProvider, TypeUuidProvider)]
+#[derive(Reflect, Debug, TypeUuidProvider)]
 #[reflect(derived_type = "Node")]
 #[type_uuid(id = "aa9a3385-a4af-4faf-a69a-8d3af1a3aa67")]
 pub struct TileMap {

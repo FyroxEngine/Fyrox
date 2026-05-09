@@ -27,8 +27,7 @@ use crate::{
     border::BorderBuilder,
     button::{ButtonBuilder, ButtonMessage},
     core::{
-        algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        uuid_provider, visitor::prelude::*,
+        algebra::Vector2, pool::Handle, reflect::prelude::*, uuid_provider, visitor::prelude::*,
     },
     draw::DrawingContext,
     dropdown_list::{DropdownListBuilder, DropdownListMessage},
@@ -75,10 +74,9 @@ impl MessageData for FileSelectorMessage {}
 
 /// File selector is a modal window that allows you to select a file (or directory) and commit or
 /// cancel selection.
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct FileSelector {
-    #[component(include)]
     pub window: Window,
     pub browser: Handle<FileBrowser>,
     pub ok: Handle<Button>,

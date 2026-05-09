@@ -108,7 +108,7 @@ enum DragContext {
     Point { point: usize },
 }
 
-#[derive(Clone, Visit, Reflect, ComponentProvider)]
+#[derive(Clone, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 struct BlendSpaceField {
     widget: Widget,
@@ -557,7 +557,7 @@ pub enum BlendSpaceFieldPointMessage {
 }
 impl MessageData for BlendSpaceFieldPointMessage {}
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 struct BlendSpaceFieldPoint {
     widget: Widget,

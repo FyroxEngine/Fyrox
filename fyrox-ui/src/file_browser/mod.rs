@@ -101,7 +101,7 @@ enum FsEventMessage {
 }
 impl MessageData for FsEventMessage {}
 
-#[derive(Default, Visit, Reflect, ComponentProvider, TypeUuidProvider)]
+#[derive(Default, Visit, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "b7f4610e-4b0c-4671-9b4a-60bb45268928")]
 #[reflect(derived_type = "UiNode")]
 pub struct FileBrowser {

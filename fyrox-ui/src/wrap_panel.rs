@@ -25,10 +25,7 @@
 #![allow(clippy::reversed_empty_ranges)]
 
 use crate::{
-    core::{
-        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*,
-    },
+    core::{algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Orientation, UiNode, UserInterface,
@@ -79,7 +76,7 @@ impl MessageData for WrapPanelMessage {}
 ///
 /// Wrap panel can stack your widgets either in vertical or horizontal direction. Use `.with_orientation` while building
 /// the panel to switch orientation to desired.
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct WrapPanel {
     /// Base widget of the wrap panel.

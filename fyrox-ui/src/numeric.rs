@@ -236,7 +236,7 @@ pub enum DragContext<T: NumericType> {
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct NumericUpDown<T: NumericType> {
     /// Base widget of the [`NumericUpDown`] widget.

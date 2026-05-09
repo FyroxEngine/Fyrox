@@ -21,18 +21,17 @@
 pub mod graph;
 pub mod widget;
 
-use crate::fyrox::{core::type_traits::prelude::*, gui::UserInterface};
+use crate::fyrox::{core::reflect::prelude::*, gui::UserInterface};
 use crate::{
     command::CommandContext, message::MessageSender, scene::Selection,
     ui_scene::clipboard::Clipboard,
 };
 
-#[derive(ComponentProvider)]
+#[derive(Reflect, Debug)]
+#[reflect(non_cloneable)]
 pub struct UiSceneContext {
     pub ui: &'static mut UserInterface,
-    #[component(include)]
     pub selection: &'static mut Selection,
-    #[component(include)]
     pub message_sender: MessageSender,
     pub clipboard: &'static mut Clipboard,
 }

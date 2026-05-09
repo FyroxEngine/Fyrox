@@ -611,7 +611,7 @@ impl ColliderShape {
 
 /// Collider is a geometric entity that can be attached to a rigid body to allow participate it
 /// participate in contact generation, collision response and proximity queries.
-#[derive(Reflect, Visit, Debug, ComponentProvider)]
+#[derive(Reflect, Visit, Debug)]
 #[reflect(derived_type = "Node")]
 pub struct Collider {
     base: Base,

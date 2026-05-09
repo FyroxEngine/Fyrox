@@ -46,6 +46,7 @@ use crate::{
         instant,
         log::Log,
         pool::Handle,
+        reflect::prelude::*,
         reflect::Reflect,
         task::TaskPool,
         warn, SafeLock,
@@ -117,6 +118,7 @@ use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
 };
+use std::fmt::Debug;
 use std::{
     any::TypeId,
     cell::Cell,
@@ -143,11 +145,19 @@ use winit::{
 
 /// Serialization context holds runtime type information that allows to create unknown types using
 /// their UUIDs and a respective constructors.
+#[derive(Reflect)]
+#[reflect(hide_all, non_cloneable)] // TODO
 pub struct SerializationContext {
     /// A node constructor container.
     pub node_constructors: NodeConstructorContainer,
     /// A script constructor container.
     pub script_constructors: ScriptConstructorContainer,
+}
+
+impl Debug for SerializationContext {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SerializationContext")
+    }
 }
 
 impl Default for SerializationContext {
@@ -2916,7 +2926,7 @@ mod test {
         EventReceived(Source),
     }
 
-    #[derive(Debug, Clone, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+    #[derive(Debug, Clone, Reflect, Visit, TypeUuidProvider)]
     #[type_uuid(id = "2569de84-d4b2-427d-969b-d5c7b31a0ba6")]
     struct MyScript {
         #[reflect(hidden)]
@@ -2983,7 +2993,7 @@ mod test {
         }
     }
 
-    #[derive(Debug, Clone, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+    #[derive(Debug, Clone, Reflect, Visit, TypeUuidProvider)]
     #[type_uuid(id = "1cebacd9-b500-4753-93be-39db344add21")]
     struct MySubScript {
         #[reflect(hidden)]
@@ -3142,7 +3152,7 @@ mod test {
         Bar(String),
     }
 
-    #[derive(Debug, Clone, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+    #[derive(Debug, Clone, Reflect, Visit, TypeUuidProvider)]
     #[type_uuid(id = "bf2976ad-f41d-4de6-9a32-b1a293956058")]
     struct ScriptListeningToMessages {
         index: u32,
@@ -3193,7 +3203,7 @@ mod test {
         }
     }
 
-    #[derive(Debug, Clone, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+    #[derive(Debug, Clone, Reflect, Visit, TypeUuidProvider)]
     #[type_uuid(id = "6bcbf9b4-9546-42d3-965a-de055ab85475")]
     struct ScriptSendingMessages {
         index: u32,
@@ -3282,7 +3292,7 @@ mod test {
         }
     }
 
-    #[derive(Clone, Debug, PartialEq, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+    #[derive(Clone, Debug, PartialEq, Reflect, Visit, TypeUuidProvider)]
     #[type_uuid(id = "7bcbf9b4-9546-42d3-965a-de055ab85475")]
     pub struct ScriptSpawningAsyncTasks {
         num: Option<u32>,
@@ -3305,7 +3315,7 @@ mod test {
         }
     }
 
-    #[derive(Clone, Debug, PartialEq, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+    #[derive(Clone, Debug, PartialEq, Reflect, Visit, TypeUuidProvider)]
     #[type_uuid(id = "8bcbf9b4-9546-42d3-965a-de055ab85475")]
     pub struct ScriptWithoutAsyncTasks {}
 
@@ -3382,7 +3392,7 @@ mod test {
         );
     }
 
-    #[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+    #[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider)]
     #[type_uuid(id = "9bcbf9b4-9546-42d3-965a-de055ab85475")]
     pub struct ScriptThatDeletesItself {
         #[reflect(hidden)]
@@ -3423,7 +3433,7 @@ mod test {
         }
     }
 
-    #[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+    #[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider)]
     #[type_uuid(id = "9bcbf9b4-9546-42d3-965a-de055ab85475")]
     pub struct ScriptThatAddsScripts {
         num: usize,
@@ -3472,7 +3482,7 @@ mod test {
         }
     }
 
-    #[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider, ComponentProvider)]
+    #[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider)]
     #[type_uuid(id = "9bcbf9b4-9546-42d3-965a-de055ab85475")]
     pub struct SimpleScript {
         stuff: usize,

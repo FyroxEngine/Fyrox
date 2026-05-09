@@ -204,7 +204,7 @@ pub struct Tab {
 /// };
 /// # }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct TabControl {
     /// Base widget of the tab control.

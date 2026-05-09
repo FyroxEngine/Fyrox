@@ -23,7 +23,7 @@
 use crate::{
     core::{
         pool::Handle, reflect::prelude::*, uuid_provider, variable, visitor::prelude::*,
-        ComponentProvider, NameProvider,
+        NameProvider,
     },
     widget::Widget,
     Control, ControlAsAny, UserInterface,
@@ -55,18 +55,6 @@ impl<T: Control> From<T> for UiNode {
 }
 
 uuid_provider!(UiNode = "d9b45ecc-91b0-40ea-a92a-4a7dee4667c9");
-
-impl ComponentProvider for UiNode {
-    #[inline]
-    fn query_component_ref(&self, type_id: TypeId) -> Option<&dyn Any> {
-        self.0.query_component_ref(type_id)
-    }
-
-    #[inline]
-    fn query_component_mut(&mut self, type_id: TypeId) -> Option<&mut dyn Any> {
-        self.0.query_component_mut(type_id)
-    }
-}
 
 impl Clone for UiNode {
     #[inline]
@@ -232,18 +220,16 @@ impl UiNode {
     /// for more info.
     pub fn query_component<T>(&self) -> Option<&T>
     where
-        T: 'static,
+        T: Reflect,
     {
-        self.0
-            .query_component_ref(TypeId::of::<T>())
-            .and_then(|c| c.downcast_ref::<T>())
+        (self.0.deref() as &dyn Reflect).self_or_field_ref_of_type()
     }
 
     /// This method checks if the widget has a component of the given type `T`. Internally, it queries the component
     /// of the given type and checks if it exists.
     pub fn has_component<T>(&self) -> bool
     where
-        T: 'static,
+        T: Reflect,
     {
         self.query_component::<T>().is_some()
     }
@@ -323,6 +309,14 @@ impl Reflect for UiNode {
 
     fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
         Reflect::as_any_mut(self.0.deref_mut(), func)
+    }
+
+    fn as_reflect_direct(&self) -> &dyn Reflect {
+        self.0.deref().as_reflect_direct()
+    }
+
+    fn as_reflect_mut_direct(&mut self) -> &mut dyn Reflect {
+        self.0.deref_mut().as_reflect_mut_direct()
     }
 
     fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {

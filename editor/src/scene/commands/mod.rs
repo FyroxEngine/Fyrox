@@ -20,7 +20,7 @@
 
 use crate::fyrox::{
     asset::manager::ResourceManager,
-    core::{log::Log, pool::Handle, reflect::prelude::*, type_traits::prelude::*},
+    core::{log::Log, pool::Handle, reflect::prelude::*},
     engine::SerializationContext,
     graph::{SceneGraph, SceneGraphNode},
     scene::{graph::SubGraph, node::Node, Scene},
@@ -45,16 +45,17 @@ pub mod navmesh;
 pub mod sound_context;
 pub mod terrain;
 
-#[derive(ComponentProvider)]
+#[derive(Reflect, Debug)]
+#[reflect(non_cloneable)]
 pub struct GameSceneContext {
-    #[component(include)]
     pub selection: &'static mut Selection,
     pub scene: &'static mut Scene,
+    #[reflect(hidden)]
     pub scene_content_root: &'static mut Handle<Node>,
     pub clipboard: &'static mut Clipboard,
-    #[component(include)]
     pub message_sender: MessageSender,
     pub resource_manager: ResourceManager,
+    #[reflect(hidden)]
     pub serialization_context: Arc<SerializationContext>,
 }
 

@@ -21,7 +21,7 @@
 use crate::fyrox::{
     core::{
         make_pretty_type_name, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
-        sstorage::ImmutableString, type_traits::prelude::*, uuid_provider, visitor::prelude::*,
+        sstorage::ImmutableString, uuid_provider, visitor::prelude::*,
     },
     fxhash::FxHashSet,
     graph::SceneGraph,
@@ -295,7 +295,7 @@ where
     descriptors
 }
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct PropertySelector {
     widget: Widget,
@@ -484,10 +484,9 @@ impl PropertySelectorBuilder {
     }
 }
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct PropertySelectorWindow {
-    #[component(include)]
     window: Window,
     selector: Handle<PropertySelector>,
     ok: Handle<Button>,

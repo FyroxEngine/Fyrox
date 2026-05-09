@@ -26,8 +26,8 @@
 use crate::{
     brush::Brush,
     core::{
-        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        uuid_provider, visitor::prelude::*,
+        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, uuid_provider,
+        visitor::prelude::*,
     },
     draw::DrawingContext,
     font::FontResource,
@@ -320,7 +320,7 @@ impl MessageData for TextMessage {}
 ///
 /// Please keep in mind, that like any other situation when you "changing" something via messages, you should remember
 /// that the change is **not** immediate.
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct Text {
     /// Base widget of the Text widget.

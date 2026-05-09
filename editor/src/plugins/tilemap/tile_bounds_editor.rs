@@ -46,7 +46,7 @@ pub enum TileBoundsMessage {
 }
 impl MessageData for TileBoundsMessage {}
 
-#[derive(Clone, Default, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
+#[derive(Clone, Default, Debug, Visit, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "1e600103-6516-4c5a-a30b-f90f64fc9623")]
 #[reflect(derived_type = "UiNode")]
 pub struct TileBoundsEditor {

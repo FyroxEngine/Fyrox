@@ -62,7 +62,7 @@ use std::{
     path::PathBuf,
 };
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider, TypeUuidProvider)]
+#[derive(Clone, Visit, Reflect, Debug, TypeUuidProvider)]
 #[reflect(derived_type = "UiNode")]
 #[type_uuid(id = "8c9934ad-b4e1-4c68-9876-f253e34c6667")]
 struct AssetRenameDialog {

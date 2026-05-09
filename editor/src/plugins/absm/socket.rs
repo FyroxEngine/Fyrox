@@ -21,8 +21,7 @@
 use crate::fyrox::core::pool::ErasedHandle;
 use crate::fyrox::{
     core::{
-        algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        uuid_provider, visitor::prelude::*,
+        algebra::Vector2, pool::Handle, reflect::prelude::*, uuid_provider, visitor::prelude::*,
     },
     gui::{
         define_widget_deref,
@@ -55,7 +54,7 @@ pub enum SocketDirection {
     Output,
 }
 
-#[derive(Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Clone, Debug, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct Socket {
     widget: Widget,

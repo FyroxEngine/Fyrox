@@ -27,7 +27,6 @@ use crate::{
         math::Rect,
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         visitor::prelude::*,
     },
     draw::{CommandTexture, Draw, DrawingContext},
@@ -105,7 +104,7 @@ pub enum ColorFieldMessage {
 }
 impl MessageData for ColorFieldMessage {}
 
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct AlphaBar {
     pub widget: Widget,
@@ -385,7 +384,7 @@ impl AlphaBarBuilder {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct HueBar {
     pub widget: Widget,
@@ -547,7 +546,7 @@ impl HueBarBuilder {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct SaturationBrightnessField {
     pub widget: Widget,
@@ -763,7 +762,7 @@ impl SaturationBrightnessFieldBuilder {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct ColorPicker {
     pub widget: Widget,
@@ -1152,7 +1151,7 @@ impl ColorPickerBuilder {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct ColorField {
     pub widget: Widget,

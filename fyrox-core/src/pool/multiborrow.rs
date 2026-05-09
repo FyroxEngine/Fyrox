@@ -19,9 +19,8 @@
 // SOFTWARE.
 
 use super::{Handle, ObjectOrVariant, PayloadContainer, Pool, PoolError, RefCounter};
-use crate::ComponentProvider;
+use crate::reflect::Reflect;
 use std::{
-    any::TypeId,
     cell::RefCell,
     cmp::Ordering,
     fmt::{Debug, Formatter},
@@ -329,7 +328,7 @@ where
 
 impl<'a, T, P> MultiBorrowContext<'a, T, P>
 where
-    T: Sized + ComponentProvider,
+    T: Sized + Reflect,
     P: PayloadContainer<Element = T> + 'static,
 {
     /// Tries to mutably borrow an object and fetch its component of specified type.
@@ -339,11 +338,11 @@ where
         handle: Handle<T>,
     ) -> Result<Ref<'a, 'b, C>, PoolError>
     where
-        C: 'static,
+        C: Reflect,
     {
         self.try_get_internal(handle, move |obj| {
-            obj.query_component_ref(TypeId::of::<C>())
-                .and_then(|c| c.downcast_ref())
+            (obj as &dyn Reflect)
+                .self_or_field_ref_of_type::<C>()
                 .ok_or(PoolError::NoSuchComponent(handle.into()))
         })
     }
@@ -355,11 +354,11 @@ where
         handle: Handle<T>,
     ) -> Result<RefMut<'a, 'b, C>, PoolError>
     where
-        C: 'static,
+        C: Reflect,
     {
         self.try_get_mut_internal(handle, move |obj| {
-            obj.query_component_mut(TypeId::of::<C>())
-                .and_then(|c| c.downcast_mut())
+            (obj as &mut dyn Reflect)
+                .self_or_field_mut_of_type::<C>()
                 .ok_or(PoolError::NoSuchComponent(handle.into()))
         })
     }

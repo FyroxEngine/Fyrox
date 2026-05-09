@@ -114,7 +114,7 @@ pub type ResourceLoaderCallback<T> = Arc<
     >,
 >;
 
-#[derive(Visit, Reflect, ComponentProvider)]
+#[derive(Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct ResourceField<T>
 where

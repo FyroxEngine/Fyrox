@@ -21,7 +21,7 @@
 use crate::fyrox::{
     core::{
         algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
-        type_traits::prelude::*, uuid_provider, visitor::prelude::*,
+        uuid_provider, visitor::prelude::*,
     },
     gui::{
         brush::Brush,
@@ -43,7 +43,7 @@ use fyrox::material::MaterialResource;
 const PICKED_BRUSH: Brush = Brush::Solid(Color::opaque(100, 100, 100));
 const NORMAL_BRUSH: Brush = Brush::Solid(Color::opaque(80, 80, 80));
 
-#[derive(Debug, Clone, Visit, Reflect, ComponentProvider)]
+#[derive(Debug, Clone, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct Connection {
     widget: Widget,

@@ -53,7 +53,6 @@ use fyrox_graph::{
     SceneGraph, SceneGraphNode,
 };
 use std::{
-    any::TypeId,
     cmp::Ordering,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
@@ -198,12 +197,11 @@ impl MessageData for MenuItemMessage {}
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct Menu {
     widget: Widget,
     active: bool,
-    #[component(include)]
     items: ItemsContainer,
     /// A flag, that defines whether the menu should restrict all the mouse input or not.
     pub restrict_picking: InheritableVariable<bool>,
@@ -343,7 +341,7 @@ enum NavigationDirection {
     Vertical,
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 #[doc(hidden)]
 pub struct ItemsContainer {
     #[doc(hidden)]
@@ -409,13 +407,12 @@ impl ItemsContainer {
 
 /// Menu item is a widget with arbitrary content, that has a "floating" panel (popup) for sub-items if the menu item. This was menu items can form
 /// arbitrary hierarchies. See [`Menu`] docs for examples.
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct MenuItem {
     /// Base widget of the menu item.
     pub widget: Widget,
     /// Current items of the menu item
-    #[component(include)]
     pub items_container: ItemsContainer,
     /// A handle of a popup that holds the items of the menu item.
     pub items_panel: InheritableVariable<Handle<UiNode>>,
@@ -1130,12 +1127,11 @@ impl MenuItemBuilder {
 
 /// A simple wrapper over [`Popup`] widget, that holds the sub-items of a menu item and provides
 /// an ability for keyboard navigation.
-#[derive(Default, Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
+#[derive(Default, Clone, Debug, Visit, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "ad8e9e76-c213-4232-9bab-80ebcabd69fa")]
 #[reflect(derived_type = "UiNode")]
 pub struct ContextMenu {
     /// Inner popup widget of the context menu.
-    #[component(include)]
     pub popup: Popup,
     /// Parent menu item of the context menu. Allows you to build chained context menus.
     pub parent_menu_item: Handle<MenuItem>,
@@ -1231,9 +1227,8 @@ fn keyboard_navigation(
     parent_menu_item: &dyn Control,
     parent_menu_item_handle: Handle<MenuItem>,
 ) -> bool {
-    let Some(items_container) = parent_menu_item
-        .query_component_ref(TypeId::of::<ItemsContainer>())
-        .and_then(|c| c.downcast_ref::<ItemsContainer>())
+    let Some(items_container) =
+        (parent_menu_item as &dyn Reflect).self_or_field_ref_of_type::<ItemsContainer>()
     else {
         return false;
     };

@@ -26,10 +26,7 @@
 //! for windows.
 
 use crate::{
-    core::{
-        log::Log, pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
-        visitor::prelude::*,
-    },
+    core::{log::Log, pool::Handle, reflect::prelude::*, uuid_provider, visitor::prelude::*},
     dock::config::{DockingManagerLayoutDescriptor, FloatingWindowDescriptor, TileDescriptor},
     message::UiMessage,
     widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -163,7 +160,7 @@ impl MessageData for DockingManagerMessage {}
 /// To be able to restore the layout to its defaults, just create a desired layout from code,
 /// save the layout and use the returned layout descriptor when you need to restore the layout
 /// to its defaults.
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct DockingManager {
     pub widget: Widget,

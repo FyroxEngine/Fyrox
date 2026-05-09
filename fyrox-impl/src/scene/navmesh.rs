@@ -156,7 +156,7 @@ impl Visit for Container {
 ///     scene.graph[handle].as_navigational_mesh_mut()
 /// }
 /// ```
-#[derive(Debug, Clone, Visit, Reflect, Default, ComponentProvider)]
+#[derive(Debug, Clone, Visit, Reflect, Default)]
 #[reflect(derived_type = "Node")]
 pub struct NavigationalMesh {
     base: Base,

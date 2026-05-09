@@ -500,8 +500,16 @@ fn gen_impl(
                 func(self)
             }
 
+            fn as_reflect_direct(&self) -> &dyn Reflect {
+                self
+            }
+
             fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
                 func(self as &dyn Reflect)
+            }
+
+            fn as_reflect_mut_direct(&mut self) -> &mut dyn Reflect {
+                self
             }
 
             fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {

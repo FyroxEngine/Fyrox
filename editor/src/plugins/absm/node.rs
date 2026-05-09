@@ -57,7 +57,7 @@ pub struct AbsmBaseNode {
     pub output_socket: Handle<Socket>,
 }
 
-#[derive(Visit, Reflect, ComponentProvider)]
+#[derive(Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct AbsmNode<T>
 where
@@ -65,11 +65,9 @@ where
 {
     widget: Widget,
     background: Handle<Border>,
-    #[component(include)]
     selectable: Selectable,
     pub name_value: String,
     pub model_handle: Handle<T>,
-    #[component(include)]
     pub base: AbsmBaseNode,
     pub add_input: Handle<Button>,
     input_sockets_panel: Handle<StackPanel>,

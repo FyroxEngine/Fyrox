@@ -28,10 +28,7 @@ use crate::style::Style;
 use crate::{
     border::BorderBuilder,
     canvas::CanvasBuilder,
-    core::{
-        algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*,
-    },
+    core::{algebra::Vector2, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     message::UiMessage,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface,
@@ -91,7 +88,7 @@ impl MessageData for ProgressBarMessage {}
 ///     ui.send(progress_bar, ProgressBarMessage::Progress(0.33));
 /// }
 /// ```
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct ProgressBar {
     /// Base widget of the progress bar.

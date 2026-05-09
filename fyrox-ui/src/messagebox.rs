@@ -27,10 +27,7 @@
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     control_trait_proxy_impls,
-    core::{
-        algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*,
-    },
+    core::{algebra::Vector2, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
     message::UiMessage,
@@ -166,11 +163,10 @@ pub enum MessageBoxButtons {
 ///
 /// There's no way to change the style of the message box, nor add some widgets to it. If you need a custom message box, then you
 /// need to create your own widget. This message box is meant to be used as a standard dialog box for standard situations in the UI.
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct MessageBox {
     /// Base window of the message box.
-    #[component(include)]
     pub window: Window,
     /// Current set of buttons of the message box.
     pub buttons: InheritableVariable<MessageBoxButtons>,

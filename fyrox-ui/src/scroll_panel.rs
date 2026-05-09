@@ -26,7 +26,7 @@ use crate::{
     brush::Brush,
     core::{
         algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
-        type_traits::prelude::*, visitor::prelude::*,
+        visitor::prelude::*,
     },
     draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
@@ -143,7 +143,7 @@ impl MessageData for ScrollPanelMessage {
 ///     ui.send(scroll_panel, ScrollPanelMessage::BringIntoView(child))
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct ScrollPanel {
     /// Base widget of the scroll panel.

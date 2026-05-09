@@ -18,15 +18,24 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::core::pool::Handle;
-use crate::fyrox::graph::SceneGraph;
-use crate::fyrox::gui::{UiNode, UserInterface};
-use crate::ui_scene::selection::UiSelection;
+use crate::{
+    fyrox::{
+        core::{blank_reflect_ref, pool::Handle, reflect::prelude::*},
+        graph::SceneGraph,
+        gui::{UiNode, UserInterface},
+    },
+    ui_scene::selection::UiSelection,
+};
 use std::collections::HashMap;
 
+#[derive(Debug)]
 pub struct Clipboard {
     ui: UserInterface,
     empty: bool,
+}
+
+impl Reflect for &'static mut Clipboard {
+    blank_reflect_ref!();
 }
 
 impl Default for Clipboard {

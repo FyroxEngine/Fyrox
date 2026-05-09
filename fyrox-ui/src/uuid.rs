@@ -66,7 +66,7 @@ impl MessageData for UuidEditorMessage {}
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct UuidEditor {
     widget: Widget,

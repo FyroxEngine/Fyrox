@@ -104,7 +104,7 @@ impl MessageData for HandlePropertyEditorNameMessage {}
 pub struct HandlePropertyEditorHierarchyMessage(pub HierarchyNode);
 impl MessageData for HandlePropertyEditorHierarchyMessage {}
 
-#[derive(Visit, Reflect, TypeUuidProvider, ComponentProvider)]
+#[derive(Visit, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "3ceca8c1-c365-4f03-a413-062f8f3cd685")]
 #[reflect(derived_type = "UiNode")]
 pub struct HandlePropertyEditor<T: Reflect> {

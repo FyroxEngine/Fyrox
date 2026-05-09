@@ -27,10 +27,7 @@ use crate::message::MessageData;
 use crate::text::Text;
 use crate::{
     brush::Brush,
-    core::{
-        color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*,
-    },
+    core::{color::Color, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     define_widget_deref,
     draw::{CommandTexture, Draw, DrawingContext},
     message::{KeyCode, KeyboardModifiers, MouseButton, UiMessage},
@@ -190,7 +187,7 @@ impl MessageData for HotKeyEditorMessage {}
 /// ## Messages
 ///
 /// Use [`HotKeyEditorMessage`] message to alternate the state of a hot key widget, or to listen to its changes.
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct HotKeyEditor {
     widget: Widget,
@@ -399,7 +396,7 @@ impl MessageData for KeyBindingEditorMessage {}
 /// ## Messages
 ///
 /// Use [`KeyBindingEditorMessage`] message to alternate the state of a key binding widget, or to listen to its changes.
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct KeyBindingEditor {
     widget: Widget,

@@ -27,7 +27,7 @@ use crate::{
     border::BorderBuilder,
     brush::Brush,
     core::{
-        color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
+        color::Color, pool::Handle, reflect::prelude::*, uuid_provider,
         variable::InheritableVariable, visitor::prelude::*,
     },
     decorator::{Decorator, DecoratorMessage},
@@ -233,7 +233,7 @@ impl ListViewMessage {
 ///     ui.send(my_list_view, ListViewMessage::BringItemIntoView(my_item));
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[visit(optional)]
 #[reflect(derived_type = "UiNode")]
 pub struct ListView {
@@ -322,7 +322,7 @@ impl ListView {
 }
 
 /// A wrapper for list view items, that is used to add selection functionality to arbitrary items.
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct ListViewItem {
     /// Base widget of the list view item.

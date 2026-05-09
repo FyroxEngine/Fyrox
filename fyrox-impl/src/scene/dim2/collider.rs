@@ -29,7 +29,6 @@ use crate::{
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         uuid_provider,
         variable::InheritableVariable,
@@ -268,7 +267,7 @@ impl ColliderShape {
 
 /// Collider is a geometric entity that can be attached to a rigid body to allow to participate in
 /// contact generation, collision response and proximity queries.
-#[derive(Reflect, Visit, Debug, ComponentProvider)]
+#[derive(Reflect, Visit, Debug)]
 #[reflect(derived_type = "Node")]
 pub struct Collider {
     base: Base,

@@ -19,10 +19,7 @@
 // SOFTWARE.
 
 use crate::fyrox::{
-    core::{
-        pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
-        visitor::prelude::*,
-    },
+    core::{pool::Handle, reflect::prelude::*, uuid_provider, visitor::prelude::*},
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         define_widget_deref,
@@ -60,7 +57,7 @@ pub enum SpriteSheetFramesPropertyEditorMessage {
 }
 impl MessageData for SpriteSheetFramesPropertyEditorMessage {}
 
-#[derive(Clone, Debug, Reflect, Visit, ComponentProvider)]
+#[derive(Clone, Debug, Reflect, Visit)]
 #[reflect(derived_type = "UiNode")]
 pub struct SpriteSheetFramesPropertyEditor {
     widget: Widget,

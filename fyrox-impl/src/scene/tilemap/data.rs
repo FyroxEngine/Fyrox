@@ -177,7 +177,7 @@ impl<'a, P: FnMut(Vector2<i32>) -> bool> TileMapDataIterator<'a, P> {
 }
 
 /// Asset containing the tile handles of a tile map.
-#[derive(Clone, Default, Debug, Reflect, TypeUuidProvider, ComponentProvider)]
+#[derive(Clone, Default, Debug, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "a8e4b6b4-c1bd-4ed9-a753-0d5a3dfe1729")]
 pub struct TileMapData {
     content: FxHashMap<Vector2<i32>, Chunk>,

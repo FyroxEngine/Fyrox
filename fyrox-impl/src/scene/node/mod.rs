@@ -36,7 +36,7 @@ use crate::{
         uuid_provider, variable,
         variable::mark_inheritable_properties_non_modified,
         visitor::{Visit, VisitResult, Visitor},
-        ComponentProvider, NameProvider,
+        NameProvider,
     },
     graph::SceneGraphNode,
     renderer::bundle::RenderContext,
@@ -132,7 +132,7 @@ pub enum RdcControlFlow {
 }
 
 /// A main trait for any scene graph node.
-pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + ComponentProvider {
+pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
     /// Brief debugging information about this node.
     fn summary(&self) -> String {
         use std::fmt::Write;
@@ -269,11 +269,11 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit + ComponentProvider {
 // See ObjectOrVariantHelper for the cause of the indirection.
 impl<T: NodeTrait> ObjectOrVariantHelper<Node, T> for PhantomData<T> {
     fn convert_to_dest_type_helper(node: &Node) -> Option<&T> {
-        (node.0.deref() as &dyn ComponentProvider).component_ref()
+        (node.0.deref() as &dyn Reflect).self_or_field_ref_of_type()
     }
 
     fn convert_to_dest_type_helper_mut(node: &mut Node) -> Option<&mut T> {
-        (node.0.deref_mut() as &mut dyn ComponentProvider).component_mut()
+        (node.0.deref_mut() as &mut dyn Reflect).self_or_field_mut_of_type()
     }
 }
 
@@ -425,16 +425,6 @@ impl SceneGraphNode for Node {
 impl NameProvider for Node {
     fn name(&self) -> &str {
         &self.0.name
-    }
-}
-
-impl ComponentProvider for Node {
-    fn query_component_ref(&self, type_id: TypeId) -> Option<&dyn Any> {
-        self.0.query_component_ref(type_id)
-    }
-
-    fn query_component_mut(&mut self, type_id: TypeId) -> Option<&mut dyn Any> {
-        self.0.query_component_mut(type_id)
     }
 }
 
@@ -669,6 +659,14 @@ impl Reflect for Node {
     fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
         self.0.deref_mut().field_direct_mut(index)
     }
+
+    fn as_reflect_direct(&self) -> &dyn Reflect {
+        self.0.as_reflect_direct()
+    }
+
+    fn as_reflect_mut_direct(&mut self) -> &mut dyn Reflect {
+        self.0.as_reflect_mut_direct()
+    }
 }
 
 #[cfg(test)]
@@ -678,7 +676,6 @@ mod test {
         core::{
             algebra::{Matrix4, Vector3},
             futures::executor::block_on,
-            impl_component_provider,
             reflect::prelude::*,
             uuid::{uuid, Uuid},
             variable::InheritableVariable,
@@ -709,8 +706,6 @@ mod test {
         some_field: InheritableVariable<String>,
         some_collection: InheritableVariable<Vec<u32>>,
     }
-
-    impl_component_provider!(MyScript);
 
     impl TypeUuidProvider for MyScript {
         fn type_uuid() -> Uuid {

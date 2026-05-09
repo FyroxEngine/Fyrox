@@ -28,8 +28,7 @@ use crate::{
     brush::Brush,
     check_box::{CheckBoxBuilder, CheckBoxMessage},
     core::{
-        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*,
+        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, visitor::prelude::*,
     },
     decorator::{DecoratorBuilder, DecoratorMessage},
     grid::{Column, GridBuilder, Row},
@@ -293,7 +292,7 @@ impl MessageData for TreeRootMessage {}
 ///     });
 /// }
 /// ```
-#[derive(Default, Debug, Clone, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Debug, Clone, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct Tree {
     /// Base widget of the tree.
@@ -809,7 +808,7 @@ fn build_expander(
 ///     ui.send(tree, TreeRootMessage::Select(new_selection));
 /// }
 /// ```
-#[derive(Default, Debug, Clone, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Debug, Clone, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct TreeRoot {
     /// Base widget of the tree root.

@@ -1323,7 +1323,7 @@ impl AnimationCache {
 /// Each layer has a name and a color. The color is used to allow the user to quickly
 /// identify which shapes correspond to which layers while in the tile set editor.
 /// See [`TileSetColliderLayer`] for more information.
-#[derive(Clone, Default, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
+#[derive(Clone, Default, Debug, Visit, Reflect, TypeUuidProvider)]
 #[type_uuid(id = "7b7e057b-a41e-4150-ab3b-0ae99f4024f0")]
 pub struct TileSet {
     /// A mapping from animated tiles to the corresponding cells on animation pages.

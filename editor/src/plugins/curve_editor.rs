@@ -21,10 +21,11 @@
 use crate::{
     command::{Command, CommandContext, CommandStack, CommandTrait},
     fyrox::{
+        asset::manager::ResourceManager,
         asset::Resource,
         core::{
-            futures::executor::block_on, math::curve::Curve, pool::Handle, type_traits::prelude::*,
-            visitor::prelude::*,
+            futures::executor::block_on, math::curve::Curve, pool::Handle, reflect::prelude::*,
+            some_or_return, type_traits::prelude::*, visitor::prelude::*,
         },
         engine::Engine,
         gui::{
@@ -41,6 +42,16 @@ use crate::{
             window::{WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
         },
+        gui::{
+            button::Button,
+            curve::CurveEditor,
+            file_browser::{FileSelector, FileSelectorMode, FileType},
+            menu::MenuItem,
+            messagebox::MessageBox,
+            style::resource::StyleResourceExt,
+            style::Style,
+            window::{Window, WindowAlignment},
+        },
         resource::curve::{CurveResource, CurveResourceState},
     },
     menu::create_menu_item,
@@ -48,19 +59,9 @@ use crate::{
     utils::create_file_selector,
     Editor, MessageBoxButtons, MessageBoxMessage,
 };
-use fyrox::asset::manager::ResourceManager;
-use fyrox::core::some_or_return;
-use fyrox::gui::button::Button;
-use fyrox::gui::curve::CurveEditor;
-use fyrox::gui::file_browser::{FileSelector, FileSelectorMode, FileType};
-use fyrox::gui::menu::MenuItem;
-use fyrox::gui::messagebox::MessageBox;
-use fyrox::gui::style::resource::StyleResourceExt;
-use fyrox::gui::style::Style;
-use fyrox::gui::window::{Window, WindowAlignment};
 use std::{fmt::Debug, path::PathBuf};
 
-#[derive(Debug, ComponentProvider)]
+#[derive(Reflect, Clone, Debug)]
 pub struct CurveEditorContext {}
 
 impl CommandContext for CurveEditorContext {}

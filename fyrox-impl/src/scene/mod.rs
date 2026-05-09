@@ -78,6 +78,7 @@ use crate::{
     utils::navmesh::Navmesh,
 };
 use fxhash::FxHashSet;
+use fyrox_core::blank_reflect_ref;
 use fyrox_core::dyntype::DynTypeConstructorContainer;
 use fyrox_core::pool::PoolError;
 use std::{
@@ -278,6 +279,10 @@ pub struct Scene {
     /// to false for menu's scene and when you need to open a menu - set it to true and
     /// set `enabled` flag to false for level's scene.
     pub enabled: InheritableVariable<bool>,
+}
+
+impl Reflect for &'static mut Scene {
+    blank_reflect_ref!();
 }
 
 impl Clone for Scene {

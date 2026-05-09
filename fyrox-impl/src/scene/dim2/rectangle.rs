@@ -171,7 +171,7 @@ impl Hash for RectangleVertex {
 /// image, but just changing portion for rendering. Keep in mind that the coordinates are normalized
 /// which means `[0; 0]` corresponds to top-left corner of the texture and `[1; 1]` corresponds to
 /// right-bottom corner.
-#[derive(Reflect, Debug, Clone, Visit, ComponentProvider)]
+#[derive(Reflect, Debug, Clone, Visit)]
 #[reflect(derived_type = "Node")]
 pub struct Rectangle {
     base: Base,

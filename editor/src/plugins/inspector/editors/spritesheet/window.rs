@@ -21,8 +21,8 @@
 use crate::fyrox::graph::SceneGraph;
 use crate::fyrox::{
     core::{
-        algebra::Vector2, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
-        type_traits::prelude::*, uuid_provider, visitor::prelude::*,
+        algebra::Vector2, parking_lot::Mutex, pool::Handle, reflect::prelude::*, uuid_provider,
+        visitor::prelude::*,
     },
     gui::{
         border::BorderBuilder,
@@ -59,10 +59,9 @@ use std::{
     sync::{mpsc::Sender, Arc},
 };
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct SpriteSheetFramesEditorWindow {
-    #[component(include)]
     window: Window,
     editor: Handle<UiNode>,
     ok: Handle<Button>,

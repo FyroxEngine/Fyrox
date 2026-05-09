@@ -550,6 +550,14 @@ where
     fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
         self.value.field_direct_mut(index)
     }
+
+    fn as_reflect_direct(&self) -> &dyn Reflect {
+        self.value.as_reflect_direct()
+    }
+
+    fn as_reflect_mut_direct(&mut self) -> &mut dyn Reflect {
+        self.value.as_reflect_mut_direct()
+    }
 }
 
 impl<T> ReflectInheritableVariable for InheritableVariable<T>

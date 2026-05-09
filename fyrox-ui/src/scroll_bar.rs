@@ -32,8 +32,7 @@ use crate::{
     button::{ButtonBuilder, ButtonMessage},
     canvas::CanvasBuilder,
     core::{
-        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*,
+        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, visitor::prelude::*,
     },
     decorator::DecoratorBuilder,
     font::FontResource,
@@ -130,7 +129,7 @@ impl MessageData for ScrollBarMessage {}
 ///
 /// Scroll bar provides arrows to change the current value using a fixed step value. You can change it using
 /// [`ScrollBarBuilder::with_step`] method.
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct ScrollBar {
     /// Base widget of the scroll bar.

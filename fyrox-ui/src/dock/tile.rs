@@ -256,7 +256,7 @@ fn deminimize_other_window(
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct Tile {
     pub widget: Widget,

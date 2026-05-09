@@ -244,6 +244,14 @@ impl<T: Reflect> Reflect for Handle<T> {
             None
         }
     }
+
+    fn as_reflect_direct(&self) -> &dyn Reflect {
+        self
+    }
+
+    fn as_reflect_mut_direct(&mut self) -> &mut dyn Reflect {
+        self
+    }
 }
 
 impl<T> Copy for Handle<T> {}

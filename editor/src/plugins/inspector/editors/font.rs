@@ -22,8 +22,8 @@ use crate::{
     asset::item::AssetItem,
     fyrox::{
         core::{
-            algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*,
-            type_traits::prelude::*, uuid_provider, visitor::prelude::*,
+            algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, uuid_provider,
+            visitor::prelude::*,
         },
         graph::SceneGraph,
         gui::{
@@ -55,7 +55,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-#[derive(Clone, Visit, Reflect, ComponentProvider)]
+#[derive(Clone, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct FontField {
     widget: Widget,

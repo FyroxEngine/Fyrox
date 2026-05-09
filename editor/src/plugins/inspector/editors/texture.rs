@@ -24,7 +24,7 @@ use crate::{
         asset::{manager::ResourceManager, untyped::UntypedResource},
         core::{
             algebra::Vector2, color::Color, make_relative_path, pool::Handle, reflect::prelude::*,
-            type_traits::prelude::*, uuid_provider, visitor::prelude::*,
+            uuid_provider, visitor::prelude::*,
         },
         graph::SceneGraph,
         gui::{
@@ -58,7 +58,7 @@ use std::{
     sync::mpsc::Sender,
 };
 
-#[derive(Clone, Visit, Reflect, ComponentProvider)]
+#[derive(Clone, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 pub struct TextureEditor {
     widget: Widget,

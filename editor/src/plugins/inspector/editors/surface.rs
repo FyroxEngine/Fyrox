@@ -67,7 +67,7 @@ pub enum SurfaceDataPropertyEditorMessage {
 }
 impl MessageData for SurfaceDataPropertyEditorMessage {}
 
-#[derive(Clone, Visit, Reflect, Debug, ComponentProvider, TypeUuidProvider)]
+#[derive(Clone, Visit, Reflect, Debug, TypeUuidProvider)]
 #[type_uuid(id = "8461a183-4fd4-4f74-a4f4-7fd8e84bf423")]
 #[reflect(derived_type = "UiNode")]
 #[allow(dead_code)]

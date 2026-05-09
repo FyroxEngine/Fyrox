@@ -348,10 +348,9 @@ pub enum TrackViewMessage {
 }
 impl MessageData for TrackViewMessage {}
 
-#[derive(Clone, Debug, Reflect, Visit, ComponentProvider)]
+#[derive(Clone, Debug, Reflect, Visit)]
 #[reflect(derived_type = "UiNode")]
 struct TrackView {
-    #[component(include)]
     pub tree: Tree,
     id: Uuid,
     target: ErasedHandle,

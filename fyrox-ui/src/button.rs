@@ -93,7 +93,7 @@ impl MessageData for ButtonMessage {}
 ///     }
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider)]
 #[type_uuid(id = "2abcf12b-2f19-46da-b900-ae8890f7c9c6")]
 #[reflect(derived_type = "UiNode")]
 pub struct Button {

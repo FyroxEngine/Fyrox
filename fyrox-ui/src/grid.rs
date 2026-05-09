@@ -25,8 +25,8 @@
 
 use crate::{
     core::{
-        algebra::Vector2, log::Log, math::Rect, pool::Handle, reflect::prelude::*,
-        type_traits::prelude::*, uuid_provider, variable::InheritableVariable, visitor::prelude::*,
+        algebra::Vector2, log::Log, math::Rect, pool::Handle, reflect::prelude::*, uuid_provider,
+        variable::InheritableVariable, visitor::prelude::*,
     },
     draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
@@ -219,7 +219,7 @@ pub type Row = GridDimension;
 /// You can add any number of rows and columns to a grid widget, and each grid cell does **not** need to have a UI widget
 /// in it to be valid. For example, you can add a column and set it to a specific size via strict to provide spacing between
 /// two other columns.
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct Grid {
     /// Base widget of the grid.

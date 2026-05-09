@@ -29,7 +29,6 @@ use crate::{
         log::Log,
         pool::{Handle, PoolError},
         reflect::{FieldMut, FieldRef, Reflect, ReflectArray, ReflectList},
-        type_traits::ComponentProvider,
         uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
         TypeUuidProvider,
@@ -609,7 +608,7 @@ impl UniversalScriptContext for ScriptDeinitContext<'_, '_, '_> {
 
 /// Script is a set predefined methods that are called on various stages by the engine. It is used to add
 /// custom behaviour to game entities.
-pub trait ScriptTrait: BaseScript + ComponentProvider {
+pub trait ScriptTrait: BaseScript {
     /// The method is called when the script wasn't initialized yet. It is guaranteed to be called once,
     /// and before any other methods of the script.
     ///
@@ -819,6 +818,14 @@ impl Reflect for Script {
     fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
         self.instance.deref_mut().field_direct_mut(index)
     }
+
+    fn as_reflect_direct(&self) -> &dyn Reflect {
+        self.instance.as_reflect_direct()
+    }
+
+    fn as_reflect_mut_direct(&mut self) -> &mut dyn Reflect {
+        self.instance.as_reflect_mut_direct()
+    }
 }
 
 impl Deref for Script {
@@ -917,18 +924,14 @@ impl Script {
 
     /// Tries to borrow a component of given type.
     #[inline]
-    pub fn query_component_ref<T: Any>(&self) -> Option<&T> {
-        self.instance
-            .query_component_ref(TypeId::of::<T>())
-            .and_then(|c| c.downcast_ref())
+    pub fn query_component_ref<T: Reflect>(&self) -> Option<&T> {
+        (self.instance.deref() as &dyn Reflect).self_or_field_ref_of_type()
     }
 
     /// Tries to borrow a component of given type.
     #[inline]
-    pub fn query_component_mut<T: Any>(&mut self) -> Option<&mut T> {
-        self.instance
-            .query_component_mut(TypeId::of::<T>())
-            .and_then(|c| c.downcast_mut())
+    pub fn query_component_mut<T: Reflect>(&mut self) -> Option<&mut T> {
+        (self.instance.deref_mut() as &mut dyn Reflect).self_or_field_mut_of_type()
     }
 }
 
@@ -937,8 +940,8 @@ mod test {
     use crate::scene::base::ScriptRecord;
     use crate::{
         core::{
-            impl_component_provider, reflect::prelude::*, variable::try_inherit_properties,
-            variable::InheritableVariable, visitor::prelude::*,
+            reflect::prelude::*, variable::try_inherit_properties, variable::InheritableVariable,
+            visitor::prelude::*,
         },
         scene::base::Base,
         script::{Script, ScriptTrait},
@@ -950,7 +953,6 @@ mod test {
         field: InheritableVariable<f32>,
     }
 
-    impl_component_provider!(MyScript);
     uuid_provider!(MyScript = "eed9bf56-7d71-44a0-ba8e-0f3163c59669");
 
     impl ScriptTrait for MyScript {}

@@ -27,7 +27,7 @@
 use crate::{
     core::{
         algebra::Vector2, color::Color, math::Rect, math::Vector2Ext, pool::Handle,
-        reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
+        reflect::prelude::*, visitor::prelude::*,
     },
     draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
@@ -199,7 +199,7 @@ impl Primitive {
 ///
 /// Keep in mind that all primitives located in local coordinates. The color of the vector image can be changed by
 /// setting a new foreground brush.
-#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 pub struct VectorImage {
     /// Base widget of the image.
