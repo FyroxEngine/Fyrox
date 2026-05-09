@@ -1292,24 +1292,44 @@ pub enum CompressionOptions {
 uuid_provider!(CompressionOptions = "fbdcc081-d0b8-4b62-9925-2de6c013fbf5");
 
 fn transmute_slice<T>(bytes: &[u8]) -> &'_ [T] {
-    // SAFETY: This is absolutely safe because `image` crate's Rgb8/Rgba8/etc. and `tbc`s Rgb8/Rgba8/etc.
-    // have exactly the same memory layout.
+    let target_size = std::mem::size_of::<T>();
+    assert!(target_size != 0, "transmute_slice: target type must not be zero-sized");
+    assert!(
+        bytes.len() % target_size == 0,
+        "transmute_slice: byte length ({}) is not a multiple of target type size ({target_size})",
+        bytes.len(),
+    );
+    let ptr = bytes.as_ptr() as *const T;
+    assert!(
+        ptr.is_aligned(),
+        "transmute_slice: source pointer is not aligned for target type (required {} byte alignment)",
+        std::mem::align_of::<T>(),
+    );
+    // SAFETY: Alignment and divisibility are checked above. The image crate's Rgb8/Rgba8/etc.
+    // and tbc's Rgb8/Rgba8/etc. have exactly the same memory layout.
     unsafe {
-        std::slice::from_raw_parts(
-            bytes.as_ptr() as *const T,
-            bytes.len() / std::mem::size_of::<T>(),
-        )
+        std::slice::from_raw_parts(ptr, bytes.len() / target_size)
     }
 }
 
 fn transmute_slice_mut<T>(bytes: &mut [u8]) -> &'_ mut [T] {
-    // SAFETY: This is absolutely safe because `image` crate's Rgb8/Rgba8/etc. and `tbc`s Rgb8/Rgba8/etc.
-    // have exactly the same memory layout.
+    let target_size = std::mem::size_of::<T>();
+    assert!(target_size != 0, "transmute_slice_mut: target type must not be zero-sized");
+    assert!(
+        bytes.len() % target_size == 0,
+        "transmute_slice_mut: byte length ({}) is not a multiple of target type size ({target_size})",
+        bytes.len(),
+    );
+    let ptr = bytes.as_mut_ptr() as *mut T;
+    assert!(
+        ptr.is_aligned(),
+        "transmute_slice_mut: source pointer is not aligned for target type (required {} byte alignment)",
+        std::mem::align_of::<T>(),
+    );
+    // SAFETY: Alignment and divisibility are checked above. The image crate's Rgb8/Rgba8/etc.
+    // and tbc's Rgb8/Rgba8/etc. have exactly the same memory layout.
     unsafe {
-        std::slice::from_raw_parts_mut(
-            bytes.as_ptr() as *mut T,
-            bytes.len() / std::mem::size_of::<T>(),
-        )
+        std::slice::from_raw_parts_mut(ptr, bytes.len() / target_size)
     }
 }
 
