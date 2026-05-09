@@ -328,16 +328,11 @@ impl dyn GpuFrameBufferTrait {
     where
         T: Pod,
     {
-        let mut bytes = self.read_pixels(read_target)?;
-        let typed = unsafe {
-            Vec::<T>::from_raw_parts(
-                bytes.as_mut_ptr() as *mut T,
-                bytes.len() / size_of::<T>(),
-                bytes.capacity() / size_of::<T>(),
-            )
-        };
-        std::mem::forget(bytes);
-        Some(typed)
+        let bytes = self.read_pixels(read_target)?;
+        // Use bytemuck for a safe, correctly-aligned conversion. This copies into a new
+        // Vec<T> with proper alignment, avoiding the UB from reinterpreting a Vec<u8>
+        // allocation as Vec<T> (which would deallocate with the wrong layout).
+        Some(bytemuck::cast_slice::<u8, T>(&bytes).to_vec())
     }
 }
 
