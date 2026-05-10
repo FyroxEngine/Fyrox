@@ -40,6 +40,7 @@ pub fn impl_reflect(ty_args: &args::TypeArgs) -> TokenStream2 {
             quote!(func(&mut [])),
             quote! {None},
             quote! {None},
+            quote! {0},
         );
     }
 
@@ -205,6 +206,8 @@ fn impl_reflect_struct(ty_args: &args::TypeArgs, field_args: &args::Fields) -> T
     let getter_ref = gen_fields_getter_body(&props, &fields, field_args, false);
     let getter_mut = gen_fields_getter_body(&props, &field_muts, field_args, true);
 
+    let fields_num = field_args.len();
+
     let set_field_body = self::struct_set_field_body(ty_args);
     self::gen_impl(
         ty_args,
@@ -217,6 +220,7 @@ fn impl_reflect_struct(ty_args: &args::TypeArgs, field_args: &args::Fields) -> T
         },
         getter_ref,
         getter_mut,
+        quote! {#fields_num},
     )
 }
 
@@ -278,6 +282,7 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
     let mut fields_muts = Vec::new();
     let mut getter_refs = Vec::new();
     let mut getter_muts = Vec::new();
+    let mut fields_count = Vec::new();
     for v in variant_args.iter() {
         let fields = v
             .fields
@@ -312,6 +317,8 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
         let getter_ref = gen_fields_getter_body(&props, &fields, &v.fields, false);
         let getter_mut = gen_fields_getter_body(&props, &field_muts, &v.fields, true);
 
+        let fields_num = v.fields.len();
+
         fields_refs.push(quote! {
             #matcher => func(&[#metadata_ref]),
         });
@@ -326,6 +333,10 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
 
         getter_muts.push(quote! {
              #matcher => { #getter_mut },
+        });
+
+        fields_count.push(quote! {
+             #matcher => { #fields_num },
         });
     }
 
@@ -365,6 +376,15 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
         }
     };
 
+    let fields_count_body = quote! {
+        match self {
+            #(
+                #fields_count
+            )*
+            _ => 0
+        }
+    };
+
     self::gen_impl(
         ty_args,
         None,
@@ -372,6 +392,7 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
         fields_metadata_mut_body,
         fields_getter_ref_body,
         fields_getter_mut_body,
+        fields_count_body,
     )
 }
 
@@ -382,6 +403,7 @@ fn gen_impl(
     metadata_mut: TokenStream2,
     getter_ref: TokenStream2,
     getter_mut: TokenStream2,
+    fields_count: TokenStream2,
 ) -> TokenStream2 {
     let ty_ident = &ty_args.ident;
     let generics = ty_args.impl_generics();
@@ -488,6 +510,10 @@ fn gen_impl(
 
             fn field_direct_mut(&mut self, reflect_argument_index: usize) -> Option<FieldMut> {
                 #getter_mut
+            }
+
+            fn fields_count(&self) -> usize {
+                #fields_count
             }
 
             #set_field
