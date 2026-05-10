@@ -142,7 +142,7 @@ impl Control for NavigationLayer {
                     if *self.bring_into_view {
                         // Find a parent scroll viewer.
                         if let Some((scroll_viewer, _)) =
-                            ui.find_component_up::<ScrollViewer>(entry.handle)
+                            ui.find_self_or_field_up::<ScrollViewer>(entry.handle)
                         {
                             ui.send(
                                 scroll_viewer,

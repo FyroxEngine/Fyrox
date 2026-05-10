@@ -456,10 +456,10 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
 // See ObjectOrVariantHelper for the cause of the indirection.
 impl<T: Control> ObjectOrVariantHelper<UiNode, T> for PhantomData<T> {
     fn convert_to_dest_type_helper(node: &UiNode) -> Option<&T> {
-        (node.0.deref() as &dyn Reflect).self_or_field_ref_of_type()
+        (node.0.deref() as &dyn Reflect).self_or_field_ref()
     }
 
     fn convert_to_dest_type_helper_mut(node: &mut UiNode) -> Option<&mut T> {
-        (node.0.deref_mut() as &mut dyn Reflect).self_or_field_mut_of_type()
+        (node.0.deref_mut() as &mut dyn Reflect).self_or_field_mut()
     }
 }

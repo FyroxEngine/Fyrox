@@ -607,7 +607,7 @@ impl TileMapEditorPlugin {
         let game_scene = entry.controller.downcast_mut::<GameScene>()?;
         let scene = &mut editor.engine.scenes[game_scene.scene];
         let node = scene.graph.try_get_node_mut(self.tile_map).ok()?;
-        node.component_mut::<TileMap>()
+        node.self_or_field_mut::<TileMap>()
     }
     fn open_panel_for_tile_set(
         &mut self,
@@ -895,7 +895,7 @@ impl EditorPlugin for TileMapEditorPlugin {
                 .graph
                 .try_get_node_mut(self.tile_map)
                 .ok()
-                .and_then(|n| n.component_mut::<TileMap>())
+                .and_then(|n| n.self_or_field_mut::<TileMap>())
             {
                 tile_map.before_effects.clear();
                 tile_map.after_effects.clear();

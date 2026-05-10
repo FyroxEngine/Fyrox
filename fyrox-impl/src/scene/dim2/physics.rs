@@ -371,7 +371,7 @@ fn tile_map_to_collider_shape(
     let tile_map = nodes
         .try_borrow(tile_map.0)
         .ok()?
-        .component_ref::<TileMap>()?;
+        .self_or_field_ref::<TileMap>()?;
 
     let tile_set_resource = tile_map.tile_set()?.data_ref();
     let tile_set = tile_set_resource.as_loaded_ref()?;
@@ -842,7 +842,10 @@ impl PhysicsWorld {
                 let h = Handle::decode_from_u128(self.colliders.get(handle).unwrap().user_data);
                 pred(
                     h,
-                    graph.node(h).component_ref::<collider::Collider>().unwrap(),
+                    graph
+                        .node(h)
+                        .self_or_field_ref::<collider::Collider>()
+                        .unwrap(),
                 )
             } else {
                 true
@@ -1180,7 +1183,7 @@ impl PhysicsWorld {
                 }
             }
         } else if let Ok(parent_body) =
-            nodes.try_get_component_of_type::<dim2::rigidbody::RigidBody>(collider_node.parent())
+            nodes.try_get_or_field_ref::<dim2::rigidbody::RigidBody>(collider_node.parent())
         {
             if parent_body.native.get() != RigidBodyHandle::invalid() {
                 let rigid_body_native = parent_body.native.get();

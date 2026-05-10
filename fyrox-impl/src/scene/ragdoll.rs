@@ -187,9 +187,7 @@ impl NodeTrait for Ragdoll {
 
                 if *self.deactivate_colliders {
                     for child in limb_body.children() {
-                        if let Ok(mut collider) =
-                            mbc.try_get_component_of_type_mut::<Collider>(*child)
-                        {
+                        if let Ok(mut collider) = mbc.try_get_or_field_mut::<Collider>(*child) {
                             collider.set_is_sensor(false);
                         }
                     }
@@ -226,9 +224,7 @@ impl NodeTrait for Ragdoll {
 
                 if *self.deactivate_colliders {
                     for child in limb_body.children() {
-                        if let Ok(mut collider) =
-                            mbc.try_get_component_of_type_mut::<Collider>(*child)
-                        {
+                        if let Ok(mut collider) = mbc.try_get_or_field_mut::<Collider>(*child) {
                             collider.set_is_sensor(true);
                         }
                     }

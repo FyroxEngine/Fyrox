@@ -324,7 +324,7 @@ impl dyn Reflect {
     /// Tries to find the first field of the given type. This method internally uses
     /// [`Reflect::field_direct_ref`] with all of its limitations.
     #[inline]
-    pub fn first_field_ref_of_type<T: Reflect>(&self) -> Option<&T> {
+    pub fn first_field_ref<T: Reflect>(&self) -> Option<&T> {
         let count = self.as_reflect_direct().fields_count();
 
         for i in 0..count {
@@ -341,7 +341,7 @@ impl dyn Reflect {
     /// Tries to find the first field of the given type. This method internally uses
     /// [`Reflect::field_direct_ref`] with all of its limitations.
     #[inline]
-    pub fn first_field_mut_of_type<T: Reflect>(&mut self) -> Option<&mut T> {
+    pub fn first_field_mut<T: Reflect>(&mut self) -> Option<&mut T> {
         let count = self.as_reflect_direct().fields_count();
 
         for i in 0..count {
@@ -363,23 +363,23 @@ impl dyn Reflect {
 
     /// Tries to downcast self to the specified type, or if it is not possible, tries to find a
     /// field of the specified type.
-    pub fn self_or_field_ref_of_type<T: Reflect>(&self) -> Option<&T> {
+    pub fn self_or_field_ref<T: Reflect>(&self) -> Option<&T> {
         if let Some(value) = (self.as_reflect_direct() as &dyn Any).downcast_ref::<T>() {
             Some(value)
         } else {
-            self.first_field_ref_of_type()
+            self.first_field_ref()
         }
     }
 
     /// Tries to downcast self to the specified type, or if it is not possible, tries to find a
     /// field of the specified type.
-    pub fn self_or_field_mut_of_type<T: Reflect>(&mut self) -> Option<&mut T> {
+    pub fn self_or_field_mut<T: Reflect>(&mut self) -> Option<&mut T> {
         // SAFETY: See the comment in `first_field_mut_of_type` method.
         let this = unsafe { &mut *(self as *mut Self) };
         if let Some(value) = (self.as_reflect_mut_direct() as &mut dyn Any).downcast_mut::<T>() {
             Some(value)
         } else {
-            this.first_field_mut_of_type()
+            this.first_field_mut()
         }
     }
 
@@ -1100,9 +1100,7 @@ mod test {
         assert_eq!(foo.fields_count(), 5);
 
         assert_eq!(
-            (&foo as &dyn Reflect)
-                .first_field_ref_of_type::<f32>()
-                .unwrap(),
+            (&foo as &dyn Reflect).first_field_ref::<f32>().unwrap(),
             &baz
         );
     }

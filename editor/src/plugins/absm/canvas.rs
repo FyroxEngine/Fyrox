@@ -163,7 +163,7 @@ impl AbsmCanvas {
             for &child in self
                 .children()
                 .iter()
-                .filter(|n| ui.node(**n).query_component::<Selectable>().is_some())
+                .filter(|n| ui.node(**n).self_or_field_ref::<Selectable>().is_some())
             {
                 ui.send_handled(
                     child,
@@ -198,16 +198,16 @@ impl AbsmCanvas {
         if ui
             .try_get_node(node_handle)
             .ok()
-            .is_some_and(|n| n.has_component::<T>())
+            .is_some_and(|n| n.is_or_has_field::<T>())
         {
             return node_handle;
         }
 
         if node_handle == self.handle() {
-            self.find_by_criteria_up(ui, |n| n.has_component::<T>())
+            self.find_by_criteria_up(ui, |n| n.is_or_has_field::<T>())
         } else {
             ui.node(node_handle)
-                .find_by_criteria_up(ui, |n| n.has_component::<T>())
+                .find_by_criteria_up(ui, |n| n.is_or_has_field::<T>())
         }
     }
 
@@ -216,7 +216,7 @@ impl AbsmCanvas {
         for connection in self
             .children()
             .iter()
-            .filter_map(|c| ui.node(*c).query_component::<Connection>())
+            .filter_map(|c| ui.node(*c).self_or_field_ref::<Connection>())
         {
             if connection.source_node == moved_node || force {
                 let source_pos = self
@@ -241,7 +241,7 @@ impl AbsmCanvas {
         for transition in self
             .children()
             .iter()
-            .filter_map(|c| ui.node(*c).query_component::<TransitionView>())
+            .filter_map(|c| ui.node(*c).self_or_field_ref::<TransitionView>())
         {
             if force
                 || moved_node == transition.segment.source
@@ -253,7 +253,7 @@ impl AbsmCanvas {
                     .iter()
                     .filter_map(|c| {
                         ui.node(*c)
-                            .query_component::<TransitionView>()
+                            .self_or_field_ref::<TransitionView>()
                             .and_then(|t| {
                                 if t.segment.source == transition.segment.source
                                     && t.segment.dest == transition.segment.dest
@@ -474,11 +474,11 @@ impl Control for AbsmCanvas {
 
                         if dest_socket_handle.is_some() {
                             let source_socket_ref =
-                                ui.node(source).query_component::<Socket>().unwrap();
+                                ui.node(source).self_or_field_ref::<Socket>().unwrap();
 
                             let dest_socket_ref = ui
                                 .node(dest_socket_handle)
-                                .query_component::<Socket>()
+                                .self_or_field_ref::<Socket>()
                                 .unwrap();
 
                             // Do not allow to create connections between sockets of the same node.
@@ -572,7 +572,7 @@ impl Control for AbsmCanvas {
             if message.direction() == MessageDirection::FromWidget {
                 let socket_ref = ui
                     .node(message.destination())
-                    .query_component::<Socket>()
+                    .self_or_field_ref::<Socket>()
                     .unwrap();
 
                 ui.send(
@@ -587,7 +587,7 @@ impl Control for AbsmCanvas {
         } else if let Some(WidgetMessage::DesiredPosition(_)) = message.data() {
             if ui
                 .node(message.destination())
-                .has_component::<AbsmBaseNode>()
+                .is_or_has_field::<AbsmBaseNode>()
             {
                 let moved_node = message.destination();
                 self.sync_connections_ends(moved_node, ui, false);

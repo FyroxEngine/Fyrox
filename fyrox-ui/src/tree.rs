@@ -369,7 +369,7 @@ impl Control for Tree {
                         // Prevent selection changes by Alt+Click to be able to drag'n'drop tree items.
                         if !keyboard_modifiers.alt {
                             if let Some((tree_root_handle, tree_root)) =
-                                ui.find_component_up::<TreeRoot>(self.parent())
+                                ui.find_self_or_field_up::<TreeRoot>(self.parent())
                             {
                                 let selection = if keyboard_modifiers.control {
                                     let mut selection = tree_root.selected.clone();
@@ -411,7 +411,7 @@ impl Control for Tree {
                                                 }
                                             }
 
-                                            if node.query_component::<Tree>().is_some() {
+                                            if node.self_or_field_ref::<Tree>().is_some() {
                                                 hierarchy.push(handle.to_variant());
                                             }
 
@@ -920,7 +920,7 @@ impl Control for TreeRoot {
                                     );
                                     message.set_handled(true);
                                 } else if let Some((parent_handle, _)) =
-                                    ui.find_component_up::<Tree>(item.parent())
+                                    ui.find_self_or_field_up::<Tree>(item.parent())
                                 {
                                     ui.send(
                                         self.handle,
@@ -986,7 +986,7 @@ impl TreeRoot {
             }
 
             let (parent_handle, parent_items, parent_ancestor, is_parent_root) = ui
-                .find_component_up::<Tree>(item.parent())
+                .find_self_or_field_up::<Tree>(item.parent())
                 .map(|(tree_handle, tree)| {
                     (
                         tree_handle.to_variant::<Tree>(),
@@ -1046,7 +1046,7 @@ impl TreeRoot {
                         let mut current_ancestor = parent_handle;
                         let mut current_ancestor_parent = parent_ancestor;
                         while let Some((ancestor_handle, ancestor)) =
-                            ui.find_component_up::<Tree>(current_ancestor_parent)
+                            ui.find_self_or_field_up::<Tree>(current_ancestor_parent)
                         {
                             if ancestor.is_expanded {
                                 if let Some(current_ancestor_position) =

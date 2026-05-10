@@ -333,7 +333,7 @@ where
 {
     /// Tries to mutably borrow an object and fetch its component of specified type.
     #[inline]
-    pub fn try_get_component_of_type<'b: 'a, C>(
+    pub fn try_get_or_field_ref<'b: 'a, C>(
         &'b self,
         handle: Handle<T>,
     ) -> Result<Ref<'a, 'b, C>, PoolError>
@@ -342,14 +342,14 @@ where
     {
         self.try_get_internal(handle, move |obj| {
             (obj as &dyn Reflect)
-                .self_or_field_ref_of_type::<C>()
-                .ok_or(PoolError::NoSuchComponent(handle.into()))
+                .self_or_field_ref::<C>()
+                .ok_or(PoolError::NoSuchField(handle.into()))
         })
     }
 
     /// Tries to mutably borrow an object and fetch its component of specified type.
     #[inline]
-    pub fn try_get_component_of_type_mut<'b: 'a, C>(
+    pub fn try_get_or_field_mut<'b: 'a, C>(
         &'b self,
         handle: Handle<T>,
     ) -> Result<RefMut<'a, 'b, C>, PoolError>
@@ -358,8 +358,8 @@ where
     {
         self.try_get_mut_internal(handle, move |obj| {
             (obj as &mut dyn Reflect)
-                .self_or_field_mut_of_type::<C>()
-                .ok_or(PoolError::NoSuchComponent(handle.into()))
+                .self_or_field_mut::<C>()
+                .ok_or(PoolError::NoSuchField(handle.into()))
         })
     }
 }

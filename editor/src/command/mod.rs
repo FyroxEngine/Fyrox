@@ -39,25 +39,25 @@ pub mod panel;
 pub trait CommandContext: Reflect {}
 
 impl dyn CommandContext + '_ {
-    pub fn component_ref<T>(&self) -> Option<&T>
+    pub fn self_or_field_ref<T>(&self) -> Option<&T>
     where
         T: Reflect,
     {
-        (self as &dyn Reflect).self_or_field_ref_of_type()
+        (self as &dyn Reflect).self_or_field_ref()
     }
 
-    pub fn component_mut<T>(&mut self) -> Option<&mut T>
+    pub fn self_or_field_mut<T>(&mut self) -> Option<&mut T>
     where
         T: Reflect,
     {
-        (self as &mut dyn Reflect).self_or_field_mut_of_type()
+        (self as &mut dyn Reflect).self_or_field_mut()
     }
 
     pub fn get<T>(&self) -> &T
     where
         T: Reflect,
     {
-        self.component_ref().unwrap_or_else(|| {
+        self.self_or_field_ref().unwrap_or_else(|| {
             panic!(
                 "Unable to downcast command context to {} type",
                 type_name::<T>()
@@ -69,7 +69,7 @@ impl dyn CommandContext + '_ {
     where
         T: Reflect,
     {
-        self.component_mut().unwrap_or_else(|| {
+        self.self_or_field_mut().unwrap_or_else(|| {
             panic!(
                 "Unable to downcast command context to {} type",
                 type_name::<T>()

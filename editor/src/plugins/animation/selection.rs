@@ -104,11 +104,11 @@ pub fn get_animations_container<'a, N: Reflect>(
         scenes[game_scene.scene]
             .graph
             .node(ErasedHandle::from(handle).into())
-            .component_ref::<InheritableVariable<AnimationContainer<Handle<N>>>>()
+            .self_or_field_ref::<InheritableVariable<AnimationContainer<Handle<N>>>>()
     } else if let Some(ui) = controller.downcast_ref::<UiScene>() {
         ui.ui
             .node(ErasedHandle::from(handle).into())
-            .component_ref::<InheritableVariable<AnimationContainer<Handle<N>>>>()
+            .self_or_field_ref::<InheritableVariable<AnimationContainer<Handle<N>>>>()
     } else {
         None
     }

@@ -999,8 +999,8 @@ impl TrackList {
         {
             let filter_text = text.to_lowercase();
             utils::apply_visibility_filter(self.tree_root.to_base(), ui, |node| {
-                if let Some(tree) = node.query_component::<Tree>() {
-                    if let Some(tree_text) = ui.node(tree.content).query_component::<Text>() {
+                if let Some(tree) = node.self_or_field_ref::<Tree>() {
+                    if let Some(tree_text) = ui.node(tree.content).self_or_field_ref::<Text>() {
                         return Some(tree_text.text().to_lowercase().contains(&filter_text));
                     }
                 }
@@ -1152,7 +1152,7 @@ impl TrackList {
                     .iter()
                     .filter_map(|s| {
                         let selected_widget = ui.node(s.to_base());
-                        if let Some(track_data) = selected_widget.query_component::<TrackView>() {
+                        if let Some(track_data) = selected_widget.self_or_field_ref::<TrackView>() {
                             Some(SelectedEntity::Track(track_data.id))
                         } else if let Some(curve_data) =
                             selected_widget.user_data_cloned::<CurveViewData>()
@@ -1250,7 +1250,7 @@ impl TrackList {
                 if let Some(animation) = selected_animation {
                     if let Some(track_view_ref) = ui
                         .node(message.destination())
-                        .query_component::<TrackView>()
+                        .self_or_field_ref::<TrackView>()
                     {
                         if animation.track_bindings().contains_key(&track_view_ref.id) {
                             sender.do_command(SetTrackEnabledCommand {

@@ -213,7 +213,7 @@ where
     graph
         .try_get_node_mut(handle)
         .ok()
-        .and_then(|n| n.component_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>())
+        .and_then(|n| n.self_or_field_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>())
         .map(|v| v.get_value_mut_silent())
 }
 
@@ -230,7 +230,7 @@ where
         .ok()
         .and_then(|n| {
             (n as &dyn Reflect)
-                .first_field_ref_of_type::<InheritableVariable<AnimationContainer<Handle<N>>>>()
+                .first_field_ref::<InheritableVariable<AnimationContainer<Handle<N>>>>()
         })
         .map(|v| v.get_value_ref())
 }
@@ -485,7 +485,7 @@ impl AnimationEditor {
 
                     // HACK. This is unreliable to just use `bool` here. It should be wrapped into
                     // newtype or something.
-                    if let Some(auto_apply) = animation_player_node.component_mut::<bool>() {
+                    if let Some(auto_apply) = animation_player_node.self_or_field_mut::<bool>() {
                         *auto_apply = true;
                     } else {
                         Log::warn("No `auto_apply` component in animation player!")

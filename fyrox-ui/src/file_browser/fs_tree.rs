@@ -186,7 +186,7 @@ pub fn build_tree<P: AsRef<Path>>(
     ui: &mut UserInterface,
 ) -> Handle<Tree> {
     let subtree = build_tree_item(path, parent_path, menu, false, filter, &mut ui.build_ctx());
-    if ui[parent].has_component::<TreeRoot>() {
+    if ui[parent].is_or_has_field::<TreeRoot>() {
         ui.send(parent, TreeRootMessage::AddItem(subtree));
     } else {
         ui.send(parent, TreeMessage::AddItem(subtree));

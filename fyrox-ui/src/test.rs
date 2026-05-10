@@ -122,7 +122,7 @@ impl UserInterfaceTestingExtension for UserInterface {
             assert!(is_enabled(start_handle, self));
             assert!(start_node.is_globally_visible());
             if let Some((text_handle, text_node)) = self.find(start_handle, &mut |n| {
-                if let Some(text_widget) = n.component_ref::<Text>() {
+                if let Some(text_widget) = n.self_or_field_ref::<Text>() {
                     text_widget.text() == text
                 } else {
                     false

@@ -722,7 +722,7 @@ impl WorldViewer {
         } else if let Some(TreeMessage::Expand { expand, .. }) = message.data() {
             if let Some(scene_view_item) = ui
                 .node(message.destination())
-                .query_component::<SceneItem>()
+                .self_or_field_ref::<SceneItem>()
             {
                 if let Some(path) = data_provider.path() {
                     settings

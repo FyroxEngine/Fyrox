@@ -465,7 +465,7 @@ impl MenuItem {
         let mut menu_item_ref_container = Some(self);
         while let Some(menu_item_ref) = menu_item_ref_container {
             let popup_handle =
-                menu_item_ref.find_by_criteria_up(ui, |n| n.has_component::<ContextMenu>());
+                menu_item_ref.find_by_criteria_up(ui, |n| n.is_or_has_field::<ContextMenu>());
 
             ui.send(
                 menu_item_ref.handle,
@@ -497,7 +497,7 @@ impl MenuItem {
 fn find_menu(from: Handle<UiNode>, ui: &UserInterface) -> Handle<UiNode> {
     let mut handle = from;
     while handle.is_some() {
-        if let Some((_, panel)) = ui.find_component_up::<ContextMenu>(handle) {
+        if let Some((_, panel)) = ui.find_self_or_field_up::<ContextMenu>(handle) {
             // Continue search from parent menu item of popup.
             handle = panel.parent_menu_item.to_base();
         } else {
@@ -512,9 +512,9 @@ fn is_any_menu_item_contains_point(ui: &UserInterface, pt: Vector2<f32>) -> bool
     for (handle, menu) in ui
         .nodes()
         .pair_iter()
-        .filter_map(|(h, n)| n.query_component::<MenuItem>().map(|menu| (h, menu)))
+        .filter_map(|(h, n)| n.self_or_field_ref::<MenuItem>().map(|menu| (h, menu)))
     {
-        if ui.find_component_up::<Menu>(handle).is_none()
+        if ui.find_self_or_field_up::<Menu>(handle).is_none()
             && menu.is_globally_visible()
             && menu.screen_bounds().contains(pt)
         {
@@ -633,7 +633,9 @@ impl Control for MenuItem {
                     }
                 }
                 MenuItemMessage::Close { deselect } => {
-                    if let Some(panel) = ui.node(*self.items_panel).query_component::<ContextMenu>()
+                    if let Some(panel) = ui
+                        .node(*self.items_panel)
+                        .self_or_field_ref::<ContextMenu>()
                     {
                         if *panel.popup.is_open {
                             ui.send(*self.items_panel, PopupMessage::Close);
@@ -720,7 +722,7 @@ impl Control for MenuItem {
                         break;
                     } else {
                         let node = ui.node(handle);
-                        if let Some(panel) = node.component_ref::<ContextMenu>() {
+                        if let Some(panel) = node.self_or_field_ref::<ContextMenu>() {
                             // Once we found popup in chain, we must extract handle
                             // of parent menu item to continue search.
                             handle = panel.parent_menu_item.to_base();
@@ -731,7 +733,9 @@ impl Control for MenuItem {
                 }
 
                 if !found {
-                    if let Some(panel) = ui.node(*self.items_panel).query_component::<ContextMenu>()
+                    if let Some(panel) = ui
+                        .node(*self.items_panel)
+                        .self_or_field_ref::<ContextMenu>()
                     {
                         if *panel.popup.is_open {
                             ui.send(self.handle(), MenuItemMessage::Close { deselect: true });
@@ -751,7 +755,10 @@ impl Control for MenuItem {
         // Allow closing "orphaned" menus by clicking outside of them.
         if let OsEvent::MouseInput { state, .. } = event {
             if *state == ButtonState::Pressed {
-                if let Some(panel) = ui.node(*self.items_panel).query_component::<ContextMenu>() {
+                if let Some(panel) = ui
+                    .node(*self.items_panel)
+                    .self_or_field_ref::<ContextMenu>()
+                {
                     if *panel.popup.is_open {
                         // Ensure that the cursor is outside any menus.
                         if !is_any_menu_item_contains_point(ui, ui.cursor_position())
@@ -1228,7 +1235,7 @@ fn keyboard_navigation(
     parent_menu_item_handle: Handle<MenuItem>,
 ) -> bool {
     let Some(items_container) =
-        (parent_menu_item as &dyn Reflect).self_or_field_ref_of_type::<ItemsContainer>()
+        (parent_menu_item as &dyn Reflect).self_or_field_ref::<ItemsContainer>()
     else {
         return false;
     };

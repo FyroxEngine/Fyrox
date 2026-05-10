@@ -106,7 +106,7 @@ fn apply_filter_recursive(node: Handle<UiNode>, filter: &str, ui: &UserInterface
     }
 
     if let Some(data) = node_ref
-        .query_component::<Tree>()
+        .self_or_field_ref::<Tree>()
         .and_then(|n| n.user_data_cloned::<PropertyDescriptorData>())
     {
         is_any_match |= data.name.to_lowercase().contains(filter);
@@ -319,7 +319,7 @@ impl PropertySelector {
         while let Some(node_handle) = stack.pop() {
             let node = ui.node(node_handle);
 
-            if let Some(tree) = node.query_component::<Tree>() {
+            if let Some(tree) = node.self_or_field_ref::<Tree>() {
                 if self.selected_property_paths.iter().any(|path| {
                     path.path
                         == tree

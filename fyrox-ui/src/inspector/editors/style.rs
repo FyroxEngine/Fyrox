@@ -564,7 +564,7 @@ where
                 .with_target_type_id(TypeId::of::<T>())
                 .with_style_resource(ctx.environment.as_ref().and_then(|env| {
                     (&**env as &dyn Reflect)
-                        .first_field_ref_of_type::<Option<StyleResource>>()
+                        .first_field_ref::<Option<StyleResource>>()
                         .cloned()
                         .flatten()
                 }))

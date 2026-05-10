@@ -404,15 +404,16 @@ impl InteractionMode for ColliderShapeInteractionMode {
                 .unwrap_or_default();
             let collider_node = &scene.graph[self.collider];
 
-            let initial_shape = if let Some(collider) = collider_node.component_ref::<Collider>() {
-                ColliderInitialShape::ThreeD(collider.shape().clone())
-            } else if let Some(collider_2d) =
-                collider_node.component_ref::<dim2::collider::Collider>()
-            {
-                ColliderInitialShape::TwoD(collider_2d.shape().clone())
-            } else {
-                unreachable!();
-            };
+            let initial_shape =
+                if let Some(collider) = collider_node.self_or_field_ref::<Collider>() {
+                    ColliderInitialShape::ThreeD(collider.shape().clone())
+                } else if let Some(collider_2d) =
+                    collider_node.self_or_field_ref::<dim2::collider::Collider>()
+                {
+                    ColliderInitialShape::TwoD(collider_2d.shape().clone())
+                } else {
+                    unreachable!();
+                };
 
             let handle = result.node.to_variant();
             if let Some(handle_value) =

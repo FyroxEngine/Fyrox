@@ -353,21 +353,21 @@ impl GameScene {
                 if settings.debugging.show_tbn {
                     node.debug_draw(ctx);
                 }
-            } else if node.component_ref::<Camera>().is_some() {
+            } else if node.self_or_field_ref::<Camera>().is_some() {
                 if settings.debugging.show_camera_bounds {
                     node.debug_draw(ctx);
                 }
-            } else if node.component_ref::<PointLight>().is_some()
-                || node.component_ref::<SpotLight>().is_some()
+            } else if node.self_or_field_ref::<PointLight>().is_some()
+                || node.self_or_field_ref::<SpotLight>().is_some()
             {
                 if settings.debugging.show_light_bounds {
                     node.debug_draw(ctx);
                 }
-            } else if node.component_ref::<Terrain>().is_some() {
+            } else if node.self_or_field_ref::<Terrain>().is_some() {
                 if settings.debugging.show_terrains {
                     node.debug_draw(ctx);
                 }
-            } else if let Some(navmesh) = node.component_ref::<NavigationalMesh>() {
+            } else if let Some(navmesh) = node.self_or_field_ref::<NavigationalMesh>() {
                 if settings.navmesh.draw_all {
                     let selection = editor_selection.as_navmesh();
 

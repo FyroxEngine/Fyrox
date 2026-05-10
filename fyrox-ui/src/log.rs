@@ -80,7 +80,10 @@ impl ContextMenu {
     }
 
     fn on_copy_clicked(&self, ui: &mut UserInterface) -> Option<()> {
-        let text = ui.find_component::<Text>(self.placement_target)?.1.text();
+        let text = ui
+            .find_self_or_field::<Text>(self.placement_target)?
+            .1
+            .text();
         ui.clipboard_mut()?.set_contents(text).ok()
     }
 

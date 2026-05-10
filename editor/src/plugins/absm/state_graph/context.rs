@@ -334,7 +334,7 @@ impl NodeContextMenu {
                     layer: layer_index,
                     entry: ui
                         .node(self.placement_target)
-                        .query_component::<AbsmNode<State<Handle<N>>>>()
+                        .self_or_field_ref::<AbsmNode<State<Handle<N>>>>()
                         .unwrap()
                         .model_handle,
                 });
@@ -346,7 +346,7 @@ impl NodeContextMenu {
                     .children()
                     .iter()
                     .cloned()
-                    .filter(|c| ui.node(*c).has_component::<AbsmNode<State<Handle<N>>>>())
+                    .filter(|c| ui.node(*c).is_or_has_field::<AbsmNode<State<Handle<N>>>>())
                     .collect::<Vec<_>>();
                 ui.post(
                     self.canvas,
@@ -418,7 +418,7 @@ impl TransitionContextMenu {
 
                     let transition_ref = ui
                         .node(self.placement_target)
-                        .query_component::<TransitionView>()
+                        .self_or_field_ref::<TransitionView>()
                         .unwrap();
 
                     let group = vec![

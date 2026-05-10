@@ -253,7 +253,7 @@ impl SettingsWindow {
                 // matching search criteria.
                 let mut inner_match = false;
                 let sub_inspector = ui.find_handle(entry.property_editor, &mut |node| {
-                    node.has_component::<Inspector>()
+                    node.is_or_has_field::<Inspector>()
                 });
                 if sub_inspector.is_some() {
                     inner_match |= apply_recursive(filter_text, sub_inspector, ui);

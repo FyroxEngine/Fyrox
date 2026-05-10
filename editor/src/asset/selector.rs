@@ -122,7 +122,7 @@ impl Control for Item {
     fn update(&mut self, _dt: f32, ui: &mut UserInterface) {
         if self.need_request_preview.get() {
             let parent_container_bounds = ui
-                .find_up(self.parent, &mut |n| n.has_component::<ListView>())
+                .find_up(self.parent, &mut |n| n.is_or_has_field::<ListView>())
                 .map(|(_, node)| node.screen_bounds())
                 .unwrap_or_default();
 

@@ -226,7 +226,7 @@ impl MeshControlPanel {
             } else if message.destination() == self.add_convex_collider {
                 for (mesh_handle, _) in meshes_iter(selection, scene) {
                     if let Some((ancestor_rigid_body, _)) =
-                        scene.graph.find_component_up::<RigidBody>(mesh_handle)
+                        scene.graph.find_self_or_field_up::<RigidBody>(mesh_handle)
                     {
                         let collider =
                             ColliderBuilder::new(BaseBuilder::new().with_name("ConvexCollider"))
@@ -244,7 +244,7 @@ impl MeshControlPanel {
             } else if message.destination() == self.add_trimesh_collider {
                 for (mesh_handle, _) in meshes_iter(selection, scene) {
                     if let Some((ancestor_rigid_body, _)) =
-                        scene.graph.find_component_up::<RigidBody>(mesh_handle)
+                        scene.graph.find_self_or_field_up::<RigidBody>(mesh_handle)
                     {
                         let collider =
                             ColliderBuilder::new(BaseBuilder::new().with_name("TrimeshCollider"))

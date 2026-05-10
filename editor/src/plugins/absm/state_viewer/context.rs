@@ -304,7 +304,7 @@ impl NodeContextMenu {
             } else if message.destination() == self.set_as_root {
                 let root = ui
                     .node(self.placement_target)
-                    .query_component::<AbsmNode<PoseNode<Handle<N>>>>()
+                    .self_or_field_ref::<AbsmNode<PoseNode<Handle<N>>>>()
                     .unwrap()
                     .model_handle;
 
@@ -373,12 +373,12 @@ impl ConnectionContextMenu {
             if message.destination == self.remove {
                 let connection_ref = ui
                     .node(self.placement_target)
-                    .query_component::<Connection>()
+                    .self_or_field_ref::<Connection>()
                     .unwrap();
 
                 let dest_node_ref = ui
                     .node(connection_ref.dest_node)
-                    .query_component::<AbsmNode<PoseNode<Handle<N>>>>()
+                    .self_or_field_ref::<AbsmNode<PoseNode<Handle<N>>>>()
                     .unwrap();
 
                 let index = dest_node_ref

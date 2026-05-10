@@ -195,17 +195,17 @@ pub fn fetch_machine<N: Reflect>(
     // with Polonius.
     let context2 = unsafe { &mut *(context as *mut dyn CommandContext) };
 
-    if let Some(game_scene) = context.component_mut::<GameSceneContext>() {
+    if let Some(game_scene) = context.self_or_field_mut::<GameSceneContext>() {
         game_scene
             .scene
             .graph
             .node_mut(ErasedHandle::from(node_handle).into())
-            .component_mut::<InheritableVariable<Machine<Handle<N>>>>()
+            .self_or_field_mut::<InheritableVariable<Machine<Handle<N>>>>()
             .unwrap()
-    } else if let Some(ui) = context2.component_mut::<UiSceneContext>() {
+    } else if let Some(ui) = context2.self_or_field_mut::<UiSceneContext>() {
         ui.ui
             .node_mut(ErasedHandle::from(node_handle).into())
-            .component_mut::<InheritableVariable<Machine<Handle<N>>>>()
+            .self_or_field_mut::<InheritableVariable<Machine<Handle<N>>>>()
             .unwrap()
     } else {
         panic!("Unsupported container!")

@@ -1003,7 +1003,7 @@ impl Base {
     {
         self.scripts
             .iter()
-            .find_map(|s| s.as_ref().and_then(|s| s.query_component_ref::<C>()))
+            .find_map(|s| s.as_ref().and_then(|s| s.self_or_field_ref::<C>()))
     }
 
     /// Tries find a component of the given type `C` across **all** available scripts of the node.
@@ -1016,7 +1016,7 @@ impl Base {
     {
         self.scripts
             .iter_mut()
-            .find_map(|s| s.as_mut().and_then(|s| s.query_component_mut::<C>()))
+            .find_map(|s| s.as_mut().and_then(|s| s.self_or_field_mut::<C>()))
     }
 
     /// Returns total count of scripts assigned to the node.

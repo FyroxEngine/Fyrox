@@ -449,7 +449,7 @@ pub enum PoolError {
     InvalidGeneration(u32),
     InvalidType(ErasedHandle),
     Empty(ErasedHandle),
-    NoSuchComponent(ErasedHandle),
+    NoSuchField(ErasedHandle),
     MutablyBorrowed(ErasedHandle),
     ImmutablyBorrowed(ErasedHandle),
     UnknownDependentObject(ErasedHandle),
@@ -489,7 +489,7 @@ impl Display for PoolError {
                 is invalid!"
                 )
             }
-            Self::NoSuchComponent(handle) => write!(
+            Self::NoSuchField(handle) => write!(
                 f,
                 "An object at {handle} handle does not have such component.",
             ),
@@ -1427,30 +1427,27 @@ where
 {
     /// Tries to mutably borrow an object and fetch its component of specified type.
     #[inline]
-    pub fn try_get_component_of_type<C>(&self, handle: Handle<T>) -> Result<&C, PoolError>
+    pub fn try_get_or_field_ref<C>(&self, handle: Handle<T>) -> Result<&C, PoolError>
     where
         C: Reflect,
     {
         self.try_borrow(handle).and_then(|n| {
             (n as &dyn Reflect)
-                .self_or_field_ref_of_type::<C>()
-                .ok_or(PoolError::NoSuchComponent(handle.into()))
+                .self_or_field_ref::<C>()
+                .ok_or(PoolError::NoSuchField(handle.into()))
         })
     }
 
     /// Tries to mutably borrow an object and fetch its component of specified type.
     #[inline]
-    pub fn try_get_component_of_type_mut<C>(
-        &mut self,
-        handle: Handle<T>,
-    ) -> Result<&mut C, PoolError>
+    pub fn try_get_or_field_mut<C>(&mut self, handle: Handle<T>) -> Result<&mut C, PoolError>
     where
         C: Reflect,
     {
         self.try_borrow_mut(handle).and_then(|n| {
             (n as &mut dyn Reflect)
-                .self_or_field_mut_of_type::<C>()
-                .ok_or(PoolError::NoSuchComponent(handle.into()))
+                .self_or_field_mut::<C>()
+                .ok_or(PoolError::NoSuchField(handle.into()))
         })
     }
 }

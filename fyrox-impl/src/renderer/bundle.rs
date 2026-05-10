@@ -912,7 +912,7 @@ impl RenderDataBundleStorage {
                 }
             }
 
-            if let Some(reflection_probe) = node.component_ref::<ReflectionProbe>() {
+            if let Some(reflection_probe) = node.self_or_field_ref::<ReflectionProbe>() {
                 if (reflection_probe as &dyn NodeTrait)
                     .world_bounding_box()
                     .is_contains_point(observer_position.translation)
@@ -922,7 +922,7 @@ impl RenderDataBundleStorage {
             }
 
             if options.collect_lights {
-                if let Some(base_light) = node.component_ref::<BaseLight>() {
+                if let Some(base_light) = node.self_or_field_ref::<BaseLight>() {
                     if frustum.is_intersects_aabb(&node.world_bounding_box())
                         && base_light.global_visibility()
                         && base_light.is_globally_enabled()

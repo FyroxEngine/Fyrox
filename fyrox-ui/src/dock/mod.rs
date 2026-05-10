@@ -300,7 +300,7 @@ impl DockingManager {
 
                 let floating_window = ui
                     .find_handle(ui.root(), &mut |n| {
-                        n.has_component::<Window>() && n.name == floating_window_desc.name
+                        n.is_or_has_field::<Window>() && n.name == floating_window_desc.name
                     })
                     .to_variant();
                 if floating_window.is_some() {

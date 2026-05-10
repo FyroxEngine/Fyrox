@@ -141,7 +141,7 @@ where
     graph
         .try_get_node_mut(handle)
         .ok()
-        .and_then(|n| n.component_mut::<InheritableVariable<Machine<Handle<N>>>>())
+        .and_then(|n| n.self_or_field_mut::<InheritableVariable<Machine<Handle<N>>>>())
         .map(|v| v.get_value_mut_silent())
 }
 
@@ -156,13 +156,13 @@ where
     let animation_player_handle = *graph
         .try_get_node(handle)
         .ok()
-        .and_then(|n| n.component_ref::<InheritableVariable<Handle<N>>>())
+        .and_then(|n| n.self_or_field_ref::<InheritableVariable<Handle<N>>>())
         .cloned()?;
 
     graph
         .try_get_node_mut(animation_player_handle)
         .ok()
-        .and_then(|n| n.component_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>())
+        .and_then(|n| n.self_or_field_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>())
         .map(|ac| (animation_player_handle, ac.get_value_mut_silent()))
 }
 
@@ -174,7 +174,7 @@ where
     graph
         .try_get_node(handle)
         .ok()
-        .and_then(|n| n.component_ref::<InheritableVariable<Machine<Handle<N>>>>())
+        .and_then(|n| n.self_or_field_ref::<InheritableVariable<Machine<Handle<N>>>>())
         .map(|v| v.get_value_ref())
 }
 
@@ -189,13 +189,13 @@ where
     graph
         .try_get_node(handle)
         .ok()
-        .and_then(|n| n.component_ref::<InheritableVariable<Handle<N>>>())
+        .and_then(|n| n.self_or_field_ref::<InheritableVariable<Handle<N>>>())
         .and_then(|ap| {
             graph
                 .try_get_node(**ap)
                 .ok()
                 .and_then(|n| {
-                    n.component_ref::<InheritableVariable<AnimationContainer<Handle<N>>>>()
+                    n.self_or_field_ref::<InheritableVariable<AnimationContainer<Handle<N>>>>()
                 })
                 .map(|ac| (**ap, &**ac))
         })
@@ -655,7 +655,7 @@ impl AbsmEditor {
                     AbsmNodeMessage::Enter => {
                         if let Some(node) = ui
                             .node(message.destination())
-                            .query_component::<AbsmNode<State<Handle<N>>>>()
+                            .self_or_field_ref::<AbsmNode<State<Handle<N>>>>()
                         {
                             if let Some(layer_index) = selection.layer {
                                 self.state_viewer.set_state(
@@ -671,7 +671,7 @@ impl AbsmEditor {
                     AbsmNodeMessage::Edit => {
                         if let Some(node) = ui
                             .node(message.destination())
-                            .query_component::<AbsmNode<PoseNode<Handle<N>>>>()
+                            .self_or_field_ref::<AbsmNode<PoseNode<Handle<N>>>>()
                         {
                             if let Some(layer_index) = selection.layer {
                                 let model_ref =
@@ -686,7 +686,7 @@ impl AbsmEditor {
                     AbsmNodeMessage::AddInput => {
                         if let Some(node) = ui
                             .node(message.destination())
-                            .query_component::<AbsmNode<PoseNode<Handle<N>>>>()
+                            .self_or_field_ref::<AbsmNode<PoseNode<Handle<N>>>>()
                         {
                             if let Some(layer_index) = selection.layer {
                                 let model_ref =

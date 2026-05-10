@@ -269,11 +269,11 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
 // See ObjectOrVariantHelper for the cause of the indirection.
 impl<T: NodeTrait> ObjectOrVariantHelper<Node, T> for PhantomData<T> {
     fn convert_to_dest_type_helper(node: &Node) -> Option<&T> {
-        (node.0.deref() as &dyn Reflect).self_or_field_ref_of_type()
+        (node.0.deref() as &dyn Reflect).self_or_field_ref()
     }
 
     fn convert_to_dest_type_helper_mut(node: &mut Node) -> Option<&mut T> {
-        (node.0.deref_mut() as &mut dyn Reflect).self_or_field_mut_of_type()
+        (node.0.deref_mut() as &mut dyn Reflect).self_or_field_mut()
     }
 }
 

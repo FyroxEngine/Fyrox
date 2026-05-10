@@ -148,7 +148,7 @@ fn find_window(
 
     let window_handle = ui
         .find_handle(ui.root(), &mut |n| {
-            n.has_component::<Window>() && n.name == *window_name
+            n.is_or_has_field::<Window>() && n.name == *window_name
         })
         .to_variant();
 

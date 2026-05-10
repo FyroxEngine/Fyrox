@@ -218,20 +218,20 @@ impl UiNode {
     /// top of existing one (via composition) and you have it as a field inside your widget. In this case, you
     /// can fetch it by using this method with the appropriate type. See docs for [`fyrox_core::type_traits::ComponentProvider::query_component_ref`]
     /// for more info.
-    pub fn query_component<T>(&self) -> Option<&T>
+    pub fn self_or_field_ref<T>(&self) -> Option<&T>
     where
         T: Reflect,
     {
-        (self.0.deref() as &dyn Reflect).self_or_field_ref_of_type()
+        (self.0.deref() as &dyn Reflect).self_or_field_ref()
     }
 
     /// This method checks if the widget has a component of the given type `T`. Internally, it queries the component
     /// of the given type and checks if it exists.
-    pub fn has_component<T>(&self) -> bool
+    pub fn is_or_has_field<T>(&self) -> bool
     where
         T: Reflect,
     {
-        self.query_component::<T>().is_some()
+        self.self_or_field_ref::<T>().is_some()
     }
 
     pub(crate) fn set_inheritance_data(

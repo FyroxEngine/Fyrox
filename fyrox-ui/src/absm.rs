@@ -180,7 +180,7 @@ impl Control for AnimationBlendingStateMachine {
     fn update(&mut self, dt: f32, ui: &mut UserInterface) {
         if let Ok(animation_player) = ui
             .nodes
-            .try_get_component_of_type_mut::<AnimationPlayer>(*self.animation_player)
+            .try_get_or_field_mut::<AnimationPlayer>(*self.animation_player)
         {
             // Prevent animation player to apply animation to scene nodes. The animation will
             // do than instead.

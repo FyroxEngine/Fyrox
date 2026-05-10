@@ -191,7 +191,10 @@ pub struct AudioPanel {
 }
 
 fn item_bus(item: Handle<UiNode>, ui: &UserInterface) -> Handle<AudioBus> {
-    ui.node(item).query_component::<AudioBusView>().unwrap().bus
+    ui.node(item)
+        .self_or_field_ref::<AudioBusView>()
+        .unwrap()
+        .bus
 }
 
 fn fetch_possible_parent_buses(
@@ -427,7 +430,7 @@ impl AudioPanel {
                     .user_interfaces
                     .first()
                     .node(message.destination())
-                    .query_component::<AudioBusView>()
+                    .self_or_field_ref::<AudioBusView>()
                     .unwrap();
 
                 let child = audio_bus_view_ref.bus;
@@ -545,7 +548,7 @@ impl AudioPanel {
         for audio_bus_view in ui[self.audio_buses].items() {
             let audio_bus_view_ref = ui
                 .node(*audio_bus_view)
-                .query_component::<AudioBusView>()
+                .self_or_field_ref::<AudioBusView>()
                 .unwrap();
 
             ui.send_sync(

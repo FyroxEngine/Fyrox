@@ -97,7 +97,7 @@ fn write_test_tree(root: &Path) -> Vec<PathBuf> {
 fn count_tree_items(ui: &UserInterface) -> usize {
     let mut count = 0;
     for node in ui.nodes() {
-        if node.has_component::<Tree>() {
+        if node.is_or_has_field::<Tree>() {
             count += 1;
         }
     }
@@ -107,7 +107,7 @@ fn count_tree_items(ui: &UserInterface) -> usize {
 fn count_tree_roots(ui: &UserInterface) -> usize {
     let mut count = 0;
     for node in ui.nodes() {
-        if node.has_component::<TreeRoot>() {
+        if node.is_or_has_field::<TreeRoot>() {
             count += 1;
         }
     }

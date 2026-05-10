@@ -924,14 +924,14 @@ impl Script {
 
     /// Tries to borrow a component of given type.
     #[inline]
-    pub fn query_component_ref<T: Reflect>(&self) -> Option<&T> {
-        (self.instance.deref() as &dyn Reflect).self_or_field_ref_of_type()
+    pub fn self_or_field_ref<T: Reflect>(&self) -> Option<&T> {
+        (self.instance.deref() as &dyn Reflect).self_or_field_ref()
     }
 
     /// Tries to borrow a component of given type.
     #[inline]
-    pub fn query_component_mut<T: Reflect>(&mut self) -> Option<&mut T> {
-        (self.instance.deref_mut() as &mut dyn Reflect).self_or_field_mut_of_type()
+    pub fn self_or_field_mut<T: Reflect>(&mut self) -> Option<&mut T> {
+        (self.instance.deref_mut() as &mut dyn Reflect).self_or_field_mut()
     }
 }
 

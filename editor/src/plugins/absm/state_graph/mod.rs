@@ -73,7 +73,7 @@ where
     N: Reflect,
 {
     ui.node(handle)
-        .query_component::<AbsmNode<State<Handle<N>>>>()
+        .self_or_field_ref::<AbsmNode<State<Handle<N>>>>()
         .unwrap()
         .model_handle
 }
@@ -134,7 +134,7 @@ impl StateGraphViewer {
     {
         if let Some(view_handle) = ui[self.canvas].children().iter().cloned().find(|c| {
             ui.node(*c)
-                .query_component::<TransitionView>()
+                .self_or_field_ref::<TransitionView>()
                 .is_some_and(|transition_view_ref| {
                     transition
                         == Handle::<Transition<Handle<N>>>::from(transition_view_ref.model_handle)
@@ -151,7 +151,7 @@ impl StateGraphViewer {
         for (state_view_handle, state_view_ref) in
             ui[self.canvas].children().iter().cloned().filter_map(|c| {
                 ui.node(c)
-                    .query_component::<AbsmNode<State<Handle<N>>>>()
+                    .self_or_field_ref::<AbsmNode<State<Handle<N>>>>()
                     .map(|state_view_ref| (c, state_view_ref))
             })
         {
@@ -222,11 +222,11 @@ impl StateGraphViewer {
                                     let node_ref = ui.node(*n);
 
                                     if let Some(state_node) =
-                                        node_ref.query_component::<AbsmNode<State<Handle<N>>>>()
+                                        node_ref.self_or_field_ref::<AbsmNode<State<Handle<N>>>>()
                                     {
                                         Some(SelectedEntity::State(state_node.model_handle))
                                     } else {
-                                        node_ref.query_component::<TransitionView>().map(
+                                        node_ref.self_or_field_ref::<TransitionView>().map(
                                             |state_node| {
                                                 SelectedEntity::Transition(
                                                     state_node.model_handle.into(),
@@ -319,7 +319,7 @@ impl StateGraphViewer {
                 .children()
                 .iter()
                 .cloned()
-                .filter(|c| ui.node(*c).has_component::<AbsmNode<State<Handle<N>>>>())
+                .filter(|c| ui.node(*c).is_or_has_field::<AbsmNode<State<Handle<N>>>>())
                 .map(|c| c.to_variant::<AbsmNode<State<Handle<N>>>>())
                 .collect::<Vec<_>>();
 
@@ -327,7 +327,7 @@ impl StateGraphViewer {
                 .children()
                 .iter()
                 .cloned()
-                .filter(|c| ui.node(*c).has_component::<TransitionView>())
+                .filter(|c| ui.node(*c).is_or_has_field::<TransitionView>())
                 .map(|c| c.to_variant::<TransitionView>())
                 .collect::<Vec<_>>();
         }

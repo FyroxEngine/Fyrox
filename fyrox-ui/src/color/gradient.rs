@@ -272,7 +272,7 @@ impl Control for ColorGradientEditor {
                 for (handle, pt) in ui[self.points_canvas]
                     .children()
                     .iter()
-                    .map(|c| (*c, ui.node(*c).query_component::<ColorPoint>().unwrap()))
+                    .map(|c| (*c, ui.node(*c).self_or_field_ref::<ColorPoint>().unwrap()))
                 {
                     gradient.add_point(GradientPoint::new(
                         pt.location,
@@ -317,7 +317,7 @@ impl ColorGradientEditor {
             .children()
             .iter()
             .filter(|c| **c != exclude)
-            .map(|c| ui.node(*c).query_component::<ColorPoint>().unwrap())
+            .map(|c| ui.node(*c).self_or_field_ref::<ColorPoint>().unwrap())
         {
             gradient.add_point(GradientPoint::new(pt.location, pt.color()));
         }
@@ -616,7 +616,7 @@ impl Control for ColorPointsCanvas {
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         for &child in self.children() {
             let child_ref = ui.node(child);
-            if let Some(color_point) = child_ref.query_component::<ColorPoint>() {
+            if let Some(color_point) = child_ref.self_or_field_ref::<ColorPoint>() {
                 let x_pos = final_size.x * color_point.location - child_ref.desired_size().x * 0.5;
 
                 ui.arrange_node(

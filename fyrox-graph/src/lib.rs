@@ -629,20 +629,20 @@ pub trait SceneGraphNode: Reflect + NameProvider + Clone + 'static {
 
     /// Tries to borrow a component of given type.
     #[inline]
-    fn component_ref<T: Reflect>(&self) -> Option<&T> {
-        (self as &dyn Reflect).self_or_field_ref_of_type::<T>()
+    fn self_or_field_ref<T: Reflect>(&self) -> Option<&T> {
+        (self as &dyn Reflect).self_or_field_ref::<T>()
     }
 
     /// Tries to borrow a component of given type.
     #[inline]
-    fn component_mut<T: Reflect>(&mut self) -> Option<&mut T> {
-        (self as &mut dyn Reflect).self_or_field_mut_of_type::<T>()
+    fn self_or_field_mut<T: Reflect>(&mut self) -> Option<&mut T> {
+        (self as &mut dyn Reflect).self_or_field_mut::<T>()
     }
 
     /// Checks if the node has a component of given type.
     #[inline]
-    fn has_component<T: Reflect>(&self) -> bool {
-        self.component_ref::<T>().is_some()
+    fn is_or_has_field<T: Reflect>(&self) -> bool {
+        self.self_or_field_ref::<T>().is_some()
     }
 }
 
@@ -886,8 +886,8 @@ pub trait SceneGraph: 'static {
     {
         self.try_get_node(handle).and_then(|n| {
             (n as &dyn Reflect)
-                .self_or_field_ref_of_type()
-                .ok_or(PoolError::NoSuchComponent(handle.into()))
+                .self_or_field_ref()
+                .ok_or(PoolError::NoSuchField(handle.into()))
         })
     }
 
@@ -899,8 +899,8 @@ pub trait SceneGraph: 'static {
     {
         self.try_get_node_mut(handle).and_then(|n| {
             (n as &mut dyn Reflect)
-                .self_or_field_mut_of_type()
-                .ok_or(PoolError::NoSuchComponent(handle.into()))
+                .self_or_field_mut()
+                .ok_or(PoolError::NoSuchField(handle.into()))
         })
     }
 
@@ -974,7 +974,7 @@ pub trait SceneGraph: 'static {
     }
 
     #[inline]
-    fn find_component_up<T>(
+    fn find_self_or_field_up<T>(
         &self,
         node_handle: Handle<impl ObjectOrVariant<Self::Node>>,
     ) -> Option<(Handle<Self::Node>, &T)>
@@ -982,12 +982,12 @@ pub trait SceneGraph: 'static {
         T: Reflect,
     {
         self.find_up_map(node_handle, &mut |node| {
-            (node as &dyn Reflect).self_or_field_ref_of_type::<T>()
+            (node as &dyn Reflect).self_or_field_ref::<T>()
         })
     }
 
     #[inline]
-    fn find_component<T>(
+    fn find_self_or_field<T>(
         &self,
         node_handle: Handle<impl ObjectOrVariant<Self::Node>>,
     ) -> Option<(Handle<Self::Node>, &T)>
@@ -995,7 +995,7 @@ pub trait SceneGraph: 'static {
         T: Reflect,
     {
         self.find_map(node_handle, &mut |node| {
-            (node as &dyn Reflect).self_or_field_ref_of_type::<T>()
+            (node as &dyn Reflect).self_or_field_ref::<T>()
         })
     }
 
