@@ -353,7 +353,7 @@ impl EditorPlugin for ReflectionProbePlugin {
             let selected_reflection_probe = entry.selection.as_graph().and_then(|s| {
                 s.nodes()
                     .iter()
-                    .find(|h| scene.graph.has_component::<ReflectionProbe>(**h))
+                    .find(|h| scene.graph.is_or_has_field::<ReflectionProbe>(**h))
                     .cloned()
             });
 

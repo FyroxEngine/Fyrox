@@ -698,8 +698,8 @@ impl ColliderPlugin {
 
         let first_selected_collider = entry.selection.as_graph().and_then(|n| {
             n.nodes().iter().find(|h| {
-                scene.graph.has_component::<Collider>(**h)
-                    || scene.graph.has_component::<dim2::collider::Collider>(**h)
+                scene.graph.is_or_has_field::<Collider>(**h)
+                    || scene.graph.is_or_has_field::<dim2::collider::Collider>(**h)
             })
         });
 

@@ -230,7 +230,7 @@ pub trait BaseScript: Visit + Reflect + Send + Debug + 'static {
     ///     core::uuid::uuid, core::type_traits::prelude::*
     /// };
     ///
-    /// #[derive(Reflect, Visit, Debug, Clone, ComponentProvider)]
+    /// #[derive(Reflect, Visit, Debug, Clone)]
     /// struct MyScript { }
     ///
     /// // Implement TypeUuidProvider trait that will return type uuid of the type.
@@ -353,7 +353,7 @@ pub struct ScriptContext<'a, 'b, 'c> {
     ///
     /// impl Plugin for Game {}
     ///
-    /// #[derive(Visit, Reflect, Clone, Default, Debug, TypeUuidProvider, ComponentProvider)]
+    /// #[derive(Visit, Reflect, Clone, Default, Debug, TypeUuidProvider)]
     /// #[type_uuid(id = "f732654e-5e3c-4b52-9a3d-44c0cfb14e18")]
     /// struct MyScript {}
     ///
@@ -671,7 +671,7 @@ pub trait ScriptTrait: BaseScript {
     ///
     /// struct Message;
     ///
-    /// #[derive(Reflect, Visit, Debug, Clone, ComponentProvider)]
+    /// #[derive(Reflect, Visit, Debug, Clone)]
     /// struct MyScript {}
     ///
     /// # impl TypeUuidProvider for MyScript {

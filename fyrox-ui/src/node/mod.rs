@@ -44,7 +44,7 @@ pub mod container;
 /// UI node is a type-agnostic wrapper for any widget type. Internally, it is just a trait object
 /// that provides a common widget interface. Its main use is to reduce code bloat (no need to type
 /// `Box<dyn Control>` everywhere, just `UiNode`) and to provide some useful methods such as type
-/// casting, component querying, etc. You could also be interested in [`Control`] docs, since it
+/// casting, field fetching, etc. You could also be interested in [`Control`] docs, since it
 /// contains all the interesting stuff and detailed description for each method.
 pub struct UiNode(pub Box<dyn Control>);
 
@@ -158,7 +158,7 @@ impl UiNode {
     /// # };
     /// # use fyrox_core::uuid_provider;
     /// #
-    /// #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
+    /// #[derive(Clone, Visit, Reflect, Debug)]
     /// #[reflect(derived_type = "UiNode")]
     /// struct MyWidget {
     ///     widget: Widget,
@@ -213,11 +213,8 @@ impl UiNode {
         ControlAsAny::as_any_mut(&mut *self.0).downcast_mut::<T>()
     }
 
-    /// Tries to fetch a component of the given type `T`. At very basis it mimics [`Self::cast`] behaviour, but
-    /// also allows you to fetch components of other types as well. For example, your widget may be built on
-    /// top of existing one (via composition) and you have it as a field inside your widget. In this case, you
-    /// can fetch it by using this method with the appropriate type. See docs for [`fyrox_core::type_traits::ComponentProvider::query_component_ref`]
-    /// for more info.
+    /// Tries to downcast self to the specified type, or if it is not possible, tries to find a
+    /// field of the specified type.
     pub fn self_or_field_ref<T>(&self) -> Option<&T>
     where
         T: Reflect,
@@ -225,8 +222,9 @@ impl UiNode {
         (self.0.deref() as &dyn Reflect).self_or_field_ref()
     }
 
-    /// This method checks if the widget has a component of the given type `T`. Internally, it queries the component
-    /// of the given type and checks if it exists.
+    /// Tries to downcast self to the specified type, or if it is not possible, tries to find a
+    /// field of the specified type. Returns `true` if any of the aforementioned actions succeeded,
+    /// `false` - otherwise.
     pub fn is_or_has_field<T>(&self) -> bool
     where
         T: Reflect,

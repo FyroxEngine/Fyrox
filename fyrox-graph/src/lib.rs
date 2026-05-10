@@ -627,19 +627,21 @@ pub trait SceneGraphNode: Reflect + NameProvider + Clone + 'static {
         previous_value
     }
 
-    /// Tries to borrow a component of given type.
+    /// Tries to downcast self to the specified type, or if it is not possible, tries to find a
+    /// field of the specified type.
     #[inline]
     fn self_or_field_ref<T: Reflect>(&self) -> Option<&T> {
         (self as &dyn Reflect).self_or_field_ref::<T>()
     }
 
-    /// Tries to borrow a component of given type.
+    /// Tries to downcast self to the specified type, or if it is not possible, tries to find a
+    /// field of the specified type.
     #[inline]
     fn self_or_field_mut<T: Reflect>(&mut self) -> Option<&mut T> {
         (self as &mut dyn Reflect).self_or_field_mut::<T>()
     }
 
-    /// Checks if the node has a component of given type.
+    /// Checks if the node is an instance of the given type or has a field of the same type.
     #[inline]
     fn is_or_has_field<T: Reflect>(&self) -> bool {
         self.self_or_field_ref::<T>().is_some()
@@ -743,12 +745,8 @@ pub trait SceneGraph: 'static {
     /// if the container type is `Node` (holds `Box<dyn NodeTrait>`) and there's a `SpecificNode`
     /// (implements the `NodeTrait`), then this method can accept both `Handle<Node>` and
     /// `Handle<SpecificNode>`. Internally, this method will try to downcast the container to
-    /// the specified type (which may fail).
-    ///
-    /// Also, in most cases, the implementation will also provide access to inner components of the
-    /// node. This means that if a node implements [`ComponentProvider`] trait and there's a field
-    /// of type `T` in the actual node type, then this method will at first try to downcast the
-    /// node to the given type and on failure will try to find a component of the given type.
+    /// the specified type (which may fail). If the downcast is failed, then the implementation will
+    /// also search for the field of the specified type in the node.
     fn try_get<U: ObjectOrVariant<Self::Node>>(&self, handle: Handle<U>) -> Result<&U, PoolError>;
 
     /// Tries to borrow a graph node by the given handle. This method accepts both type-agnostic
@@ -756,12 +754,8 @@ pub trait SceneGraph: 'static {
     /// if the container type is `Node` (holds `Box<dyn NodeTrait>`) and there's a `SpecificNode`
     /// (implements the `NodeTrait`), then this method can accept both `Handle<Node>` and
     /// `Handle<SpecificNode>`. Internally, this method will try to downcast the container to
-    /// the specified type (which may fail).
-    ///
-    /// Also, in most cases, the implementation will also provide access to inner components of the
-    /// node. This means that if a node implements [`ComponentProvider`] trait and there's a field
-    /// of type `T` in the actual node type, then this method will at first try to downcast the
-    /// node to the given type and on failure will try to find a component of the given type.
+    /// the specified type (which may fail). If the downcast is failed, then the implementation will
+    /// also search for the field of the specified type in the node.
     fn try_get_mut<U: ObjectOrVariant<Self::Node>>(
         &mut self,
         handle: Handle<U>,
@@ -878,7 +872,8 @@ pub trait SceneGraph: 'static {
         }
     }
 
-    /// Tries to borrow a node and fetch its component of specified type.
+    /// Tries to borrow a node at the given handle and downcast it to the specified type. If downcasting
+    /// it is not possible, tries to find a field of the specified type.
     #[inline]
     fn try_get_of_type<T>(&self, handle: Handle<Self::Node>) -> Result<&T, PoolError>
     where
@@ -891,7 +886,8 @@ pub trait SceneGraph: 'static {
         })
     }
 
-    /// Tries to mutably borrow a node and fetch its component of specified type.
+    /// Tries to mutably borrow a node at the given handle and downcast it to the specified type. If downcasting
+    /// it is not possible, tries to find a field of the specified type.
     #[inline]
     fn try_get_mut_of_type<T>(&mut self, handle: Handle<Self::Node>) -> Result<&mut T, PoolError>
     where
@@ -904,10 +900,11 @@ pub trait SceneGraph: 'static {
         })
     }
 
-    /// Tries to borrow a node by the given handle and checks if it has a component of the specified
-    /// type.
+    /// Tries to borrow a node by the given handle and checks if it is possible to downcast the node
+    /// to the specified type. If the downcasting is not possible, this method tries to find a field
+    /// of the given type.
     #[inline]
-    fn has_component<T>(&self, handle: Handle<impl ObjectOrVariant<Self::Node>>) -> bool
+    fn is_or_has_field<T>(&self, handle: Handle<impl ObjectOrVariant<Self::Node>>) -> bool
     where
         T: Reflect,
     {

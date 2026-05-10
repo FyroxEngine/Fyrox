@@ -331,7 +331,8 @@ where
     T: Sized + Reflect,
     P: PayloadContainer<Element = T> + 'static,
 {
-    /// Tries to mutably borrow an object and fetch its component of specified type.
+    /// Tries to borrow a node at the given handle and downcast it to the specified type. If downcasting
+    /// it is not possible, tries to find a field of the specified type.
     #[inline]
     pub fn try_get_or_field_ref<'b: 'a, C>(
         &'b self,
@@ -347,7 +348,8 @@ where
         })
     }
 
-    /// Tries to mutably borrow an object and fetch its component of specified type.
+    /// Tries to borrow a node at the given handle and downcast it to the specified type. If downcasting
+    /// it is not possible, tries to find a field of the specified type.
     #[inline]
     pub fn try_get_or_field_mut<'b: 'a, C>(
         &'b self,

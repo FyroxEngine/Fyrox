@@ -719,7 +719,7 @@ use fyrox::{{
     plugin::error::GameResult
 }};
 
-#[derive(Visit, Reflect, Default, Debug, Clone, TypeUuidProvider, ComponentProvider)]
+#[derive(Visit, Reflect, Default, Debug, Clone, TypeUuidProvider)]
 #[type_uuid(id = "{script_uuid}")]
 #[visit(optional)]
 pub struct {script_name} {{

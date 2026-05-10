@@ -174,7 +174,7 @@ impl TaskPoolHandler {
     ///
     /// ```rust ,no_run
     /// # use fyrox_impl::{
-    /// #     core::{reflect::prelude::*, uuid::Uuid, visitor::prelude::*, impl_component_provider},
+    /// #     core::{reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
     /// #     resource::model::{Model, ModelResourceExtension},
     /// #     script::{ScriptContext, ScriptTrait},
     /// # };
@@ -184,7 +184,6 @@ impl TaskPoolHandler {
     /// #[derive(Reflect, Visit, Default, Debug, Clone)]
     /// struct MyScript;
     ///
-    /// # impl_component_provider!(MyScript);
     /// # uuid_provider!(MyScript = "f5ded79e-6101-4e23-b20d-48cbdb25d87a");
     ///
     /// impl ScriptTrait for MyScript {
