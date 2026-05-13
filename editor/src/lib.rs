@@ -2199,6 +2199,7 @@ impl Editor {
     }
 
     fn set_current_scene(&mut self, id: Uuid) {
+        self.try_leave_preview_mode();
         let old_selection = self.scenes.current_scene_entry_ref().selection.clone();
         if self.scenes.set_current_scene(id) {
             self.on_scene_changed(old_selection);
