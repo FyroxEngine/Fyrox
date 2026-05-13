@@ -69,8 +69,14 @@ use crate::{
     ui_scene::UiScene,
     Editor, Message,
 };
-use std::any::Any;
-use std::sync::Arc;
+use fyrox::core::err;
+use fyrox::core::pool::ObjectOrVariantHelper;
+use fyrox::gui::UiNode;
+use fyrox::resource::model::Model;
+use fyrox::scene::graph::Graph;
+use fyrox::scene::node::Node;
+use fyrox::{gui, scene};
+use std::{any::Any, marker::PhantomData, sync::Arc};
 
 mod blendspace;
 mod canvas;
@@ -133,72 +139,84 @@ where
     }
 }
 
-fn machine_container<G, N>(graph: &mut G, handle: Handle<N>) -> Option<&mut Machine<Handle<N>>>
+fn machine_container<G, N>(graph: &mut G, absm_handle: Handle<N>) -> Option<&mut Machine<Handle<N>>>
 where
     G: SceneGraph<Node = N>,
     N: SceneGraphNode<SceneGraph = G>,
 {
     graph
-        .try_get_node_mut(handle)
+        .try_get_node_mut(absm_handle)
         .ok()
-        .and_then(|n| n.self_or_field_mut::<InheritableVariable<Machine<Handle<N>>>>())
+        .and_then(|n| {
+            n.as_reflect_mut_direct()
+                .first_field_mut::<InheritableVariable<Machine<Handle<N>>>>()
+        })
         .map(|v| v.get_value_mut_silent())
 }
 
-fn animation_container<G, N>(
+fn animation_container<G, N, AnimationPlayer>(
     graph: &mut G,
-    handle: Handle<N>,
-) -> Option<(Handle<N>, &mut AnimationContainer<Handle<N>>)>
+    absm_handle: Handle<N>,
+) -> Option<(Handle<AnimationPlayer>, &mut AnimationContainer<Handle<N>>)>
 where
     G: SceneGraph<Node = N>,
     N: SceneGraphNode<SceneGraph = G>,
+    AnimationPlayer: Reflect,
+    PhantomData<AnimationPlayer>: ObjectOrVariantHelper<N, AnimationPlayer>,
 {
-    let animation_player_handle = *graph
-        .try_get_node(handle)
-        .ok()
-        .and_then(|n| n.self_or_field_ref::<InheritableVariable<Handle<N>>>())
-        .cloned()?;
+    let absm = graph.try_get_node(absm_handle).ok()?;
 
-    graph
-        .try_get_node_mut(animation_player_handle)
-        .ok()
-        .and_then(|n| n.self_or_field_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>())
-        .map(|ac| (animation_player_handle, ac.get_value_mut_silent()))
+    let animation_player_handle = **absm
+        .as_reflect_direct()
+        .first_field_ref::<InheritableVariable<Handle<AnimationPlayer>>>()?;
+
+    let animation_player = graph.try_get_mut(animation_player_handle).ok()?;
+
+    let container = animation_player
+        .as_reflect_mut_direct()
+        .first_field_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>()?;
+
+    Some((animation_player_handle, container.get_value_mut_silent()))
 }
 
-fn machine_container_ref<G, N>(graph: &G, handle: Handle<N>) -> Option<&Machine<Handle<N>>>
+fn machine_container_ref<G, N>(graph: &G, absm_handle: Handle<N>) -> Option<&Machine<Handle<N>>>
 where
     G: SceneGraph<Node = N>,
     N: SceneGraphNode<SceneGraph = G>,
 {
     graph
-        .try_get_node(handle)
+        .try_get_node(absm_handle)
         .ok()
-        .and_then(|n| n.self_or_field_ref::<InheritableVariable<Machine<Handle<N>>>>())
+        .and_then(|n| {
+            n.as_reflect_direct()
+                .first_field_ref::<InheritableVariable<Machine<Handle<N>>>>()
+        })
         .map(|v| v.get_value_ref())
 }
 
-pub fn animation_container_ref<G, N>(
+pub fn animation_container_ref<G, N, AnimationPlayer>(
     graph: &G,
-    handle: Handle<N>,
-) -> Option<(Handle<N>, &AnimationContainer<Handle<N>>)>
+    absm_handle: Handle<N>,
+) -> Option<(Handle<AnimationPlayer>, &AnimationContainer<Handle<N>>)>
 where
     G: SceneGraph<Node = N>,
     N: SceneGraphNode<SceneGraph = G>,
+    AnimationPlayer: Reflect,
+    PhantomData<AnimationPlayer>: ObjectOrVariantHelper<N, AnimationPlayer>,
 {
-    graph
-        .try_get_node(handle)
-        .ok()
-        .and_then(|n| n.self_or_field_ref::<InheritableVariable<Handle<N>>>())
-        .and_then(|ap| {
-            graph
-                .try_get_node(**ap)
-                .ok()
-                .and_then(|n| {
-                    n.self_or_field_ref::<InheritableVariable<AnimationContainer<Handle<N>>>>()
-                })
-                .map(|ac| (**ap, &**ac))
-        })
+    let absm = graph.try_get_node(absm_handle).ok()?;
+
+    let animation_player_handle = **absm
+        .as_reflect_direct()
+        .first_field_ref::<InheritableVariable<Handle<AnimationPlayer>>>()?;
+
+    let animation_player = graph.try_get(animation_player_handle).ok()?;
+
+    let container = animation_player
+        .as_reflect_direct()
+        .first_field_ref::<InheritableVariable<AnimationContainer<Handle<N>>>>()?;
+
+    Some((animation_player_handle, &**container))
 }
 
 pub struct AbsmEditor {
@@ -359,7 +377,7 @@ impl AbsmEditor {
         self.parameter_panel.sync_to_model(ui, machine.parameters());
     }
 
-    pub fn try_leave_preview_mode<P, G, N>(
+    pub fn try_leave_preview_mode<P, G, N, AnimationPlayer>(
         &mut self,
         editor_selection: &Selection,
         graph: &mut G,
@@ -369,16 +387,20 @@ impl AbsmEditor {
         P: PrefabData<Graph = G>,
         G: SceneGraph<Node = N, Prefab = P>,
         N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        AnimationPlayer: Reflect,
+        PhantomData<AnimationPlayer>: ObjectOrVariantHelper<N, AnimationPlayer>,
     {
         if self.preview_mode_data.is_some() {
             let selection = fetch_selection(editor_selection);
 
-            let animation_player = animation_container(graph, selection.absm_node_handle)
-                .map(|pair| pair.0)
-                .unwrap_or_default();
-
             assert!(node_overrides.remove(&selection.absm_node_handle));
-            assert!(node_overrides.remove(&animation_player));
+            if let Some((animation_player, _)) =
+                animation_container::<G, N, AnimationPlayer>(graph, selection.absm_node_handle)
+            {
+                assert!(node_overrides.remove(&animation_player.to_base()));
+            } else {
+                err!("Animation player is not set!");
+            }
 
             self.leave_preview_mode(graph, ui, selection.absm_node_handle, node_overrides);
         }
@@ -418,7 +440,7 @@ impl AbsmEditor {
         ui.send(self.window, WidgetMessage::Remove);
     }
 
-    pub fn sync_to_model<P, G, N>(
+    pub fn sync_to_model<P, G, N, AnimationPlayer>(
         &mut self,
         editor_selection: &Selection,
         graph: &G,
@@ -427,6 +449,8 @@ impl AbsmEditor {
         P: PrefabData<Graph = G>,
         G: SceneGraph<Node = N, Prefab = P>,
         N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        AnimationPlayer: Reflect,
+        PhantomData<AnimationPlayer>: ObjectOrVariantHelper<N, AnimationPlayer>,
     {
         let prev_absm = self.prev_absm;
 
@@ -451,7 +475,11 @@ impl AbsmEditor {
                         ui,
                         layer,
                         editor_selection,
-                        animation_container_ref(graph, selection.absm_node_handle).map(|(_, c)| c),
+                        animation_container_ref::<G, N, AnimationPlayer>(
+                            graph,
+                            selection.absm_node_handle,
+                        )
+                        .map(|(_, c)| c),
                     );
                     self.blend_space_editor.sync_to_model(
                         machine.parameters(),
@@ -543,7 +571,7 @@ impl AbsmEditor {
         }
     }
 
-    pub fn handle_ui_message<P, G, N>(
+    pub fn handle_ui_message<P, G, N, AnimationPlayer>(
         &mut self,
         message: &UiMessage,
         sender: &MessageSender,
@@ -555,6 +583,8 @@ impl AbsmEditor {
         P: PrefabData<Graph = G>,
         G: SceneGraph<Node = N, Prefab = P>,
         N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        AnimationPlayer: Reflect,
+        PhantomData<AnimationPlayer>: ObjectOrVariantHelper<N, AnimationPlayer>,
     {
         let selection = fetch_selection(editor_selection);
 
@@ -609,9 +639,12 @@ impl AbsmEditor {
                     let machine_clone = machine.clone();
 
                     if let Some((animation_container_handle, animations)) =
-                        animation_container(graph, selection.absm_node_handle)
+                        animation_container::<G, N, AnimationPlayer>(
+                            graph,
+                            selection.absm_node_handle,
+                        )
                     {
-                        assert!(node_overrides.insert(animation_container_handle));
+                        assert!(node_overrides.insert(animation_container_handle.to_base()));
 
                         let mut animation_targets = FxHashSet::default();
                         for animation in animations.iter_mut() {
@@ -627,16 +660,23 @@ impl AbsmEditor {
                             ui,
                             node_overrides,
                         );
+                    } else {
+                        err!("Animation player is not set!");
                     }
                 }
                 ToolbarAction::LeavePreviewMode => {
                     if self.preview_mode_data.is_some() {
-                        let animation_player =
-                            animation_container(graph, selection.absm_node_handle)
-                                .map(|pair| pair.0)
-                                .unwrap_or_default();
                         assert!(node_overrides.remove(&selection.absm_node_handle));
-                        assert!(node_overrides.remove(&animation_player));
+                        if let Some((animation_player, _)) =
+                            animation_container::<G, N, AnimationPlayer>(
+                                graph,
+                                selection.absm_node_handle,
+                            )
+                        {
+                            assert!(node_overrides.remove(&animation_player.to_base()));
+                        } else {
+                            err!("Animation player is not set!");
+                        }
 
                         self.leave_preview_mode(
                             graph,
@@ -774,9 +814,13 @@ impl EditorPlugin for AbsmEditorPlugin {
         let ui = editor.engine.user_interfaces.first_mut();
         if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
             let graph = &editor.engine.scenes[game_scene.scene].graph;
-            absm_editor.sync_to_model(&entry.selection, graph, ui);
+            absm_editor.sync_to_model::<Model, Graph, Node, scene::animation::AnimationPlayer>(
+                &entry.selection,
+                graph,
+                ui,
+            );
         } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
-            absm_editor.sync_to_model(&entry.selection, &ui_scene.ui, ui);
+            absm_editor.sync_to_model::<UserInterface, UserInterface, UiNode, gui::animation::AnimationPlayer>(&entry.selection, &ui_scene.ui, ui);
         }
     }
 
@@ -814,7 +858,7 @@ impl EditorPlugin for AbsmEditorPlugin {
         let ui = editor.engine.user_interfaces.first_mut();
         if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
             let graph = &mut editor.engine.scenes[game_scene.scene].graph;
-            absm_editor.handle_ui_message(
+            absm_editor.handle_ui_message::<Model, Graph, Node, scene::animation::AnimationPlayer>(
                 message,
                 &editor.message_sender,
                 &entry.selection,
@@ -823,7 +867,7 @@ impl EditorPlugin for AbsmEditorPlugin {
                 game_scene.graph_switches.node_overrides.as_mut().unwrap(),
             );
         } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
-            absm_editor.handle_ui_message(
+            absm_editor.handle_ui_message::<UserInterface, UserInterface, UiNode, gui::animation::AnimationPlayer>(
                 message,
                 &editor.message_sender,
                 &entry.selection,
@@ -839,14 +883,15 @@ impl EditorPlugin for AbsmEditorPlugin {
         let absm_editor = some_or_return!(self.absm_editor.as_mut());
         if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
             let engine = &mut editor.engine;
-            absm_editor.try_leave_preview_mode(
-                &entry.selection,
-                &mut engine.scenes[game_scene.scene].graph,
-                engine.user_interfaces.first_mut(),
-                game_scene.graph_switches.node_overrides.as_mut().unwrap(),
-            );
+            absm_editor
+                .try_leave_preview_mode::<Model, Graph, Node, scene::animation::AnimationPlayer>(
+                    &entry.selection,
+                    &mut engine.scenes[game_scene.scene].graph,
+                    engine.user_interfaces.first_mut(),
+                    game_scene.graph_switches.node_overrides.as_mut().unwrap(),
+                );
         } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
-            absm_editor.try_leave_preview_mode(
+            absm_editor.try_leave_preview_mode::<UserInterface, UserInterface, UiNode, gui::animation::AnimationPlayer>(
                 &entry.selection,
                 &mut ui_scene.ui,
                 editor.engine.user_interfaces.first_mut(),

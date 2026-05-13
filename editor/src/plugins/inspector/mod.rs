@@ -33,6 +33,7 @@ use crate::{
         engine::SerializationContext,
         graph::SceneGraph,
         gui::{
+            self,
             border::BorderBuilder,
             button::{Button, ButtonMessage},
             grid::{Column, GridBuilder, Row},
@@ -50,7 +51,7 @@ use crate::{
             window::{Window, WindowBuilder, WindowTitle},
             BuildContext, Thickness, UiNode, UserInterface,
         },
-        scene::SceneContainer,
+        scene::{self, graph::Graph, node::Node, SceneContainer},
     },
     load_image,
     message::MessageSender,
@@ -131,7 +132,10 @@ fn fetch_available_animations(
         // TODO: Remove duplicated code.
         if let Some(absm_selection) = selection.as_absm::<UiNode>() {
             if let Some((_, animation_player)) =
-                animation_container_ref(&ui_scene.ui, absm_selection.absm_node_handle)
+                animation_container_ref::<UserInterface, UiNode, gui::animation::AnimationPlayer>(
+                    &ui_scene.ui,
+                    absm_selection.absm_node_handle,
+                )
             {
                 return animation_player
                     .pair_iter()
@@ -146,10 +150,12 @@ fn fetch_available_animations(
 
     if let Some(game_scene) = controller.downcast_ref::<GameScene>() {
         if let Some(absm_selection) = selection.as_absm() {
-            if let Some((_, animation_player)) = animation_container_ref(
-                &scenes[game_scene.scene].graph,
-                absm_selection.absm_node_handle,
-            ) {
+            if let Some((_, animation_player)) =
+                animation_container_ref::<Graph, Node, scene::animation::AnimationPlayer>(
+                    &scenes[game_scene.scene].graph,
+                    absm_selection.absm_node_handle,
+                )
+            {
                 return animation_player
                     .pair_iter()
                     .map(|(handle, anim)| AnimationDefinition {

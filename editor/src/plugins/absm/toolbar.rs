@@ -21,7 +21,7 @@
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
-        core::{color::Color, pool::Handle},
+        core::{color::Color, pool::Handle, pool::ObjectOrVariantHelper, reflect::Reflect},
         fxhash::FxHashSet,
         generic_animation::machine::{mask::LayerMask, Machine, MachineLayer},
         graph::{PrefabData, SceneGraph, SceneGraphNode},
@@ -55,7 +55,7 @@ use crate::{
         Selection,
     },
 };
-use std::any::TypeId;
+use std::{any::TypeId, marker::PhantomData};
 
 pub struct Toolbar {
     pub panel: Handle<StackPanel>,
@@ -157,7 +157,7 @@ impl Toolbar {
         }
     }
 
-    pub fn handle_ui_message<P, G, N>(
+    pub fn handle_ui_message<P, G, N, AnimationPlayer>(
         &mut self,
         message: &UiMessage,
         editor_selection: &Selection,
@@ -169,6 +169,8 @@ impl Toolbar {
         P: PrefabData<Graph = G>,
         G: SceneGraph<Node = N, Prefab = P>,
         N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        AnimationPlayer: Reflect,
+        PhantomData<AnimationPlayer>: ObjectOrVariantHelper<N, AnimationPlayer>,
     {
         let selection = fetch_selection(editor_selection);
 
@@ -221,9 +223,10 @@ impl Toolbar {
                 // Collect all scene nodes from every animation in the associated animation player.
                 let mut unique_nodes = FxHashSet::default();
                 if let Some(machine) = machine_container_ref(graph, selection.absm_node_handle) {
-                    if let Some((_, animations)) =
-                        animation_container_ref(graph, selection.absm_node_handle)
-                    {
+                    if let Some((_, animations)) = animation_container_ref::<G, N, AnimationPlayer>(
+                        graph,
+                        selection.absm_node_handle,
+                    ) {
                         for animation in animations.iter() {
                             for track_binding in animation.track_bindings().values() {
                                 unique_nodes.insert(track_binding.target());
