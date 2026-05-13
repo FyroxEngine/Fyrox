@@ -130,14 +130,6 @@ impl Reflect for ResourceDataWrapper {
         self
     }
 
-    fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
-        self.deref().as_any(func)
-    }
-
-    fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
-        self.deref_mut().as_any_mut(func)
-    }
-
     fn as_reflect_direct(&self) -> &dyn Reflect {
         self.deref().as_reflect_direct()
     }

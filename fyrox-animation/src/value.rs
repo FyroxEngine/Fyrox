@@ -409,8 +409,8 @@ impl BoundValue {
             object_ref.resolve_path_mut(property_path, &mut |result| match result {
                 Ok(property) => {
                     let mut applied = false;
-                    property.as_any_mut(&mut |any| {
-                        applied = self.value.apply_to_any(any, value_type);
+                    property.as_reflect_mut(&mut |reflect| {
+                        applied = self.value.apply_to_any(reflect, value_type);
                     });
                     if applied {
                         property.as_inheritable_variable_mut(&mut |var| {

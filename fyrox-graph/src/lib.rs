@@ -1750,14 +1750,6 @@ mod test {
             Reflect::into_any(self.0)
         }
 
-        fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
-            Reflect::as_any(self.0.deref(), func)
-        }
-
-        fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
-            Reflect::as_any_mut(self.0.deref_mut(), func)
-        }
-
         fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
             self.0.deref().as_reflect(func)
         }
@@ -2332,8 +2324,8 @@ mod test {
             .unwrap()
             .transmute::<RigidBody>();
         let joint_copy = mapping.inner().get(&joint).cloned().unwrap();
-        Reflect::as_any(&scene_graph.nodes[joint_copy], &mut |any| {
-            let joint_copy_ref = any.downcast_ref::<Joint>().unwrap();
+        scene_graph.nodes[joint_copy].as_reflect(&mut |reflect| {
+            let joint_copy_ref = (reflect as &dyn Any).downcast_ref::<Joint>().unwrap();
             assert_eq!(joint_copy_ref.connected_body1, rigid_body_copy);
             assert_eq!(joint_copy_ref.connected_body2, rigid_body2_copy);
         });

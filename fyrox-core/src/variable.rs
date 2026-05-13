@@ -455,16 +455,6 @@ where
     }
 
     #[inline]
-    fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
-        self.value.as_any(func)
-    }
-
-    #[inline]
-    fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
-        self.value.as_any_mut(func)
-    }
-
-    #[inline]
     fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
         self.value.as_reflect(func)
     }

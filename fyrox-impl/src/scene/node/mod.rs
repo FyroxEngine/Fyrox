@@ -611,14 +611,6 @@ impl Reflect for Node {
         Reflect::into_any(self.0)
     }
 
-    fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
-        Reflect::as_any(self.0.deref(), func)
-    }
-
-    fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
-        Reflect::as_any_mut(self.0.deref_mut(), func)
-    }
-
     fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
         self.0.deref().as_reflect(func)
     }

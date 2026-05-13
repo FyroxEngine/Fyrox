@@ -869,30 +869,30 @@ impl TrackList {
                         }
                         ValueBinding::Property { name, .. } => node_ref.find_field(name, &mut |value| {
                             if let Some(value) = value {
-                                value.as_any(&mut |any| {
+                                value.as_reflect(&mut |reflect| {
                                     let curves = track.data_container().curves_ref();
                                     if curves.len() == 1 {
-                                        if let Some(scalar) = any_scalar_to_f32(any) {
+                                        if let Some(scalar) = any_scalar_to_f32(reflect) {
                                             adder.add(&[scalar]);
                                         } else {
                                             err!("Unable to set {name} scalar property!");
                                         }
                                     } else if curves.len() == 2 {
-                                        if let Some(vec2) = any_vec_to_f32::<2>(any) {
+                                        if let Some(vec2) = any_vec_to_f32::<2>(reflect) {
                                             adder.add(vec2.as_slice())
                                         } else {
                                             err!("Unable to set {name} Vector2 property!");
                                         }
                                     } else if curves.len() == 3 {
-                                        if let Some(vec3) = any_vec_to_f32::<3>(any) {
+                                        if let Some(vec3) = any_vec_to_f32::<3>(reflect) {
                                             adder.add(vec3.as_slice())
                                         } else {
                                             err!("Unable to set {name} Vector3 property!");
                                         }
                                     } else if curves.len() == 4 {
-                                        if let Some(vec4) = any_vec_to_f32::<4>(any) {
+                                        if let Some(vec4) = any_vec_to_f32::<4>(reflect) {
                                             adder.add(vec4.as_slice())
-                                        } else if let Some(quat) = any_quat_to_f32(any) {
+                                        } else if let Some(quat) = any_quat_to_f32(reflect) {
                                             adder.add(quat.coords.as_slice())
                                         } else {
                                             err!(
@@ -1104,7 +1104,8 @@ impl TrackList {
                         node.resolve_path(&property_path.path, &mut |result| match result {
                             Ok(property) => {
                                 let mut property_type = TypeId::of::<u32>();
-                                property.as_any(&mut |any| property_type = any.type_id());
+                                property
+                                    .as_reflect(&mut |reflect| property_type = reflect.type_id());
 
                                 let types = type_id_to_supported_type(property_type);
 
@@ -1410,7 +1411,7 @@ impl TrackList {
         node.resolve_path(&desc.path, &mut |result| match result {
             Ok(property) => {
                 let mut property_type = TypeId::of::<u32>();
-                property.as_any(&mut |any| property_type = any.type_id());
+                property.as_reflect(&mut |reflect| property_type = reflect.type_id());
 
                 let types = type_id_to_supported_type(property_type);
 
@@ -1713,7 +1714,7 @@ impl TrackList {
                         target.resolve_path(name, &mut |result| match result {
                             Ok(value) => {
                                 let mut property_type = TypeId::of::<u32>();
-                                value.as_any(&mut |any| property_type = any.type_id());
+                                value.as_reflect(&mut |reflect| property_type = reflect.type_id());
 
                                 if let Some((_, type_)) = type_id_to_supported_type(property_type) {
                                     if *value_type != type_ {

@@ -763,14 +763,6 @@ impl Reflect for Script {
         self.instance.into_any()
     }
 
-    fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
-        self.instance.deref().as_any(func)
-    }
-
-    fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
-        self.instance.deref_mut().as_any_mut(func)
-    }
-
     fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
         self.instance.deref().as_reflect(func)
     }

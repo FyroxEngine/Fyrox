@@ -185,16 +185,6 @@ macro_rules! impl_reflect_inner_mutability {
             Box::new(inner)
         }
 
-        fn as_any(&$self, func: &mut dyn FnMut(&dyn Any)) {
-            let guard = $acquire_lock_guard;
-            (*guard).as_any(func)
-        }
-
-        fn as_any_mut(&mut $self, func: &mut dyn FnMut(&mut dyn Any)) {
-            let mut guard = $acquire_lock_guard;
-            (*guard).as_any_mut(func)
-        }
-
         fn as_reflect(&$self, func: &mut dyn FnMut(&dyn Reflect)) {
             let guard = $acquire_lock_guard;
             (*guard).as_reflect(func)

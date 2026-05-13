@@ -184,14 +184,6 @@ impl<T: Reflect> Reflect for Handle<T> {
         self
     }
 
-    fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
-        func(self)
-    }
-
-    fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
-        func(self)
-    }
-
     fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
         func(self)
     }

@@ -184,14 +184,6 @@ macro_rules! delegate_reflect {
             (*self).into_any()
         }
 
-        fn as_any(&self, func: &mut dyn FnMut(&dyn std::any::Any)) {
-            self.deref().as_any(func)
-        }
-
-        fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn std::any::Any)) {
-            self.deref_mut().as_any_mut(func)
-        }
-
         fn as_reflect(&self, func: &mut dyn FnMut(&dyn $crate::reflect::Reflect)) {
             self.deref().as_reflect(func)
         }
@@ -354,14 +346,6 @@ macro_rules! blank_reflect {
             self
         }
 
-        fn as_any(&self, func: &mut dyn FnMut(&dyn std::any::Any)) {
-            func(self)
-        }
-
-        fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn std::any::Any)) {
-            func(self)
-        }
-
         fn as_reflect(&self, func: &mut dyn FnMut(&dyn $crate::reflect::Reflect)) {
             func(self)
         }
@@ -461,14 +445,6 @@ macro_rules! blank_reflect_ref {
 
         fn into_any(self: Box<Self>) -> Box<dyn std::any::Any> {
             self
-        }
-
-        fn as_any(&self, func: &mut dyn FnMut(&dyn std::any::Any)) {
-            func(self)
-        }
-
-        fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn std::any::Any)) {
-            func(self)
         }
 
         fn as_reflect(&self, func: &mut dyn FnMut(&dyn $crate::reflect::Reflect)) {

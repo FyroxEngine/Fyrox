@@ -77,6 +77,7 @@ use crate::{
 use bitflags::bitflags;
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_material::MaterialResourceExtension;
+use std::any::Any;
 use std::{
     any::TypeId,
     fmt::{Debug, Display, Formatter, Write},
@@ -537,8 +538,8 @@ impl Graph {
         for (node_handle, node) in self.pair_iter() {
             (node as &dyn Reflect).apply_recursively(
                 &mut |object| {
-                    object.as_any(&mut |any| {
-                        if let Some(handle) = any.downcast_ref::<Handle<Node>>() {
+                    object.as_reflect(&mut |reflect| {
+                        if let Some(handle) = (reflect as &dyn Any).downcast_ref::<Handle<Node>>() {
                             if *handle == target {
                                 references.push(node_handle);
                             }

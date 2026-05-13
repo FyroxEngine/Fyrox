@@ -518,14 +518,6 @@ fn gen_impl(
 
             #set_field
 
-            fn as_any(&self, func: &mut dyn FnMut(&dyn ::core::any::Any)) {
-                func(self)
-            }
-
-            fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn ::core::any::Any)) {
-                func(self)
-            }
-
             fn as_reflect_direct(&self) -> &dyn Reflect {
                 self
             }

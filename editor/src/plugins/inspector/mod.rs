@@ -494,10 +494,10 @@ impl EditorPlugin for InspectorPlugin {
                                             can_clone = property.try_clone_box().is_some();
 
                                             if let Some(value) = self.clipboard.as_ref() {
-                                                value.as_any(&mut |value| {
-                                                    property.as_any(&mut |property| {
+                                                value.as_reflect(&mut |reflect| {
+                                                    property.as_reflect(&mut |property| {
                                                         can_paste =
-                                                            property.type_id() == value.type_id();
+                                                            property.type_id() == reflect.type_id();
                                                     })
                                                 })
                                             }

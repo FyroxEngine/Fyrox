@@ -141,10 +141,6 @@ pub trait Reflect: Any + Debug {
 
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 
-    fn as_any(&self, func: &mut dyn FnMut(&dyn Any));
-
-    fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any));
-
     fn as_reflect_direct(&self) -> &dyn Reflect;
 
     fn as_reflect_mut_direct(&mut self) -> &mut dyn Reflect;
@@ -313,12 +309,12 @@ impl dyn Reflect {
 
     #[inline]
     pub fn downcast_ref<T: Reflect>(&self, func: &mut dyn FnMut(Option<&T>)) {
-        self.as_any(&mut |any| func(any.downcast_ref::<T>()))
+        self.as_reflect(&mut |reflect| func((reflect as &dyn Any).downcast_ref::<T>()))
     }
 
     #[inline]
     pub fn downcast_mut<T: Reflect>(&mut self, func: &mut dyn FnMut(Option<&mut T>)) {
-        self.as_any_mut(&mut |any| func(any.downcast_mut::<T>()))
+        self.as_reflect_mut(&mut |reflect| func((reflect as &mut dyn Any).downcast_mut::<T>()))
     }
 
     /// Tries to find the first field of the given type. This method internally uses
@@ -779,16 +775,20 @@ pub trait GetField {
 
 impl<R: Reflect> GetField for R {
     fn get_field<T: 'static>(&self, name: &str, func: &mut dyn FnMut(Option<&T>)) {
-        self.find_field(name, &mut |field| match field {
+        self.find_field(name, &mut |opt_field| match opt_field {
             None => func(None),
-            Some(reflect) => reflect.as_any(&mut |any| func(any.downcast_ref())),
+            Some(field) => {
+                field.as_reflect(&mut |reflect| func((reflect as &dyn Any).downcast_ref()))
+            }
         })
     }
 
     fn get_field_mut<T: 'static>(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut T>)) {
-        self.find_field_mut(name, &mut |field| match field {
+        self.find_field_mut(name, &mut |opt_field| match opt_field {
             None => func(None),
-            Some(reflect) => reflect.as_any_mut(&mut |any| func(any.downcast_mut())),
+            Some(field) => {
+                field.as_reflect_mut(&mut |reflect| func((reflect as &mut dyn Any).downcast_mut()))
+            }
         })
     }
 }

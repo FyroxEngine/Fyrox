@@ -291,17 +291,18 @@ impl PartialEq for ObjectValue {
 
 impl ObjectValue {
     pub fn cast_value<T: 'static>(&self, func: &mut dyn FnMut(Option<&T>)) {
-        (*self.value).as_any(&mut |any| func(any.downcast_ref::<T>()))
+        (*self.value).as_reflect(&mut |reflect| func((reflect as &dyn Any).downcast_ref::<T>()))
     }
 
     pub fn cast_clone<T: Clone + 'static>(&self, func: &mut dyn FnMut(Option<T>)) {
-        (*self.value).as_any(&mut |any| func(any.downcast_ref::<T>().cloned()))
+        (*self.value)
+            .as_reflect(&mut |reflect| func((reflect as &dyn Any).downcast_ref::<T>().cloned()))
     }
 
     pub fn try_override<T: Clone + 'static>(&self, value: &mut T) -> bool {
         let mut result = false;
-        (*self.value).as_any(&mut |any| {
-            if let Some(self_value) = any.downcast_ref::<T>() {
+        (*self.value).as_reflect(&mut |reflect| {
+            if let Some(self_value) = (reflect as &dyn Any).downcast_ref::<T>() {
                 *value = self_value.clone();
                 result = true;
             }
@@ -582,8 +583,8 @@ impl Inspector {
                         can_clone = field.try_clone_box().is_some();
 
                         if let Some(clipboard_value) = clipboard_value {
-                            clipboard_value.as_any(&mut |clipboard_value| {
-                                field.as_any(&mut |field| {
+                            clipboard_value.as_reflect(&mut |clipboard_value| {
+                                field.as_reflect(&mut |field| {
                                     can_paste = field.type_id() == clipboard_value.type_id();
                                 })
                             });
@@ -843,7 +844,7 @@ impl PartialEq for InspectorContext {
 
 fn object_type_id(object: &dyn Reflect) -> TypeId {
     let mut object_type_id = None;
-    object.as_any(&mut |any| object_type_id = Some(any.type_id()));
+    object.as_reflect(&mut |reflect| object_type_id = Some(reflect.type_id()));
     object_type_id.unwrap()
 }
 
