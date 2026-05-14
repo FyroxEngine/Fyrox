@@ -759,8 +759,8 @@ impl Reflect for Script {
         self.instance.fields_mut(func)
     }
 
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self.instance.into_any()
+    fn into_inner_reflect(self: Box<Self>) -> Box<dyn Reflect> {
+        self.instance.into_inner_reflect()
     }
 
     fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {

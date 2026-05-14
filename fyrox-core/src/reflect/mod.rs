@@ -139,7 +139,10 @@ pub trait Reflect: Any + Debug {
 
     fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut]));
 
-    fn into_any(self: Box<Self>) -> Box<dyn Any>;
+    /// Extracts the wrapped value as `Box<dyn Reflect>` and returns it to the caller. This method
+    /// is intended to be used for wrapper structures only. Any other type should return `self` as
+    /// usual.
+    fn into_inner_reflect(self: Box<Self>) -> Box<dyn Reflect>;
 
     fn as_reflect_direct(&self) -> &dyn Reflect;
 
@@ -292,7 +295,9 @@ pub trait Reflect: Any + Debug {
 impl dyn Reflect {
     pub fn downcast<T: Reflect>(self: Box<dyn Reflect>) -> Result<Box<T>, Box<dyn Reflect>> {
         if self.is::<T>() {
-            Ok(self.into_any().downcast().unwrap())
+            Ok((self.into_inner_reflect() as Box<dyn Any>)
+                .downcast()
+                .unwrap())
         } else {
             Err(self)
         }

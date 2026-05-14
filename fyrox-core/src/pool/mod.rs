@@ -44,7 +44,7 @@ use crate::{reflect::prelude::*, visitor::prelude::*};
 use std::cell::UnsafeCell;
 use std::fmt::{Display, Formatter};
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     fmt::Debug,
     future::Future,
     marker::PhantomData,
@@ -188,7 +188,7 @@ where
     }
 
     #[inline]
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+    fn into_inner_reflect(self: Box<Self>) -> Box<dyn Reflect> {
         self
     }
 

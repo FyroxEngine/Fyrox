@@ -450,8 +450,8 @@ where
     }
 
     #[inline]
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        Box::new(self.value).into_any()
+    fn into_inner_reflect(self: Box<Self>) -> Box<dyn Reflect> {
+        Box::new(self.value).into_inner_reflect()
     }
 
     #[inline]

@@ -214,7 +214,7 @@ impl Reflect for DynTypeWrapper {
         }])
     }
 
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+    fn into_inner_reflect(self: Box<Self>) -> Box<dyn Reflect> {
         self
     }
 

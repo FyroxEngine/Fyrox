@@ -180,8 +180,8 @@ macro_rules! delegate_reflect {
             self.deref_mut().fields_mut(func)
         }
 
-        fn into_any(self: Box<Self>) -> Box<dyn std::any::Any> {
-            (*self).into_any()
+        fn into_inner_reflect(self: Box<Self>) -> Box<dyn Reflect> {
+            (*self).into_inner_reflect()
         }
 
         fn as_reflect(&self, func: &mut dyn FnMut(&dyn $crate::reflect::Reflect)) {
@@ -342,7 +342,7 @@ macro_rules! blank_reflect {
             func(&mut [])
         }
 
-        fn into_any(self: Box<Self>) -> Box<dyn std::any::Any> {
+        fn into_inner_reflect(self: Box<Self>) -> Box<dyn Reflect> {
             self
         }
 
@@ -443,7 +443,7 @@ macro_rules! blank_reflect_ref {
             func(&mut [])
         }
 
-        fn into_any(self: Box<Self>) -> Box<dyn std::any::Any> {
+        fn into_inner_reflect(self: Box<Self>) -> Box<dyn Reflect> {
             self
         }
 

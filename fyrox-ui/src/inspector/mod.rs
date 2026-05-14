@@ -260,7 +260,11 @@ where
     }
 
     fn into_box_reflect(self: Box<Self>) -> Box<dyn Reflect> {
-        Box::new(*self.into_any().downcast::<T>().unwrap())
+        Box::new(
+            *(self.into_inner_reflect() as Box<dyn Any>)
+                .downcast::<T>()
+                .unwrap(),
+        )
     }
 }
 

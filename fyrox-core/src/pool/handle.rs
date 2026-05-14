@@ -25,7 +25,7 @@ use crate::{
     visitor::prelude::*, TypeUuidProvider,
 };
 use serde::{Deserialize, Serialize};
-use std::any::{type_name, Any, TypeId};
+use std::any::{type_name, TypeId};
 use std::{
     cmp::Ordering,
     fmt::{Debug, Display, Formatter},
@@ -180,7 +180,7 @@ impl<T: Reflect> Reflect for Handle<T> {
         ])
     }
 
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+    fn into_inner_reflect(self: Box<Self>) -> Box<dyn Reflect> {
         self
     }
 

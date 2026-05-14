@@ -64,7 +64,7 @@ use crate::{
 };
 use fyrox_core::{define_as_any_trait, pool::ObjectOrVariantHelper};
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     fmt::Debug,
     marker::PhantomData,
     ops::{Deref, DerefMut},
@@ -607,8 +607,8 @@ impl Reflect for Node {
         self.0.deref_mut().fields_mut(func)
     }
 
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        Reflect::into_any(self.0)
+    fn into_inner_reflect(self: Box<Self>) -> Box<dyn Reflect> {
+        Reflect::into_inner_reflect(self.0)
     }
 
     fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {

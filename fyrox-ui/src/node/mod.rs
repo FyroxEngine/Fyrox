@@ -32,7 +32,7 @@ use crate::{
 use fyrox_graph::SceneGraphNode;
 use fyrox_resource::{untyped::UntypedResource, Resource};
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
@@ -297,8 +297,8 @@ impl Reflect for UiNode {
         self.0.deref_mut().fields_mut(func)
     }
 
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        Reflect::into_any(self.0)
+    fn into_inner_reflect(self: Box<Self>) -> Box<dyn Reflect> {
+        Reflect::into_inner_reflect(self.0)
     }
 
     fn as_reflect_direct(&self) -> &dyn Reflect {

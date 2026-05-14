@@ -126,7 +126,7 @@ impl Reflect for ResourceDataWrapper {
         self.deref_mut().fields_mut(func)
     }
 
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+    fn into_inner_reflect(self: Box<Self>) -> Box<dyn Reflect> {
         self
     }
 

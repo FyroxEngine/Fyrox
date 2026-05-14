@@ -491,7 +491,7 @@ fn gen_impl(
                 #metadata_mut
             }
 
-            fn into_any(self: Box<Self>) -> Box<dyn ::core::any::Any> {
+            fn into_inner_reflect(self: Box<Self>) -> Box<dyn Reflect> {
                 self
             }
 

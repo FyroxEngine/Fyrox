@@ -30,7 +30,6 @@ use crate::{
 use fyrox_core_derive::impl_reflect;
 use nalgebra::*;
 use std::{
-    any::Any,
     cell::{Cell, RefCell},
     fmt::Debug,
     ops::{Deref, DerefMut, Range},
@@ -180,7 +179,7 @@ macro_rules! impl_reflect_inner_mutability {
             guard.fields_mut(func)
         }
 
-        fn into_any($self: Box<Self>) -> Box<dyn Any> {
+        fn into_inner_reflect($self: Box<Self>) -> Box<dyn Reflect> {
             let inner = $into_inner;
             Box::new(inner)
         }
@@ -296,11 +295,15 @@ impl<T: Reflect + Clone> Reflect for parking_lot::RwLock<T> {
 
 #[allow(clippy::mut_mutex_lock)]
 impl<T: Reflect + Clone> Reflect for std::sync::Mutex<T> {
-    impl_reflect_inner_mutability!(self, { self.safe_lock().unwrap() }, { self.into_inner() });
+    impl_reflect_inner_mutability!(self, { self.safe_lock().unwrap() }, {
+        self.into_inner().unwrap()
+    });
 }
 
 impl<T: Reflect + Clone> Reflect for std::sync::RwLock<T> {
-    impl_reflect_inner_mutability!(self, { self.write().unwrap() }, { self.into_inner() });
+    impl_reflect_inner_mutability!(self, { self.write().unwrap() }, {
+        self.into_inner().unwrap()
+    });
 }
 
 impl<T: Reflect + Clone> Reflect for Arc<parking_lot::Mutex<T>> {
@@ -316,6 +319,7 @@ impl<T: Reflect + Clone> Reflect for Arc<std::sync::Mutex<T>> {
         Arc::into_inner(*self)
             .expect("Value cannot be shared!")
             .into_inner()
+            .unwrap()
     });
 }
 
@@ -324,6 +328,7 @@ impl<T: Reflect + Clone> Reflect for Arc<std::sync::RwLock<T>> {
         Arc::into_inner(*self)
             .expect("Value cannot be shared!")
             .into_inner()
+            .unwrap()
     });
 }
 
