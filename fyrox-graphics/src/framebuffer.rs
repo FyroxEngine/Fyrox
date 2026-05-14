@@ -322,22 +322,63 @@ pub trait GpuFrameBufferTrait: GpuFrameBufferAsAny {
     ) -> Result<DrawCallStatistics, FrameworkError>;
 }
 
+/// Owned, typed view of pixels read back from a [`GpuFrameBufferTrait`]. Preserves the
+/// original byte allocation (and therefore its memory layout) so it is dropped with the
+/// same `Layout` it was allocated with, while exposing a `&[T]` view of the contents.
+///
+/// This avoids the UB of reinterpreting a `Vec<u8>` allocation directly as `Vec<T>`
+/// (which would deallocate with `Layout::array::<T>(cap)` instead of the original
+/// `Layout::array::<u8>(cap)`) without copying the data.
+pub struct TypedPixels<T: Pod> {
+    bytes: Vec<u8>,
+    _marker: std::marker::PhantomData<T>,
+}
+
+impl<T: Pod> TypedPixels<T> {
+    /// Returns the pixels as a typed slice.
+    #[inline]
+    pub fn as_slice(&self) -> &[T] {
+        bytemuck::cast_slice(&self.bytes)
+    }
+
+    /// Number of `T` elements in the readback.
+    #[inline]
+    pub fn len(&self) -> usize {
+        self.bytes.len() / std::mem::size_of::<T>()
+    }
+
+    /// Whether the readback contains zero elements.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+impl<T: Pod> std::ops::Deref for TypedPixels<T> {
+    type Target = [T];
+
+    #[inline]
+    fn deref(&self) -> &[T] {
+        self.as_slice()
+    }
+}
+
 impl dyn GpuFrameBufferTrait {
     /// Reads the pixels and reinterprets them using the given type.
-    pub fn read_pixels_of_type<T>(&self, read_target: ReadTarget) -> Option<Vec<T>>
+    ///
+    /// Returns an owning [`TypedPixels<T>`] that derefs to `&[T]`. The underlying byte
+    /// buffer is preserved as-is, so it is freed with the same memory layout it was
+    /// allocated with (avoiding the UB of dropping a `Vec<u8>` allocation as a `Vec<T>`),
+    /// and no extra copy is made when constructing the typed view.
+    pub fn read_pixels_of_type<T>(&self, read_target: ReadTarget) -> Option<TypedPixels<T>>
     where
         T: Pod,
     {
-        let mut bytes = self.read_pixels(read_target)?;
-        let typed = unsafe {
-            Vec::<T>::from_raw_parts(
-                bytes.as_mut_ptr() as *mut T,
-                bytes.len() / size_of::<T>(),
-                bytes.capacity() / size_of::<T>(),
-            )
-        };
-        std::mem::forget(bytes);
-        Some(typed)
+        let bytes = self.read_pixels(read_target)?;
+        Some(TypedPixels {
+            bytes,
+            _marker: std::marker::PhantomData,
+        })
     }
 }
 
