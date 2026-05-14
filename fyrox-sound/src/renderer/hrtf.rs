@@ -53,7 +53,7 @@
 //!     let hrir_path = PathBuf::from("examples/data/IRC_1002_C.bin");
 //!     let hrir_sphere = HrirSphere::from_file(&hrir_path, SoundEngine::DEFAULT_SAMPLE_RATE).unwrap();
 //!
-//!     context.state().set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(HrirSphereResource::from_hrir_sphere(hrir_sphere, ResourceKind::Embedded))));
+//!     context.state().set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(SoundEngine::DEFAULT_SAMPLE_RATE, HrirSphereResource::from_hrir_sphere(hrir_sphere, ResourceKind::Embedded))));
 //! }
 //! ```
 //!
