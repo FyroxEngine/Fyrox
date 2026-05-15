@@ -349,7 +349,7 @@ impl InspectorPlugin {
         ui.send(self.inspector, InspectorMessage::Context(context));
         ui.send_sync(
             self.type_name_text,
-            TextMessage::Text(format!("Type Name: {}", obj.type_name())),
+            TextMessage::Text(format!("Type Name: {}", obj.type_info_ref().type_name)),
         );
     }
 

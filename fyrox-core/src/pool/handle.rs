@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::pool::ObjectOrVariant;
-use crate::reflect::ReflectHandle;
+use crate::reflect::{ReflectHandle, TypeInfo};
 use crate::{
     combine_uuids, pool::INVALID_GENERATION, reflect::prelude::*, uuid_provider,
     visitor::prelude::*, TypeUuidProvider,
@@ -111,39 +111,22 @@ static GENERATION_METADATA: FieldMetadata = FieldMetadata {
 };
 
 impl<T: Reflect> Reflect for Handle<T> {
-    fn source_path() -> &'static str {
-        file!()
+    fn type_info() -> TypeInfo {
+        TypeInfo {
+            source_path: file!(),
+            type_name: type_name::<Self>(),
+            assembly_name: env!("CARGO_PKG_NAME"),
+            doc_comment: "",
+            derived_types: T::type_info().derived_types,
+        }
     }
 
-    fn derived_types() -> &'static [TypeId]
-    where
-        Self: Sized,
-    {
-        T::derived_types()
+    fn type_info_ref(&self) -> TypeInfo {
+        Self::type_info()
     }
 
     fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
         Some(Box::new(*self))
-    }
-
-    fn query_derived_types(&self) -> &'static [TypeId] {
-        Self::derived_types()
-    }
-
-    fn type_name(&self) -> &'static str {
-        type_name::<Self>()
-    }
-
-    fn doc(&self) -> &'static str {
-        ""
-    }
-
-    fn assembly_name(&self) -> &'static str {
-        env!("CARGO_PKG_NAME")
-    }
-
-    fn type_assembly_name() -> &'static str {
-        env!("CARGO_PKG_NAME")
     }
 
     fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {

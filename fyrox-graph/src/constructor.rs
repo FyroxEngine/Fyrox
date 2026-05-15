@@ -93,7 +93,7 @@ impl<Node, Ctx> GraphNodeConstructor<Node, Ctx> {
             default: Arc::new(|| Node::from(Inner::default())),
             variants: vec![],
             group: "",
-            assembly_name: Inner::type_assembly_name(),
+            assembly_name: Inner::type_info().assembly_name,
         }
     }
 

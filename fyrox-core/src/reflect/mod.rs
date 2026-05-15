@@ -50,7 +50,36 @@ pub mod prelude {
     pub use super::{
         FieldMetadata, FieldMut, FieldRef, FieldValue, Reflect, ReflectArray, ReflectHashMap,
         ReflectInheritableVariable, ReflectList, ResolvePath, SetFieldByPathError, SetFieldError,
+        TypeInfo,
     };
+}
+
+/// A set of useful information about a type that can be queried at runtime.
+pub struct TypeInfo {
+    /// Name of the file where the type is located. Usually, it is just `file!()` macro call result.
+    pub source_path: &'static str,
+
+    /// The actual name of the type in human-readable form. Typically, it just contains the result
+    /// of calling `std::any::type_name::<T>()`.
+    pub type_name: &'static str,
+
+    /// A parent assembly name of the type that implements this trait.
+    ///
+    /// ## Important notes for implementors
+    ///
+    /// Use proc-macro (`#[derive(Reflect)]`) to ensure that this field contains the correct assembly
+    /// name. In other words - there's no guarantee, that any implementation other than proc-macro
+    /// will return a correct name of the assembly. Alternatively, you can use `env!("CARGO_PKG_NAME")`
+    /// as an implementation.
+    pub assembly_name: &'static str,
+
+    /// A documentation of the type.
+    pub doc_comment: &'static str,
+
+    /// A set of types that are derived from this type. Derived here does not mean classic OOPs
+    /// derived class, it is just a "link" between this type an others. It is widely used to link
+    /// an actual type with its wrapper type (which typically contains `Box<dyn SomeTrait>`).
+    pub derived_types: &'static [TypeId],
 }
 
 /// A trait for runtime reflection.
@@ -119,21 +148,17 @@ pub mod prelude {
 /// for every type that should support `Reflect` trait. It is a good compromise between development speed
 /// and the quality of the string output.
 pub trait Reflect: Any + Debug {
-    fn source_path() -> &'static str
+    /// Returns the info about the type that implements this trait. The result of the call of this
+    /// method can be different from the call of [`Self::type_info_ref`] on an instance of the type.
+    fn type_info() -> TypeInfo
     where
         Self: Sized;
 
-    fn derived_types() -> &'static [TypeId]
-    where
-        Self: Sized;
+    /// Returns the info about the type that implements this trait. The result of the call of this
+    /// method can be different from the call of [`Self::type_info`].
+    fn type_info_ref(&self) -> TypeInfo;
 
     fn try_clone_box(&self) -> Option<Box<dyn Reflect>>;
-
-    fn query_derived_types(&self) -> &'static [TypeId];
-
-    fn type_name(&self) -> &'static str;
-
-    fn doc(&self) -> &'static str;
 
     fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef]));
 
@@ -153,22 +178,6 @@ pub trait Reflect: Any + Debug {
     fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect));
 
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>>;
-
-    /// Returns a parent assembly name of the type that implements this trait. **WARNING:** You should use
-    /// proc-macro (`#[derive(Reflect)]`) to ensure that this method will return correct assembly
-    /// name. In other words - there's no guarantee, that any implementation other than proc-macro
-    /// will return a correct name of the assembly. Alternatively, you can use `env!("CARGO_PKG_NAME")`
-    /// as an implementation.
-    fn assembly_name(&self) -> &'static str;
-
-    /// Returns a parent assembly name of the type that implements this trait. **WARNING:** You should use
-    /// proc-macro (`#[derive(Reflect)]`) to ensure that this method will return correct assembly
-    /// name. In other words - there's no guarantee, that any implementation other than proc-macro
-    /// will return a correct name of the assembly. Alternatively, you can use `env!("CARGO_PKG_NAME")`
-    /// as an implementation.
-    fn type_assembly_name() -> &'static str
-    where
-        Self: Sized;
 
     /// Tries to get a shared reference to a field at the specified index. Returns [`None`] in two cases:
     /// 1) The type does not have such field
@@ -211,7 +220,7 @@ pub trait Reflect: Any + Debug {
             let value = opt_value.take().unwrap();
             match field {
                 Some(f) => func(f.set(value).map_err(|value| SetFieldError::InvalidValue {
-                    field_type_name: f.type_name(),
+                    field_type_name: f.type_info_ref().type_name,
                     value,
                 })),
                 None => func(Err(SetFieldError::NoSuchField {
@@ -1120,6 +1129,9 @@ mod test {
     #[test]
     fn test_derived() {
         let base = Base;
-        assert_eq!(base.query_derived_types(), &[TypeId::of::<Derived>()])
+        assert_eq!(
+            base.type_info_ref().derived_types,
+            &[TypeId::of::<Derived>()]
+        )
     }
 }

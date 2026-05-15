@@ -457,7 +457,7 @@ impl Grid {
             let Some(row) = rows.get_mut(node.row()) else {
                 Log::err(format!(
                     "Node row out of bounds: {} row:{}, column:{}",
-                    Reflect::type_name(node),
+                    node.type_info_ref().type_name,
                     node.row(),
                     node.column()
                 ));
@@ -466,7 +466,7 @@ impl Grid {
             let Some(col) = cols.get_mut(node.column()) else {
                 Log::err(format!(
                     "Node column out of bounds: {} row:{}, column:{}",
-                    Reflect::type_name(node),
+                    node.type_info_ref().type_name,
                     node.row(),
                     node.column()
                 ));

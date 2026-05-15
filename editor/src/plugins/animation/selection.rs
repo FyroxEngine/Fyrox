@@ -208,14 +208,16 @@ where
                 engine.scenes[game_scene.scene]
                     .graph
                     .node(ErasedHandle::from(self.animation_player).into())
-                    .doc()
+                    .type_info_ref()
+                    .doc_comment
                     .to_string(),
             )
         } else {
             controller.downcast_ref::<UiScene>().map(|ui| {
                 ui.ui
                     .node(ErasedHandle::from(self.animation_player).into())
-                    .doc()
+                    .type_info_ref()
+                    .doc_comment
                     .to_string()
             })
         }

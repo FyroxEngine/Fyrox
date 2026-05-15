@@ -575,7 +575,7 @@ impl Inspector {
         object: &mut dyn Reflect,
         clipboard_value: &mut Option<Box<dyn Reflect>>,
     ) {
-        let object_type_name = object.type_name();
+        let object_type_name = object.type_info_ref().type_name;
 
         match msg {
             InspectorMessage::PropertyContextMenuOpened { path } => {
@@ -614,7 +614,7 @@ impl Inspector {
                                 "Unable to clone the field {}, because it is non-cloneable! \
                             Field type is: {}",
                                 path,
-                                field.type_name()
+                                field.type_info_ref().type_name
                             );
                         }
                     } else {
@@ -656,7 +656,7 @@ impl Inspector {
                             "Unable to clone the field {}, because it is non-cloneable! \
                             Field type is: {}",
                             dest,
-                            value.type_name()
+                            value.type_info_ref().type_name
                         );
                     }
                 } else {

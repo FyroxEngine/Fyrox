@@ -134,39 +134,23 @@ impl<T: Reflect + Clone> Reflect for Box<T> {
 
 macro_rules! impl_reflect_inner_mutability {
     ($self:ident, $acquire_lock_guard:block, $into_inner:block) => {
-        fn source_path() -> &'static str {
-            file!()
+        fn type_info() -> TypeInfo {
+            TypeInfo {
+                source_path: file!(),
+                type_name: std::any::type_name::<T>(),
+                assembly_name: env!("CARGO_PKG_NAME"),
+                doc_comment: "",
+                derived_types: T::type_info().derived_types,
+            }
         }
 
-        fn derived_types() -> &'static [std::any::TypeId] {
-            // TODO: This seems to be impossible to implement because of `?Sized` trait bound
-            // up above.
-            &[]
+        fn type_info_ref(&self) -> TypeInfo {
+            Self::type_info()
         }
 
         fn try_clone_box(&$self) -> Option<Box<dyn Reflect>> {
             let guard = $acquire_lock_guard;
             Some(Box::new(guard.clone()))
-        }
-
-        fn query_derived_types(&self) -> &'static [std::any::TypeId] {
-            T::derived_types()
-        }
-
-        fn type_name(&$self) -> &'static str {
-            std::any::type_name::<T>()
-        }
-
-        fn doc(&$self) -> &'static str {
-            ""
-        }
-
-        fn assembly_name(&self) -> &'static str {
-            env!("CARGO_PKG_NAME")
-        }
-
-        fn type_assembly_name() -> &'static str {
-            env!("CARGO_PKG_NAME")
         }
 
         fn fields_ref(&$self, func: &mut dyn FnMut(&[FieldRef])) {

@@ -502,7 +502,9 @@ impl UntypedResource {
     /// loaded resources (in [`ResourceState::Ok`] state).
     pub fn data_type_name(&self) -> Option<String> {
         match self.lock().state {
-            ResourceState::Ok { ref data, .. } => Some(Reflect::type_name(&**data).to_string()),
+            ResourceState::Ok { ref data, .. } => {
+                Some((**data).type_info_ref().type_name.to_string())
+            }
             _ => None,
         }
     }

@@ -2550,7 +2550,7 @@ impl Engine {
         plugin.prepare_to_reload();
 
         let plugin_type_id = plugin.as_loaded_ref().type_id();
-        let plugin_assembly_name = plugin.as_loaded_ref().assembly_name();
+        let plugin_assembly_name = plugin.as_loaded_ref().type_info_ref().assembly_name;
 
         // Collect all the data that belongs to the plugin
         let mut scenes_state = Vec::new();
@@ -2642,7 +2642,7 @@ impl Engine {
                 let data = resource.lock();
                 if let ResourceState::Ok { ref data, .. } = data.state {
                     data.as_reflect(&mut |reflect| {
-                        if reflect.assembly_name() == plugin_assembly_name {
+                        if reflect.type_info_ref().assembly_name == plugin_assembly_name {
                             resources_to_reload.insert(resource.clone());
                         }
                     })

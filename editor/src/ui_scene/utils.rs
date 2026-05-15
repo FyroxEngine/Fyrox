@@ -110,7 +110,7 @@ impl WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'_> {
             Cow::Owned(format!(
                 "{} [{}]",
                 n.name(),
-                make_pretty_type_name(Reflect::type_name(n))
+                make_pretty_type_name(n.type_info_ref().type_name)
             ))
         })
     }

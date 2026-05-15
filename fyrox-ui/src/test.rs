@@ -169,7 +169,7 @@ impl UserInterfaceTestingExtension for UserInterface {
         while let Some(msg) = self.poll_message() {
             if self.visual_debug {
                 if let Ok(widget) = self.try_get(msg.destination()) {
-                    let ty = Reflect::type_name(widget);
+                    let ty = widget.type_info_ref().type_name;
                     info!("[{ty}]{msg:?}");
                 }
             }
@@ -183,7 +183,7 @@ impl UserInterfaceTestingExtension for UserInterface {
         while let Some(msg) = self.poll_message() {
             if self.visual_debug {
                 if let Ok(widget) = self.try_get(msg.destination()) {
-                    let ty = Reflect::type_name(widget);
+                    let ty = widget.type_info_ref().type_name;
                     info!("[{ty}]{msg:?}");
                 }
             }

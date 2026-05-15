@@ -175,7 +175,7 @@ impl SelectionContainer for AudioBusSelection {
                 .bus_graph_ref()
                 .try_get_bus_ref(*h)
                 .ok()
-                .map(|bus| bus.doc().to_string())
+                .map(|bus| bus.type_info_ref().doc_comment.to_string())
         })
     }
 }

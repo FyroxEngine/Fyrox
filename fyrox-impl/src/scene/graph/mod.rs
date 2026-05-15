@@ -2173,7 +2173,7 @@ impl SceneGraph for Graph {
     fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Result<Vec<TypeId>, PoolError> {
         self.pool
             .try_borrow(handle)
-            .map(|n| Box::deref(&n.0).query_derived_types().to_vec())
+            .map(|n| Box::deref(&n.0).type_info_ref().derived_types.to_vec())
     }
 
     fn actual_type_name(&self, handle: Handle<Self::Node>) -> Result<&'static str, PoolError> {

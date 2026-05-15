@@ -22,7 +22,7 @@
 
 use crate::{core::reflect::prelude::*, ResourceData, ResourceLoadError, TypedResourceData};
 use fyrox_core::reflect::ReflectHandle;
-use std::any::{Any, TypeId};
+use std::any::{type_name, Any};
 use std::fmt::{Debug, Display};
 use std::path::PathBuf;
 use std::{
@@ -88,34 +88,29 @@ impl Display for LoadError {
 pub struct ResourceDataWrapper(pub Box<dyn ResourceData>);
 
 impl Reflect for ResourceDataWrapper {
-    fn source_path() -> &'static str
-    where
-        Self: Sized,
-    {
-        file!()
+    fn type_info() -> TypeInfo {
+        TypeInfo {
+            source_path: file!(),
+            type_name: type_name::<Self>(),
+            assembly_name: env!("CARGO_PKG_NAME"),
+            doc_comment: "",
+            derived_types: &[],
+        }
     }
 
-    fn derived_types() -> &'static [TypeId]
-    where
-        Self: Sized,
-    {
-        &[]
+    fn type_info_ref(&self) -> TypeInfo {
+        let inner_type_info = self.deref().type_info_ref();
+        TypeInfo {
+            source_path: inner_type_info.source_path,
+            type_name: inner_type_info.type_name,
+            assembly_name: inner_type_info.assembly_name,
+            doc_comment: inner_type_info.doc_comment,
+            derived_types: inner_type_info.derived_types,
+        }
     }
 
     fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
         Reflect::try_clone_box(&*self.0)
-    }
-
-    fn query_derived_types(&self) -> &'static [TypeId] {
-        self.deref().query_derived_types()
-    }
-
-    fn type_name(&self) -> &'static str {
-        self.deref().type_name()
-    }
-
-    fn doc(&self) -> &'static str {
-        self.deref().doc()
     }
 
     fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
@@ -148,17 +143,6 @@ impl Reflect for ResourceDataWrapper {
 
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
         self.deref_mut().set(value)
-    }
-
-    fn assembly_name(&self) -> &'static str {
-        env!("CARGO_PKG_NAME")
-    }
-
-    fn type_assembly_name() -> &'static str
-    where
-        Self: Sized,
-    {
-        env!("CARGO_PKG_NAME")
     }
 
     fn field_direct_ref(&self, index: usize) -> Option<FieldRef<'_, '_>> {

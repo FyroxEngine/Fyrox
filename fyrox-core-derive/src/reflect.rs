@@ -245,7 +245,7 @@ fn struct_set_field_body(ty_args: &args::TypeArgs) -> Option<TokenStream2> {
                 }
                 Err(current) => {
                     let mut field_type_name = "(none)";
-                    self.find_field_mut(name, &mut |field| { field_type_name = field.unwrap().type_name() });
+                    self.find_field_mut(name, &mut |field| { field_type_name = field.unwrap().type_info_ref().type_name });
                     Err(SetFieldError::InvalidValue{field_type_name, value: current})
                 }
             })
@@ -263,7 +263,7 @@ fn struct_set_field_body(ty_args: &args::TypeArgs) -> Option<TokenStream2> {
                     let value = opt_value.take().unwrap();
                     match field {
                         Some(f) => func(f.set(value).map_err(|value| SetFieldError::InvalidValue {
-                            field_type_name: f.type_name(),
+                            field_type_name: f.type_info_ref().type_name,
                             value,
                         })),
                         None => func(Err(SetFieldError::NoSuchField {
@@ -449,39 +449,25 @@ fn gen_impl(
     quote! {
         #[allow(warnings)]
         impl #impl_generics Reflect for #ty_ident #ty_generics #where_clause {
-            fn source_path() -> &'static str {
-                file!()
-            }
-
-            #try_clone_box
-
-            fn type_name(&self) -> &'static str {
-                std::any::type_name::<Self>()
-            }
-
-             fn derived_types() -> &'static [std::any::TypeId] {
-                static ARRAY: std::sync::LazyLock<Vec<std::any::TypeId>> = std::sync::LazyLock::new(|| vec![
+            fn type_info() -> TypeInfo where Self: Sized {
+                static DERIVED_TYPES: std::sync::LazyLock<Vec<std::any::TypeId>> = std::sync::LazyLock::new(|| vec![
                     #types
                 ]);
 
-                &ARRAY
+                TypeInfo {
+                    source_path: file!(),
+                    type_name: std::any::type_name::<Self>(),
+                    assembly_name: #assembly_name,
+                    doc_comment: #doc,
+                    derived_types: &DERIVED_TYPES,
+                }
             }
 
-            fn query_derived_types(&self) -> &'static [std::any::TypeId] {
-                Self::derived_types()
+            fn type_info_ref(&self) -> TypeInfo {
+                Self::type_info()
             }
 
-            fn doc(&self) -> &'static str {
-                #doc
-            }
-
-            fn assembly_name(&self) -> &'static str {
-                #assembly_name
-            }
-
-            fn type_assembly_name() -> &'static str {
-                #assembly_name
-            }
+            #try_clone_box
 
             fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
                 #metadata_ref

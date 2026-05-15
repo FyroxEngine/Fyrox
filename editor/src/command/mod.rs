@@ -428,8 +428,8 @@ impl<F: EntityGetter> SetPropertyCommand<F> {
                             "Failed to set property {}! Incompatible types. \
                             Target property: {}. Value: {}!",
                             self.path,
-                            property.type_name(),
-                            current_value.type_name()
+                            property.type_info_ref().type_name,
+                            current_value.type_info_ref().type_name
                         );
                         self.value = Some(current_value);
                     }
@@ -462,7 +462,7 @@ impl<F: EntityGetter> SetPropertyCommand<F> {
                                     Target property: {}. Value: {}!",
                                     self.path,
                                     field_type_name,
-                                    value.type_name()
+                                    value.type_info_ref().type_name
                                 );
 
                                 value
@@ -485,7 +485,7 @@ impl<F: EntityGetter> SetPropertyCommand<F> {
                                     Target property: {}. Value: {}!",
                                         self.path,
                                         field_type_name,
-                                        value.type_name()
+                                        value.type_info_ref().type_name
                                     );
 
                                     value
@@ -550,8 +550,8 @@ impl<F: EntityGetter> CommandTrait for AddCollectionItemCommand<F> {
                         err!(
                             "Failed to push item to {} collection. Type mismatch {} and {}!",
                             self.path,
-                            item.type_name(),
-                            list.type_name()
+                            item.type_info_ref().type_name,
+                            list.type_info_ref().type_name
                         );
                         self.item = Some(item);
                     }

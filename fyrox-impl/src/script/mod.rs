@@ -40,10 +40,12 @@ use crate::{
     scene::{base::NodeScriptMessage, node::Node, Scene},
 };
 use fyrox_core::pool::ObjectOrVariant;
+use fyrox_core::reflect::TypeInfo;
 pub use fyrox_core_derive::ScriptMessagePayload;
 use fyrox_graph::SceneGraph;
+use std::any::type_name;
 use std::{
-    any::{Any, TypeId},
+    any::Any,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     str::FromStr,
@@ -723,32 +725,25 @@ impl TypeUuidProvider for Script {
 }
 
 impl Reflect for Script {
-    fn source_path() -> &'static str {
-        file!()
+    fn type_info() -> TypeInfo {
+        TypeInfo {
+            source_path: file!(),
+            type_name: type_name::<Self>(),
+            assembly_name: env!("CARGO_PKG_NAME"),
+            doc_comment: "",
+            derived_types: &[],
+        }
     }
 
-    fn derived_types() -> &'static [TypeId] {
-        &[]
-    }
-
-    fn query_derived_types(&self) -> &'static [TypeId] {
-        Self::derived_types()
-    }
-
-    fn type_name(&self) -> &'static str {
-        self.instance.type_name()
-    }
-
-    fn doc(&self) -> &'static str {
-        self.instance.doc()
-    }
-
-    fn assembly_name(&self) -> &'static str {
-        self.instance.assembly_name()
-    }
-
-    fn type_assembly_name() -> &'static str {
-        env!("CARGO_PKG_NAME")
+    fn type_info_ref(&self) -> TypeInfo {
+        let inner_type_info = self.instance.type_info_ref();
+        TypeInfo {
+            source_path: inner_type_info.source_path,
+            type_name: inner_type_info.type_name,
+            assembly_name: inner_type_info.assembly_name,
+            doc_comment: inner_type_info.doc_comment,
+            derived_types: inner_type_info.derived_types,
+        }
     }
 
     fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {

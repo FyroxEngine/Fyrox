@@ -139,37 +139,30 @@ macro_rules! newtype_reflect {
 #[macro_export]
 macro_rules! delegate_reflect {
     () => {
-        fn source_path() -> &'static str {
-            file!()
+        fn type_info() -> $crate::reflect::TypeInfo {
+            $crate::reflect::TypeInfo {
+                source_path: file!(),
+                type_name: std::any::type_name::<Self>(),
+                assembly_name: env!("CARGO_PKG_NAME"),
+                doc_comment: "",
+                derived_types: &[],
+            }
         }
 
-        fn derived_types() -> &'static [std::any::TypeId] {
-            // TODO
-            &[]
+        fn type_info_ref(&self) -> TypeInfo {
+            let inner_type_info = self.deref().type_info_ref();
+
+            $crate::reflect::TypeInfo {
+                source_path: inner_type_info.source_path,
+                type_name: inner_type_info.type_name,
+                assembly_name: inner_type_info.assembly_name,
+                doc_comment: inner_type_info.doc_comment,
+                derived_types: inner_type_info.derived_types,
+            }
         }
 
         fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
             Some(Box::new(self.clone()))
-        }
-
-        fn query_derived_types(&self) -> &'static [std::any::TypeId] {
-            Self::derived_types()
-        }
-
-        fn type_name(&self) -> &'static str {
-            self.deref().type_name()
-        }
-
-        fn doc(&self) -> &'static str {
-            self.deref().doc()
-        }
-
-        fn assembly_name(&self) -> &'static str {
-            self.deref().assembly_name()
-        }
-
-        fn type_assembly_name() -> &'static str {
-            env!("CARGO_PKG_NAME")
         }
 
         fn fields_ref(&self, func: &mut dyn FnMut(&[$crate::reflect::FieldRef])) {
@@ -298,39 +291,22 @@ macro_rules! delegate_reflect {
 #[macro_export]
 macro_rules! blank_reflect {
     () => {
-        fn source_path() -> &'static str {
-            file!()
+        fn type_info() -> $crate::reflect::TypeInfo {
+            $crate::reflect::TypeInfo {
+                source_path: file!(),
+                type_name: std::any::type_name::<Self>(),
+                assembly_name: env!("CARGO_PKG_NAME"),
+                doc_comment: "",
+                derived_types: &[],
+            }
         }
 
-        fn derived_types() -> &'static [std::any::TypeId]
-        where
-            Self: Sized,
-        {
-            &[]
+        fn type_info_ref(&self) -> $crate::reflect::TypeInfo {
+            Self::type_info()
         }
 
         fn try_clone_box(&self) -> Option<Box<dyn $crate::reflect::Reflect>> {
             Some(Box::new(self.clone()))
-        }
-
-        fn query_derived_types(&self) -> &'static [std::any::TypeId] {
-            Self::derived_types()
-        }
-
-        fn type_name(&self) -> &'static str {
-            std::any::type_name::<Self>()
-        }
-
-        fn doc(&self) -> &'static str {
-            ""
-        }
-
-        fn assembly_name(&self) -> &'static str {
-            env!("CARGO_PKG_NAME")
-        }
-
-        fn type_assembly_name() -> &'static str {
-            env!("CARGO_PKG_NAME")
         }
 
         fn fields_ref(&self, func: &mut dyn FnMut(&[$crate::reflect::FieldRef])) {
@@ -399,39 +375,22 @@ macro_rules! blank_reflect {
 #[macro_export]
 macro_rules! blank_reflect_ref {
     () => {
-        fn source_path() -> &'static str {
-            file!()
+        fn type_info() -> $crate::reflect::TypeInfo {
+            $crate::reflect::TypeInfo {
+                source_path: file!(),
+                type_name: std::any::type_name::<Self>(),
+                assembly_name: env!("CARGO_PKG_NAME"),
+                doc_comment: "",
+                derived_types: &[],
+            }
         }
 
-        fn derived_types() -> &'static [std::any::TypeId]
-        where
-            Self: Sized,
-        {
-            &[]
+        fn type_info_ref(&self) -> $crate::reflect::TypeInfo {
+            Self::type_info()
         }
 
         fn try_clone_box(&self) -> Option<Box<dyn $crate::reflect::Reflect>> {
             None
-        }
-
-        fn query_derived_types(&self) -> &'static [std::any::TypeId] {
-            Self::derived_types()
-        }
-
-        fn type_name(&self) -> &'static str {
-            std::any::type_name::<Self>()
-        }
-
-        fn doc(&self) -> &'static str {
-            ""
-        }
-
-        fn assembly_name(&self) -> &'static str {
-            env!("CARGO_PKG_NAME")
-        }
-
-        fn type_assembly_name() -> &'static str {
-            env!("CARGO_PKG_NAME")
         }
 
         fn fields_ref(&self, func: &mut dyn FnMut(&[$crate::reflect::FieldRef])) {

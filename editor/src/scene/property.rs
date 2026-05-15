@@ -203,7 +203,7 @@ where
                             descriptor.children_properties.push(PropertyDescriptor {
                                 path: item_path.clone(),
                                 display_name: format!("[{i}]"),
-                                type_name: item.type_name().to_owned(),
+                                type_name: item.type_info_ref().type_name.to_owned(),
                                 type_id: item.type_id(),
                                 read_only: field_info.read_only,
                                 children_properties: object_to_property_tree(
@@ -260,7 +260,7 @@ where
                             descriptor.children_properties.push(PropertyDescriptor {
                                 path: item_path.clone(),
                                 display_name: format!("[{key_str}]"),
-                                type_name: value.type_name().to_owned(),
+                                type_name: value.type_info_ref().type_name.to_owned(),
                                 type_id: value.type_id(),
                                 read_only: field_info.read_only,
                                 children_properties: object_to_property_tree(

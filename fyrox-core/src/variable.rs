@@ -27,6 +27,7 @@ use crate::{
     visitor::{prelude::*, VisitorFlags},
 };
 use bitflags::bitflags;
+use std::any::type_name;
 use std::{
     any::{Any, TypeId},
     cell::Cell,
@@ -401,42 +402,30 @@ impl<T> Reflect for InheritableVariable<T>
 where
     T: Reflect + Clone + PartialEq + Debug,
 {
-    #[inline]
-    fn source_path() -> &'static str {
-        file!()
+    fn type_info() -> TypeInfo {
+        TypeInfo {
+            source_path: file!(),
+            type_name: type_name::<Self>(),
+            assembly_name: env!("CARGO_PKG_NAME"),
+            doc_comment: "",
+            derived_types: T::type_info().derived_types,
+        }
+    }
+
+    fn type_info_ref(&self) -> TypeInfo {
+        let inner_type_info = self.value.type_info_ref();
+
+        TypeInfo {
+            source_path: inner_type_info.source_path,
+            type_name: inner_type_info.type_name,
+            assembly_name: inner_type_info.assembly_name,
+            doc_comment: inner_type_info.doc_comment,
+            derived_types: inner_type_info.derived_types,
+        }
     }
 
     fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
         Some(Box::new(self.value.clone()))
-    }
-
-    fn derived_types() -> &'static [TypeId]
-    where
-        Self: Sized,
-    {
-        T::derived_types()
-    }
-
-    fn query_derived_types(&self) -> &'static [TypeId] {
-        Self::derived_types()
-    }
-
-    #[inline]
-    fn type_name(&self) -> &'static str {
-        self.value.type_name()
-    }
-
-    #[inline]
-    fn doc(&self) -> &'static str {
-        self.value.doc()
-    }
-
-    fn assembly_name(&self) -> &'static str {
-        env!("CARGO_PKG_NAME")
-    }
-
-    fn type_assembly_name() -> &'static str {
-        env!("CARGO_PKG_NAME")
     }
 
     #[inline]
@@ -579,8 +568,8 @@ where
             }
             None => {
                 result = Err(InheritError::TypesMismatch {
-                    left_type: self.inner_value_ref().type_name(),
-                    right_type: parent.inner_value_ref().type_name(),
+                    left_type: self.inner_value_ref().type_info_ref().type_name,
+                    right_type: parent.inner_value_ref().type_info_ref().type_name,
                 });
             }
         }
@@ -690,8 +679,8 @@ pub fn try_inherit_properties(
 
     if child_type_id != parent_type_id {
         return Err(InheritError::TypesMismatch {
-            left_type: (*child).type_name(),
-            right_type: (*parent).type_name(),
+            left_type: (*child).type_info_ref().type_name,
+            right_type: (*parent).type_info_ref().type_name,
         });
     }
 
@@ -1193,14 +1182,14 @@ mod test {
     fn inheritable_variable_type_name() {
         let v = InheritableVariable::from(42);
 
-        assert_eq!(Reflect::type_name(&v), "i32");
+        assert_eq!(v.type_info_ref().type_name, "i32");
     }
 
     #[test]
     fn inheritable_variable_doc() {
         let v = InheritableVariable::from(42);
 
-        assert_eq!(v.doc(), "");
+        assert_eq!(v.type_info_ref().doc_comment, "");
     }
 
     #[test]

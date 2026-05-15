@@ -136,7 +136,7 @@ impl SelectionContainer for UiSelection {
                 .ui
                 .try_get_node(*h)
                 .ok()
-                .map(|n| n.doc().to_string())
+                .map(|n| n.type_info_ref().doc_comment.to_string())
         })
     }
 }

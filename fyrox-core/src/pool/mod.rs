@@ -41,10 +41,10 @@
 //! friendliness.
 
 use crate::{reflect::prelude::*, visitor::prelude::*};
+use std::any::type_name;
 use std::cell::UnsafeCell;
 use std::fmt::{Display, Formatter};
 use std::{
-    any::TypeId,
     fmt::Debug,
     future::Future,
     marker::PhantomData,
@@ -55,6 +55,7 @@ pub mod handle;
 pub mod multiborrow;
 pub mod payload;
 
+use crate::reflect::TypeInfo;
 pub use handle::*;
 pub use multiborrow::*;
 pub use payload::*;
@@ -147,34 +148,22 @@ where
     P: PayloadContainer<Element = T> + Reflect,
     Pool<T, P>: Clone,
 {
-    #[inline]
-    fn source_path() -> &'static str {
-        file!()
+    fn type_info() -> TypeInfo {
+        TypeInfo {
+            source_path: file!(),
+            type_name: type_name::<Self>(),
+            assembly_name: env!("CARGO_PKG_NAME"),
+            doc_comment: "",
+            derived_types: &[],
+        }
     }
 
-    fn derived_types() -> &'static [TypeId]
-    where
-        Self: Sized,
-    {
-        &[]
+    fn type_info_ref(&self) -> TypeInfo {
+        Self::type_info()
     }
 
     fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
         Some(Box::new(self.clone()))
-    }
-
-    fn query_derived_types(&self) -> &'static [TypeId] {
-        Self::derived_types()
-    }
-
-    #[inline]
-    fn type_name(&self) -> &'static str {
-        std::any::type_name::<Self>()
-    }
-
-    #[inline]
-    fn doc(&self) -> &'static str {
-        ""
     }
 
     #[inline]
@@ -214,14 +203,6 @@ where
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
         let this = std::mem::replace(self, value.take()?);
         Ok(Box::new(this))
-    }
-
-    fn assembly_name(&self) -> &'static str {
-        env!("CARGO_PKG_NAME")
-    }
-
-    fn type_assembly_name() -> &'static str {
-        env!("CARGO_PKG_NAME")
     }
 
     fn field_direct_ref(&self, _index: usize) -> Option<FieldRef> {

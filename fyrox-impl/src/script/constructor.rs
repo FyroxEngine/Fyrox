@@ -68,13 +68,15 @@ impl ScriptConstructorContainer {
     where
         T: TypeUuidProvider + ScriptTrait + Default,
     {
+        let type_info = T::type_info();
+
         let old = self.map.safe_lock().insert(
             T::type_uuid(),
             ScriptConstructor {
                 constructor: Box::new(|| Script::new(T::default())),
                 name: name.to_owned(),
-                source_path: T::source_path(),
-                assembly_name: T::type_assembly_name(),
+                source_path: type_info.source_path,
+                assembly_name: type_info.assembly_name,
             },
         );
 

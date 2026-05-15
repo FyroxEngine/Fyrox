@@ -23,6 +23,7 @@
 
 #![warn(missing_docs)]
 
+use crate::reflect::TypeInfo;
 use crate::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*, SafeLock};
 use fxhash::FxHashMap;
 use parking_lot::{Mutex, MutexGuard};
@@ -168,32 +169,18 @@ static CONTENT_METADATA: FieldMetadata = FieldMetadata {
 };
 
 impl Reflect for DynTypeWrapper {
-    fn source_path() -> &'static str {
-        file!()
+    fn type_info() -> TypeInfo {
+        TypeInfo {
+            source_path: file!(),
+            type_name: type_name::<Self>(),
+            assembly_name: env!("CARGO_PKG_NAME"),
+            doc_comment: "",
+            derived_types: &[],
+        }
     }
 
-    fn derived_types() -> &'static [TypeId] {
-        &[]
-    }
-
-    fn query_derived_types(&self) -> &'static [TypeId] {
-        Self::derived_types()
-    }
-
-    fn type_name(&self) -> &'static str {
-        type_name::<Self>()
-    }
-
-    fn doc(&self) -> &'static str {
-        ""
-    }
-
-    fn assembly_name(&self) -> &'static str {
-        env!("CARGO_PKG_NAME")
-    }
-
-    fn type_assembly_name() -> &'static str {
-        env!("CARGO_PKG_NAME")
+    fn type_info_ref(&self) -> TypeInfo {
+        Self::type_info()
     }
 
     fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
@@ -280,7 +267,7 @@ impl DynTypeContainer {
             Some(wrapper) => match wrapper.0.take::<T>() {
                 Ok(casted) => Ok(casted),
                 Err(value) => {
-                    let actual_type_name = Reflect::type_name(&*value);
+                    let actual_type_name = (*value).type_info_ref().type_name;
                     self.0.replace(DynTypeWrapper(value));
                     Err(DynTypeError::TypeCast {
                         actual_type_name,
@@ -308,7 +295,7 @@ impl DynTypeContainer {
         (value as &dyn Any)
             .downcast_ref()
             .ok_or_else(|| DynTypeError::TypeCast {
-                actual_type_name: Reflect::type_name(value),
+                actual_type_name: value.type_info_ref().type_name,
                 requested_type_name: type_name::<T>(),
             })
     }
@@ -317,7 +304,7 @@ impl DynTypeContainer {
     /// to the caller.
     pub fn data_mut<T: DynType>(&mut self) -> Result<&mut T, DynTypeError> {
         let value = self.value_mut().ok_or(DynTypeError::Empty)?;
-        let actual_type_name = Reflect::type_name(value);
+        let actual_type_name = value.type_info_ref().type_name;
         (value as &mut dyn Any)
             .downcast_mut()
             .ok_or_else(|| DynTypeError::TypeCast {
@@ -413,7 +400,7 @@ impl DynTypeConstructorContainer {
             DynTypeConstructorDefinition {
                 name: name.to_string(),
                 constructor: Box::new(|| Box::new(T::default())),
-                assembly_name: A::type_assembly_name(),
+                assembly_name: A::type_info().assembly_name,
             },
         );
 

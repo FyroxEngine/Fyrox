@@ -220,7 +220,7 @@ impl<T: Reflect> Control for HandlePropertyEditor<T> {
                 NodeSelectorMessage::Selection(vec![SelectedHandle {
                     handle: self.value.into(),
                     inner_type_id: TypeId::of::<T>(),
-                    derived_type_ids: T::derived_types().to_vec(),
+                    derived_type_ids: T::type_info().derived_types.to_vec(),
                 }]),
             );
         }

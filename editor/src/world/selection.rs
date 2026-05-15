@@ -125,7 +125,7 @@ impl SelectionContainer for GraphSelection {
         let scene = &engine.scenes[game_scene.scene];
         self.nodes
             .first()
-            .map(|h| scene.graph[*h].doc().to_string())
+            .map(|h| scene.graph[*h].type_info_ref().doc_comment.to_string())
     }
 }
 

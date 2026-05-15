@@ -31,6 +31,7 @@ use crate::{
 
 use fyrox_graph::SceneGraphNode;
 use fyrox_resource::{untyped::UntypedResource, Resource};
+use std::any::type_name;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -265,28 +266,29 @@ impl Visit for UiNode {
 }
 
 impl Reflect for UiNode {
-    fn source_path() -> &'static str {
-        file!()
+    fn type_info() -> TypeInfo {
+        TypeInfo {
+            source_path: file!(),
+            type_name: type_name::<Self>(),
+            assembly_name: env!("CARGO_PKG_NAME"),
+            doc_comment: "",
+            derived_types: &[],
+        }
     }
 
-    fn derived_types() -> &'static [TypeId] {
-        &[]
+    fn type_info_ref(&self) -> TypeInfo {
+        let inner_type_info = self.deref().type_info_ref();
+        TypeInfo {
+            source_path: inner_type_info.source_path,
+            type_name: inner_type_info.type_name,
+            assembly_name: inner_type_info.assembly_name,
+            doc_comment: inner_type_info.doc_comment,
+            derived_types: inner_type_info.derived_types,
+        }
     }
 
     fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
         Some(Box::new(self.clone()))
-    }
-
-    fn query_derived_types(&self) -> &'static [TypeId] {
-        Self::derived_types()
-    }
-
-    fn type_name(&self) -> &'static str {
-        Reflect::type_name(self.0.deref())
-    }
-
-    fn doc(&self) -> &'static str {
-        self.0.deref().doc()
     }
 
     fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
@@ -319,14 +321,6 @@ impl Reflect for UiNode {
 
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
         self.0.deref_mut().set(value)
-    }
-
-    fn assembly_name(&self) -> &'static str {
-        self.0.deref().assembly_name()
-    }
-
-    fn type_assembly_name() -> &'static str {
-        env!("CARGO_PKG_NAME")
     }
 
     fn field_direct_ref(&self, index: usize) -> Option<FieldRef> {

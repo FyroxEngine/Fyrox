@@ -77,7 +77,7 @@ fn doc_comments() {
  multiline doc comment."
         );
     });
-    assert_eq!(s.doc(), " Struct doc comment.");
+    assert_eq!(s.type_info_ref().doc_comment, " Struct doc comment.");
 }
 
 #[test]

@@ -236,7 +236,10 @@ where
         // Handle derived entities handles.
         entity.as_handle_mut(&mut |handle| {
             if let Some(handle) = handle {
-                if handle.query_derived_types().contains(&TypeId::of::<N>())
+                if handle
+                    .type_info_ref()
+                    .derived_types
+                    .contains(&TypeId::of::<N>())
                     && handle.reflect_is_some()
                     && !self.try_map_reflect(handle)
                 {
@@ -375,7 +378,10 @@ where
         entity.as_handle_mut(&mut |handle| {
             if let Some(handle) = handle {
                 if do_map
-                    && handle.query_derived_types().contains(&TypeId::of::<N>())
+                    && handle
+                        .type_info_ref()
+                        .derived_types
+                        .contains(&TypeId::of::<N>())
                     && handle.reflect_is_some()
                     && !self.try_map_reflect(handle)
                 {
@@ -1628,6 +1634,7 @@ mod test {
         NameProvider,
     };
     use fyrox_resource::{untyped::UntypedResource, Resource, ResourceData};
+    use std::any::type_name;
     use std::marker::PhantomData;
     use std::{
         any::{Any, TypeId},
@@ -1718,24 +1725,25 @@ mod test {
     }
 
     impl Reflect for Node {
-        fn source_path() -> &'static str {
-            file!()
+        fn type_info() -> TypeInfo {
+            TypeInfo {
+                source_path: file!(),
+                type_name: type_name::<Self>(),
+                assembly_name: env!("CARGO_PKG_NAME"),
+                doc_comment: "",
+                derived_types: &[],
+            }
         }
 
-        fn type_name(&self) -> &'static str {
-            self.0.deref().type_name()
-        }
-
-        fn doc(&self) -> &'static str {
-            self.0.deref().doc()
-        }
-
-        fn assembly_name(&self) -> &'static str {
-            self.0.deref().assembly_name()
-        }
-
-        fn type_assembly_name() -> &'static str {
-            env!("CARGO_PKG_NAME")
+        fn type_info_ref(&self) -> TypeInfo {
+            let inner_type_info = self.0.deref().type_info_ref();
+            TypeInfo {
+                source_path: inner_type_info.source_path,
+                type_name: inner_type_info.type_name,
+                assembly_name: inner_type_info.assembly_name,
+                doc_comment: inner_type_info.doc_comment,
+                derived_types: inner_type_info.derived_types,
+            }
         }
 
         fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
@@ -1777,14 +1785,6 @@ mod test {
 
         fn find_field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
             self.0.deref_mut().find_field_mut(name, func)
-        }
-
-        fn derived_types() -> &'static [TypeId] {
-            &[]
-        }
-
-        fn query_derived_types(&self) -> &'static [TypeId] {
-            Self::derived_types()
         }
 
         fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
@@ -2089,7 +2089,7 @@ mod test {
         fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Result<Vec<TypeId>, PoolError> {
             self.nodes
                 .try_borrow(handle)
-                .map(|n| n.0.deref().query_derived_types().to_vec())
+                .map(|n| n.0.deref().type_info_ref().derived_types.to_vec())
         }
 
         fn actual_type_name(&self, handle: Handle<Self::Node>) -> Result<&'static str, PoolError> {

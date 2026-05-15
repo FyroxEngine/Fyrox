@@ -344,7 +344,7 @@ fn is_script_belongs_to_plugin(
         .map()
         .get(&script_id)
     {
-        if constructor.assembly_name == plugin.assembly_name() {
+        if constructor.assembly_name == plugin.type_info_ref().assembly_name {
             return true;
         }
     }
@@ -359,7 +359,7 @@ fn is_node_belongs_to_plugin(
     let node_id = (*node).id();
 
     if let Some(constructor) = serialization_context.node_constructors.map().get(&node_id) {
-        if constructor.assembly_name == plugin.assembly_name() {
+        if constructor.assembly_name == plugin.type_info_ref().assembly_name {
             return true;
         }
     }
