@@ -522,19 +522,27 @@ where
         func(Some(self))
     }
 
+    #[inline]
     fn field_direct_ref(&self, index: usize) -> Option<FieldRef> {
         self.value.field_direct_ref(index)
     }
 
+    #[inline]
     fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
+        // Any modifications inside of inheritable lists must mark the variable as modified.
+        self.mark_modified_and_need_sync();
         self.value.field_direct_mut(index)
     }
 
+    #[inline]
     fn as_reflect_direct(&self) -> &dyn Reflect {
         self.value.as_reflect_direct()
     }
 
+    #[inline]
     fn as_reflect_mut_direct(&mut self) -> &mut dyn Reflect {
+        // Any modifications inside of inheritable lists must mark the variable as modified.
+        self.mark_modified_and_need_sync();
         self.value.as_reflect_mut_direct()
     }
 }
