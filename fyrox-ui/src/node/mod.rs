@@ -247,7 +247,7 @@ impl UiNode {
 
         // Reset inheritable properties, so property inheritance system will take properties
         // from parent objects on resolve stage.
-        self.as_reflect_mut(&mut |reflect| {
+        self.inner_mut(&mut |reflect| {
             variable::mark_inheritable_properties_non_modified(
                 reflect,
                 &[TypeId::of::<UntypedResource>()],
@@ -299,24 +299,24 @@ impl Reflect for UiNode {
         self.0.deref_mut().fields_mut(func)
     }
 
-    fn into_inner_reflect(self: Box<Self>) -> Box<dyn Reflect> {
-        Reflect::into_inner_reflect(self.0)
+    fn into_inner(self: Box<Self>) -> Box<dyn Reflect> {
+        Reflect::into_inner(self.0)
     }
 
-    fn as_reflect_direct(&self) -> &dyn Reflect {
-        self.0.deref().as_reflect_direct()
+    fn inner_ref_direct(&self) -> &dyn Reflect {
+        self.0.deref().inner_ref_direct()
     }
 
-    fn as_reflect_mut_direct(&mut self) -> &mut dyn Reflect {
-        self.0.deref_mut().as_reflect_mut_direct()
+    fn inner_mut_direct(&mut self) -> &mut dyn Reflect {
+        self.0.deref_mut().inner_mut_direct()
     }
 
-    fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
-        self.0.deref().as_reflect(func)
+    fn inner_ref(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+        self.0.deref().inner_ref(func)
     }
 
-    fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
-        self.0.deref_mut().as_reflect_mut(func)
+    fn inner_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+        self.0.deref_mut().inner_mut(func)
     }
 
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {

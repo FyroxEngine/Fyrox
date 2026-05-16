@@ -260,11 +260,7 @@ where
     }
 
     fn into_box_reflect(self: Box<Self>) -> Box<dyn Reflect> {
-        Box::new(
-            *(self.into_inner_reflect() as Box<dyn Any>)
-                .downcast::<T>()
-                .unwrap(),
-        )
+        Box::new(*(self.into_inner() as Box<dyn Any>).downcast::<T>().unwrap())
     }
 }
 
@@ -295,17 +291,17 @@ impl PartialEq for ObjectValue {
 
 impl ObjectValue {
     pub fn cast_value<T: 'static>(&self, func: &mut dyn FnMut(Option<&T>)) {
-        (*self.value).as_reflect(&mut |reflect| func((reflect as &dyn Any).downcast_ref::<T>()))
+        (*self.value).inner_ref(&mut |reflect| func((reflect as &dyn Any).downcast_ref::<T>()))
     }
 
     pub fn cast_clone<T: Clone + 'static>(&self, func: &mut dyn FnMut(Option<T>)) {
         (*self.value)
-            .as_reflect(&mut |reflect| func((reflect as &dyn Any).downcast_ref::<T>().cloned()))
+            .inner_ref(&mut |reflect| func((reflect as &dyn Any).downcast_ref::<T>().cloned()))
     }
 
     pub fn try_override<T: Clone + 'static>(&self, value: &mut T) -> bool {
         let mut result = false;
-        (*self.value).as_reflect(&mut |reflect| {
+        (*self.value).inner_ref(&mut |reflect| {
             if let Some(self_value) = (reflect as &dyn Any).downcast_ref::<T>() {
                 *value = self_value.clone();
                 result = true;
@@ -587,8 +583,8 @@ impl Inspector {
                         can_clone = field.try_clone_box().is_some();
 
                         if let Some(clipboard_value) = clipboard_value {
-                            clipboard_value.as_reflect(&mut |clipboard_value| {
-                                field.as_reflect(&mut |field| {
+                            clipboard_value.inner_ref(&mut |clipboard_value| {
+                                field.inner_ref(&mut |field| {
                                     can_paste = field.type_id() == clipboard_value.type_id();
                                 })
                             });
@@ -848,7 +844,7 @@ impl PartialEq for InspectorContext {
 
 fn object_type_id(object: &dyn Reflect) -> TypeId {
     let mut object_type_id = None;
-    object.as_reflect(&mut |reflect| object_type_id = Some(reflect.type_id()));
+    object.inner_ref(&mut |reflect| object_type_id = Some(reflect.type_id()));
     object_type_id.unwrap()
 }
 

@@ -439,18 +439,18 @@ where
     }
 
     #[inline]
-    fn into_inner_reflect(self: Box<Self>) -> Box<dyn Reflect> {
-        Box::new(self.value).into_inner_reflect()
+    fn into_inner(self: Box<Self>) -> Box<dyn Reflect> {
+        Box::new(self.value).into_inner()
     }
 
     #[inline]
-    fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
-        self.value.as_reflect(func)
+    fn inner_ref(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+        self.value.inner_ref(func)
     }
 
     #[inline]
-    fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
-        self.value.as_reflect_mut(func)
+    fn inner_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+        self.value.inner_mut(func)
     }
 
     #[inline]
@@ -535,15 +535,15 @@ where
     }
 
     #[inline]
-    fn as_reflect_direct(&self) -> &dyn Reflect {
-        self.value.as_reflect_direct()
+    fn inner_ref_direct(&self) -> &dyn Reflect {
+        self.value.inner_ref_direct()
     }
 
     #[inline]
-    fn as_reflect_mut_direct(&mut self) -> &mut dyn Reflect {
+    fn inner_mut_direct(&mut self) -> &mut dyn Reflect {
         // Any modifications inside of inheritable lists must mark the variable as modified.
         self.mark_modified_and_need_sync();
-        self.value.as_reflect_mut_direct()
+        self.value.inner_mut_direct()
     }
 }
 
@@ -608,7 +608,7 @@ where
     #[inline]
     fn value_equals(&self, other: &dyn ReflectInheritableVariable) -> bool {
         let mut output_result = false;
-        other.as_reflect(&mut |reflect| {
+        other.inner_ref(&mut |reflect| {
             reflect.downcast_ref::<T>(&mut |result| {
                 output_result = match result {
                     Some(other) => &self.value == other,

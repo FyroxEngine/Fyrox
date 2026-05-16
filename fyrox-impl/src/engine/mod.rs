@@ -2641,7 +2641,7 @@ impl Engine {
             for resource in state.resources().iter() {
                 let data = resource.lock();
                 if let ResourceState::Ok { ref data, .. } = data.state {
-                    data.as_reflect(&mut |reflect| {
+                    data.inner_ref(&mut |reflect| {
                         if reflect.type_info_ref().assembly_name == plugin_assembly_name {
                             resources_to_reload.insert(resource.clone());
                         }

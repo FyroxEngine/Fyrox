@@ -108,7 +108,7 @@ impl CommandTrait for RevertWidgetPropertyCommand {
                 .get_mut::<UiSceneContext>()
                 .ui
                 .node_mut(self.handle)
-                .as_reflect_mut(&mut |node| {
+                .inner_mut(&mut |node| {
                     node.set_field_by_path(&self.path, old_value.take().unwrap(), &mut |result| {
                         if result.is_err() {
                             Log::err(format!(

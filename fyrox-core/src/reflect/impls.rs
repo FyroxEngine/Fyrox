@@ -163,27 +163,27 @@ macro_rules! impl_reflect_inner_mutability {
             guard.fields_mut(func)
         }
 
-        fn into_inner_reflect($self: Box<Self>) -> Box<dyn Reflect> {
+        fn into_inner($self: Box<Self>) -> Box<dyn Reflect> {
             let inner = $into_inner;
             Box::new(inner)
         }
 
-        fn as_reflect(&$self, func: &mut dyn FnMut(&dyn Reflect)) {
+        fn inner_ref(&$self, func: &mut dyn FnMut(&dyn Reflect)) {
             let guard = $acquire_lock_guard;
-            (*guard).as_reflect(func)
+            (*guard).inner_ref(func)
         }
 
-        fn as_reflect_mut(&mut $self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+        fn inner_mut(&mut $self, func: &mut dyn FnMut(&mut dyn Reflect)) {
             let mut guard = $acquire_lock_guard;
-            (*guard).as_reflect_mut(func)
+            (*guard).inner_mut(func)
         }
 
-        fn as_reflect_direct(&self) -> &dyn $crate::reflect::Reflect {
+        fn inner_ref_direct(&self) -> &dyn $crate::reflect::Reflect {
             // xxx_direct methods cannot hold the lock, so return self here.
             self
         }
 
-        fn as_reflect_mut_direct(&mut self) -> &mut dyn $crate::reflect::Reflect {
+        fn inner_mut_direct(&mut self) -> &mut dyn $crate::reflect::Reflect {
             // xxx_direct methods cannot hold the lock, so return self here.
             self
         }
@@ -270,23 +270,27 @@ macro_rules! impl_reflect_inner_mutability {
 }
 
 impl<T: Reflect + Clone> Reflect for parking_lot::Mutex<T> {
-    impl_reflect_inner_mutability!(self, { self.safe_lock() }, { self.into_inner() });
+    impl_reflect_inner_mutability!(self, { self.safe_lock() }, {
+        parking_lot::Mutex::into_inner(*self)
+    });
 }
 
 impl<T: Reflect + Clone> Reflect for parking_lot::RwLock<T> {
-    impl_reflect_inner_mutability!(self, { self.write() }, { self.into_inner() });
+    impl_reflect_inner_mutability!(self, { self.write() }, {
+        parking_lot::RwLock::into_inner(*self)
+    });
 }
 
 #[allow(clippy::mut_mutex_lock)]
 impl<T: Reflect + Clone> Reflect for std::sync::Mutex<T> {
     impl_reflect_inner_mutability!(self, { self.safe_lock().unwrap() }, {
-        self.into_inner().unwrap()
+        std::sync::Mutex::into_inner(*self).unwrap()
     });
 }
 
 impl<T: Reflect + Clone> Reflect for std::sync::RwLock<T> {
     impl_reflect_inner_mutability!(self, { self.write().unwrap() }, {
-        self.into_inner().unwrap()
+        std::sync::RwLock::into_inner(*self).unwrap()
     });
 }
 
@@ -325,7 +329,7 @@ impl<T: Reflect + Clone> Reflect for Arc<parking_lot::RwLock<T>> {
 }
 
 impl<T: Reflect + Clone> Reflect for RefCell<T> {
-    impl_reflect_inner_mutability!(self, { self.borrow_mut() }, { self.into_inner() });
+    impl_reflect_inner_mutability!(self, { self.borrow_mut() }, { RefCell::into_inner(*self) });
 }
 
 impl<T: Reflect + Clone> Reflect for Rc<RefCell<T>> {

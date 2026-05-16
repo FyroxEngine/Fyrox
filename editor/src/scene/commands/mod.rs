@@ -338,7 +338,7 @@ impl CommandTrait for RevertSceneNodePropertyCommand {
         // If the property was modified, then simply set it to previous value to make it modified again.
         if let Some(old_value) = self.value.take() {
             let mut old_value = Some(old_value);
-            context.scene.graph[self.handle].as_reflect_mut(&mut |node| {
+            context.scene.graph[self.handle].inner_mut(&mut |node| {
                 node.set_field_by_path(&self.path, old_value.take().unwrap(), &mut |result| {
                     if result.is_err() {
                         Log::err(format!(

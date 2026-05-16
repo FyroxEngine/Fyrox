@@ -45,12 +45,12 @@ macro_rules! newtype_reflect {
             self.0.as_any_mut(func)
         }
 
-        fn as_reflect(&self, func: &mut dyn FnMut(&dyn $crate::reflect::Reflect)) {
-            self.0.as_reflect(func)
+        fn inner_ref(&self, func: &mut dyn FnMut(&dyn $crate::reflect::Reflect)) {
+            self.0.inner_ref(func)
         }
 
-        fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn $crate::reflect::Reflect)) {
-            self.0.as_reflect_mut(func)
+        fn inner_mut(&mut self, func: &mut dyn FnMut(&mut dyn $crate::reflect::Reflect)) {
+            self.0.inner_mut(func)
         }
 
         fn set(
@@ -173,24 +173,24 @@ macro_rules! delegate_reflect {
             self.deref_mut().fields_mut(func)
         }
 
-        fn into_inner_reflect(self: Box<Self>) -> Box<dyn Reflect> {
-            (*self).into_inner_reflect()
+        fn into_inner(self: Box<Self>) -> Box<dyn Reflect> {
+            (*self).into_inner()
         }
 
-        fn as_reflect(&self, func: &mut dyn FnMut(&dyn $crate::reflect::Reflect)) {
-            self.deref().as_reflect(func)
+        fn inner_ref(&self, func: &mut dyn FnMut(&dyn $crate::reflect::Reflect)) {
+            self.deref().inner_ref(func)
         }
 
-        fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn $crate::reflect::Reflect)) {
-            self.deref_mut().as_reflect_mut(func)
+        fn inner_mut(&mut self, func: &mut dyn FnMut(&mut dyn $crate::reflect::Reflect)) {
+            self.deref_mut().inner_mut(func)
         }
 
-        fn as_reflect_direct(&self) -> &dyn $crate::reflect::Reflect {
-            self.deref().as_reflect_direct()
+        fn inner_ref_direct(&self) -> &dyn $crate::reflect::Reflect {
+            self.deref().inner_ref_direct()
         }
 
-        fn as_reflect_mut_direct(&mut self) -> &mut dyn $crate::reflect::Reflect {
-            self.deref_mut().as_reflect_mut_direct()
+        fn inner_mut_direct(&mut self) -> &mut dyn $crate::reflect::Reflect {
+            self.deref_mut().inner_mut_direct()
         }
 
         fn field_direct_ref(&self, index: usize) -> Option<FieldRef> {
@@ -318,23 +318,23 @@ macro_rules! blank_reflect {
             func(&mut [])
         }
 
-        fn into_inner_reflect(self: Box<Self>) -> Box<dyn Reflect> {
+        fn into_inner(self: Box<Self>) -> Box<dyn Reflect> {
             self
         }
 
-        fn as_reflect(&self, func: &mut dyn FnMut(&dyn $crate::reflect::Reflect)) {
+        fn inner_ref(&self, func: &mut dyn FnMut(&dyn $crate::reflect::Reflect)) {
             func(self)
         }
 
-        fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn $crate::reflect::Reflect)) {
+        fn inner_mut(&mut self, func: &mut dyn FnMut(&mut dyn $crate::reflect::Reflect)) {
             func(self)
         }
 
-        fn as_reflect_direct(&self) -> &dyn $crate::reflect::Reflect {
+        fn inner_ref_direct(&self) -> &dyn $crate::reflect::Reflect {
             self
         }
 
-        fn as_reflect_mut_direct(&mut self) -> &mut dyn $crate::reflect::Reflect {
+        fn inner_mut_direct(&mut self) -> &mut dyn $crate::reflect::Reflect {
             self
         }
 
@@ -402,15 +402,15 @@ macro_rules! blank_reflect_ref {
             func(&mut [])
         }
 
-        fn into_inner_reflect(self: Box<Self>) -> Box<dyn Reflect> {
+        fn into_inner(self: Box<Self>) -> Box<dyn Reflect> {
             self
         }
 
-        fn as_reflect(&self, func: &mut dyn FnMut(&dyn $crate::reflect::Reflect)) {
+        fn inner_ref(&self, func: &mut dyn FnMut(&dyn $crate::reflect::Reflect)) {
             func(self)
         }
 
-        fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn $crate::reflect::Reflect)) {
+        fn inner_mut(&mut self, func: &mut dyn FnMut(&mut dyn $crate::reflect::Reflect)) {
             func(self)
         }
 
@@ -446,11 +446,11 @@ macro_rules! blank_reflect_ref {
             Ok(Box::new(this))
         }
 
-        fn as_reflect_direct(&self) -> &dyn $crate::reflect::Reflect {
+        fn inner_ref_direct(&self) -> &dyn $crate::reflect::Reflect {
             self
         }
 
-        fn as_reflect_mut_direct(&mut self) -> &mut dyn $crate::reflect::Reflect {
+        fn inner_mut_direct(&mut self) -> &mut dyn $crate::reflect::Reflect {
             self
         }
     };

@@ -869,7 +869,7 @@ impl TrackList {
                         }
                         ValueBinding::Property { name, .. } => node_ref.find_field(name, &mut |value| {
                             if let Some(value) = value {
-                                value.as_reflect(&mut |reflect| {
+                                value.inner_ref(&mut |reflect| {
                                     let curves = track.data_container().curves_ref();
                                     if curves.len() == 1 {
                                         if let Some(scalar) = any_scalar_to_f32(reflect) {
@@ -1105,7 +1105,7 @@ impl TrackList {
                             Ok(property) => {
                                 let mut property_type = TypeId::of::<u32>();
                                 property
-                                    .as_reflect(&mut |reflect| property_type = reflect.type_id());
+                                    .inner_ref(&mut |reflect| property_type = reflect.type_id());
 
                                 let types = type_id_to_supported_type(property_type);
 
@@ -1279,7 +1279,7 @@ impl TrackList {
     {
         let mut descriptors = Vec::new();
         if let Ok(node) = graph.try_get_node(node) {
-            node.as_reflect(&mut |node| {
+            node.inner_ref(&mut |node| {
                 descriptors = object_to_property_tree("", node, &mut |field: &FieldRef| {
                     let type_id = field.value.field_value_as_reflect().type_id();
                     type_id != TypeId::of::<TextureBytes>()
@@ -1411,7 +1411,7 @@ impl TrackList {
         node.resolve_path(&desc.path, &mut |result| match result {
             Ok(property) => {
                 let mut property_type = TypeId::of::<u32>();
-                property.as_reflect(&mut |reflect| property_type = reflect.type_id());
+                property.inner_ref(&mut |reflect| property_type = reflect.type_id());
 
                 let types = type_id_to_supported_type(property_type);
 
@@ -1714,7 +1714,7 @@ impl TrackList {
                         target.resolve_path(name, &mut |result| match result {
                             Ok(value) => {
                                 let mut property_type = TypeId::of::<u32>();
-                                value.as_reflect(&mut |reflect| property_type = reflect.type_id());
+                                value.inner_ref(&mut |reflect| property_type = reflect.type_id());
 
                                 if let Some((_, type_)) = type_id_to_supported_type(property_type) {
                                     if *value_type != type_ {

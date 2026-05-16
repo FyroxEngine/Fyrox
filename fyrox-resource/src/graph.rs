@@ -42,7 +42,7 @@ impl ResourceGraphNode {
 
         let header = resource.lock();
         if let ResourceState::Ok { ref data, .. } = header.state {
-            (**data).as_reflect(&mut |entity| {
+            (**data).inner_ref(&mut |entity| {
                 collect_used_resources(entity, &mut dependent_resources);
             });
         }

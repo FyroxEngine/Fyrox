@@ -177,25 +177,25 @@ where
     }
 
     #[inline]
-    fn into_inner_reflect(self: Box<Self>) -> Box<dyn Reflect> {
+    fn into_inner(self: Box<Self>) -> Box<dyn Reflect> {
         self
     }
 
-    fn as_reflect_direct(&self) -> &dyn Reflect {
+    fn inner_ref_direct(&self) -> &dyn Reflect {
         self
     }
 
-    fn as_reflect_mut_direct(&mut self) -> &mut dyn Reflect {
+    fn inner_mut_direct(&mut self) -> &mut dyn Reflect {
         self
     }
 
     #[inline]
-    fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+    fn inner_ref(&self, func: &mut dyn FnMut(&dyn Reflect)) {
         func(self)
     }
 
     #[inline]
-    fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+    fn inner_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
         func(self)
     }
 

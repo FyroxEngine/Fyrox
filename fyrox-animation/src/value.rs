@@ -405,11 +405,11 @@ impl BoundValue {
         property_path: &str,
         value_type: ValueType,
     ) {
-        object.as_reflect_mut(&mut |object_ref| {
+        object.inner_mut(&mut |object_ref| {
             object_ref.resolve_path_mut(property_path, &mut |result| match result {
                 Ok(property) => {
                     let mut applied = false;
-                    property.as_reflect_mut(&mut |reflect| {
+                    property.inner_mut(&mut |reflect| {
                         applied = self.value.apply_to_any(reflect, value_type);
                     });
                     if applied {

@@ -121,24 +121,24 @@ impl Reflect for ResourceDataWrapper {
         self.deref_mut().fields_mut(func)
     }
 
-    fn into_inner_reflect(self: Box<Self>) -> Box<dyn Reflect> {
+    fn into_inner(self: Box<Self>) -> Box<dyn Reflect> {
         self
     }
 
-    fn as_reflect_direct(&self) -> &dyn Reflect {
-        self.deref().as_reflect_direct()
+    fn inner_ref_direct(&self) -> &dyn Reflect {
+        self.deref().inner_ref_direct()
     }
 
-    fn as_reflect_mut_direct(&mut self) -> &mut dyn Reflect {
-        self.deref_mut().as_reflect_mut_direct()
+    fn inner_mut_direct(&mut self) -> &mut dyn Reflect {
+        self.deref_mut().inner_mut_direct()
     }
 
-    fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
-        self.deref().as_reflect(func)
+    fn inner_ref(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+        self.deref().inner_ref(func)
     }
 
-    fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
-        self.deref_mut().as_reflect_mut(func)
+    fn inner_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+        self.deref_mut().inner_mut(func)
     }
 
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {

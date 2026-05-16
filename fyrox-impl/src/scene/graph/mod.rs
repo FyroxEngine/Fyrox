@@ -538,7 +538,7 @@ impl Graph {
         for (node_handle, node) in self.pair_iter() {
             (node as &dyn Reflect).apply_recursively(
                 &mut |object| {
-                    object.as_reflect(&mut |reflect| {
+                    object.inner_ref(&mut |reflect| {
                         if let Some(handle) = (reflect as &dyn Any).downcast_ref::<Handle<Node>>() {
                             if *handle == target {
                                 references.push(node_handle);

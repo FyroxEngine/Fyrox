@@ -754,16 +754,16 @@ impl Reflect for Script {
         self.instance.fields_mut(func)
     }
 
-    fn into_inner_reflect(self: Box<Self>) -> Box<dyn Reflect> {
-        self.instance.into_inner_reflect()
+    fn into_inner(self: Box<Self>) -> Box<dyn Reflect> {
+        self.instance.into_inner()
     }
 
-    fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
-        self.instance.deref().as_reflect(func)
+    fn inner_ref(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+        self.instance.deref().inner_ref(func)
     }
 
-    fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
-        self.instance.deref_mut().as_reflect_mut(func)
+    fn inner_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+        self.instance.deref_mut().inner_mut(func)
     }
 
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
@@ -806,12 +806,12 @@ impl Reflect for Script {
         self.instance.deref_mut().field_direct_mut(index)
     }
 
-    fn as_reflect_direct(&self) -> &dyn Reflect {
-        self.instance.as_reflect_direct()
+    fn inner_ref_direct(&self) -> &dyn Reflect {
+        self.instance.inner_ref_direct()
     }
 
-    fn as_reflect_mut_direct(&mut self) -> &mut dyn Reflect {
-        self.instance.as_reflect_mut_direct()
+    fn inner_mut_direct(&mut self) -> &mut dyn Reflect {
+        self.instance.inner_mut_direct()
     }
 }
 
@@ -958,8 +958,8 @@ mod test {
             field: InheritableVariable::new_non_modified(3.21),
         })));
 
-        child.as_reflect_mut(&mut |child| {
-            parent.as_reflect(&mut |parent| {
+        child.inner_mut(&mut |child| {
+            parent.inner_ref(&mut |parent| {
                 try_inherit_properties(child, parent, &[]).unwrap();
             })
         });
@@ -980,8 +980,8 @@ mod test {
             field: InheritableVariable::new_non_modified(3.21),
         });
 
-        child.as_reflect_mut(&mut |child| {
-            parent.as_reflect(&mut |parent| {
+        child.inner_mut(&mut |child| {
+            parent.inner_ref(&mut |parent| {
                 try_inherit_properties(child, parent, &[]).unwrap();
             })
         });
@@ -999,8 +999,8 @@ mod test {
             field: InheritableVariable::new_non_modified(3.21),
         }));
 
-        child.as_reflect_mut(&mut |child| {
-            parent.as_reflect(&mut |parent| {
+        child.inner_mut(&mut |child| {
+            parent.inner_ref(&mut |parent| {
                 try_inherit_properties(child, parent, &[]).unwrap();
             })
         });

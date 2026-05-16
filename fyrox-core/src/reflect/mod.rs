@@ -155,27 +155,34 @@ pub trait Reflect: Any + Debug {
         Self: Sized;
 
     /// Returns the info about the type that implements this trait. The result of the call of this
-    /// method can be different from the call of [`Self::type_info`].
+    /// method can be different from the call of [`Self::type_info`]. This may happen if the type
+    /// that implements the trait is a wrapper type.
     fn type_info_ref(&self) -> TypeInfo;
 
+    /// Tries to clone the object and return it as a boxed trait object. This method can return
+    /// [`None`] for non-cloneable objects.
     fn try_clone_box(&self) -> Option<Box<dyn Reflect>>;
 
+    /// Calls the given closure with the reference to a slice that contains description for all
+    /// fields in the object.
     fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef]));
 
+    /// Calls the given closure with the reference to a slice that contains description for all
+    /// fields in the object.
     fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut]));
 
     /// Extracts the wrapped value as `Box<dyn Reflect>` and returns it to the caller. This method
     /// is intended to be used for wrapper structures only. Any other type should return `self` as
     /// usual.
-    fn into_inner_reflect(self: Box<Self>) -> Box<dyn Reflect>;
+    fn into_inner(self: Box<Self>) -> Box<dyn Reflect>;
 
-    fn as_reflect_direct(&self) -> &dyn Reflect;
+    fn inner_ref_direct(&self) -> &dyn Reflect;
 
-    fn as_reflect_mut_direct(&mut self) -> &mut dyn Reflect;
+    fn inner_mut_direct(&mut self) -> &mut dyn Reflect;
 
-    fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect));
+    fn inner_ref(&self, func: &mut dyn FnMut(&dyn Reflect));
 
-    fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect));
+    fn inner_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect));
 
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>>;
 
@@ -304,9 +311,7 @@ pub trait Reflect: Any + Debug {
 impl dyn Reflect {
     pub fn downcast<T: Reflect>(self: Box<dyn Reflect>) -> Result<Box<T>, Box<dyn Reflect>> {
         if self.is::<T>() {
-            Ok((self.into_inner_reflect() as Box<dyn Any>)
-                .downcast()
-                .unwrap())
+            Ok((self.into_inner() as Box<dyn Any>).downcast().unwrap())
         } else {
             Err(self)
         }
@@ -323,22 +328,22 @@ impl dyn Reflect {
 
     #[inline]
     pub fn downcast_ref<T: Reflect>(&self, func: &mut dyn FnMut(Option<&T>)) {
-        self.as_reflect(&mut |reflect| func((reflect as &dyn Any).downcast_ref::<T>()))
+        self.inner_ref(&mut |reflect| func((reflect as &dyn Any).downcast_ref::<T>()))
     }
 
     #[inline]
     pub fn downcast_mut<T: Reflect>(&mut self, func: &mut dyn FnMut(Option<&mut T>)) {
-        self.as_reflect_mut(&mut |reflect| func((reflect as &mut dyn Any).downcast_mut::<T>()))
+        self.inner_mut(&mut |reflect| func((reflect as &mut dyn Any).downcast_mut::<T>()))
     }
 
     /// Tries to find the first field of the given type. This method internally uses
     /// [`Reflect::field_direct_ref`] with all of its limitations.
     #[inline]
     pub fn first_field_ref<T: Reflect>(&self) -> Option<&T> {
-        let count = self.as_reflect_direct().fields_count();
+        let count = self.inner_ref_direct().fields_count();
 
         for i in 0..count {
-            if let Some(field) = self.as_reflect_direct().field_direct_ref(i) {
+            if let Some(field) = self.inner_ref_direct().field_direct_ref(i) {
                 if let Some(typed_field) = (field.value as &dyn Any).downcast_ref::<T>() {
                     return Some(typed_field);
                 }
@@ -352,7 +357,7 @@ impl dyn Reflect {
     /// [`Reflect::field_direct_ref`] with all of its limitations.
     #[inline]
     pub fn first_field_mut<T: Reflect>(&mut self) -> Option<&mut T> {
-        let count = self.as_reflect_direct().fields_count();
+        let count = self.inner_ref_direct().fields_count();
 
         for i in 0..count {
             // SAFETY: Current implementation of borrow checker is just dumb. When a reborrow of self
@@ -360,7 +365,7 @@ impl dyn Reflect {
             // This way the returned reference has a different lifetime than in the method definition.
             // The following unsafe block reborrows self with the correct lifetime, while the initial
             // reference is not used so this is absolutely safe.
-            let this = unsafe { &mut *(self as *mut Self) }.as_reflect_mut_direct();
+            let this = unsafe { &mut *(self as *mut Self) }.inner_mut_direct();
             if let Some(field) = this.field_direct_mut(i) {
                 if let Some(typed_field) = (field.value as &mut dyn Any).downcast_mut::<T>() {
                     return Some(typed_field);
@@ -374,7 +379,7 @@ impl dyn Reflect {
     /// Tries to downcast self to the specified type, or if it is not possible, tries to find a
     /// field of the specified type.
     pub fn self_or_field_ref<T: Reflect>(&self) -> Option<&T> {
-        if let Some(value) = (self.as_reflect_direct() as &dyn Any).downcast_ref::<T>() {
+        if let Some(value) = (self.inner_ref_direct() as &dyn Any).downcast_ref::<T>() {
             Some(value)
         } else {
             self.first_field_ref()
@@ -386,7 +391,7 @@ impl dyn Reflect {
     pub fn self_or_field_mut<T: Reflect>(&mut self) -> Option<&mut T> {
         // SAFETY: See the comment in `first_field_mut_of_type` method.
         let this = unsafe { &mut *(self as *mut Self) };
-        if let Some(value) = (self.as_reflect_mut_direct() as &mut dyn Any).downcast_mut::<T>() {
+        if let Some(value) = (self.inner_mut_direct() as &mut dyn Any).downcast_mut::<T>() {
             Some(value)
         } else {
             this.first_field_mut()
@@ -792,7 +797,7 @@ impl<R: Reflect> GetField for R {
         self.find_field(name, &mut |opt_field| match opt_field {
             None => func(None),
             Some(field) => {
-                field.as_reflect(&mut |reflect| func((reflect as &dyn Any).downcast_ref()))
+                field.inner_ref(&mut |reflect| func((reflect as &dyn Any).downcast_ref()))
             }
         })
     }
@@ -801,7 +806,7 @@ impl<R: Reflect> GetField for R {
         self.find_field_mut(name, &mut |opt_field| match opt_field {
             None => func(None),
             Some(field) => {
-                field.as_reflect_mut(&mut |reflect| func((reflect as &mut dyn Any).downcast_mut()))
+                field.inner_mut(&mut |reflect| func((reflect as &mut dyn Any).downcast_mut()))
             }
         })
     }
