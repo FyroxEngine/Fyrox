@@ -35,6 +35,7 @@ use crate::fyrox::{
         grid::{Column, GridBuilder, Row},
         message::UiMessage,
         numeric::{NumericUpDownBuilder, NumericUpDownMessage},
+        style::resource::StyleResourceExt,
         text::TextBuilder,
         widget::WidgetBuilder,
         BuildContext, Thickness, VerticalAlignment,
@@ -43,7 +44,7 @@ use crate::fyrox::{
 };
 use crate::{
     scene::{GameScene, Selection},
-    Message, FIXED_TIMESTEP,
+    Editor, Message, FIXED_TIMESTEP,
 };
 
 pub struct ParticleSystemPreviewControlPanel {
@@ -84,6 +85,8 @@ impl ParticleSystemPreviewControlPanel {
                                 .with_margin(Thickness::uniform(1.0)),
                         )
                         .with_text("Preview")
+                        .with_font(ctx.default_font())
+                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx),
                     )
                     .build(ctx);
@@ -96,7 +99,11 @@ impl ParticleSystemPreviewControlPanel {
                             .on_column(1)
                             .with_margin(Thickness::uniform(1.0)),
                     )
-                    .with_text("Play")
+                    .with_text_and_font_size(
+                        "Play",
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx);
                     play
                 })
@@ -107,7 +114,11 @@ impl ParticleSystemPreviewControlPanel {
                             .on_column(2)
                             .with_margin(Thickness::uniform(1.0)),
                     )
-                    .with_text("Pause")
+                    .with_text_and_font_size(
+                        "Pause",
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx);
                     pause
                 })
@@ -118,7 +129,11 @@ impl ParticleSystemPreviewControlPanel {
                             .on_column(3)
                             .with_margin(Thickness::uniform(1.0)),
                     )
-                    .with_text("Stop")
+                    .with_text_and_font_size(
+                        "Stop",
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx);
                     stop
                 })
@@ -129,7 +144,11 @@ impl ParticleSystemPreviewControlPanel {
                             .on_column(4)
                             .with_margin(Thickness::uniform(1.0)),
                     )
-                    .with_text("Rewind")
+                    .with_text_and_font_size(
+                        "Rewind",
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx);
                     rewind
                 }),
@@ -161,6 +180,7 @@ impl ParticleSystemPreviewControlPanel {
                                         .with_margin(Thickness::uniform(1.0)),
                                 )
                                 .with_text("Playback Time")
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx),
                             )
                             .with_child({
@@ -172,6 +192,8 @@ impl ParticleSystemPreviewControlPanel {
                                 .with_min_value(0.0f32)
                                 .with_max_value(10.0 * 60.0) // 10 Minutes
                                 .with_value(0.0f32)
+                                .with_font(ctx.default_font())
+                                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                 .build(ctx);
                                 time
                             })
@@ -182,7 +204,11 @@ impl ParticleSystemPreviewControlPanel {
                                         .with_width(33.0)
                                         .with_margin(Thickness::uniform(1.0)),
                                 )
-                                .with_text("Set")
+                                .with_text_and_font_size(
+                                    "Set",
+                                    ctx.default_font(),
+                                    ctx.style.property(Editor::UI_FONT_SIZE),
+                                )
                                 .build(ctx);
                                 set_time
                             }),

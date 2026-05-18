@@ -41,6 +41,7 @@ use crate::{
             scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
             searchbar::{SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
@@ -55,10 +56,12 @@ use fyrox::core::{ok_or_return, uuid, Uuid};
 use fyrox::engine::GraphicsContext;
 use fyrox::gui::button::Button;
 use fyrox::gui::dock::DockingManager;
+use fyrox::gui::font::FontResource;
 use fyrox::gui::menu::MenuItem;
 use fyrox::gui::scroll_viewer::ScrollViewer;
 use fyrox::gui::searchbar::SearchBar;
 use fyrox::gui::stack_panel::StackPanel;
+use fyrox::gui::style::{Style, StyledProperty};
 use fyrox::gui::text_box::EmptyTextPlaceholder;
 use fyrox::gui::window::{Window, WindowAlignment};
 use rust_fuzzy_search::fuzzy_compare;
@@ -76,10 +79,16 @@ pub struct SettingsWindow {
     scroll_viewer: Handle<ScrollViewer>,
     search_bar: Handle<SearchBar>,
     clipboard: Option<Box<dyn Reflect>>,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl SettingsWindow {
-    pub fn new(engine: &mut Engine) -> Self {
+    pub fn new(
+        engine: &mut Engine,
+        font: Option<FontResource>,
+        font_size: Option<StyledProperty<f32>>,
+    ) -> Self {
         let ok;
         let default;
 
@@ -128,7 +137,13 @@ impl SettingsWindow {
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(700.0).with_height(800.0))
             .open(false)
-            .with_title(WindowTitle::text("Settings"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Settings",
+                font.clone().unwrap_or_else(|| ctx.default_font()),
+                font_size
+                    .clone()
+                    .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
+            ))
             .with_tab_label("Settings")
             .with_content(
                 GridBuilder::new(
@@ -146,7 +161,13 @@ impl SettingsWindow {
                                                 .with_width(80.0)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
-                                        .with_text("Default")
+                                        .with_text_and_font_size(
+                                            "Default",
+                                            font.clone().unwrap_or_else(|| ctx.default_font()),
+                                            font_size.clone().unwrap_or_else(|| {
+                                                ctx.style.property(Style::FONT_SIZE)
+                                            }),
+                                        )
                                         .build(ctx);
                                         default
                                     })
@@ -156,7 +177,13 @@ impl SettingsWindow {
                                                 .with_width(80.0)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
-                                        .with_text("OK")
+                                        .with_text_and_font_size(
+                                            "OK",
+                                            font.clone().unwrap_or_else(|| ctx.default_font()),
+                                            font_size.clone().unwrap_or_else(|| {
+                                                ctx.style.property(Style::FONT_SIZE)
+                                            }),
+                                        )
                                         .build(ctx);
                                         ok
                                     }),
@@ -182,6 +209,8 @@ impl SettingsWindow {
             scroll_viewer,
             search_bar,
             clipboard: None,
+            font,
+            font_size,
         }
     }
 
@@ -221,6 +250,8 @@ impl SettingsWindow {
             name_column_width: 250.0,
             base_path: Default::default(),
             has_parent_object: false,
+            font: self.font.clone(),
+            font_size: self.font_size.clone(),
         });
         let groups =
             context
@@ -230,7 +261,13 @@ impl SettingsWindow {
                     ButtonBuilder::new(WidgetBuilder::new().with_user_data(Arc::new(Mutex::new(
                         GroupName(entry.property_tag.clone()),
                     ))))
-                    .with_text(&entry.property_display_name)
+                    .with_text_and_font_size(
+                        &entry.property_display_name,
+                        self.font.clone().unwrap_or_else(|| ctx.default_font()),
+                        self.font_size
+                            .clone()
+                            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
+                    )
                     .build(ctx)
                     .to_base()
                 })
@@ -373,9 +410,12 @@ impl SettingsPlugin {
     pub const SETTINGS: Uuid = uuid!("7c7799e9-d15e-44be-a70a-8e280d55ff18");
 
     fn on_open_settings_clicked(&mut self, editor: &mut Editor) {
+        let ui = editor.engine.user_interfaces.first();
+        let font = Some(ui.default_font.clone());
+        let font_size = Some(ui.style().property(Editor::UI_FONT_SIZE));
         let window = self
             .window
-            .get_or_insert_with(|| SettingsWindow::new(&mut editor.engine));
+            .get_or_insert_with(|| SettingsWindow::new(&mut editor.engine, font, font_size));
         let ui = editor.engine.user_interfaces.first_mut();
         window.open(ui, &editor.settings, editor.property_editors.clone());
         ui.send(

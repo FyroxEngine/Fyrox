@@ -46,6 +46,7 @@ use crate::{
             },
             message::{MessageData, MessageDirection, UiMessage},
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             text::{Text, TextBuilder, TextMessage},
             utils::{make_asset_preview_tooltip, ImageButtonBuilder},
             widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -57,7 +58,7 @@ use crate::{
     message::MessageSender,
     plugins::inspector::EditorEnvironment,
     utils::make_pick_button,
-    Message,
+    Editor, Message,
 };
 use std::{any::TypeId, sync::mpsc::Sender};
 
@@ -219,13 +220,18 @@ impl SurfaceDataPropertyEditor {
                 .with_width(55.0)
                 .with_height(22.0),
         )
-        .with_text("View...")
+        .with_text_and_font_size(
+            "View...",
+            ctx.default_font(),
+            ctx.style.property(Editor::UI_FONT_SIZE),
+        )
         .build(ctx);
 
         let select = make_pick_button(1, ctx);
 
         let text = TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
             .with_text(surface_data_info(&resource_manager, &surface_resource))
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx);
 
         let (image_preview_tooltip, image_preview) = make_asset_preview_tooltip(None, ctx);

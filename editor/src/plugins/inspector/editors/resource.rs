@@ -18,6 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use fyrox::gui::{
+    font::FontResource,
+    style::{Style, StyledProperty},
+};
+
 use crate::{
     asset::{
         item::AssetItem, item::AssetItemMessage, preview::cache::IconRequest,
@@ -44,6 +49,7 @@ use crate::{
                 FieldAction, InspectorError, PropertyChanged,
             },
             message::{MessageData, MessageDirection, UiMessage},
+            style::resource::StyleResourceExt,
             text::{Text, TextBuilder, TextMessage},
             utils::{make_asset_preview_tooltip, ImageButtonBuilder},
             widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -279,6 +285,8 @@ where
     widget_builder: WidgetBuilder,
     resource: Option<Resource<T>>,
     sender: MessageSender,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl<T> ResourceFieldBuilder<T>
@@ -290,11 +298,25 @@ where
             widget_builder,
             resource: None,
             sender,
+            font: None,
+            font_size: None,
         }
     }
 
     pub fn with_resource(mut self, resource: Option<Resource<T>>) -> Self {
         self.resource = resource;
+        self
+    }
+
+    /// Sets the desired font of the field.
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    /// Sets a desired font size property of the field.
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
         self
     }
 
@@ -305,6 +327,12 @@ where
         resource_manager: ResourceManager,
     ) -> Handle<ResourceField<T>> {
         let (image_preview_tooltip, image_preview) = make_asset_preview_tooltip(None, ctx);
+
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
 
         let name;
         let locate;
@@ -338,6 +366,8 @@ where
                                 )
                                 .with_vertical_text_alignment(VerticalAlignment::Center)
                                 .with_text(resource_path(&resource_manager, &self.resource))
+                                .with_font(font.clone())
+                                .with_font_size(font_size.clone())
                                 .build(ctx);
                                 name
                             })
@@ -438,6 +468,11 @@ where
         Ok(PropertyEditorInstance::simple(
             ResourceFieldBuilder::new(WidgetBuilder::new(), self.sender.clone())
                 .with_resource(value.clone())
+                .with_font(ctx.font.unwrap_or_else(|| ctx.build_context.default_font()))
+                .with_font_size(
+                    ctx.font_size
+                        .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+                )
                 .build(
                     ctx.build_context,
                     environment.icon_request_sender.clone(),

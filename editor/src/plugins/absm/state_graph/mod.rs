@@ -45,6 +45,7 @@ use crate::{
     command::{Command, CommandGroup},
     message::MessageSender,
     scene::{commands::ChangeSelectionCommand, Selection},
+    Editor,
 };
 
 use fyrox::core::reflect::Reflect;
@@ -90,7 +91,11 @@ impl StateGraphViewer {
         .build(ctx);
 
         let window = WindowBuilder::new(WidgetBuilder::new())
-            .with_title(WindowTitle::text("State Graph"))
+            .with_title(WindowTitle::text_with_font_size(
+                "State Graph",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_tab_label("State Graph")
             .can_close(false)
             .can_minimize(false)

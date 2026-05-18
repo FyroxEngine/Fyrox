@@ -51,6 +51,7 @@ use crate::{
             numeric::{NumericUpDownBuilder, NumericUpDownMessage},
             scroll_viewer::ScrollViewerBuilder,
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             text::TextBuilder,
             utils::make_simple_tooltip,
             vec::{
@@ -133,6 +134,7 @@ fn make_item_container(ctx: &mut BuildContext, name: &str, item: Handle<UiNode>)
                 TextBuilder::new(WidgetBuilder::new())
                     .with_text(name)
                     .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx),
             )
             .with_child(item),
@@ -255,6 +257,8 @@ impl UiView for Color {
     fn make_view(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         ColorFieldBuilder::new(WidgetBuilder::new())
             .with_color(self)
+            .with_font(ctx.default_font())
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx)
             .to_base()
     }
@@ -296,7 +300,11 @@ impl MaterialEditor {
                 .with_name("MaterialEditor"),
         )
         .open(false)
-        .with_title(WindowTitle::text(Self::TITLE))
+        .with_title(WindowTitle::text_with_font_size(
+            Self::TITLE,
+            ctx.default_font(),
+            ctx.style.property(Editor::UI_FONT_SIZE),
+        ))
         .with_content(
             GridBuilder::new(
                 WidgetBuilder::new()
@@ -313,6 +321,8 @@ impl MaterialEditor {
                                     )
                                     .with_vertical_text_alignment(VerticalAlignment::Center)
                                     .with_text("Shader")
+                                    .with_font(ctx.default_font())
+                                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                     .build(ctx),
                                 )
                                 .with_child({
@@ -323,6 +333,8 @@ impl MaterialEditor {
                                             .with_tooltip(shader_tooltip),
                                         sender,
                                     )
+                                    .with_font(ctx.default_font())
+                                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                     .build(
                                         ctx,
                                         icon_request_sender,
@@ -399,13 +411,14 @@ impl MaterialEditor {
                 .unwrap_or(PathBuf::from("Embedded"))
                 .to_string_lossy()
                 .to_string();
+            let ui = engine.user_interfaces.first();
             engine.user_interfaces.first().send(
                 self.window,
-                WindowMessage::Title(WindowTitle::text(format!(
-                    "{} - {}",
-                    Self::TITLE,
-                    material_name
-                ))),
+                WindowMessage::Title(WindowTitle::text_with_font_size(
+                    format!("{} - {}", Self::TITLE, material_name),
+                    ui.default_font.clone(),
+                    ui.style.property(Editor::UI_FONT_SIZE),
+                )),
             );
 
             engine.scenes[self.preview.scene()].graph[self.preview.model()]
@@ -466,6 +479,8 @@ impl MaterialEditor {
                             .with_tooltip(make_simple_tooltip(ctx, &path)),
                     )
                     .with_texture(texture)
+                    .with_font(ctx.default_font())
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(
                         ctx,
                         sender.clone(),
@@ -529,6 +544,8 @@ impl MaterialEditor {
                     Kind::Bool { value } => value.make_view(ctx),
                     Kind::Color { r, g, b, a } => ColorFieldBuilder::new(WidgetBuilder::new())
                         .with_color(Color::from_rgba(*r, *g, *b, *a))
+                        .with_font(ctx.default_font())
+                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx)
                         .to_base(),
                 };

@@ -23,9 +23,14 @@ use crate::{
     fyrox::{
         asset::manager::ResourceManager,
         core::{
-            futures::executor::block_on, log::Log, ok_or_return, pool::Handle,
-            pool::HandlesVecExtension, reflect::prelude::*, type_traits::prelude::*,
-            visitor::prelude::*, SafeLock,
+            futures::executor::block_on,
+            log::Log,
+            ok_or_return,
+            pool::{Handle, HandlesVecExtension},
+            reflect::prelude::*,
+            type_traits::prelude::*,
+            visitor::prelude::*,
+            SafeLock,
         },
         engine::Engine,
         graph::SceneGraph,
@@ -44,6 +49,7 @@ use crate::{
             },
             popup::{Placement, PopupBuilder, PopupMessage},
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             text::{TextBuilder, TextMessage},
             text_box::{TextBox, TextBoxBuilder, TextCommitMode},
             widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -53,7 +59,7 @@ use crate::{
         },
     },
     message::MessageSender,
-    Message,
+    Editor, Message,
 };
 use std::{
     fs::File,
@@ -163,6 +169,7 @@ impl AssetRenameDialogBuilder {
                         "Enter a new name for {old_file_name}.{extension} resource."
                     ))
                     .with_wrap(WrapMode::Word)
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx),
                 )
                 .with_child({
@@ -174,6 +181,7 @@ impl AssetRenameDialogBuilder {
                     )
                     .with_text(&old_file_name)
                     .with_text_commit_mode(TextCommitMode::Immediate)
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx);
                     name_field
                 })
@@ -190,7 +198,11 @@ impl AssetRenameDialogBuilder {
                                         .with_height(24.0)
                                         .with_tab_index(Some(1)),
                                 )
-                                .with_text("Rename")
+                                .with_text_and_font_size(
+                                    "Rename",
+                                    ctx.default_font(),
+                                    ctx.style.property(Editor::UI_FONT_SIZE),
+                                )
                                 .build(ctx);
                                 rename
                             })
@@ -202,7 +214,11 @@ impl AssetRenameDialogBuilder {
                                         .with_height(24.0)
                                         .with_tab_index(Some(2)),
                                 )
-                                .with_text("Cancel")
+                                .with_text_and_font_size(
+                                    "Cancel",
+                                    ctx.default_font(),
+                                    ctx.style.property(Editor::UI_FONT_SIZE),
+                                )
                                 .build(ctx);
                                 cancel
                             }),
@@ -256,6 +272,7 @@ impl AssetItemContextMenu {
         fn item(text: &str, ctx: &mut BuildContext) -> Handle<MenuItem> {
             MenuItemBuilder::new(WidgetBuilder::new())
                 .with_content(MenuItemContent::text(text))
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx)
         }
 
@@ -365,9 +382,15 @@ impl AssetItemContextMenu {
                         )
                         .open(false)
                         .with_remove_on_close(true)
-                        .with_title(WindowTitle::text("Confirm Deletion")),
+                        .with_title(WindowTitle::text_with_font_size(
+                            "Confirm Deletion",
+                            ui.default_font.clone(),
+                            ui.style.property(Editor::UI_FONT_SIZE),
+                        )),
                     )
                     .with_text(&text)
+                    .with_font(ui.default_font.clone())
+                    .with_font_size(ui.style.property(Editor::UI_FONT_SIZE))
                     .with_buttons(MessageBoxButtons::YesNo)
                     .build(&mut ui.build_ctx());
 
@@ -494,19 +517,29 @@ impl AssetItemContextMenu {
                         item.path.extension(),
                         item.path.parent(),
                     ) {
-                        let dialog = AssetRenameDialogBuilder::new(
-                            WindowBuilder::new(
-                                WidgetBuilder::new().with_width(350.0).with_height(100.0),
-                            )
-                            .with_title(WindowTitle::text("Rename a Resource"))
-                            .with_remove_on_close(true)
-                            .open(false),
-                        )
-                        .build(
+                        let (old_file_name, extension_name, folder_name, old_path) = (
                             file_stem.to_string_lossy().to_string(),
                             extension.to_string_lossy().to_string(),
                             parent.to_string_lossy().to_string(),
                             item.path.clone(),
+                        );
+                        let dialog = AssetRenameDialogBuilder::new(
+                            WindowBuilder::new(
+                                WidgetBuilder::new().with_width(350.0).with_height(100.0),
+                            )
+                            .with_title(WindowTitle::text_with_font_size(
+                                "Rename a Resource",
+                                ui.default_font.clone(),
+                                ui.style.property(Editor::UI_FONT_SIZE),
+                            ))
+                            .with_remove_on_close(true)
+                            .open(false),
+                        )
+                        .build(
+                            old_file_name,
+                            extension_name,
+                            folder_name,
+                            old_path,
                             engine.resource_manager.clone(),
                             &mut ui.build_ctx(),
                         );

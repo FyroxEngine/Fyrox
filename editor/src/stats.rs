@@ -24,12 +24,14 @@ use crate::fyrox::{
     gui::{
         message::UiMessage,
         scroll_viewer::ScrollViewerBuilder,
+        style::resource::StyleResourceExt,
         text::{TextBuilder, TextMessage},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
 };
+use crate::Editor;
 use fyrox::core::pool::ObjectOrVariant;
 use fyrox::gui::text::Text;
 use fyrox::gui::window::{Window, WindowAlignment};
@@ -56,12 +58,17 @@ impl StatisticsWindow {
                         text = TextBuilder::new(
                             WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
                         )
+                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx);
                         text
                     })
                     .build(ctx),
             )
-            .with_title(WindowTitle::text("Rendering Statistics"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Rendering Statistics",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .build(ctx);
 
         ctx.inner().send(

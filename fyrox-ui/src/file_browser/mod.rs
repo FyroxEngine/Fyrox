@@ -32,13 +32,14 @@ use crate::{
     },
     file_browser::{
         fs_tree::{sanitize_path, TreeItemPath},
-        menu::ItemContextMenu,
+        menu::ItemContextMenuBuilder,
     },
+    font::FontResource,
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
     message::{MessageData, UiMessage},
     scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
-    style::{resource::StyleResourceExt, Style},
+    style::{resource::StyleResourceExt, Style, StyledProperty},
     text::{TextBuilder, TextMessage},
     text_box::{TextBoxBuilder, TextCommitMode},
     tree::{Tree, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
@@ -125,6 +126,8 @@ pub struct FileBrowser {
     #[visit(skip)]
     #[reflect(hidden)]
     pub watcher: Option<notify::RecommendedWatcher>,
+    font: FontResource,
+    font_size: StyledProperty<f32>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for FileBrowser {
@@ -156,6 +159,8 @@ impl Clone for FileBrowser {
             fs_events: self.fs_events.clone(),
             item_context_menu: self.item_context_menu.clone(),
             watcher: None,
+            font: self.font.clone(),
+            font_size: self.font_size.clone(),
         }
     }
 }
@@ -190,6 +195,8 @@ impl FileBrowser {
             &self.filter,
             self.item_context_menu.clone(),
             &mut ui.build_ctx(),
+            self.font.clone(),
+            self.font_size.clone(),
         );
 
         ui.send(self.tree_root, TreeRootMessage::Items(fs_tree.root_items));
@@ -328,6 +335,8 @@ impl FileBrowser {
                 self.item_context_menu.clone(),
                 &self.filter,
                 ui,
+                self.font.clone(),
+                self.font_size.clone(),
             );
         }
     }
@@ -424,6 +433,8 @@ impl FileBrowser {
                     self.item_context_menu.clone(),
                     &self.filter,
                     ui,
+                    self.font.clone(),
+                    self.font_size.clone(),
                 )
             }
         } else {
@@ -571,6 +582,8 @@ pub struct FileBrowserBuilder {
     root: Option<PathBuf>,
     show_path: bool,
     no_items_text: String,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl FileBrowserBuilder {
@@ -582,6 +595,8 @@ impl FileBrowserBuilder {
             root: None,
             show_path: true,
             no_items_text: "This folder is empty".to_string(),
+            font: None,
+            font_size: None,
         }
     }
 
@@ -597,6 +612,16 @@ impl FileBrowserBuilder {
 
     pub fn with_no_items_text(mut self, no_items_text: impl AsRef<str>) -> Self {
         self.no_items_text = no_items_text.as_ref().to_string();
+        self
+    }
+
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
         self
     }
 
@@ -625,7 +650,19 @@ impl FileBrowserBuilder {
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<FileBrowser> {
-        let item_context_menu = RcUiNodeHandle::new(ItemContextMenu::build(ctx), ctx.sender());
+        // let item_context_menu = RcUiNodeHandle::new(ItemContextMenu::build(ctx), ctx.sender());
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
+        let item_context_menu = RcUiNodeHandle::new(
+            ItemContextMenuBuilder::new()
+                .with_font(font.clone())
+                .with_font_size(font_size.clone())
+                .build(ctx),
+            ctx.sender(),
+        );
 
         let fs_tree::FsTree {
             root_items: items,
@@ -638,6 +675,8 @@ impl FileBrowserBuilder {
             &self.filter,
             item_context_menu.clone(),
             ctx,
+            font.clone(),
+            font_size.clone(),
         );
 
         let root_path = sanitized_root.map(TreeItemPath::root);
@@ -673,7 +712,7 @@ impl FileBrowserBuilder {
                                         .with_tooltip(make_simple_tooltip(ctx, "Home Folder"))
                                         .with_margin(Thickness::uniform(1.0)),
                                 )
-                                .with_text("H")
+                                .with_text_and_font_size("H", font.clone(), font_size.clone())
                                 .build(ctx);
                                 home_dir
                             })
@@ -686,7 +725,7 @@ impl FileBrowserBuilder {
                                         .with_tooltip(make_simple_tooltip(ctx, "Desktop Folder"))
                                         .with_margin(Thickness::uniform(1.0)),
                                 )
-                                .with_text("D")
+                                .with_text_and_font_size("D", font.clone(), font_size.clone())
                                 .build(ctx);
                                 desktop_dir
                             })
@@ -706,6 +745,8 @@ impl FileBrowserBuilder {
                                         .map(|p| p.to_string_lossy().to_string())
                                         .unwrap_or_default(),
                                 )
+                                .with_font(font.clone())
+                                .with_font_size(font_size.clone())
                                 .build(ctx);
                                 path_text
                             }),
@@ -732,6 +773,8 @@ impl FileBrowserBuilder {
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .with_horizontal_text_alignment(HorizontalAlignment::Center)
         .with_text(self.no_items_text)
+        .with_font(font.clone())
+        .with_font_size(font_size.clone())
         .build(ctx);
 
         let root_container = GridBuilder::new(
@@ -769,6 +812,8 @@ impl FileBrowserBuilder {
             item_context_menu,
             no_items_message,
             fs_events: Default::default(),
+            font: font,
+            font_size: font_size,
         };
         let file_browser_handle = ctx.add(browser);
         let sender = ctx.sender();

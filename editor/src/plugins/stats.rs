@@ -26,6 +26,7 @@ use crate::{
             menu::{MenuItem, MenuItemMessage},
             message::UiMessage,
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             text::{Text, TextBuilder, TextMessage},
             widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
@@ -71,10 +72,15 @@ impl EditorPlugin for EditorStatisticsPlugin {
                 let ctx = &mut ui.build_ctx();
                 self.text =
                     TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx);
                 self.window =
                     WindowBuilder::new(WidgetBuilder::new().with_width(200.0).with_height(130.0))
-                        .with_title(WindowTitle::text("Editor Statistics"))
+                        .with_title(WindowTitle::text_with_font_size(
+                            "Editor Statistics",
+                            ctx.default_font(),
+                            ctx.style.property(Editor::UI_FONT_SIZE),
+                        ))
                         .with_content(
                             StackPanelBuilder::new(WidgetBuilder::new().with_child(self.text))
                                 .build(ctx),

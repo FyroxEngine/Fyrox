@@ -454,13 +454,18 @@ fn make_button(
             .with_margin(Thickness::uniform(1.0))
             .with_tooltip(make_simple_tooltip(ctx, tooltip)),
     )
-    .with_text(title)
+    .with_text_and_font_size(
+        title,
+        ctx.default_font(),
+        ctx.style.property(Editor::UI_FONT_SIZE),
+    )
     .build(ctx)
 }
 
 fn make_label(name: &str, ctx: &mut BuildContext) -> Handle<Text> {
     TextBuilder::new(WidgetBuilder::new())
         .with_text(name)
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx)
 }
 
@@ -859,13 +864,16 @@ impl TileInspector {
         .add_row(Row::auto())
         .build(ctx);
         let page_material_field =
-            MaterialFieldEditorBuilder::new(WidgetBuilder::new().on_column(1)).build(
-                ctx,
-                sender.clone(),
-                DEFAULT_TILE_MATERIAL.deep_copy(),
-                icon_request_sender,
-                resource_manager,
-            );
+            MaterialFieldEditorBuilder::new(WidgetBuilder::new().on_column(1))
+                .with_font(ctx.default_font())
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
+                .build(
+                    ctx,
+                    sender.clone(),
+                    DEFAULT_TILE_MATERIAL.deep_copy(),
+                    icon_request_sender,
+                    resource_manager,
+                );
         let page_material_inspector =
             InspectorField::new("Material", page_material_field.to_base(), ctx);
         let tile_size_field = Vec2EditorBuilder::<u32>::new(WidgetBuilder::new().on_column(1))
@@ -874,6 +882,8 @@ impl TileInspector {
         let tile_size_inspector = InspectorField::new("Tile Size", tile_size_field, ctx);
         let frame_rate_field = NumericUpDownBuilder::<f32>::new(WidgetBuilder::new().on_column(1))
             .with_min_value(0.0)
+            .with_font(ctx.default_font())
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx);
         let animation_speed_inspector =
             InspectorField::new("Frame Rate", frame_rate_field.to_base(), ctx);

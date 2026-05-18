@@ -26,6 +26,7 @@ use fyrox::{
         button::{Button, ButtonMessage},
         grid::{Column, GridBuilder, Row},
         stack_panel::StackPanelBuilder,
+        style::resource::StyleResourceExt,
         text::{TextBuilder, TextMessage},
         VerticalAlignment,
     },
@@ -113,7 +114,11 @@ fn make_button(title: &str, tooltip: &str, ctx: &mut BuildContext) -> Handle<But
             .with_margin(Thickness::uniform(1.0))
             .with_tooltip(make_simple_tooltip(ctx, tooltip)),
     )
-    .with_text(title)
+    .with_text_and_font_size(
+        title,
+        ctx.default_font(),
+        ctx.style.property(Editor::UI_FONT_SIZE),
+    )
     .build(ctx)
 }
 
@@ -132,6 +137,7 @@ impl ItemHeader {
         )
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .with_text(name)
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
         let button = if has_cell {
             make_remove_button(ctx)

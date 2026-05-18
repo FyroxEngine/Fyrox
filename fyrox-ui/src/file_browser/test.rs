@@ -20,6 +20,8 @@
 
 use crate::file_browser::fs_tree::{sanitize_path, TreeItemPath};
 use crate::file_browser::{FileType, PathFilter};
+use crate::style::resource::StyleResourceExt;
+use crate::style::Style;
 use crate::{
     core::{algebra::Vector2, parking_lot::Mutex, pool::Handle},
     file_browser::{
@@ -129,6 +131,8 @@ fn test_find_tree() {
     .build(&mut ui.build_ctx())
     .to_base();
 
+    let font = ui.build_ctx().default_font();
+    let font_size = ui.build_ctx().style.property(Style::FONT_SIZE);
     let path = fs_tree::build_tree(
         root,
         "./test/path1",
@@ -136,6 +140,8 @@ fn test_find_tree() {
         RcUiNodeHandle::new(Handle::<Tree>::new(0, 1), ui.sender()),
         &Default::default(),
         &mut ui,
+        font,
+        font_size,
     );
 
     while ui.poll_message().is_some() {}

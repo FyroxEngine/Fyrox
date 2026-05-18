@@ -29,6 +29,7 @@ use crate::fyrox::{
             InspectorError, PropertyChanged,
         },
         message::UiMessage,
+        style::{resource::StyleResourceExt, Style},
         text::{TextBuilder, TextMessage},
         widget::WidgetBuilder,
         Thickness, VerticalAlignment,
@@ -65,6 +66,11 @@ impl PropertyEditorDefinition for TriangleBufferPropertyEditorDefinition {
                     .with_vertical_alignment(VerticalAlignment::Center),
             )
             .with_text(triangle_buffer_description(value))
+            .with_font(ctx.font.unwrap_or_else(|| ctx.build_context.default_font()))
+            .with_font_size(
+                ctx.font_size
+                    .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+            )
             .build(ctx.build_context),
         ))
     }

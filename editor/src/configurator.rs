@@ -35,6 +35,7 @@ use crate::{
             list_view::{ListViewBuilder, ListViewMessage},
             message::UiMessage,
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             text::TextBuilder,
             text::TextMessage,
             text_box::TextBoxBuilder,
@@ -45,7 +46,7 @@ use crate::{
         },
     },
     message::MessageSender,
-    Engine, Message,
+    Editor, Engine, Message,
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::file_browser::FileSelector;
@@ -87,6 +88,7 @@ fn make_history_entry_widget(ctx: &mut BuildContext, entry: &HistoryEntry) -> Ha
                 TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::left(5.0)))
                     .with_text(format!("{}", entry.work_dir.display(),))
                     .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx),
             ),
     ))
@@ -105,9 +107,15 @@ impl Configurator {
         let work_dir_selector = FileSelectorBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                 .open(false)
-                .with_title(WindowTitle::text("Select Working Directory")),
+                .with_title(WindowTitle::text_with_font_size(
+                    "Select Working Directory",
+                    ctx.default_font(),
+                    ctx.style.property(Editor::UI_FONT_SIZE),
+                )),
         )
         .with_filter(PathFilter::folder())
+        .with_font(ctx.default_font())
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
 
         // Load history.
@@ -135,7 +143,11 @@ impl Configurator {
                 .with_height(250.0)
                 .with_min_size(Vector2::new(370.0, 250.0)),
         )
-        .with_title(WindowTitle::text("Configure Editor"))
+        .with_title(WindowTitle::text_with_font_size(
+            "Configure Editor",
+            ctx.default_font(),
+            ctx.style.property(Editor::UI_FONT_SIZE),
+        ))
         .open(false)
         .can_close(false)
         .with_content(
@@ -146,6 +158,7 @@ impl Configurator {
                         TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                             .with_text(message)
                             .with_wrap(WrapMode::Word)
+                            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                             .build(ctx),
                     )
                     .with_child(
@@ -161,6 +174,7 @@ impl Configurator {
                                             .with_vertical_alignment(VerticalAlignment::Center),
                                     )
                                     .with_text("Working Directory")
+                                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                     .build(ctx),
                                 )
                                 .with_child({
@@ -178,6 +192,7 @@ impl Configurator {
                                             .unwrap(),
                                     )
                                     .with_vertical_text_alignment(VerticalAlignment::Center)
+                                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                     .build(ctx);
                                     tb_work_dir
                                 })
@@ -189,7 +204,11 @@ impl Configurator {
                                             .on_column(2)
                                             .with_margin(Thickness::uniform(1.0)),
                                     )
-                                    .with_text("...")
+                                    .with_text_and_font_size(
+                                        "...",
+                                        ctx.default_font(),
+                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                    )
                                     .build(ctx);
                                     select_work_dir
                                 }),
@@ -208,6 +227,7 @@ impl Configurator {
                         )
                         .with_text("Previous Configurations")
                         .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx),
                     )
                     .with_child({
@@ -238,7 +258,11 @@ impl Configurator {
                                             .with_height(25.0)
                                             .with_margin(Thickness::uniform(1.0)),
                                     )
-                                    .with_text("OK")
+                                    .with_text_and_font_size(
+                                        "OK",
+                                        ctx.default_font(),
+                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                    )
                                     .build(ctx);
                                     ok
                                 }),

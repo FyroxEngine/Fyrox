@@ -36,6 +36,7 @@ use crate::{
             list_view::{ListView, ListViewBuilder, ListViewMessage},
             message::UiMessage,
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             text::TextBuilder,
             utils::{make_dropdown_list_option, make_simple_tooltip},
             widget::{WidgetBuilder, WidgetMessage},
@@ -61,8 +62,8 @@ use crate::{
         SelectionContainer,
     },
     utils::window_content,
-    ChangeSelectionCommand, Command, GameScene, GridBuilder, MessageDirection, Mode, Selection,
-    UserInterface,
+    ChangeSelectionCommand, Command, Editor, GameScene, GridBuilder, MessageDirection, Mode,
+    Selection, UserInterface,
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::dropdown_list::DropdownList;
@@ -249,6 +250,7 @@ impl AudioPanel {
                                         )
                                         .with_vertical_text_alignment(VerticalAlignment::Center)
                                         .with_text("DM")
+                                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                         .build(ctx),
                                     )
                                     .with_child({
@@ -267,7 +269,14 @@ impl AudioPanel {
                                         .with_items(
                                             DistanceModel::VARIANTS
                                                 .iter()
-                                                .map(|v| make_dropdown_list_option(ctx, v))
+                                                .map(|v| {
+                                                    make_dropdown_list_option(
+                                                        ctx,
+                                                        v,
+                                                        ctx.default_font(),
+                                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                                    )
+                                                })
                                                 .collect::<Vec<_>>(),
                                         )
                                         .build(ctx);
@@ -280,6 +289,7 @@ impl AudioPanel {
                                         )
                                         .with_vertical_text_alignment(VerticalAlignment::Center)
                                         .with_text("Renderer")
+                                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                         .build(ctx),
                                     )
                                     .with_child({
@@ -293,23 +303,33 @@ impl AudioPanel {
                                         .with_items(
                                             Renderer::VARIANTS
                                                 .iter()
-                                                .map(|v| make_dropdown_list_option(ctx, v))
+                                                .map(|v| {
+                                                    make_dropdown_list_option(
+                                                        ctx,
+                                                        v,
+                                                        ctx.default_font(),
+                                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                                    )
+                                                })
                                                 .collect::<Vec<_>>(),
                                         )
                                         .build(ctx);
                                         renderer
                                     })
                                     .with_child({
-                                        hrir_resource =
-                                            ResourceFieldBuilder::<HrirSphereResourceData>::new(
-                                                WidgetBuilder::new().with_tab_index(Some(2)),
-                                                sender,
-                                            )
-                                            .build(
-                                                ctx,
-                                                icon_request_sender,
-                                                engine.resource_manager.clone(),
-                                            );
+                                        hrir_resource = ResourceFieldBuilder::<
+                                            HrirSphereResourceData,
+                                        >::new(
+                                            WidgetBuilder::new().with_tab_index(Some(2)),
+                                            sender,
+                                        )
+                                        .with_font(ctx.default_font())
+                                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
+                                        .build(
+                                            ctx,
+                                            icon_request_sender,
+                                            engine.resource_manager.clone(),
+                                        );
                                         hrir_resource
                                     }),
                             )
@@ -339,7 +359,11 @@ impl AudioPanel {
                                                 .with_width(100.0)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
-                                        .with_text("Add Bus")
+                                        .with_text_and_font_size(
+                                            "Add Bus",
+                                            ctx.default_font(),
+                                            ctx.style.property(Editor::UI_FONT_SIZE),
+                                        )
                                         .build(ctx);
                                         add_bus
                                     })
@@ -351,7 +375,11 @@ impl AudioPanel {
                                                 .with_enabled(false)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
-                                        .with_text("Remove Bus")
+                                        .with_text_and_font_size(
+                                            "Remove Bus",
+                                            ctx.default_font(),
+                                            ctx.style.property(Editor::UI_FONT_SIZE),
+                                        )
                                         .build(ctx);
                                         remove_bus
                                     }),
@@ -366,7 +394,11 @@ impl AudioPanel {
                 .add_row(Row::strict(25.0))
                 .build(ctx),
             )
-            .with_title(WindowTitle::text("Audio Context"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Audio Context",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_tab_label("Audio")
             .build(ctx);
 

@@ -25,9 +25,11 @@
 
 use crate::{
     core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
+    font::FontResource,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
     numeric::{NumericType, NumericUpDownBuilder, NumericUpDownMessage},
+    style::{resource::StyleResourceExt, Style, StyledProperty},
     text::TextBuilder,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
@@ -240,6 +242,8 @@ where
 {
     widget_builder: WidgetBuilder,
     value: Range<T>,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl<T> RangeEditorBuilder<T>
@@ -251,6 +255,8 @@ where
         Self {
             widget_builder,
             value: Range::default(),
+            font: None,
+            font_size: None,
         }
     }
 
@@ -260,14 +266,33 @@ where
         self
     }
 
+    /// Sets a desired font of the editor.
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    /// Sets a desired font size of the editor.
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
     /// Finished widget building and adds the new instance to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<RangeEditor<T>> {
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
         let start = NumericUpDownBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(1.0))
                 .on_column(0),
         )
         .with_value(self.value.start)
+        .with_font(font.clone())
+        .with_font_size(font_size.clone())
         .build(ctx);
         let end = NumericUpDownBuilder::new(
             WidgetBuilder::new()
@@ -275,6 +300,8 @@ where
                 .on_column(2),
         )
         .with_value(self.value.end)
+        .with_font(font.clone())
+        .with_font_size(font_size.clone())
         .build(ctx);
         let editor = RangeEditor {
             widget: self
@@ -291,6 +318,8 @@ where
                                 )
                                 .with_vertical_text_alignment(VerticalAlignment::Center)
                                 .with_text("..")
+                                .with_font(font.clone())
+                                .with_font_size(font_size.clone())
                                 .build(ctx),
                             )
                             .with_child(end),

@@ -41,6 +41,7 @@ use crate::{
             message::UiMessage,
             scroll_viewer::ScrollViewerBuilder,
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             utils::make_simple_tooltip,
             widget::WidgetBuilder,
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
@@ -1037,7 +1038,11 @@ impl RagdollWizard {
                 .with_name("RagdollWizard"),
         )
         .open(false)
-        .with_title(WindowTitle::text("Ragdoll Wizard"))
+        .with_title(WindowTitle::text_with_font_size(
+            "Ragdoll Wizard",
+            ctx.default_font(),
+            ctx.style.property(Editor::UI_FONT_SIZE),
+        ))
         .with_content(
             GridBuilder::new(
                 WidgetBuilder::new()
@@ -1046,6 +1051,8 @@ impl RagdollWizard {
                             WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                         )
                         .with_content({
+                            let font = Some(ctx.default_font());
+                            let font_size = Some(ctx.style.property(Editor::UI_FONT_SIZE));
                             inspector = InspectorBuilder::new(
                                 WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                             )
@@ -1060,6 +1067,8 @@ impl RagdollWizard {
                                 name_column_width: 150.0,
                                 base_path: Default::default(),
                                 has_parent_object: false,
+                                font: font,
+                                font_size: font_size,
                             }))
                             .build(ctx);
                             inspector
@@ -1084,7 +1093,11 @@ impl RagdollWizard {
                                                 Tested only on Mixamo skeletons.",
                                             )),
                                     )
-                                    .with_text("Autofill")
+                                    .with_text_and_font_size(
+                                        "Autofill",
+                                        ctx.default_font(),
+                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                    )
                                     .build(ctx);
                                     autofill
                                 })
@@ -1094,7 +1107,11 @@ impl RagdollWizard {
                                             .with_width(100.0)
                                             .with_margin(Thickness::uniform(1.0)),
                                     )
-                                    .with_text("OK")
+                                    .with_text_and_font_size(
+                                        "OK",
+                                        ctx.default_font(),
+                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                    )
                                     .build(ctx);
                                     ok
                                 })
@@ -1104,7 +1121,11 @@ impl RagdollWizard {
                                             .with_width(100.0)
                                             .with_margin(Thickness::uniform(1.0)),
                                     )
-                                    .with_text("Cancel")
+                                    .with_text_and_font_size(
+                                        "Cancel",
+                                        ctx.default_font(),
+                                        ctx.style.property(Editor::UI_FONT_SIZE),
+                                    )
                                     .build(ctx);
                                     cancel
                                 }),

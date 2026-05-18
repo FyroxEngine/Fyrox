@@ -166,6 +166,7 @@ fn make_terrain_list_element(
     let number = TextBuilder::new(WidgetBuilder::new())
         .with_text(terrain.to_string())
         .with_horizontal_text_alignment(HorizontalAlignment::Right)
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
     let color;
     let name;
@@ -186,6 +187,7 @@ fn make_terrain_list_element(
     .build(ctx);
     let name_text = TextBuilder::new(WidgetBuilder::new().on_column(2))
         .with_text(name.clone())
+        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
         .build(ctx);
     let frequency_field = NumericUpDownBuilder::new(
         WidgetBuilder::new()
@@ -194,13 +196,19 @@ fn make_terrain_list_element(
     )
     .with_value(frequency)
     .with_min_value(0.0)
+    .with_font(ctx.default_font())
+    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
     .build(ctx);
     let delete_button = ButtonBuilder::new(
         WidgetBuilder::new()
             .on_column(4)
             .with_margin(Thickness::uniform(2.0)),
     )
-    .with_text("Delete")
+    .with_text_and_font_size(
+        "Delete",
+        ctx.default_font(),
+        ctx.style.property(Editor::UI_FONT_SIZE),
+    )
     .build(ctx);
     let handle = GridBuilder::new(
         WidgetBuilder::new()
@@ -536,16 +544,20 @@ impl BrushMacro for WfcMacro {
             TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(5.0)))
                 .with_wrap(WrapMode::Word)
                 .with_text(PATTERN_PROP_DESC)
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx);
         let freq_prop_help_text =
             TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(5.0)))
                 .with_wrap(WrapMode::Word)
                 .with_text(FREQUENCY_PROP_DESC)
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx);
         let constrain_edges = instance.constrain_edges;
         let attempts = instance.max_attempts;
         self.attempts_field = NumericUpDownBuilder::new(WidgetBuilder::new().on_column(1))
             .with_value(attempts)
+            .with_font(ctx.default_font())
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx);
         self.edges_toggle = CheckBoxBuilder::new(WidgetBuilder::new())
             .checked(Some(constrain_edges))
@@ -555,6 +567,7 @@ impl BrushMacro for WfcMacro {
                 .with_child(
                     TextBuilder::new(WidgetBuilder::new().on_column(1))
                         .with_text("Constrain Edges")
+                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx),
                 )
                 .with_child(self.edges_toggle),
@@ -568,6 +581,7 @@ impl BrushMacro for WfcMacro {
                 .with_child(
                     TextBuilder::new(WidgetBuilder::new())
                         .with_text("Max Attempts")
+                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx),
                 )
                 .with_child(self.attempts_field),
@@ -590,7 +604,11 @@ impl BrushMacro for WfcMacro {
                 .on_column(1)
                 .with_margin(Thickness::uniform(1.0)),
         )
-        .with_text("Add")
+        .with_text_and_font_size(
+            "Add",
+            ctx.default_font(),
+            ctx.style.property(Editor::UI_FONT_SIZE),
+        )
         .build(ctx);
         let add_row_field = GridBuilder::new(
             WidgetBuilder::new()

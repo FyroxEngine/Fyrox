@@ -3,7 +3,7 @@ use crate::{
     message::MessageSender,
     scene::Selection,
     ui_scene::{commands::UiSceneContext, UiScene},
-    Message,
+    Editor, Message,
 };
 use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::text_box::TextBox;
@@ -15,6 +15,7 @@ use fyrox::{
         formatted_text::{RunSet, WrapMode},
         message::UiMessage,
         stack_panel::StackPanelBuilder,
+        style::resource::StyleResourceExt,
         text::{Text, TextBuilder, TextMessage},
         text_box::{TextBoxBuilder, TextCommitMode},
         widget::{WidgetBuilder, WidgetMessage},
@@ -33,6 +34,7 @@ impl BBCodePanel {
             .with_text_commit_mode(TextCommitMode::Changed)
             .with_multiline(true)
             .with_wrap(WrapMode::Word)
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx);
         let root_widget = StackPanelBuilder::new(
             WidgetBuilder::new()
@@ -40,6 +42,7 @@ impl BBCodePanel {
                 .with_child(
                     TextBuilder::new(WidgetBuilder::new())
                         .with_text("BBCode")
+                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx),
                 )
                 .with_child(text_box),

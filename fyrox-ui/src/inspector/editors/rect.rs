@@ -30,6 +30,7 @@ use crate::{
     message::{MessageDirection, UiMessage},
     numeric::NumericType,
     rect::{RectEditorBuilder, RectEditorMessage},
+    style::{resource::StyleResourceExt, Style},
     widget::WidgetBuilder,
 };
 use std::{any::TypeId, fmt::Debug, marker::PhantomData};
@@ -79,6 +80,11 @@ where
         Ok(PropertyEditorInstance::simple(
             RectEditorBuilder::new(WidgetBuilder::new().with_height(36.0))
                 .with_value(*value)
+                .with_font(ctx.font.unwrap_or_else(|| ctx.build_context.default_font()))
+                .with_font_size(
+                    ctx.font_size
+                        .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+                )
                 .build(ctx.build_context),
         ))
     }

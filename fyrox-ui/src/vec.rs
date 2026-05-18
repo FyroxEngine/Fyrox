@@ -25,9 +25,11 @@ use crate::{
         algebra::SVector, color::Color, num_traits, pool::Handle, reflect::prelude::*,
         type_traits::prelude::*, visitor::prelude::*,
     },
+    font::FontResource,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
     numeric::{NumericType, NumericUpDownBuilder, NumericUpDownMessage},
+    style::{resource::StyleResourceExt, Style, StyledProperty},
     widget::WidgetBuilder,
     BuildContext, Control, Thickness, UiNode, UserInterface, Widget,
 };
@@ -38,7 +40,7 @@ use crate::numeric::NumericUpDown;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
 
-fn make_numeric_input<T: NumericType>(
+fn _make_numeric_input<T: NumericType>(
     ctx: &mut BuildContext,
     column: usize,
     value: T,
@@ -65,6 +67,40 @@ fn make_numeric_input<T: NumericType>(
     .with_max_value(max)
     .with_step(step)
     .with_editable(editable)
+    .build(ctx)
+}
+
+fn make_numeric_input_with_font_size<T: NumericType>(
+    ctx: &mut BuildContext,
+    column: usize,
+    value: T,
+    min: T,
+    max: T,
+    step: T,
+    editable: bool,
+    precision: usize,
+    font: FontResource,
+    font_size: StyledProperty<f32>,
+) -> Handle<NumericUpDown<T>> {
+    NumericUpDownBuilder::new(
+        WidgetBuilder::new()
+            .on_row(0)
+            .on_column(column)
+            .with_margin(Thickness {
+                left: 1.0,
+                top: 0.0,
+                right: 1.0,
+                bottom: 0.0,
+            }),
+    )
+    .with_precision(precision)
+    .with_value(value)
+    .with_min_value(min)
+    .with_max_value(max)
+    .with_step(step)
+    .with_editable(editable)
+    .with_font(font)
+    .with_font_size(font_size)
     .build(ctx)
 }
 
@@ -256,6 +292,8 @@ where
     max: SVector<T, D>,
     step: SVector<T, D>,
     precision: usize,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl<T, const D: usize> VecEditorBuilder<T, D>
@@ -271,6 +309,8 @@ where
             max: SVector::repeat(T::max_value()),
             step: SVector::repeat(T::one()),
             precision: 3,
+            font: None,
+            font_size: None,
         }
     }
 
@@ -304,6 +344,16 @@ where
         self
     }
 
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext) -> Handle<VecEditor<T, D>> {
         let mut fields = Vec::new();
         let mut children = Vec::new();
@@ -323,7 +373,7 @@ where
                 make_mark(ctx, i * 2, colors.get(i).cloned().unwrap_or(Color::ORANGE)).to_base(),
             );
 
-            let field = make_numeric_input(
+            let field = make_numeric_input_with_font_size(
                 ctx,
                 i * 2 + 1,
                 self.value[i],
@@ -332,6 +382,10 @@ where
                 self.step[i],
                 self.editable,
                 self.precision,
+                self.font.clone().unwrap_or_else(|| ctx.default_font()),
+                self.font_size
+                    .clone()
+                    .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
             );
             children.push(field.to_base());
             fields.push(field);

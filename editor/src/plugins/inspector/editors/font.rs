@@ -39,6 +39,7 @@ use crate::{
                 FieldAction, InspectorError, PropertyChanged,
             },
             message::{MessageDirection, UiMessage},
+            style::resource::StyleResourceExt,
             text::{TextBuilder, TextMessage},
             widget::{Widget, WidgetBuilder, WidgetMessage},
             BuildContext, Control, UiNode, UserInterface,
@@ -46,9 +47,12 @@ use crate::{
     },
 };
 
-use fyrox::asset::manager::ResourceManager;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::text::Text;
+use fyrox::{
+    asset::manager::ResourceManager,
+    gui::style::{Style, StyledProperty},
+};
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -138,6 +142,7 @@ impl Control for FontField {
 pub struct FontFieldBuilder {
     widget_builder: WidgetBuilder,
     font: FontResource,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 fn make_name(resource_manager: &ResourceManager, font: &FontResource) -> String {
@@ -158,6 +163,7 @@ impl FontFieldBuilder {
         Self {
             widget_builder,
             font: BUILT_IN_FONT.resource(),
+            font_size: None,
         }
     }
 
@@ -166,11 +172,22 @@ impl FontFieldBuilder {
         self
     }
 
+    /// Sets a desired font size property of the field.
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
     pub fn build(
         self,
         resource_manager: ResourceManager,
         ctx: &mut BuildContext,
     ) -> Handle<FontField> {
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
+
         let text_preview;
         let widget = self
             .widget_builder
@@ -180,6 +197,7 @@ impl FontFieldBuilder {
                     .with_wrap(WrapMode::Word)
                     .with_text(make_name(&resource_manager, &self.font))
                     .with_font(self.font.clone())
+                    .with_font_size(font_size.clone())
                     .build(ctx);
                 text_preview
             })
@@ -215,6 +233,10 @@ impl PropertyEditorDefinition for FontPropertyEditorDefinition {
         Ok(PropertyEditorInstance::simple(
             FontFieldBuilder::new(WidgetBuilder::new().with_min_size(Vector2::new(0.0, 17.0)))
                 .with_font(value.clone())
+                .with_font_size(
+                    ctx.font_size
+                        .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+                )
                 .build(self.resource_manager.clone(), ctx.build_context),
         ))
     }

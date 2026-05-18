@@ -24,8 +24,10 @@ use std::any::TypeId;
 
 use super::*;
 use fyrox::gui::button::Button;
+use fyrox::gui::font::FontResource;
 use fyrox::gui::inspector::FieldAction;
 use fyrox::gui::message::MessageData;
+use fyrox::gui::style::StyledProperty;
 use fyrox::gui::text_box::TextBox;
 use fyrox::{
     core::{
@@ -138,6 +140,8 @@ pub struct TileDefinitionHandleEditorBuilder {
     widget_builder: WidgetBuilder,
     value: Option<TileDefinitionHandle>,
     allow_none: bool,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl TileDefinitionHandleEditorBuilder {
@@ -147,6 +151,8 @@ impl TileDefinitionHandleEditorBuilder {
             widget_builder,
             value: None,
             allow_none: true,
+            font: None,
+            font_size: None,
         }
     }
     /// Control whether None is an acceptable value for the handle. This defaults to `true`.
@@ -159,12 +165,33 @@ impl TileDefinitionHandleEditorBuilder {
         self.value = value;
         self
     }
+
+    /// Sets a desired font of the editor.
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    /// Sets a desired font size property of the editor.
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
     /// Build the widgets for the [`TileDefinitionHandleEditor`].
     pub fn build(self, ctx: &mut BuildContext) -> Handle<TileDefinitionHandleEditor> {
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
+
         let text = value_to_string(self.value);
         let field = TextBoxBuilder::new(WidgetBuilder::new())
             .with_text(text)
             .with_text_commit_mode(TextCommitMode::LostFocusPlusEnter)
+            .with_font(font.clone())
+            .with_font_size(font_size.clone())
             .build(ctx);
         let button = ButtonBuilder::new(WidgetBuilder::new().on_column(1))
             .with_content(
@@ -216,6 +243,11 @@ impl PropertyEditorDefinition for TileDefinitionHandlePropertyEditorDefinition {
             )
             .with_allow_none(false)
             .with_value(Some(value))
+            .with_font(ctx.font.unwrap_or_else(|| ctx.build_context.default_font()))
+            .with_font_size(
+                ctx.font_size
+                    .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+            )
             .build(ctx.build_context),
         ))
     }
@@ -268,6 +300,11 @@ impl PropertyEditorDefinition for OptionTileDefinitionHandlePropertyEditorDefini
                     .with_margin(Thickness::uniform(1.0)),
             )
             .with_value(value)
+            .with_font(ctx.font.unwrap_or_else(|| ctx.build_context.default_font()))
+            .with_font_size(
+                ctx.font_size
+                    .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+            )
             .build(ctx.build_context),
         ))
     }

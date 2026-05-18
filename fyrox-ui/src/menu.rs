@@ -23,8 +23,10 @@
 
 #![warn(missing_docs)]
 
+use crate::font::FontResource;
 use crate::message::MessageData;
 use crate::stack_panel::StackPanel;
+use crate::style::StyledProperty;
 use crate::vector_image::VectorImage;
 use crate::{
     border::BorderBuilder,
@@ -944,6 +946,8 @@ pub struct MenuItemBuilder {
     back: Option<Handle<UiNode>>,
     clickable_when_not_empty: bool,
     restrict_picking: bool,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl MenuItemBuilder {
@@ -956,6 +960,8 @@ impl MenuItemBuilder {
             back: None,
             clickable_when_not_empty: false,
             restrict_picking: false,
+            font: None,
+            font_size: None,
         }
     }
 
@@ -990,9 +996,26 @@ impl MenuItemBuilder {
         self
     }
 
+    /// Set the font of the menu item and its sub-items.
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    /// Set the font size property of the menu item and its sub-items.
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
     /// Finishes menu item building and adds it to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<MenuItem> {
         let mut arrow_widget = Handle::NONE;
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
         let content = match self.content.as_ref() {
             None => Handle::NONE,
             Some(MenuItemContent::Text {
@@ -1012,6 +1035,8 @@ impl MenuItemBuilder {
                                 .with_vertical_alignment(VerticalAlignment::Center),
                         )
                         .with_text(text)
+                        .with_font(font.clone())
+                        .with_font_size(font_size.clone())
                         .build(ctx),
                     )
                     .with_child(
@@ -1024,6 +1049,8 @@ impl MenuItemBuilder {
                                 .on_column(2),
                         )
                         .with_text(shortcut)
+                        .with_font(font.clone())
+                        .with_font_size(font_size.clone())
                         .build(ctx),
                     )
                     .with_child({
@@ -1059,6 +1086,8 @@ impl MenuItemBuilder {
                     .with_text(text)
                     .with_horizontal_text_alignment(HorizontalAlignment::Center)
                     .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .with_font(font.clone())
+                    .with_font_size(font_size.clone())
                     .build(ctx)
                     .to_base()
             }

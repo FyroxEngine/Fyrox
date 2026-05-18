@@ -32,6 +32,7 @@ use crate::{
             scroll_viewer::ScrollViewerBuilder,
             stack_panel::StackPanel,
             stack_panel::StackPanelBuilder,
+            style::resource::StyleResourceExt,
             text::{Text, TextBuilder, TextMessage},
             utils::make_simple_tooltip,
             widget::WidgetBuilder,
@@ -60,7 +61,7 @@ use crate::{
         GameScene, Selection,
     },
     world::selection::GraphSelection,
-    Message,
+    Editor, Message,
 };
 use fyrox::core::math::TriangleDefinition;
 use fyrox::gui::VerticalAlignment;
@@ -80,7 +81,11 @@ fn make_button(text: &str, tooltip: &str, ctx: &mut BuildContext) -> Handle<Butt
             .with_margin(Thickness::uniform(1.0))
             .with_tooltip(make_simple_tooltip(ctx, tooltip)),
     )
-    .with_text(text)
+    .with_text_and_font_size(
+        text,
+        ctx.default_font(),
+        ctx.style.property(Editor::UI_FONT_SIZE),
+    )
     .build(ctx)
 }
 
@@ -333,6 +338,7 @@ impl SurfaceDataViewer {
 
         let info =
             TextBuilder::new(WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Top))
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx);
 
         let content = GridBuilder::new(
@@ -351,7 +357,11 @@ impl SurfaceDataViewer {
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(650.0).with_height(400.0))
             .open(false)
-            .with_title(WindowTitle::text("Surface Data"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Surface Data",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_content(content)
             .build(ctx);
 

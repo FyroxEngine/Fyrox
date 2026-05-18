@@ -36,6 +36,7 @@ use crate::{
     decorator::DecoratorBuilder,
     define_widget_deref,
     draw::{CommandTexture, Draw, DrawingContext},
+    font::FontResource,
     grid::{Column, GridBuilder, Row},
     inspector::{
         editors::{
@@ -50,17 +51,19 @@ use crate::{
     rect::{RectEditorBuilder, RectEditorMessage},
     scroll_viewer::ScrollViewerBuilder,
     stack_panel::StackPanelBuilder,
+    style::StyledProperty,
     text::TextBuilder,
     thumb::{ThumbBuilder, ThumbMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     window::{Window, WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
+    BuildContext, Control, Style, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 
 use crate::button::Button;
 use crate::message::MessageData;
 use crate::numeric::NumericUpDown;
 use crate::rect::RectEditor;
+use crate::style::resource::StyleResourceExt;
 use crate::thumb::Thumb;
 use crate::window::WindowAlignment;
 use fyrox_texture::TextureKind;
@@ -580,6 +583,8 @@ impl Control for TextureSliceEditorWindow {
 pub struct TextureSliceEditorWindowBuilder {
     window_builder: WindowBuilder,
     texture_slice: TextureSlice,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl TextureSliceEditorWindowBuilder {
@@ -587,6 +592,8 @@ impl TextureSliceEditorWindowBuilder {
         Self {
             window_builder,
             texture_slice: Default::default(),
+            font: None,
+            font_size: None,
         }
     }
 
@@ -595,45 +602,80 @@ impl TextureSliceEditorWindowBuilder {
         self
     }
 
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
     pub fn build(
         self,
         parent_editor: Handle<UiNode>,
         ctx: &mut BuildContext,
     ) -> Handle<TextureSliceEditorWindow> {
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
         let region_text = TextBuilder::new(WidgetBuilder::new())
             .with_text("Texture Region")
+            .with_font(font.clone())
+            .with_font_size(font_size.clone())
             .build(ctx);
         let region =
             RectEditorBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                 .with_value(*self.texture_slice.texture_region)
+                .with_font(font.clone())
+                .with_font_size(font_size.clone())
                 .build(ctx);
         let left_margin_text = TextBuilder::new(WidgetBuilder::new())
             .with_text("Left Margin")
+            .with_font(font.clone())
+            .with_font_size(font_size.clone())
             .build(ctx);
         let left_margin =
             NumericUpDownBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                 .with_value(*self.texture_slice.left_margin)
+                .with_font(font.clone())
+                .with_font_size(font_size.clone())
                 .build(ctx);
         let right_margin_text = TextBuilder::new(WidgetBuilder::new())
             .with_text("Right Margin")
+            .with_font(font.clone())
+            .with_font_size(font_size.clone())
             .build(ctx);
         let right_margin =
             NumericUpDownBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                 .with_value(*self.texture_slice.right_margin)
+                .with_font(font.clone())
+                .with_font_size(font_size.clone())
                 .build(ctx);
         let top_margin_text = TextBuilder::new(WidgetBuilder::new())
             .with_text("Top Margin")
+            .with_font(font.clone())
+            .with_font_size(font_size.clone())
             .build(ctx);
         let top_margin =
             NumericUpDownBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                 .with_value(*self.texture_slice.top_margin)
+                .with_font(font.clone())
+                .with_font_size(font_size.clone())
                 .build(ctx);
         let bottom_margin_text = TextBuilder::new(WidgetBuilder::new())
             .with_text("Bottom Margin")
+            .with_font(font.clone())
+            .with_font_size(font_size.clone())
             .build(ctx);
         let bottom_margin =
             NumericUpDownBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                 .with_value(*self.texture_slice.bottom_margin)
+                .with_font(font.clone())
+                .with_font_size(font_size.clone())
                 .build(ctx);
 
         let toolbar = StackPanelBuilder::new(
@@ -703,6 +745,8 @@ pub struct TextureSliceFieldEditor {
     texture_slice: TextureSlice,
     edit: Handle<Button>,
     editor: Handle<TextureSliceEditorWindow>,
+    font: FontResource,
+    font_size: StyledProperty<f32>,
 }
 
 define_widget_deref!(TextureSliceFieldEditor);
@@ -720,6 +764,8 @@ impl Control for TextureSliceFieldEditor {
                         .with_remove_on_close(true),
                 )
                 .with_texture_slice(self.texture_slice.clone())
+                .with_font(self.font.clone())
+                .with_font_size(self.font_size.clone())
                 .build(self.handle, &mut ui.build_ctx());
 
                 ui.send(
@@ -748,6 +794,8 @@ impl Control for TextureSliceFieldEditor {
 pub struct TextureSliceFieldEditorBuilder {
     widget_builder: WidgetBuilder,
     texture_slice: TextureSlice,
+    font: Option<FontResource>,
+    font_size: Option<StyledProperty<f32>>,
 }
 
 impl TextureSliceFieldEditorBuilder {
@@ -755,6 +803,8 @@ impl TextureSliceFieldEditorBuilder {
         Self {
             widget_builder,
             texture_slice: Default::default(),
+            font: None,
+            font_size: None,
         }
     }
 
@@ -763,9 +813,25 @@ impl TextureSliceFieldEditorBuilder {
         self
     }
 
+    pub fn with_font(mut self, font: FontResource) -> Self {
+        self.font = Some(font);
+        self
+    }
+
+    pub fn with_font_size(mut self, font_size: StyledProperty<f32>) -> Self {
+        self.font_size = Some(font_size);
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext) -> Handle<TextureSliceFieldEditor> {
+        let font = self.font.clone().unwrap_or_else(|| ctx.default_font());
+        let font_size = self
+            .font_size
+            .clone()
+            .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE));
+
         let edit = ButtonBuilder::new(WidgetBuilder::new())
-            .with_text("Edit...")
+            .with_text_and_font_size("Edit...", font.clone(), font_size.clone())
             .build(ctx);
 
         let node = TextureSliceFieldEditor {
@@ -773,6 +839,8 @@ impl TextureSliceFieldEditorBuilder {
             texture_slice: self.texture_slice,
             edit,
             editor: Default::default(),
+            font: font,
+            font_size: font_size,
         };
         ctx.add(node)
     }
@@ -798,6 +866,16 @@ impl PropertyEditorDefinition for TextureSlicePropertyEditorDefinition {
                     .with_vertical_alignment(VerticalAlignment::Center),
             )
             .with_texture_slice(value.clone())
+            .with_font(
+                ctx.font
+                    .clone()
+                    .unwrap_or_else(|| ctx.build_context.default_font()),
+            )
+            .with_font_size(
+                ctx.font_size
+                    .clone()
+                    .unwrap_or_else(|| ctx.build_context.style.property(Style::FONT_SIZE)),
+            )
             .build(ctx.build_context),
         ))
     }

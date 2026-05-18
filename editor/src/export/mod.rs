@@ -43,7 +43,7 @@ use crate::{
             message::UiMessage,
             scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
             stack_panel::{StackPanel, StackPanelBuilder},
-            style::{resource::StyleResourceExt, Style},
+            style::{resource::StyleResourceExt, Style, StyledProperty},
             text::{Text, TextBuilder},
             utils::make_dropdown_list_option,
             widget::{WidgetBuilder, WidgetMessage},
@@ -54,7 +54,7 @@ use crate::{
         },
     },
     message::MessageSender,
-    Message,
+    Editor, Message,
 };
 use fyrox_build_tools::export::{BuildResult, ExportOptions};
 use std::sync::{
@@ -89,6 +89,7 @@ fn make_title_text(text: &str, row: usize, ctx: &mut BuildContext) -> Handle<Tex
             .with_margin(Thickness::uniform(2.0)),
     )
     .with_text(text)
+    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
     .build(ctx)
 }
 
@@ -143,6 +144,9 @@ impl ExportWindow {
                                                     HorizontalAlignment::Center,
                                                 )
                                                 .with_text(*p)
+                                                .with_font_size(
+                                                    ctx.style.property(Editor::UI_FONT_SIZE),
+                                                )
                                                 .build(ctx),
                                         ),
                                 ))
@@ -166,6 +170,8 @@ impl ExportWindow {
                     TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
                         .with_vertical_text_alignment(VerticalAlignment::Center)
                         .with_text("Build Target")
+                        .with_font(ctx.default_font())
+                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                         .build(ctx),
                 )
                 .with_child({
@@ -174,7 +180,14 @@ impl ExportWindow {
                             .with_items(
                                 build_targets
                                     .iter()
-                                    .map(|opt| make_dropdown_list_option(ctx, opt))
+                                    .map(|opt| {
+                                        make_dropdown_list_option(
+                                            ctx,
+                                            opt,
+                                            ctx.default_font(),
+                                            ctx.style.property(Style::FONT_SIZE),
+                                        )
+                                    })
                                     .collect::<Vec<_>>(),
                             )
                             .with_selected(0)
@@ -198,6 +211,8 @@ impl ExportWindow {
                         WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
                     )
                     .with_content({
+                        let font = Some(ctx.default_font());
+                        let font_size = Some(ctx.style.property(Editor::UI_FONT_SIZE));
                         let context = InspectorContext::from_object(InspectorContextArgs {
                             object: &export_options,
                             ctx,
@@ -211,6 +226,8 @@ impl ExportWindow {
                             name_column_width: 150.0,
                             base_path: Default::default(),
                             has_parent_object: false,
+                            font: font,
+                            font_size: font_size,
                         });
 
                         inspector = InspectorBuilder::new(WidgetBuilder::new())
@@ -263,7 +280,11 @@ impl ExportWindow {
                             .with_width(100.0)
                             .with_margin(Thickness::uniform(2.0)),
                     )
-                    .with_text("Export")
+                    .with_text_and_font_size(
+                        "Export",
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx);
                     export
                 })
@@ -273,7 +294,11 @@ impl ExportWindow {
                             .with_width(100.0)
                             .with_margin(Thickness::uniform(2.0)),
                     )
-                    .with_text("Cancel")
+                    .with_text_and_font_size(
+                        "Cancel",
+                        ctx.default_font(),
+                        ctx.style.property(Editor::UI_FONT_SIZE),
+                    )
                     .build(ctx);
                     cancel
                 }),
@@ -294,6 +319,7 @@ impl ExportWindow {
                             )
                             .with_wrap(WrapMode::Word)
                             .with_text(instructions)
+                            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                             .build(ctx),
                         )
                         .with_child(platform_section)
@@ -311,7 +337,11 @@ impl ExportWindow {
                 .add_column(Column::stretch())
                 .build(ctx),
             )
-            .with_title(WindowTitle::text("Export Project"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Export Project",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .build(ctx);
 
         Self {
@@ -426,10 +456,20 @@ impl ExportWindow {
                 }
                 self.build_targets = build_targets.clone();
 
+                let font = ui.build_ctx().default_font();
+                let font_size: StyledProperty<f32> =
+                    ui.build_ctx().style.property(Style::FONT_SIZE);
                 let ui_items = self
                     .build_targets
                     .iter()
-                    .map(|name| make_dropdown_list_option(&mut ui.build_ctx(), name))
+                    .map(|name| {
+                        make_dropdown_list_option(
+                            &mut ui.build_ctx(),
+                            name,
+                            font.clone(),
+                            font_size.clone(),
+                        )
+                    })
                     .collect::<Vec<_>>();
 
                 ui.send(
@@ -489,6 +529,7 @@ impl ExportWindow {
                 )
                 .with_wrap(WrapMode::Letter)
                 .with_text(format!("> {}", message.content))
+                .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                 .build(ctx);
 
                 ui.send(entry, WidgetMessage::link_with(self.log));

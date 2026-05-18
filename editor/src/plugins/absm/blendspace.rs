@@ -56,6 +56,7 @@ use crate::plugins::absm::{
     },
     selection::{AbsmSelection, SelectedEntity},
 };
+use crate::Editor;
 use crate::{menu::create_menu_item, message::MessageSender};
 
 use fyrox::gui::menu::{ContextMenuBuilder, MenuItem};
@@ -627,6 +628,7 @@ impl BlendSpaceFieldPointBuilder {
                             .with_clip_to_bounds(false),
                     )
                     .with_text(format!("{:?}", self.index))
+                    .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                     .build(ctx),
                 )
                 .with_width(10.0)
@@ -685,6 +687,7 @@ impl BlendSpaceEditor {
                                                 .with_height(22.0)
                                                 .with_vertical_alignment(VerticalAlignment::Top),
                                         )
+                                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                         .build(ctx);
                                         max_y
                                     })
@@ -697,6 +700,7 @@ impl BlendSpaceEditor {
                                                 .with_vertical_alignment(VerticalAlignment::Center),
                                         )
                                         .with_vertical_text_alignment(VerticalAlignment::Center)
+                                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                         .build(ctx);
                                         y_axis_name
                                     })
@@ -708,6 +712,7 @@ impl BlendSpaceEditor {
                                                 .with_margin(Thickness::uniform(1.0))
                                                 .with_vertical_alignment(VerticalAlignment::Bottom),
                                         )
+                                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                         .build(ctx);
                                         min_y
                                     }),
@@ -734,6 +739,7 @@ impl BlendSpaceEditor {
                                                     HorizontalAlignment::Left,
                                                 ),
                                         )
+                                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                         .build(ctx);
                                         min_x
                                     })
@@ -748,6 +754,7 @@ impl BlendSpaceEditor {
                                                 ),
                                         )
                                         .with_vertical_text_alignment(VerticalAlignment::Center)
+                                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                         .build(ctx);
                                         x_axis_name
                                     })
@@ -762,6 +769,7 @@ impl BlendSpaceEditor {
                                                 ),
                                         )
                                         .with_horizontal_text_alignment(HorizontalAlignment::Right)
+                                        .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
                                         .build(ctx);
                                         max_x
                                     }),
@@ -788,7 +796,11 @@ impl BlendSpaceEditor {
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(500.0).with_height(400.0))
             .open(false)
             .with_content(content)
-            .with_title(WindowTitle::text("Blend Space Editor"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Blend Space Editor",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_tab_label("Blend Space")
             .build(ctx);
 

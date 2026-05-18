@@ -18,31 +18,34 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::{
-    asset::{
-        graph::{ResourceDependencyGraph, ResourceGraphNode},
-        untyped::UntypedResource,
+use crate::{
+    fyrox::{
+        asset::{
+            graph::{ResourceDependencyGraph, ResourceGraphNode},
+            untyped::UntypedResource,
+        },
+        core::{log::Log, pool::Handle},
+        gui::{
+            button::{ButtonBuilder, ButtonMessage},
+            copypasta::ClipboardProvider,
+            grid::{Column, GridBuilder, Row},
+            message::UiMessage,
+            scroll_viewer::ScrollViewerBuilder,
+            stack_panel::StackPanelBuilder,
+            text::TextBuilder,
+            tree::{TreeBuilder, TreeRootBuilder, TreeRootMessage},
+            widget::WidgetBuilder,
+            window::{WindowBuilder, WindowMessage, WindowTitle},
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
+            VerticalAlignment,
+        },
     },
-    core::{log::Log, pool::Handle},
-    gui::{
-        button::{ButtonBuilder, ButtonMessage},
-        copypasta::ClipboardProvider,
-        grid::{Column, GridBuilder, Row},
-        message::UiMessage,
-        scroll_viewer::ScrollViewerBuilder,
-        stack_panel::StackPanelBuilder,
-        text::TextBuilder,
-        tree::{TreeBuilder, TreeRootBuilder, TreeRootMessage},
-        widget::WidgetBuilder,
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
-        VerticalAlignment,
-    },
+    Editor,
 };
-use fyrox::asset::manager::ResourceManager;
 use fyrox::gui::button::Button;
 use fyrox::gui::tree::{Tree, TreeRoot};
 use fyrox::gui::window::{Window, WindowAlignment};
+use fyrox::{asset::manager::ResourceManager, gui::style::resource::StyleResourceExt};
 
 pub struct DependencyViewer {
     pub window: Handle<Window>,
@@ -77,6 +80,7 @@ fn build_tree_recursively(
                 WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Center),
             )
             .with_text(format!("{name} ({data_type})"))
+            .with_font_size(ctx.style.property(Editor::UI_FONT_SIZE))
             .build(ctx),
         )
         .build(ctx)
@@ -89,7 +93,11 @@ impl DependencyViewer {
         let close;
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
             .open(false)
-            .with_title(WindowTitle::text("Dependency Viewer"))
+            .with_title(WindowTitle::text_with_font_size(
+                "Dependency Viewer",
+                ctx.default_font(),
+                ctx.style.property(Editor::UI_FONT_SIZE),
+            ))
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
@@ -116,7 +124,11 @@ impl DependencyViewer {
                                                 .with_width(130.0)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
-                                        .with_text("Copy To Clipboard")
+                                        .with_text_and_font_size(
+                                            "Copy To Clipboard",
+                                            ctx.default_font(),
+                                            ctx.style.property(Editor::UI_FONT_SIZE),
+                                        )
                                         .build(ctx);
                                         copy_to_clipboard
                                     })
@@ -126,7 +138,11 @@ impl DependencyViewer {
                                                 .with_width(130.0)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
-                                        .with_text("Close")
+                                        .with_text_and_font_size(
+                                            "Close",
+                                            ctx.default_font(),
+                                            ctx.style.property(Editor::UI_FONT_SIZE),
+                                        )
                                         .build(ctx);
                                         close
                                     }),
