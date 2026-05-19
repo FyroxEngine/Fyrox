@@ -477,10 +477,6 @@ fn gen_impl(
                 #metadata_mut
             }
 
-            fn into_inner(self: Box<Self>) -> Box<dyn Reflect> {
-                self
-            }
-
             fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
                 let value = match value.take() {
                     Ok(x) => x,
@@ -503,22 +499,6 @@ fn gen_impl(
             }
 
             #set_field
-
-            fn inner_ref_direct(&self) -> &dyn Reflect {
-                self
-            }
-
-            fn inner_ref(&self, func: &mut dyn FnMut(&dyn Reflect)) {
-                func(self as &dyn Reflect)
-            }
-
-            fn inner_mut_direct(&mut self) -> &mut dyn Reflect {
-                self
-            }
-
-            fn inner_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
-                func(self as &mut dyn Reflect)
-            }
 
             #as_array_impl
 

@@ -202,7 +202,7 @@ where
     #[inline]
     pub fn remap_handles(&self, node: &mut N, ignored_types: &[TypeId]) {
         let name = node.name().to_string();
-        node.inner_mut(&mut |node| self.remap_handles_any(node, &name, ignored_types));
+        self.remap_handles_any(node, &name, ignored_types);
     }
 
     pub fn remap_handles_any(
@@ -217,17 +217,15 @@ where
 
         let mut mapped = false;
 
-        entity.downcast_mut::<Handle<N>>(&mut |handle| {
-            if let Some(handle) = handle {
-                if handle.is_some() && !self.try_map(handle) {
-                    Log::warn(format!(
-                        "Failed to remap handle {} of node {}!",
-                        *handle, node_name
-                    ));
-                }
-                mapped = true;
+        if let Some(handle) = entity.downcast_mut::<Handle<N>>() {
+            if handle.is_some() && !self.try_map(handle) {
+                Log::warn(format!(
+                    "Failed to remap handle {} of node {}!",
+                    *handle, node_name
+                ));
             }
-        });
+            mapped = true;
+        }
 
         if mapped {
             return;
@@ -306,10 +304,7 @@ where
         // Continue remapping recursively for every compound field.
         entity.fields_mut(&mut |fields| {
             for field_info_mut in fields {
-                field_info_mut
-                    .value
-                    .field_value_as_reflect_mut()
-                    .inner_mut(&mut |field| self.remap_handles_any(field, node_name, ignored_types))
+                self.remap_handles_any(field_info_mut.value, node_name, ignored_types)
             }
         })
     }
@@ -317,9 +312,7 @@ where
     #[inline]
     pub fn remap_inheritable_handles(&self, node: &mut N, ignored_types: &[TypeId]) {
         let name = node.name().to_string();
-        node.inner_mut(&mut |node| {
-            self.remap_inheritable_handles_internal(node, &name, false, ignored_types)
-        });
+        self.remap_inheritable_handles_internal(node, &name, false, ignored_types);
     }
 
     fn remap_inheritable_handles_internal(
@@ -356,17 +349,15 @@ where
             return;
         }
 
-        entity.downcast_mut::<Handle<N>>(&mut |result| {
-            if let Some(handle) = result {
-                if do_map && handle.is_some() && !self.try_map(handle) {
-                    Log::warn(format!(
-                        "Failed to remap handle {} of node {}!",
-                        *handle, node_name
-                    ));
-                }
-                mapped = true;
+        if let Some(handle) = entity.downcast_mut::<Handle<N>>() {
+            if do_map && handle.is_some() && !self.try_map(handle) {
+                Log::warn(format!(
+                    "Failed to remap handle {} of node {}!",
+                    *handle, node_name
+                ));
             }
-        });
+            mapped = true;
+        }
 
         if mapped {
             return;
@@ -448,7 +439,7 @@ where
         entity.fields_mut(&mut |fields| {
             for field_info_mut in fields {
                 self.remap_inheritable_handles_internal(
-                    field_info_mut.value.field_value_as_reflect_mut(),
+                    field_info_mut.value,
                     node_name,
                     // Propagate mapping flag - it means that we're inside inheritable variable. In this
                     // case we will map handles.
@@ -461,21 +452,21 @@ where
 }
 
 fn reset_property_modified_flag(entity: &mut dyn Reflect, path: &str) {
-    entity.inner_mut(&mut |entity| {
-        entity.resolve_path_mut(path, &mut |result| {
-            variable::mark_inheritable_properties_non_modified(
-                result.unwrap(),
-                &[TypeId::of::<UntypedResource>()],
-            );
-        })
+    entity.resolve_path_mut(path, &mut |result| {
+        variable::mark_inheritable_properties_non_modified(
+            result.unwrap(),
+            &[TypeId::of::<UntypedResource>()],
+        );
     })
 }
 
-pub trait SceneGraphNode: Reflect + NameProvider + Clone + 'static {
+pub trait SceneGraphNode: Reflect + NameProvider + Clone {
     type Base: Clone;
     type SceneGraph: SceneGraph<Node = Self>;
     type ResourceData: PrefabData<Graph = Self::SceneGraph>;
 
+    fn inner_ref(&self) -> &dyn Reflect;
+    fn inner_mut(&mut self) -> &mut dyn Reflect;
     fn base(&self) -> &Self::Base;
     fn set_base(&mut self, base: Self::Base);
     fn is_resource_instance_root(&self) -> bool;
@@ -564,8 +555,9 @@ pub trait SceneGraphNode: Reflect + NameProvider + Clone + 'static {
             let mut parent_value = None;
 
             // Find and clone parent's value first.
-            parent.inner_ref(&mut |parent| {
-                parent.resolve_path(path, &mut |result| match result {
+            parent
+                .inner_ref()
+                .resolve_path(path, &mut |result| match result {
                     Ok(parent_field) => parent_field.as_inheritable_variable(&mut |parent_field| {
                         if let Some(parent_inheritable) = parent_field {
                             parent_value = Some(parent_inheritable.clone_value_box());
@@ -574,14 +566,13 @@ pub trait SceneGraphNode: Reflect + NameProvider + Clone + 'static {
                     Err(e) => Log::err(format!(
                         "Failed to resolve parent path {path}. Reason: {e:?}"
                     )),
-                })
-            });
+                });
 
             // Check whether the child's field is inheritable and modified.
             let mut need_revert = false;
 
-            self.inner_mut(&mut |child| {
-                child.resolve_path_mut(path, &mut |result| match result {
+            self.inner_mut()
+                .resolve_path_mut(path, &mut |result| match result {
                     Ok(child_field) => {
                         child_field.as_inheritable_variable_mut(&mut |child_inheritable| {
                             if let Some(child_inheritable) = child_inheritable {
@@ -595,7 +586,6 @@ pub trait SceneGraphNode: Reflect + NameProvider + Clone + 'static {
                         "Failed to resolve child path {path}. Reason: {e:?}"
                     )),
                 });
-            });
 
             // Try to apply it to the child.
             if need_revert {
@@ -603,26 +593,25 @@ pub trait SceneGraphNode: Reflect + NameProvider + Clone + 'static {
                     let mut was_set = false;
 
                     let mut parent_value = Some(parent_value);
-                    self.inner_mut(&mut |child| {
-                        child.set_field_by_path(
-                            path,
-                            parent_value.take().unwrap(),
-                            &mut |result| match result {
-                                Ok(old_value) => {
-                                    previous_value = Some(old_value);
 
-                                    was_set = true;
-                                }
-                                Err(_) => Log::err(format!(
-                                    "Failed to revert property {path}. Reason: no such property!"
-                                )),
-                            },
-                        );
-                    });
+                    self.inner_mut().set_field_by_path(
+                        path,
+                        parent_value.take().unwrap(),
+                        &mut |result| match result {
+                            Ok(old_value) => {
+                                previous_value = Some(old_value);
+
+                                was_set = true;
+                            }
+                            Err(_) => Log::err(format!(
+                                "Failed to revert property {path}. Reason: no such property!"
+                            )),
+                        },
+                    );
 
                     if was_set {
                         // Reset modified flag.
-                        reset_property_modified_flag(self, path);
+                        reset_property_modified_flag(self.inner_mut(), path);
                     }
                 }
             }
@@ -635,14 +624,14 @@ pub trait SceneGraphNode: Reflect + NameProvider + Clone + 'static {
     /// field of the specified type.
     #[inline]
     fn self_or_field_ref<T: Reflect>(&self) -> Option<&T> {
-        (self as &dyn Reflect).self_or_field_ref::<T>()
+        self.inner_ref().self_or_field_ref::<T>()
     }
 
     /// Tries to downcast self to the specified type, or if it is not possible, tries to find a
     /// field of the specified type.
     #[inline]
     fn self_or_field_mut<T: Reflect>(&mut self) -> Option<&mut T> {
-        (self as &mut dyn Reflect).self_or_field_mut::<T>()
+        self.inner_mut().self_or_field_mut::<T>()
     }
 
     /// Checks if the node is an instance of the given type or has a field of the same type.
@@ -884,7 +873,7 @@ pub trait SceneGraph: 'static {
         T: Reflect,
     {
         self.try_get_node(handle).and_then(|n| {
-            (n as &dyn Reflect)
+            (n.inner_ref() as &dyn Reflect)
                 .self_or_field_ref()
                 .ok_or(PoolError::NoSuchField(handle.into()))
         })
@@ -898,7 +887,7 @@ pub trait SceneGraph: 'static {
         T: Reflect,
     {
         self.try_get_node_mut(handle).and_then(|n| {
-            (n as &mut dyn Reflect)
+            (n.inner_mut() as &mut dyn Reflect)
                 .self_or_field_mut()
                 .ok_or(PoolError::NoSuchField(handle.into()))
         })
@@ -983,7 +972,7 @@ pub trait SceneGraph: 'static {
         T: Reflect,
     {
         self.find_up_map(node_handle, &mut |node| {
-            (node as &dyn Reflect).self_or_field_ref::<T>()
+            node.inner_ref().self_or_field_ref::<T>()
         })
     }
 
@@ -996,7 +985,7 @@ pub trait SceneGraph: 'static {
         T: Reflect,
     {
         self.find_map(node_handle, &mut |node| {
-            (node as &dyn Reflect).self_or_field_ref::<T>()
+            node.inner_ref().self_or_field_ref::<T>()
         })
     }
 
@@ -1386,26 +1375,17 @@ pub trait SceneGraph: 'static {
 
                         // Check if the actual node types (this and parent's) are equal, and if not - copy the
                         // node and replace its base.
-                        let mut types_match = true;
-                        node.inner_ref(&mut |node_reflect| {
-                            resource_node.inner_ref(&mut |resource_node_reflect| {
-                                types_match =
-                                    node_reflect.type_id() == resource_node_reflect.type_id();
-
-                                if !types_match {
-                                    Log::warn(format!(
-                                        "Node {}({}:{}) instance \
+                        if node.inner_ref().type_id() != resource_node.inner_ref().type_id() {
+                            Log::warn(format!(
+                                "Node {}({}:{}) instance \
                                         have different type than in the respective parent \
                                         asset {}. The type will be fixed.",
-                                        node.name(),
-                                        node.self_handle().index(),
-                                        node.self_handle().generation(),
-                                        model_kind
-                                    ));
-                                }
-                            })
-                        });
-                        if !types_match {
+                                node.name(),
+                                node.self_handle().index(),
+                                node.self_handle().generation(),
+                                model_kind
+                            ));
+
                             let base = node.base().clone();
                             let mut resource_node_clone = resource_node.clone();
                             variable::mark_inheritable_properties_non_modified(
@@ -1417,15 +1397,11 @@ pub trait SceneGraph: 'static {
                         }
 
                         // Then try to inherit properties.
-                        node.inner_mut(&mut |node_reflect| {
-                            resource_node.inner_ref(&mut |resource_node_reflect| {
-                                Log::verify(variable::try_inherit_properties(
-                                    node_reflect,
-                                    resource_node_reflect,
-                                    &ignored_types,
-                                ));
-                            })
-                        })
+                        Log::verify(variable::try_inherit_properties(
+                            node,
+                            resource_node,
+                            &ignored_types,
+                        ));
                     } else {
                         Log::warn(format!(
                             "Unable to find original handle for node {}. The node will be removed!",
@@ -1734,14 +1710,7 @@ mod test {
         }
 
         fn type_info_ref(&self) -> TypeInfo {
-            let inner_type_info = self.0.deref().type_info_ref();
-            TypeInfo {
-                source_path: inner_type_info.source_path,
-                type_name: inner_type_info.type_name,
-                assembly_name: inner_type_info.assembly_name,
-                doc_comment: inner_type_info.doc_comment,
-                derived_types: inner_type_info.derived_types,
-            }
+            Self::type_info()
         }
 
         fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
@@ -1750,18 +1719,6 @@ mod test {
 
         fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
             self.0.deref_mut().fields_mut(func)
-        }
-
-        fn into_inner(self: Box<Self>) -> Box<dyn Reflect> {
-            Reflect::into_inner(self.0)
-        }
-
-        fn inner_ref(&self, func: &mut dyn FnMut(&dyn Reflect)) {
-            self.0.deref().inner_ref(func)
-        }
-
-        fn inner_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
-            self.0.deref_mut().inner_mut(func)
         }
 
         fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
@@ -1799,14 +1756,6 @@ mod test {
 
         fn fields_count(&self) -> usize {
             self.0.fields_count()
-        }
-
-        fn inner_ref_direct(&self) -> &dyn Reflect {
-            self.0.inner_ref_direct()
-        }
-
-        fn inner_mut_direct(&mut self) -> &mut dyn Reflect {
-            self.0.inner_mut_direct()
         }
     }
 
@@ -1878,6 +1827,14 @@ mod test {
         type Base = Base;
         type SceneGraph = Graph;
         type ResourceData = Graph;
+
+        fn inner_ref(&self) -> &dyn Reflect {
+            self.0.deref()
+        }
+
+        fn inner_mut(&mut self) -> &mut dyn Reflect {
+            self.0.deref_mut()
+        }
 
         #[allow(clippy::explicit_auto_deref)] // False-positive
         fn base(&self) -> &Self::Base {
@@ -2093,7 +2050,7 @@ mod test {
         fn actual_type_name(&self, handle: Handle<Self::Node>) -> Result<&'static str, PoolError> {
             self.nodes
                 .try_borrow(handle)
-                .map(|n| n.0.deref().type_name())
+                .map(|n| n.0.deref().type_info_ref().type_name)
         }
 
         fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
@@ -2322,11 +2279,12 @@ mod test {
             .unwrap()
             .transmute::<RigidBody>();
         let joint_copy = mapping.inner().get(&joint).cloned().unwrap();
-        scene_graph.nodes[joint_copy].inner_ref(&mut |reflect| {
-            let joint_copy_ref = (reflect as &dyn Any).downcast_ref::<Joint>().unwrap();
-            assert_eq!(joint_copy_ref.connected_body1, rigid_body_copy);
-            assert_eq!(joint_copy_ref.connected_body2, rigid_body2_copy);
-        });
+        let joint_copy_ref = scene_graph.nodes[joint_copy]
+            .inner_ref()
+            .downcast_ref::<Joint>()
+            .unwrap();
+        assert_eq!(joint_copy_ref.connected_body1, rigid_body_copy);
+        assert_eq!(joint_copy_ref.connected_body2, rigid_body2_copy);
     }
 
     #[test]

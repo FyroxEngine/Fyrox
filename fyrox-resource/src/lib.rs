@@ -607,11 +607,7 @@ pub fn collect_used_resources(
 ) {
     #[inline(always)]
     fn type_is<T: Reflect>(entity: &dyn Reflect) -> bool {
-        let mut types_match = false;
-        entity.downcast_ref::<T>(&mut |v| {
-            types_match = v.is_some();
-        });
-        types_match
+        entity.downcast_ref::<T>().is_some()
     }
 
     // Skip potentially large chunks of numeric data, that definitely cannot contain any resources.
@@ -632,12 +628,10 @@ pub fn collect_used_resources(
         return;
     }
 
-    entity.downcast_ref::<UntypedResource>(&mut |v| {
-        if let Some(resource) = v {
-            resources_collection.insert(resource.clone());
-            finished = true;
-        }
-    });
+    if let Some(resource) = entity.downcast_ref::<UntypedResource>() {
+        resources_collection.insert(resource.clone());
+        finished = true;
+    }
 
     if finished {
         return;
@@ -690,7 +684,7 @@ pub fn collect_used_resources(
 
     entity.fields_ref(&mut |fields| {
         for field in fields {
-            collect_used_resources(field.value.field_value_as_reflect(), resources_collection);
+            collect_used_resources(field.value, resources_collection);
         }
     })
 }

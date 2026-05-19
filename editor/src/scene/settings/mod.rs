@@ -55,6 +55,7 @@ use crate::{
     ui_scene::UiScene,
     GameScene, Message,
 };
+use fyrox::gui::inspector::editors::inspectable::InspectablePropertyEditorDefinition;
 use fyrox::gui::inspector::Inspector;
 use std::sync::{mpsc::Sender, Arc};
 
@@ -89,10 +90,12 @@ impl SceneSettingsWindow {
         .with_title(WindowTitle::text("Scene Settings"))
         .build(ctx);
 
-        property_definitions.register_inheritable_inspectable::<Graph>();
+        property_definitions.insert(InspectablePropertyEditorDefinition::<Graph>::new());
         property_definitions.register_inheritable_inspectable::<IntegrationParameters>();
-        property_definitions.register_inheritable_inspectable::<PhysicsWorld>();
-        property_definitions.register_inheritable_inspectable::<dim2::physics::PhysicsWorld>();
+        property_definitions.insert(InspectablePropertyEditorDefinition::<PhysicsWorld>::new());
+        property_definitions.insert(InspectablePropertyEditorDefinition::<
+            dim2::physics::PhysicsWorld,
+        >::new());
         property_definitions.register_inheritable_inspectable::<SceneRenderingOptions>();
         property_definitions.insert(EnumPropertyEditorDefinition::<Color>::new_optional());
 
@@ -161,27 +164,9 @@ impl SceneSettingsWindow {
             layer_index: 0,
             generate_property_string_values: false,
             filter: PropertyFilter::new(|property| {
-                let mut pass = true;
-
-                property.downcast_ref::<NodePool>(&mut |v| {
-                    if v.is_some() {
-                        pass = false;
-                    }
-                });
-
-                property.downcast_ref::<WidgetPool>(&mut |v| {
-                    if v.is_some() {
-                        pass = false;
-                    }
-                });
-
-                property.downcast_ref::<Option<Lightmap>>(&mut |v| {
-                    if v.is_some() {
-                        pass = false;
-                    }
-                });
-
-                pass
+                property.downcast_ref::<NodePool>().is_none()
+                    && property.downcast_ref::<WidgetPool>().is_none()
+                    && property.downcast_ref::<Option<Lightmap>>().is_none()
             }),
             name_column_width: 150.0,
             base_path: Default::default(),

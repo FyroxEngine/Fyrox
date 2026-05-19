@@ -290,18 +290,13 @@ fn reflect_fields_list_of_struct() {
 
     foo.fields_ref(&mut |fields| assert_eq!(fields.len(), 2));
     foo.fields_ref(&mut |fields| {
-        fields[0]
-            .value
-            .field_value_as_reflect()
-            .downcast_ref::<f32>(&mut |result| assert_eq!(result.cloned(), Some(1.23)))
+        assert_eq!(fields[0].value.downcast_ref::<f32>().cloned(), Some(1.23))
     });
     foo.fields_ref(&mut |fields| {
-        fields[1]
-            .value
-            .field_value_as_reflect()
-            .downcast_ref::<String>(&mut |result| {
-                assert_eq!(result.cloned(), Some("Foobar".to_string()))
-            })
+        assert_eq!(
+            fields[1].value.downcast_ref::<String>().cloned(),
+            Some("Foobar".to_string())
+        )
     });
 }
 
@@ -317,10 +312,7 @@ fn reflect_fields_list_of_enum() {
 
     bar_variant.fields_ref(&mut |fields| assert_eq!(fields.len(), 1));
     bar_variant.fields_ref(&mut |fields| {
-        fields[0]
-            .value
-            .field_value_as_reflect()
-            .downcast_ref::<f32>(&mut |result| assert_eq!(result.cloned(), Some(1.23)))
+        assert_eq!(fields[0].value.downcast_ref::<f32>().cloned(), Some(1.23))
     });
 
     let baz_variant = Foo::Baz {
@@ -330,18 +322,13 @@ fn reflect_fields_list_of_enum() {
 
     baz_variant.fields_ref(&mut |fields| assert_eq!(fields.len(), 2));
     baz_variant.fields_ref(&mut |fields| {
-        fields[0]
-            .value
-            .field_value_as_reflect()
-            .downcast_ref::<u32>(&mut |result| assert_eq!(result.cloned(), Some(321)))
+        assert_eq!(fields[0].value.downcast_ref::<u32>().cloned(), Some(321))
     });
     baz_variant.fields_ref(&mut |fields| {
-        fields[1]
-            .value
-            .field_value_as_reflect()
-            .downcast_ref::<String>(&mut |result| {
-                assert_eq!(result.cloned(), Some("Foobar".to_string()))
-            })
+        assert_eq!(
+            fields[1].value.downcast_ref::<String>().cloned(),
+            Some("Foobar".to_string())
+        )
     });
 }
 
@@ -636,7 +623,7 @@ fn test_reflect_mutex() {
         hidden: 0,
     });
 
-    foo.get_resolve_path::<usize>("field", &mut |result| {
+    foo.get_resolve_path::<usize>("Content.field", &mut |result| {
         assert_eq!(result, Ok(&123));
     });
 
@@ -672,18 +659,14 @@ fn test_hash_map() {
         assert_eq!(hash_map.reflect_len(), 2);
 
         hash_map.reflect_get(&foo_key, &mut |result| {
-            result
-                .unwrap()
-                .downcast_ref::<Struct>(&mut |result| assert_eq!(result.unwrap().field, 123))
+            assert_eq!(result.unwrap().downcast_ref::<Struct>().unwrap().field, 123)
         })
     });
 
     hash_map.as_hash_map_mut(&mut |result| {
         let hash_map = result.unwrap();
         hash_map.reflect_get_mut(&bar_key, &mut |result| {
-            result
-                .unwrap()
-                .downcast_mut::<Struct>(&mut |result| result.unwrap().field = 555)
+            result.unwrap().downcast_mut::<Struct>().unwrap().field = 555
         })
     });
 

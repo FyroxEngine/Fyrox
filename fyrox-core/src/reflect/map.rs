@@ -87,13 +87,13 @@ where
     }
 
     fn reflect_get(&self, key: &dyn Reflect, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
-        key.downcast_ref::<K>(&mut |result| match result {
+        match key.downcast_ref::<K>() {
             Some(key) => match self.get(key) {
                 Some(value) => func(Some(value as &dyn Reflect)),
                 None => func(None),
             },
             None => func(None),
-        })
+        }
     }
 
     fn reflect_get_mut(
@@ -101,13 +101,13 @@ where
         key: &dyn Reflect,
         func: &mut dyn FnMut(Option<&mut dyn Reflect>),
     ) {
-        key.downcast_ref::<K>(&mut |result| match result {
+        match key.downcast_ref::<K>() {
             Some(key) => match self.get_mut(key) {
                 Some(value) => func(Some(value as &mut dyn Reflect)),
                 None => func(None),
             },
             None => func(None),
-        })
+        }
     }
 
     fn reflect_get_nth_value_ref(&self, index: usize) -> Option<&dyn Reflect> {
@@ -135,12 +135,12 @@ where
         key: &dyn Reflect,
         func: &mut dyn FnMut(Option<Box<dyn Reflect>>),
     ) {
-        key.downcast_ref::<K>(&mut |result| match result {
+        match key.downcast_ref::<K>() {
             Some(key) => func(
                 self.remove(key)
                     .map(|value| Box::new(value) as Box<dyn Reflect>),
             ),
             None => func(None),
-        })
+        }
     }
 }

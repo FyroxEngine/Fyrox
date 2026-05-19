@@ -25,8 +25,8 @@ use crate::button::Button;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
-        pool::Handle, reflect::prelude::*, reflect::FieldValue, uuid_provider,
-        variable::InheritableVariable, visitor::prelude::*, PhantomDataSendSync,
+        pool::Handle, reflect::prelude::*, uuid_provider, variable::InheritableVariable,
+        visitor::prelude::*, PhantomDataSendSync,
     },
     grid::{Column, GridBuilder, Row},
     image::ImageBuilder,
@@ -184,7 +184,7 @@ impl InheritablePropertyEditorBuilder {
 
 pub struct InheritablePropertyEditorDefinition<T>
 where
-    T: FieldValue,
+    T: Reflect + Clone + PartialEq,
 {
     #[allow(dead_code)]
     phantom: PhantomDataSendSync<T>,
@@ -192,7 +192,7 @@ where
 
 impl<T> InheritablePropertyEditorDefinition<T>
 where
-    T: FieldValue,
+    T: Reflect + Clone + PartialEq,
 {
     pub fn new() -> Self {
         Self {
@@ -203,7 +203,7 @@ where
 
 impl<T> Debug for InheritablePropertyEditorDefinition<T>
 where
-    T: Reflect + FieldValue,
+    T: Reflect + Clone + PartialEq,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "InheritablePropertyEditorDefinition")
@@ -212,7 +212,7 @@ where
 
 impl<T> PropertyEditorDefinition for InheritablePropertyEditorDefinition<T>
 where
-    T: Reflect + FieldValue,
+    T: Reflect + Clone + PartialEq,
 {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<InheritableVariable<T>>()

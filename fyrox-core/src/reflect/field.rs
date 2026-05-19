@@ -19,45 +19,9 @@
 // SOFTWARE.
 
 use crate::reflect::{CastError, Reflect};
-use std::any::{Any, TypeId};
+use std::any::TypeId;
 use std::fmt;
 use std::ops::Deref;
-
-/// A value of a field..
-pub trait FieldValue: Any + 'static {
-    /// Casts `self` to a `&dyn Any`
-    fn field_value_as_any_ref(&self) -> &dyn Any;
-
-    /// Casts `self` to a `&mut dyn Any`
-    fn field_value_as_any_mut(&mut self) -> &mut dyn Any;
-
-    fn field_value_as_reflect(&self) -> &dyn Reflect;
-    fn field_value_as_reflect_mut(&mut self) -> &mut dyn Reflect;
-
-    fn type_name(&self) -> &'static str;
-}
-
-impl<T: Reflect> FieldValue for T {
-    fn field_value_as_any_ref(&self) -> &dyn Any {
-        self
-    }
-
-    fn field_value_as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn field_value_as_reflect(&self) -> &dyn Reflect {
-        self
-    }
-
-    fn field_value_as_reflect_mut(&mut self) -> &mut dyn Reflect {
-        self
-    }
-
-    fn type_name(&self) -> &'static str {
-        std::any::type_name::<T>()
-    }
-}
 
 #[derive(Debug)]
 pub struct FieldMetadata<'s> {
@@ -98,10 +62,8 @@ pub struct FieldRef<'a, 'b> {
     /// A reference to field's metadata.
     pub metadata: &'a FieldMetadata<'b>,
 
-    /// An reference to the actual value of the property. This is "non-mangled" reference, which
-    /// means that while `field/fields/field_mut/fields_mut` might return a reference to other value,
-    /// than the actual field, the `value` is guaranteed to be a reference to the real value.
-    pub value: &'a dyn FieldValue,
+    /// An reference to the actual value of the property.
+    pub value: &'a dyn Reflect,
 }
 
 impl<'b> Deref for FieldRef<'_, 'b> {
@@ -114,8 +76,8 @@ impl<'b> Deref for FieldRef<'_, 'b> {
 
 impl FieldRef<'_, '_> {
     /// Tries to cast a value to a given type.
-    pub fn cast_value<T: 'static>(&self) -> Result<&T, CastError> {
-        match self.value.field_value_as_any_ref().downcast_ref::<T>() {
+    pub fn cast_value<T: Reflect>(&self) -> Result<&T, CastError> {
+        match self.value.downcast_ref::<T>() {
             Some(value) => Ok(value),
             None => Err(CastError::TypeMismatch {
                 property_name: self.metadata.name.to_string(),
@@ -151,7 +113,7 @@ pub struct FieldMut<'a, 'b> {
     /// An reference to the actual value of the property. This is "non-mangled" reference, which
     /// means that while `field/fields/field_mut/fields_mut` might return a reference to other value,
     /// than the actual field, the `value` is guaranteed to be a reference to the real value.
-    pub value: &'a mut dyn FieldValue,
+    pub value: &'a mut dyn Reflect,
 }
 
 impl<'b> Deref for FieldMut<'_, 'b> {

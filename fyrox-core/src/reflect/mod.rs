@@ -48,7 +48,7 @@ pub use map::*;
 
 pub mod prelude {
     pub use super::{
-        FieldMetadata, FieldMut, FieldRef, FieldValue, Reflect, ReflectArray, ReflectHashMap,
+        FieldMetadata, FieldMut, FieldRef, Reflect, ReflectArray, ReflectHashMap,
         ReflectInheritableVariable, ReflectList, ResolvePath, SetFieldByPathError, SetFieldError,
         TypeInfo,
     };
@@ -171,19 +171,6 @@ pub trait Reflect: Any + Debug {
     /// fields in the object.
     fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut]));
 
-    /// Extracts the wrapped value as `Box<dyn Reflect>` and returns it to the caller. This method
-    /// is intended to be used for wrapper structures only. Any other type should return `self` as
-    /// usual.
-    fn into_inner(self: Box<Self>) -> Box<dyn Reflect>;
-
-    fn inner_ref_direct(&self) -> &dyn Reflect;
-
-    fn inner_mut_direct(&mut self) -> &mut dyn Reflect;
-
-    fn inner_ref(&self, func: &mut dyn FnMut(&dyn Reflect));
-
-    fn inner_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect));
-
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>>;
 
     /// Tries to get a shared reference to a field at the specified index. Returns [`None`] in two cases:
@@ -244,7 +231,7 @@ pub trait Reflect: Any + Debug {
                 fields
                     .iter()
                     .find(|field| field.name == name)
-                    .map(|field| field.value.field_value_as_reflect()),
+                    .map(|field| field.value),
             )
         });
     }
@@ -255,7 +242,7 @@ pub trait Reflect: Any + Debug {
                 fields
                     .iter_mut()
                     .find(|field| field.name == name)
-                    .map(|field| field.value.field_value_as_reflect_mut()),
+                    .map(|field| &mut *field.value),
             )
         });
     }
@@ -311,7 +298,7 @@ pub trait Reflect: Any + Debug {
 impl dyn Reflect {
     pub fn downcast<T: Reflect>(self: Box<dyn Reflect>) -> Result<Box<T>, Box<dyn Reflect>> {
         if self.is::<T>() {
-            Ok((self.into_inner() as Box<dyn Any>).downcast().unwrap())
+            Ok((self as Box<dyn Any>).downcast().unwrap())
         } else {
             Err(self)
         }
@@ -327,23 +314,23 @@ impl dyn Reflect {
     }
 
     #[inline]
-    pub fn downcast_ref<T: Reflect>(&self, func: &mut dyn FnMut(Option<&T>)) {
-        self.inner_ref(&mut |reflect| func((reflect as &dyn Any).downcast_ref::<T>()))
+    pub fn downcast_ref<T: Reflect>(&self) -> Option<&T> {
+        (self as &dyn Any).downcast_ref::<T>()
     }
 
     #[inline]
-    pub fn downcast_mut<T: Reflect>(&mut self, func: &mut dyn FnMut(Option<&mut T>)) {
-        self.inner_mut(&mut |reflect| func((reflect as &mut dyn Any).downcast_mut::<T>()))
+    pub fn downcast_mut<T: Reflect>(&mut self) -> Option<&mut T> {
+        (self as &mut dyn Any).downcast_mut::<T>()
     }
 
     /// Tries to find the first field of the given type. This method internally uses
     /// [`Reflect::field_direct_ref`] with all of its limitations.
     #[inline]
     pub fn first_field_ref<T: Reflect>(&self) -> Option<&T> {
-        let count = self.inner_ref_direct().fields_count();
+        let count = self.fields_count();
 
         for i in 0..count {
-            if let Some(field) = self.inner_ref_direct().field_direct_ref(i) {
+            if let Some(field) = self.field_direct_ref(i) {
                 if let Some(typed_field) = (field.value as &dyn Any).downcast_ref::<T>() {
                     return Some(typed_field);
                 }
@@ -357,7 +344,7 @@ impl dyn Reflect {
     /// [`Reflect::field_direct_ref`] with all of its limitations.
     #[inline]
     pub fn first_field_mut<T: Reflect>(&mut self) -> Option<&mut T> {
-        let count = self.inner_ref_direct().fields_count();
+        let count = self.fields_count();
 
         for i in 0..count {
             // SAFETY: Current implementation of borrow checker is just dumb. When a reborrow of self
@@ -365,7 +352,7 @@ impl dyn Reflect {
             // This way the returned reference has a different lifetime than in the method definition.
             // The following unsafe block reborrows self with the correct lifetime, while the initial
             // reference is not used so this is absolutely safe.
-            let this = unsafe { &mut *(self as *mut Self) }.inner_mut_direct();
+            let this = unsafe { &mut *(self as *mut Self) };
             if let Some(field) = this.field_direct_mut(i) {
                 if let Some(typed_field) = (field.value as &mut dyn Any).downcast_mut::<T>() {
                     return Some(typed_field);
@@ -379,7 +366,7 @@ impl dyn Reflect {
     /// Tries to downcast self to the specified type, or if it is not possible, tries to find a
     /// field of the specified type.
     pub fn self_or_field_ref<T: Reflect>(&self) -> Option<&T> {
-        if let Some(value) = (self.inner_ref_direct() as &dyn Any).downcast_ref::<T>() {
+        if let Some(value) = (self as &dyn Any).downcast_ref::<T>() {
             Some(value)
         } else {
             self.first_field_ref()
@@ -391,7 +378,7 @@ impl dyn Reflect {
     pub fn self_or_field_mut<T: Reflect>(&mut self) -> Option<&mut T> {
         // SAFETY: See the comment in `first_field_mut_of_type` method.
         let this = unsafe { &mut *(self as *mut Self) };
-        if let Some(value) = (self.inner_mut_direct() as &mut dyn Any).downcast_mut::<T>() {
+        if let Some(value) = (self as &mut dyn Any).downcast_mut::<T>() {
             Some(value)
         } else {
             this.first_field_mut()
@@ -504,11 +491,8 @@ impl dyn Reflect {
                         // fine for most cases in the engine.
                         let mut key_str = format!("{key:?}");
 
-                        let mut is_key_string = false;
-                        key.downcast_ref::<String>(&mut |string| is_key_string |= string.is_some());
-                        key.downcast_ref::<ImmutableString>(&mut |string| {
-                            is_key_string |= string.is_some()
-                        });
+                        let is_key_string = key.downcast_ref::<String>().is_some()
+                            || key.downcast_ref::<ImmutableString>().is_some();
 
                         if is_key_string {
                             // Strip quotes at the beginning and the end, because Debug impl for String adds
@@ -547,15 +531,12 @@ impl dyn Reflect {
                     &compound_path
                 };
 
-                field
-                    .value
-                    .field_value_as_reflect()
-                    .enumerate_fields_recursively_internal(
-                        field_path,
-                        Some(field),
-                        func,
-                        ignored_types,
-                    );
+                field.value.enumerate_fields_recursively_internal(
+                    field_path,
+                    Some(field),
+                    func,
+                    ignored_types,
+                );
             }
         })
     }
@@ -621,10 +602,7 @@ impl dyn Reflect {
 
         self.fields_ref(&mut |fields| {
             for field_info_ref in fields {
-                field_info_ref
-                    .value
-                    .field_value_as_reflect()
-                    .apply_recursively(func, ignored_types);
+                field_info_ref.value.apply_recursively(func, ignored_types);
             }
         })
     }
@@ -690,8 +668,7 @@ impl dyn Reflect {
 
         self.fields_mut(&mut |fields| {
             for field_info_mut in fields {
-                (*field_info_mut.value.field_value_as_reflect_mut())
-                    .apply_recursively_mut(func, ignored_types);
+                (*field_info_mut.value).apply_recursively_mut(func, ignored_types);
             }
         })
     }
@@ -718,16 +695,14 @@ pub trait ResolvePath {
         self.resolve_path(path, &mut |resolve_result| {
             match resolve_result {
                 Ok(value) => {
-                    value.downcast_ref(&mut |result| {
-                        match result {
-                            Some(value) => {
-                                func(Ok(value));
-                            }
-                            None => {
-                                func(Err(ReflectPathError::InvalidDowncast));
-                            }
-                        };
-                    });
+                    match value.downcast_ref::<T>() {
+                        Some(value) => {
+                            func(Ok(value));
+                        }
+                        None => {
+                            func(Err(ReflectPathError::InvalidDowncast));
+                        }
+                    };
                 }
                 Err(err) => {
                     func(Err(err));
@@ -742,10 +717,10 @@ pub trait ResolvePath {
         func: &mut dyn FnMut(Result<&mut T, ReflectPathError<'p>>),
     ) {
         self.resolve_path_mut(path, &mut |result| match result {
-            Ok(value) => value.downcast_mut(&mut |result| match result {
+            Ok(value) => match value.downcast_mut() {
                 Some(value) => func(Ok(value)),
                 None => func(Err(ReflectPathError::InvalidDowncast)),
-            }),
+            },
             Err(err) => func(Err(err)),
         })
     }
@@ -796,18 +771,14 @@ impl<R: Reflect> GetField for R {
     fn get_field<T: 'static>(&self, name: &str, func: &mut dyn FnMut(Option<&T>)) {
         self.find_field(name, &mut |opt_field| match opt_field {
             None => func(None),
-            Some(field) => {
-                field.inner_ref(&mut |reflect| func((reflect as &dyn Any).downcast_ref()))
-            }
+            Some(field) => func((field as &dyn Any).downcast_ref()),
         })
     }
 
     fn get_field_mut<T: 'static>(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut T>)) {
         self.find_field_mut(name, &mut |opt_field| match opt_field {
             None => func(None),
-            Some(field) => {
-                field.inner_mut(&mut |reflect| func((reflect as &mut dyn Any).downcast_mut()))
-            }
+            Some(field) => func((field as &mut dyn Any).downcast_mut()),
         })
     }
 }
@@ -1022,7 +993,7 @@ pub fn is_path_to_array_element(path: &str) -> bool {
 impl dyn ReflectList {
     pub fn get_reflect_index<T: Reflect>(&self, index: usize, func: &mut dyn FnMut(Option<&T>)) {
         if let Some(reflect) = self.reflect_index(index) {
-            reflect.downcast_ref(func)
+            func(reflect.downcast_ref())
         } else {
             func(None)
         }
@@ -1034,7 +1005,7 @@ impl dyn ReflectList {
         func: &mut dyn FnMut(Option<&mut T>),
     ) {
         if let Some(reflect) = self.reflect_index_mut(index) {
-            reflect.downcast_mut(func)
+            func(reflect.downcast_mut())
         } else {
             func(None)
         }
@@ -1096,11 +1067,14 @@ mod test {
             &[],
         );
 
-        foo.resolve_path("enum_field.Stuff@field", &mut |result| {
+        foo.resolve_path("enum_field.Content.Stuff@field", &mut |result| {
             let enum_field = result.expect("the field must exist!");
-            enum_field.downcast_ref::<u32>(&mut |result| {
-                assert_eq!(*result.expect("the type must be u32"), 123);
-            });
+            assert_eq!(
+                *enum_field
+                    .downcast_ref::<u32>()
+                    .expect("the type must be u32"),
+                123
+            );
         });
 
         assert_eq!(names[0], "");

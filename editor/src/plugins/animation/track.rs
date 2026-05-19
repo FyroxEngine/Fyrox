@@ -869,38 +869,36 @@ impl TrackList {
                         }
                         ValueBinding::Property { name, .. } => node_ref.find_field(name, &mut |value| {
                             if let Some(value) = value {
-                                value.inner_ref(&mut |reflect| {
-                                    let curves = track.data_container().curves_ref();
-                                    if curves.len() == 1 {
-                                        if let Some(scalar) = any_scalar_to_f32(reflect) {
-                                            adder.add(&[scalar]);
-                                        } else {
-                                            err!("Unable to set {name} scalar property!");
-                                        }
-                                    } else if curves.len() == 2 {
-                                        if let Some(vec2) = any_vec_to_f32::<2>(reflect) {
-                                            adder.add(vec2.as_slice())
-                                        } else {
-                                            err!("Unable to set {name} Vector2 property!");
-                                        }
-                                    } else if curves.len() == 3 {
-                                        if let Some(vec3) = any_vec_to_f32::<3>(reflect) {
-                                            adder.add(vec3.as_slice())
-                                        } else {
-                                            err!("Unable to set {name} Vector3 property!");
-                                        }
-                                    } else if curves.len() == 4 {
-                                        if let Some(vec4) = any_vec_to_f32::<4>(reflect) {
-                                            adder.add(vec4.as_slice())
-                                        } else if let Some(quat) = any_quat_to_f32(reflect) {
-                                            adder.add(quat.coords.as_slice())
-                                        } else {
-                                            err!(
+                                let curves = track.data_container().curves_ref();
+                                if curves.len() == 1 {
+                                    if let Some(scalar) = any_scalar_to_f32(value) {
+                                        adder.add(&[scalar]);
+                                    } else {
+                                        err!("Unable to set {name} scalar property!");
+                                    }
+                                } else if curves.len() == 2 {
+                                    if let Some(vec2) = any_vec_to_f32::<2>(value) {
+                                        adder.add(vec2.as_slice())
+                                    } else {
+                                        err!("Unable to set {name} Vector2 property!");
+                                    }
+                                } else if curves.len() == 3 {
+                                    if let Some(vec3) = any_vec_to_f32::<3>(value) {
+                                        adder.add(vec3.as_slice())
+                                    } else {
+                                        err!("Unable to set {name} Vector3 property!");
+                                    }
+                                } else if curves.len() == 4 {
+                                    if let Some(vec4) = any_vec_to_f32::<4>(value) {
+                                        adder.add(vec4.as_slice())
+                                    } else if let Some(quat) = any_quat_to_f32(value) {
+                                        adder.add(quat.coords.as_slice())
+                                    } else {
+                                        err!(
                                                 "Unable to set {name} Vector4/Quaternion property!"
                                             );
-                                        }
                                     }
-                                })
+                                }
                             } else {
                                 err!("Unable to resolve property {name} when adding animation key!")
                             }
@@ -1103,9 +1101,7 @@ impl TrackList {
                     for property_path in selected_properties {
                         node.resolve_path(&property_path.path, &mut |result| match result {
                             Ok(property) => {
-                                let mut property_type = TypeId::of::<u32>();
-                                property
-                                    .inner_ref(&mut |reflect| property_type = reflect.type_id());
+                                let property_type = property.type_id();
 
                                 let types = type_id_to_supported_type(property_type);
 
@@ -1279,10 +1275,9 @@ impl TrackList {
     {
         let mut descriptors = Vec::new();
         if let Ok(node) = graph.try_get_node(node) {
-            node.inner_ref(&mut |node| {
-                descriptors = object_to_property_tree("", node, &mut |field: &FieldRef| {
-                    let type_id = field.value.field_value_as_reflect().type_id();
-                    type_id != TypeId::of::<TextureBytes>()
+            descriptors = object_to_property_tree("", node, &mut |field: &FieldRef| {
+                let type_id = field.value.type_id();
+                type_id != TypeId::of::<TextureBytes>()
                         // Vertex buffer cannot be animated (mainly because it contains untyped data).
                         && type_id != TypeId::of::<VertexBuffer>()
                         // Mesh topology cannot be animated.
@@ -1293,7 +1288,6 @@ impl TrackList {
                         // Do not allow animating prefab's content.
                         && type_id != TypeId::of::<ModelResource>()
                         && type_id != TypeId::of::<Resource<UserInterface>>()
-                });
             });
         }
 
@@ -1410,8 +1404,7 @@ impl TrackList {
 
         node.resolve_path(&desc.path, &mut |result| match result {
             Ok(property) => {
-                let mut property_type = TypeId::of::<u32>();
-                property.inner_ref(&mut |reflect| property_type = reflect.type_id());
+                let property_type = property.type_id();
 
                 let types = type_id_to_supported_type(property_type);
 
@@ -1713,8 +1706,7 @@ impl TrackList {
                     {
                         target.resolve_path(name, &mut |result| match result {
                             Ok(value) => {
-                                let mut property_type = TypeId::of::<u32>();
-                                value.inner_ref(&mut |reflect| property_type = reflect.type_id());
+                                let property_type= value.type_id();
 
                                 if let Some((_, type_)) = type_id_to_supported_type(property_type) {
                                     if *value_type != type_ {

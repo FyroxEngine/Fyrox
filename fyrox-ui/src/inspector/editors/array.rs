@@ -293,7 +293,7 @@ where
 
 impl<T, const N: usize> ArrayPropertyEditorDefinition<T, N>
 where
-    T: Reflect,
+    T: Reflect + Clone,
 {
     pub fn new() -> Self {
         Self::default()
@@ -302,7 +302,7 @@ where
 
 impl<T, const N: usize> Default for ArrayPropertyEditorDefinition<T, N>
 where
-    T: Reflect,
+    T: Reflect + Clone,
 {
     fn default() -> Self {
         Self {
@@ -313,7 +313,7 @@ where
 
 impl<T, const N: usize> PropertyEditorDefinition for ArrayPropertyEditorDefinition<T, N>
 where
-    T: Reflect,
+    T: Reflect + Clone,
 {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<[T; N]>()

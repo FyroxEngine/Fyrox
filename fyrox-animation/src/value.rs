@@ -405,28 +405,23 @@ impl BoundValue {
         property_path: &str,
         value_type: ValueType,
     ) {
-        object.inner_mut(&mut |object_ref| {
-            object_ref.resolve_path_mut(property_path, &mut |result| match result {
-                Ok(property) => {
-                    let mut applied = false;
-                    property.inner_mut(&mut |reflect| {
-                        applied = self.value.apply_to_any(reflect, value_type);
+        object.resolve_path_mut(property_path, &mut |result| match result {
+            Ok(property) => {
+                let applied = self.value.apply_to_any(property, value_type);
+                if applied {
+                    property.as_inheritable_variable_mut(&mut |var| {
+                        if let Some(var) = var {
+                            var.mark_modified();
+                        }
                     });
-                    if applied {
-                        property.as_inheritable_variable_mut(&mut |var| {
-                            if let Some(var) = var {
-                                var.mark_modified();
-                            }
-                        });
-                    }
                 }
-                Err(err) => {
-                    Log::err(format!(
-                        "Failed to set property {property_path}! Reason: {err:?}"
-                    ));
-                }
-            });
-        })
+            }
+            Err(err) => {
+                Log::err(format!(
+                    "Failed to set property {property_path}! Reason: {err:?}"
+                ));
+            }
+        });
     }
 }
 
@@ -538,7 +533,7 @@ mod test {
         assert!(!object.other_struct.inheritable_variable.is_modified());
         inheritable_variable_value.apply_to_object(
             &mut object,
-            "other_struct.inheritable_variable",
+            "other_struct.inheritable_variable.Content",
             ValueType::U32,
         );
         assert_eq!(object.other_struct.field, 123);

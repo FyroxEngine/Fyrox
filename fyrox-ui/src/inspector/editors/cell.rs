@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::{
-    core::{reflect::prelude::*, reflect::FieldValue},
+    core::reflect::prelude::*,
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
@@ -38,7 +38,7 @@ use std::{
 
 pub struct CellPropertyEditorDefinition<T>
 where
-    T: FieldValue + Copy,
+    T: Reflect + Copy,
 {
     #[allow(dead_code)]
     phantom: PhantomDataSendSync<T>,
@@ -46,7 +46,7 @@ where
 
 impl<T> CellPropertyEditorDefinition<T>
 where
-    T: FieldValue + Copy,
+    T: Reflect + Copy,
 {
     pub fn new() -> Self {
         Self {
@@ -57,7 +57,7 @@ where
 
 impl<T> Debug for CellPropertyEditorDefinition<T>
 where
-    T: Reflect + FieldValue + Copy,
+    T: Reflect + Copy,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "CellPropertyEditorDefinition")
@@ -66,7 +66,7 @@ where
 
 impl<T> PropertyEditorDefinition for CellPropertyEditorDefinition<T>
 where
-    T: Reflect + FieldValue + Copy,
+    T: Reflect + Copy,
 {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<Cell<T>>()

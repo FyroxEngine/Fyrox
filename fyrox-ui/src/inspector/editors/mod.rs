@@ -806,13 +806,22 @@ impl PropertyEditorDefinitionContainer {
     /// Panic if these types already have editor definitions.
     pub fn register_inheritable_vec_collection<T>(&self)
     where
-        T: CollectionItem + FieldValue,
+        T: CollectionItem + PartialEq,
     {
         assert!(self
             .insert(VecCollectionPropertyEditorDefinition::<T>::new())
             .is_none());
         assert!(self
             .insert(InheritablePropertyEditorDefinition::<Vec<T>>::new())
+            .is_none());
+    }
+
+    pub fn register_vec_collection<T>(&self)
+    where
+        T: CollectionItem,
+    {
+        assert!(self
+            .insert(VecCollectionPropertyEditorDefinition::<T>::new())
             .is_none());
     }
 
@@ -826,7 +835,7 @@ impl PropertyEditorDefinitionContainer {
     /// Panic if these types already have editor definitions.
     pub fn register_inheritable_inspectable<T>(&self)
     where
-        T: Reflect + FieldValue,
+        T: Reflect + Clone + PartialEq,
     {
         assert!(self
             .insert(InspectablePropertyEditorDefinition::<T>::new())
@@ -836,9 +845,18 @@ impl PropertyEditorDefinitionContainer {
             .is_none());
     }
 
+    pub fn register_inspectable<T>(&self)
+    where
+        T: Reflect,
+    {
+        assert!(self
+            .insert(InspectablePropertyEditorDefinition::<T>::new())
+            .is_none());
+    }
+
     pub fn register_inheritable_styleable_inspectable<T>(&self)
     where
-        T: Reflect + FieldValue + Clone + PartialEq,
+        T: Reflect + Clone + PartialEq,
     {
         assert!(self
             .insert(InspectablePropertyEditorDefinition::<T>::new())
@@ -860,7 +878,7 @@ impl PropertyEditorDefinitionContainer {
     /// Panic if these types already have editor definitions.
     pub fn register_inheritable_enum<T, E: Debug>(&self)
     where
-        T: InspectableEnum + FieldValue + VariantNames + AsRef<str> + FromStr<Err = E> + Debug,
+        T: InspectableEnum + VariantNames + AsRef<str> + FromStr<Err = E> + Debug + PartialEq,
     {
         assert!(self
             .insert(EnumPropertyEditorDefinition::<T>::new())
@@ -870,15 +888,18 @@ impl PropertyEditorDefinitionContainer {
             .is_none());
     }
 
+    pub fn register_enum<T, E: Debug>(&self)
+    where
+        T: InspectableEnum + VariantNames + AsRef<str> + FromStr<Err = E> + Debug,
+    {
+        assert!(self
+            .insert(EnumPropertyEditorDefinition::<T>::new())
+            .is_none());
+    }
+
     pub fn register_inheritable_styleable_enum<T, E: Debug>(&self)
     where
-        T: InspectableEnum
-            + FieldValue
-            + VariantNames
-            + AsRef<str>
-            + FromStr<Err = E>
-            + Debug
-            + PartialEq,
+        T: InspectableEnum + VariantNames + AsRef<str> + FromStr<Err = E> + Debug + PartialEq,
     {
         assert!(self
             .insert(EnumPropertyEditorDefinition::<T>::new())
@@ -900,7 +921,7 @@ impl PropertyEditorDefinitionContainer {
     /// Panic if these types already have editor definitions.
     pub fn register_inheritable_option<T>(&self)
     where
-        T: InspectableEnum + FieldValue + Default,
+        T: InspectableEnum + Default + PartialEq,
     {
         assert!(self
             .insert(EnumPropertyEditorDefinition::<T>::new_optional())

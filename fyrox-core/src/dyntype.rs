@@ -101,7 +101,7 @@ impl std::error::Error for DynTypeError {}
 
 /// Dynamic type (dyntype for short) is a user-defined data structure that supports additional
 /// features which makes it available from the editor and serializable to the standard asset format.
-pub trait DynType: Reflect + Visit + Debug + FieldValue + Send {
+pub trait DynType: Reflect + Visit + Debug + Send {
     /// Returns the type uuid of the value.
     fn type_uuid(&self) -> Uuid;
     /// Creates a boxed copy of the value.
@@ -110,7 +110,7 @@ pub trait DynType: Reflect + Visit + Debug + FieldValue + Send {
 
 impl<T> DynType for T
 where
-    T: TypeUuidProvider + Clone + Visit + Reflect + FieldValue + Send,
+    T: TypeUuidProvider + Clone + Visit + Reflect + Send,
 {
     fn type_uuid(&self) -> Uuid {
         <T as TypeUuidProvider>::type_uuid()
@@ -201,18 +201,6 @@ impl Reflect for DynTypeWrapper {
         }])
     }
 
-    fn into_inner(self: Box<Self>) -> Box<dyn Reflect> {
-        self
-    }
-
-    fn inner_ref(&self, func: &mut dyn FnMut(&dyn Reflect)) {
-        func(self)
-    }
-
-    fn inner_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
-        func(self)
-    }
-
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
         let this = std::mem::replace(self, value.take()?);
         Ok(Box::new(this))
@@ -242,14 +230,6 @@ impl Reflect for DynTypeWrapper {
         } else {
             None
         }
-    }
-
-    fn inner_ref_direct(&self) -> &dyn Reflect {
-        self
-    }
-
-    fn inner_mut_direct(&mut self) -> &mut dyn Reflect {
-        self
     }
 }
 

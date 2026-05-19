@@ -260,7 +260,7 @@ where
     }
 
     fn into_box_reflect(self: Box<Self>) -> Box<dyn Reflect> {
-        Box::new(*(self.into_inner() as Box<dyn Any>).downcast::<T>().unwrap())
+        Box::new(*(self as Box<dyn Reflect>).downcast::<T>().unwrap())
     }
 }
 
@@ -290,24 +290,21 @@ impl PartialEq for ObjectValue {
 }
 
 impl ObjectValue {
-    pub fn cast_value<T: 'static>(&self, func: &mut dyn FnMut(Option<&T>)) {
-        (*self.value).inner_ref(&mut |reflect| func((reflect as &dyn Any).downcast_ref::<T>()))
+    pub fn cast_value<T: Reflect>(&self) -> Option<&T> {
+        (&*self.value as &dyn Reflect).downcast_ref::<T>()
     }
 
-    pub fn cast_clone<T: Clone + 'static>(&self, func: &mut dyn FnMut(Option<T>)) {
-        (*self.value)
-            .inner_ref(&mut |reflect| func((reflect as &dyn Any).downcast_ref::<T>().cloned()))
+    pub fn cast_clone<T: Clone + Reflect>(&self) -> Option<T> {
+        (&*self.value as &dyn Reflect).downcast_ref::<T>().cloned()
     }
 
-    pub fn try_override<T: Clone + 'static>(&self, value: &mut T) -> bool {
-        let mut result = false;
-        (*self.value).inner_ref(&mut |reflect| {
-            if let Some(self_value) = (reflect as &dyn Any).downcast_ref::<T>() {
-                *value = self_value.clone();
-                result = true;
-            }
-        });
-        false
+    pub fn try_override<T: Clone + Reflect>(&self, value: &mut T) -> bool {
+        if let Some(self_value) = (&*self.value as &dyn Reflect).downcast_ref::<T>() {
+            *value = self_value.clone();
+            true
+        } else {
+            false
+        }
     }
 
     pub fn into_box_reflect(self) -> Box<dyn Reflect> {
@@ -583,11 +580,7 @@ impl Inspector {
                         can_clone = field.try_clone_box().is_some();
 
                         if let Some(clipboard_value) = clipboard_value {
-                            clipboard_value.inner_ref(&mut |clipboard_value| {
-                                field.inner_ref(&mut |field| {
-                                    can_paste = field.type_id() == clipboard_value.type_id();
-                                })
-                            });
+                            can_paste = field.type_id() == (**clipboard_value).type_id();
                         }
                     }
                 });
@@ -843,9 +836,7 @@ impl PartialEq for InspectorContext {
 }
 
 fn object_type_id(object: &dyn Reflect) -> TypeId {
-    let mut object_type_id = None;
-    object.inner_ref(&mut |reflect| object_type_id = Some(reflect.type_id()));
-    object_type_id.unwrap()
+    object.type_id()
 }
 
 impl Default for InspectorContext {
@@ -1090,12 +1081,12 @@ impl InspectorContext {
         object.fields_ref(&mut |fields_ref| {
             for (i, info) in fields_ref.iter().enumerate() {
                 let field_text = if generate_property_string_values {
-                    format!("{:?}", info.value.field_value_as_reflect())
+                    format!("{:?}", info.value)
                 } else {
                     Default::default()
                 };
 
-                if !filter.pass(info.value.field_value_as_reflect()) {
+                if !filter.pass(info.value) {
                     continue;
                 }
 
@@ -1194,7 +1185,7 @@ impl InspectorContext {
                             .with_vertical_text_alignment(VerticalAlignment::Center)
                             .with_text(format!(
                                 "Property Editor Is Missing For Type {}!",
-                                info.value.type_name()
+                                info.value.type_info_ref().type_name
                             ))
                             .build(ctx),
                         &description,
@@ -1295,7 +1286,7 @@ impl InspectorContext {
 
         object.fields_ref(&mut |fields_ref| {
             for info in fields_ref {
-                if !filter.pass(info.value.field_value_as_reflect()) {
+                if !filter.pass(info.value) {
                     continue;
                 }
 

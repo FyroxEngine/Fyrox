@@ -69,6 +69,14 @@ impl SceneGraphNode for UiNode {
     type SceneGraph = UserInterface;
     type ResourceData = UserInterface;
 
+    fn inner_ref(&self) -> &dyn Reflect {
+        self.0.deref()
+    }
+
+    fn inner_mut(&mut self) -> &mut dyn Reflect {
+        self.0.deref_mut()
+    }
+
     fn base(&self) -> &Self::Base {
         self.0.deref()
     }
@@ -247,12 +255,10 @@ impl UiNode {
 
         // Reset inheritable properties, so property inheritance system will take properties
         // from parent objects on resolve stage.
-        self.inner_mut(&mut |reflect| {
-            variable::mark_inheritable_properties_non_modified(
-                reflect,
-                &[TypeId::of::<UntypedResource>()],
-            )
-        });
+        variable::mark_inheritable_properties_non_modified(
+            self,
+            &[TypeId::of::<UntypedResource>()],
+        );
 
         // Fill original handles to instances.
         self.original_handle_in_resource = original_handle;
@@ -277,14 +283,7 @@ impl Reflect for UiNode {
     }
 
     fn type_info_ref(&self) -> TypeInfo {
-        let inner_type_info = self.deref().type_info_ref();
-        TypeInfo {
-            source_path: inner_type_info.source_path,
-            type_name: inner_type_info.type_name,
-            assembly_name: inner_type_info.assembly_name,
-            doc_comment: inner_type_info.doc_comment,
-            derived_types: inner_type_info.derived_types,
-        }
+        Self::type_info()
     }
 
     fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
@@ -297,26 +296,6 @@ impl Reflect for UiNode {
 
     fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
         self.0.deref_mut().fields_mut(func)
-    }
-
-    fn into_inner(self: Box<Self>) -> Box<dyn Reflect> {
-        Reflect::into_inner(self.0)
-    }
-
-    fn inner_ref_direct(&self) -> &dyn Reflect {
-        self.0.deref().inner_ref_direct()
-    }
-
-    fn inner_mut_direct(&mut self) -> &mut dyn Reflect {
-        self.0.deref_mut().inner_mut_direct()
-    }
-
-    fn inner_ref(&self, func: &mut dyn FnMut(&dyn Reflect)) {
-        self.0.deref().inner_ref(func)
-    }
-
-    fn inner_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
-        self.0.deref_mut().inner_mut(func)
     }
 
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {

@@ -176,7 +176,7 @@ where
                 continue;
             }
 
-            let field_ref = field_info.value.field_value_as_reflect();
+            let field_ref = field_info.value;
 
             let path = if parent_path.is_empty() {
                 field_info.name.to_owned()
@@ -191,7 +191,7 @@ where
                     let mut descriptor = PropertyDescriptor {
                         path: path.clone(),
                         display_name: field_info.display_name.to_owned(),
-                        type_name: field_info.value.type_name().to_owned(),
+                        type_name: field_info.value.type_info_ref().type_name.to_owned(),
                         type_id: field_info.value.type_id(),
                         children_properties: Default::default(),
                         read_only: field_info.read_only,
@@ -226,7 +226,7 @@ where
                         let mut descriptor = PropertyDescriptor {
                             path: path.clone(),
                             display_name: field_info.display_name.to_owned(),
-                            type_name: field_info.value.type_name().to_owned(),
+                            type_name: field_info.value.type_info_ref().type_name.to_owned(),
                             type_id: field_info.value.type_id(),
                             children_properties: Default::default(),
                             read_only: field_info.read_only,
@@ -239,13 +239,8 @@ where
                             // fine for most cases in the engine.
                             let mut key_str = format!("{key:?}");
 
-                            let mut is_key_string = false;
-                            key.downcast_ref::<String>(&mut |string| {
-                                is_key_string |= string.is_some()
-                            });
-                            key.downcast_ref::<ImmutableString>(&mut |string| {
-                                is_key_string |= string.is_some()
-                            });
+                            let is_key_string = key.downcast_ref::<String>().is_some()
+                                || key.downcast_ref::<ImmutableString>().is_some();
 
                             if is_key_string {
                                 // Strip quotes at the beginning and the end, because Debug impl for String adds
@@ -282,7 +277,7 @@ where
             if !processed {
                 descriptors.push(PropertyDescriptor {
                     display_name: field_info.display_name.to_owned(),
-                    type_name: field_info.value.type_name().to_owned(),
+                    type_name: field_info.value.type_info_ref().type_name.to_owned(),
                     type_id: field_info.value.type_id(),
                     read_only: field_info.read_only,
                     children_properties: object_to_property_tree(&path, field_ref, filter),

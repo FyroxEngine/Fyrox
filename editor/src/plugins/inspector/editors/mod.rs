@@ -405,7 +405,7 @@ pub fn make_property_editors_container(
     container.insert(InheritablePropertyEditorDefinition::<
         Option<Resource<UserInterface>>,
     >::new());
-    container.register_inheritable_vec_collection::<Option<UserInterface>>();
+    container.register_vec_collection::<Option<UserInterface>>();
 
     container.insert(ResourceFieldPropertyEditorDefinition::<TileSet>::new(
         sender.clone(),
@@ -413,7 +413,7 @@ pub fn make_property_editors_container(
     container.insert(InheritablePropertyEditorDefinition::<
         Option<Resource<TileSet>>,
     >::new());
-    container.register_inheritable_vec_collection::<Option<TileSet>>();
+    container.register_vec_collection::<Option<TileSet>>();
 
     container.insert(ResourceFieldPropertyEditorDefinition::<Shader>::new(
         sender.clone(),
@@ -428,7 +428,7 @@ pub fn make_property_editors_container(
         Option<TileMapBrushResource>,
     >::new());
     container.register_inheritable_vec_collection::<Option<TileMapBrushResource>>();
-    container.register_inheritable_inspectable::<TileMapBrush>();
+    container.register_inspectable::<TileMapBrush>();
 
     container.register_inheritable_inspectable::<ColorGradingLut>();
     container.register_inheritable_inspectable::<InteractionGroups>();
@@ -444,8 +444,8 @@ pub fn make_property_editors_container(
     container.register_inheritable_inspectable::<PrismaticJoint>();
     container.register_inheritable_inspectable::<dim2::joint::PrismaticJoint>();
 
-    container.register_inheritable_inspectable::<Base>();
-    container.register_inheritable_inspectable::<BaseLight>();
+    container.register_inspectable::<Base>();
+    container.register_inspectable::<BaseLight>();
 
     container.insert(EnumPropertyEditorDefinition::<Effect>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<Effect>::new());
@@ -462,14 +462,14 @@ pub fn make_property_editors_container(
     container.register_inheritable_enum::<Emitter, _>();
 
     container.register_inheritable_inspectable::<Biquad>();
-    container.register_inheritable_inspectable::<AudioBus>();
+    container.register_inspectable::<AudioBus>();
     container.register_inheritable_inspectable::<BaseEmitter>();
     container.register_inheritable_inspectable::<SphereEmitter>();
     container.register_inheritable_inspectable::<CylinderEmitter>();
     container.register_inheritable_inspectable::<CuboidEmitter>();
     container.register_inheritable_inspectable::<PerspectiveProjection>();
     container.register_inheritable_inspectable::<OrthographicProjection>();
-    container.register_inheritable_inspectable::<Transform>();
+    container.register_inspectable::<Transform>();
     container.register_inheritable_inspectable::<CsmOptions>();
     container.register_inheritable_inspectable::<HdrSettings>();
 
@@ -499,7 +499,7 @@ pub fn make_property_editors_container(
     container.register_inheritable_enum::<FrustumSplitOptions, _>();
     container.register_inheritable_enum::<MaterialSearchOptions, _>();
     container.register_inheritable_enum::<DistanceModel, _>();
-    container.register_inheritable_enum::<sound::Renderer, _>();
+    container.register_enum::<sound::Renderer, _>();
     container.register_inheritable_enum::<RenderPath, _>();
     container.register_inheritable_enum::<TexturePixelKind, _>();
     container.register_inheritable_enum::<EnvironmentLightingSource, _>();
@@ -763,6 +763,7 @@ pub fn make_property_editors_container(
         Terrain,
         TileMap
     );
+    container.register_inspectable::<scene::animation::AnimationPlayer>();
 
     container
 }

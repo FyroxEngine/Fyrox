@@ -28,8 +28,8 @@ use crate::window::WindowAlignment;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
-        pool::Handle, reflect::prelude::*, reflect::FieldValue, type_traits::prelude::*,
-        visitor::prelude::*, ImmutableString, PhantomDataSendSync,
+        pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
+        ImmutableString, PhantomDataSendSync,
     },
     define_widget_deref,
     draw::DrawingContext,
@@ -474,7 +474,7 @@ impl StyledPropertyEditorBuilder {
 
 pub struct StyledPropertyEditorDefinition<T>
 where
-    T: FieldValue,
+    T: Reflect + Clone,
 {
     #[allow(dead_code)]
     phantom: PhantomDataSendSync<T>,
@@ -482,7 +482,7 @@ where
 
 impl<T> StyledPropertyEditorDefinition<T>
 where
-    T: FieldValue,
+    T: Reflect + Clone,
 {
     pub fn new() -> Self {
         Self {
@@ -493,7 +493,7 @@ where
 
 impl<T> Debug for StyledPropertyEditorDefinition<T>
 where
-    T: Reflect + FieldValue,
+    T: Reflect + Clone,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "StyledPropertyEditorDefinition")
@@ -502,7 +502,7 @@ where
 
 impl<T> PropertyEditorDefinition for StyledPropertyEditorDefinition<T>
 where
-    T: Reflect + FieldValue,
+    T: Reflect + Clone,
 {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<StyledProperty<T>>()
