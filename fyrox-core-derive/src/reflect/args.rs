@@ -62,6 +62,9 @@ pub struct TypeArgs {
 
     #[darling(default)]
     pub non_cloneable: bool,
+
+    #[darling(default)]
+    pub clone_fn: Option<Path>,
 }
 
 impl TypeArgs {

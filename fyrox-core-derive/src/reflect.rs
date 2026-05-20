@@ -429,6 +429,12 @@ fn gen_impl(
                 None
             }
         }
+    } else if let Some(ref clone_fn) = ty_args.clone_fn {
+        quote! {
+            fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
+                Some(Box::new(#clone_fn(self)))
+            }
+        }
     } else {
         quote! {
             fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
