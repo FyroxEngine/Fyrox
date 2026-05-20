@@ -43,7 +43,6 @@ use fyrox_core::pool::ObjectOrVariant;
 use fyrox_core::reflect::{FieldMetadata, TypeInfo};
 pub use fyrox_core_derive::ScriptMessagePayload;
 use fyrox_graph::SceneGraph;
-use std::any::type_name;
 use std::{
     any::Any,
     fmt::{Debug, Formatter},
@@ -711,94 +710,19 @@ pub trait ScriptTrait: BaseScript {
 }
 
 /// A wrapper for actual script instance internals, it used by the engine.
-#[derive(Debug)]
+#[derive(Debug, Reflect)]
 pub struct Script {
+    #[reflect(deref, display_name = "Script")]
     instance: Box<dyn ScriptTrait>,
+    #[reflect(hidden)]
     pub(crate) initialized: bool,
+    #[reflect(hidden)]
     pub(crate) started: bool,
 }
 
 impl TypeUuidProvider for Script {
     fn type_uuid() -> Uuid {
         Uuid::from_str("24ecd17d-9b46-4cc8-9d07-a1273e50a20e").unwrap()
-    }
-}
-
-static CONTENT_METADATA: FieldMetadata = FieldMetadata {
-    name: "Content",
-    display_name: "Content",
-    tag: "",
-    read_only: false,
-    immutable_collection: false,
-    min_value: None,
-    max_value: None,
-    step: None,
-    precision: None,
-    doc: "",
-};
-
-impl Reflect for Script {
-    fn type_info() -> TypeInfo {
-        TypeInfo {
-            source_path: file!(),
-            type_name: type_name::<Self>(),
-            assembly_name: env!("CARGO_PKG_NAME"),
-            doc_comment: "",
-            derived_types: &[],
-        }
-    }
-
-    fn type_info_ref(&self) -> TypeInfo {
-        Self::type_info()
-    }
-
-    fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
-        func(&[{
-            FieldRef {
-                metadata: &CONTENT_METADATA,
-                value: &*self.instance,
-            }
-        }])
-    }
-
-    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
-        func(&mut [{
-            FieldMut {
-                metadata: &CONTENT_METADATA,
-                value: &mut *self.instance,
-            }
-        }])
-    }
-
-    fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
-        let this = std::mem::replace(self, value.take()?);
-        Ok(Box::new(this))
-    }
-
-    fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
-        Some(Box::new(self.clone()))
-    }
-
-    fn field_direct_ref(&self, index: usize) -> Option<FieldRef> {
-        if index == 0 {
-            Some(FieldRef {
-                metadata: &CONTENT_METADATA,
-                value: &*self.instance,
-            })
-        } else {
-            None
-        }
-    }
-
-    fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
-        if index == 0 {
-            Some(FieldMut {
-                metadata: &CONTENT_METADATA,
-                value: &mut *self.instance,
-            })
-        } else {
-            None
-        }
     }
 }
 

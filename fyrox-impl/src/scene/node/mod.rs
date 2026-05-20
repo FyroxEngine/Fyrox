@@ -63,7 +63,6 @@ use crate::{
     },
 };
 use fyrox_core::{define_as_any_trait, pool::ObjectOrVariantHelper};
-use std::any::type_name;
 use std::{
     any::TypeId,
     fmt::Debug,
@@ -359,8 +358,8 @@ impl<T: NodeTrait> ObjectOrVariantHelper<Node, T> for PhantomData<T> {
 /// Such implementation of property inheritance has its drawbacks, major one is: each instance still holds its own copy of
 /// of every field, even those inheritable variables which are non-modified. Which means that there's no benefits of RAM
 /// consumption, only disk space usage is reduced.
-#[derive(Debug)]
-pub struct Node(pub(crate) Box<dyn NodeTrait>);
+#[derive(Debug, Reflect)]
+pub struct Node(#[reflect(deref, display_name = "Node")] pub(crate) Box<dyn NodeTrait>);
 
 impl<T: NodeTrait> From<T> for Node {
     fn from(value: T) -> Self {
@@ -575,84 +574,6 @@ impl Node {
 impl Visit for Node {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         self.0.visit(name, visitor)
-    }
-}
-
-static CONTENT_METADATA: FieldMetadata = FieldMetadata {
-    name: "Content",
-    display_name: "Content",
-    tag: "",
-    read_only: false,
-    immutable_collection: false,
-    min_value: None,
-    max_value: None,
-    step: None,
-    precision: None,
-    doc: "",
-};
-
-impl Reflect for Node {
-    fn type_info() -> TypeInfo {
-        TypeInfo {
-            source_path: file!(),
-            type_name: type_name::<Self>(),
-            assembly_name: env!("CARGO_PKG_NAME"),
-            doc_comment: "",
-            derived_types: &[],
-        }
-    }
-
-    fn type_info_ref(&self) -> TypeInfo {
-        Self::type_info()
-    }
-
-    fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
-        func(&[{
-            FieldRef {
-                metadata: &CONTENT_METADATA,
-                value: &*self.0,
-            }
-        }])
-    }
-
-    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
-        func(&mut [{
-            FieldMut {
-                metadata: &CONTENT_METADATA,
-                value: &mut *self.0,
-            }
-        }])
-    }
-
-    fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
-        let this = std::mem::replace(self, value.take()?);
-        Ok(Box::new(this))
-    }
-
-    fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
-        Some(Box::new(self.clone()))
-    }
-
-    fn field_direct_ref(&self, index: usize) -> Option<FieldRef> {
-        if index == 0 {
-            Some(FieldRef {
-                metadata: &CONTENT_METADATA,
-                value: &*self.0,
-            })
-        } else {
-            None
-        }
-    }
-
-    fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
-        if index == 0 {
-            Some(FieldMut {
-                metadata: &CONTENT_METADATA,
-                value: &mut *self.0,
-            })
-        } else {
-            None
-        }
     }
 }
 
