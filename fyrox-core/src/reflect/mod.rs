@@ -148,15 +148,12 @@ pub struct TypeInfo {
 /// for every type that should support `Reflect` trait. It is a good compromise between development speed
 /// and the quality of the string output.
 pub trait Reflect: Any + Debug {
-    /// Returns the info about the type that implements this trait. The result of the call of this
-    /// method can be different from the call of [`Self::type_info_ref`] on an instance of the type.
+    /// Returns the info about the type that implements this trait.
     fn type_info() -> TypeInfo
     where
         Self: Sized;
 
-    /// Returns the info about the type that implements this trait. The result of the call of this
-    /// method can be different from the call of [`Self::type_info`]. This may happen if the type
-    /// that implements the trait is a wrapper type.
+    /// Returns the info about the type that implements this trait.
     fn type_info_ref(&self) -> TypeInfo;
 
     /// Tries to clone the object and return it as a boxed trait object. This method can return
@@ -171,13 +168,15 @@ pub trait Reflect: Any + Debug {
     /// fields in the object.
     fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut]));
 
+    /// Replaces the self value with the specified value. If the call is successful, returns
+    /// `Ok(previous_value)`, otherwise returns `Err(specified_value)`.
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>>;
 
     /// Tries to get a shared reference to a field at the specified index. Returns [`None`] in two cases:
     /// 1) The type does not have such field
     /// 2) The type uses interior mutability. This case is special - pretty much every type with
     ///    interior mutability (Mutex, RefCell, etc.) requires holding some sort of lock guard
-    ///    while the giving access to its content. This method returns the field reference directly,
+    ///    while giving access to its content. This method returns the field reference directly,
     ///    but returning a lock guard would require boxing which in most cases would ruin performance.
     ///    If you need to get a field reference for types with interior mutability, then use
     ///    [`Reflect::fields_ref`] instead.
@@ -187,7 +186,7 @@ pub trait Reflect: Any + Debug {
     /// 1) The type does not have such field
     /// 2) The type uses interior mutability. This case is special - pretty much every type with
     ///    interior mutability (Mutex, RefCell, etc.) requires holding some sort of lock guard
-    ///    while the giving access to its content. This method returns the field reference directly,
+    ///    while giving access to its content. This method returns the field reference directly,
     ///    but returning a lock guard would require boxing which in most cases would ruin performance.
     ///    If you need to get a field reference for types with interior mutability, then use
     ///    [`Reflect::fields_ref`] instead.
@@ -200,8 +199,10 @@ pub trait Reflect: Any + Debug {
         count
     }
 
-    /// Calls user method specified with `#[reflect(setter = ..)]` or falls back to
-    /// [`Reflect::find_field_mut`]
+    /// Tries to find a field with the specified name and set its value to the specified `value`.
+    /// This method may fail in two main reasons:
+    /// 1) The field does not exist (or it is hidden via `#[reflect(hidden)]` attribute).
+    /// 2) The type of the specified value does match the type of the field at the given name.
     #[allow(clippy::type_complexity)]
     fn set_field(
         &mut self,
@@ -225,6 +226,8 @@ pub trait Reflect: Any + Debug {
         });
     }
 
+    /// Tries to find a field with the given name and calls the specified function with the result
+    /// (either `Some(field)` or `None`).
     fn find_field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
         self.fields_ref(&mut |fields| {
             func(
@@ -236,6 +239,8 @@ pub trait Reflect: Any + Debug {
         });
     }
 
+    /// Tries to find a field with the given name and calls the specified function with the result
+    /// (either `Some(field)` or `None`).
     fn find_field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
         self.fields_mut(&mut |fields| {
             func(

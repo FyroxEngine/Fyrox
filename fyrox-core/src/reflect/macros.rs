@@ -166,22 +166,6 @@ macro_rules! blank_reflect {
             func(&mut [])
         }
 
-        fn find_field(
-            &self,
-            name: &str,
-            func: &mut dyn FnMut(Option<&dyn $crate::reflect::Reflect>),
-        ) {
-            func(if name == "self" { Some(self) } else { None })
-        }
-
-        fn find_field_mut(
-            &mut self,
-            name: &str,
-            func: &mut dyn FnMut(Option<&mut dyn $crate::reflect::Reflect>),
-        ) {
-            func(if name == "self" { Some(self) } else { None })
-        }
-
         fn field_direct_ref(&self, _index: usize) -> Option<$crate::reflect::FieldRef> {
             None
         }
