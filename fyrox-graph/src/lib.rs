@@ -1677,8 +1677,8 @@ mod test {
         }
     }
 
-    #[derive(Debug)]
-    pub struct Node(Box<dyn NodeTrait>);
+    #[derive(Debug, Reflect)]
+    pub struct Node(#[reflect(deref, display_name = "Node")] Box<dyn NodeTrait>);
 
     impl Clone for Node {
         fn clone(&self) -> Self {
@@ -1695,67 +1695,6 @@ mod test {
     impl Visit for Node {
         fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
             self.0.visit(name, visitor)
-        }
-    }
-
-    impl Reflect for Node {
-        fn type_info() -> TypeInfo {
-            TypeInfo {
-                source_path: file!(),
-                type_name: type_name::<Self>(),
-                assembly_name: env!("CARGO_PKG_NAME"),
-                doc_comment: "",
-                derived_types: &[],
-            }
-        }
-
-        fn type_info_ref(&self) -> TypeInfo {
-            Self::type_info()
-        }
-
-        fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
-            self.0.deref().fields_ref(func)
-        }
-
-        fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
-            self.0.deref_mut().fields_mut(func)
-        }
-
-        fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
-            self.0.deref_mut().set(value)
-        }
-
-        fn set_field(
-            &mut self,
-            field: &str,
-            value: Box<dyn Reflect>,
-            func: &mut dyn FnMut(Result<Box<dyn Reflect>, SetFieldError>),
-        ) {
-            self.0.deref_mut().set_field(field, value, func)
-        }
-
-        fn find_field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
-            self.0.deref().find_field(name, func)
-        }
-
-        fn find_field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
-            self.0.deref_mut().find_field_mut(name, func)
-        }
-
-        fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
-            Some(Box::new(self.clone()))
-        }
-
-        fn field_direct_ref(&self, index: usize) -> Option<FieldRef<'_, '_>> {
-            self.0.deref().field_direct_ref(index)
-        }
-
-        fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut<'_, '_>> {
-            self.0.deref_mut().field_direct_mut(index)
-        }
-
-        fn fields_count(&self) -> usize {
-            self.0.fields_count()
         }
     }
 

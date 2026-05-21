@@ -31,7 +31,6 @@ use crate::{
 
 use fyrox_graph::SceneGraphNode;
 use fyrox_resource::{untyped::UntypedResource, Resource};
-use std::any::type_name;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
@@ -47,7 +46,8 @@ pub mod container;
 /// `Box<dyn Control>` everywhere, just `UiNode`) and to provide some useful methods such as type
 /// casting, field fetching, etc. You could also be interested in [`Control`] docs, since it
 /// contains all the interesting stuff and detailed description for each method.
-pub struct UiNode(pub Box<dyn Control>);
+#[derive(Reflect)]
+pub struct UiNode(#[reflect(deref, display_name = "UiNode")] pub Box<dyn Control>);
 
 impl<T: Control> From<T> for UiNode {
     fn from(value: T) -> Self {
@@ -268,62 +268,5 @@ impl UiNode {
 impl Visit for UiNode {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         self.0.visit(name, visitor)
-    }
-}
-
-impl Reflect for UiNode {
-    fn type_info() -> TypeInfo {
-        TypeInfo {
-            source_path: file!(),
-            type_name: type_name::<Self>(),
-            assembly_name: env!("CARGO_PKG_NAME"),
-            doc_comment: "",
-            derived_types: &[],
-        }
-    }
-
-    fn type_info_ref(&self) -> TypeInfo {
-        Self::type_info()
-    }
-
-    fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
-        Some(Box::new(self.clone()))
-    }
-
-    fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
-        self.0.deref().fields_ref(func)
-    }
-
-    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
-        self.0.deref_mut().fields_mut(func)
-    }
-
-    fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
-        self.0.deref_mut().set(value)
-    }
-
-    fn field_direct_ref(&self, index: usize) -> Option<FieldRef> {
-        self.0.deref().field_direct_ref(index)
-    }
-
-    fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
-        self.0.deref_mut().field_direct_mut(index)
-    }
-
-    fn set_field(
-        &mut self,
-        field: &str,
-        value: Box<dyn Reflect>,
-        func: &mut dyn FnMut(Result<Box<dyn Reflect>, SetFieldError>),
-    ) {
-        self.0.deref_mut().set_field(field, value, func)
-    }
-
-    fn find_field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
-        self.0.deref().find_field(name, func)
-    }
-
-    fn find_field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
-        self.0.deref_mut().find_field_mut(name, func)
     }
 }

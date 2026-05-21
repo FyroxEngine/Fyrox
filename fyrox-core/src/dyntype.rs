@@ -30,6 +30,7 @@ use parking_lot::{Mutex, MutexGuard};
 use std::{
     any::{type_name, Any, TypeId},
     fmt::{Debug, Display, Formatter},
+    ops::{Deref, DerefMut},
 };
 use uuid::Uuid;
 
@@ -145,91 +146,13 @@ impl dyn DynType {
 }
 
 /// A container for a boxed dyntype.
-#[derive(Debug, TypeUuidProvider)]
+#[derive(Debug, TypeUuidProvider, Reflect)]
 #[type_uuid(id = "87d9ef74-09a9-4228-a2d1-df270b50fddb")]
-pub struct DynTypeWrapper(pub Box<dyn DynType>);
+pub struct DynTypeWrapper(#[reflect(deref, display_name = "Data")] pub Box<dyn DynType>);
 
 impl Clone for DynTypeWrapper {
     fn clone(&self) -> Self {
         Self(self.0.clone_box())
-    }
-}
-
-static CONTENT_METADATA: FieldMetadata = FieldMetadata {
-    name: "Content",
-    display_name: "Content",
-    tag: "",
-    read_only: false,
-    immutable_collection: false,
-    min_value: None,
-    max_value: None,
-    step: None,
-    precision: None,
-    doc: "",
-};
-
-impl Reflect for DynTypeWrapper {
-    fn type_info() -> TypeInfo {
-        TypeInfo {
-            source_path: file!(),
-            type_name: type_name::<Self>(),
-            assembly_name: env!("CARGO_PKG_NAME"),
-            doc_comment: "",
-            derived_types: &[],
-        }
-    }
-
-    fn type_info_ref(&self) -> TypeInfo {
-        Self::type_info()
-    }
-
-    fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
-        func(&[{
-            FieldRef {
-                metadata: &CONTENT_METADATA,
-                value: &*self.0,
-            }
-        }])
-    }
-
-    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
-        func(&mut [{
-            FieldMut {
-                metadata: &CONTENT_METADATA,
-                value: &mut *self.0,
-            }
-        }])
-    }
-
-    fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
-        let this = std::mem::replace(self, value.take()?);
-        Ok(Box::new(this))
-    }
-
-    fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
-        Some(Box::new(self.clone()))
-    }
-
-    fn field_direct_ref(&self, index: usize) -> Option<FieldRef> {
-        if index == 0 {
-            Some(FieldRef {
-                metadata: &CONTENT_METADATA,
-                value: &*self.0,
-            })
-        } else {
-            None
-        }
-    }
-
-    fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
-        if index == 0 {
-            Some(FieldMut {
-                metadata: &CONTENT_METADATA,
-                value: &mut *self.0,
-            })
-        } else {
-            None
-        }
     }
 }
 
