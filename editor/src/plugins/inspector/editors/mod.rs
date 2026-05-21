@@ -199,6 +199,9 @@ use crate::{
         selection::SelectionSettings,
     },
 };
+use fyrox::gui::dock::DockingManager;
+use fyrox::gui::input::InputBox;
+use fyrox::gui::inspector::Inspector;
 use fyrox::scene::dim2::rectangle::Rectangle;
 use fyrox::scene::probe::ReflectionProbe;
 use fyrox_build_tools::{BuildProfile, CommandDescriptor, EnvironmentVariable};
@@ -801,6 +804,38 @@ pub fn make_property_editors_container(
         TileMap,
         Listener,
         Sprite
+    );
+
+    reg_node_editors!(
+        container,
+        Canvas,
+        Border,
+        Button,
+        CheckBox,
+        Decorator,
+        DropdownList,
+        DropdownMenu,
+        Expander,
+        Image,
+        NinePatch,
+        Popup,
+        ProgressBar,
+        Screen,
+        ScrollBar,
+        ScrollPanel,
+        ScrollViewer,
+        SearchBar,
+        Tile,
+        DockingManager,
+        Grid,
+        InputBox,
+        Inspector,
+        Menu,
+        MenuItem,
+        Window,
+        TabControl,
+        VectorImage,
+        WrapPanel
     );
 
     container
