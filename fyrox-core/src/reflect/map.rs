@@ -51,12 +51,12 @@ where
 {
     blank_reflect!();
 
-    fn as_hash_map(&self, func: &mut dyn FnMut(Option<&dyn ReflectHashMap>)) {
-        func(Some(self))
+    fn as_hash_map(&self) -> Option<&dyn ReflectHashMap> {
+        Some(self)
     }
 
-    fn as_hash_map_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectHashMap>)) {
-        func(Some(self))
+    fn as_hash_map_mut(&mut self) -> Option<&mut dyn ReflectHashMap> {
+        Some(self)
     }
 }
 

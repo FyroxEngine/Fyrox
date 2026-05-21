@@ -168,12 +168,12 @@ impl<T: Reflect> Reflect for Handle<T> {
         Ok(Box::new(this))
     }
 
-    fn as_handle(&self, func: &mut dyn FnMut(Option<&dyn ReflectHandle>)) {
-        func(Some(self))
+    fn as_handle(&self) -> Option<&dyn ReflectHandle> {
+        Some(self)
     }
 
-    fn as_handle_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectHandle>)) {
-        func(Some(self))
+    fn as_handle_mut(&mut self) -> Option<&mut dyn ReflectHandle> {
+        Some(self)
     }
 
     fn field_direct_ref(&self, index: usize) -> Option<FieldRef> {

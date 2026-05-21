@@ -482,19 +482,13 @@ where
     }
 
     #[inline]
-    fn as_inheritable_variable(
-        &self,
-        func: &mut dyn FnMut(Option<&dyn ReflectInheritableVariable>),
-    ) {
-        func(Some(self))
+    fn as_inheritable_variable(&self) -> Option<&dyn ReflectInheritableVariable> {
+        Some(self)
     }
 
     #[inline]
-    fn as_inheritable_variable_mut(
-        &mut self,
-        func: &mut dyn FnMut(Option<&mut dyn ReflectInheritableVariable>),
-    ) {
-        func(Some(self))
+    fn as_inheritable_variable_mut(&mut self) -> Option<&mut dyn ReflectInheritableVariable> {
+        Some(self)
     }
 }
 
@@ -638,55 +632,44 @@ pub fn try_inherit_properties(
 
     let mut result = None;
 
-    child.as_inheritable_variable_mut(&mut |inheritable_child| {
-        if let Some(inheritable_child) = inheritable_child {
-            parent.as_inheritable_variable(&mut |inheritable_parent| {
-                if let Some(inheritable_parent) = inheritable_parent {
-                    if let Err(e) = inheritable_child.try_inherit(inheritable_parent, ignored_types)
-                    {
-                        result = Some(Err(e));
-                    }
+    if let Some(inheritable_child) = child.as_inheritable_variable_mut() {
+        if let Some(inheritable_parent) = parent.as_inheritable_variable() {
+            if let Err(e) = inheritable_child.try_inherit(inheritable_parent, ignored_types) {
+                result = Some(Err(e));
+            }
 
-                    if !matches!(result, Some(Err(_))) {
-                        result = Some(try_inherit_properties(
-                            inheritable_child.inner_value_mut(),
-                            inheritable_parent.inner_value_ref(),
-                            ignored_types,
-                        ));
-                    }
-                }
-            })
+            if !matches!(result, Some(Err(_))) {
+                result = Some(try_inherit_properties(
+                    inheritable_child.inner_value_mut(),
+                    inheritable_parent.inner_value_ref(),
+                    ignored_types,
+                ));
+            }
         }
-    });
+    }
 
     if result.is_none() {
-        child.as_array_mut(&mut |child_collection| {
-            if let Some(child_collection) = child_collection {
-                parent.as_array(&mut |parent_collection| {
-                    if let Some(parent_collection) = parent_collection {
-                        if child_collection.reflect_len() == parent_collection.reflect_len() {
-                            for i in 0..child_collection.reflect_len() {
-                                // Sparse arrays (like Pool) could have empty entries.
-                                if let (Some(child_item), Some(parent_item)) = (
-                                    child_collection.reflect_index_mut(i),
-                                    parent_collection.reflect_index(i),
-                                ) {
-                                    if let Err(e) = try_inherit_properties(
-                                        child_item,
-                                        parent_item,
-                                        ignored_types,
-                                    ) {
-                                        result = Some(Err(e));
+        if let Some(child_collection) = child.as_array_mut() {
+            if let Some(parent_collection) = parent.as_array() {
+                if child_collection.reflect_len() == parent_collection.reflect_len() {
+                    for i in 0..child_collection.reflect_len() {
+                        // Sparse arrays (like Pool) could have empty entries.
+                        if let (Some(child_item), Some(parent_item)) = (
+                            child_collection.reflect_index_mut(i),
+                            parent_collection.reflect_index(i),
+                        ) {
+                            if let Err(e) =
+                                try_inherit_properties(child_item, parent_item, ignored_types)
+                            {
+                                result = Some(Err(e));
 
-                                        break;
-                                    }
-                                }
+                                break;
                             }
                         }
                     }
-                })
+                }
             }
-        })
+        }
     }
 
     if result.is_none() {
@@ -721,11 +704,9 @@ pub fn do_with_inheritable_variables<F>(
 {
     root.apply_recursively_mut(
         &mut |object| {
-            object.as_inheritable_variable_mut(&mut |variable| {
-                if let Some(variable) = variable {
-                    func(variable);
-                }
-            });
+            if let Some(variable) = object.as_inheritable_variable_mut() {
+                func(variable);
+            }
         },
         ignored_types,
     )

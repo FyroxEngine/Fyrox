@@ -247,50 +247,44 @@ pub trait Reflect: Any + Debug {
         });
     }
 
-    fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
-        func(None)
+    fn as_array(&self) -> Option<&dyn ReflectArray> {
+        None
     }
 
-    fn as_array_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectArray>)) {
-        func(None)
+    fn as_array_mut(&mut self) -> Option<&mut dyn ReflectArray> {
+        None
     }
 
-    fn as_list(&self, func: &mut dyn FnMut(Option<&dyn ReflectList>)) {
-        func(None)
+    fn as_list(&self) -> Option<&dyn ReflectList> {
+        None
     }
 
-    fn as_list_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectList>)) {
-        func(None)
+    fn as_list_mut(&mut self) -> Option<&mut dyn ReflectList> {
+        None
     }
 
-    fn as_inheritable_variable(
-        &self,
-        func: &mut dyn FnMut(Option<&dyn ReflectInheritableVariable>),
-    ) {
-        func(None)
+    fn as_inheritable_variable(&self) -> Option<&dyn ReflectInheritableVariable> {
+        None
     }
 
-    fn as_inheritable_variable_mut(
-        &mut self,
-        func: &mut dyn FnMut(Option<&mut dyn ReflectInheritableVariable>),
-    ) {
-        func(None)
+    fn as_inheritable_variable_mut(&mut self) -> Option<&mut dyn ReflectInheritableVariable> {
+        None
     }
 
-    fn as_hash_map(&self, func: &mut dyn FnMut(Option<&dyn ReflectHashMap>)) {
-        func(None)
+    fn as_hash_map(&self) -> Option<&dyn ReflectHashMap> {
+        None
     }
 
-    fn as_hash_map_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectHashMap>)) {
-        func(None)
+    fn as_hash_map_mut(&mut self) -> Option<&mut dyn ReflectHashMap> {
+        None
     }
 
-    fn as_handle(&self, func: &mut dyn FnMut(Option<&dyn ReflectHandle>)) {
-        func(None)
+    fn as_handle(&self) -> Option<&dyn ReflectHandle> {
+        None
     }
 
-    fn as_handle_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectHandle>)) {
-        func(None)
+    fn as_handle_mut(&mut self) -> Option<&mut dyn ReflectHandle> {
+        None
     }
 }
 
@@ -443,16 +437,14 @@ impl dyn Reflect {
 
         let mut done = false;
 
-        self.as_inheritable_variable(&mut |variable| {
-            if let Some(variable) = variable {
-                // Inner variable might also contain inheritable variables, so continue iterating.
-                variable
-                    .inner_value_ref()
-                    .enumerate_fields_recursively_internal(path, field_info, func, ignored_types);
+        if let Some(variable) = self.as_inheritable_variable() {
+            // Inner variable might also contain inheritable variables, so continue iterating.
+            variable
+                .inner_value_ref()
+                .enumerate_fields_recursively_internal(path, field_info, func, ignored_types);
 
-                done = true;
-            }
-        });
+            done = true;
+        }
 
         if done {
             return;
@@ -460,62 +452,58 @@ impl dyn Reflect {
 
         func(path, field_info, self);
 
-        self.as_array(&mut |array| {
-            if let Some(array) = array {
-                for i in 0..array.reflect_len() {
-                    if let Some(item) = array.reflect_index(i) {
-                        let item_path = format!("{path}[{i}]");
+        if let Some(array) = self.as_array() {
+            for i in 0..array.reflect_len() {
+                if let Some(item) = array.reflect_index(i) {
+                    let item_path = format!("{path}[{i}]");
 
-                        item.enumerate_fields_recursively_internal(
-                            &item_path,
-                            field_info,
-                            func,
-                            ignored_types,
-                        );
-                    }
+                    item.enumerate_fields_recursively_internal(
+                        &item_path,
+                        field_info,
+                        func,
+                        ignored_types,
+                    );
                 }
-
-                done = true;
             }
-        });
+
+            done = true;
+        }
 
         if done {
             return;
         }
 
-        self.as_hash_map(&mut |hash_map| {
-            if let Some(hash_map) = hash_map {
-                for i in 0..hash_map.reflect_len() {
-                    if let Some((key, value)) = hash_map.reflect_get_at(i) {
-                        // TODO: Here we just using `Debug` impl to obtain string representation for keys. This is
-                        // fine for most cases in the engine.
-                        let mut key_str = format!("{key:?}");
+        if let Some(hash_map) = self.as_hash_map() {
+            for i in 0..hash_map.reflect_len() {
+                if let Some((key, value)) = hash_map.reflect_get_at(i) {
+                    // TODO: Here we just using `Debug` impl to obtain string representation for keys. This is
+                    // fine for most cases in the engine.
+                    let mut key_str = format!("{key:?}");
 
-                        let is_key_string = key.downcast_ref::<String>().is_some()
-                            || key.downcast_ref::<ImmutableString>().is_some();
+                    let is_key_string = key.downcast_ref::<String>().is_some()
+                        || key.downcast_ref::<ImmutableString>().is_some();
 
-                        if is_key_string {
-                            // Strip quotes at the beginning and the end, because Debug impl for String adds
-                            // quotes at the beginning and the end, but we want raw value.
-                            // TODO: This is unreliable mechanism.
-                            key_str.remove(0);
-                            key_str.pop();
-                        }
-
-                        let item_path = format!("{path}[{key_str}]");
-
-                        value.enumerate_fields_recursively_internal(
-                            &item_path,
-                            field_info,
-                            func,
-                            ignored_types,
-                        );
+                    if is_key_string {
+                        // Strip quotes at the beginning and the end, because Debug impl for String adds
+                        // quotes at the beginning and the end, but we want raw value.
+                        // TODO: This is unreliable mechanism.
+                        key_str.remove(0);
+                        key_str.pop();
                     }
-                }
 
-                done = true;
+                    let item_path = format!("{path}[{key_str}]");
+
+                    value.enumerate_fields_recursively_internal(
+                        &item_path,
+                        field_info,
+                        func,
+                        ignored_types,
+                    );
+                }
             }
-        });
+
+            done = true;
+        }
 
         if done {
             return;
@@ -553,48 +541,42 @@ impl dyn Reflect {
 
         let mut done = false;
 
-        self.as_inheritable_variable(&mut |variable| {
-            if let Some(variable) = variable {
-                // Inner variable might also contain inheritable variables, so continue iterating.
-                variable
-                    .inner_value_ref()
-                    .apply_recursively(func, ignored_types);
+        if let Some(variable) = self.as_inheritable_variable() {
+            // Inner variable might also contain inheritable variables, so continue iterating.
+            variable
+                .inner_value_ref()
+                .apply_recursively(func, ignored_types);
 
-                done = true;
-            }
-        });
+            done = true;
+        }
 
         if done {
             return;
         }
 
-        self.as_array(&mut |array| {
-            if let Some(array) = array {
-                for i in 0..array.reflect_len() {
-                    if let Some(item) = array.reflect_index(i) {
-                        item.apply_recursively(func, ignored_types);
-                    }
+        if let Some(array) = self.as_array() {
+            for i in 0..array.reflect_len() {
+                if let Some(item) = array.reflect_index(i) {
+                    item.apply_recursively(func, ignored_types);
                 }
-
-                done = true;
             }
-        });
+
+            done = true;
+        }
 
         if done {
             return;
         }
 
-        self.as_hash_map(&mut |hash_map| {
-            if let Some(hash_map) = hash_map {
-                for i in 0..hash_map.reflect_len() {
-                    if let Some(item) = hash_map.reflect_get_nth_value_ref(i) {
-                        item.apply_recursively(func, ignored_types);
-                    }
+        if let Some(hash_map) = self.as_hash_map() {
+            for i in 0..hash_map.reflect_len() {
+                if let Some(item) = hash_map.reflect_get_nth_value_ref(i) {
+                    item.apply_recursively(func, ignored_types);
                 }
-
-                done = true;
             }
-        });
+
+            done = true;
+        }
 
         if done {
             return;
@@ -619,48 +601,42 @@ impl dyn Reflect {
 
         let mut done = false;
 
-        self.as_inheritable_variable_mut(&mut |variable| {
-            if let Some(variable) = variable {
-                // Inner variable might also contain inheritable variables, so continue iterating.
-                variable
-                    .inner_value_mut()
-                    .apply_recursively_mut(func, ignored_types);
+        if let Some(variable) = self.as_inheritable_variable_mut() {
+            // Inner variable might also contain inheritable variables, so continue iterating.
+            variable
+                .inner_value_mut()
+                .apply_recursively_mut(func, ignored_types);
 
-                done = true;
-            }
-        });
+            done = true;
+        }
 
         if done {
             return;
         }
 
-        self.as_array_mut(&mut |array| {
-            if let Some(array) = array {
-                for i in 0..array.reflect_len() {
-                    if let Some(item) = array.reflect_index_mut(i) {
-                        item.apply_recursively_mut(func, ignored_types);
-                    }
+        if let Some(array) = self.as_array_mut() {
+            for i in 0..array.reflect_len() {
+                if let Some(item) = array.reflect_index_mut(i) {
+                    item.apply_recursively_mut(func, ignored_types);
                 }
-
-                done = true;
             }
-        });
+
+            done = true;
+        }
 
         if done {
             return;
         }
 
-        self.as_hash_map_mut(&mut |hash_map| {
-            if let Some(hash_map) = hash_map {
-                for i in 0..hash_map.reflect_len() {
-                    if let Some(item) = hash_map.reflect_get_nth_value_mut(i) {
-                        item.apply_recursively_mut(func, ignored_types);
-                    }
+        if let Some(hash_map) = self.as_hash_map_mut() {
+            for i in 0..hash_map.reflect_len() {
+                if let Some(item) = hash_map.reflect_get_nth_value_mut(i) {
+                    item.apply_recursively_mut(func, ignored_types);
                 }
-
-                done = true;
             }
-        });
+
+            done = true;
+        }
 
         if done {
             return;
@@ -884,25 +860,21 @@ impl<'p> Component<'p> {
             Self::Field(path) => reflect.find_field(path, &mut |field| {
                 func(field.ok_or(ReflectPathError::UnknownField { s: path }))
             }),
-            Self::Index(path) => {
-                reflect.as_array(&mut |result| match result {
-                    Some(array) => match path.parse::<usize>() {
-                        Ok(index) => match array.reflect_index(index) {
-                            None => func(Err(ReflectPathError::NoItemForIndex { s: path })),
-                            Some(value) => func(Ok(value)),
-                        },
-                        Err(_) => func(Err(ReflectPathError::InvalidIndexSyntax { s: path })),
+            Self::Index(path) => match reflect.as_array() {
+                Some(array) => match path.parse::<usize>() {
+                    Ok(index) => match array.reflect_index(index) {
+                        None => func(Err(ReflectPathError::NoItemForIndex { s: path })),
+                        Some(value) => func(Ok(value)),
                     },
-                    None => reflect.as_hash_map(&mut |result| match result {
-                        Some(hash_map) => {
-                            try_fetch_by_str_path_ref(hash_map, path, &mut |result| {
-                                func(result.ok_or(ReflectPathError::NoItemForIndex { s: path }))
-                            })
-                        }
-                        None => func(Err(ReflectPathError::NotAnArray)),
+                    Err(_) => func(Err(ReflectPathError::InvalidIndexSyntax { s: path })),
+                },
+                None => match reflect.as_hash_map() {
+                    Some(hash_map) => try_fetch_by_str_path_ref(hash_map, path, &mut |result| {
+                        func(result.ok_or(ReflectPathError::NoItemForIndex { s: path }))
                     }),
-                });
-            }
+                    None => func(Err(ReflectPathError::NotAnArray)),
+                },
+            },
         }
     }
 
@@ -917,7 +889,7 @@ impl<'p> Component<'p> {
             }),
             Self::Index(path) => {
                 let mut succeeded = true;
-                reflect.as_array_mut(&mut |array| match array {
+                match reflect.as_array_mut() {
                     Some(list) => match path.parse::<usize>() {
                         Ok(index) => match list.reflect_index_mut(index) {
                             None => func(Err(ReflectPathError::NoItemForIndex { s: path })),
@@ -926,17 +898,17 @@ impl<'p> Component<'p> {
                         Err(_) => func(Err(ReflectPathError::InvalidIndexSyntax { s: path })),
                     },
                     None => succeeded = false,
-                });
+                }
 
                 if !succeeded {
-                    reflect.as_hash_map_mut(&mut |result| match result {
+                    match reflect.as_hash_map_mut() {
                         Some(hash_map) => {
                             try_fetch_by_str_path_mut(hash_map, path, &mut |result| {
                                 func(result.ok_or(ReflectPathError::NoItemForIndex { s: path }))
                             })
                         }
                         None => func(Err(ReflectPathError::NotAnArray)),
-                    })
+                    }
                 }
             }
         }

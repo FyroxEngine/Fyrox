@@ -191,13 +191,13 @@ where
     }
 
     #[inline]
-    fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
-        func(Some(self))
+    fn as_array(&self) -> Option<&dyn ReflectArray> {
+        Some(self)
     }
 
     #[inline]
-    fn as_array_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectArray>)) {
-        func(Some(self))
+    fn as_array_mut(&mut self) -> Option<&mut dyn ReflectArray> {
+        Some(self)
     }
 }
 

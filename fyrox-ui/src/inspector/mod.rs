@@ -199,19 +199,17 @@ impl PropertyAction {
                 let mut value = Some(value);
                 target.resolve_path_mut(path, &mut |result| {
                     if let Ok(field) = result {
-                        field.as_list_mut(&mut |result| {
-                            if let Some(list) = result {
-                                if let Err(value) = list.reflect_push(value.take().unwrap()) {
-                                    result_callback(Err(Self::AddItem { value }))
-                                } else {
-                                    result_callback(Ok(None))
-                                }
+                        if let Some(list) = field.as_list_mut() {
+                            if let Err(value) = list.reflect_push(value.take().unwrap()) {
+                                result_callback(Err(Self::AddItem { value }))
                             } else {
-                                result_callback(Err(Self::AddItem {
-                                    value: value.take().unwrap(),
-                                }))
+                                result_callback(Ok(None))
                             }
-                        })
+                        } else {
+                            result_callback(Err(Self::AddItem {
+                                value: value.take().unwrap(),
+                            }))
+                        }
                     } else {
                         result_callback(Err(Self::AddItem {
                             value: value.take().unwrap(),
@@ -221,17 +219,15 @@ impl PropertyAction {
             }
             PropertyAction::RemoveItem { index } => target.resolve_path_mut(path, &mut |result| {
                 if let Ok(field) = result {
-                    field.as_list_mut(&mut |result| {
-                        if let Some(list) = result {
-                            if let Some(value) = list.reflect_remove(index) {
-                                result_callback(Ok(Some(value)))
-                            } else {
-                                result_callback(Err(Self::RemoveItem { index }))
-                            }
+                    if let Some(list) = field.as_list_mut() {
+                        if let Some(value) = list.reflect_remove(index) {
+                            result_callback(Ok(Some(value)))
                         } else {
                             result_callback(Err(Self::RemoveItem { index }))
                         }
-                    })
+                    } else {
+                        result_callback(Err(Self::RemoveItem { index }))
+                    }
                 } else {
                     result_callback(Err(Self::RemoveItem { index }))
                 }

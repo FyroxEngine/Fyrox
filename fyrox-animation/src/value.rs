@@ -409,11 +409,9 @@ impl BoundValue {
             Ok(property) => {
                 let applied = self.value.apply_to_any(property, value_type);
                 if applied {
-                    property.as_inheritable_variable_mut(&mut |var| {
-                        if let Some(var) = var {
-                            var.mark_modified();
-                        }
-                    });
+                    if let Some(var) = property.as_inheritable_variable_mut() {
+                        var.mark_modified();
+                    }
                 }
             }
             Err(err) => {

@@ -186,7 +186,7 @@ where
 
             let mut processed = true;
 
-            field_ref.as_array(&mut |array| match array {
+            match field_ref.as_array() {
                 Some(array) => {
                     let mut descriptor = PropertyDescriptor {
                         path: path.clone(),
@@ -218,10 +218,10 @@ where
                 None => {
                     processed = false;
                 }
-            });
+            }
 
             if !processed {
-                field_ref.as_hash_map(&mut |result| match result {
+                match field_ref.as_hash_map() {
                     Some(hash_map) => {
                         let mut descriptor = PropertyDescriptor {
                             path: path.clone(),
@@ -271,7 +271,7 @@ where
                     None => {
                         processed = false;
                     }
-                })
+                }
             }
 
             if !processed {

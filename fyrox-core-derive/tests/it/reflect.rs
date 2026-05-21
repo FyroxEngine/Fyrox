@@ -207,14 +207,12 @@ fn reflect_list() {
     let mut data = vec![10usize, 11usize];
 
     let data = &mut data as &mut dyn Reflect;
-    data.as_list_mut(&mut |data| {
-        let data = data.unwrap();
-        data.get_reflect_index(0, &mut |result| assert_eq!(result, Some(&10usize)));
-        data.get_reflect_index::<usize>(2, &mut |result| assert_eq!(result, None));
+    let data = data.as_list_mut().unwrap();
+    data.get_reflect_index(0, &mut |result| assert_eq!(result, Some(&10usize)));
+    data.get_reflect_index::<usize>(2, &mut |result| assert_eq!(result, None));
 
-        data.reflect_push(Box::new(12usize)).unwrap();
-        data.get_reflect_index(2, &mut |result| assert_eq!(result, Some(&12usize)));
-    });
+    data.reflect_push(Box::new(12usize)).unwrap();
+    data.get_reflect_index(2, &mut |result| assert_eq!(result, Some(&12usize)));
 }
 
 #[test]
@@ -654,21 +652,20 @@ fn test_hash_map() {
         },
     );
 
-    hash_map.as_hash_map(&mut |result| {
-        let hash_map = result.unwrap();
+    {
+        let hash_map = hash_map.as_hash_map().unwrap();
         assert_eq!(hash_map.reflect_len(), 2);
-
         hash_map.reflect_get(&foo_key, &mut |result| {
             assert_eq!(result.unwrap().downcast_ref::<Struct>().unwrap().field, 123)
-        })
-    });
+        });
+    }
 
-    hash_map.as_hash_map_mut(&mut |result| {
-        let hash_map = result.unwrap();
+    {
+        let hash_map = hash_map.as_hash_map_mut().unwrap();
         hash_map.reflect_get_mut(&bar_key, &mut |result| {
             result.unwrap().downcast_mut::<Struct>().unwrap().field = 555
-        })
-    });
+        });
+    }
 
     // Check path resolution.
     #[derive(Reflect, Clone, Debug)]
