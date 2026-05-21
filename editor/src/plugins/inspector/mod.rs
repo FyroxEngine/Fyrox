@@ -195,9 +195,15 @@ fn print_errors(sync_errors: &[InspectorError]) {
 }
 
 fn is_out_of_sync(sync_errors: &[InspectorError]) -> bool {
-    sync_errors
-        .iter()
-        .any(|err| matches!(err, &InspectorError::OutOfSync))
+    sync_errors.iter().any(|err| {
+        if matches!(err, &InspectorError::OutOfSync) {
+            true
+        } else if let InspectorError::Group(group) = err {
+            is_out_of_sync(group)
+        } else {
+            false
+        }
+    })
 }
 
 impl InspectorPlugin {
