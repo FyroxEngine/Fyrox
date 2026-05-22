@@ -855,7 +855,7 @@ pub trait SceneGraph: 'static {
         T: Reflect,
     {
         self.try_get_node(handle).and_then(|n| {
-            (n.inner_ref() as &dyn Reflect)
+            n.inner_ref()
                 .self_or_field_ref()
                 .ok_or(PoolError::NoSuchField(handle.into()))
         })
@@ -869,7 +869,7 @@ pub trait SceneGraph: 'static {
         T: Reflect,
     {
         self.try_get_node_mut(handle).and_then(|n| {
-            (n.inner_mut() as &mut dyn Reflect)
+            n.inner_mut()
                 .self_or_field_mut()
                 .ok_or(PoolError::NoSuchField(handle.into()))
         })

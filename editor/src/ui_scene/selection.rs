@@ -59,7 +59,7 @@ impl SelectionContainer for UiSelection {
         if let Some(first) = self.widgets.first() {
             if let Ok(node) = ui_scene.ui.try_get_node(*first) {
                 (callback)(EntityInfo {
-                    entity: node as &dyn Reflect,
+                    entity: node,
                     has_inheritance_parent: node.has_inheritance_parent(),
                     read_only: false,
                 })

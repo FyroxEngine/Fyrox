@@ -135,7 +135,7 @@ where
                     self.entities.first()
                 {
                     if let Some(signal) = animation.signals().iter().find(|s| s.id == *id) {
-                        (callback)(EntityInfo::with_no_parent(signal as &dyn Reflect));
+                        (callback)(EntityInfo::with_no_parent(signal));
                     }
                 }
             }

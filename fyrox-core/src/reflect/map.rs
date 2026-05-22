@@ -89,7 +89,7 @@ where
     fn reflect_get(&self, key: &dyn Reflect, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
         match key.downcast_ref::<K>() {
             Some(key) => match self.get(key) {
-                Some(value) => func(Some(value as &dyn Reflect)),
+                Some(value) => func(Some(value)),
                 None => func(None),
             },
             None => func(None),
@@ -103,7 +103,7 @@ where
     ) {
         match key.downcast_ref::<K>() {
             Some(key) => match self.get_mut(key) {
-                Some(value) => func(Some(value as &mut dyn Reflect)),
+                Some(value) => func(Some(value)),
                 None => func(None),
             },
             None => func(None),
