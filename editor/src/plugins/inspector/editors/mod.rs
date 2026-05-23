@@ -199,11 +199,6 @@ use crate::{
         selection::SelectionSettings,
     },
 };
-use fyrox::gui::dock::DockingManager;
-use fyrox::gui::input::InputBox;
-use fyrox::gui::inspector::Inspector;
-use fyrox::scene::dim2::rectangle::Rectangle;
-use fyrox::scene::probe::ReflectionProbe;
 use fyrox_build_tools::{BuildProfile, CommandDescriptor, EnvironmentVariable};
 
 pub mod animation;
@@ -310,14 +305,6 @@ macro_rules! reg_node_handle_editors {
             $container.insert(NodeHandlePropertyEditorDefinition::<$ty>::new($sender.clone()));
             $container.insert(InheritablePropertyEditorDefinition::<Handle<$ty>>::new());
             $container.register_inheritable_vec_collection::<Handle<$ty>>();
-        )*
-    };
-}
-
-macro_rules! reg_node_editors {
-    ($container:ident, $($ty:ty),*) => {
-        $(
-            $container.insert(InspectablePropertyEditorDefinition::<$ty>::new());
         )*
     };
 }
@@ -775,67 +762,6 @@ pub fn make_property_editors_container(
         Listener,
         Terrain,
         TileMap
-    );
-
-    reg_node_editors!(
-        container,
-        scene::animation::AnimationPlayer,
-        scene::animation::absm::AnimationBlendingStateMachine,
-        Decal,
-        dim2::collider::Collider,
-        dim2::joint::Joint,
-        dim2::rigidbody::RigidBody,
-        DirectionalLight,
-        PointLight,
-        SpotLight,
-        Pivot,
-        Rectangle,
-        Camera,
-        Collider,
-        RigidBody,
-        Joint,
-        Mesh,
-        NavigationalMesh,
-        ParticleSystem,
-        ReflectionProbe,
-        Ragdoll,
-        Sound,
-        Terrain,
-        TileMap,
-        Listener,
-        Sprite
-    );
-
-    reg_node_editors!(
-        container,
-        Canvas,
-        Border,
-        Button,
-        CheckBox,
-        Decorator,
-        DropdownList,
-        DropdownMenu,
-        Expander,
-        Image,
-        NinePatch,
-        Popup,
-        ProgressBar,
-        Screen,
-        ScrollBar,
-        ScrollPanel,
-        ScrollViewer,
-        SearchBar,
-        Tile,
-        DockingManager,
-        Grid,
-        InputBox,
-        Inspector,
-        Menu,
-        MenuItem,
-        Window,
-        TabControl,
-        VectorImage,
-        WrapPanel
     );
 
     container

@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::scene::EntityInfo;
 use crate::{
     command::{Command, SetPropertyCommand},
     fyrox::{
@@ -28,13 +27,14 @@ use crate::{
             some_or_return,
         },
         engine::Engine,
-        graph::SceneGraph,
+        graph::{SceneGraph, SceneGraphNode},
         gui::inspector::PropertyChanged,
         scene::{graph::Graph, node::Node, SceneContainer},
     },
     message::MessageSender,
     scene::{
-        commands::GameSceneContext, controller::SceneController, GameScene, SelectionContainer,
+        commands::GameSceneContext, controller::SceneController, EntityInfo, GameScene,
+        SelectionContainer,
     },
     utils,
 };
@@ -63,7 +63,7 @@ impl SelectionContainer for GraphSelection {
             .and_then(|handle| scene.graph.try_get_node(*handle).ok())
         {
             (callback)(EntityInfo {
-                entity: node,
+                entity: node.inner_ref(),
                 has_inheritance_parent: node.has_inheritance_parent(),
                 read_only: false,
             });
@@ -110,7 +110,7 @@ impl SelectionContainer for GraphSelection {
                                 .graph
                                 .try_get_node_mut(node_handle)
                                 .ok()
-                                .map(|n| n as &mut dyn Reflect)
+                                .map(|n| n.inner_mut())
                         },
                     ))
                 })
@@ -123,9 +123,8 @@ impl SelectionContainer for GraphSelection {
     fn provide_docs(&self, controller: &dyn SceneController, engine: &Engine) -> Option<String> {
         let game_scene = controller.downcast_ref::<GameScene>()?;
         let scene = &engine.scenes[game_scene.scene];
-        self.nodes
-            .first()
-            .map(|h| scene.graph[*h].type_info_ref().doc_comment.to_string())
+        let node = scene.graph.try_get(*self.nodes.first()?).ok()?;
+        Some(node.inner_ref().type_info_ref().doc_comment.to_string())
     }
 }
 

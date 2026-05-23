@@ -18,19 +18,20 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::command::make_command;
-use crate::fyrox::core::reflect::Reflect;
-use crate::fyrox::{
-    core::pool::Handle,
-    gui::inspector::{CollectionAction, FieldAction, PropertyChanged},
-    scene::{node::Node, terrain::Terrain},
-};
-use crate::scene::commands::{GameSceneContext, RevertSceneNodePropertyCommand};
 use crate::{
-    scene::commands::terrain::{AddTerrainLayerCommand, DeleteTerrainLayerCommand},
+    command::make_command,
+    fyrox::{
+        core::pool::Handle,
+        graph::{SceneGraph, SceneGraphNode},
+        gui::inspector::{CollectionAction, FieldAction, PropertyChanged},
+        scene::{node::Node, terrain::Terrain},
+    },
+    scene::commands::{
+        terrain::{AddTerrainLayerCommand, DeleteTerrainLayerCommand},
+        GameSceneContext, RevertSceneNodePropertyCommand,
+    },
     Command,
 };
-use fyrox::graph::SceneGraph;
 
 pub struct SceneNodePropertyChangedHandler;
 
@@ -87,7 +88,7 @@ impl SceneNodePropertyChangedHandler {
                         .graph
                         .try_get_node_mut(handle)
                         .ok()
-                        .map(|n| n as &mut dyn Reflect)
+                        .map(|n| n.inner_mut())
                 })
             }
         })
