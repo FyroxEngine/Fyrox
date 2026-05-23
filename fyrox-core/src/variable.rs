@@ -398,7 +398,7 @@ where
     }
 }
 
-static CONTENT_METADATA: FieldMetadata = FieldMetadata {
+pub static CONTENT_METADATA: FieldMetadata = FieldMetadata {
     name: "Content",
     display_name: "Content",
     tag: "",

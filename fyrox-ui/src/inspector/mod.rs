@@ -978,8 +978,10 @@ fn make_simple_property_container(
 ) -> Handle<UiNode> {
     ctx[editor.to_base()].set_row(0).set_column(1);
 
-    let tooltip = make_tooltip(ctx, description);
-    ctx[title].set_tooltip(tooltip);
+    if title.is_some() {
+        let tooltip = make_tooltip(ctx, description);
+        ctx[title].set_tooltip(tooltip);
+    }
 
     GridBuilder::new(WidgetBuilder::new().with_child(title).with_child(editor))
         .add_row(Row::auto())
@@ -1120,7 +1122,11 @@ impl InspectorContext {
                             let (container, editor) = match instance {
                                 PropertyEditorInstance::Simple { editor } => (
                                     make_simple_property_container(
-                                        create_header(ctx, info.display_name, layer_index),
+                                        if name_column_width != 0.0 {
+                                            create_header(ctx, info.display_name, layer_index)
+                                        } else {
+                                            Handle::NONE
+                                        },
                                         editor,
                                         &description,
                                         name_column_width,
