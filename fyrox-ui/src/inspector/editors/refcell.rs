@@ -19,17 +19,20 @@
 // SOFTWARE.
 
 use crate::{
-    core::reflect::prelude::*,
+    core::{pool::Handle, reflect::prelude::*, PhantomDataSendSync},
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        InspectorError, PropertyChanged,
+        make_expander_container, FieldAction, Inspector, InspectorBuilder, InspectorContext,
+        InspectorContextArgs, InspectorError, InspectorMessage, PropertyChanged,
     },
-    message::UiMessage,
+    message::{MessageDirection, UiMessage},
+    widget::WidgetBuilder,
+    UiNode,
 };
-use fyrox_core::PhantomDataSendSync;
+use fyrox_graph::SceneGraph;
 use std::{
     any::TypeId,
     cell::RefCell,
@@ -76,117 +79,88 @@ where
         &self,
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
-        if let Some(definition) = ctx
-            .definition_container
-            .definitions()
-            .get(&TypeId::of::<T>())
-        {
-            let property_info = ctx.property_info;
+        let value = ctx.property_info.cast_value::<RefCell<T>>()?;
 
-            let value = property_info.cast_value::<RefCell<T>>()?.borrow();
+        let inspector_context = InspectorContext::from_object(InspectorContextArgs {
+            object: value,
+            ctx: ctx.build_context,
+            definition_container: ctx.definition_container.clone(),
+            environment: ctx.environment.clone(),
+            layer_index: ctx.layer_index + 1,
+            generate_property_string_values: ctx.generate_property_string_values,
+            filter: ctx.filter,
+            name_column_width: ctx.name_column_width,
+            hide_name_column: false,
+            base_path: ctx.base_path.clone(),
+            has_parent_object: ctx.has_parent_object,
+        });
 
-            let proxy_property_info = FieldRef {
-                metadata: &FieldMetadata {
-                    name: property_info.name,
-                    display_name: property_info.display_name,
-                    read_only: property_info.read_only,
-                    immutable_collection: property_info.immutable_collection,
-                    min_value: property_info.min_value,
-                    max_value: property_info.max_value,
-                    step: property_info.step,
-                    precision: property_info.precision,
-                    tag: property_info.tag,
-                    doc: property_info.doc,
-                },
-                value: &*value,
-            };
+        let editor;
+        let container = make_expander_container(
+            ctx.layer_index,
+            ctx.property_info.display_name,
+            ctx.property_info.doc,
+            Handle::<UiNode>::NONE,
+            {
+                editor = InspectorBuilder::new(WidgetBuilder::new())
+                    .with_context(inspector_context)
+                    .build(ctx.build_context)
+                    .to_base();
+                editor
+            },
+            ctx.name_column_width,
+            ctx.hide_name_column,
+            ctx.build_context,
+        );
 
-            definition
-                .property_editor
-                .create_instance(PropertyEditorBuildContext {
-                    build_context: ctx.build_context,
-                    property_info: &proxy_property_info,
-                    environment: ctx.environment.clone(),
-                    definition_container: ctx.definition_container.clone(),
-                    layer_index: ctx.layer_index,
-                    generate_property_string_values: ctx.generate_property_string_values,
-                    filter: ctx.filter,
-                    name_column_width: ctx.name_column_width,
-                    hide_name_column: ctx.hide_name_column,
-                    base_path: ctx.base_path.clone(),
-                    has_parent_object: ctx.has_parent_object,
-                })
-        } else {
-            Err(InspectorError::Custom("No editor!".to_string()))
-        }
+        Ok(PropertyEditorInstance::Custom { container, editor })
     }
 
+    /// Instead of creating a message to update its widget,
+    /// call [InspectorContext::sync] to directly send whatever messages are necessary
+    /// and return None.
     fn create_message(
         &self,
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
-        if let Some(definition) = ctx
-            .definition_container
-            .definitions()
-            .get(&TypeId::of::<T>())
-        {
-            let property_info = ctx.property_info;
+        let value = ctx.property_info.cast_value::<RefCell<T>>()?;
 
-            let value = ctx.property_info.cast_value::<RefCell<T>>()?.borrow();
+        let mut error_group = Vec::new();
 
-            let proxy_property_info = FieldRef {
-                metadata: &FieldMetadata {
-                    name: property_info.name,
-                    display_name: property_info.display_name,
-                    read_only: property_info.read_only,
-                    immutable_collection: property_info.immutable_collection,
-                    min_value: property_info.min_value,
-                    max_value: property_info.max_value,
-                    step: property_info.step,
-                    precision: property_info.precision,
-                    tag: property_info.tag,
-                    doc: property_info.doc,
-                },
-                value: &*value,
-            };
-
-            return definition
-                .property_editor
-                .create_message(PropertyEditorMessageContext {
-                    property_info: &proxy_property_info,
-                    environment: ctx.environment.clone(),
-                    definition_container: ctx.definition_container.clone(),
-                    instance: ctx.instance,
-                    layer_index: ctx.layer_index,
-                    ui: ctx.ui,
-                    generate_property_string_values: ctx.generate_property_string_values,
-                    filter: ctx.filter,
-                    name_column_width: ctx.name_column_width,
-                    hide_name_column: ctx.hide_name_column,
-                    base_path: ctx.base_path.clone(),
-                    has_parent_object: ctx.has_parent_object,
-                });
+        let inspector_context = ctx
+            .ui
+            .node(ctx.instance)
+            .cast::<Inspector>()
+            .expect("Must be Inspector!")
+            .context()
+            .clone();
+        if let Err(e) = inspector_context.sync(
+            value,
+            ctx.ui,
+            ctx.layer_index + 1,
+            ctx.generate_property_string_values,
+            ctx.filter,
+            ctx.base_path.clone(),
+        ) {
+            error_group.extend(e)
         }
 
-        Err(InspectorError::Custom("No editor!".to_string()))
+        if error_group.is_empty() {
+            Ok(None)
+        } else {
+            Err(InspectorError::Group(error_group))
+        }
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        // Try translate other messages using inner property editor.
-        if let Some(definition) = ctx
-            .definition_container
-            .definitions()
-            .get(&TypeId::of::<T>())
+        if let Some(InspectorMessage::PropertyChanged(msg)) = ctx.message.data::<InspectorMessage>()
         {
-            return definition.property_editor.translate_message(
-                PropertyEditorTranslationContext {
-                    environment: ctx.environment.clone(),
-                    name: ctx.name,
-
-                    message: ctx.message,
-                    definition_container: ctx.definition_container.clone(),
-                },
-            );
+            if ctx.message.direction() == MessageDirection::FromWidget {
+                return Some(PropertyChanged {
+                    name: ctx.name.to_owned(),
+                    action: FieldAction::InspectableAction(Box::new(msg.clone())),
+                });
+            }
         }
 
         None
