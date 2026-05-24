@@ -1058,6 +1058,7 @@ impl RagdollWizard {
                                 generate_property_string_values: true,
                                 filter: Default::default(),
                                 name_column_width: 150.0,
+                                hide_name_column: false,
                                 base_path: Default::default(),
                                 has_parent_object: false,
                             }))

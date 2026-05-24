@@ -183,6 +183,7 @@ pub struct PropertyEditorBuildContext<'a, 'b, 'c, 'd> {
     pub filter: PropertyFilter,
     /// Width of the property name column.
     pub name_column_width: f32,
+    pub hide_name_column: bool,
     pub base_path: String,
     /// A flag, that defines whether the inspectable object has a parent object from which it can
     /// obtain initial property values when clicking on the "Revert" button. This flag is used only for
@@ -223,6 +224,7 @@ pub struct PropertyEditorMessageContext<'a, 'b, 'c> {
     pub filter: PropertyFilter,
     /// Width of the property name column.
     pub name_column_width: f32,
+    pub hide_name_column: bool,
     pub base_path: String,
     /// A flag, that defines whether the inspectable object has a parent object from which it can
     /// obtain initial property values when clicking on the "Revert" button. This flag is used only for

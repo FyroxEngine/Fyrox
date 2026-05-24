@@ -218,7 +218,8 @@ where
             layer_index: ctx.layer_index + 1,
             generate_property_string_values: ctx.generate_property_string_values,
             filter: ctx.filter,
-            name_column_width: 0.0,
+            name_column_width: ctx.name_column_width,
+            hide_name_column: true,
             base_path: ctx.base_path.clone(),
             has_parent_object: ctx.has_parent_object,
         });

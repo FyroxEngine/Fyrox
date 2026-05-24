@@ -119,6 +119,7 @@ fn create_items<'a, 'b, T, I>(
     generate_property_string_values: bool,
     filter: PropertyFilter,
     name_column_width: f32,
+    hide_name_column: bool,
     base_path: String,
     has_parent_object: bool,
 ) -> Result<Vec<Item>, InspectorError>
@@ -163,6 +164,7 @@ where
                         generate_property_string_values,
                         filter: filter.clone(),
                         name_column_width,
+                        hide_name_column,
                         base_path: format!("{base_path}[{index}]"),
                         has_parent_object,
                     })?;
@@ -243,6 +245,7 @@ where
         ctx: &mut BuildContext,
         property_info: &FieldRef<'a, '_>,
         name_column_width: f32,
+        hide_name_column: bool,
         base_path: String,
         has_parent_object: bool,
     ) -> Result<Handle<ArrayEditor>, InspectorError> {
@@ -262,6 +265,7 @@ where
                 self.generate_property_string_values,
                 self.filter,
                 name_column_width,
+                hide_name_column,
                 base_path,
                 has_parent_object,
             )?
@@ -345,12 +349,14 @@ where
                     ctx.build_context,
                     ctx.property_info,
                     ctx.name_column_width,
+                    ctx.hide_name_column,
                     ctx.base_path.clone(),
                     ctx.has_parent_object,
                 )?;
                 editor
             },
             ctx.name_column_width,
+            false,
             ctx.build_context,
         );
 
@@ -374,6 +380,7 @@ where
             definition_container,
             environment,
             name_column_width,
+            hide_name_column,
             base_path,
             has_parent_object,
         } = ctx;
@@ -430,6 +437,7 @@ where
                             generate_property_string_values,
                             filter: filter.clone(),
                             name_column_width,
+                            hide_name_column,
                             base_path: format!("{base_path}[{index}]"),
                             has_parent_object,
                         })?

@@ -169,6 +169,7 @@ impl SceneSettingsWindow {
                     && property.downcast_ref::<Option<Lightmap>>().is_none()
             }),
             name_column_width: 150.0,
+            hide_name_column: false,
             base_path: Default::default(),
             has_parent_object: false,
         });

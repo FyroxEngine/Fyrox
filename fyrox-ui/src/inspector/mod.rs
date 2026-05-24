@@ -818,6 +818,7 @@ pub struct InspectorContext {
     pub object_type_id: TypeId,
     /// A width of the property name column.
     pub name_column_width: f32,
+    pub hide_name_column: bool,
     /// A flag, that defines whether the inspectable object has a parent object from which it can
     /// obtain initial property values when clicking on "Revert" button. This flag is used only for
     /// [`crate::core::variable::InheritableVariable`] properties, primarily to hide "Revert" button
@@ -847,6 +848,7 @@ impl Default for InspectorContext {
             environment: None,
             object_type_id: ().type_id(),
             name_column_width: 150.0,
+            hide_name_column: false,
             has_parent_object: false,
         }
     }
@@ -879,14 +881,9 @@ fn make_expander_check_box(
     layer_index: usize,
     property_name: &str,
     property_description: &str,
+    hide_name: bool,
     ctx: &mut BuildContext,
 ) -> Handle<CheckBox> {
-    let description = if property_description.is_empty() {
-        property_name.to_string()
-    } else {
-        format!("{property_name}\n\n{property_description}")
-    };
-
     let handle = CheckBoxBuilder::new(
         WidgetBuilder::new()
             .with_vertical_alignment(VerticalAlignment::Center)
@@ -901,7 +898,14 @@ fn make_expander_check_box(
         .with_stroke_thickness(Thickness::zero().into())
         .build(ctx),
     )
-    .with_content(
+    .with_content(if hide_name {
+        Handle::NONE
+    } else {
+        let description = if property_description.is_empty() {
+            property_name.to_string()
+        } else {
+            format!("{property_name}\n\n{property_description}")
+        };
         TextBuilder::new(
             WidgetBuilder::new()
                 .with_opt_tooltip(make_tooltip(ctx, &description))
@@ -910,8 +914,8 @@ fn make_expander_check_box(
         )
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .with_text(property_name)
-        .build(ctx),
-    )
+        .build(ctx)
+    })
     .checked(Some(true))
     .with_check_mark(make_arrow(ctx, ArrowDirection::Bottom, 8.0))
     .with_uncheck_mark(make_arrow(ctx, ArrowDirection::Right, 8.0))
@@ -937,6 +941,7 @@ pub fn make_expander_container(
     header: Handle<impl ObjectOrVariant<UiNode>>,
     content: Handle<impl ObjectOrVariant<UiNode>>,
     width: f32,
+    hide_name_column: bool,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
     ExpanderBuilder::new(WidgetBuilder::new())
@@ -944,9 +949,14 @@ pub fn make_expander_container(
             layer_index,
             property_name,
             description,
+            hide_name_column,
             ctx,
         ))
-        .with_expander_column(Column::strict(width))
+        .with_expander_column(if hide_name_column {
+            Column::strict(0.0)
+        } else {
+            Column::strict(width)
+        })
         .with_expanded(true)
         .with_header(header)
         .with_content(content)
@@ -974,6 +984,7 @@ fn make_simple_property_container(
     editor: Handle<impl ObjectOrVariant<UiNode>>,
     description: &str,
     width: f32,
+    hide_name_column: bool,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
     ctx[editor.to_base()].set_row(0).set_column(1);
@@ -985,7 +996,10 @@ fn make_simple_property_container(
 
     GridBuilder::new(WidgetBuilder::new().with_child(title).with_child(editor))
         .add_row(Row::auto())
-        .add_columns(vec![Column::strict(width), Column::stretch()])
+        .add_columns(vec![
+            Column::strict(if hide_name_column { 0.0 } else { width }),
+            Column::stretch(),
+        ])
         .build(ctx)
         .to_base()
 }
@@ -1037,6 +1051,7 @@ pub struct InspectorContextArgs<'a, 'b, 'c> {
     pub generate_property_string_values: bool,
     pub filter: PropertyFilter,
     pub name_column_width: f32,
+    pub hide_name_column: bool,
     pub base_path: String,
     /// A flag, that defines whether the inspectable object has a parent object from which it can
     /// obtain initial property values when clicking on "Revert" button. This flag is used only for
@@ -1069,6 +1084,7 @@ impl InspectorContext {
             generate_property_string_values,
             filter,
             name_column_width,
+            hide_name_column,
             base_path,
             has_parent_object,
         } = context;
@@ -1114,6 +1130,7 @@ impl InspectorContext {
                             generate_property_string_values,
                             filter: filter.clone(),
                             name_column_width,
+                            hide_name_column,
                             base_path: property_path.clone(),
                             has_parent_object,
                         },
@@ -1122,14 +1139,15 @@ impl InspectorContext {
                             let (container, editor) = match instance {
                                 PropertyEditorInstance::Simple { editor } => (
                                     make_simple_property_container(
-                                        if name_column_width != 0.0 {
-                                            create_header(ctx, info.display_name, layer_index)
-                                        } else {
+                                        if hide_name_column {
                                             Handle::NONE
+                                        } else {
+                                            create_header(ctx, info.display_name, layer_index)
                                         },
                                         editor,
                                         &description,
                                         name_column_width,
+                                        hide_name_column,
                                         ctx,
                                     ),
                                     editor,
@@ -1173,6 +1191,7 @@ impl InspectorContext {
                                     .build(ctx),
                                 &description,
                                 name_column_width,
+                                false,
                                 ctx,
                             )
                         }
@@ -1192,6 +1211,7 @@ impl InspectorContext {
                             .build(ctx),
                         &description,
                         name_column_width,
+                        false,
                         ctx,
                     ));
                 }
@@ -1257,6 +1277,7 @@ impl InspectorContext {
             environment,
             object_type_id: object_type_id(object),
             name_column_width,
+            hide_name_column,
             has_parent_object,
         }
     }
@@ -1308,6 +1329,7 @@ impl InspectorContext {
                             generate_property_string_values,
                             filter: filter.clone(),
                             name_column_width: self.name_column_width,
+                            hide_name_column: self.hide_name_column,
                             base_path: base_path.clone(),
                             has_parent_object: self.has_parent_object,
                         };
