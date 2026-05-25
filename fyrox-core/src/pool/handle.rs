@@ -163,29 +163,17 @@ impl<T: Reflect> Reflect for Handle<T> {
         ])
     }
 
-    fn into_inner(self: Box<Self>) -> Box<dyn Reflect> {
-        self
-    }
-
-    fn inner_ref(&self, func: &mut dyn FnMut(&dyn Reflect)) {
-        func(self)
-    }
-
-    fn inner_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
-        func(self)
-    }
-
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
         let this = std::mem::replace(self, value.take()?);
         Ok(Box::new(this))
     }
 
-    fn as_handle(&self, func: &mut dyn FnMut(Option<&dyn ReflectHandle>)) {
-        func(Some(self))
+    fn as_handle(&self) -> Option<&dyn ReflectHandle> {
+        Some(self)
     }
 
-    fn as_handle_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectHandle>)) {
-        func(Some(self))
+    fn as_handle_mut(&mut self) -> Option<&mut dyn ReflectHandle> {
+        Some(self)
     }
 
     fn field_direct_ref(&self, index: usize) -> Option<FieldRef> {
@@ -218,14 +206,6 @@ impl<T: Reflect> Reflect for Handle<T> {
         } else {
             None
         }
-    }
-
-    fn inner_ref_direct(&self) -> &dyn Reflect {
-        self
-    }
-
-    fn inner_mut_direct(&mut self) -> &mut dyn Reflect {
-        self
     }
 }
 

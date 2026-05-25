@@ -57,10 +57,10 @@ impl SelectionContainer for UiSelection {
     ) {
         let ui_scene = some_or_return!(controller.downcast_ref::<UiScene>());
         if let Some(first) = self.widgets.first() {
-            if let Ok(node) = ui_scene.ui.try_get_node(*first) {
+            if let Ok(widget) = ui_scene.ui.try_get_node(*first) {
                 (callback)(EntityInfo {
-                    entity: node as &dyn Reflect,
-                    has_inheritance_parent: node.has_inheritance_parent(),
+                    entity: widget.inner_ref(),
+                    has_inheritance_parent: widget.has_inheritance_parent(),
                     read_only: false,
                 })
             }
@@ -79,10 +79,10 @@ impl SelectionContainer for UiSelection {
             .widgets
             .iter()
             .filter_map(|&node_handle| {
-                let node = ui_scene.ui.try_get_node(node_handle).ok()?;
+                let widget = ui_scene.ui.try_get_node(node_handle).ok()?;
                 if args.is_inheritable() {
                     // Prevent reverting property value if there's no parent resource.
-                    if node.resource().is_some() {
+                    if widget.resource().is_some() {
                         Some(Command::new(RevertWidgetPropertyCommand::new(
                             args.path(),
                             node_handle,
@@ -92,11 +92,7 @@ impl SelectionContainer for UiSelection {
                     }
                 } else {
                     make_command(args, move |ctx| {
-                        ctx.get_mut::<UiSceneContext>()
-                            .ui
-                            .try_get_node_mut(node_handle)
-                            .ok()
-                            .map(|n| n as &mut dyn Reflect)
+                        ctx.get_mut::<UiSceneContext>().widget_mut(node_handle)
                     })
                 }
             })
@@ -114,13 +110,7 @@ impl SelectionContainer for UiSelection {
                     Command::new(SetPropertyCommand::new(
                         path.to_string(),
                         value,
-                        move |ctx| {
-                            ctx.get_mut::<UiSceneContext>()
-                                .ui
-                                .try_get_node_mut(node_handle)
-                                .ok()
-                                .map(|n| n as &mut dyn Reflect)
-                        },
+                        move |ctx| ctx.get_mut::<UiSceneContext>().widget_mut(node_handle),
                     ))
                 })
             })
@@ -131,13 +121,8 @@ impl SelectionContainer for UiSelection {
 
     fn provide_docs(&self, controller: &dyn SceneController, _engine: &Engine) -> Option<String> {
         let ui_scene = controller.downcast_ref::<UiScene>()?;
-        self.widgets.first().and_then(|h| {
-            ui_scene
-                .ui
-                .try_get_node(*h)
-                .ok()
-                .map(|n| n.type_info_ref().doc_comment.to_string())
-        })
+        let widget = ui_scene.ui.try_get_node(*self.widgets.first()?).ok()?;
+        Some(widget.inner_ref().type_info_ref().doc_comment.to_string())
     }
 }
 

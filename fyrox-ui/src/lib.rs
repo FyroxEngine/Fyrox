@@ -3554,7 +3554,7 @@ impl SceneGraph for UserInterface {
     fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Result<Vec<TypeId>, PoolError> {
         self.nodes
             .try_borrow(handle)
-            .map(|n| n.0.type_info_ref().derived_types.to_vec())
+            .map(|n| n.0.deref().type_info_ref().derived_types.to_vec())
     }
 
     #[inline]

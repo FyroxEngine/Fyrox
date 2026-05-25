@@ -213,7 +213,10 @@ where
     graph
         .try_get_node_mut(handle)
         .ok()
-        .and_then(|n| n.self_or_field_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>())
+        .and_then(|n| {
+            n.inner_mut()
+                .self_or_field_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>()
+        })
         .map(|v| v.get_value_mut_silent())
 }
 
@@ -229,7 +232,7 @@ where
         .try_get_node(handle)
         .ok()
         .and_then(|n| {
-            (n as &dyn Reflect)
+            n.inner_ref()
                 .first_field_ref::<InheritableVariable<AnimationContainer<Handle<N>>>>()
         })
         .map(|v| v.get_value_ref())

@@ -48,7 +48,7 @@ pub use map::*;
 
 pub mod prelude {
     pub use super::{
-        FieldMetadata, FieldMut, FieldRef, FieldValue, Reflect, ReflectArray, ReflectHashMap,
+        FieldMetadata, FieldMut, FieldRef, Reflect, ReflectArray, ReflectHashMap,
         ReflectInheritableVariable, ReflectList, ResolvePath, SetFieldByPathError, SetFieldError,
         TypeInfo,
     };
@@ -148,15 +148,12 @@ pub struct TypeInfo {
 /// for every type that should support `Reflect` trait. It is a good compromise between development speed
 /// and the quality of the string output.
 pub trait Reflect: Any + Debug {
-    /// Returns the info about the type that implements this trait. The result of the call of this
-    /// method can be different from the call of [`Self::type_info_ref`] on an instance of the type.
+    /// Returns the info about the type that implements this trait.
     fn type_info() -> TypeInfo
     where
         Self: Sized;
 
-    /// Returns the info about the type that implements this trait. The result of the call of this
-    /// method can be different from the call of [`Self::type_info`]. This may happen if the type
-    /// that implements the trait is a wrapper type.
+    /// Returns the info about the type that implements this trait.
     fn type_info_ref(&self) -> TypeInfo;
 
     /// Tries to clone the object and return it as a boxed trait object. This method can return
@@ -171,26 +168,15 @@ pub trait Reflect: Any + Debug {
     /// fields in the object.
     fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut]));
 
-    /// Extracts the wrapped value as `Box<dyn Reflect>` and returns it to the caller. This method
-    /// is intended to be used for wrapper structures only. Any other type should return `self` as
-    /// usual.
-    fn into_inner(self: Box<Self>) -> Box<dyn Reflect>;
-
-    fn inner_ref_direct(&self) -> &dyn Reflect;
-
-    fn inner_mut_direct(&mut self) -> &mut dyn Reflect;
-
-    fn inner_ref(&self, func: &mut dyn FnMut(&dyn Reflect));
-
-    fn inner_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect));
-
+    /// Replaces the self value with the specified value. If the call is successful, returns
+    /// `Ok(previous_value)`, otherwise returns `Err(specified_value)`.
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>>;
 
     /// Tries to get a shared reference to a field at the specified index. Returns [`None`] in two cases:
     /// 1) The type does not have such field
     /// 2) The type uses interior mutability. This case is special - pretty much every type with
     ///    interior mutability (Mutex, RefCell, etc.) requires holding some sort of lock guard
-    ///    while the giving access to its content. This method returns the field reference directly,
+    ///    while giving access to its content. This method returns the field reference directly,
     ///    but returning a lock guard would require boxing which in most cases would ruin performance.
     ///    If you need to get a field reference for types with interior mutability, then use
     ///    [`Reflect::fields_ref`] instead.
@@ -200,7 +186,7 @@ pub trait Reflect: Any + Debug {
     /// 1) The type does not have such field
     /// 2) The type uses interior mutability. This case is special - pretty much every type with
     ///    interior mutability (Mutex, RefCell, etc.) requires holding some sort of lock guard
-    ///    while the giving access to its content. This method returns the field reference directly,
+    ///    while giving access to its content. This method returns the field reference directly,
     ///    but returning a lock guard would require boxing which in most cases would ruin performance.
     ///    If you need to get a field reference for types with interior mutability, then use
     ///    [`Reflect::fields_ref`] instead.
@@ -213,8 +199,10 @@ pub trait Reflect: Any + Debug {
         count
     }
 
-    /// Calls user method specified with `#[reflect(setter = ..)]` or falls back to
-    /// [`Reflect::find_field_mut`]
+    /// Tries to find a field with the specified name and set its value to the specified `value`.
+    /// This method may fail in two main reasons:
+    /// 1) The field does not exist (or it is hidden via `#[reflect(hidden)]` attribute).
+    /// 2) The type of the specified value does match the type of the field at the given name.
     #[allow(clippy::type_complexity)]
     fn set_field(
         &mut self,
@@ -238,72 +226,70 @@ pub trait Reflect: Any + Debug {
         });
     }
 
+    /// Tries to find a field with the given name and calls the specified function with the result
+    /// (either `Some(field)` or `None`).
     fn find_field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
         self.fields_ref(&mut |fields| {
             func(
                 fields
                     .iter()
                     .find(|field| field.name == name)
-                    .map(|field| field.value.field_value_as_reflect()),
+                    .map(|field| field.value),
             )
         });
     }
 
+    /// Tries to find a field with the given name and calls the specified function with the result
+    /// (either `Some(field)` or `None`).
     fn find_field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
         self.fields_mut(&mut |fields| {
             func(
                 fields
                     .iter_mut()
                     .find(|field| field.name == name)
-                    .map(|field| field.value.field_value_as_reflect_mut()),
+                    .map(|field| &mut *field.value),
             )
         });
     }
 
-    fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
-        func(None)
+    fn as_array(&self) -> Option<&dyn ReflectArray> {
+        None
     }
 
-    fn as_array_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectArray>)) {
-        func(None)
+    fn as_array_mut(&mut self) -> Option<&mut dyn ReflectArray> {
+        None
     }
 
-    fn as_list(&self, func: &mut dyn FnMut(Option<&dyn ReflectList>)) {
-        func(None)
+    fn as_list(&self) -> Option<&dyn ReflectList> {
+        None
     }
 
-    fn as_list_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectList>)) {
-        func(None)
+    fn as_list_mut(&mut self) -> Option<&mut dyn ReflectList> {
+        None
     }
 
-    fn as_inheritable_variable(
-        &self,
-        func: &mut dyn FnMut(Option<&dyn ReflectInheritableVariable>),
-    ) {
-        func(None)
+    fn as_inheritable_variable(&self) -> Option<&dyn ReflectInheritableVariable> {
+        None
     }
 
-    fn as_inheritable_variable_mut(
-        &mut self,
-        func: &mut dyn FnMut(Option<&mut dyn ReflectInheritableVariable>),
-    ) {
-        func(None)
+    fn as_inheritable_variable_mut(&mut self) -> Option<&mut dyn ReflectInheritableVariable> {
+        None
     }
 
-    fn as_hash_map(&self, func: &mut dyn FnMut(Option<&dyn ReflectHashMap>)) {
-        func(None)
+    fn as_hash_map(&self) -> Option<&dyn ReflectHashMap> {
+        None
     }
 
-    fn as_hash_map_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectHashMap>)) {
-        func(None)
+    fn as_hash_map_mut(&mut self) -> Option<&mut dyn ReflectHashMap> {
+        None
     }
 
-    fn as_handle(&self, func: &mut dyn FnMut(Option<&dyn ReflectHandle>)) {
-        func(None)
+    fn as_handle(&self) -> Option<&dyn ReflectHandle> {
+        None
     }
 
-    fn as_handle_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectHandle>)) {
-        func(None)
+    fn as_handle_mut(&mut self) -> Option<&mut dyn ReflectHandle> {
+        None
     }
 }
 
@@ -311,7 +297,7 @@ pub trait Reflect: Any + Debug {
 impl dyn Reflect {
     pub fn downcast<T: Reflect>(self: Box<dyn Reflect>) -> Result<Box<T>, Box<dyn Reflect>> {
         if self.is::<T>() {
-            Ok((self.into_inner() as Box<dyn Any>).downcast().unwrap())
+            Ok((self as Box<dyn Any>).downcast().unwrap())
         } else {
             Err(self)
         }
@@ -327,23 +313,23 @@ impl dyn Reflect {
     }
 
     #[inline]
-    pub fn downcast_ref<T: Reflect>(&self, func: &mut dyn FnMut(Option<&T>)) {
-        self.inner_ref(&mut |reflect| func((reflect as &dyn Any).downcast_ref::<T>()))
+    pub fn downcast_ref<T: Reflect>(&self) -> Option<&T> {
+        (self as &dyn Any).downcast_ref::<T>()
     }
 
     #[inline]
-    pub fn downcast_mut<T: Reflect>(&mut self, func: &mut dyn FnMut(Option<&mut T>)) {
-        self.inner_mut(&mut |reflect| func((reflect as &mut dyn Any).downcast_mut::<T>()))
+    pub fn downcast_mut<T: Reflect>(&mut self) -> Option<&mut T> {
+        (self as &mut dyn Any).downcast_mut::<T>()
     }
 
     /// Tries to find the first field of the given type. This method internally uses
     /// [`Reflect::field_direct_ref`] with all of its limitations.
     #[inline]
     pub fn first_field_ref<T: Reflect>(&self) -> Option<&T> {
-        let count = self.inner_ref_direct().fields_count();
+        let count = self.fields_count();
 
         for i in 0..count {
-            if let Some(field) = self.inner_ref_direct().field_direct_ref(i) {
+            if let Some(field) = self.field_direct_ref(i) {
                 if let Some(typed_field) = (field.value as &dyn Any).downcast_ref::<T>() {
                     return Some(typed_field);
                 }
@@ -357,7 +343,7 @@ impl dyn Reflect {
     /// [`Reflect::field_direct_ref`] with all of its limitations.
     #[inline]
     pub fn first_field_mut<T: Reflect>(&mut self) -> Option<&mut T> {
-        let count = self.inner_ref_direct().fields_count();
+        let count = self.fields_count();
 
         for i in 0..count {
             // SAFETY: Current implementation of borrow checker is just dumb. When a reborrow of self
@@ -365,7 +351,7 @@ impl dyn Reflect {
             // This way the returned reference has a different lifetime than in the method definition.
             // The following unsafe block reborrows self with the correct lifetime, while the initial
             // reference is not used so this is absolutely safe.
-            let this = unsafe { &mut *(self as *mut Self) }.inner_mut_direct();
+            let this = unsafe { &mut *(self as *mut Self) };
             if let Some(field) = this.field_direct_mut(i) {
                 if let Some(typed_field) = (field.value as &mut dyn Any).downcast_mut::<T>() {
                     return Some(typed_field);
@@ -379,7 +365,7 @@ impl dyn Reflect {
     /// Tries to downcast self to the specified type, or if it is not possible, tries to find a
     /// field of the specified type.
     pub fn self_or_field_ref<T: Reflect>(&self) -> Option<&T> {
-        if let Some(value) = (self.inner_ref_direct() as &dyn Any).downcast_ref::<T>() {
+        if let Some(value) = (self as &dyn Any).downcast_ref::<T>() {
             Some(value)
         } else {
             self.first_field_ref()
@@ -391,7 +377,7 @@ impl dyn Reflect {
     pub fn self_or_field_mut<T: Reflect>(&mut self) -> Option<&mut T> {
         // SAFETY: See the comment in `first_field_mut_of_type` method.
         let this = unsafe { &mut *(self as *mut Self) };
-        if let Some(value) = (self.inner_mut_direct() as &mut dyn Any).downcast_mut::<T>() {
+        if let Some(value) = (self as &mut dyn Any).downcast_mut::<T>() {
             Some(value)
         } else {
             this.first_field_mut()
@@ -456,16 +442,14 @@ impl dyn Reflect {
 
         let mut done = false;
 
-        self.as_inheritable_variable(&mut |variable| {
-            if let Some(variable) = variable {
-                // Inner variable might also contain inheritable variables, so continue iterating.
-                variable
-                    .inner_value_ref()
-                    .enumerate_fields_recursively_internal(path, field_info, func, ignored_types);
+        if let Some(variable) = self.as_inheritable_variable() {
+            // Inner variable might also contain inheritable variables, so continue iterating.
+            variable
+                .inner_value_ref()
+                .enumerate_fields_recursively_internal(path, field_info, func, ignored_types);
 
-                done = true;
-            }
-        });
+            done = true;
+        }
 
         if done {
             return;
@@ -473,65 +457,58 @@ impl dyn Reflect {
 
         func(path, field_info, self);
 
-        self.as_array(&mut |array| {
-            if let Some(array) = array {
-                for i in 0..array.reflect_len() {
-                    if let Some(item) = array.reflect_index(i) {
-                        let item_path = format!("{path}[{i}]");
+        if let Some(array) = self.as_array() {
+            for i in 0..array.reflect_len() {
+                if let Some(item) = array.reflect_index(i) {
+                    let item_path = format!("{path}[{i}]");
 
-                        item.enumerate_fields_recursively_internal(
-                            &item_path,
-                            field_info,
-                            func,
-                            ignored_types,
-                        );
-                    }
+                    item.enumerate_fields_recursively_internal(
+                        &item_path,
+                        field_info,
+                        func,
+                        ignored_types,
+                    );
                 }
-
-                done = true;
             }
-        });
+
+            done = true;
+        }
 
         if done {
             return;
         }
 
-        self.as_hash_map(&mut |hash_map| {
-            if let Some(hash_map) = hash_map {
-                for i in 0..hash_map.reflect_len() {
-                    if let Some((key, value)) = hash_map.reflect_get_at(i) {
-                        // TODO: Here we just using `Debug` impl to obtain string representation for keys. This is
-                        // fine for most cases in the engine.
-                        let mut key_str = format!("{key:?}");
+        if let Some(hash_map) = self.as_hash_map() {
+            for i in 0..hash_map.reflect_len() {
+                if let Some((key, value)) = hash_map.reflect_get_at(i) {
+                    // TODO: Here we just using `Debug` impl to obtain string representation for keys. This is
+                    // fine for most cases in the engine.
+                    let mut key_str = format!("{key:?}");
 
-                        let mut is_key_string = false;
-                        key.downcast_ref::<String>(&mut |string| is_key_string |= string.is_some());
-                        key.downcast_ref::<ImmutableString>(&mut |string| {
-                            is_key_string |= string.is_some()
-                        });
+                    let is_key_string = key.downcast_ref::<String>().is_some()
+                        || key.downcast_ref::<ImmutableString>().is_some();
 
-                        if is_key_string {
-                            // Strip quotes at the beginning and the end, because Debug impl for String adds
-                            // quotes at the beginning and the end, but we want raw value.
-                            // TODO: This is unreliable mechanism.
-                            key_str.remove(0);
-                            key_str.pop();
-                        }
-
-                        let item_path = format!("{path}[{key_str}]");
-
-                        value.enumerate_fields_recursively_internal(
-                            &item_path,
-                            field_info,
-                            func,
-                            ignored_types,
-                        );
+                    if is_key_string {
+                        // Strip quotes at the beginning and the end, because Debug impl for String adds
+                        // quotes at the beginning and the end, but we want raw value.
+                        // TODO: This is unreliable mechanism.
+                        key_str.remove(0);
+                        key_str.pop();
                     }
-                }
 
-                done = true;
+                    let item_path = format!("{path}[{key_str}]");
+
+                    value.enumerate_fields_recursively_internal(
+                        &item_path,
+                        field_info,
+                        func,
+                        ignored_types,
+                    );
+                }
             }
-        });
+
+            done = true;
+        }
 
         if done {
             return;
@@ -547,15 +524,12 @@ impl dyn Reflect {
                     &compound_path
                 };
 
-                field
-                    .value
-                    .field_value_as_reflect()
-                    .enumerate_fields_recursively_internal(
-                        field_path,
-                        Some(field),
-                        func,
-                        ignored_types,
-                    );
+                field.value.enumerate_fields_recursively_internal(
+                    field_path,
+                    Some(field),
+                    func,
+                    ignored_types,
+                );
             }
         })
     }
@@ -572,48 +546,42 @@ impl dyn Reflect {
 
         let mut done = false;
 
-        self.as_inheritable_variable(&mut |variable| {
-            if let Some(variable) = variable {
-                // Inner variable might also contain inheritable variables, so continue iterating.
-                variable
-                    .inner_value_ref()
-                    .apply_recursively(func, ignored_types);
+        if let Some(variable) = self.as_inheritable_variable() {
+            // Inner variable might also contain inheritable variables, so continue iterating.
+            variable
+                .inner_value_ref()
+                .apply_recursively(func, ignored_types);
 
-                done = true;
-            }
-        });
+            done = true;
+        }
 
         if done {
             return;
         }
 
-        self.as_array(&mut |array| {
-            if let Some(array) = array {
-                for i in 0..array.reflect_len() {
-                    if let Some(item) = array.reflect_index(i) {
-                        item.apply_recursively(func, ignored_types);
-                    }
+        if let Some(array) = self.as_array() {
+            for i in 0..array.reflect_len() {
+                if let Some(item) = array.reflect_index(i) {
+                    item.apply_recursively(func, ignored_types);
                 }
-
-                done = true;
             }
-        });
+
+            done = true;
+        }
 
         if done {
             return;
         }
 
-        self.as_hash_map(&mut |hash_map| {
-            if let Some(hash_map) = hash_map {
-                for i in 0..hash_map.reflect_len() {
-                    if let Some(item) = hash_map.reflect_get_nth_value_ref(i) {
-                        item.apply_recursively(func, ignored_types);
-                    }
+        if let Some(hash_map) = self.as_hash_map() {
+            for i in 0..hash_map.reflect_len() {
+                if let Some(item) = hash_map.reflect_get_nth_value_ref(i) {
+                    item.apply_recursively(func, ignored_types);
                 }
-
-                done = true;
             }
-        });
+
+            done = true;
+        }
 
         if done {
             return;
@@ -621,10 +589,7 @@ impl dyn Reflect {
 
         self.fields_ref(&mut |fields| {
             for field_info_ref in fields {
-                field_info_ref
-                    .value
-                    .field_value_as_reflect()
-                    .apply_recursively(func, ignored_types);
+                field_info_ref.value.apply_recursively(func, ignored_types);
             }
         })
     }
@@ -641,48 +606,42 @@ impl dyn Reflect {
 
         let mut done = false;
 
-        self.as_inheritable_variable_mut(&mut |variable| {
-            if let Some(variable) = variable {
-                // Inner variable might also contain inheritable variables, so continue iterating.
-                variable
-                    .inner_value_mut()
-                    .apply_recursively_mut(func, ignored_types);
+        if let Some(variable) = self.as_inheritable_variable_mut() {
+            // Inner variable might also contain inheritable variables, so continue iterating.
+            variable
+                .inner_value_mut()
+                .apply_recursively_mut(func, ignored_types);
 
-                done = true;
-            }
-        });
+            done = true;
+        }
 
         if done {
             return;
         }
 
-        self.as_array_mut(&mut |array| {
-            if let Some(array) = array {
-                for i in 0..array.reflect_len() {
-                    if let Some(item) = array.reflect_index_mut(i) {
-                        item.apply_recursively_mut(func, ignored_types);
-                    }
+        if let Some(array) = self.as_array_mut() {
+            for i in 0..array.reflect_len() {
+                if let Some(item) = array.reflect_index_mut(i) {
+                    item.apply_recursively_mut(func, ignored_types);
                 }
-
-                done = true;
             }
-        });
+
+            done = true;
+        }
 
         if done {
             return;
         }
 
-        self.as_hash_map_mut(&mut |hash_map| {
-            if let Some(hash_map) = hash_map {
-                for i in 0..hash_map.reflect_len() {
-                    if let Some(item) = hash_map.reflect_get_nth_value_mut(i) {
-                        item.apply_recursively_mut(func, ignored_types);
-                    }
+        if let Some(hash_map) = self.as_hash_map_mut() {
+            for i in 0..hash_map.reflect_len() {
+                if let Some(item) = hash_map.reflect_get_nth_value_mut(i) {
+                    item.apply_recursively_mut(func, ignored_types);
                 }
-
-                done = true;
             }
-        });
+
+            done = true;
+        }
 
         if done {
             return;
@@ -690,8 +649,7 @@ impl dyn Reflect {
 
         self.fields_mut(&mut |fields| {
             for field_info_mut in fields {
-                (*field_info_mut.value.field_value_as_reflect_mut())
-                    .apply_recursively_mut(func, ignored_types);
+                (*field_info_mut.value).apply_recursively_mut(func, ignored_types);
             }
         })
     }
@@ -718,16 +676,14 @@ pub trait ResolvePath {
         self.resolve_path(path, &mut |resolve_result| {
             match resolve_result {
                 Ok(value) => {
-                    value.downcast_ref(&mut |result| {
-                        match result {
-                            Some(value) => {
-                                func(Ok(value));
-                            }
-                            None => {
-                                func(Err(ReflectPathError::InvalidDowncast));
-                            }
-                        };
-                    });
+                    match value.downcast_ref::<T>() {
+                        Some(value) => {
+                            func(Ok(value));
+                        }
+                        None => {
+                            func(Err(ReflectPathError::InvalidDowncast));
+                        }
+                    };
                 }
                 Err(err) => {
                     func(Err(err));
@@ -742,10 +698,10 @@ pub trait ResolvePath {
         func: &mut dyn FnMut(Result<&mut T, ReflectPathError<'p>>),
     ) {
         self.resolve_path_mut(path, &mut |result| match result {
-            Ok(value) => value.downcast_mut(&mut |result| match result {
+            Ok(value) => match value.downcast_mut() {
                 Some(value) => func(Ok(value)),
                 None => func(Err(ReflectPathError::InvalidDowncast)),
-            }),
+            },
             Err(err) => func(Err(err)),
         })
     }
@@ -796,18 +752,14 @@ impl<R: Reflect> GetField for R {
     fn get_field<T: 'static>(&self, name: &str, func: &mut dyn FnMut(Option<&T>)) {
         self.find_field(name, &mut |opt_field| match opt_field {
             None => func(None),
-            Some(field) => {
-                field.inner_ref(&mut |reflect| func((reflect as &dyn Any).downcast_ref()))
-            }
+            Some(field) => func((field as &dyn Any).downcast_ref()),
         })
     }
 
     fn get_field_mut<T: 'static>(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut T>)) {
         self.find_field_mut(name, &mut |opt_field| match opt_field {
             None => func(None),
-            Some(field) => {
-                field.inner_mut(&mut |reflect| func((reflect as &mut dyn Any).downcast_mut()))
-            }
+            Some(field) => func((field as &mut dyn Any).downcast_mut()),
         })
     }
 }
@@ -913,25 +865,21 @@ impl<'p> Component<'p> {
             Self::Field(path) => reflect.find_field(path, &mut |field| {
                 func(field.ok_or(ReflectPathError::UnknownField { s: path }))
             }),
-            Self::Index(path) => {
-                reflect.as_array(&mut |result| match result {
-                    Some(array) => match path.parse::<usize>() {
-                        Ok(index) => match array.reflect_index(index) {
-                            None => func(Err(ReflectPathError::NoItemForIndex { s: path })),
-                            Some(value) => func(Ok(value)),
-                        },
-                        Err(_) => func(Err(ReflectPathError::InvalidIndexSyntax { s: path })),
+            Self::Index(path) => match reflect.as_array() {
+                Some(array) => match path.parse::<usize>() {
+                    Ok(index) => match array.reflect_index(index) {
+                        None => func(Err(ReflectPathError::NoItemForIndex { s: path })),
+                        Some(value) => func(Ok(value)),
                     },
-                    None => reflect.as_hash_map(&mut |result| match result {
-                        Some(hash_map) => {
-                            try_fetch_by_str_path_ref(hash_map, path, &mut |result| {
-                                func(result.ok_or(ReflectPathError::NoItemForIndex { s: path }))
-                            })
-                        }
-                        None => func(Err(ReflectPathError::NotAnArray)),
+                    Err(_) => func(Err(ReflectPathError::InvalidIndexSyntax { s: path })),
+                },
+                None => match reflect.as_hash_map() {
+                    Some(hash_map) => try_fetch_by_str_path_ref(hash_map, path, &mut |result| {
+                        func(result.ok_or(ReflectPathError::NoItemForIndex { s: path }))
                     }),
-                });
-            }
+                    None => func(Err(ReflectPathError::NotAnArray)),
+                },
+            },
         }
     }
 
@@ -946,7 +894,7 @@ impl<'p> Component<'p> {
             }),
             Self::Index(path) => {
                 let mut succeeded = true;
-                reflect.as_array_mut(&mut |array| match array {
+                match reflect.as_array_mut() {
                     Some(list) => match path.parse::<usize>() {
                         Ok(index) => match list.reflect_index_mut(index) {
                             None => func(Err(ReflectPathError::NoItemForIndex { s: path })),
@@ -955,17 +903,17 @@ impl<'p> Component<'p> {
                         Err(_) => func(Err(ReflectPathError::InvalidIndexSyntax { s: path })),
                     },
                     None => succeeded = false,
-                });
+                }
 
                 if !succeeded {
-                    reflect.as_hash_map_mut(&mut |result| match result {
+                    match reflect.as_hash_map_mut() {
                         Some(hash_map) => {
                             try_fetch_by_str_path_mut(hash_map, path, &mut |result| {
                                 func(result.ok_or(ReflectPathError::NoItemForIndex { s: path }))
                             })
                         }
                         None => func(Err(ReflectPathError::NotAnArray)),
-                    })
+                    }
                 }
             }
         }
@@ -1022,7 +970,7 @@ pub fn is_path_to_array_element(path: &str) -> bool {
 impl dyn ReflectList {
     pub fn get_reflect_index<T: Reflect>(&self, index: usize, func: &mut dyn FnMut(Option<&T>)) {
         if let Some(reflect) = self.reflect_index(index) {
-            reflect.downcast_ref(func)
+            func(reflect.downcast_ref())
         } else {
             func(None)
         }
@@ -1034,7 +982,7 @@ impl dyn ReflectList {
         func: &mut dyn FnMut(Option<&mut T>),
     ) {
         if let Some(reflect) = self.reflect_index_mut(index) {
-            reflect.downcast_mut(func)
+            func(reflect.downcast_mut())
         } else {
             func(None)
         }
@@ -1096,11 +1044,14 @@ mod test {
             &[],
         );
 
-        foo.resolve_path("enum_field.Stuff@field", &mut |result| {
+        foo.resolve_path("enum_field.Content.Stuff@field", &mut |result| {
             let enum_field = result.expect("the field must exist!");
-            enum_field.downcast_ref::<u32>(&mut |result| {
-                assert_eq!(*result.expect("the type must be u32"), 123);
-            });
+            assert_eq!(
+                *enum_field
+                    .downcast_ref::<u32>()
+                    .expect("the type must be u32"),
+                123
+            );
         });
 
         assert_eq!(names[0], "");

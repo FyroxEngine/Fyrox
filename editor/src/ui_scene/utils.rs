@@ -23,7 +23,7 @@ use crate::fyrox::{
     asset::manager::ResourceManager,
     core::{
         futures::executor::block_on, make_pretty_type_name, make_relative_path, pool::ErasedHandle,
-        pool::Handle, reflect::Reflect,
+        pool::Handle,
     },
     graph::SceneGraph,
     gui::{
@@ -110,7 +110,7 @@ impl WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'_> {
             Cow::Owned(format!(
                 "{} [{}]",
                 n.name(),
-                make_pretty_type_name(n.type_info_ref().type_name)
+                make_pretty_type_name(n.inner_ref().type_info_ref().type_name)
             ))
         })
     }

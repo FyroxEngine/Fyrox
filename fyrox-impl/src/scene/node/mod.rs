@@ -63,7 +63,6 @@ use crate::{
     },
 };
 use fyrox_core::{define_as_any_trait, pool::ObjectOrVariantHelper};
-use std::any::type_name;
 use std::{
     any::TypeId,
     fmt::Debug,
@@ -139,9 +138,10 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
         use std::fmt::Write;
         let mut result = String::new();
         let type_name = self
-            .type_name()
+            .type_info_ref()
+            .type_name
             .strip_prefix("fyrox_impl::scene::")
-            .unwrap_or(self.type_name());
+            .unwrap_or(self.type_info_ref().type_name);
         write!(result, "{} {}<{}>", self.handle(), self.name(), type_name,).unwrap();
         if self.children().len() == 1 {
             result.push_str(" 1 child");
@@ -270,11 +270,11 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
 // See ObjectOrVariantHelper for the cause of the indirection.
 impl<T: NodeTrait> ObjectOrVariantHelper<Node, T> for PhantomData<T> {
     fn convert_to_dest_type_helper(node: &Node) -> Option<&T> {
-        (node.0.deref() as &dyn Reflect).self_or_field_ref()
+        node.inner_ref().self_or_field_ref()
     }
 
     fn convert_to_dest_type_helper_mut(node: &mut Node) -> Option<&mut T> {
-        (node.0.deref_mut() as &mut dyn Reflect).self_or_field_mut()
+        node.inner_mut().self_or_field_mut()
     }
 }
 
@@ -358,8 +358,8 @@ impl<T: NodeTrait> ObjectOrVariantHelper<Node, T> for PhantomData<T> {
 /// Such implementation of property inheritance has its drawbacks, major one is: each instance still holds its own copy of
 /// of every field, even those inheritable variables which are non-modified. Which means that there's no benefits of RAM
 /// consumption, only disk space usage is reduced.
-#[derive(Debug)]
-pub struct Node(pub(crate) Box<dyn NodeTrait>);
+#[derive(Debug, Reflect)]
+pub struct Node(#[reflect(deref, display_name = "Node")] pub(crate) Box<dyn NodeTrait>);
 
 impl<T: NodeTrait> From<T> for Node {
     fn from(value: T) -> Self {
@@ -377,6 +377,14 @@ impl SceneGraphNode for Node {
     type Base = Base;
     type SceneGraph = Graph;
     type ResourceData = Model;
+
+    fn inner_ref(&self) -> &dyn Reflect {
+        self.0.deref()
+    }
+
+    fn inner_mut(&mut self) -> &mut dyn Reflect {
+        self.0.deref_mut()
+    }
 
     fn base(&self) -> &Self::Base {
         self.0.deref()
@@ -532,9 +540,7 @@ impl Node {
 
         // Reset inheritable properties, so property inheritance system will take properties
         // from parent objects on resolve stage.
-        self.inner_mut(&mut |reflect| {
-            mark_inheritable_properties_non_modified(reflect, &[TypeId::of::<UntypedResource>()])
-        });
+        mark_inheritable_properties_non_modified(self, &[TypeId::of::<UntypedResource>()]);
 
         // Fill original handles to instances.
         self.original_handle_in_resource = original_handle;
@@ -568,90 +574,6 @@ impl Node {
 impl Visit for Node {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         self.0.visit(name, visitor)
-    }
-}
-
-impl Reflect for Node {
-    fn type_info() -> TypeInfo {
-        TypeInfo {
-            source_path: file!(),
-            type_name: type_name::<Self>(),
-            assembly_name: env!("CARGO_PKG_NAME"),
-            doc_comment: "",
-            derived_types: &[],
-        }
-    }
-
-    fn type_info_ref(&self) -> TypeInfo {
-        let inner_type_info = self.0.deref().type_info_ref();
-        TypeInfo {
-            source_path: inner_type_info.source_path,
-            type_name: inner_type_info.type_name,
-            assembly_name: inner_type_info.assembly_name,
-            doc_comment: inner_type_info.doc_comment,
-            derived_types: inner_type_info.derived_types,
-        }
-    }
-
-    fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
-        self.0.deref().fields_ref(func)
-    }
-
-    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
-        self.0.deref_mut().fields_mut(func)
-    }
-
-    fn into_inner(self: Box<Self>) -> Box<dyn Reflect> {
-        Reflect::into_inner(self.0)
-    }
-
-    fn inner_ref(&self, func: &mut dyn FnMut(&dyn Reflect)) {
-        self.0.deref().inner_ref(func)
-    }
-
-    fn inner_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
-        self.0.deref_mut().inner_mut(func)
-    }
-
-    fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
-        self.0.deref_mut().set(value)
-    }
-
-    fn set_field(
-        &mut self,
-        field: &str,
-        value: Box<dyn Reflect>,
-        func: &mut dyn FnMut(Result<Box<dyn Reflect>, SetFieldError>),
-    ) {
-        self.0.deref_mut().set_field(field, value, func)
-    }
-
-    fn find_field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
-        self.0.deref().find_field(name, func)
-    }
-
-    fn find_field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
-        self.0.deref_mut().find_field_mut(name, func)
-    }
-
-    fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
-        Some(Box::new(self.clone()))
-    }
-
-    fn field_direct_ref(&self, index: usize) -> Option<FieldRef> {
-        self.0.deref().field_direct_ref(index)
-    }
-
-    fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
-        self.0.deref_mut().field_direct_mut(index)
-    }
-
-    fn inner_ref_direct(&self) -> &dyn Reflect {
-        self.0.inner_ref_direct()
-    }
-
-    fn inner_mut_direct(&mut self) -> &mut dyn Reflect {
-        self.0.inner_mut_direct()
     }
 }
 

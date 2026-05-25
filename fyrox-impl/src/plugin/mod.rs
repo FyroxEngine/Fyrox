@@ -397,11 +397,10 @@ impl<'a, 'b> PluginContext<'a, 'b> {
                                 &mut |object| {
                                     let type_id = (*object).type_id();
                                     if type_id != TypeId::of::<NodePool>() {
-                                        object.as_inheritable_variable_mut(&mut |variable| {
-                                            if let Some(variable) = variable {
-                                                variable.reset_modified_flag();
-                                            }
-                                        });
+                                        if let Some(variable) = object.as_inheritable_variable_mut()
+                                        {
+                                            variable.reset_modified_flag();
+                                        }
                                     }
                                 },
                                 &[

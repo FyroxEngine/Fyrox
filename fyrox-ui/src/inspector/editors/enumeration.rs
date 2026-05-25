@@ -168,6 +168,7 @@ impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
                 generate_property_string_values: self.generate_property_string_values,
                 filter: self.filter.clone(),
                 name_column_width: self.name_column_width,
+                hide_name_column: false,
                 base_path: self.base_path.clone(),
                 has_parent_object: self.has_parent_object,
             });
@@ -276,6 +277,7 @@ impl EnumPropertyEditorBuilder {
             generate_property_string_values: self.generate_property_string_values,
             filter: self.filter.clone(),
             name_column_width,
+            hide_name_column: false,
             base_path: base_path.clone(),
             has_parent_object,
         });
@@ -423,6 +425,7 @@ where
                 editor
             },
             ctx.name_column_width,
+            ctx.hide_name_column,
             ctx.build_context,
         );
 
@@ -471,6 +474,7 @@ where
                 generate_property_string_values: ctx.generate_property_string_values,
                 filter: ctx.filter,
                 name_column_width: ctx.name_column_width,
+                hide_name_column: false,
                 base_path: ctx.base_path.clone(),
                 has_parent_object: ctx.has_parent_object,
             });

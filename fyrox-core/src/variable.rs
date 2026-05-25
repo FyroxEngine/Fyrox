@@ -398,6 +398,19 @@ where
     }
 }
 
+pub static CONTENT_METADATA: FieldMetadata = FieldMetadata {
+    name: "Content",
+    display_name: "Content",
+    tag: "",
+    read_only: false,
+    immutable_collection: false,
+    min_value: None,
+    max_value: None,
+    step: None,
+    precision: None,
+    doc: "",
+};
+
 impl<T> Reflect for InheritableVariable<T>
 where
     T: Reflect + Clone + PartialEq + Debug,
@@ -413,137 +426,69 @@ where
     }
 
     fn type_info_ref(&self) -> TypeInfo {
-        let inner_type_info = self.value.type_info_ref();
-
-        TypeInfo {
-            source_path: inner_type_info.source_path,
-            type_name: inner_type_info.type_name,
-            assembly_name: inner_type_info.assembly_name,
-            doc_comment: inner_type_info.doc_comment,
-            derived_types: inner_type_info.derived_types,
-        }
+        Self::type_info()
     }
 
     fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
-        Some(Box::new(self.value.clone()))
+        Some(Box::new(self.clone()))
     }
 
-    #[inline]
     fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
-        self.value.fields_ref(func)
+        func(&[{
+            FieldRef {
+                metadata: &CONTENT_METADATA,
+                value: &self.value,
+            }
+        }])
     }
 
-    #[inline]
     fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
-        self.value.fields_mut(func)
+        self.mark_modified_and_need_sync();
+        func(&mut [{
+            FieldMut {
+                metadata: &CONTENT_METADATA,
+                value: &mut self.value,
+            }
+        }])
     }
 
-    #[inline]
-    fn into_inner(self: Box<Self>) -> Box<dyn Reflect> {
-        Box::new(self.value).into_inner()
-    }
-
-    #[inline]
-    fn inner_ref(&self, func: &mut dyn FnMut(&dyn Reflect)) {
-        self.value.inner_ref(func)
-    }
-
-    #[inline]
-    fn inner_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
-        self.value.inner_mut(func)
-    }
-
-    #[inline]
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
         self.mark_modified_and_need_sync();
-        self.value.set(value)
+        let this = std::mem::replace(self, value.take()?);
+        Ok(Box::new(this))
     }
 
-    #[inline]
-    fn set_field(
-        &mut self,
-        field: &str,
-        value: Box<dyn Reflect>,
-        func: &mut dyn FnMut(Result<Box<dyn Reflect>, SetFieldError>),
-    ) {
-        self.mark_modified_and_need_sync();
-        self.value.set_field(field, value, func)
-    }
-
-    #[inline]
-    fn find_field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
-        self.value.find_field(name, func)
-    }
-
-    #[inline]
-    fn find_field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
-        // Any modifications inside of compound structs must mark the variable as modified.
-        self.mark_modified_and_need_sync();
-        self.value.find_field_mut(name, func)
-    }
-
-    #[inline]
-    fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
-        self.value.as_array(func)
-    }
-
-    #[inline]
-    fn as_array_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectArray>)) {
-        // Any modifications inside of inheritable arrays must mark the variable as modified.
-        self.mark_modified_and_need_sync();
-        self.value.as_array_mut(func)
-    }
-
-    #[inline]
-    fn as_list(&self, func: &mut dyn FnMut(Option<&dyn ReflectList>)) {
-        self.value.as_list(func)
-    }
-
-    #[inline]
-    fn as_list_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectList>)) {
-        // Any modifications inside of inheritable lists must mark the variable as modified.
-        self.mark_modified_and_need_sync();
-        self.value.as_list_mut(func)
-    }
-
-    #[inline]
-    fn as_inheritable_variable(
-        &self,
-        func: &mut dyn FnMut(Option<&dyn ReflectInheritableVariable>),
-    ) {
-        func(Some(self))
-    }
-
-    #[inline]
-    fn as_inheritable_variable_mut(
-        &mut self,
-        func: &mut dyn FnMut(Option<&mut dyn ReflectInheritableVariable>),
-    ) {
-        func(Some(self))
-    }
-
-    #[inline]
     fn field_direct_ref(&self, index: usize) -> Option<FieldRef> {
-        self.value.field_direct_ref(index)
+        if index == 0 {
+            Some(FieldRef {
+                metadata: &CONTENT_METADATA,
+                value: &self.value,
+            })
+        } else {
+            None
+        }
     }
 
-    #[inline]
     fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
-        // Any modifications inside of inheritable lists must mark the variable as modified.
-        self.mark_modified_and_need_sync();
-        self.value.field_direct_mut(index)
+        if index == 0 {
+            self.mark_modified_and_need_sync();
+            Some(FieldMut {
+                metadata: &CONTENT_METADATA,
+                value: &mut self.value,
+            })
+        } else {
+            None
+        }
     }
 
     #[inline]
-    fn inner_ref_direct(&self) -> &dyn Reflect {
-        self.value.inner_ref_direct()
+    fn as_inheritable_variable(&self) -> Option<&dyn ReflectInheritableVariable> {
+        Some(self)
     }
 
     #[inline]
-    fn inner_mut_direct(&mut self) -> &mut dyn Reflect {
-        // Any modifications inside of inheritable lists must mark the variable as modified.
-        self.mark_modified_and_need_sync();
-        self.value.inner_mut_direct()
+    fn as_inheritable_variable_mut(&mut self) -> Option<&mut dyn ReflectInheritableVariable> {
+        Some(self)
     }
 }
 
@@ -607,16 +552,9 @@ where
 
     #[inline]
     fn value_equals(&self, other: &dyn ReflectInheritableVariable) -> bool {
-        let mut output_result = false;
-        other.inner_ref(&mut |reflect| {
-            reflect.downcast_ref::<T>(&mut |result| {
-                output_result = match result {
-                    Some(other) => &self.value == other,
-                    None => false,
-                };
-            })
-        });
-        output_result
+        (other as &dyn Reflect)
+            .downcast_ref::<Self>()
+            .is_some_and(|v| v == self)
     }
 
     #[inline]
@@ -694,55 +632,44 @@ pub fn try_inherit_properties(
 
     let mut result = None;
 
-    child.as_inheritable_variable_mut(&mut |inheritable_child| {
-        if let Some(inheritable_child) = inheritable_child {
-            parent.as_inheritable_variable(&mut |inheritable_parent| {
-                if let Some(inheritable_parent) = inheritable_parent {
-                    if let Err(e) = inheritable_child.try_inherit(inheritable_parent, ignored_types)
-                    {
-                        result = Some(Err(e));
-                    }
+    if let Some(inheritable_child) = child.as_inheritable_variable_mut() {
+        if let Some(inheritable_parent) = parent.as_inheritable_variable() {
+            if let Err(e) = inheritable_child.try_inherit(inheritable_parent, ignored_types) {
+                result = Some(Err(e));
+            }
 
-                    if !matches!(result, Some(Err(_))) {
-                        result = Some(try_inherit_properties(
-                            inheritable_child.inner_value_mut(),
-                            inheritable_parent.inner_value_ref(),
-                            ignored_types,
-                        ));
-                    }
-                }
-            })
+            if !matches!(result, Some(Err(_))) {
+                result = Some(try_inherit_properties(
+                    inheritable_child.inner_value_mut(),
+                    inheritable_parent.inner_value_ref(),
+                    ignored_types,
+                ));
+            }
         }
-    });
+    }
 
     if result.is_none() {
-        child.as_array_mut(&mut |child_collection| {
-            if let Some(child_collection) = child_collection {
-                parent.as_array(&mut |parent_collection| {
-                    if let Some(parent_collection) = parent_collection {
-                        if child_collection.reflect_len() == parent_collection.reflect_len() {
-                            for i in 0..child_collection.reflect_len() {
-                                // Sparse arrays (like Pool) could have empty entries.
-                                if let (Some(child_item), Some(parent_item)) = (
-                                    child_collection.reflect_index_mut(i),
-                                    parent_collection.reflect_index(i),
-                                ) {
-                                    if let Err(e) = try_inherit_properties(
-                                        child_item,
-                                        parent_item,
-                                        ignored_types,
-                                    ) {
-                                        result = Some(Err(e));
+        if let Some(child_collection) = child.as_array_mut() {
+            if let Some(parent_collection) = parent.as_array() {
+                if child_collection.reflect_len() == parent_collection.reflect_len() {
+                    for i in 0..child_collection.reflect_len() {
+                        // Sparse arrays (like Pool) could have empty entries.
+                        if let (Some(child_item), Some(parent_item)) = (
+                            child_collection.reflect_index_mut(i),
+                            parent_collection.reflect_index(i),
+                        ) {
+                            if let Err(e) =
+                                try_inherit_properties(child_item, parent_item, ignored_types)
+                            {
+                                result = Some(Err(e));
 
-                                        break;
-                                    }
-                                }
+                                break;
                             }
                         }
                     }
-                })
+                }
             }
-        })
+        }
     }
 
     if result.is_none() {
@@ -751,11 +678,9 @@ pub fn try_inherit_properties(
                 for (child_field, parent_field) in child_fields.iter_mut().zip(parent_fields) {
                     // Look into inner properties recursively and try to inherit them. This is mandatory step, because inner
                     // fields may also be InheritableVariable<T>.
-                    if let Err(e) = try_inherit_properties(
-                        child_field.value.field_value_as_reflect_mut(),
-                        parent_field.value.field_value_as_reflect(),
-                        ignored_types,
-                    ) {
+                    if let Err(e) =
+                        try_inherit_properties(child_field.value, parent_field.value, ignored_types)
+                    {
                         result = Some(Err(e));
                     }
 
@@ -779,11 +704,9 @@ pub fn do_with_inheritable_variables<F>(
 {
     root.apply_recursively_mut(
         &mut |object| {
-            object.as_inheritable_variable_mut(&mut |variable| {
-                if let Some(variable) = variable {
-                    func(variable);
-                }
-            });
+            if let Some(variable) = object.as_inheritable_variable_mut() {
+                func(variable);
+            }
         },
         ignored_types,
     )
@@ -1190,7 +1113,7 @@ mod test {
     fn inheritable_variable_type_name() {
         let v = InheritableVariable::from(42);
 
-        assert_eq!(v.type_info_ref().type_name, "i32");
+        assert_eq!(v.type_info_ref().type_name, std::any::type_name_of_val(&v));
     }
 
     #[test]

@@ -26,6 +26,9 @@ use crate::{
     command::CommandContext, message::MessageSender, scene::Selection,
     ui_scene::clipboard::Clipboard,
 };
+use fyrox::core::pool::Handle;
+use fyrox::graph::SceneGraphNode;
+use fyrox::gui::UiNode;
 
 #[derive(Reflect, Debug)]
 #[reflect(non_cloneable)]
@@ -57,6 +60,13 @@ impl UiSceneContext {
                 clipboard: std::mem::transmute::<&'a mut _, &'static mut _>(clipboard),
             }
         });
+    }
+
+    pub fn widget_mut(&mut self, handle: Handle<UiNode>) -> Option<&mut dyn Reflect> {
+        self.ui
+            .try_get_node_mut(handle)
+            .ok()
+            .map(|widget| widget.inner_mut())
     }
 }
 

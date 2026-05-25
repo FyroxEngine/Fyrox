@@ -177,29 +177,6 @@ where
     }
 
     #[inline]
-    fn into_inner(self: Box<Self>) -> Box<dyn Reflect> {
-        self
-    }
-
-    fn inner_ref_direct(&self) -> &dyn Reflect {
-        self
-    }
-
-    fn inner_mut_direct(&mut self) -> &mut dyn Reflect {
-        self
-    }
-
-    #[inline]
-    fn inner_ref(&self, func: &mut dyn FnMut(&dyn Reflect)) {
-        func(self)
-    }
-
-    #[inline]
-    fn inner_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
-        func(self)
-    }
-
-    #[inline]
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
         let this = std::mem::replace(self, value.take()?);
         Ok(Box::new(this))
@@ -214,13 +191,13 @@ where
     }
 
     #[inline]
-    fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
-        func(Some(self))
+    fn as_array(&self) -> Option<&dyn ReflectArray> {
+        Some(self)
     }
 
     #[inline]
-    fn as_array_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectArray>)) {
-        func(Some(self))
+    fn as_array_mut(&mut self) -> Option<&mut dyn ReflectArray> {
+        Some(self)
     }
 }
 

@@ -77,7 +77,6 @@ use crate::{
 use bitflags::bitflags;
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_material::MaterialResourceExtension;
-use std::any::Any;
 use std::{
     any::TypeId,
     fmt::{Debug, Display, Formatter, Write},
@@ -538,13 +537,11 @@ impl Graph {
         for (node_handle, node) in self.pair_iter() {
             (node as &dyn Reflect).apply_recursively(
                 &mut |object| {
-                    object.inner_ref(&mut |reflect| {
-                        if let Some(handle) = (reflect as &dyn Any).downcast_ref::<Handle<Node>>() {
-                            if *handle == target {
-                                references.push(node_handle);
-                            }
+                    if let Some(handle) = object.downcast_ref::<Handle<Node>>() {
+                        if *handle == target {
+                            references.push(node_handle);
                         }
-                    })
+                    }
                 },
                 &[TypeId::of::<UntypedResource>()],
             );
@@ -2179,7 +2176,7 @@ impl SceneGraph for Graph {
     fn actual_type_name(&self, handle: Handle<Self::Node>) -> Result<&'static str, PoolError> {
         self.pool
             .try_borrow(handle)
-            .map(|n| n.0.deref().type_name())
+            .map(|n| n.0.deref().type_info_ref().type_name)
     }
 
     #[inline]

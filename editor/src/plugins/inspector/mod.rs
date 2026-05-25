@@ -195,9 +195,15 @@ fn print_errors(sync_errors: &[InspectorError]) {
 }
 
 fn is_out_of_sync(sync_errors: &[InspectorError]) -> bool {
-    sync_errors
-        .iter()
-        .any(|err| matches!(err, &InspectorError::OutOfSync))
+    sync_errors.iter().any(|err| {
+        if matches!(err, &InspectorError::OutOfSync) {
+            true
+        } else if let InspectorError::Group(group) = err {
+            is_out_of_sync(group)
+        } else {
+            false
+        }
+    })
 }
 
 impl InspectorPlugin {
@@ -342,6 +348,7 @@ impl InspectorPlugin {
             generate_property_string_values: true,
             filter: Default::default(),
             name_column_width: 150.0,
+            hide_name_column: false,
             base_path: Default::default(),
             has_parent_object,
         });
@@ -494,12 +501,8 @@ impl EditorPlugin for InspectorPlugin {
                                             can_clone = property.try_clone_box().is_some();
 
                                             if let Some(value) = self.clipboard.as_ref() {
-                                                value.inner_ref(&mut |reflect| {
-                                                    property.inner_ref(&mut |property| {
-                                                        can_paste =
-                                                            property.type_id() == reflect.type_id();
-                                                    })
-                                                })
+                                                can_paste =
+                                                    property.type_id() == (**value).type_id();
                                             }
                                         }
                                         Err(err) => {

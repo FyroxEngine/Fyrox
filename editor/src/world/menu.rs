@@ -461,16 +461,14 @@ impl SceneNodeContextMenu {
                             if let Ok(node) = scene.graph.try_get_node(*node_handle) {
                                 (node as &dyn Reflect).enumerate_fields_recursively(
                                     &mut |path, _, val| {
-                                        val.as_inheritable_variable(&mut |inheritable| {
-                                            if inheritable.is_some() {
-                                                commands.push(Command::new(
-                                                    RevertSceneNodePropertyCommand::new(
-                                                        path.to_string(),
-                                                        *node_handle,
-                                                    ),
-                                                ));
-                                            }
-                                        });
+                                        if val.as_inheritable_variable().is_some() {
+                                            commands.push(Command::new(
+                                                RevertSceneNodePropertyCommand::new(
+                                                    path.to_string(),
+                                                    *node_handle,
+                                                ),
+                                            ));
+                                        }
                                     },
                                     &[TypeId::of::<UntypedResource>()],
                                 )

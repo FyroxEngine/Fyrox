@@ -199,19 +199,17 @@ impl PropertyAction {
                 let mut value = Some(value);
                 target.resolve_path_mut(path, &mut |result| {
                     if let Ok(field) = result {
-                        field.as_list_mut(&mut |result| {
-                            if let Some(list) = result {
-                                if let Err(value) = list.reflect_push(value.take().unwrap()) {
-                                    result_callback(Err(Self::AddItem { value }))
-                                } else {
-                                    result_callback(Ok(None))
-                                }
+                        if let Some(list) = field.as_list_mut() {
+                            if let Err(value) = list.reflect_push(value.take().unwrap()) {
+                                result_callback(Err(Self::AddItem { value }))
                             } else {
-                                result_callback(Err(Self::AddItem {
-                                    value: value.take().unwrap(),
-                                }))
+                                result_callback(Ok(None))
                             }
-                        })
+                        } else {
+                            result_callback(Err(Self::AddItem {
+                                value: value.take().unwrap(),
+                            }))
+                        }
                     } else {
                         result_callback(Err(Self::AddItem {
                             value: value.take().unwrap(),
@@ -221,17 +219,15 @@ impl PropertyAction {
             }
             PropertyAction::RemoveItem { index } => target.resolve_path_mut(path, &mut |result| {
                 if let Ok(field) = result {
-                    field.as_list_mut(&mut |result| {
-                        if let Some(list) = result {
-                            if let Some(value) = list.reflect_remove(index) {
-                                result_callback(Ok(Some(value)))
-                            } else {
-                                result_callback(Err(Self::RemoveItem { index }))
-                            }
+                    if let Some(list) = field.as_list_mut() {
+                        if let Some(value) = list.reflect_remove(index) {
+                            result_callback(Ok(Some(value)))
                         } else {
                             result_callback(Err(Self::RemoveItem { index }))
                         }
-                    })
+                    } else {
+                        result_callback(Err(Self::RemoveItem { index }))
+                    }
                 } else {
                     result_callback(Err(Self::RemoveItem { index }))
                 }
@@ -260,7 +256,7 @@ where
     }
 
     fn into_box_reflect(self: Box<Self>) -> Box<dyn Reflect> {
-        Box::new(*(self.into_inner() as Box<dyn Any>).downcast::<T>().unwrap())
+        Box::new(*(self as Box<dyn Reflect>).downcast::<T>().unwrap())
     }
 }
 
@@ -290,24 +286,21 @@ impl PartialEq for ObjectValue {
 }
 
 impl ObjectValue {
-    pub fn cast_value<T: 'static>(&self, func: &mut dyn FnMut(Option<&T>)) {
-        (*self.value).inner_ref(&mut |reflect| func((reflect as &dyn Any).downcast_ref::<T>()))
+    pub fn cast_value<T: Reflect>(&self) -> Option<&T> {
+        (&*self.value as &dyn Reflect).downcast_ref::<T>()
     }
 
-    pub fn cast_clone<T: Clone + 'static>(&self, func: &mut dyn FnMut(Option<T>)) {
-        (*self.value)
-            .inner_ref(&mut |reflect| func((reflect as &dyn Any).downcast_ref::<T>().cloned()))
+    pub fn cast_clone<T: Clone + Reflect>(&self) -> Option<T> {
+        (&*self.value as &dyn Reflect).downcast_ref::<T>().cloned()
     }
 
-    pub fn try_override<T: Clone + 'static>(&self, value: &mut T) -> bool {
-        let mut result = false;
-        (*self.value).inner_ref(&mut |reflect| {
-            if let Some(self_value) = (reflect as &dyn Any).downcast_ref::<T>() {
-                *value = self_value.clone();
-                result = true;
-            }
-        });
-        false
+    pub fn try_override<T: Clone + Reflect>(&self, value: &mut T) -> bool {
+        if let Some(self_value) = (&*self.value as &dyn Reflect).downcast_ref::<T>() {
+            *value = self_value.clone();
+            true
+        } else {
+            false
+        }
     }
 
     pub fn into_box_reflect(self) -> Box<dyn Reflect> {
@@ -512,6 +505,7 @@ pub trait InspectorEnvironment: Send + Sync + Reflect {
 ///         generate_property_string_values: true,
 ///         filter: Default::default(),
 ///         name_column_width: 150.0,
+///         hide_name_column: false,
 ///         base_path: Default::default(),
 ///         has_parent_object: false
 ///     });
@@ -583,11 +577,7 @@ impl Inspector {
                         can_clone = field.try_clone_box().is_some();
 
                         if let Some(clipboard_value) = clipboard_value {
-                            clipboard_value.inner_ref(&mut |clipboard_value| {
-                                field.inner_ref(&mut |field| {
-                                    can_paste = field.type_id() == clipboard_value.type_id();
-                                })
-                            });
+                            can_paste = field.type_id() == (**clipboard_value).type_id();
                         }
                     }
                 });
@@ -829,6 +819,7 @@ pub struct InspectorContext {
     pub object_type_id: TypeId,
     /// A width of the property name column.
     pub name_column_width: f32,
+    pub hide_name_column: bool,
     /// A flag, that defines whether the inspectable object has a parent object from which it can
     /// obtain initial property values when clicking on "Revert" button. This flag is used only for
     /// [`crate::core::variable::InheritableVariable`] properties, primarily to hide "Revert" button
@@ -843,9 +834,7 @@ impl PartialEq for InspectorContext {
 }
 
 fn object_type_id(object: &dyn Reflect) -> TypeId {
-    let mut object_type_id = None;
-    object.inner_ref(&mut |reflect| object_type_id = Some(reflect.type_id()));
-    object_type_id.unwrap()
+    object.type_id()
 }
 
 impl Default for InspectorContext {
@@ -860,6 +849,7 @@ impl Default for InspectorContext {
             environment: None,
             object_type_id: ().type_id(),
             name_column_width: 150.0,
+            hide_name_column: false,
             has_parent_object: false,
         }
     }
@@ -892,14 +882,9 @@ fn make_expander_check_box(
     layer_index: usize,
     property_name: &str,
     property_description: &str,
+    hide_name: bool,
     ctx: &mut BuildContext,
 ) -> Handle<CheckBox> {
-    let description = if property_description.is_empty() {
-        property_name.to_string()
-    } else {
-        format!("{property_name}\n\n{property_description}")
-    };
-
     let handle = CheckBoxBuilder::new(
         WidgetBuilder::new()
             .with_vertical_alignment(VerticalAlignment::Center)
@@ -914,7 +899,14 @@ fn make_expander_check_box(
         .with_stroke_thickness(Thickness::zero().into())
         .build(ctx),
     )
-    .with_content(
+    .with_content(if hide_name {
+        Handle::NONE
+    } else {
+        let description = if property_description.is_empty() {
+            property_name.to_string()
+        } else {
+            format!("{property_name}\n\n{property_description}")
+        };
         TextBuilder::new(
             WidgetBuilder::new()
                 .with_opt_tooltip(make_tooltip(ctx, &description))
@@ -923,8 +915,8 @@ fn make_expander_check_box(
         )
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .with_text(property_name)
-        .build(ctx),
-    )
+        .build(ctx)
+    })
     .checked(Some(true))
     .with_check_mark(make_arrow(ctx, ArrowDirection::Bottom, 8.0))
     .with_uncheck_mark(make_arrow(ctx, ArrowDirection::Right, 8.0))
@@ -950,6 +942,7 @@ pub fn make_expander_container(
     header: Handle<impl ObjectOrVariant<UiNode>>,
     content: Handle<impl ObjectOrVariant<UiNode>>,
     width: f32,
+    hide_name_column: bool,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
     ExpanderBuilder::new(WidgetBuilder::new())
@@ -957,9 +950,14 @@ pub fn make_expander_container(
             layer_index,
             property_name,
             description,
+            hide_name_column,
             ctx,
         ))
-        .with_expander_column(Column::strict(width))
+        .with_expander_column(if hide_name_column {
+            Column::strict(0.0)
+        } else {
+            Column::strict(width)
+        })
         .with_expanded(true)
         .with_header(header)
         .with_content(content)
@@ -987,16 +985,22 @@ fn make_simple_property_container(
     editor: Handle<impl ObjectOrVariant<UiNode>>,
     description: &str,
     width: f32,
+    hide_name_column: bool,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
     ctx[editor.to_base()].set_row(0).set_column(1);
 
-    let tooltip = make_tooltip(ctx, description);
-    ctx[title].set_tooltip(tooltip);
+    if title.is_some() {
+        let tooltip = make_tooltip(ctx, description);
+        ctx[title].set_tooltip(tooltip);
+    }
 
     GridBuilder::new(WidgetBuilder::new().with_child(title).with_child(editor))
         .add_row(Row::auto())
-        .add_columns(vec![Column::strict(width), Column::stretch()])
+        .add_columns(vec![
+            Column::strict(if hide_name_column { 0.0 } else { width }),
+            Column::stretch(),
+        ])
         .build(ctx)
         .to_base()
 }
@@ -1048,6 +1052,7 @@ pub struct InspectorContextArgs<'a, 'b, 'c> {
     pub generate_property_string_values: bool,
     pub filter: PropertyFilter,
     pub name_column_width: f32,
+    pub hide_name_column: bool,
     pub base_path: String,
     /// A flag, that defines whether the inspectable object has a parent object from which it can
     /// obtain initial property values when clicking on "Revert" button. This flag is used only for
@@ -1080,6 +1085,7 @@ impl InspectorContext {
             generate_property_string_values,
             filter,
             name_column_width,
+            hide_name_column,
             base_path,
             has_parent_object,
         } = context;
@@ -1090,12 +1096,12 @@ impl InspectorContext {
         object.fields_ref(&mut |fields_ref| {
             for (i, info) in fields_ref.iter().enumerate() {
                 let field_text = if generate_property_string_values {
-                    format!("{:?}", info.value.field_value_as_reflect())
+                    format!("{:?}", info.value)
                 } else {
                     Default::default()
                 };
 
-                if !filter.pass(info.value.field_value_as_reflect()) {
+                if !filter.pass(info.value) {
                     continue;
                 }
 
@@ -1125,6 +1131,7 @@ impl InspectorContext {
                             generate_property_string_values,
                             filter: filter.clone(),
                             name_column_width,
+                            hide_name_column,
                             base_path: property_path.clone(),
                             has_parent_object,
                         },
@@ -1133,10 +1140,15 @@ impl InspectorContext {
                             let (container, editor) = match instance {
                                 PropertyEditorInstance::Simple { editor } => (
                                     make_simple_property_container(
-                                        create_header(ctx, info.display_name, layer_index),
+                                        if hide_name_column {
+                                            Handle::NONE
+                                        } else {
+                                            create_header(ctx, info.display_name, layer_index)
+                                        },
                                         editor,
                                         &description,
                                         name_column_width,
+                                        hide_name_column,
                                         ctx,
                                     ),
                                     editor,
@@ -1180,6 +1192,7 @@ impl InspectorContext {
                                     .build(ctx),
                                 &description,
                                 name_column_width,
+                                false,
                                 ctx,
                             )
                         }
@@ -1194,11 +1207,12 @@ impl InspectorContext {
                             .with_vertical_text_alignment(VerticalAlignment::Center)
                             .with_text(format!(
                                 "Property Editor Is Missing For Type {}!",
-                                info.value.type_name()
+                                info.value.type_info_ref().type_name
                             ))
                             .build(ctx),
                         &description,
                         name_column_width,
+                        false,
                         ctx,
                     ));
                 }
@@ -1264,6 +1278,7 @@ impl InspectorContext {
             environment,
             object_type_id: object_type_id(object),
             name_column_width,
+            hide_name_column,
             has_parent_object,
         }
     }
@@ -1295,7 +1310,7 @@ impl InspectorContext {
 
         object.fields_ref(&mut |fields_ref| {
             for info in fields_ref {
-                if !filter.pass(info.value.field_value_as_reflect()) {
+                if !filter.pass(info.value) {
                     continue;
                 }
 
@@ -1315,6 +1330,7 @@ impl InspectorContext {
                             generate_property_string_values,
                             filter: filter.clone(),
                             name_column_width: self.name_column_width,
+                            hide_name_column: self.hide_name_column,
                             base_path: base_path.clone(),
                             has_parent_object: self.has_parent_object,
                         };

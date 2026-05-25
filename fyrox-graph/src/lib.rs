@@ -202,7 +202,7 @@ where
     #[inline]
     pub fn remap_handles(&self, node: &mut N, ignored_types: &[TypeId]) {
         let name = node.name().to_string();
-        node.inner_mut(&mut |node| self.remap_handles_any(node, &name, ignored_types));
+        self.remap_handles_any(node, &name, ignored_types);
     }
 
     pub fn remap_handles_any(
@@ -217,87 +217,77 @@ where
 
         let mut mapped = false;
 
-        entity.downcast_mut::<Handle<N>>(&mut |handle| {
-            if let Some(handle) = handle {
-                if handle.is_some() && !self.try_map(handle) {
-                    Log::warn(format!(
-                        "Failed to remap handle {} of node {}!",
-                        *handle, node_name
-                    ));
-                }
-                mapped = true;
+        if let Some(handle) = entity.downcast_mut::<Handle<N>>() {
+            if handle.is_some() && !self.try_map(handle) {
+                Log::warn(format!(
+                    "Failed to remap handle {} of node {}!",
+                    *handle, node_name
+                ));
             }
-        });
+            mapped = true;
+        }
 
         if mapped {
             return;
         }
 
         // Handle derived entities handles.
-        entity.as_handle_mut(&mut |handle| {
-            if let Some(handle) = handle {
-                if handle
-                    .type_info_ref()
-                    .derived_types
-                    .contains(&TypeId::of::<N>())
-                    && handle.reflect_is_some()
-                    && !self.try_map_reflect(handle)
-                {
-                    Log::warn(format!(
-                        "Failed to remap handle {}:{} of node {}!",
-                        handle.reflect_index(),
-                        handle.reflect_generation(),
-                        node_name
-                    ));
-                }
-                mapped = true;
+        if let Some(handle) = entity.as_handle_mut() {
+            if handle
+                .type_info_ref()
+                .derived_types
+                .contains(&TypeId::of::<N>())
+                && handle.reflect_is_some()
+                && !self.try_map_reflect(handle)
+            {
+                Log::warn(format!(
+                    "Failed to remap handle {}:{} of node {}!",
+                    handle.reflect_index(),
+                    handle.reflect_generation(),
+                    node_name
+                ));
             }
-        });
+            mapped = true;
+        }
 
         if mapped {
             return;
         }
 
-        entity.as_inheritable_variable_mut(&mut |inheritable| {
-            if let Some(inheritable) = inheritable {
-                // In case of inheritable variable we must take inner value and do not mark variables as modified.
-                self.remap_handles_any(inheritable.inner_value_mut(), node_name, ignored_types);
+        if let Some(inheritable) = entity.as_inheritable_variable_mut() {
+            // In case of inheritable variable we must take inner value and do not mark variables as modified.
+            self.remap_handles_any(inheritable.inner_value_mut(), node_name, ignored_types);
 
-                mapped = true;
-            }
-        });
+            mapped = true;
+        }
 
         if mapped {
             return;
         }
 
-        entity.as_array_mut(&mut |array| {
-            if let Some(array) = array {
-                // Look in every array item.
-                for i in 0..array.reflect_len() {
-                    // Sparse arrays (like Pool) could have empty entries.
-                    if let Some(item) = array.reflect_index_mut(i) {
-                        self.remap_handles_any(item, node_name, ignored_types);
-                    }
+        if let Some(array) = entity.as_array_mut() {
+            // Look in every array item.
+            for i in 0..array.reflect_len() {
+                // Sparse arrays (like Pool) could have empty entries.
+                if let Some(item) = array.reflect_index_mut(i) {
+                    self.remap_handles_any(item, node_name, ignored_types);
                 }
-                mapped = true;
             }
-        });
+            mapped = true;
+        }
 
         if mapped {
             return;
         }
 
-        entity.as_hash_map_mut(&mut |hash_map| {
-            if let Some(hash_map) = hash_map {
-                for i in 0..hash_map.reflect_len() {
-                    if let Some(item) = hash_map.reflect_get_nth_value_mut(i) {
-                        self.remap_handles_any(item, node_name, ignored_types);
-                    }
+        if let Some(hash_map) = entity.as_hash_map_mut() {
+            for i in 0..hash_map.reflect_len() {
+                if let Some(item) = hash_map.reflect_get_nth_value_mut(i) {
+                    self.remap_handles_any(item, node_name, ignored_types);
                 }
-                mapped = true;
             }
-        });
+            mapped = true;
+        }
 
         if mapped {
             return;
@@ -306,10 +296,7 @@ where
         // Continue remapping recursively for every compound field.
         entity.fields_mut(&mut |fields| {
             for field_info_mut in fields {
-                field_info_mut
-                    .value
-                    .field_value_as_reflect_mut()
-                    .inner_mut(&mut |field| self.remap_handles_any(field, node_name, ignored_types))
+                self.remap_handles_any(field_info_mut.value, node_name, ignored_types)
             }
         })
     }
@@ -317,9 +304,7 @@ where
     #[inline]
     pub fn remap_inheritable_handles(&self, node: &mut N, ignored_types: &[TypeId]) {
         let name = node.name().to_string();
-        node.inner_mut(&mut |node| {
-            self.remap_inheritable_handles_internal(node, &name, false, ignored_types)
-        });
+        self.remap_inheritable_handles_internal(node, &name, false, ignored_types);
     }
 
     fn remap_inheritable_handles_internal(
@@ -335,110 +320,100 @@ where
 
         let mut mapped = false;
 
-        entity.as_inheritable_variable_mut(&mut |result| {
-            if let Some(inheritable) = result {
-                // In case of inheritable variable we must take inner value and do not mark variables as modified.
-                if !inheritable.is_modified() {
-                    self.remap_inheritable_handles_internal(
-                        inheritable.inner_value_mut(),
-                        node_name,
-                        // Raise mapping flag, any handle in inner value will be mapped. The flag is propagated
-                        // to unlimited depth.
-                        true,
-                        ignored_types,
-                    );
-                }
-                mapped = true;
+        if let Some(inheritable) = entity.as_inheritable_variable_mut() {
+            // In case of inheritable variable we must take inner value and do not mark variables as modified.
+            if !inheritable.is_modified() {
+                self.remap_inheritable_handles_internal(
+                    inheritable.inner_value_mut(),
+                    node_name,
+                    // Raise mapping flag, any handle in inner value will be mapped. The flag is propagated
+                    // to unlimited depth.
+                    true,
+                    ignored_types,
+                );
             }
-        });
+            mapped = true;
+        }
 
         if mapped {
             return;
         }
 
-        entity.downcast_mut::<Handle<N>>(&mut |result| {
-            if let Some(handle) = result {
-                if do_map && handle.is_some() && !self.try_map(handle) {
-                    Log::warn(format!(
-                        "Failed to remap handle {} of node {}!",
-                        *handle, node_name
-                    ));
-                }
-                mapped = true;
+        if let Some(handle) = entity.downcast_mut::<Handle<N>>() {
+            if do_map && handle.is_some() && !self.try_map(handle) {
+                Log::warn(format!(
+                    "Failed to remap handle {} of node {}!",
+                    *handle, node_name
+                ));
             }
-        });
+            mapped = true;
+        }
 
         if mapped {
             return;
         }
 
         // Handle derived entities handles.
-        entity.as_handle_mut(&mut |handle| {
-            if let Some(handle) = handle {
-                if do_map
-                    && handle
-                        .type_info_ref()
-                        .derived_types
-                        .contains(&TypeId::of::<N>())
-                    && handle.reflect_is_some()
-                    && !self.try_map_reflect(handle)
-                {
-                    Log::warn(format!(
-                        "Failed to remap handle {}:{} of node {}!",
-                        handle.reflect_index(),
-                        handle.reflect_generation(),
-                        node_name
-                    ));
-                }
-                mapped = true;
+        if let Some(handle) = entity.as_handle_mut() {
+            if do_map
+                && handle
+                    .type_info_ref()
+                    .derived_types
+                    .contains(&TypeId::of::<N>())
+                && handle.reflect_is_some()
+                && !self.try_map_reflect(handle)
+            {
+                Log::warn(format!(
+                    "Failed to remap handle {}:{} of node {}!",
+                    handle.reflect_index(),
+                    handle.reflect_generation(),
+                    node_name
+                ));
             }
-        });
+            mapped = true;
+        }
 
         if mapped {
             return;
         }
 
-        entity.as_array_mut(&mut |result| {
-            if let Some(array) = result {
-                // Look in every array item.
-                for i in 0..array.reflect_len() {
-                    // Sparse arrays (like Pool) could have empty entries.
-                    if let Some(item) = array.reflect_index_mut(i) {
-                        self.remap_inheritable_handles_internal(
-                            item,
-                            node_name,
-                            // Propagate mapping flag - it means that we're inside inheritable variable. In this
-                            // case we will map handles.
-                            do_map,
-                            ignored_types,
-                        );
-                    }
+        if let Some(array) = entity.as_array_mut() {
+            // Look in every array item.
+            for i in 0..array.reflect_len() {
+                // Sparse arrays (like Pool) could have empty entries.
+                if let Some(item) = array.reflect_index_mut(i) {
+                    self.remap_inheritable_handles_internal(
+                        item,
+                        node_name,
+                        // Propagate mapping flag - it means that we're inside inheritable variable. In this
+                        // case we will map handles.
+                        do_map,
+                        ignored_types,
+                    );
                 }
-                mapped = true;
             }
-        });
+            mapped = true;
+        }
 
         if mapped {
             return;
         }
 
-        entity.as_hash_map_mut(&mut |result| {
-            if let Some(hash_map) = result {
-                for i in 0..hash_map.reflect_len() {
-                    if let Some(item) = hash_map.reflect_get_nth_value_mut(i) {
-                        self.remap_inheritable_handles_internal(
-                            item,
-                            node_name,
-                            // Propagate mapping flag - it means that we're inside inheritable variable. In this
-                            // case we will map handles.
-                            do_map,
-                            ignored_types,
-                        );
-                    }
+        if let Some(hash_map) = entity.as_hash_map_mut() {
+            for i in 0..hash_map.reflect_len() {
+                if let Some(item) = hash_map.reflect_get_nth_value_mut(i) {
+                    self.remap_inheritable_handles_internal(
+                        item,
+                        node_name,
+                        // Propagate mapping flag - it means that we're inside inheritable variable. In this
+                        // case we will map handles.
+                        do_map,
+                        ignored_types,
+                    );
                 }
-                mapped = true;
             }
-        });
+            mapped = true;
+        }
 
         if mapped {
             return;
@@ -448,7 +423,7 @@ where
         entity.fields_mut(&mut |fields| {
             for field_info_mut in fields {
                 self.remap_inheritable_handles_internal(
-                    field_info_mut.value.field_value_as_reflect_mut(),
+                    field_info_mut.value,
                     node_name,
                     // Propagate mapping flag - it means that we're inside inheritable variable. In this
                     // case we will map handles.
@@ -461,21 +436,21 @@ where
 }
 
 fn reset_property_modified_flag(entity: &mut dyn Reflect, path: &str) {
-    entity.inner_mut(&mut |entity| {
-        entity.resolve_path_mut(path, &mut |result| {
-            variable::mark_inheritable_properties_non_modified(
-                result.unwrap(),
-                &[TypeId::of::<UntypedResource>()],
-            );
-        })
+    entity.resolve_path_mut(path, &mut |result| {
+        variable::mark_inheritable_properties_non_modified(
+            result.unwrap(),
+            &[TypeId::of::<UntypedResource>()],
+        );
     })
 }
 
-pub trait SceneGraphNode: Reflect + NameProvider + Clone + 'static {
+pub trait SceneGraphNode: Reflect + NameProvider + Clone {
     type Base: Clone;
     type SceneGraph: SceneGraph<Node = Self>;
     type ResourceData: PrefabData<Graph = Self::SceneGraph>;
 
+    fn inner_ref(&self) -> &dyn Reflect;
+    fn inner_mut(&mut self) -> &mut dyn Reflect;
     fn base(&self) -> &Self::Base;
     fn set_base(&mut self, base: Self::Base);
     fn is_resource_instance_root(&self) -> bool;
@@ -564,38 +539,35 @@ pub trait SceneGraphNode: Reflect + NameProvider + Clone + 'static {
             let mut parent_value = None;
 
             // Find and clone parent's value first.
-            parent.inner_ref(&mut |parent| {
-                parent.resolve_path(path, &mut |result| match result {
-                    Ok(parent_field) => parent_field.as_inheritable_variable(&mut |parent_field| {
-                        if let Some(parent_inheritable) = parent_field {
+            parent
+                .inner_ref()
+                .resolve_path(path, &mut |result| match result {
+                    Ok(parent_field) => {
+                        if let Some(parent_inheritable) = parent_field.as_inheritable_variable() {
                             parent_value = Some(parent_inheritable.clone_value_box());
                         }
-                    }),
+                    }
                     Err(e) => Log::err(format!(
                         "Failed to resolve parent path {path}. Reason: {e:?}"
                     )),
-                })
-            });
+                });
 
             // Check whether the child's field is inheritable and modified.
             let mut need_revert = false;
 
-            self.inner_mut(&mut |child| {
-                child.resolve_path_mut(path, &mut |result| match result {
+            self.inner_mut()
+                .resolve_path_mut(path, &mut |result| match result {
                     Ok(child_field) => {
-                        child_field.as_inheritable_variable_mut(&mut |child_inheritable| {
-                            if let Some(child_inheritable) = child_inheritable {
-                                need_revert = child_inheritable.is_modified();
-                            } else {
-                                Log::err(format!("Property {path} is not inheritable!"))
-                            }
-                        })
+                        if let Some(child_inheritable) = child_field.as_inheritable_variable_mut() {
+                            need_revert = child_inheritable.is_modified();
+                        } else {
+                            Log::err(format!("Property {path} is not inheritable!"))
+                        }
                     }
                     Err(e) => Log::err(format!(
                         "Failed to resolve child path {path}. Reason: {e:?}"
                     )),
                 });
-            });
 
             // Try to apply it to the child.
             if need_revert {
@@ -603,26 +575,25 @@ pub trait SceneGraphNode: Reflect + NameProvider + Clone + 'static {
                     let mut was_set = false;
 
                     let mut parent_value = Some(parent_value);
-                    self.inner_mut(&mut |child| {
-                        child.set_field_by_path(
-                            path,
-                            parent_value.take().unwrap(),
-                            &mut |result| match result {
-                                Ok(old_value) => {
-                                    previous_value = Some(old_value);
 
-                                    was_set = true;
-                                }
-                                Err(_) => Log::err(format!(
-                                    "Failed to revert property {path}. Reason: no such property!"
-                                )),
-                            },
-                        );
-                    });
+                    self.inner_mut().set_field_by_path(
+                        path,
+                        parent_value.take().unwrap(),
+                        &mut |result| match result {
+                            Ok(old_value) => {
+                                previous_value = Some(old_value);
+
+                                was_set = true;
+                            }
+                            Err(_) => Log::err(format!(
+                                "Failed to revert property {path}. Reason: no such property!"
+                            )),
+                        },
+                    );
 
                     if was_set {
                         // Reset modified flag.
-                        reset_property_modified_flag(self, path);
+                        reset_property_modified_flag(self.inner_mut(), path);
                     }
                 }
             }
@@ -635,14 +606,14 @@ pub trait SceneGraphNode: Reflect + NameProvider + Clone + 'static {
     /// field of the specified type.
     #[inline]
     fn self_or_field_ref<T: Reflect>(&self) -> Option<&T> {
-        (self as &dyn Reflect).self_or_field_ref::<T>()
+        self.inner_ref().self_or_field_ref::<T>()
     }
 
     /// Tries to downcast self to the specified type, or if it is not possible, tries to find a
     /// field of the specified type.
     #[inline]
     fn self_or_field_mut<T: Reflect>(&mut self) -> Option<&mut T> {
-        (self as &mut dyn Reflect).self_or_field_mut::<T>()
+        self.inner_mut().self_or_field_mut::<T>()
     }
 
     /// Checks if the node is an instance of the given type or has a field of the same type.
@@ -884,7 +855,7 @@ pub trait SceneGraph: 'static {
         T: Reflect,
     {
         self.try_get_node(handle).and_then(|n| {
-            (n as &dyn Reflect)
+            n.inner_ref()
                 .self_or_field_ref()
                 .ok_or(PoolError::NoSuchField(handle.into()))
         })
@@ -898,7 +869,7 @@ pub trait SceneGraph: 'static {
         T: Reflect,
     {
         self.try_get_node_mut(handle).and_then(|n| {
-            (n as &mut dyn Reflect)
+            n.inner_mut()
                 .self_or_field_mut()
                 .ok_or(PoolError::NoSuchField(handle.into()))
         })
@@ -983,7 +954,7 @@ pub trait SceneGraph: 'static {
         T: Reflect,
     {
         self.find_up_map(node_handle, &mut |node| {
-            (node as &dyn Reflect).self_or_field_ref::<T>()
+            node.inner_ref().self_or_field_ref::<T>()
         })
     }
 
@@ -996,7 +967,7 @@ pub trait SceneGraph: 'static {
         T: Reflect,
     {
         self.find_map(node_handle, &mut |node| {
-            (node as &dyn Reflect).self_or_field_ref::<T>()
+            node.inner_ref().self_or_field_ref::<T>()
         })
     }
 
@@ -1386,26 +1357,17 @@ pub trait SceneGraph: 'static {
 
                         // Check if the actual node types (this and parent's) are equal, and if not - copy the
                         // node and replace its base.
-                        let mut types_match = true;
-                        node.inner_ref(&mut |node_reflect| {
-                            resource_node.inner_ref(&mut |resource_node_reflect| {
-                                types_match =
-                                    node_reflect.type_id() == resource_node_reflect.type_id();
-
-                                if !types_match {
-                                    Log::warn(format!(
-                                        "Node {}({}:{}) instance \
+                        if node.inner_ref().type_id() != resource_node.inner_ref().type_id() {
+                            Log::warn(format!(
+                                "Node {}({}:{}) instance \
                                         have different type than in the respective parent \
                                         asset {}. The type will be fixed.",
-                                        node.name(),
-                                        node.self_handle().index(),
-                                        node.self_handle().generation(),
-                                        model_kind
-                                    ));
-                                }
-                            })
-                        });
-                        if !types_match {
+                                node.name(),
+                                node.self_handle().index(),
+                                node.self_handle().generation(),
+                                model_kind
+                            ));
+
                             let base = node.base().clone();
                             let mut resource_node_clone = resource_node.clone();
                             variable::mark_inheritable_properties_non_modified(
@@ -1417,15 +1379,11 @@ pub trait SceneGraph: 'static {
                         }
 
                         // Then try to inherit properties.
-                        node.inner_mut(&mut |node_reflect| {
-                            resource_node.inner_ref(&mut |resource_node_reflect| {
-                                Log::verify(variable::try_inherit_properties(
-                                    node_reflect,
-                                    resource_node_reflect,
-                                    &ignored_types,
-                                ));
-                            })
-                        })
+                        Log::verify(variable::try_inherit_properties(
+                            node,
+                            resource_node,
+                            &ignored_types,
+                        ));
                     } else {
                         Log::warn(format!(
                             "Unable to find original handle for node {}. The node will be removed!",
@@ -1632,7 +1590,6 @@ mod test {
         NameProvider,
     };
     use fyrox_resource::{untyped::UntypedResource, Resource, ResourceData};
-    use std::any::type_name;
     use std::marker::PhantomData;
     use std::{
         any::{Any, TypeId},
@@ -1701,8 +1658,8 @@ mod test {
         }
     }
 
-    #[derive(Debug)]
-    pub struct Node(Box<dyn NodeTrait>);
+    #[derive(Debug, Reflect)]
+    pub struct Node(#[reflect(deref, display_name = "Node")] Box<dyn NodeTrait>);
 
     impl Clone for Node {
         fn clone(&self) -> Self {
@@ -1719,94 +1676,6 @@ mod test {
     impl Visit for Node {
         fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
             self.0.visit(name, visitor)
-        }
-    }
-
-    impl Reflect for Node {
-        fn type_info() -> TypeInfo {
-            TypeInfo {
-                source_path: file!(),
-                type_name: type_name::<Self>(),
-                assembly_name: env!("CARGO_PKG_NAME"),
-                doc_comment: "",
-                derived_types: &[],
-            }
-        }
-
-        fn type_info_ref(&self) -> TypeInfo {
-            let inner_type_info = self.0.deref().type_info_ref();
-            TypeInfo {
-                source_path: inner_type_info.source_path,
-                type_name: inner_type_info.type_name,
-                assembly_name: inner_type_info.assembly_name,
-                doc_comment: inner_type_info.doc_comment,
-                derived_types: inner_type_info.derived_types,
-            }
-        }
-
-        fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
-            self.0.deref().fields_ref(func)
-        }
-
-        fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
-            self.0.deref_mut().fields_mut(func)
-        }
-
-        fn into_inner(self: Box<Self>) -> Box<dyn Reflect> {
-            Reflect::into_inner(self.0)
-        }
-
-        fn inner_ref(&self, func: &mut dyn FnMut(&dyn Reflect)) {
-            self.0.deref().inner_ref(func)
-        }
-
-        fn inner_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
-            self.0.deref_mut().inner_mut(func)
-        }
-
-        fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
-            self.0.deref_mut().set(value)
-        }
-
-        fn set_field(
-            &mut self,
-            field: &str,
-            value: Box<dyn Reflect>,
-            func: &mut dyn FnMut(Result<Box<dyn Reflect>, SetFieldError>),
-        ) {
-            self.0.deref_mut().set_field(field, value, func)
-        }
-
-        fn find_field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
-            self.0.deref().find_field(name, func)
-        }
-
-        fn find_field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
-            self.0.deref_mut().find_field_mut(name, func)
-        }
-
-        fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
-            Some(Box::new(self.clone()))
-        }
-
-        fn field_direct_ref(&self, index: usize) -> Option<FieldRef<'_, '_>> {
-            self.0.deref().field_direct_ref(index)
-        }
-
-        fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut<'_, '_>> {
-            self.0.deref_mut().field_direct_mut(index)
-        }
-
-        fn fields_count(&self) -> usize {
-            self.0.fields_count()
-        }
-
-        fn inner_ref_direct(&self) -> &dyn Reflect {
-            self.0.inner_ref_direct()
-        }
-
-        fn inner_mut_direct(&mut self) -> &mut dyn Reflect {
-            self.0.inner_mut_direct()
         }
     }
 
@@ -1878,6 +1747,14 @@ mod test {
         type Base = Base;
         type SceneGraph = Graph;
         type ResourceData = Graph;
+
+        fn inner_ref(&self) -> &dyn Reflect {
+            self.0.deref()
+        }
+
+        fn inner_mut(&mut self) -> &mut dyn Reflect {
+            self.0.deref_mut()
+        }
 
         #[allow(clippy::explicit_auto_deref)] // False-positive
         fn base(&self) -> &Self::Base {
@@ -2093,7 +1970,7 @@ mod test {
         fn actual_type_name(&self, handle: Handle<Self::Node>) -> Result<&'static str, PoolError> {
             self.nodes
                 .try_borrow(handle)
-                .map(|n| n.0.deref().type_name())
+                .map(|n| n.0.deref().type_info_ref().type_name)
         }
 
         fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
@@ -2322,11 +2199,12 @@ mod test {
             .unwrap()
             .transmute::<RigidBody>();
         let joint_copy = mapping.inner().get(&joint).cloned().unwrap();
-        scene_graph.nodes[joint_copy].inner_ref(&mut |reflect| {
-            let joint_copy_ref = (reflect as &dyn Any).downcast_ref::<Joint>().unwrap();
-            assert_eq!(joint_copy_ref.connected_body1, rigid_body_copy);
-            assert_eq!(joint_copy_ref.connected_body2, rigid_body2_copy);
-        });
+        let joint_copy_ref = scene_graph.nodes[joint_copy]
+            .inner_ref()
+            .downcast_ref::<Joint>()
+            .unwrap();
+        assert_eq!(joint_copy_ref.connected_body1, rigid_body_copy);
+        assert_eq!(joint_copy_ref.connected_body2, rigid_body2_copy);
     }
 
     #[test]

@@ -21,7 +21,6 @@
 //! `Reflect` implementations
 
 use crate::{
-    delegate_reflect,
     reflect::{blank_reflect, prelude::*},
     sstorage::ImmutableString,
     uuid::Uuid,
@@ -29,6 +28,7 @@ use crate::{
 };
 use fyrox_core_derive::impl_reflect;
 use nalgebra::*;
+use std::any::type_name;
 use std::{
     cell::{Cell, RefCell},
     fmt::Debug,
@@ -39,7 +39,7 @@ use std::{
 };
 
 impl_reflect! {
-    pub struct Matrix<T: Copy + 'static, R: Dim + 'static, C: Dim + 'static, S: Copy + Debug + FieldValue + 'static> {
+    pub struct Matrix<T: Copy + 'static, R: Dim + 'static, C: Dim + 'static, S: Copy + Debug + Reflect + 'static> {
         pub data: S,
         // _phantoms: PhantomData<(T, R, C)>,
     }
@@ -129,11 +129,85 @@ impl_reflect! {
 }
 
 impl<T: Reflect + Clone> Reflect for Box<T> {
-    delegate_reflect!();
+    fn type_info() -> TypeInfo {
+        TypeInfo {
+            source_path: file!(),
+            type_name: type_name::<Self>(),
+            assembly_name: env!("CARGO_PKG_NAME"),
+            doc_comment: "",
+            derived_types: &[],
+        }
+    }
+
+    fn type_info_ref(&self) -> TypeInfo {
+        Self::type_info()
+    }
+
+    fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
+        func(&[{
+            FieldRef {
+                metadata: &CONTENT_METADATA,
+                value: self.deref(),
+            }
+        }])
+    }
+
+    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
+        func(&mut [{
+            FieldMut {
+                metadata: &CONTENT_METADATA,
+                value: self.deref_mut(),
+            }
+        }])
+    }
+
+    fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+        let this = std::mem::replace(self, value.take()?);
+        Ok(Box::new(this))
+    }
+
+    fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
+        Some(Box::new(self.clone()))
+    }
+
+    fn field_direct_ref(&self, index: usize) -> Option<FieldRef> {
+        if index == 0 {
+            Some(FieldRef {
+                metadata: &CONTENT_METADATA,
+                value: self.deref(),
+            })
+        } else {
+            None
+        }
+    }
+
+    fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
+        if index == 0 {
+            Some(FieldMut {
+                metadata: &CONTENT_METADATA,
+                value: self.deref_mut(),
+            })
+        } else {
+            None
+        }
+    }
 }
 
+static CONTENT_METADATA: FieldMetadata = FieldMetadata {
+    name: "Content",
+    display_name: "Content",
+    tag: "",
+    read_only: false,
+    immutable_collection: false,
+    min_value: None,
+    max_value: None,
+    step: None,
+    precision: None,
+    doc: "",
+};
+
 macro_rules! impl_reflect_inner_mutability {
-    ($self:ident, $acquire_lock_guard:block, $into_inner:block) => {
+    ($self:ident, $acquire_lock_guard:block, $clone:block) => {
         fn type_info() -> TypeInfo {
             TypeInfo {
                 source_path: file!(),
@@ -149,48 +223,32 @@ macro_rules! impl_reflect_inner_mutability {
         }
 
         fn try_clone_box(&$self) -> Option<Box<dyn Reflect>> {
-            let guard = $acquire_lock_guard;
-            Some(Box::new(guard.clone()))
+            Some(Box::new($clone))
         }
 
         fn fields_ref(&$self, func: &mut dyn FnMut(&[FieldRef])) {
             let guard = $acquire_lock_guard;
-            guard.fields_ref(func)
+            func(&[{
+                FieldRef {
+                    metadata: &CONTENT_METADATA,
+                    value: &*guard,
+                }
+            }])
         }
 
         fn fields_mut(&mut $self, func: &mut dyn FnMut(&mut [FieldMut])) {
             let mut guard = $acquire_lock_guard;
-            guard.fields_mut(func)
-        }
-
-        fn into_inner($self: Box<Self>) -> Box<dyn Reflect> {
-            let inner = $into_inner;
-            Box::new(inner)
-        }
-
-        fn inner_ref(&$self, func: &mut dyn FnMut(&dyn Reflect)) {
-            let guard = $acquire_lock_guard;
-            (*guard).inner_ref(func)
-        }
-
-        fn inner_mut(&mut $self, func: &mut dyn FnMut(&mut dyn Reflect)) {
-            let mut guard = $acquire_lock_guard;
-            (*guard).inner_mut(func)
-        }
-
-        fn inner_ref_direct(&self) -> &dyn $crate::reflect::Reflect {
-            // xxx_direct methods cannot hold the lock, so return self here.
-            self
-        }
-
-        fn inner_mut_direct(&mut self) -> &mut dyn $crate::reflect::Reflect {
-            // xxx_direct methods cannot hold the lock, so return self here.
-            self
+            func(&mut [{
+                FieldMut {
+                    metadata: &CONTENT_METADATA,
+                    value: &mut *guard,
+                }
+            }])
         }
 
         fn set(&mut $self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
-            let mut guard = $acquire_lock_guard;
-            guard.set(value)
+            let this = std::mem::replace($self, value.take()?);
+            Ok(Box::new(this))
         }
 
         fn field_direct_ref(&self, _index: usize) -> Option<FieldRef> {
@@ -200,142 +258,66 @@ macro_rules! impl_reflect_inner_mutability {
         fn field_direct_mut(&mut self, _index: usize) -> Option<FieldMut> {
             None
         }
-
-        fn set_field(
-            &mut $self,
-            field: &str,
-            value: Box<dyn Reflect>,
-            func: &mut dyn FnMut(Result<Box<dyn Reflect>, SetFieldError>),
-        ) {
-            let mut guard = $acquire_lock_guard;
-            guard.set_field(field, value, func)
-        }
-
-        fn find_field(&$self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
-            let guard = $acquire_lock_guard;
-            guard.find_field(name, func)
-        }
-
-        fn find_field_mut(&mut $self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
-            let mut guard = $acquire_lock_guard;
-            guard.find_field_mut(name, func)
-        }
-
-        fn as_array(&$self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
-            let guard = $acquire_lock_guard;
-            guard.as_array(func)
-        }
-
-        fn as_array_mut(&mut $self, func: &mut dyn FnMut(Option<&mut dyn ReflectArray>)) {
-            let mut guard = $acquire_lock_guard;
-            guard.as_array_mut(func)
-        }
-
-        fn as_list(&$self, func: &mut dyn FnMut(Option<&dyn ReflectList>)) {
-            let guard = $acquire_lock_guard;
-            guard.as_list(func)
-        }
-
-        fn as_list_mut(&mut $self, func: &mut dyn FnMut(Option<&mut dyn ReflectList>)) {
-            let mut guard = $acquire_lock_guard;
-            guard.as_list_mut(func)
-        }
-
-        fn as_inheritable_variable(
-            &$self,
-            func: &mut dyn FnMut(Option<&dyn ReflectInheritableVariable>),
-        ) {
-            let guard = $acquire_lock_guard;
-            guard.as_inheritable_variable(func)
-        }
-
-        fn as_inheritable_variable_mut(
-            &mut $self,
-            func: &mut dyn FnMut(Option<&mut dyn ReflectInheritableVariable>),
-        ) {
-            let mut guard = $acquire_lock_guard;
-            guard.as_inheritable_variable_mut(func)
-        }
-
-        fn as_hash_map(&$self, func: &mut dyn FnMut(Option<&dyn ReflectHashMap>)) {
-            let guard = $acquire_lock_guard;
-            guard.as_hash_map(func)
-        }
-
-        fn as_hash_map_mut(&mut $self, func: &mut dyn FnMut(Option<&mut dyn ReflectHashMap>)) {
-            let mut guard = $acquire_lock_guard;
-            guard.as_hash_map_mut(func)
-        }
     };
 }
 
 impl<T: Reflect + Clone> Reflect for parking_lot::Mutex<T> {
     impl_reflect_inner_mutability!(self, { self.safe_lock() }, {
-        parking_lot::Mutex::into_inner(*self)
+        parking_lot::Mutex::new(self.safe_lock().clone())
     });
 }
 
 impl<T: Reflect + Clone> Reflect for parking_lot::RwLock<T> {
     impl_reflect_inner_mutability!(self, { self.write() }, {
-        parking_lot::RwLock::into_inner(*self)
+        parking_lot::RwLock::new(self.read().clone())
     });
 }
 
 #[allow(clippy::mut_mutex_lock)]
 impl<T: Reflect + Clone> Reflect for std::sync::Mutex<T> {
     impl_reflect_inner_mutability!(self, { self.safe_lock().unwrap() }, {
-        std::sync::Mutex::into_inner(*self).unwrap()
+        std::sync::Mutex::new(self.safe_lock().unwrap().clone())
     });
 }
 
 impl<T: Reflect + Clone> Reflect for std::sync::RwLock<T> {
     impl_reflect_inner_mutability!(self, { self.write().unwrap() }, {
-        std::sync::RwLock::into_inner(*self).unwrap()
+        std::sync::RwLock::new(self.read().unwrap().clone())
     });
 }
 
 impl<T: Reflect + Clone> Reflect for Arc<parking_lot::Mutex<T>> {
     impl_reflect_inner_mutability!(self, { self.safe_lock() }, {
-        Arc::into_inner(*self)
-            .expect("Value cannot be shared!")
-            .into_inner()
+        Arc::new(parking_lot::Mutex::new(self.safe_lock().clone()))
     });
 }
 
 impl<T: Reflect + Clone> Reflect for Arc<std::sync::Mutex<T>> {
     impl_reflect_inner_mutability!(self, { self.lock().unwrap() }, {
-        Arc::into_inner(*self)
-            .expect("Value cannot be shared!")
-            .into_inner()
-            .unwrap()
+        Arc::new(std::sync::Mutex::new(self.safe_lock().unwrap().clone()))
     });
 }
 
 impl<T: Reflect + Clone> Reflect for Arc<std::sync::RwLock<T>> {
     impl_reflect_inner_mutability!(self, { self.write().unwrap() }, {
-        Arc::into_inner(*self)
-            .expect("Value cannot be shared!")
-            .into_inner()
-            .unwrap()
+        Arc::new(std::sync::RwLock::new(self.read().unwrap().clone()))
     });
 }
 
 impl<T: Reflect + Clone> Reflect for Arc<parking_lot::RwLock<T>> {
     impl_reflect_inner_mutability!(self, { self.write() }, {
-        Arc::into_inner(*self)
-            .expect("Value cannot be shared!")
-            .into_inner()
+        Arc::new(parking_lot::RwLock::new(self.read().clone()))
     });
 }
 
 impl<T: Reflect + Clone> Reflect for RefCell<T> {
-    impl_reflect_inner_mutability!(self, { self.borrow_mut() }, { RefCell::into_inner(*self) });
+    impl_reflect_inner_mutability!(self, { self.borrow_mut() }, {
+        RefCell::new(self.borrow().clone())
+    });
 }
 
 impl<T: Reflect + Clone> Reflect for Rc<RefCell<T>> {
     impl_reflect_inner_mutability!(self, { self.borrow_mut() }, {
-        Rc::into_inner(*self)
-            .expect("Value cannot be shared!")
-            .into_inner()
+        Rc::new(RefCell::new(self.borrow().clone()))
     });
 }

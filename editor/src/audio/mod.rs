@@ -97,7 +97,7 @@ impl SelectionContainer for AudioBusSelection {
             .first()
             .and_then(|handle| state.bus_graph_ref().try_get_bus_ref(*handle).ok())
         {
-            (callback)(EntityInfo::with_no_parent(effect as &dyn Reflect));
+            (callback)(EntityInfo::with_no_parent(effect));
         }
     }
 

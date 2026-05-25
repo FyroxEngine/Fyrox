@@ -21,8 +21,7 @@
 //! A module that handles resource states.
 
 use crate::{core::reflect::prelude::*, ResourceData, ResourceLoadError, TypedResourceData};
-use fyrox_core::reflect::ReflectHandle;
-use std::any::{type_name, Any};
+use std::any::Any;
 use std::fmt::{Debug, Display};
 use std::path::PathBuf;
 use std::{
@@ -84,138 +83,10 @@ impl Display for LoadError {
 }
 
 #[doc(hidden)]
-#[derive(Debug)]
-pub struct ResourceDataWrapper(pub Box<dyn ResourceData>);
-
-impl Reflect for ResourceDataWrapper {
-    fn type_info() -> TypeInfo {
-        TypeInfo {
-            source_path: file!(),
-            type_name: type_name::<Self>(),
-            assembly_name: env!("CARGO_PKG_NAME"),
-            doc_comment: "",
-            derived_types: &[],
-        }
-    }
-
-    fn type_info_ref(&self) -> TypeInfo {
-        let inner_type_info = self.deref().type_info_ref();
-        TypeInfo {
-            source_path: inner_type_info.source_path,
-            type_name: inner_type_info.type_name,
-            assembly_name: inner_type_info.assembly_name,
-            doc_comment: inner_type_info.doc_comment,
-            derived_types: inner_type_info.derived_types,
-        }
-    }
-
-    fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
-        Reflect::try_clone_box(&*self.0)
-    }
-
-    fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
-        self.deref().fields_ref(func)
-    }
-
-    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
-        self.deref_mut().fields_mut(func)
-    }
-
-    fn into_inner(self: Box<Self>) -> Box<dyn Reflect> {
-        self
-    }
-
-    fn inner_ref_direct(&self) -> &dyn Reflect {
-        self.deref().inner_ref_direct()
-    }
-
-    fn inner_mut_direct(&mut self) -> &mut dyn Reflect {
-        self.deref_mut().inner_mut_direct()
-    }
-
-    fn inner_ref(&self, func: &mut dyn FnMut(&dyn Reflect)) {
-        self.deref().inner_ref(func)
-    }
-
-    fn inner_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
-        self.deref_mut().inner_mut(func)
-    }
-
-    fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
-        self.deref_mut().set(value)
-    }
-
-    fn field_direct_ref(&self, index: usize) -> Option<FieldRef<'_, '_>> {
-        self.deref().field_direct_ref(index)
-    }
-
-    fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut<'_, '_>> {
-        self.deref_mut().field_direct_mut(index)
-    }
-
-    fn set_field(
-        &mut self,
-        field: &str,
-        value: Box<dyn Reflect>,
-        func: &mut dyn FnMut(Result<Box<dyn Reflect>, SetFieldError>),
-    ) {
-        self.deref_mut().set_field(field, value, func)
-    }
-
-    fn find_field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
-        self.deref().find_field(name, func)
-    }
-
-    fn find_field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
-        self.deref_mut().find_field_mut(name, func)
-    }
-
-    fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
-        self.deref().as_array(func)
-    }
-
-    fn as_array_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectArray>)) {
-        self.deref_mut().as_array_mut(func)
-    }
-
-    fn as_list(&self, func: &mut dyn FnMut(Option<&dyn ReflectList>)) {
-        self.deref().as_list(func)
-    }
-
-    fn as_list_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectList>)) {
-        self.deref_mut().as_list_mut(func)
-    }
-
-    fn as_inheritable_variable(
-        &self,
-        func: &mut dyn FnMut(Option<&dyn ReflectInheritableVariable>),
-    ) {
-        self.deref().as_inheritable_variable(func)
-    }
-
-    fn as_inheritable_variable_mut(
-        &mut self,
-        func: &mut dyn FnMut(Option<&mut dyn ReflectInheritableVariable>),
-    ) {
-        self.deref_mut().as_inheritable_variable_mut(func)
-    }
-
-    fn as_hash_map(&self, func: &mut dyn FnMut(Option<&dyn ReflectHashMap>)) {
-        self.deref().as_hash_map(func)
-    }
-
-    fn as_hash_map_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectHashMap>)) {
-        self.deref_mut().as_hash_map_mut(func)
-    }
-
-    fn as_handle(&self, func: &mut dyn FnMut(Option<&dyn ReflectHandle>)) {
-        self.deref().as_handle(func)
-    }
-
-    fn as_handle_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectHandle>)) {
-        self.deref_mut().as_handle_mut(func)
-    }
-}
+#[derive(Debug, Reflect)]
+pub struct ResourceDataWrapper(
+    #[reflect(deref, display_name = "Resource Data")] pub Box<dyn ResourceData>,
+);
 
 impl Deref for ResourceDataWrapper {
     type Target = dyn ResourceData;

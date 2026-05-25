@@ -544,38 +544,34 @@ impl<F: EntityGetter> CommandTrait for AddCollectionItemCommand<F> {
     fn execute(&mut self, ctx: &mut dyn CommandContext) {
         let entity = some_or_return!((self.entity_getter)(ctx));
         try_modify_property(entity, &self.path, |field| {
-            field.as_list_mut(&mut |result| {
-                if let Some(list) = result {
-                    if let Err(item) = list.reflect_push(self.item.take().unwrap()) {
-                        err!(
-                            "Failed to push item to {} collection. Type mismatch {} and {}!",
-                            self.path,
-                            item.type_info_ref().type_name,
-                            list.type_info_ref().type_name
-                        );
-                        self.item = Some(item);
-                    }
-                } else {
-                    err!("Property {} is not a collection!", self.path)
+            if let Some(list) = field.as_list_mut() {
+                if let Err(item) = list.reflect_push(self.item.take().unwrap()) {
+                    err!(
+                        "Failed to push item to {} collection. Type mismatch {} and {}!",
+                        self.path,
+                        item.type_info_ref().type_name,
+                        list.type_info_ref().type_name
+                    );
+                    self.item = Some(item);
                 }
-            });
+            } else {
+                err!("Property {} is not a collection!", self.path)
+            }
         })
     }
 
     fn revert(&mut self, ctx: &mut dyn CommandContext) {
         let entity = some_or_return!((self.entity_getter)(ctx));
         try_modify_property(entity, &self.path, |field| {
-            field.as_list_mut(&mut |result| {
-                if let Some(list) = result {
-                    if let Some(item) = list.reflect_pop() {
-                        self.item = Some(item);
-                    } else {
-                        err!("Failed to pop item from {} collection!", self.path)
-                    }
+            if let Some(list) = field.as_list_mut() {
+                if let Some(item) = list.reflect_pop() {
+                    self.item = Some(item);
                 } else {
-                    err!("Property {} is not a collection!", self.path)
+                    err!("Failed to pop item from {} collection!", self.path)
                 }
-            });
+            } else {
+                err!("Property {} is not a collection!", self.path)
+            }
         })
     }
 }
@@ -612,32 +608,28 @@ impl<F: EntityGetter> CommandTrait for RemoveCollectionItemCommand<F> {
     fn execute(&mut self, ctx: &mut dyn CommandContext) {
         let entity = some_or_return!((self.entity_getter)(ctx));
         try_modify_property(entity, &self.path, |field| {
-            field.as_list_mut(&mut |result| {
-                if let Some(list) = result {
-                    self.value = list.reflect_remove(self.index);
-                } else {
-                    err!("Property {} is not a collection!", self.path)
-                }
-            })
+            if let Some(list) = field.as_list_mut() {
+                self.value = list.reflect_remove(self.index);
+            } else {
+                err!("Property {} is not a collection!", self.path)
+            }
         })
     }
 
     fn revert(&mut self, ctx: &mut dyn CommandContext) {
         let entity = some_or_return!((self.entity_getter)(ctx));
         try_modify_property(entity, &self.path, |field| {
-            field.as_list_mut(&mut |result| {
-                if let Some(list) = result {
-                    if let Err(item) = list.reflect_insert(self.index, self.value.take().unwrap()) {
-                        self.value = Some(item);
-                        err!(
-                            "Failed to insert item to {} collection. Type mismatch!",
-                            self.path
-                        )
-                    }
-                } else {
-                    err!("Property {} is not a collection!", self.path)
+            if let Some(list) = field.as_list_mut() {
+                if let Err(item) = list.reflect_insert(self.index, self.value.take().unwrap()) {
+                    self.value = Some(item);
+                    err!(
+                        "Failed to insert item to {} collection. Type mismatch!",
+                        self.path
+                    )
                 }
-            });
+            } else {
+                err!("Property {} is not a collection!", self.path)
+            }
         })
     }
 }

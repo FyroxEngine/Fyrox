@@ -28,7 +28,7 @@ use crate::{
     core::{
         log::Log,
         pool::{Handle, PoolError},
-        reflect::{FieldMut, FieldRef, Reflect, ReflectArray, ReflectList},
+        reflect::{FieldMut, FieldRef, Reflect},
         uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
         TypeUuidProvider,
@@ -40,10 +40,9 @@ use crate::{
     scene::{base::NodeScriptMessage, node::Node, Scene},
 };
 use fyrox_core::pool::ObjectOrVariant;
-use fyrox_core::reflect::TypeInfo;
+use fyrox_core::reflect::{FieldMetadata, TypeInfo};
 pub use fyrox_core_derive::ScriptMessagePayload;
 use fyrox_graph::SceneGraph;
-use std::any::type_name;
 use std::{
     any::Any,
     fmt::{Debug, Formatter},
@@ -73,7 +72,7 @@ pub type DynamicTypeId = i64;
 ///     }
 /// ```
 pub trait ScriptMessagePayload: Any + Send + Debug {
-    /// By default messages are dispatched by [`TypeId::of`]`::<Self>()`.
+    /// By default messages are dispatched by `TypeId::of::<Self>()`.
     ///
     /// If this method returns [`Some`], then the message become dynamically typed.
     /// Dynamically typed messages are dispatched by the returned type identifier instead of static type.
@@ -711,107 +710,19 @@ pub trait ScriptTrait: BaseScript {
 }
 
 /// A wrapper for actual script instance internals, it used by the engine.
-#[derive(Debug)]
+#[derive(Debug, Reflect)]
 pub struct Script {
+    #[reflect(deref, display_name = "Script")]
     instance: Box<dyn ScriptTrait>,
+    #[reflect(hidden)]
     pub(crate) initialized: bool,
+    #[reflect(hidden)]
     pub(crate) started: bool,
 }
 
 impl TypeUuidProvider for Script {
     fn type_uuid() -> Uuid {
         Uuid::from_str("24ecd17d-9b46-4cc8-9d07-a1273e50a20e").unwrap()
-    }
-}
-
-impl Reflect for Script {
-    fn type_info() -> TypeInfo {
-        TypeInfo {
-            source_path: file!(),
-            type_name: type_name::<Self>(),
-            assembly_name: env!("CARGO_PKG_NAME"),
-            doc_comment: "",
-            derived_types: &[],
-        }
-    }
-
-    fn type_info_ref(&self) -> TypeInfo {
-        let inner_type_info = self.instance.type_info_ref();
-        TypeInfo {
-            source_path: inner_type_info.source_path,
-            type_name: inner_type_info.type_name,
-            assembly_name: inner_type_info.assembly_name,
-            doc_comment: inner_type_info.doc_comment,
-            derived_types: inner_type_info.derived_types,
-        }
-    }
-
-    fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
-        self.instance.fields_ref(func)
-    }
-
-    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
-        self.instance.fields_mut(func)
-    }
-
-    fn into_inner(self: Box<Self>) -> Box<dyn Reflect> {
-        self.instance.into_inner()
-    }
-
-    fn inner_ref(&self, func: &mut dyn FnMut(&dyn Reflect)) {
-        self.instance.deref().inner_ref(func)
-    }
-
-    fn inner_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
-        self.instance.deref_mut().inner_mut(func)
-    }
-
-    fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
-        self.instance.deref_mut().set(value)
-    }
-
-    fn find_field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
-        self.instance.deref().find_field(name, func)
-    }
-
-    fn find_field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
-        self.instance.deref_mut().find_field_mut(name, func)
-    }
-
-    fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
-        self.instance.deref().as_array(func)
-    }
-
-    fn as_array_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectArray>)) {
-        self.instance.deref_mut().as_array_mut(func)
-    }
-
-    fn as_list(&self, func: &mut dyn FnMut(Option<&dyn ReflectList>)) {
-        self.instance.deref().as_list(func)
-    }
-
-    fn as_list_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectList>)) {
-        self.instance.deref_mut().as_list_mut(func)
-    }
-
-    fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
-        Some(Box::new(self.clone()))
-    }
-
-    fn field_direct_ref(&self, index: usize) -> Option<FieldRef> {
-        self.instance.deref().field_direct_ref(index)
-    }
-
-    fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
-        self.instance.deref_mut().field_direct_mut(index)
-    }
-
-    fn inner_ref_direct(&self) -> &dyn Reflect {
-        self.instance.inner_ref_direct()
-    }
-
-    fn inner_mut_direct(&mut self) -> &mut dyn Reflect {
-        self.instance.inner_mut_direct()
     }
 }
 
@@ -958,11 +869,7 @@ mod test {
             field: InheritableVariable::new_non_modified(3.21),
         })));
 
-        child.inner_mut(&mut |child| {
-            parent.inner_ref(&mut |parent| {
-                try_inherit_properties(child, parent, &[]).unwrap();
-            })
-        });
+        try_inherit_properties(&mut child, &parent, &[]).unwrap();
 
         assert_eq!(
             *child.script(0).unwrap().cast::<MyScript>().unwrap().field,
@@ -980,11 +887,7 @@ mod test {
             field: InheritableVariable::new_non_modified(3.21),
         });
 
-        child.inner_mut(&mut |child| {
-            parent.inner_ref(&mut |parent| {
-                try_inherit_properties(child, parent, &[]).unwrap();
-            })
-        });
+        try_inherit_properties(&mut child, &parent, &[]).unwrap();
 
         assert_eq!(*child.cast::<MyScript>().unwrap().field, 3.21);
     }
@@ -999,11 +902,7 @@ mod test {
             field: InheritableVariable::new_non_modified(3.21),
         }));
 
-        child.inner_mut(&mut |child| {
-            parent.inner_ref(&mut |parent| {
-                try_inherit_properties(child, parent, &[]).unwrap();
-            })
-        });
+        try_inherit_properties(&mut child, &parent, &[]).unwrap();
 
         assert_eq!(
             *child.as_ref().unwrap().cast::<MyScript>().unwrap().field,

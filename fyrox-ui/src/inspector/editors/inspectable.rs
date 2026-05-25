@@ -99,6 +99,7 @@ where
             generate_property_string_values: ctx.generate_property_string_values,
             filter: ctx.filter,
             name_column_width: ctx.name_column_width,
+            hide_name_column: false,
             base_path: ctx.base_path.clone(),
             has_parent_object: ctx.has_parent_object,
         });
@@ -117,6 +118,7 @@ where
                 editor
             },
             ctx.name_column_width,
+            ctx.hide_name_column,
             ctx.build_context,
         );
 

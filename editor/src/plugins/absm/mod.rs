@@ -148,7 +148,7 @@ where
         .try_get_node_mut(absm_handle)
         .ok()
         .and_then(|n| {
-            n.inner_mut_direct()
+            n.inner_mut()
                 .first_field_mut::<InheritableVariable<Machine<Handle<N>>>>()
         })
         .map(|v| v.get_value_mut_silent())
@@ -167,13 +167,12 @@ where
     let absm = graph.try_get_node(absm_handle).ok()?;
 
     let animation_player_handle = **absm
-        .inner_ref_direct()
+        .inner_ref()
         .first_field_ref::<InheritableVariable<Handle<AnimationPlayer>>>()?;
 
     let animation_player = graph.try_get_mut(animation_player_handle).ok()?;
 
-    let container = animation_player
-        .inner_mut_direct()
+    let container = (animation_player as &mut dyn Reflect)
         .first_field_mut::<InheritableVariable<AnimationContainer<Handle<N>>>>()?;
 
     Some((animation_player_handle, container.get_value_mut_silent()))
@@ -188,7 +187,7 @@ where
         .try_get_node(absm_handle)
         .ok()
         .and_then(|n| {
-            n.inner_ref_direct()
+            n.inner_ref()
                 .first_field_ref::<InheritableVariable<Machine<Handle<N>>>>()
         })
         .map(|v| v.get_value_ref())
@@ -207,13 +206,12 @@ where
     let absm = graph.try_get_node(absm_handle).ok()?;
 
     let animation_player_handle = **absm
-        .inner_ref_direct()
+        .inner_ref()
         .first_field_ref::<InheritableVariable<Handle<AnimationPlayer>>>()?;
 
     let animation_player = graph.try_get(animation_player_handle).ok()?;
 
-    let container = animation_player
-        .inner_ref_direct()
+    let container = (animation_player as &dyn Reflect)
         .first_field_ref::<InheritableVariable<AnimationContainer<Handle<N>>>>()?;
 
     Some((animation_player_handle, &**container))
