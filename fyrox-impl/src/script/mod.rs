@@ -72,7 +72,7 @@ pub type DynamicTypeId = i64;
 ///     }
 /// ```
 pub trait ScriptMessagePayload: Any + Send + Debug {
-    /// By default messages are dispatched by [`TypeId::of`]`::<Self>()`.
+    /// By default messages are dispatched by `TypeId::of::<Self>()`.
     ///
     /// If this method returns [`Some`], then the message become dynamically typed.
     /// Dynamically typed messages are dispatched by the returned type identifier instead of static type.
