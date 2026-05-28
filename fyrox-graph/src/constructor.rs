@@ -20,14 +20,15 @@
 
 use fxhash::FxHashMap;
 use fyrox_core::pool::Handle;
+use fyrox_core::uuid::Uuid;
 use fyrox_core::{
     parking_lot::{Mutex, MutexGuard},
     reflect::prelude::*,
-    SafeLock, TypeUuidProvider, Uuid,
+    SafeLock,
 };
 use std::sync::Arc;
 
-pub trait ConstructorProvider<T, Ctx>: TypeUuidProvider + Default + Reflect {
+pub trait ConstructorProvider<T, Ctx>: Default + Reflect {
     fn constructor() -> GraphNodeConstructor<T, Ctx>;
 }
 
@@ -139,7 +140,7 @@ impl<Node, Ctx> GraphNodeConstructorContainer<Node, Ctx> {
         let previous = self
             .map
             .safe_lock()
-            .insert(Inner::type_uuid(), Inner::constructor());
+            .insert(Inner::type_info().type_uuid, Inner::constructor());
         assert!(previous.is_none());
     }
 

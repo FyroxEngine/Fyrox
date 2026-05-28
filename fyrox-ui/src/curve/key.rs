@@ -31,6 +31,7 @@ use crate::{
 use std::cmp::Ordering;
 
 #[derive(Default, Clone, Debug, Visit, Reflect)]
+#[reflect(type_uuid = "ae6110cd-f1dd-45b5-98e1-d8ae8bf3d0cc")]
 pub struct CurveKeyView {
     pub position: Vector2<f32>,
     pub kind: CurveKeyKind,
@@ -48,6 +49,7 @@ impl From<&CurveKey> for CurveKeyView {
 }
 
 #[derive(Default, Clone, Visit, Reflect, Debug)]
+#[reflect(type_uuid = "866c6360-2c6a-4218-aebc-530036b59a87")]
 pub struct CurveKeyViewContainer {
     id: Uuid,
     pub brush: Brush,

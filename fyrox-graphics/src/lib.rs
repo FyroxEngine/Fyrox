@@ -29,7 +29,7 @@
 pub use fyrox_core as core;
 use std::fmt::Debug;
 
-use crate::core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*};
+use crate::core::{reflect::prelude::*, visitor::prelude::*};
 use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
@@ -96,10 +96,9 @@ macro_rules! define_shared_wrapper {
     AsRefStr,
     EnumString,
     VariantNames,
-    TypeUuidProvider,
     Default,
 )]
-#[type_uuid(id = "47aff01a-7daa-427c-874c-87464a7ffe28")]
+#[reflect(type_uuid = "47aff01a-7daa-427c-874c-87464a7ffe28")]
 pub enum PolygonFillMode {
     /// Only vertices of polygons are rendered. Their size is 1px by default.
     Point,
@@ -129,9 +128,8 @@ pub enum PolygonFillMode {
     EnumString,
     VariantNames,
     Default,
-    TypeUuidProvider,
 )]
-#[type_uuid(id = "95922b07-d532-4183-8f3f-89ebe058b6f1")]
+#[reflect(type_uuid = "95922b07-d532-4183-8f3f-89ebe058b6f1")]
 pub enum CompareFunc {
     /// Never passes.
     Never,
@@ -180,9 +178,8 @@ pub enum CompareFunc {
     EnumString,
     VariantNames,
     Default,
-    TypeUuidProvider,
 )]
-#[type_uuid(id = "8d99d682-8993-4a42-bdab-77bee84e62c9")]
+#[reflect(type_uuid = "8d99d682-8993-4a42-bdab-77bee84e62c9")]
 pub enum BlendFactor {
     /// The color is multiplied by zero, turning it black.
     #[default]
@@ -244,9 +241,8 @@ pub enum BlendFactor {
     AsRefStr,
     EnumString,
     VariantNames,
-    TypeUuidProvider,
 )]
-#[type_uuid(id = "2c7b09ab-d2b1-4fbb-9c5f-95b31584b048")]
+#[reflect(type_uuid = "2c7b09ab-d2b1-4fbb-9c5f-95b31584b048")]
 pub enum BlendMode {
     /// Addition of two operands (`Source + Dest`). This is default operation.
     #[default]
@@ -277,9 +273,8 @@ pub enum BlendMode {
     Visit,
     Debug,
     Reflect,
-    TypeUuidProvider,
 )]
-#[type_uuid(id = "83403a0b-b16f-42a4-ba62-4d72c3318691")]
+#[reflect(type_uuid = "83403a0b-b16f-42a4-ba62-4d72c3318691")]
 pub struct BlendEquation {
     /// An operation for RGB part.
     pub rgb: BlendMode,
@@ -291,21 +286,9 @@ pub struct BlendEquation {
 /// for RGB and Alpha parts). Default blending function is replacing destination values with the
 /// source ones.
 #[derive(
-    Copy,
-    Clone,
-    PartialOrd,
-    PartialEq,
-    Ord,
-    Eq,
-    Hash,
-    Serialize,
-    Deserialize,
-    Visit,
-    Debug,
-    Reflect,
-    TypeUuidProvider,
+    Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Serialize, Deserialize, Visit, Debug, Reflect,
 )]
-#[type_uuid(id = "42021d36-fdd7-4c14-9a8a-9598c13dbf96")]
+#[reflect(type_uuid = "42021d36-fdd7-4c14-9a8a-9598c13dbf96")]
 pub struct BlendFunc {
     /// Factor for the source (the value that is produced by a shader) in the blending equation (RGB part).
     pub sfactor: BlendFactor,
@@ -362,6 +345,7 @@ impl Default for BlendFunc {
 #[derive(
     Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Serialize, Deserialize, Visit, Eq, Reflect,
 )]
+#[reflect(type_uuid = "2bfabbf6-ba98-49b8-8a7f-9ef42ce31305")]
 pub struct ColorMask {
     /// A flag, that defines whether the red channel is written or not in a frame buffer.
     pub red: bool,
@@ -413,9 +397,8 @@ impl ColorMask {
     EnumString,
     VariantNames,
     Default,
-    TypeUuidProvider,
 )]
-#[type_uuid(id = "30a58aa9-eda9-4673-bc50-046f6d46d122")]
+#[reflect(type_uuid = "30a58aa9-eda9-4673-bc50-046f6d46d122")]
 pub enum PolygonFace {
     /// Only front faces will be rendered.
     Front,
@@ -428,20 +411,9 @@ pub enum PolygonFace {
 
 /// Defines a function that used in a stencil test by comparing the `ref_value` to the stencil buffer.
 #[derive(
-    Copy,
-    Clone,
-    PartialOrd,
-    PartialEq,
-    Hash,
-    Debug,
-    Serialize,
-    Deserialize,
-    Visit,
-    Eq,
-    Reflect,
-    TypeUuidProvider,
+    Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Serialize, Deserialize, Visit, Eq, Reflect,
 )]
-#[type_uuid(id = "9d03366d-2537-4ef2-8e19-54f06d81d05e")]
+#[reflect(type_uuid = "9d03366d-2537-4ef2-8e19-54f06d81d05e")]
 pub struct StencilFunc {
     /// The function that is used to compare the stencil buffer value against `ref_value`.
     /// In this case the incoming value is `ref_value` and the stored value is the stencil buffer value
@@ -486,9 +458,8 @@ impl Default for StencilFunc {
     EnumString,
     VariantNames,
     Default,
-    TypeUuidProvider,
 )]
-#[type_uuid(id = "3e057392-6900-4506-880d-21391e6b4787")]
+#[reflect(type_uuid = "3e057392-6900-4506-880d-21391e6b4787")]
 pub enum StencilAction {
     /// Keeps the current value. This is the default variant.
     #[default]
@@ -524,20 +495,9 @@ pub enum StencilAction {
 
 /// A set of actions that will be performed with the stencil buffer during various testing stages.
 #[derive(
-    Copy,
-    Clone,
-    PartialOrd,
-    PartialEq,
-    Hash,
-    Debug,
-    Serialize,
-    Deserialize,
-    Visit,
-    Eq,
-    Reflect,
-    TypeUuidProvider,
+    Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Serialize, Deserialize, Visit, Eq, Reflect,
 )]
-#[type_uuid(id = "5eec1018-60aa-4ebb-8884-547ba5f4b398")]
+#[reflect(type_uuid = "5eec1018-60aa-4ebb-8884-547ba5f4b398")]
 pub struct StencilOp {
     /// An action that happens when the stencil test has failed.
     pub fail: StencilAction,
@@ -587,9 +547,8 @@ impl Default for StencilOp {
     EnumString,
     VariantNames,
     Default,
-    TypeUuidProvider,
 )]
-#[type_uuid(id = "9f467cd4-0a65-435d-b5d6-301493dbdc9b")]
+#[reflect(type_uuid = "9f467cd4-0a65-435d-b5d6-301493dbdc9b")]
 pub enum CullFace {
     /// Cull only back faces.
     #[default]
@@ -599,10 +558,8 @@ pub enum CullFace {
 }
 
 /// Blending parameters (such as blending function and its equation).
-#[derive(
-    Serialize, Deserialize, Default, Visit, Debug, PartialEq, Clone, Eq, Reflect, TypeUuidProvider,
-)]
-#[type_uuid(id = "4c0afa4d-5b67-43b3-b486-5ec64cc20e7d")]
+#[derive(Serialize, Deserialize, Default, Visit, Debug, PartialEq, Clone, Eq, Reflect)]
+#[reflect(type_uuid = "4c0afa4d-5b67-43b3-b486-5ec64cc20e7d")]
 pub struct BlendParameters {
     /// Blending function, see [`BlendFunc`] for more info.
     pub func: BlendFunc,
@@ -611,20 +568,8 @@ pub struct BlendParameters {
 }
 
 /// A rectangular area that defines which pixels will be rendered in a frame buffer or not.
-#[derive(
-    Serialize,
-    Deserialize,
-    Default,
-    Visit,
-    Debug,
-    PartialEq,
-    Clone,
-    Copy,
-    Eq,
-    Reflect,
-    TypeUuidProvider,
-)]
-#[type_uuid(id = "22be6d48-772e-4dc0-bae5-37f5e8f3a3db")]
+#[derive(Serialize, Deserialize, Default, Visit, Debug, PartialEq, Clone, Copy, Eq, Reflect)]
+#[reflect(type_uuid = "22be6d48-772e-4dc0-bae5-37f5e8f3a3db")]
 pub struct ScissorBox {
     /// X coordinate of the box's origin.
     pub x: i32,
@@ -639,6 +584,7 @@ pub struct ScissorBox {
 /// A set of drawing parameters, that are used during draw call. It defines pretty much all pipeline
 /// settings all at once.
 #[derive(Serialize, Deserialize, Visit, Debug, PartialEq, Clone, Eq, Reflect)]
+#[reflect(type_uuid = "a8cc8ce3-88da-4565-9901-2a2cb767e1ce")]
 pub struct DrawParameters {
     /// An optional cull face. If [`None`], then the culling is disabled.
     pub cull_face: Option<CullFace>,

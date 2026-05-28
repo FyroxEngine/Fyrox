@@ -29,9 +29,7 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::{Handle, PoolError},
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid::{uuid, Uuid},
-        uuid_provider,
         variable::InheritableVariable,
         visitor::prelude::*,
     },
@@ -50,6 +48,7 @@ use std::ops::{Deref, DerefMut};
 /// A part of ragdoll, that has a physical rigid body, a bone and zero or more children limbs.
 /// Multiple limbs together forms a ragdoll.
 #[derive(Clone, Debug, PartialEq, Default, Visit, Reflect)]
+#[reflect(type_uuid = "6d5bc2f7-8acc-4b64-8e4b-65d4551150bf")]
 pub struct Limb {
     /// A handle of a scene node, that is used as a bone in some other scene node (mesh).
     pub bone: Handle<Node>,
@@ -58,8 +57,6 @@ pub struct Limb {
     /// A set of children limbs.
     pub children: Vec<Limb>,
 }
-
-uuid_provider!(Limb = "6d5bc2f7-8acc-4b64-8e4b-65d4551150bf");
 
 impl Limb {
     /// Iterates recursively across the entire tree of descendant limbs and does the specified action
@@ -89,7 +86,10 @@ impl Limb {
 /// you're brave enough you can read this code <https://github.com/FyroxEngine/Fyrox/blob/master/editor/src/utils/ragdoll.rs> -
 /// it creates a ragdoll using a humanoid skeleton.  
 #[derive(Clone, Reflect, Visit, Debug, Default)]
-#[reflect(derived_type = "Node")]
+#[reflect(
+    derived_type = "Node",
+    type_uuid = "f4441683-dcef-472d-9d7d-4adca4579107"
+)]
 #[visit(optional)]
 pub struct Ragdoll {
     base: Base,
@@ -123,12 +123,6 @@ impl DerefMut for Ragdoll {
     }
 }
 
-impl TypeUuidProvider for Ragdoll {
-    fn type_uuid() -> Uuid {
-        uuid!("f4441683-dcef-472d-9d7d-4adca4579107")
-    }
-}
-
 impl ConstructorProvider<Node, Graph> for Ragdoll {
     fn constructor() -> NodeConstructor {
         NodeConstructor::new::<Self>()
@@ -151,7 +145,7 @@ impl NodeTrait for Ragdoll {
     }
 
     fn id(&self) -> Uuid {
-        Self::type_uuid()
+        <Self as Reflect>::type_info().type_uuid
     }
 
     fn update(&mut self, ctx: &mut UpdateContext) {

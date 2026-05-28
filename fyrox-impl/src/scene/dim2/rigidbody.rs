@@ -37,7 +37,6 @@ use crate::{
         parking_lot::Mutex,
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
@@ -91,7 +90,10 @@ pub(crate) enum ApplyAction {
 /// Rigid body that does not move for some time will go asleep. This means that the body will not
 /// move unless it is woken up by some other moving body. This feature allows to save CPU resources.
 #[derive(Visit, Reflect)]
-#[reflect(derived_type = "Node")]
+#[reflect(
+    derived_type = "Node",
+    type_uuid = "0b242335-75a4-4c65-9685-3e82a8979047"
+)]
 pub struct RigidBody {
     base: Base,
 
@@ -215,12 +217,6 @@ impl Clone for RigidBody {
             actions: Default::default(),
             reset_forces: self.reset_forces.clone(),
         }
-    }
-}
-
-impl TypeUuidProvider for RigidBody {
-    fn type_uuid() -> Uuid {
-        uuid!("0b242335-75a4-4c65-9685-3e82a8979047")
     }
 }
 
@@ -488,7 +484,7 @@ impl NodeTrait for RigidBody {
     }
 
     fn id(&self) -> Uuid {
-        Self::type_uuid()
+        <Self as Reflect>::type_info().type_uuid
     }
 
     fn on_removed_from_graph(&mut self, graph: &mut Graph) {

@@ -22,8 +22,7 @@ use crate::{
     asset::item::AssetItem,
     fyrox::{
         core::{
-            algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, uuid_provider,
-            visitor::prelude::*,
+            algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, visitor::prelude::*,
         },
         graph::SceneGraph,
         gui::{
@@ -56,7 +55,10 @@ use std::{
 };
 
 #[derive(Clone, Visit, Reflect)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "5db49479-ff89-49b8-a038-0766253d6493"
+)]
 pub struct FontField {
     widget: Widget,
     text_preview: Handle<Text>,
@@ -91,8 +93,6 @@ pub enum FontFieldMessage {
     Font(FontResource),
 }
 impl MessageData for FontFieldMessage {}
-
-uuid_provider!(FontField = "5db49479-ff89-49b8-a038-0766253d6493");
 
 impl Control for FontField {
     fn draw(&self, drawing_context: &mut DrawingContext) {

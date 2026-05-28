@@ -33,8 +33,6 @@ use crate::{
         pool::Handle,
         reflect::prelude::*,
         some_or_return,
-        type_traits::prelude::*,
-        uuid_provider,
         variable::InheritableVariable,
         visitor::prelude::*,
         SafeLock,
@@ -119,10 +117,9 @@ pub use crate::formatted_text::Position;
     AsRefStr,
     EnumString,
     VariantNames,
-    TypeUuidProvider,
 )]
 #[repr(u32)]
-#[type_uuid(id = "5fb7d6f0-c151-4a30-8350-2060749d74c6")]
+#[reflect(type_uuid = "5fb7d6f0-c151-4a30-8350-2060749d74c6")]
 pub enum TextCommitMode {
     /// Text box will immediately send [`TextMessage::Text`] message after any change (after any pressed button).
     Immediate = 0,
@@ -149,8 +146,8 @@ pub enum TextCommitMode {
 }
 
 /// Defines a set of two positions in the text, that forms a specific range.
-#[derive(Copy, Clone, PartialEq, Eq, Debug, Visit, Reflect, Default, TypeUuidProvider)]
-#[type_uuid(id = "04c8101b-cb34-47a5-af34-ecfb9b2fc426")]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Visit, Reflect, Default)]
+#[reflect(type_uuid = "04c8101b-cb34-47a5-af34-ecfb9b2fc426")]
 pub struct SelectionRange {
     /// Position of the beginning.
     pub begin: Position,
@@ -397,7 +394,10 @@ pub type FilterCallback = dyn FnMut(char) -> bool + Send;
 /// You can change brush of caret by using [`TextBoxBuilder::with_caret_brush`] and also selection brush by using
 /// [`TextBoxBuilder::with_selection_brush`], it could be useful if you don't like default colors.
 #[derive(Default, Clone, Visit, Reflect)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "536276f2-a175-4c05-a376-5a7d8bf0d10b"
+)]
 pub struct TextBox {
     /// Base widget of the text box.
     pub widget: Widget,
@@ -925,8 +925,6 @@ impl TextBox {
         }
     }
 }
-
-uuid_provider!(TextBox = "536276f2-a175-4c05-a376-5a7d8bf0d10b");
 
 impl Control for TextBox {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {

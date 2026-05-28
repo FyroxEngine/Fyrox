@@ -14,7 +14,6 @@ use fyrox_core::{
     sstorage::ImmutableString,
     uuid::{uuid, Uuid},
     visitor::prelude::*,
-    TypeUuidProvider,
 };
 use fyrox_resource::{
     io::ResourceIo,
@@ -37,8 +36,8 @@ pub mod loader;
 pub mod shader;
 
 /// A texture binding.
-#[derive(Default, Debug, Visit, Clone, Reflect, TypeUuidProvider)]
-#[type_uuid(id = "e1642a47-d372-4840-a8eb-f16350f436f8")]
+#[derive(Default, Debug, Visit, Clone, Reflect)]
+#[reflect(type_uuid = "e1642a47-d372-4840-a8eb-f16350f436f8")]
 pub struct MaterialTextureBinding {
     /// Actual value of the texture binding. Could be [`None`], in this case fallback value of the
     /// shader will be used.
@@ -51,8 +50,8 @@ pub struct MaterialTextureBinding {
 ///
 /// There is a limited set of possible types that can be passed to a shader, most of them are
 /// just simple data types.
-#[derive(Debug, Visit, Clone, Reflect, TypeUuidProvider, AsRefStr, EnumString, VariantNames)]
-#[type_uuid(id = "2df8f1e5-0075-4d0d-9860-70fc27d3e165")]
+#[derive(Debug, Visit, Clone, Reflect, AsRefStr, EnumString, VariantNames)]
+#[reflect(type_uuid = "2df8f1e5-0075-4d0d-9860-70fc27d3e165")]
 pub enum MaterialResourceBinding {
     /// A texture.
     Texture(MaterialTextureBinding),
@@ -80,6 +79,7 @@ impl MaterialResourceBinding {
 /// Property group stores a bunch of named values of a fixed set of types, that will be used for
 /// rendering with some shader.
 #[derive(Default, Debug, Visit, Clone, Reflect)]
+#[reflect(type_uuid = "f7bfc838-f115-463d-a714-ab48d309058a")]
 pub struct MaterialPropertyGroup {
     properties: FxHashMap<ImmutableString, MaterialProperty>,
 }
@@ -166,8 +166,8 @@ impl MaterialPropertyGroup {
 }
 
 /// A set of possible material property types.
-#[derive(Debug, Visit, Clone, Reflect, AsRefStr, EnumString, VariantNames, TypeUuidProvider)]
-#[type_uuid(id = "1c25018d-ab6e-4dca-99a6-e3d9639bc33c")]
+#[derive(Debug, Visit, Clone, Reflect, AsRefStr, EnumString, VariantNames)]
+#[reflect(type_uuid = "1c25018d-ab6e-4dca-99a6-e3d9639bc33c")]
 pub enum MaterialProperty {
     /// Real number.
     Float(f32),
@@ -601,6 +601,7 @@ impl Default for MaterialProperty {
 /// that we using resource manager to get shader instance, and then we just use the instance to create
 /// material instance. Then we populate properties as usual.
 #[derive(Debug, Clone, Reflect)]
+#[reflect(type_uuid = "0e54fe44-0c58-4108-a681-d6eefc88c234")]
 pub struct Material {
     shader: ShaderResource,
     resource_bindings: FxHashMap<ImmutableString, MaterialResourceBinding>,
@@ -635,17 +636,7 @@ impl Default for Material {
     }
 }
 
-impl TypeUuidProvider for Material {
-    fn type_uuid() -> Uuid {
-        uuid!("0e54fe44-0c58-4108-a681-d6eefc88c234")
-    }
-}
-
 impl ResourceData for Material {
-    fn type_uuid(&self) -> Uuid {
-        <Self as TypeUuidProvider>::type_uuid()
-    }
-
     fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
         let mut visitor = Visitor::new();
         self.visit("Material", &mut visitor)?;
@@ -1074,7 +1065,7 @@ impl MaterialResourceExtension for MaterialResource {
             ResourceState::Ok { ref data } => MaterialResource::new_ok(
                 Uuid::new_v4(),
                 ResourceKind::Embedded,
-                (&**data as &dyn Any)
+                (data.inner_ref() as &dyn Any)
                     .downcast_ref::<Material>()
                     .unwrap()
                     .clone(),

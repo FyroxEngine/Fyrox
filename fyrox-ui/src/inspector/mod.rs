@@ -31,7 +31,6 @@ use crate::{
         log::Log,
         pool::{Handle, ObjectOrVariant},
         reflect::{prelude::*, CastError, Reflect},
-        uuid_provider,
         visitor::prelude::*,
     },
     expander::ExpanderBuilder,
@@ -456,27 +455,24 @@ pub trait InspectorEnvironment: Send + Sync + Reflect {
 /// # };
 /// # use std::sync::Arc;
 /// # use strum_macros::{AsRefStr, EnumString, VariantNames};
-/// # use fyrox_core::uuid_provider;
 /// # use fyrox_ui::inspector::{Inspector, InspectorContextArgs};
 ///
 /// #[derive(Reflect, Debug, Clone)]
+/// #[reflect(type_uuid = "391b9424-8fe2-4525-a98e-3c930487fcf1")]
 /// struct MyObject {
 ///     foo: String,
 ///     bar: u32,
 ///     stuff: MyEnum,
 /// }
 ///
-/// uuid_provider!(MyObject = "391b9424-8fe2-4525-a98e-3c930487fcf1");
-///
 /// // Enumeration requires a bit more traits to be implemented. It must provide a way to turn
 /// // enum into a string.
 /// #[derive(Reflect, Debug, Clone, AsRefStr, EnumString, VariantNames)]
+/// #[reflect(type_uuid = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd")]
 /// enum MyEnum {
 ///     SomeVariant,
 ///     YetAnotherVariant { baz: f32 },
 /// }
-///
-/// uuid_provider!(MyEnum = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd");
 ///
 /// fn create_inspector(ctx: &mut BuildContext) -> Handle<Inspector> {
 ///     // Initialize an object first.
@@ -516,7 +512,10 @@ pub trait InspectorEnvironment: Send + Sync + Reflect {
 /// }
 /// ```
 #[derive(Default, Clone, Visit, Reflect, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "c599c0f5-f749-4033-afed-1a9949c937a1"
+)]
 pub struct Inspector {
     pub widget: Widget,
     #[reflect(hidden)]
@@ -1389,8 +1388,6 @@ impl InspectorContext {
             .unwrap_or_default()
     }
 }
-
-uuid_provider!(Inspector = "c599c0f5-f749-4033-afed-1a9949c937a1");
 
 impl Control for Inspector {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

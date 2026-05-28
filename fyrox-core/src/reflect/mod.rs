@@ -31,27 +31,39 @@ mod map;
 
 use crate::sstorage::ImmutableString;
 
+pub use array::*;
+pub use error::*;
+pub use field::*;
 pub use fyrox_core_derive::Reflect;
+pub use handle::*;
+pub use inherit::*;
+pub use macros::*;
+pub use map::*;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
     mem::ManuallyDrop,
 };
-
-pub use array::*;
-pub use error::*;
-pub use field::*;
-pub use handle::*;
-pub use inherit::*;
-pub use macros::*;
-pub use map::*;
+use uuid::Uuid;
 
 pub mod prelude {
     pub use super::{
-        FieldMetadata, FieldMut, FieldRef, Reflect, ReflectArray, ReflectHashMap,
+        combine_uuids, FieldMetadata, FieldMut, FieldRef, Reflect, ReflectArray, ReflectHashMap,
         ReflectInheritableVariable, ReflectList, ResolvePath, SetFieldByPathError, SetFieldError,
         TypeInfo,
     };
+    pub use crate::uuid::{uuid, Uuid};
+}
+
+#[inline]
+pub fn combine_uuids(a: Uuid, b: Uuid) -> Uuid {
+    let mut combined_bytes = a.into_bytes();
+
+    for (src, dest) in b.into_bytes().into_iter().zip(combined_bytes.iter_mut()) {
+        *dest ^= src;
+    }
+
+    Uuid::from_bytes(combined_bytes)
 }
 
 /// A set of useful information about a type that can be queried at runtime.
@@ -80,6 +92,9 @@ pub struct TypeInfo {
     /// derived class, it is just a "link" between this type an others. It is widely used to link
     /// an actual type with its wrapper type (which typically contains `Box<dyn SomeTrait>`).
     pub derived_types: &'static [TypeId],
+
+    /// Unique id of the type.
+    pub type_uuid: Uuid,
 }
 
 /// A trait for runtime reflection.
@@ -997,6 +1012,7 @@ mod test {
     use std::collections::HashMap;
 
     #[derive(Reflect, Clone, Default, PartialEq, Debug)]
+    #[reflect(type_uuid = "407bcd52-9603-4436-b16c-638c8f6ea97e")]
     enum Enum {
         #[default]
         Empty,
@@ -1006,6 +1022,7 @@ mod test {
     }
 
     #[derive(Reflect, Clone, Default, Debug)]
+    #[reflect(type_uuid = "97718a85-3901-407e-9347-b684c0047743")]
     struct Foo {
         enum_field: InheritableVariable<Enum>,
         bar: Bar,
@@ -1015,11 +1032,13 @@ mod test {
     }
 
     #[derive(Reflect, Clone, Default, Debug)]
+    #[reflect(type_uuid = "9465ea72-dd27-43f3-8ccf-b634e4b2887f")]
     struct Item {
         payload: u32,
     }
 
     #[derive(Reflect, Clone, Default, Debug)]
+    #[reflect(type_uuid = "8fb478ac-e4c4-4762-a43a-451147e6e509")]
     struct Bar {
         stuff: String,
     }
@@ -1076,7 +1095,10 @@ mod test {
     }
 
     #[derive(Reflect, Clone, Debug)]
-    #[reflect(derived_type = "Derived")]
+    #[reflect(
+        derived_type = "Derived",
+        type_uuid = "8c093dc1-fd18-45ff-97bc-8d2364b7ed30"
+    )]
     struct Base;
 
     #[allow(dead_code)]

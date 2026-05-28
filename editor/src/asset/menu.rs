@@ -24,8 +24,7 @@ use crate::{
         asset::manager::ResourceManager,
         core::{
             futures::executor::block_on, log::Log, ok_or_return, pool::Handle,
-            pool::HandlesVecExtension, reflect::prelude::*, type_traits::prelude::*,
-            visitor::prelude::*, SafeLock,
+            pool::HandlesVecExtension, reflect::prelude::*, visitor::prelude::*, SafeLock,
         },
         engine::Engine,
         graph::SceneGraph,
@@ -62,9 +61,9 @@ use std::{
     path::PathBuf,
 };
 
-#[derive(Clone, Visit, Reflect, Debug, TypeUuidProvider)]
+#[derive(Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
-#[type_uuid(id = "8c9934ad-b4e1-4c68-9876-f253e34c6667")]
+#[reflect(type_uuid = "8c9934ad-b4e1-4c68-9876-f253e34c6667")]
 struct AssetRenameDialog {
     window: Window,
     name_field: Handle<TextBox>,
@@ -437,18 +436,18 @@ impl AssetItemContextMenu {
                                     let loaders = engine.resource_manager.state().loaders.clone();
                                     let loaders = loaders.lock();
 
-                                    if let Some(loader) =
-                                        loaders.loader_for_data_type(data.type_uuid())
-                                    {
+                                    if let Some(loader) = loaders.loader_for_data_type(
+                                        data.inner_ref().type_info_ref().type_uuid,
+                                    ) {
                                         if let Some(extension) = loader.extensions().first() {
-                                            if data.can_be_saved() {
+                                            if data.inner_ref().can_be_saved() {
                                                 let final_copy_path = asset::make_unique_path(
                                                     &registry_path,
                                                     path.to_str().unwrap(),
                                                     extension,
                                                 );
                                                 drop(loaders);
-                                                if data.save(&final_copy_path).is_ok() {
+                                                if data.inner_mut().save(&final_copy_path).is_ok() {
                                                     engine
                                                         .resource_manager
                                                         .request_untyped(&final_copy_path);

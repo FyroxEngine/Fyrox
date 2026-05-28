@@ -38,7 +38,6 @@ use crate::{
         parking_lot::Mutex,
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
@@ -51,7 +50,7 @@ use crate::{
         Scene,
     },
 };
-use fyrox_core::uuid_provider;
+
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::SceneGraph;
 use rapier3d::{dynamics, prelude::RigidBodyHandle};
@@ -69,6 +68,7 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 )]
 #[repr(u32)]
 #[derive(Default)]
+#[reflect(type_uuid = "562d2907-1b41-483a-8ca2-12eebaff7f5d")]
 pub enum RigidBodyType {
     /// Dynamic rigid bodies can be affected by external forces.
     #[default]
@@ -82,8 +82,6 @@ pub enum RigidBodyType {
     /// It also does not have any dynamic, you are able to control the position by changing velocity.
     KinematicVelocityBased = 3,
 }
-
-uuid_provider!(RigidBodyType = "562d2907-1b41-483a-8ca2-12eebaff7f5d");
 
 impl From<dynamics::RigidBodyType> for RigidBodyType {
     fn from(s: dynamics::RigidBodyType) -> Self {
@@ -146,8 +144,9 @@ pub(crate) enum ApplyAction {
     NextPosition(Isometry3<f32>),
 }
 
-#[derive(Copy, Clone, Debug, Reflect, Visit, PartialEq, AsRefStr, EnumString, VariantNames)]
 /// Possible types of rigidbody mass properties
+#[derive(Copy, Clone, Debug, Reflect, Visit, PartialEq, AsRefStr, EnumString, VariantNames)]
+#[reflect(type_uuid = "663b6a92-9c0f-4f47-b66a-6b4293312a5d")]
 pub enum RigidBodyMassPropertiesType {
     /// Use default mass properties
     Default,
@@ -159,7 +158,6 @@ pub enum RigidBodyMassPropertiesType {
         principal_inertia: Vector3<f32>,
     },
 }
-uuid_provider!(RigidBodyMassPropertiesType = "663b6a92-9c0f-4f47-b66a-6b4293312a5d");
 
 /// Rigid body is a physics entity that responsible for the dynamics and kinematics of the solid.
 /// Use this node when you need to simulate real-world physics in your game.
@@ -169,7 +167,10 @@ uuid_provider!(RigidBodyMassPropertiesType = "663b6a92-9c0f-4f47-b66a-6b4293312a
 /// Rigid body that does not move for some time will go asleep. This means that the body will not
 /// move unless it is woken up by some other moving body. This feature allows to save CPU resources.
 #[derive(Visit, Reflect)]
-#[reflect(derived_type = "Node")]
+#[reflect(
+    derived_type = "Node",
+    type_uuid = "4be15a7c-3566-49c4-bba8-2f4ccc57ffed"
+)]
 pub struct RigidBody {
     base: Base,
 
@@ -308,12 +309,6 @@ impl Clone for RigidBody {
             reset_forces: self.reset_forces.clone(),
             mass_properties_type: self.mass_properties_type.clone(),
         }
-    }
-}
-
-impl TypeUuidProvider for RigidBody {
-    fn type_uuid() -> Uuid {
-        uuid!("4be15a7c-3566-49c4-bba8-2f4ccc57ffed")
     }
 }
 
@@ -630,7 +625,7 @@ impl NodeTrait for RigidBody {
     }
 
     fn id(&self) -> Uuid {
-        Self::type_uuid()
+        <Self as Reflect>::type_info().type_uuid
     }
 
     fn on_removed_from_graph(&mut self, graph: &mut Graph) {

@@ -25,8 +25,6 @@ use crate::fyrox::{
         math::{Rect, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
-        uuid_provider,
         visitor::prelude::*,
     },
     generic_animation::machine::{
@@ -92,6 +90,7 @@ impl MessageData for BlendSpaceFieldMessage {
 }
 
 #[derive(Clone, Visit, Reflect, Debug)]
+#[reflect(type_uuid = "5cdb0ab3-b6fd-41c3-a6c4-d1178346eb81")]
 struct ContextMenu {
     #[visit(skip)]
     #[reflect(hidden)]
@@ -109,7 +108,10 @@ enum DragContext {
 }
 
 #[derive(Clone, Visit, Reflect)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "854a7c2d-3ccd-4331-95e1-956a3a035bd0"
+)]
 struct BlendSpaceField {
     widget: Widget,
     points: Vec<Handle<BlendSpaceFieldPoint>>,
@@ -179,8 +181,6 @@ fn make_points<P: Iterator<Item = Vector2<f32>>>(
         })
         .collect()
 }
-
-uuid_provider!(BlendSpaceField = "854a7c2d-3ccd-4331-95e1-956a3a035bd0");
 
 impl Control for BlendSpaceField {
     fn measure_override(&self, ui: &UserInterface, _available_size: Vector2<f32>) -> Vector2<f32> {
@@ -558,15 +558,16 @@ pub enum BlendSpaceFieldPointMessage {
 impl MessageData for BlendSpaceFieldPointMessage {}
 
 #[derive(Clone, Visit, Reflect, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "22c215c1-ff23-4a64-9aa7-640b5014a78b"
+)]
 struct BlendSpaceFieldPoint {
     widget: Widget,
     selected: bool,
 }
 
 define_widget_deref!(BlendSpaceFieldPoint);
-
-uuid_provider!(BlendSpaceFieldPoint = "22c215c1-ff23-4a64-9aa7-640b5014a78b");
 
 impl Control for BlendSpaceFieldPoint {
     fn draw(&self, drawing_context: &mut DrawingContext) {

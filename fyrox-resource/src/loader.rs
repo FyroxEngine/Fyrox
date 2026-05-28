@@ -21,14 +21,12 @@
 //! Resource loader. It manages resource loading.
 
 use crate::{
-    core::{uuid::Uuid, TypeUuidProvider},
-    io::ResourceIo,
-    options::BaseImportOptions,
-    state::LoadError,
-    ResourceData, TypedResourceData,
+    core::uuid::Uuid, io::ResourceIo, options::BaseImportOptions, state::LoadError, ResourceData,
+    TypedResourceData,
 };
 use fyrox_core::io::FileError;
 use fyrox_core::platform::TargetPlatform;
+use fyrox_core::reflect::Reflect;
 use fyrox_core::visitor::{Format, Visitor};
 use std::{
     any::Any,
@@ -303,7 +301,7 @@ impl ResourceLoadersContainer {
                 .iter()
                 .find(|loader| loader.supports_extension(&extension.to_string_lossy()))
                 .is_some_and(|loader| {
-                    loader.data_type_uuid() == <T as TypeUuidProvider>::type_uuid()
+                    loader.data_type_uuid() == <T as Reflect>::type_info().type_uuid
                 })
         })
     }

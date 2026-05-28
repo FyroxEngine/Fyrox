@@ -28,7 +28,6 @@ use crate::{
     UiNode, UserInterface,
 };
 use fyrox_core::pool::ObjectOrVariant;
-use fyrox_core::uuid_provider;
 use serde::{Deserialize, Serialize};
 use std::{any::Any, cell::Cell, fmt::Debug};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
@@ -523,6 +522,7 @@ impl UiMessage {
 
 /// Mouse button state.
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy, Visit, Reflect)]
+#[reflect(type_uuid = "520d4eae-6772-4037-bff2-23a591a761ee")]
 pub enum ButtonState {
     /// Pressed state.
     Pressed,
@@ -532,6 +532,7 @@ pub enum ButtonState {
 
 /// A set of possible mouse buttons.
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy, Default, Visit, Reflect)]
+#[reflect(type_uuid = "3e3097b4-5845-439f-8926-91850ee376da")]
 pub enum MouseButton {
     /// Left mouse button.
     #[default]
@@ -550,6 +551,7 @@ pub enum MouseButton {
 
 /// A set of possible touch phases
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy, Visit, Reflect)]
+#[reflect(type_uuid = "cae97887-4afd-4259-a572-e79e56fe43db")]
 pub enum TouchPhase {
     /// Touch started
     Started,
@@ -563,6 +565,7 @@ pub enum TouchPhase {
 
 /// Describes the force of a touch event
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy, Visit, Reflect)]
+#[reflect(type_uuid = "037e4017-1d9d-4f82-a545-7e13444c7f1f")]
 pub enum Force {
     /// On iOS, the force is calibrated so that the same number corresponds to
     /// roughly the same amount of pressure on the screen regardless of the
@@ -677,6 +680,7 @@ pub enum OsEvent {
     Reflect,
     Visit,
 )]
+#[reflect(type_uuid = "ccd546cc-aa63-4be7-b41c-476fa38cb1d3")]
 pub struct KeyboardModifiers {
     /// `Alt` key is pressed.
     pub alt: bool,
@@ -717,6 +721,7 @@ impl KeyboardModifiers {
 )]
 #[repr(u32)]
 #[allow(missing_docs)]
+#[reflect(type_uuid = "45face46-97f2-4f3c-88a0-3a96d8c06105")]
 pub enum KeyCode {
     /// This variant is used when the key cannot be translated to any other variant.
     #[default]
@@ -1318,6 +1323,7 @@ impl TryFrom<char> for KeyCode {
     EnumString,
     VariantNames,
 )]
+#[reflect(type_uuid = "da7f3a5f-9d26-460a-8e46-38da25f8a8db")]
 pub enum CursorIcon {
     /// The platform-dependent default cursor. Often rendered as arrow.
     #[default]
@@ -1446,5 +1452,3 @@ pub enum CursorIcon {
     /// magnifying glass with a "-" in the center of the glass.
     ZoomOut,
 }
-
-uuid_provider!(CursorIcon = "da7f3a5f-9d26-460a-8e46-38da25f8a8db");

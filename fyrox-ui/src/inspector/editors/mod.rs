@@ -265,6 +265,7 @@ pub struct PropertyEditorTranslationContext<'b, 'c> {
 /// A widget handle that is to act as an editor in an [Inspector](crate::inspector::Inspector), with or without
 /// a custom container widget to show the name of the property that is being edited.
 #[derive(Clone, Debug, PartialEq, Visit, Reflect)]
+#[reflect(type_uuid = "b5ab90da-6934-46e5-9fb2-5225c101c4fa")]
 pub enum PropertyEditorInstance {
     /// A property editor that is to be given a default container, which is just a label to the left
     /// of the editor to show the name of the property being edited.

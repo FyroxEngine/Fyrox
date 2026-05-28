@@ -33,7 +33,6 @@ use crate::{
         parking_lot::Mutex,
         pool::Handle,
         reflect::prelude::*,
-        uuid_provider,
         variable::{InheritableVariable, VariableFlags},
         visitor::prelude::*,
         BiDirHashMap, SafeLock,
@@ -130,6 +129,7 @@ impl From<rapier2d::geometry::FeatureId> for FeatureId {
     Copy, Clone, Debug, PartialEq, Eq, Visit, Reflect, VariantNames, EnumString, AsRefStr, Default,
 )]
 #[repr(u32)]
+#[reflect(type_uuid = "775d5598-c283-4b44-9cc0-2e23dc8936f4")]
 pub enum CoefficientCombineRule {
     /// The two coefficients are averaged.
     #[default]
@@ -143,8 +143,6 @@ pub enum CoefficientCombineRule {
     /// The clamped sum of the two coefficients.
     ClampedSum = 4,
 }
-
-uuid_provider!(CoefficientCombineRule = "775d5598-c283-4b44-9cc0-2e23dc8936f4");
 
 impl From<rapier3d::dynamics::CoefficientCombineRule> for CoefficientCombineRule {
     fn from(v: rapier3d::dynamics::CoefficientCombineRule) -> Self {
@@ -828,6 +826,7 @@ fn collider_shape_into_native_shape(
 /// each parameter.
 #[derive(Copy, Clone, Visit, Reflect, Debug, PartialEq)]
 #[visit(optional)]
+#[reflect(type_uuid = "bd4ca07f-34a5-4cf8-a70e-24919124545b")]
 pub struct IntegrationParameters {
     /// The time step length, default is None - this means that physics simulation will use engine's
     /// time step.
@@ -913,6 +912,7 @@ impl Default for IntegrationParameters {
 /// methods, mostly for ray casting. You should add physical entities using scene graph nodes, such
 /// as RigidBody, Collider, Joint.
 #[derive(Visit, Reflect)]
+#[reflect(type_uuid = "17e663b8-98a4-46db-be71-a336246f571a")]
 pub struct PhysicsWorld {
     /// A flag that defines whether physics simulation is enabled or not.
     pub enabled: InheritableVariable<bool>,

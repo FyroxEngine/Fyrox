@@ -23,7 +23,7 @@ use crate::text_box::TextBox;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     control_trait_proxy_impls,
-    core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
+    core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     define_widget_deref_proxy,
     grid::{Column, GridBuilder, Row},
     message::{MessageData, UiMessage},
@@ -41,8 +41,8 @@ pub enum FolderNameDialogMessage {
 }
 impl MessageData for FolderNameDialogMessage {}
 
-#[derive(Clone, Visit, Reflect, Default, Debug, TypeUuidProvider)]
-#[type_uuid(id = "832f63b8-1372-49b8-8ce5-7564920343a8")]
+#[derive(Clone, Visit, Reflect, Default, Debug)]
+#[reflect(type_uuid = "832f63b8-1372-49b8-8ce5-7564920343a8")]
 #[reflect(derived_type = "UiNode")]
 pub struct FolderNameDialog {
     pub window: Window,

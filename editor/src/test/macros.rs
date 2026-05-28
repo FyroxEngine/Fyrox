@@ -19,11 +19,10 @@
 // SOFTWARE.
 
 use crate::{
-    fyrox::{core::Uuid, engine::ApplicationLoopController},
-    test::utils::EditorTestingExtension,
-    Editor,
+    fyrox::engine::ApplicationLoopController, test::utils::EditorTestingExtension, Editor,
 };
 use fyrox::core::info;
+use fyrox::core::uuid::Uuid;
 use std::collections::VecDeque;
 
 type Action = Box<dyn FnOnce(&mut Editor)>;

@@ -22,7 +22,6 @@
 
 mod reflect;
 mod script_message_payload;
-mod uuid;
 mod visit;
 
 use darling::FromDeriveInput;
@@ -171,15 +170,6 @@ pub fn impl_reflect(input: TokenStream) -> TokenStream {
 pub fn impl_visit(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
     TokenStream::from(visit::impl_visit(ast))
-}
-
-/// Implements `TypeUuidProvider` trait
-///
-/// User has to import `TypeUuidProvider` trait to use this macro.
-#[proc_macro_derive(TypeUuidProvider, attributes(type_uuid))]
-pub fn type_uuid(input: TokenStream) -> TokenStream {
-    let ast = parse_macro_input!(input as DeriveInput);
-    TokenStream::from(uuid::impl_type_uuid_provider(ast))
 }
 
 /// Implements `ScriptMessagePayload` trait

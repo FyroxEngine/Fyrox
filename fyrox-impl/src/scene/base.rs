@@ -30,7 +30,6 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::{ErasedHandle, Handle},
         reflect::prelude::*,
-        type_traits::prelude::*,
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
         ImmutableString,
@@ -57,8 +56,8 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 /// Normalized distance is a distance in (0; 1) range where 0 - closest to camera,
 /// 1 - farthest. Real distance can be obtained by multiplying normalized distance
 /// with z_far of current projection matrix.
-#[derive(Debug, Default, Clone, Visit, Reflect, PartialEq, TypeUuidProvider)]
-#[type_uuid(id = "576b31a2-2b39-4c79-95dd-26aeaf381d8b")]
+#[derive(Debug, Default, Clone, Visit, Reflect, PartialEq)]
+#[reflect(type_uuid = "576b31a2-2b39-4c79-95dd-26aeaf381d8b")]
 pub struct LevelOfDetail {
     /// Beginning of the range in which the level will be visible. It is expressed in normalized
     /// coordinates: where 0.0 - closest to camera, 1.0 - farthest from camera.
@@ -125,18 +124,16 @@ impl LevelOfDetail {
 /// Lod group must contain non-overlapping cascades, each cascade with its own set of objects
 /// that belongs to level of detail. Engine does not care if you create overlapping cascades,
 /// it is your responsibility to create non-overlapping cascades.
-#[derive(Debug, Default, Clone, Visit, Reflect, PartialEq, TypeUuidProvider)]
-#[type_uuid(id = "8e7b18b1-c1e0-47d7-b952-4394c1d049e5")]
+#[derive(Debug, Default, Clone, Visit, Reflect, PartialEq)]
+#[reflect(type_uuid = "8e7b18b1-c1e0-47d7-b952-4394c1d049e5")]
 pub struct LodGroup {
     /// Set of cascades.
     pub levels: Vec<LevelOfDetail>,
 }
 
 /// A property value.
-#[derive(
-    Debug, Visit, Reflect, PartialEq, Clone, AsRefStr, EnumString, VariantNames, TypeUuidProvider,
-)]
-#[type_uuid(id = "cce94b60-a57e-48ba-b6f4-e5e84788f7f8")]
+#[derive(Debug, Visit, Reflect, PartialEq, Clone, AsRefStr, EnumString, VariantNames)]
+#[reflect(type_uuid = "cce94b60-a57e-48ba-b6f4-e5e84788f7f8")]
 pub enum PropertyValue {
     /// A node handle.
     ///
@@ -183,8 +180,8 @@ impl Default for PropertyValue {
 }
 
 /// A custom property.
-#[derive(Debug, Visit, Reflect, Default, Clone, PartialEq, TypeUuidProvider)]
-#[type_uuid(id = "fc87fd21-a5e6-40d5-a79d-19f96b25d6c9")]
+#[derive(Debug, Visit, Reflect, Default, Clone, PartialEq)]
+#[reflect(type_uuid = "fc87fd21-a5e6-40d5-a79d-19f96b25d6c9")]
 pub struct Property {
     /// Name of the property.
     pub name: String,
@@ -230,6 +227,7 @@ pub enum NodeScriptMessage {
     Deserialize,
 )]
 #[repr(transparent)]
+#[reflect(type_uuid = "6cebe796-6e14-479d-93a6-9fb04665740c")]
 pub struct SceneNodeId(pub Uuid);
 
 impl Visit for SceneNodeId {
@@ -239,8 +237,8 @@ impl Visit for SceneNodeId {
 }
 
 /// A script container record.
-#[derive(Clone, Reflect, Debug, Default, TypeUuidProvider)]
-#[type_uuid(id = "51bc577b-5a50-4a97-9b31-eda2f3d46c9d")]
+#[derive(Clone, Reflect, Debug, Default)]
+#[reflect(type_uuid = "51bc577b-5a50-4a97-9b31-eda2f3d46c9d")]
 pub struct ScriptRecord {
     // Script is wrapped into `Option` to be able to do take-return trick to bypass borrow checker
     // issues.
@@ -369,6 +367,7 @@ impl<T> DerefMut for TrackedProperty<T> {
 /// }
 /// ```
 #[derive(Debug, Reflect, Clone)]
+#[reflect(type_uuid = "5bf7fb77-fd50-4b92-83d7-27153b7da531")]
 pub struct Base {
     #[reflect(hidden)]
     self_handle: Handle<Node>,

@@ -47,6 +47,7 @@ pub mod terrain;
 
 #[derive(Reflect, Debug)]
 #[reflect(non_cloneable)]
+#[reflect(type_uuid = "4dd03d8c-b0c9-43a2-871c-55e5fd603afd")]
 pub struct GameSceneContext {
     pub selection: &'static mut Selection,
     pub scene: &'static mut Scene,

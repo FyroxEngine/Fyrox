@@ -36,6 +36,7 @@ use fyrox_core::algebra::{Quaternion, UnitQuaternion};
 /// The kind of track output value, the animation system works only with numeric properties and the number
 /// of variants is small.
 #[derive(Clone, Copy, Debug, Visit, Reflect, PartialEq, Eq, Default)]
+#[reflect(type_uuid = "1b0d11b8-5276-4633-9179-355f8521bd40")]
 pub enum TrackValueKind {
     /// A real number. Requires only 1 parametric curve.
     Real,
@@ -80,6 +81,7 @@ impl TrackValueKind {
 
 /// Interpolation mode for track data.
 #[derive(Visit, Reflect, Debug, Clone, Default, PartialEq)]
+#[reflect(type_uuid = "592fa764-097f-4a71-a1a1-e53b63f49c1a")]
 pub enum InterpolationMode {
     /// Default interpolation mode.
     #[default]
@@ -96,6 +98,7 @@ pub enum InterpolationMode {
 /// Each component is bound to a specific curve. For example, in case of [`Vector3`] its components bound
 /// to the following curve indices: `X = 0`, `Y = 1`, `Z = 2`. This order cannot be changed.
 #[derive(Visit, Reflect, Debug, Clone, Default, PartialEq)]
+#[reflect(type_uuid = "23b7fc05-7530-409b-9698-cf079cc38933")]
 pub struct TrackDataContainer {
     curves: Vec<Curve>,
     kind: TrackValueKind,

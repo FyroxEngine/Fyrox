@@ -30,7 +30,6 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         value_as_u8_slice,
         variable::InheritableVariable,
@@ -65,6 +64,7 @@ pub mod particle;
 
 /// Pseudo-random numbers generator for particle systems.
 #[derive(Debug, Clone, Reflect)]
+#[reflect(type_uuid = "13d58184-e65c-41a3-9986-fc8d31231636")]
 pub struct ParticleSystemRng {
     rng_seed: u64,
 
@@ -219,7 +219,10 @@ impl Visit for ParticleSystemRng {
 /// }
 /// ```
 #[derive(Debug, Clone, Reflect)]
-#[reflect(derived_type = "Node")]
+#[reflect(
+    derived_type = "Node",
+    type_uuid = "8b210eff-97a4-494f-ba7a-a581d3f4a442"
+)]
 pub struct ParticleSystem {
     base: Base,
 
@@ -278,9 +281,8 @@ pub struct ParticleSystem {
     AsRefStr,
     EnumString,
     VariantNames,
-    TypeUuidProvider,
 )]
-#[type_uuid(id = "d19e13ec-03d5-4c88-b0b2-d161d1912632")]
+#[reflect(type_uuid = "d19e13ec-03d5-4c88-b0b2-d161d1912632")]
 pub enum CoordinateSystem {
     /// Local coordinate system moves particles together with the particle system itself. For example
     /// if a particle system is moved, rotated, scaled, etc. then the particle will be moved, rotated,
@@ -332,12 +334,6 @@ impl Deref for ParticleSystem {
 impl DerefMut for ParticleSystem {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.base
-    }
-}
-
-impl TypeUuidProvider for ParticleSystem {
-    fn type_uuid() -> Uuid {
-        uuid!("8b210eff-97a4-494f-ba7a-a581d3f4a442")
     }
 }
 
@@ -547,7 +543,7 @@ impl NodeTrait for ParticleSystem {
     }
 
     fn id(&self) -> Uuid {
-        Self::type_uuid()
+        <Self as Reflect>::type_info().type_uuid
     }
 
     fn update(&mut self, context: &mut UpdateContext) {

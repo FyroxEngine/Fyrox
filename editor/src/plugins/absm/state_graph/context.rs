@@ -51,7 +51,7 @@ use crate::{
 
 use fyrox::core::pool::HandlesArrayExtension;
 use fyrox::core::reflect::Reflect;
-use fyrox::core::{uuid, Uuid};
+use fyrox::core::uuid::{uuid, Uuid};
 use fyrox::gui::menu::{ContextMenuBuilder, MenuItem};
 
 pub struct CanvasContextMenu {

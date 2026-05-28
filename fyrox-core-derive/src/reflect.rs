@@ -443,6 +443,24 @@ fn gen_impl(
         }
     };
 
+    let type_uuid_str = ty_args.type_uuid.as_str();
+    let type_uuid = if ty_args.generics.params.is_empty() {
+        quote! { uuid!(#type_uuid_str) }
+    } else {
+        // Try to combine uuids from types and consts.
+        let mut combined = quote! { uuid!(#type_uuid_str) };
+        for ty in ty_args.generics.type_params() {
+            let type_name = &ty.ident;
+            combined = quote! {combine_uuids(#combined, #type_name::type_info().type_uuid)}
+        }
+        for constant in ty_args.generics.const_params() {
+            let value = &constant.ident;
+            let uuid = quote! { Uuid::from_u64_pair(#value as u64, #value as u64)};
+            combined = quote! {combine_uuids(#combined, #uuid)}
+        }
+        combined
+    };
+
     let types = ty_args
         .derived_type
         .iter()
@@ -466,6 +484,7 @@ fn gen_impl(
                     assembly_name: #assembly_name,
                     doc_comment: #doc,
                     derived_types: &DERIVED_TYPES,
+                    type_uuid: #type_uuid
                 }
             }
 

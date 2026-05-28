@@ -33,7 +33,7 @@ use crate::{
         pool::Handle,
         reflect::prelude::*,
         uuid::Uuid,
-        uuid_provider, variable,
+        variable,
         variable::mark_inheritable_properties_non_modified,
         visitor::{Visit, VisitResult, Visitor},
         NameProvider,
@@ -359,6 +359,7 @@ impl<T: NodeTrait> ObjectOrVariantHelper<Node, T> for PhantomData<T> {
 /// of every field, even those inheritable variables which are non-modified. Which means that there's no benefits of RAM
 /// consumption, only disk space usage is reduced.
 #[derive(Debug, Reflect)]
+#[reflect(type_uuid = "a9bc5231-155c-4564-b0ca-f23972673925")]
 pub struct Node(#[reflect(deref, display_name = "Node")] pub(crate) Box<dyn NodeTrait>);
 
 impl<T: NodeTrait> From<T> for Node {
@@ -436,8 +437,6 @@ impl NameProvider for Node {
         &self.0.name
     }
 }
-
-uuid_provider!(Node = "a9bc5231-155c-4564-b0ca-f23972673925");
 
 impl Deref for Node {
     type Target = dyn NodeTrait;
@@ -588,7 +587,7 @@ mod test {
             uuid::{uuid, Uuid},
             variable::InheritableVariable,
             visitor::{prelude::*, Visitor},
-            SafeLock, TypeUuidProvider,
+            SafeLock,
         },
         engine::{self, SerializationContext},
         resource::model::{Model, ModelResourceExtension},
@@ -610,15 +609,10 @@ mod test {
     use std::{fs, path::Path, sync::Arc};
 
     #[derive(Debug, Clone, Reflect, Visit, Default)]
+    #[reflect(type_uuid = "d3f66902-803f-4ace-8170-0aa485d98b40")]
     struct MyScript {
         some_field: InheritableVariable<String>,
         some_collection: InheritableVariable<Vec<u32>>,
-    }
-
-    impl TypeUuidProvider for MyScript {
-        fn type_uuid() -> Uuid {
-            uuid!("d3f66902-803f-4ace-8170-0aa485d98b40")
-        }
     }
 
     impl ScriptTrait for MyScript {}

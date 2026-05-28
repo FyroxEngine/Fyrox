@@ -26,7 +26,7 @@ use crate::{
     menu::{create_menu_item, create_root_menu_item, Panels},
     stats::StatisticsWindow,
 };
-use fyrox::core::{uuid, Uuid};
+use fyrox::core::uuid::{uuid, Uuid};
 use fyrox::gui::menu::MenuItem;
 
 pub struct UtilsMenu {

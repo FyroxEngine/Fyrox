@@ -29,7 +29,6 @@ use crate::{
             color::Color,
             pool::Handle,
             uuid::Uuid,
-            TypeUuidProvider,
         },
         engine::{Engine, GraphicsContext},
         fxhash::FxHashMap,
@@ -63,6 +62,7 @@ use crate::{
     },
     load_image,
 };
+use fyrox::core::reflect::prelude::*;
 use fyrox::renderer::ui_renderer::UiRenderInfo;
 use image::{ColorType, GenericImage, Rgba};
 
@@ -74,16 +74,16 @@ pub struct AssetPreviewGeneratorsCollection {
 impl AssetPreviewGeneratorsCollection {
     pub fn new() -> Self {
         let mut this = Self::default();
-        this.add(Texture::type_uuid(), TexturePreview);
-        this.add(Model::type_uuid(), ModelPreview);
-        this.add(SoundBuffer::type_uuid(), SoundPreview);
-        this.add(Shader::type_uuid(), ShaderPreview);
-        this.add(Material::type_uuid(), MaterialPreview);
-        this.add(HrirSphereResourceData::type_uuid(), HrirPreview);
-        this.add(CurveResourceState::type_uuid(), CurvePreview);
-        this.add(Font::type_uuid(), FontPreview);
-        this.add(UserInterface::type_uuid(), UserInterfacePreview);
-        this.add(SurfaceData::type_uuid(), SurfaceDataPreview);
+        this.add(Texture::type_info().type_uuid, TexturePreview);
+        this.add(Model::type_info().type_uuid, ModelPreview);
+        this.add(SoundBuffer::type_info().type_uuid, SoundPreview);
+        this.add(Shader::type_info().type_uuid, ShaderPreview);
+        this.add(Material::type_info().type_uuid, MaterialPreview);
+        this.add(HrirSphereResourceData::type_info().type_uuid, HrirPreview);
+        this.add(CurveResourceState::type_info().type_uuid, CurvePreview);
+        this.add(Font::type_info().type_uuid, FontPreview);
+        this.add(UserInterface::type_info().type_uuid, UserInterfacePreview);
+        this.add(SurfaceData::type_info().type_uuid, SurfaceDataPreview);
         this
     }
 

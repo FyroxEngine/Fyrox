@@ -30,8 +30,8 @@ use crate::{
         vertex::StaticVertex,
     },
 };
-use fyrox_core::Uuid;
 use fyrox_resource::untyped::ResourceKind;
+use uuid::Uuid;
 
 /// The [SurfaceSharedData](crate::scene::mesh::surface::SurfaceResource) of a grid mesh for use
 /// in rendering a terrain.

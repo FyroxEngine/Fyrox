@@ -46,7 +46,7 @@ use crate::check_box::CheckBox;
 use crate::message::MessageData;
 use crate::stack_panel::StackPanel;
 use fyrox_core::pool::{HandlesVecExtension, ObjectOrVariant};
-use fyrox_core::uuid_provider;
+
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;
 use std::collections::VecDeque;
@@ -293,7 +293,10 @@ impl MessageData for TreeRootMessage {}
 /// }
 /// ```
 #[derive(Default, Debug, Clone, Visit, Reflect)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "e090e913-393a-4192-a220-e1d87e272170"
+)]
 pub struct Tree {
     /// Base widget of the tree.
     pub widget: Widget,
@@ -330,8 +333,6 @@ impl ConstructorProvider<UiNode, UserInterface> for Tree {
 }
 
 crate::define_widget_deref!(Tree);
-
-uuid_provider!(Tree = "e090e913-393a-4192-a220-e1d87e272170");
 
 impl Control for Tree {
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
@@ -809,7 +810,10 @@ fn build_expander(
 /// }
 /// ```
 #[derive(Default, Debug, Clone, Visit, Reflect)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "cf7c0476-f779-4e4b-8b7e-01a23ff51a72"
+)]
 pub struct TreeRoot {
     /// Base widget of the tree root.
     pub widget: Widget,
@@ -835,8 +839,6 @@ impl ConstructorProvider<UiNode, UserInterface> for TreeRoot {
 }
 
 crate::define_widget_deref!(TreeRoot);
-
-uuid_provider!(TreeRoot = "cf7c0476-f779-4e4b-8b7e-01a23ff51a72");
 
 impl Control for TreeRoot {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

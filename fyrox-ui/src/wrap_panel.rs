@@ -33,7 +33,7 @@ use crate::{
 
 use crate::message::MessageData;
 use core::f32;
-use fyrox_core::uuid_provider;
+
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;
@@ -77,7 +77,10 @@ impl MessageData for WrapPanelMessage {}
 /// Wrap panel can stack your widgets either in vertical or horizontal direction. Use `.with_orientation` while building
 /// the panel to switch orientation to desired.
 #[derive(Default, Clone, Debug, Visit, Reflect)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "f488ab8e-8f8b-473c-a450-5ac33f1afb39"
+)]
 pub struct WrapPanel {
     /// Base widget of the wrap panel.
     pub widget: Widget,
@@ -121,8 +124,6 @@ impl Default for Line {
         }
     }
 }
-
-uuid_provider!(WrapPanel = "f488ab8e-8f8b-473c-a450-5ac33f1afb39");
 
 impl Control for WrapPanel {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {

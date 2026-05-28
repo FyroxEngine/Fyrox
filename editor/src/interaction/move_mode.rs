@@ -27,8 +27,8 @@ use crate::{
             algebra::{Matrix4, Point3, Vector2, Vector3},
             math::plane::Plane,
             pool::Handle,
+            reflect::prelude::*,
             uuid::{uuid, Uuid},
-            TypeUuidProvider,
         },
         fxhash::FxHashSet,
         graph::SceneGraph,
@@ -52,6 +52,8 @@ use crate::{
 use fyrox::core::some_or_return;
 use fyrox::gui::button::Button;
 
+#[derive(Reflect, Debug, Clone)]
+#[reflect(type_uuid = "067c67e2-865b-4112-8d60-133ee1e1883a")]
 struct Entry {
     node: Handle<Node>,
     initial_offset_gizmo_space: Vector3<f32>,
@@ -60,7 +62,10 @@ struct Entry {
     new_local_position: Vector3<f32>,
 }
 
+#[derive(Reflect, Debug, Clone)]
+#[reflect(type_uuid = "f50af953-308e-40e8-85ae-48c905ba5f46")]
 struct MoveContext {
+    #[reflect(hidden)]
     plane: Option<Plane>,
     objects: Vec<Entry>,
     plane_kind: PlaneKind,
@@ -275,6 +280,8 @@ impl MoveContext {
     }
 }
 
+#[derive(Reflect, Debug, Clone)]
+#[reflect(type_uuid = "067c67e2-865b-4112-8d60-133ee1e1883a")]
 pub struct MoveInteractionMode {
     move_context: Option<MoveContext>,
     move_gizmo: MoveGizmo,
@@ -288,12 +295,6 @@ impl MoveInteractionMode {
             move_gizmo: MoveGizmo::new(game_scene, engine),
             message_sender,
         }
-    }
-}
-
-impl TypeUuidProvider for MoveInteractionMode {
-    fn type_uuid() -> Uuid {
-        uuid!("067c67e2-865b-4112-8d60-133ee1e1883a")
     }
 }
 
@@ -517,6 +518,6 @@ impl InteractionMode for MoveInteractionMode {
     }
 
     fn uuid(&self) -> Uuid {
-        Self::type_uuid()
+        Self::type_info().type_uuid
     }
 }

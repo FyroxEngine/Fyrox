@@ -33,9 +33,7 @@ use crate::{
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid::{uuid, Uuid},
-        uuid_provider,
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -58,6 +56,7 @@ pub const CSM_NUM_CASCADES: usize = 3;
 
 /// Frustum split options defines how to split camera's frustum to generate cascades.
 #[derive(Reflect, Clone, Visit, Debug, PartialEq, AsRefStr, EnumString, VariantNames)]
+#[reflect(type_uuid = "b2ed128a-b7da-4d34-b027-a0af19c2f563")]
 pub enum FrustumSplitOptions {
     /// Camera frustum will be split into a [`CSM_NUM_CASCADES`] splits where each sub-frustum
     /// will have fixed far plane location.
@@ -83,8 +82,6 @@ pub enum FrustumSplitOptions {
     },
 }
 
-uuid_provider!(FrustumSplitOptions = "b2ed128a-b7da-4d34-b027-a0af19c2f563");
-
 impl Default for FrustumSplitOptions {
     fn default() -> Self {
         Self::Absolute {
@@ -95,6 +92,7 @@ impl Default for FrustumSplitOptions {
 
 /// Cascade Shadow Mapping (CSM) options.
 #[derive(Reflect, Clone, Visit, PartialEq, Debug)]
+#[reflect(type_uuid = "a521b6d1-665f-42f8-af3b-0e628e1bf09d")]
 pub struct CsmOptions {
     /// See [`FrustumSplitOptions`].
     pub split_options: FrustumSplitOptions,
@@ -128,7 +126,10 @@ impl CsmOptions {
 
 /// See module docs.
 #[derive(Default, Debug, Visit, Reflect, Clone)]
-#[reflect(derived_type = "Node")]
+#[reflect(
+    derived_type = "Node",
+    type_uuid = "8b8248e1-1cdf-42a3-9abe-0691de82c519"
+)]
 pub struct DirectionalLight {
     base_light: BaseLight,
     /// See [`CsmOptions`].
@@ -155,12 +156,6 @@ impl Deref for DirectionalLight {
 impl DerefMut for DirectionalLight {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.base_light.base
-    }
-}
-
-impl TypeUuidProvider for DirectionalLight {
-    fn type_uuid() -> Uuid {
-        uuid!("8b8248e1-1cdf-42a3-9abe-0691de82c519")
     }
 }
 
@@ -201,7 +196,7 @@ impl NodeTrait for DirectionalLight {
     }
 
     fn id(&self) -> Uuid {
-        Self::type_uuid()
+        <Self as Reflect>::type_info().type_uuid
     }
 
     fn debug_draw(&self, ctx: &mut SceneDrawingContext) {

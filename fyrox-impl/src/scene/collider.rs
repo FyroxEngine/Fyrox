@@ -30,7 +30,6 @@ use crate::{
         num_traits::{NumCast, One, ToPrimitive, Zero},
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
@@ -47,7 +46,6 @@ use crate::{
     },
 };
 use fyrox_core::algebra::{Isometry3, Translation3};
-use fyrox_core::uuid_provider;
 
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::SceneGraph;
@@ -61,6 +59,7 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// Ball is an idea sphere shape defined by a single parameters - its radius.
 #[derive(Clone, Debug, PartialEq, Visit, Reflect)]
+#[reflect(type_uuid = "6b94901a-2f8f-45f6-851d-89342e8455b1")]
 pub struct BallShape {
     /// Radius of the sphere.
     #[reflect(min_value = 0.001, step = 0.05)]
@@ -75,6 +74,7 @@ impl Default for BallShape {
 
 /// Cylinder shape aligned in Y axis.
 #[derive(Clone, Debug, Visit, Reflect, PartialEq)]
+#[reflect(type_uuid = "cfcb8dfb-4ca9-41f1-8547-6d24c03399ed")]
 pub struct CylinderShape {
     /// Half height of the cylinder, actual height will be 2 times bigger.
     #[reflect(min_value = 0.001, step = 0.05)]
@@ -95,6 +95,7 @@ impl Default for CylinderShape {
 
 /// Cone shape aligned in Y axis.
 #[derive(Clone, Debug, Visit, Reflect, PartialEq)]
+#[reflect(type_uuid = "afacc379-4cc6-4dd2-8d95-4663a582b680")]
 pub struct ConeShape {
     /// Half height of the cone, actual height will be 2 times bigger.
     #[reflect(min_value = 0.001, step = 0.05)]
@@ -115,6 +116,7 @@ impl Default for ConeShape {
 
 /// Cuboid shape (box).
 #[derive(Clone, Debug, Visit, Reflect, PartialEq)]
+#[reflect(type_uuid = "9618ec4f-88c4-40f1-aa4a-20a15efd5355")]
 pub struct CuboidShape {
     /// Half extents of the box. X - half width, Y - half height, Z - half depth.
     /// Actual _size_ will be 2 times bigger.
@@ -132,6 +134,7 @@ impl Default for CuboidShape {
 
 /// Arbitrary capsule shape defined by 2 points (which forms axis) and a radius.
 #[derive(Clone, Debug, Visit, Reflect, PartialEq)]
+#[reflect(type_uuid = "595c7250-7a88-4c18-b961-e61ed81aa8f2")]
 pub struct CapsuleShape {
     /// Begin point of the capsule.
     pub begin: Vector3<f32>,
@@ -155,6 +158,7 @@ impl Default for CapsuleShape {
 
 /// Arbitrary segment shape defined by two points.
 #[derive(Clone, Debug, Visit, Reflect, PartialEq)]
+#[reflect(type_uuid = "4fda8c19-597f-4caa-a006-2eaedef312a1")]
 pub struct SegmentShape {
     /// Begin point of the capsule.
     pub begin: Vector3<f32>,
@@ -173,6 +177,7 @@ impl Default for SegmentShape {
 
 /// Arbitrary triangle shape.
 #[derive(Clone, Debug, Visit, Reflect, PartialEq)]
+#[reflect(type_uuid = "b27adb3c-bec6-4cd4-9e9f-68a19d69312e")]
 pub struct TriangleShape {
     /// First point of the triangle shape.
     pub a: Vector3<f32>,
@@ -198,12 +203,12 @@ impl Default for TriangleShape {
 ///
 /// Currently there is only one way to set geometry - using a scene node as a source of data.
 #[derive(Default, Clone, Copy, PartialEq, Hash, Debug, Visit, Reflect, Eq)]
+#[reflect(type_uuid = "6fea7c72-c488-48a1-935f-2752a8a10e9a")]
 pub struct GeometrySource(pub Handle<Node>);
-
-uuid_provider!(GeometrySource = "6fea7c72-c488-48a1-935f-2752a8a10e9a");
 
 /// Arbitrary triangle mesh shape.
 #[derive(Default, Clone, Debug, Visit, Reflect, PartialEq, Eq)]
+#[reflect(type_uuid = "664c4ed4-26d1-437e-b198-c25aa3b7b790")]
 pub struct TrimeshShape {
     /// Geometry sources for the shape.
     pub sources: Vec<GeometrySource>,
@@ -211,6 +216,7 @@ pub struct TrimeshShape {
 
 /// Arbitrary height field shape.
 #[derive(Default, Clone, Debug, Visit, Reflect, PartialEq, Eq)]
+#[reflect(type_uuid = "a5c12eb6-d4af-49ee-8bf1-6766c753a3d5")]
 pub struct HeightfieldShape {
     /// A handle to terrain scene node.
     pub geometry_source: GeometrySource,
@@ -218,6 +224,7 @@ pub struct HeightfieldShape {
 
 /// Arbitrary convex polyhedron shape.
 #[derive(Default, Clone, Debug, Visit, Reflect, PartialEq, Eq)]
+#[reflect(type_uuid = "fbf2e9b1-56ad-4450-8806-582151dc1868")]
 pub struct ConvexPolyhedronShape {
     /// A handle to a mesh node.
     pub geometry_source: GeometrySource,
@@ -225,9 +232,8 @@ pub struct ConvexPolyhedronShape {
 
 /// A set of bits used for pairwise collision filtering.
 #[derive(Clone, Copy, Default, PartialEq, Reflect, Eq)]
+#[reflect(type_uuid = "f2db0c2a-921b-4728-9ce4-2506d95c60fa")]
 pub struct BitMask(pub u32);
-
-uuid_provider!(BitMask = "f2db0c2a-921b-4728-9ce4-2506d95c60fa");
 
 impl BitMask {
     /// BitMask with all bits set. BitMask(u32::MAX)
@@ -386,6 +392,7 @@ impl NumCast for BitMask {
 /// (self.memberships & rhs.filter) != 0 && (rhs.memberships & self.filter) != 0
 /// ```
 #[derive(Visit, Debug, Clone, Copy, PartialEq, Reflect, Eq)]
+#[reflect(type_uuid = "423f1fde-d1f8-461a-8fa9-1fa09db915d4")]
 pub struct InteractionGroups {
     /// Groups memberships.
     pub memberships: BitMask,
@@ -500,6 +507,7 @@ impl From<rapier2d::parry::query::ShapeCastStatus> for TOIStatus {
 
 /// Possible collider shapes.
 #[derive(Clone, Debug, PartialEq, Visit, Reflect, AsRefStr, EnumString, VariantNames)]
+#[reflect(type_uuid = "2e627337-71ea-4b33-a5f1-be697f705a86")]
 pub enum ColliderShape {
     /// See [`BallShape`] docs.
     Ball(BallShape),
@@ -522,8 +530,6 @@ pub enum ColliderShape {
     /// See [`ConvexPolyhedronShape`] docs.
     Polyhedron(ConvexPolyhedronShape),
 }
-
-uuid_provider!(ColliderShape = "2e627337-71ea-4b33-a5f1-be697f705a86");
 
 impl Default for ColliderShape {
     fn default() -> Self {
@@ -612,7 +618,10 @@ impl ColliderShape {
 /// Collider is a geometric entity that can be attached to a rigid body to allow participate it
 /// participate in contact generation, collision response and proximity queries.
 #[derive(Reflect, Visit, Debug)]
-#[reflect(derived_type = "Node")]
+#[reflect(
+    derived_type = "Node",
+    type_uuid = "bfaa2e82-9c19-4b99-983b-3bc115744a1d"
+)]
 pub struct Collider {
     base: Base,
 
@@ -696,12 +705,6 @@ impl Clone for Collider {
             // Do not copy. The copy will have its own native representation (for example - Rapier's collider)
             native: Cell::new(ColliderHandle::invalid()),
         }
-    }
-}
-
-impl TypeUuidProvider for Collider {
-    fn type_uuid() -> Uuid {
-        uuid!("bfaa2e82-9c19-4b99-983b-3bc115744a1d")
     }
 }
 
@@ -1000,7 +1003,7 @@ impl NodeTrait for Collider {
     }
 
     fn id(&self) -> Uuid {
-        Self::type_uuid()
+        <Self as Reflect>::type_info().type_uuid
     }
 
     fn on_removed_from_graph(&mut self, graph: &mut Graph) {

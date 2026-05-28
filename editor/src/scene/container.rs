@@ -20,7 +20,7 @@
 
 use crate::command::CommandStack;
 use crate::fyrox::{
-    core::{algebra::Vector2, math::Rect, pool::Handle, uuid::Uuid, TypeUuidProvider},
+    core::{algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, uuid::Uuid},
     engine::Engine,
     gui::{
         message::{KeyCode, MouseButton},
@@ -154,7 +154,7 @@ impl EditorSceneEntry {
             command_stack: CommandStack::new(false, settings.general.max_history_entries),
         };
 
-        entry.set_interaction_mode(engine, Some(MoveInteractionMode::type_uuid()));
+        entry.set_interaction_mode(engine, Some(MoveInteractionMode::type_info().type_uuid));
 
         entry
     }
@@ -190,7 +190,7 @@ impl EditorSceneEntry {
             command_stack: CommandStack::new(false, settings.general.max_history_entries),
         };
 
-        entry.set_interaction_mode(engine, Some(UiSelectInteractionMode::type_uuid()));
+        entry.set_interaction_mode(engine, Some(UiSelectInteractionMode::type_info().type_uuid));
 
         entry
     }

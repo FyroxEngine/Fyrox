@@ -21,7 +21,8 @@
 //! Shader loader.
 
 use crate::shader::Shader;
-use fyrox_core::{uuid::Uuid, TypeUuidProvider};
+use fyrox_core::reflect::Reflect;
+use fyrox_core::uuid::Uuid;
 use fyrox_resource::{
     io::ResourceIo,
     loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
@@ -38,7 +39,7 @@ impl ResourceLoader for ShaderLoader {
     }
 
     fn data_type_uuid(&self) -> Uuid {
-        Shader::type_uuid()
+        <Shader as Reflect>::type_info().type_uuid
     }
 
     fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {

@@ -50,7 +50,7 @@ use crate::core::{
 use crate::fxhash::FxHashMap;
 use crate::resource::texture::{Texture, TextureResource};
 use crate::scene::node::Node;
-use fyrox_core::uuid_provider;
+
 use std::collections::VecDeque;
 use std::sync::mpsc::{Receiver, SendError, Sender};
 
@@ -685,6 +685,7 @@ impl<V> StrokeData<V> {
 
 /// Shape of a brush.
 #[derive(Copy, Clone, Reflect, Debug)]
+#[reflect(type_uuid = "a4dbfba0-077c-4658-9972-38384a8432f9")]
 pub enum BrushShape {
     /// Circle with given radius.
     Circle {
@@ -699,8 +700,6 @@ pub enum BrushShape {
         length: f32,
     },
 }
-
-uuid_provider!(BrushShape = "a4dbfba0-077c-4658-9972-38384a8432f9");
 
 impl Default for BrushShape {
     fn default() -> Self {
@@ -726,6 +725,7 @@ impl BrushShape {
 
 /// Paint mode of a brush. It defines operation that will be performed on the terrain.
 #[derive(Clone, PartialEq, PartialOrd, Reflect, Debug)]
+#[reflect(type_uuid = "48ad4cac-05f3-485a-b2a3-66812713841f")]
 pub enum BrushMode {
     /// Raise or lower the value
     Raise {
@@ -750,8 +750,6 @@ pub enum BrushMode {
     },
 }
 
-uuid_provider!(BrushMode = "48ad4cac-05f3-485a-b2a3-66812713841f");
-
 impl Default for BrushMode {
     fn default() -> Self {
         BrushMode::Raise { amount: 1.0 }
@@ -760,6 +758,7 @@ impl Default for BrushMode {
 
 /// Paint target of a brush. It defines the data that the brush will operate on.
 #[derive(Copy, Default, Clone, Reflect, Debug, PartialEq, Eq)]
+#[reflect(type_uuid = "461c1be7-189e-44ee-b8fd-00b8fdbc668f")]
 pub enum BrushTarget {
     #[default]
     /// Modifies the height map
@@ -773,10 +772,9 @@ pub enum BrushTarget {
     HoleMask,
 }
 
-uuid_provider!(BrushTarget = "461c1be7-189e-44ee-b8fd-00b8fdbc668f");
-
 /// Brush is used to modify terrain. It supports multiple shapes and modes.
 #[derive(Clone, Reflect, Debug)]
+#[reflect(type_uuid = "dcc4c17b-dad6-42ba-accf-8b88aa2ad31b")]
 pub struct Brush {
     /// Shape of the brush.
     pub shape: BrushShape,

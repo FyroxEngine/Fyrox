@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::core::{reflect::prelude::*, type_traits::prelude::*, uuid_provider};
+use crate::fyrox::core::reflect::prelude::*;
 use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
@@ -37,15 +37,15 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
     AsRefStr,
     EnumString,
     VariantNames,
-    TypeUuidProvider,
 )]
-#[type_uuid(id = "35e8d30d-1213-4d87-905e-19d48550e6d5")]
+#[reflect(type_uuid = "35e8d30d-1213-4d87-905e-19d48550e6d5")]
 pub enum EditorStyle {
     Dark,
     Light,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
+#[reflect(type_uuid = "9f97ae95-85bd-4fe8-9b80-7d45417df7c8")]
 pub struct GeneralSettings {
     /// Defines whether the editor checks for references to an object that is about to be deleted or not.
     pub show_node_removal_dialog: bool,
@@ -123,6 +123,7 @@ fn default_generate_previews() -> bool {
     EnumString,
     VariantNames,
 )]
+#[reflect(type_uuid = "d0c942e8-24e4-40f2-ad2e-1b9f189d3ca2")]
 pub enum ScriptEditor {
     SystemDefault,
     VSCode,
@@ -130,8 +131,6 @@ pub enum ScriptEditor {
     XCode,
     Zed,
 }
-
-uuid_provider!(ScriptEditor = "d0c942e8-24e4-40f2-ad2e-1b9f189d3ca2");
 
 impl Default for GeneralSettings {
     fn default() -> Self {

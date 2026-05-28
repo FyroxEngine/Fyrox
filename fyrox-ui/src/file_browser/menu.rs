@@ -21,10 +21,7 @@
 use crate::menu::MenuItem;
 use crate::messagebox::MessageBox;
 use crate::{
-    core::{
-        algebra::Vector2, log::Log, pool::Handle, reflect::prelude::*, uuid_provider,
-        visitor::prelude::*,
-    },
+    core::{algebra::Vector2, log::Log, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     draw::DrawingContext,
     file_browser::{
         dialog::{FolderNameDialog, FolderNameDialogMessage},
@@ -47,7 +44,10 @@ use std::{
 };
 
 #[derive(Clone, Visit, Reflect, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "6a9d597f-6a9f-4bad-b569-4cff1a6deff7"
+)]
 pub struct ItemContextMenu {
     pub base_menu: ContextMenu,
     pub delete: Handle<MenuItem>,
@@ -69,8 +69,6 @@ impl DerefMut for ItemContextMenu {
         &mut self.base_menu.popup.widget
     }
 }
-
-uuid_provider!(ItemContextMenu = "6a9d597f-6a9f-4bad-b569-4cff1a6deff7");
 
 impl Control for ItemContextMenu {
     fn on_remove(&self, sender: &Sender<UiMessage>) {

@@ -68,13 +68,14 @@ pub mod editors;
 pub mod handlers;
 
 #[derive(Clone, Reflect, Debug)]
+#[reflect(type_uuid = "e617f0b6-fb5f-4e41-85c2-9dbb1869af30")]
 pub struct AnimationDefinition {
     name: String,
     handle: ErasedHandle,
 }
 
 #[derive(Reflect, Clone, Debug)]
-#[reflect(non_cloneable)]
+#[reflect(non_cloneable, type_uuid = "ff4bc6f3-a735-47d8-b455-f9fd6354bd5f")]
 pub struct EditorEnvironment {
     pub resource_manager: ResourceManager,
     #[reflect(hidden)]

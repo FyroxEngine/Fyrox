@@ -26,5 +26,4 @@
 // trace_macros!(true);
 
 pub mod reflect;
-pub mod uuid;
 pub mod visit;

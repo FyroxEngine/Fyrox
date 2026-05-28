@@ -24,7 +24,7 @@
 #![warn(missing_docs)]
 
 use crate::{
-    core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
+    core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
     numeric::{NumericType, NumericUpDownBuilder, NumericUpDownMessage},
@@ -107,7 +107,10 @@ impl<T: NumericType> MessageData for RangeEditorMessage<T> {}
 /// Be very careful about the type of the range when sending a message, you need to send a range of exact type, that match the type
 /// of your editor, otherwise the message have no effect. The same applied to fetching.
 #[derive(Default, Debug, Clone, Reflect, Visit)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "0eb2948e-8485-490e-8719-18a0bb6fe275"
+)]
 pub struct RangeEditor<T>
 where
     T: NumericType,
@@ -159,18 +162,6 @@ where
 }
 
 const SYNC_FLAG: u64 = 1;
-
-impl<T> TypeUuidProvider for RangeEditor<T>
-where
-    T: NumericType,
-{
-    fn type_uuid() -> Uuid {
-        combine_uuids(
-            uuid!("0eb2948e-8485-490e-8719-18a0bb6fe275"),
-            T::type_uuid(),
-        )
-    }
-}
 
 impl<T> Control for RangeEditor<T>
 where

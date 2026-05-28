@@ -21,7 +21,7 @@
 use crate::{
     brush::Brush,
     core::{
-        algebra::Vector2, color::Color, log::Log, math::Rect, reflect::prelude::*, uuid_provider,
+        algebra::Vector2, color::Color, log::Log, math::Rect, reflect::prelude::*,
         variable::InheritableVariable, visitor::prelude::*,
     },
     font::{Font, FontGlyph, FontHeight, FontResource, BUILT_IN_FONT},
@@ -46,6 +46,7 @@ const ELLIPSIS: char = '…';
 
 /// Defines a position in the text. It is just a coordinates of a character in text.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Visit, Reflect)]
+#[reflect(type_uuid = "dcc6b193-e4e3-49a8-af7e-052cac80c9b2")]
 pub struct Position {
     /// Line index.
     pub line: usize,
@@ -119,6 +120,7 @@ impl TextLine {
     EnumString,
     VariantNames,
 )]
+#[reflect(type_uuid = "f1290ceb-3fee-461f-a1e9-f9450bd06805")]
 pub enum WrapMode {
     /// No wrapping needed.
     #[default]
@@ -130,8 +132,6 @@ pub enum WrapMode {
     /// Word-based wrapping.
     Word,
 }
-
-uuid_provider!(WrapMode = "f1290ceb-3fee-461f-a1e9-f9450bd06805");
 
 struct GlyphMetrics<'a> {
     font: &'a mut Font,
@@ -257,6 +257,7 @@ impl LineSink for WrapSink<'_> {
 }
 
 #[derive(Default, Clone, Debug, Visit, Reflect)]
+#[reflect(type_uuid = "a48f1f1d-24ce-4a84-a45d-706ac541cf0a")]
 pub struct FormattedText {
     font: InheritableVariable<Option<FontResource>>,
     pub text: InheritableVariable<Vec<char>>,

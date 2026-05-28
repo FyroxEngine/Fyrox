@@ -146,7 +146,11 @@ use winit::{
 /// Serialization context holds runtime type information that allows to create unknown types using
 /// their UUIDs and a respective constructors.
 #[derive(Reflect)]
-#[reflect(hide_all, non_cloneable)] // TODO
+#[reflect(
+    hide_all,
+    non_cloneable,
+    type_uuid = "1973a8c9-6ac6-48a2-bca1-9b4f3cce0774"
+)] // TODO
 pub struct SerializationContext {
     /// A node constructor container.
     pub node_constructors: NodeConstructorContainer,
@@ -2865,10 +2869,7 @@ mod test {
     use crate::scene::pivot::Pivot;
     use crate::{
         asset::manager::ResourceManager,
-        core::{
-            pool::Handle, reflect::prelude::*, task::TaskPool, type_traits::prelude::*,
-            visitor::prelude::*,
-        },
+        core::{pool::Handle, reflect::prelude::*, task::TaskPool, visitor::prelude::*},
         engine::{task::TaskPoolHandler, GraphicsContext, ScriptProcessor},
         graph::SceneGraph,
         scene::{base::BaseBuilder, node::Node, pivot::PivotBuilder, Scene, SceneContainer},
@@ -2924,8 +2925,8 @@ mod test {
         EventReceived(Source),
     }
 
-    #[derive(Debug, Clone, Reflect, Visit, TypeUuidProvider)]
-    #[type_uuid(id = "2569de84-d4b2-427d-969b-d5c7b31a0ba6")]
+    #[derive(Debug, Clone, Reflect, Visit)]
+    #[reflect(type_uuid = "2569de84-d4b2-427d-969b-d5c7b31a0ba6")]
     struct MyScript {
         #[reflect(hidden)]
         #[visit(skip)]
@@ -2991,8 +2992,8 @@ mod test {
         }
     }
 
-    #[derive(Debug, Clone, Reflect, Visit, TypeUuidProvider)]
-    #[type_uuid(id = "1cebacd9-b500-4753-93be-39db344add21")]
+    #[derive(Debug, Clone, Reflect, Visit)]
+    #[reflect(type_uuid = "1cebacd9-b500-4753-93be-39db344add21")]
     struct MySubScript {
         #[reflect(hidden)]
         #[visit(skip)]
@@ -3150,8 +3151,8 @@ mod test {
         Bar(String),
     }
 
-    #[derive(Debug, Clone, Reflect, Visit, TypeUuidProvider)]
-    #[type_uuid(id = "bf2976ad-f41d-4de6-9a32-b1a293956058")]
+    #[derive(Debug, Clone, Reflect, Visit)]
+    #[reflect(type_uuid = "bf2976ad-f41d-4de6-9a32-b1a293956058")]
     struct ScriptListeningToMessages {
         index: u32,
         #[reflect(hidden)]
@@ -3201,8 +3202,8 @@ mod test {
         }
     }
 
-    #[derive(Debug, Clone, Reflect, Visit, TypeUuidProvider)]
-    #[type_uuid(id = "6bcbf9b4-9546-42d3-965a-de055ab85475")]
+    #[derive(Debug, Clone, Reflect, Visit)]
+    #[reflect(type_uuid = "6bcbf9b4-9546-42d3-965a-de055ab85475")]
     struct ScriptSendingMessages {
         index: u32,
     }
@@ -3290,8 +3291,8 @@ mod test {
         }
     }
 
-    #[derive(Clone, Debug, PartialEq, Reflect, Visit, TypeUuidProvider)]
-    #[type_uuid(id = "7bcbf9b4-9546-42d3-965a-de055ab85475")]
+    #[derive(Clone, Debug, PartialEq, Reflect, Visit)]
+    #[reflect(type_uuid = "7bcbf9b4-9546-42d3-965a-de055ab85475")]
     pub struct ScriptSpawningAsyncTasks {
         num: Option<u32>,
     }
@@ -3313,8 +3314,8 @@ mod test {
         }
     }
 
-    #[derive(Clone, Debug, PartialEq, Reflect, Visit, TypeUuidProvider)]
-    #[type_uuid(id = "8bcbf9b4-9546-42d3-965a-de055ab85475")]
+    #[derive(Clone, Debug, PartialEq, Reflect, Visit)]
+    #[reflect(type_uuid = "8bcbf9b4-9546-42d3-965a-de055ab85475")]
     pub struct ScriptWithoutAsyncTasks {}
 
     impl ScriptTrait for ScriptWithoutAsyncTasks {}
@@ -3390,8 +3391,8 @@ mod test {
         );
     }
 
-    #[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider)]
-    #[type_uuid(id = "9bcbf9b4-9546-42d3-965a-de055ab85475")]
+    #[derive(Clone, Debug, Reflect, Visit)]
+    #[reflect(type_uuid = "9bcbf9b4-9546-42d3-965a-de055ab85475")]
     pub struct ScriptThatDeletesItself {
         #[reflect(hidden)]
         #[visit(skip)]
@@ -3431,8 +3432,8 @@ mod test {
         }
     }
 
-    #[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider)]
-    #[type_uuid(id = "9bcbf9b4-9546-42d3-965a-de055ab85475")]
+    #[derive(Clone, Debug, Reflect, Visit)]
+    #[reflect(type_uuid = "9bcbf9b4-9546-42d3-965a-de055ab85475")]
     pub struct ScriptThatAddsScripts {
         num: usize,
         #[reflect(hidden)]
@@ -3480,8 +3481,8 @@ mod test {
         }
     }
 
-    #[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider)]
-    #[type_uuid(id = "9bcbf9b4-9546-42d3-965a-de055ab85475")]
+    #[derive(Clone, Debug, Reflect, Visit)]
+    #[reflect(type_uuid = "9bcbf9b4-9546-42d3-965a-de055ab85475")]
     pub struct SimpleScript {
         stuff: usize,
         #[reflect(hidden)]

@@ -21,7 +21,7 @@
 //! Sound buffer loader.
 
 use crate::buffer::{DataSource, SoundBuffer};
-use fyrox_core::{reflect::prelude::*, uuid::Uuid, TypeUuidProvider};
+use fyrox_core::{reflect::prelude::*, uuid::Uuid};
 use fyrox_resource::{
     io::ResourceIo,
     loader::{BoxedImportOptionsLoaderFuture, BoxedLoaderFuture, LoaderPayload, ResourceLoader},
@@ -35,6 +35,7 @@ use std::{path::PathBuf, sync::Arc};
 
 /// Defines sound buffer resource import options.
 #[derive(Clone, Deserialize, Serialize, Default, Debug, Reflect)]
+#[reflect(type_uuid = "032e333a-f0bd-41f2-a7e5-79207f6064ce")]
 pub struct SoundBufferImportOptions {
     /// Whether the buffer is streaming or not.
     pub stream: bool,
@@ -54,7 +55,7 @@ impl ResourceLoader for SoundBufferLoader {
     }
 
     fn data_type_uuid(&self) -> Uuid {
-        SoundBuffer::type_uuid()
+        <SoundBuffer as Reflect>::type_info().type_uuid
     }
 
     fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {

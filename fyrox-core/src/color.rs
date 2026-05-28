@@ -21,7 +21,6 @@
 use crate::{
     algebra::{Vector3, Vector4},
     reflect::prelude::*,
-    uuid_provider,
     visitor::{Visit, VisitResult, Visitor},
 };
 use bytemuck::{Pod, Zeroable};
@@ -33,6 +32,7 @@ use std::{
 };
 
 #[derive(Copy, Clone, Debug, PartialOrd, PartialEq, Eq, Visit, Reflect, Pod, Zeroable)]
+#[reflect(type_uuid = "74e898aa-de19-44bd-8213-3b6d450b1bf8")]
 #[repr(C)]
 pub struct Color {
     // Do not change order! OpenGL requires this order!
@@ -41,8 +41,6 @@ pub struct Color {
     pub b: u8,
     pub a: u8,
 }
-
-uuid_provider!(Color = "74e898aa-de19-44bd-8213-3b6d450b1bf8");
 
 impl Default for Color {
     #[inline]
@@ -81,6 +79,7 @@ impl From<Vector4<f32>> for Color {
 }
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Visit, Reflect)]
+#[reflect(type_uuid = "65ca8b48-dc26-4ab3-bcc2-c45a463f597d")]
 pub struct Hsv {
     /// [0; 360] range
     hue: f32,

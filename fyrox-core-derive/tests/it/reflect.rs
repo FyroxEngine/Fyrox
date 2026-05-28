@@ -27,11 +27,13 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use fyrox_core::{parking_lot::Mutex, reflect::*};
+use fyrox_core::reflect::GetField;
+use fyrox_core::{parking_lot::Mutex, reflect::prelude::*};
 
 /// Struct doc comment.
 #[allow(dead_code)]
 #[derive(Reflect, Debug, Clone)]
+#[reflect(type_uuid = "ad7fce64-1e1d-4751-b7c7-63b0f981443d")]
 pub struct Struct {
     /// This is a
     /// multiline doc comment.
@@ -41,9 +43,11 @@ pub struct Struct {
 }
 
 #[derive(Reflect, Clone, Debug)]
+#[reflect(type_uuid = "56bb558c-3e75-44ed-b249-dfe1dc4ae00d")]
 pub struct Tuple(usize, usize);
 
 #[derive(Reflect, Clone, Debug)]
+#[reflect(type_uuid = "e11dd933-5fe0-4e19-9183-e116c438eb0f")]
 pub enum Enum {
     Named { field: usize },
     Tuple(usize),
@@ -141,6 +145,7 @@ fn reflect_containers() {
     }
 
     #[derive(Reflect, Clone, Debug)]
+    #[reflect(type_uuid = "414ec606-65bc-478e-94ea-326f477818aa")]
     struct X {
         #[reflect(deref)]
         container: DerefContainer<Struct>,
@@ -163,6 +168,7 @@ fn reflect_containers() {
 
     #[derive(Reflect, Clone, Debug)]
     #[reflect(bounds = "T: Reflect + Clone")]
+    #[reflect(type_uuid = "b3120e24-2c01-40ef-9c89-6ca40e713260")]
     struct B<T> {
         #[reflect(deref)]
         data: Box<T>,
@@ -182,6 +188,7 @@ fn reflect_containers() {
 #[test]
 fn reflect_path() {
     #[derive(Reflect, Clone, Debug)]
+    #[reflect(type_uuid = "d539b45a-c8be-4009-95ff-3ac0dfeaa47f")]
     struct Hierarchy {
         s: Struct,
         e: Enum,
@@ -221,11 +228,13 @@ fn reflect_list_path() {
     data.get_resolve_path("[0][1]", &mut |result| assert_eq!(result, Ok(&1usize)));
 
     #[derive(Reflect, Clone, Debug)]
+    #[reflect(type_uuid = "19d84906-550f-4dcd-82f8-1261ddc86139")]
     struct X {
         data: Vec<usize>,
     }
 
     #[derive(Reflect, Clone, Debug)]
+    #[reflect(type_uuid = "29da25ee-14ae-42b3-89f7-bca518188600")]
     struct A {
         xs: Vec<X>,
     }
@@ -248,6 +257,7 @@ fn reflect_list_path() {
 fn reflect_custom_setter() {
     #[derive(Reflect, Clone, Debug)]
     #[reflect(bounds = "T: Reflect + Clone")]
+    #[reflect(type_uuid = "9b23adf0-e9dd-4fbc-b410-8f9c0da26a20")]
     pub struct Wrapper<T> {
         #[reflect(setter = "set_value")]
         value: T,
@@ -276,6 +286,7 @@ fn reflect_custom_setter() {
 #[test]
 fn reflect_fields_list_of_struct() {
     #[derive(Reflect, Clone, Debug)]
+    #[reflect(type_uuid = "45204fc1-ca94-4349-a6b8-f8a812545052")]
     struct Foo {
         field_a: f32,
         field_b: String,
@@ -301,6 +312,7 @@ fn reflect_fields_list_of_struct() {
 #[test]
 fn reflect_fields_list_of_enum() {
     #[derive(Reflect, Clone, Debug)]
+    #[reflect(type_uuid = "ea3d20cf-7f77-40d1-b1f3-38cb9f2ccc06")]
     enum Foo {
         Bar { field_a: f32 },
         Baz { field_b: u32, field_c: String },
@@ -348,6 +360,7 @@ fn default_prop_metadata() -> FieldMetadata<'static> {
 #[test]
 fn inspect_default() {
     #[derive(Debug, Default, Clone, Reflect)]
+    #[reflect(type_uuid = "51374579-08e8-4233-930e-239b00938371")]
     pub struct Data {
         the_field: String,
         another_field: f32,
@@ -384,12 +397,14 @@ fn inspect_default() {
 #[test]
 fn inspect_attributes() {
     #[derive(Debug, Default, Clone, Reflect)]
+    #[reflect(type_uuid = "e8bb7752-6ff6-4cbb-87fd-e7c10e5ec970")]
     pub struct AarGee {
         aar: u32,
         gee: u32,
     }
 
     #[derive(Debug, Default, Clone, Reflect)]
+    #[reflect(type_uuid = "4e0709c6-b89a-47cb-ab06-f19b01b85ec1")]
     pub struct Data {
         // NOTE: Even though this field is skipped, the next field is given index `1` for simplicity
         #[reflect(hidden)]
@@ -444,6 +459,7 @@ fn inspect_attributes() {
 #[test]
 fn inspect_struct() {
     #[derive(Debug, Default, Clone, Reflect)]
+    #[reflect(type_uuid = "488c51be-b7d8-4d2b-ad70-fbfd688f372f")]
     struct Tuple(f32, f32);
 
     let x = Tuple::default();
@@ -473,6 +489,7 @@ fn inspect_struct() {
     });
 
     #[derive(Debug, Default, Clone, Reflect)]
+    #[reflect(type_uuid = "ea0a8630-f6ca-45b1-84f4-e49f523328b5")]
     struct Unit;
 
     let x = Unit;
@@ -482,11 +499,13 @@ fn inspect_struct() {
 #[test]
 fn inspect_enum() {
     #[derive(Debug, Clone, Reflect)]
+    #[reflect(type_uuid = "3c045962-be82-4655-8444-ec5867fc8244")]
     pub struct NonCopy {
         inner: u32,
     }
 
     #[derive(Debug, Clone, Reflect)]
+    #[reflect(type_uuid = "1948ec80-47d6-4607-ac39-aa92b225e2a8")]
     pub enum Data {
         Named { x: u32, y: u32, z: NonCopy },
         Tuple(f32, f32),
@@ -581,6 +600,7 @@ fn inspect_enum() {
 fn inspect_prop_key_constants() {
     #[allow(dead_code)]
     #[derive(Reflect, Clone, Debug)]
+    #[reflect(type_uuid = "7a97f35b-3919-4ad8-bf7a-72f21c8639c4")]
     pub struct SStruct {
         field: usize,
         #[reflect(hidden)]
@@ -594,10 +614,12 @@ fn inspect_prop_key_constants() {
     // assert_eq!(SStruct::HIDDEN, "hidden");
 
     #[derive(Reflect, Clone, Debug)]
+    #[reflect(type_uuid = "16aeb5c7-e3cd-49bd-999f-5d54c159dc20")]
     pub struct STuple(usize);
     assert_eq!(STuple::F_0, "0");
 
     #[derive(Reflect, Clone, Debug)]
+    #[reflect(type_uuid = "272d8a6f-59dd-412e-a28a-0e9b63df40cc")]
     #[allow(unused)]
     pub enum E {
         Tuple(usize),
@@ -669,6 +691,7 @@ fn test_hash_map() {
 
     // Check path resolution.
     #[derive(Reflect, Clone, Debug)]
+    #[reflect(type_uuid = "89281d16-93d1-4669-8006-f7d371cb28f3")]
     struct Something {
         hash_map: HashMap<String, Struct>,
     }

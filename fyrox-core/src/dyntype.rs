@@ -24,7 +24,7 @@
 #![warn(missing_docs)]
 
 use crate::reflect::TypeInfo;
-use crate::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*, SafeLock};
+use crate::{reflect::prelude::*, visitor::prelude::*, SafeLock};
 use fxhash::FxHashMap;
 use parking_lot::{Mutex, MutexGuard};
 use std::{
@@ -111,10 +111,10 @@ pub trait DynType: Reflect + Visit + Debug + Send {
 
 impl<T> DynType for T
 where
-    T: TypeUuidProvider + Clone + Visit + Reflect + Send,
+    T: Clone + Visit + Reflect + Send,
 {
     fn type_uuid(&self) -> Uuid {
-        <T as TypeUuidProvider>::type_uuid()
+        T::type_info().type_uuid
     }
 
     fn clone_box(&self) -> Box<dyn DynType> {
@@ -146,8 +146,8 @@ impl dyn DynType {
 }
 
 /// A container for a boxed dyntype.
-#[derive(Debug, TypeUuidProvider, Reflect)]
-#[type_uuid(id = "87d9ef74-09a9-4228-a2d1-df270b50fddb")]
+#[derive(Debug, Reflect)]
+#[reflect(type_uuid = "87d9ef74-09a9-4228-a2d1-df270b50fddb")]
 pub struct DynTypeWrapper(#[reflect(deref, display_name = "Data")] pub Box<dyn DynType>);
 
 impl Clone for DynTypeWrapper {
@@ -159,6 +159,7 @@ impl Clone for DynTypeWrapper {
 /// "Nullable" container for a dyntype. This container is essentially a wrapper for [`Option`] that
 /// supports additional functionality and handles serialization for you.
 #[derive(Default, Reflect, Clone, Debug)]
+#[reflect(type_uuid = "c0510bdd-36cd-451c-975b-9333b18db308")]
 pub struct DynTypeContainer(pub Option<DynTypeWrapper>);
 
 impl DynTypeContainer {
@@ -270,7 +271,11 @@ pub struct DynTypeConstructorDefinition {
 
 /// A set of constructors that allows to create a dyntype by its type uuid.
 #[derive(Default, Reflect)]
-#[reflect(hide_all, non_cloneable)] // TODO
+#[reflect(
+    hide_all,
+    non_cloneable,
+    type_uuid = "2a5937b8-b139-4dce-8765-4d63ea17c0e0"
+)] // TODO
 pub struct DynTypeConstructorContainer {
     map: Mutex<FxHashMap<Uuid, DynTypeConstructorDefinition>>,
 }
@@ -295,11 +300,11 @@ impl DynTypeConstructorContainer {
     /// human-readable `name`.
     pub fn add<T, A>(&self, name: &str) -> &Self
     where
-        T: TypeUuidProvider + Default + DynType,
+        T: Default + DynType,
         A: Reflect,
     {
         let old = self.map.safe_lock().insert(
-            <T as TypeUuidProvider>::type_uuid(),
+            T::type_info().type_uuid,
             DynTypeConstructorDefinition {
                 name: name.to_string(),
                 constructor: Box::new(|| Box::new(T::default())),

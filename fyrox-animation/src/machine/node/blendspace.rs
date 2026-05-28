@@ -34,8 +34,7 @@ use crate::{
     },
     Animation, AnimationContainer, AnimationEvent, AnimationPose, EntityId,
 };
-use fyrox_core::uuid::{uuid, Uuid};
-use fyrox_core::TypeUuidProvider;
+use fyrox_core::uuid::uuid;
 use spade::{DelaunayTriangulation, Point2, Triangulation};
 use std::cmp::Ordering;
 use std::{
@@ -44,18 +43,14 @@ use std::{
 };
 
 #[derive(Debug, Visit, Clone, Reflect, PartialEq, Default)]
+#[reflect(type_uuid = "d163b4b9-aed6-447f-bb93-b7e539099417")]
 pub struct BlendSpacePoint<T: EntityId> {
     pub position: Vector2<f32>,
     pub pose_source: Handle<PoseNode<T>>,
 }
 
-impl<T: EntityId> TypeUuidProvider for BlendSpacePoint<T> {
-    fn type_uuid() -> Uuid {
-        uuid!("d163b4b9-aed6-447f-bb93-b7e539099417")
-    }
-}
-
 #[derive(Debug, Visit, Clone, Reflect, PartialEq)]
+#[reflect(type_uuid = "78ec087e-d07b-4652-b6d5-e291a41a3a8e")]
 pub struct BlendSpace<T: EntityId> {
     base: BasePoseNode<T>,
 

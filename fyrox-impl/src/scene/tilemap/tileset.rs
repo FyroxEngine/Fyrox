@@ -38,7 +38,7 @@ use crate::{
     },
     core::{
         algebra::Vector2, color::Color, io::FileError, log::Log, reflect::prelude::*,
-        type_traits::prelude::*, visitor::prelude::*, ImmutableString,
+        visitor::prelude::*, ImmutableString,
     },
     fxhash::{FxHashMap, FxHashSet},
     material::{MaterialResource, MaterialResourceExtension},
@@ -104,6 +104,7 @@ impl From<VisitError> for TileSetResourceError {
 
 /// Definition of a tile.
 #[derive(Clone, Default, PartialEq, Debug, Reflect, Visit)]
+#[reflect(type_uuid = "5decdb65-5489-47ad-9f16-9ab952cdac59")]
 #[visit(optional)]
 pub struct TileDefinition {
     /// The tile's material resource and the rect within that material that should be rendered as the tile.
@@ -137,6 +138,7 @@ impl OrthoTransform for TileDefinition {
 
 /// A tile's material resource and the rect within that material that should be rendered as the tile.
 #[derive(Clone, PartialEq, Debug, Reflect, Visit)]
+#[reflect(type_uuid = "8e9d5152-bfec-43c1-bf2e-2b47a554dbbd")]
 pub struct TileMaterialBounds {
     /// Material of the tile.
     pub material: MaterialResource,
@@ -171,6 +173,7 @@ impl OrthoTransform for TileMaterialBounds {
 
 /// Miscellaneous data that is stored with the tile definition.
 #[derive(Clone, Default, PartialEq, Debug, Reflect, Visit)]
+#[reflect(type_uuid = "44053a39-2d64-4f85-9b26-9ffed230da31")]
 #[visit(optional)]
 pub struct TileData {
     /// Colliders of the tile.
@@ -210,6 +213,7 @@ impl OrthoTransform for TileData {
 /// and otherwise transformed with respect the their source material, so for example the
 /// left-top corner of the tile may be to the right of the right-top corner in the material.
 #[derive(Clone, Default, PartialEq, Debug, Reflect, Visit)]
+#[reflect(type_uuid = "3eaf24a1-74c9-4f48-8292-2ba50c4d4eae")]
 pub struct TileBounds {
     /// The position of the tile's left-top corner within its source material.
     pub left_top_corner: Vector2<u32>,
@@ -289,6 +293,7 @@ impl OrthoTransform for TileBounds {
 /// A tile set can contain multiple pages of tiles, and each page may have its own
 /// independent source of tile data.
 #[derive(Clone, Default, Debug, Visit, Reflect)]
+#[reflect(type_uuid = "d781e98c-802a-4e0a-b228-77b13368c24d")]
 pub struct TileSetPage {
     /// The tile that represents this page in the editor
     pub icon: TileDefinitionHandle,
@@ -542,6 +547,7 @@ pub enum AbstractTile {
 
 /// This is where tile set pages store their tile data.
 #[derive(Clone, PartialEq, Debug, Visit, Reflect)]
+#[reflect(type_uuid = "cbff9460-53ce-4427-b265-d3866e32a641")]
 pub enum TileSetPageSource {
     /// A page that gets its data from a material resource and arranges its tiles according to their positions in the material.
     /// All tiles in an atlas page share the same material and their UV data is automatically calculated based on the position
@@ -617,6 +623,7 @@ impl TileSetPageSource {
 /// for any combination of 90-degree rotations, horizontal flips, and vertical flips by
 /// moving around the 2x4 grid.
 #[derive(Default, Clone, PartialEq, Debug, Reflect, Visit)]
+#[reflect(type_uuid = "520d903b-cbf6-4dde-8f93-397ecaa333e7")]
 pub struct TransformSetTiles(
     #[reflect(hidden)]
     #[visit(optional)]
@@ -643,6 +650,7 @@ impl DerefMut for TransformSetTiles {
 /// along continuous rows of tiles, until an empty cell is found, and then
 /// the animation returns to the start of the sequence and repeats.
 #[derive(Clone, PartialEq, Debug, Reflect, Visit)]
+#[reflect(type_uuid = "638f7a76-7d03-4ade-89af-6748a36f4767")]
 pub struct AnimationTiles {
     /// The speed of the animation in frames per second.
     pub frame_rate: f32,
@@ -678,6 +686,7 @@ impl DerefMut for AnimationTiles {
 /// A material resource plus the size of each tile, so that the tile set can
 /// carve up the material into tiles.
 #[derive(Clone, PartialEq, Debug, Visit, Reflect)]
+#[reflect(type_uuid = "d1a299ca-930d-462d-9455-e4c8ca7ab5f6")]
 pub struct TileMaterial {
     /// The source material.
     pub material: MaterialResource,
@@ -1323,8 +1332,8 @@ impl AnimationCache {
 /// Each layer has a name and a color. The color is used to allow the user to quickly
 /// identify which shapes correspond to which layers while in the tile set editor.
 /// See [`TileSetColliderLayer`] for more information.
-#[derive(Clone, Default, Debug, Visit, Reflect, TypeUuidProvider)]
-#[type_uuid(id = "7b7e057b-a41e-4150-ab3b-0ae99f4024f0")]
+#[derive(Clone, Default, Debug, Visit, Reflect)]
+#[reflect(type_uuid = "7b7e057b-a41e-4150-ab3b-0ae99f4024f0")]
 pub struct TileSet {
     /// A mapping from animated tiles to the corresponding cells on animation pages.
     #[reflect(hidden)]
@@ -2104,10 +2113,6 @@ impl TileSet {
 }
 
 impl ResourceData for TileSet {
-    fn type_uuid(&self) -> Uuid {
-        <Self as TypeUuidProvider>::type_uuid()
-    }
-
     fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
         let mut visitor = Visitor::new();
         self.visit("TileSet", &mut visitor)?;
@@ -2143,7 +2148,7 @@ impl ResourceLoader for TileSetLoader {
     }
 
     fn data_type_uuid(&self) -> Uuid {
-        <TileSet as TypeUuidProvider>::type_uuid()
+        <TileSet as Reflect>::type_info().type_uuid
     }
 
     fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {

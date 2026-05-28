@@ -22,10 +22,7 @@
 
 use crate::{
     asset::{io::ResourceIo, Resource, ResourceData},
-    core::{
-        io::FileError, math::curve::Curve, reflect::prelude::*, uuid::Uuid, visitor::prelude::*,
-        TypeUuidProvider,
-    },
+    core::{io::FileError, math::curve::Curve, reflect::prelude::*, visitor::prelude::*},
 };
 use std::error::Error;
 use std::{
@@ -76,16 +73,13 @@ impl From<VisitError> for CurveResourceError {
 
 /// State of the [`CurveResource`]
 #[derive(Debug, Clone, Visit, Default, Reflect)]
+#[reflect(type_uuid = "f28b949f-28a2-4b68-9089-59c234f58b6b")]
 pub struct CurveResourceState {
     /// Actual curve.
     pub curve: Curve,
 }
 
 impl ResourceData for CurveResourceState {
-    fn type_uuid(&self) -> Uuid {
-        <Self as TypeUuidProvider>::type_uuid()
-    }
-
     fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
         // TODO: Add saving.
         Err("Saving is not supported!".to_string().into())
@@ -97,12 +91,6 @@ impl ResourceData for CurveResourceState {
 
     fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
         Some(Box::new(self.clone()))
-    }
-}
-
-impl TypeUuidProvider for CurveResourceState {
-    fn type_uuid() -> Uuid {
-        uuid!("f28b949f-28a2-4b68-9089-59c234f58b6b")
     }
 }
 

@@ -33,7 +33,6 @@ use crate::{
             math::Rect,
             pool::Handle,
             reflect::prelude::*,
-            type_traits::prelude::*,
             visitor::prelude::*,
             SafeLock,
         },
@@ -165,8 +164,8 @@ fn calc_slice_coord(position: f32, step: f32) -> usize {
 
 /// Displays a scrollable grid of till cells, with options to allow the tiles
 /// to be selected, dragged, and edits in various ways.
-#[derive(Clone, Visit, Reflect, TypeUuidProvider)]
-#[type_uuid(id = "5356a864-c026-4bd7-a4b1-30bacf77d8fa")]
+#[derive(Clone, Visit, Reflect)]
+#[reflect(type_uuid = "5356a864-c026-4bd7-a4b1-30bacf77d8fa")]
 #[reflect(derived_type = "UiNode")]
 pub struct PaletteWidget {
     widget: Widget,

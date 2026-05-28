@@ -32,7 +32,6 @@ use crate::{
         math::wrapf,
         pool::{ErasedHandle, Handle, Pool, Ticket},
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         visitor::{Visit, VisitResult, Visitor},
         ImmutableString, NameProvider,
@@ -67,8 +66,8 @@ pub mod value;
 /// A container for animation tracks. Multiple animations can share the same container to reduce
 /// memory consumption. It could be extremely useful in case of many instances of a little amount
 /// of kinds of animated models.
-#[derive(Default, Debug, Reflect, Clone, PartialEq, TypeUuidProvider)]
-#[type_uuid(id = "044d9f7c-5c6c-4b29-8de9-d0d975a48256")]
+#[derive(Default, Debug, Reflect, Clone, PartialEq)]
+#[reflect(type_uuid = "044d9f7c-5c6c-4b29-8de9-d0d975a48256")]
 pub struct AnimationTracksData {
     /// Tracks of the animation. See [`Track`] docs for more info.
     pub tracks: Vec<Track>,
@@ -123,10 +122,6 @@ impl Visit for AnimationTracksData {
 }
 
 impl ResourceData for AnimationTracksData {
-    fn type_uuid(&self) -> Uuid {
-        <AnimationTracksData as TypeUuidProvider>::type_uuid()
-    }
-
     fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
         // TODO
         Ok(())
@@ -268,6 +263,7 @@ pub type AnimationTracksDataResource = Resource<AnimationTracksData>;
 /// is only for the sake of completeness of the example. In the real games you need to add the animation to an animation
 /// player scene node and it will do the job for you.
 #[derive(Debug, Reflect, Visit, PartialEq)]
+#[reflect(type_uuid = "aade8e9d-e2cf-401d-a4d1-59c6943645f3")]
 pub struct Animation<T: EntityId> {
     name: ImmutableString,
     tracks_data: AnimationTracksDataResource,
@@ -292,15 +288,9 @@ pub struct Animation<T: EntityId> {
     events: VecDeque<AnimationEvent>,
 }
 
-impl<T: EntityId> TypeUuidProvider for Animation<T> {
-    fn type_uuid() -> Uuid {
-        uuid!("aade8e9d-e2cf-401d-a4d1-59c6943645f3")
-    }
-}
-
 /// Identifier of an entity, that can be animated.
 pub trait EntityId:
-    Default + Send + Copy + Reflect + Visit + PartialEq + Eq + Hash + Debug + Ord + PartialEq + 'static
+    Default + Send + Copy + Reflect + Visit + PartialEq + Eq + Hash + Ord + PartialEq
 {
 }
 
@@ -311,6 +301,7 @@ impl EntityId for ErasedHandle {}
 /// as well as filter out some unnecessary parts of the motion (i.e. do not extract motion on
 /// Y axis).
 #[derive(Default, Debug, Clone, PartialEq, Reflect, Visit)]
+#[reflect(type_uuid = "5e80b85f-c8de-439f-b602-9eb70763c9e6")]
 pub struct RootMotionSettings<T: EntityId> {
     /// A handle to a node which movement will be extracted and put in root motion field of an animation
     /// to which these settings were set to.
@@ -953,6 +944,7 @@ impl<T: EntityId> Default for Animation<T> {
 /// A container for animations. It is a tiny wrapper around [`Pool`], you should never create the container yourself,
 /// it is managed by the engine.
 #[derive(Debug, Clone, Reflect, PartialEq)]
+#[reflect(type_uuid = "f4f9f317-b84a-4880-9c46-e08c1adb574b")]
 pub struct AnimationContainer<T: EntityId> {
     pool: Pool<Animation<T>>,
 }

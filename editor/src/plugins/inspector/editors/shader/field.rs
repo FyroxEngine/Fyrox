@@ -20,7 +20,7 @@
 
 use crate::{
     fyrox::{
-        core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
+        core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
         gui::{
             button::{ButtonBuilder, ButtonMessage},
             define_widget_deref_proxy,
@@ -45,8 +45,8 @@ use crate::{
 use fyrox::gui::button::Button;
 use std::{any::TypeId, cell::RefCell};
 
-#[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider)]
-#[type_uuid(id = "f2024683-812e-4e0d-8065-7d168a82cce6")]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[reflect(type_uuid = "f2024683-812e-4e0d-8065-7d168a82cce6")]
 #[reflect(derived_type = "UiNode")]
 pub struct ShaderSourceCodeEditorField {
     widget: Widget,

@@ -28,7 +28,6 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
@@ -42,7 +41,7 @@ use crate::{
     },
 };
 use fyrox_core::algebra::{Isometry3, Vector3};
-use fyrox_core::uuid_provider;
+
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::SceneGraph;
 use rapier2d::na::UnitQuaternion;
@@ -58,6 +57,7 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 /// allows rigid bodies to perform relative rotations. The real world example is a human shoulder,
 /// pendulum, etc.
 #[derive(Clone, Debug, Visit, PartialEq, Reflect)]
+#[reflect(type_uuid = "bb63213b-5be2-4fc7-878e-c7389ab03685")]
 pub struct BallJoint {
     /// Whether X angular limits are enabled or not. Default is `false`
     pub x_limits_enabled: bool,
@@ -94,11 +94,13 @@ impl Default for BallJoint {
 /// A fixed joint ensures that two rigid bodies does not move relative to each other. There is no
 /// straightforward real-world example, but it can be thought as two bodies were "welded" together.
 #[derive(Clone, Debug, Visit, PartialEq, Reflect, Default, Eq)]
+#[reflect(type_uuid = "24ff690c-e797-47b4-8bd4-0e1fed4f7bb7")]
 pub struct FixedJoint;
 
 /// Prismatic joint prevents any relative movement between two rigid-bodies, except for relative
 /// translations along one axis. The real world example is a sliders that used to support drawers.
 #[derive(Clone, Debug, Visit, PartialEq, Reflect)]
+#[reflect(type_uuid = "af31abc5-49e6-4ef8-8f23-f3aaa96d0634")]
 pub struct PrismaticJoint {
     /// Whether linear limits along local joint X axis are enabled or not. Default is `false`
     pub limits_enabled: bool,
@@ -120,6 +122,7 @@ impl Default for PrismaticJoint {
 /// along one axis. The real world example is wheels, fans, etc. It can also be used to simulate door
 /// hinge.
 #[derive(Clone, Debug, Visit, PartialEq, Reflect)]
+#[reflect(type_uuid = "d7365d59-ef93-4558-8ce3-52b25be8161a")]
 pub struct RevoluteJoint {
     /// Whether angular limits around local X axis of the joint are enabled or not. Default is `false`
     pub limits_enabled: bool,
@@ -139,6 +142,7 @@ impl Default for RevoluteJoint {
 
 /// Parameters that define how the joint motor will behave.
 #[derive(Default, Clone, Debug, PartialEq, Visit, Reflect)]
+#[reflect(type_uuid = "4a0ff733-121b-49f7-943d-6aaa0c3540ec")]
 pub struct JointMotorParams {
     /// The target velocity of the motor.
     pub target_vel: f32,
@@ -154,6 +158,7 @@ pub struct JointMotorParams {
 
 /// The exact kind of the joint.
 #[derive(Clone, Debug, PartialEq, Visit, Reflect, AsRefStr, EnumString, VariantNames)]
+#[reflect(type_uuid = "a3e09303-9de4-4123-9492-05e27f29aaa3")]
 pub enum JointParams {
     /// See [`BallJoint`] for more info.
     BallJoint(BallJoint),
@@ -165,8 +170,6 @@ pub enum JointParams {
     RevoluteJoint(RevoluteJoint),
 }
 
-uuid_provider!(JointParams = "a3e09303-9de4-4123-9492-05e27f29aaa3");
-
 impl Default for JointParams {
     fn default() -> Self {
         Self::BallJoint(Default::default())
@@ -174,6 +177,7 @@ impl Default for JointParams {
 }
 
 #[derive(Visit, Reflect, Debug, Clone, Default)]
+#[reflect(type_uuid = "1be0b82e-d05e-4b93-808a-41895c5a1627")]
 pub(crate) struct LocalFrame {
     pub position: Vector3<f32>,
     pub rotation: UnitQuaternion<f32>,
@@ -189,6 +193,7 @@ impl LocalFrame {
 }
 
 #[derive(Visit, Reflect, Debug, Clone, Default)]
+#[reflect(type_uuid = "2a8e0d9c-4c14-454e-967b-920a032bbafb")]
 pub(crate) struct JointLocalFrames {
     pub body1: LocalFrame,
     pub body2: LocalFrame,
@@ -206,7 +211,10 @@ impl JointLocalFrames {
 /// Joint is used to restrict motion of two rigid bodies. There are numerous examples of joints in
 /// real life: door hinge, ball joints in human arms, etc.
 #[derive(Visit, Reflect, Debug)]
-#[reflect(derived_type = "Node")]
+#[reflect(
+    derived_type = "Node",
+    type_uuid = "439d48f5-e3a3-4255-aa08-353c1ca42e3b"
+)]
 pub struct Joint {
     base: Base,
 
@@ -281,12 +289,6 @@ impl Clone for Joint {
             auto_rebind: self.auto_rebind.clone(),
             native: Cell::new(ImpulseJointHandle::invalid()),
         }
-    }
-}
-
-impl TypeUuidProvider for Joint {
-    fn type_uuid() -> Uuid {
-        uuid!("439d48f5-e3a3-4255-aa08-353c1ca42e3b")
     }
 }
 
@@ -636,7 +638,7 @@ impl NodeTrait for Joint {
     }
 
     fn id(&self) -> Uuid {
-        Self::type_uuid()
+        <Self as Reflect>::type_info().type_uuid
     }
 
     fn on_removed_from_graph(&mut self, graph: &mut Graph) {

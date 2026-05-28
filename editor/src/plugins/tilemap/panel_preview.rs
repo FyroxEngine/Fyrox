@@ -29,7 +29,6 @@ use crate::fyrox::{
         math::Rect,
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         visitor::prelude::*,
     },
     gui::formatted_text::{FormattedText, FormattedTextBuilder},
@@ -50,8 +49,8 @@ use fyrox::material::MaterialResource;
 /// The preview widget of the tile map control panel. This allows the user to see the
 /// currently selected tile stamp, including whatever transformations have been applied
 /// to the stamp.
-#[derive(Clone, Debug, Visit, Reflect, TypeUuidProvider)]
-#[type_uuid(id = "5356a864-c026-4bd7-a4b1-30bacf77d8fa")]
+#[derive(Clone, Debug, Visit, Reflect)]
+#[reflect(type_uuid = "5356a864-c026-4bd7-a4b1-30bacf77d8fa")]
 #[reflect(derived_type = "UiNode")]
 pub struct PanelPreview {
     widget: Widget,

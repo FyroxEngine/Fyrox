@@ -21,7 +21,7 @@
 use crate::fyrox::{
     core::{
         make_pretty_type_name, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
-        sstorage::ImmutableString, uuid_provider, visitor::prelude::*,
+        sstorage::ImmutableString, visitor::prelude::*,
     },
     fxhash::FxHashSet,
     graph::SceneGraph,
@@ -291,7 +291,10 @@ where
 }
 
 #[derive(Clone, Visit, Reflect, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "8e58e123-48a1-4e18-9e90-fd35a1669bdc"
+)]
 pub struct PropertySelector {
     widget: Widget,
     #[reflect(hidden)]
@@ -303,8 +306,6 @@ pub struct PropertySelector {
 }
 
 define_widget_deref!(PropertySelector);
-
-uuid_provider!(PropertySelector = "8e58e123-48a1-4e18-9e90-fd35a1669bdc");
 
 impl PropertySelector {
     fn find_selected_tree_items(&self, ui: &UserInterface) -> Vec<Handle<Tree>> {
@@ -480,7 +481,10 @@ impl PropertySelectorBuilder {
 }
 
 #[derive(Clone, Visit, Reflect, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "725e4a10-eca6-4345-9833-d54dae2f20f2"
+)]
 pub struct PropertySelectorWindow {
     window: Window,
     selector: Handle<PropertySelector>,
@@ -514,8 +518,6 @@ impl PropertySelectorWindow {
         ui.send(self.handle, WindowMessage::Close);
     }
 }
-
-uuid_provider!(PropertySelectorWindow = "725e4a10-eca6-4345-9833-d54dae2f20f2");
 
 impl Control for PropertySelectorWindow {
     control_trait_proxy_impls!(window);

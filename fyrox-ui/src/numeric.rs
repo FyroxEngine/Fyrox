@@ -31,7 +31,6 @@ use crate::{
         num_traits::{clamp, Bounded, NumAssign, NumCast, NumOps},
         pool::Handle,
         reflect::{prelude::*, Reflect},
-        type_traits::prelude::*,
         visitor::prelude::*,
     },
     decorator::DecoratorBuilder,
@@ -75,7 +74,6 @@ pub trait NumericType:
     + Default
     + Reflect
     + Visit
-    + TypeUuidProvider
     + 'static
 {
 }
@@ -96,7 +94,6 @@ impl<T> NumericType for T where
         + Default
         + Reflect
         + Visit
-        + TypeUuidProvider
         + 'static
 {
 }
@@ -237,7 +234,10 @@ pub enum DragContext<T: NumericType> {
 /// }
 /// ```
 #[derive(Default, Clone, Visit, Reflect, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "f852eda4-18e5-4480-83ae-a607ce1c26f7"
+)]
 pub struct NumericUpDown<T: NumericType> {
     /// Base widget of the [`NumericUpDown`] widget.
     pub widget: Widget,
@@ -395,18 +395,6 @@ fn calculate_value_by_offset<T: NumericType>(
     }
     new_value = clamp(new_value, min, max);
     new_value
-}
-
-impl<T> TypeUuidProvider for NumericUpDown<T>
-where
-    T: NumericType,
-{
-    fn type_uuid() -> Uuid {
-        combine_uuids(
-            uuid!("f852eda4-18e5-4480-83ae-a607ce1c26f7"),
-            T::type_uuid(),
-        )
-    }
 }
 
 impl<T: NumericType> Control for NumericUpDown<T> {

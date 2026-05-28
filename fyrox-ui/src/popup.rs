@@ -27,7 +27,7 @@ use crate::message::MessageData;
 use crate::{
     border::BorderBuilder,
     core::{
-        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, uuid_provider,
+        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*,
         variable::InheritableVariable, visitor::prelude::*,
     },
     message::{ButtonState, KeyCode, OsEvent, UiMessage},
@@ -69,6 +69,7 @@ impl MessageData for PopupMessage {
 
 /// Defines a method of popup placement.
 #[derive(Copy, Clone, PartialEq, Debug, Visit, Reflect)]
+#[reflect(type_uuid = "1c641540-59eb-4ccd-a090-2173dab02245")]
 pub enum Placement {
     /// A popup should be placed relative to given widget at the left top corner of the widget screen bounds.
     /// Widget handle could be [`Handle::NONE`], in this case the popup will be placed at the left top corner of the screen.
@@ -288,6 +289,7 @@ impl Placement {
 /// etc. To enable this option, use [`PopupBuilder::with_smart_placement`] with `true` as the first argument.
 #[derive(Default, Clone, Visit, Debug, Reflect)]
 #[reflect(derived_type = "UiNode")]
+#[reflect(type_uuid = "5c4bf90d-cfe7-464f-bcf8-71deacb14dd8")]
 pub struct Popup {
     /// Base widget of the popup.
     pub widget: Widget,
@@ -379,8 +381,6 @@ impl Popup {
             .unwrap_or_else(|| ui.screen_size - self.widget.actual_global_size())
     }
 }
-
-uuid_provider!(Popup = "1c641540-59eb-4ccd-a090-2173dab02245");
 
 impl Control for Popup {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

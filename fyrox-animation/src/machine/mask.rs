@@ -28,6 +28,7 @@ use crate::EntityId;
 /// disable animation on animation layers for specific body parts of humanoid (but not only) characters. The
 /// mask holds handles of nodes that **will not** be animated.
 #[derive(Default, Debug, Visit, Reflect, Clone, PartialEq, Eq)]
+#[reflect(type_uuid = "fde99dd1-444f-4c38-a4be-7716933c3115")]
 pub struct LayerMask<T: EntityId> {
     excluded_bones: Vec<T>,
 }

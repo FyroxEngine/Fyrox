@@ -37,11 +37,8 @@ use crate::{
         pool::{ErasedHandle, Handle},
         reflect::prelude::*,
         sparse::AtomicIndex,
-        type_traits::prelude::*,
-        uuid_provider,
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
-        Uuid,
     },
     material::{Material, MaterialResource, MaterialResourceExtension},
     resource::texture::{TextureKind, TexturePixelKind, TextureResource, TextureResourceExtension},
@@ -70,6 +67,7 @@ use std::{
 
 /// A target shape for blending.
 #[derive(Debug, Clone, Visit, Reflect, PartialEq)]
+#[reflect(type_uuid = "fea08418-58fe-4fde-991b-36be235432bd")]
 pub struct BlendShape {
     /// Weight of the shape.
     #[reflect(min_value = 0.0, max_value = 100.0, step = 1.0)]
@@ -78,8 +76,6 @@ pub struct BlendShape {
     #[reflect(read_only)]
     pub name: String,
 }
-
-uuid_provider!(BlendShape = "fea08418-58fe-4fde-991b-36be235432bd");
 
 impl Default for BlendShape {
     fn default() -> Self {
@@ -92,6 +88,7 @@ impl Default for BlendShape {
 
 /// A container for multiple blend shapes/
 #[derive(Reflect, Debug, Clone, Default)]
+#[reflect(type_uuid = "bd60343b-4a27-42aa-959e-b0d1bc8682db")]
 pub struct BlendShapesContainer {
     /// A list of blend shapes.
     pub blend_shapes: Vec<BlendShape>,
@@ -223,8 +220,8 @@ impl BlendShapesContainer {
 /// Data source of a surface. Each surface can share same data source, this is used
 /// in instancing technique to render multiple instances of same model at different
 /// places.
-#[derive(Debug, Clone, Default, Reflect, TypeUuidProvider)]
-#[type_uuid(id = "8a23a414-e66d-4e12-9628-92c6ab49c2f0")]
+#[derive(Debug, Clone, Default, Reflect)]
+#[reflect(type_uuid = "8a23a414-e66d-4e12-9628-92c6ab49c2f0")]
 pub struct SurfaceData {
     /// Current vertex buffer.
     pub vertex_buffer: VertexBuffer,
@@ -237,10 +234,6 @@ pub struct SurfaceData {
 }
 
 impl ResourceData for SurfaceData {
-    fn type_uuid(&self) -> Uuid {
-        <SurfaceData as fyrox_core::TypeUuidProvider>::type_uuid()
-    }
-
     fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
         let mut visitor = Visitor::new();
         self.visit("SurfaceData", &mut visitor)?;
@@ -1252,6 +1245,7 @@ impl SurfaceResourceExtension for SurfaceResource {
 /// This code snippet creates a cone surface instance, check the docs for [`SurfaceData`] for more info about built-in
 /// methods.
 #[derive(Debug, Reflect, Visit, PartialEq)]
+#[reflect(type_uuid = "485caf12-4e7d-4b1a-b6bd-0681fd92f789")]
 pub struct Surface {
     pub(crate) data: InheritableVariable<SurfaceResource>,
 
@@ -1275,8 +1269,6 @@ pub struct Surface {
     #[visit(skip)]
     pub(crate) vertex_weights: Vec<VertexWeightSet>,
 }
-
-uuid_provider!(Surface = "485caf12-4e7d-4b1a-b6bd-0681fd92f789");
 
 impl Clone for Surface {
     fn clone(&self) -> Self {
@@ -1451,7 +1443,7 @@ impl ResourceLoader for SurfaceDataLoader {
     }
 
     fn data_type_uuid(&self) -> Uuid {
-        <SurfaceData as TypeUuidProvider>::type_uuid()
+        <SurfaceData as Reflect>::type_info().type_uuid
     }
 
     fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {

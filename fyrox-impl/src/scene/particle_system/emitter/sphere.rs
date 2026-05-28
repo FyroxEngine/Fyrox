@@ -36,6 +36,7 @@ use std::ops::{Deref, DerefMut};
 
 /// See module docs.
 #[derive(Debug, Clone, Reflect, PartialEq, Visit)]
+#[reflect(type_uuid = "5482aeb8-6a7c-4346-bb17-063b561f0e26")]
 pub struct SphereEmitter {
     emitter: BaseEmitter,
     #[reflect(min_value = 0.0, step = 0.1)]

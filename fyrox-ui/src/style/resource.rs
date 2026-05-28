@@ -25,9 +25,9 @@ use fyrox_core::visitor::error::VisitError;
 use fyrox_core::{
     io::FileError,
     log::Log,
-    type_traits::prelude::*,
+    reflect::prelude::*,
     visitor::{prelude::*, Visitor},
-    ImmutableString, Uuid,
+    ImmutableString,
 };
 use fyrox_resource::{
     io::ResourceIo,
@@ -82,10 +82,6 @@ impl From<VisitError> for StyleResourceError {
 }
 
 impl ResourceData for Style {
-    fn type_uuid(&self) -> Uuid {
-        <Self as TypeUuidProvider>::type_uuid()
-    }
-
     fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
         let mut visitor = Visitor::new();
         self.visit("Style", &mut visitor)?;
@@ -118,7 +114,7 @@ impl ResourceLoader for StyleLoader {
     }
 
     fn data_type_uuid(&self) -> Uuid {
-        <Style as TypeUuidProvider>::type_uuid()
+        <Style as Reflect>::type_info().type_uuid
     }
 
     fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {

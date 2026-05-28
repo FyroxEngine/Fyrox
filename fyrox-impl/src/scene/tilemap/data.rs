@@ -24,9 +24,7 @@ use crate::asset::{Resource, ResourceData};
 use fxhash::FxHashMap;
 use fyrox_core::visitor::BinaryBlob;
 
-use crate::core::{
-    algebra::Vector2, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
-};
+use crate::core::{algebra::Vector2, reflect::prelude::*, visitor::prelude::*};
 
 use super::*;
 
@@ -53,6 +51,7 @@ fn tile_position_to_chunk_position(position: Vector2<i32>) -> (Vector2<i32>, Vec
 }
 
 #[derive(Clone, Debug, Reflect)]
+#[reflect(type_uuid = "dad649ae-eb5f-4328-832a-891edd79aff5")]
 struct Chunk([TileDefinitionHandle; CHUNK_WIDTH * CHUNK_HEIGHT]);
 
 impl Visit for Chunk {
@@ -177,8 +176,8 @@ impl<'a, P: FnMut(Vector2<i32>) -> bool> TileMapDataIterator<'a, P> {
 }
 
 /// Asset containing the tile handles of a tile map.
-#[derive(Clone, Default, Debug, Reflect, TypeUuidProvider)]
-#[type_uuid(id = "a8e4b6b4-c1bd-4ed9-a753-0d5a3dfe1729")]
+#[derive(Clone, Default, Debug, Reflect)]
+#[reflect(type_uuid = "a8e4b6b4-c1bd-4ed9-a753-0d5a3dfe1729")]
 pub struct TileMapData {
     content: FxHashMap<Vector2<i32>, Chunk>,
 }
@@ -193,10 +192,6 @@ impl Visit for TileMapData {
 }
 
 impl ResourceData for TileMapData {
-    fn type_uuid(&self) -> Uuid {
-        <Self as TypeUuidProvider>::type_uuid()
-    }
-
     fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
         let mut visitor = Visitor::new();
         self.visit("TileMapData", &mut visitor)?;

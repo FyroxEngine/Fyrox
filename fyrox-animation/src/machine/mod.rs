@@ -191,6 +191,7 @@ pub mod transition;
 ///
 /// Complex state machines quite hard to create from code, you should use ABSM editor instead whenever possible.
 #[derive(Default, Debug, Visit, Reflect, Clone, PartialEq)]
+#[reflect(type_uuid = "ce9290d2-022f-4d4a-960f-23c11b3c3eba")]
 pub struct Machine<T: EntityId> {
     parameters: ParameterContainer,
 

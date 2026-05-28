@@ -26,6 +26,7 @@ use crate::{
 use std::cmp::Ordering;
 
 #[derive(PartialEq, Debug, Visit, Reflect)]
+#[reflect(type_uuid = "76564e00-ecd1-4a8e-93cd-c09ff02d66d6")]
 pub struct GradientPoint {
     location: f32,
     color: Color,
@@ -67,6 +68,7 @@ impl Clone for GradientPoint {
 }
 
 #[derive(PartialEq, Debug, Visit, Reflect)]
+#[reflect(type_uuid = "3b3df19b-b71a-4d05-ac0e-1eee8e53882b")]
 pub struct ColorGradient {
     points: Vec<GradientPoint>,
 }

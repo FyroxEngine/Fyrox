@@ -23,10 +23,7 @@
 use crate::state::ResourceDataWrapper;
 use crate::ResourceHeaderGuard;
 use crate::{
-    core::{
-        parking_lot::Mutex, reflect::prelude::*, uuid, uuid::Uuid, visitor::prelude::*,
-        TypeUuidProvider,
-    },
+    core::{parking_lot::Mutex, reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
     manager::ResourceManager,
     state::{LoadError, ResourceState},
     Resource, ResourceData, ResourceLoadError, TypedResourceData,
@@ -54,6 +51,7 @@ const MISSING_RESOURCE_MANAGER: &str =
 
 /// Kind of a resource. It defines how the resource manager will treat a resource content on serialization.
 #[derive(Default, Reflect, Debug, Visit, Copy, Clone, PartialEq, Eq, Hash)]
+#[reflect(type_uuid = "16204cca-cdb6-40d2-87de-8e96e5178e54")]
 pub enum ResourceKind {
     /// The content of embedded resources will be fully serialized.
     #[default]
@@ -113,6 +111,7 @@ impl Display for ResourceKind {
 /// Header of a resource, it contains a common data about the resource, such as its data type uuid,
 /// its kind, etc.
 #[derive(Reflect, Clone, Debug)]
+#[reflect(type_uuid = "2a41dd3e-bb8f-4654-ad0b-d8b7ca0cc9f2")]
 pub struct ResourceHeader {
     /// The unique identifier of this resource.
     pub uuid: Uuid,
@@ -146,7 +145,7 @@ impl ResourceHeader {
     /// The type of the data, if this resource is Ok.
     pub fn type_uuid(&self) -> Option<Uuid> {
         if let ResourceState::Ok { data } = &self.state {
-            Some(data.type_uuid())
+            Some(data.inner_ref().type_info_ref().type_uuid)
         } else {
             None
         }
@@ -200,9 +199,9 @@ impl Visit for ResourceHeader {
         } else {
             match (&self.kind, &mut self.state) {
                 (ResourceKind::Embedded, ResourceState::Ok { data }) => {
-                    let mut type_uuid = data.type_uuid();
+                    let mut type_uuid = data.inner_ref().type_info_ref().type_uuid;
                     type_uuid.visit("TypeUuid", &mut region)?;
-                    data.visit("Data", &mut region)
+                    data.inner_mut().visit("Data", &mut region)
                 }
                 (ResourceKind::External, _) => {
                     Err(VisitError::User("Writing an external resource".into()))
@@ -254,9 +253,9 @@ impl Visit for ResourceHeader {
 /// that the resource is in default state. This is a trade-off to prevent wrapping internals into
 /// `Option`, that in some cases could lead to convoluted code with lots of `unwrap`s and state
 /// assumptions.
-#[derive(Default, Clone, Reflect, TypeUuidProvider, Deserialize)]
+#[derive(Default, Clone, Reflect, Deserialize)]
 #[serde(from = "Uuid")]
-#[type_uuid(id = "21613484-7145-4d1c-87d8-62fa767560ab")]
+#[reflect(type_uuid = "21613484-7145-4d1c-87d8-62fa767560ab")]
 pub struct UntypedResource(pub Arc<Mutex<ResourceHeader>>);
 
 impl Serialize for UntypedResource {
@@ -483,7 +482,7 @@ impl UntypedResource {
     pub fn type_uuid(&self) -> Option<Uuid> {
         let header = self.lock();
         match header.state {
-            ResourceState::Ok { ref data, .. } => Some(data.type_uuid()),
+            ResourceState::Ok { ref data, .. } => Some(data.inner_ref().type_info_ref().type_uuid),
             _ => None,
         }
     }
@@ -493,7 +492,7 @@ impl UntypedResource {
     pub fn type_uuid_non_blocking(&self) -> Option<Uuid> {
         let header = self.try_lock()?;
         match header.state {
-            ResourceState::Ok { ref data, .. } => Some(data.type_uuid()),
+            ResourceState::Ok { ref data, .. } => Some(data.inner_ref().type_info_ref().type_uuid),
             _ => None,
         }
     }
@@ -503,7 +502,7 @@ impl UntypedResource {
     pub fn data_type_name(&self) -> Option<String> {
         match self.lock().state {
             ResourceState::Ok { ref data, .. } => {
-                Some((**data).type_info_ref().type_name.to_string())
+                Some(data.inner_ref().type_info_ref().type_name.to_string())
             }
             _ => None,
         }
@@ -571,7 +570,7 @@ impl UntypedResource {
             ResourceState::Pending { .. }
             | ResourceState::LoadError { .. }
             | ResourceState::Unloaded => Err("Unable to save unloaded resource!".into()),
-            ResourceState::Ok { ref mut data, .. } => data.save(path),
+            ResourceState::Ok { ref mut data, .. } => data.inner_mut().save(path),
         }
     }
 
@@ -580,7 +579,7 @@ impl UntypedResource {
     where
         T: TypedResourceData,
     {
-        if self.type_uuid() == Some(<T as TypeUuidProvider>::type_uuid()) {
+        if self.type_uuid() == Some(<T as Reflect>::type_info().type_uuid) {
             Some(Resource {
                 untyped: self.clone(),
                 phantom: PhantomData::<T>,
@@ -643,13 +642,10 @@ mod test {
     use super::*;
 
     #[derive(Debug, Default, Reflect, Visit, Clone, Copy)]
+    #[reflect(type_uuid = "7130e63a-8aa3-44f7-b264-bc19072a70ba")]
     struct Stub {}
 
     impl ResourceData for Stub {
-        fn type_uuid(&self) -> Uuid {
-            Uuid::default()
-        }
-
         fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
             Err("Saving is not supported!".to_string().into())
         }
@@ -660,12 +656,6 @@ mod test {
 
         fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
             Some(Box::new(*self))
-        }
-    }
-
-    impl TypeUuidProvider for Stub {
-        fn type_uuid() -> Uuid {
-            Uuid::default()
         }
     }
 

@@ -24,8 +24,8 @@
 use crate::{
     button::{Button, ButtonBuilder, ButtonMessage},
     core::{
-        pool::Handle, reflect::prelude::*, type_traits::prelude::*, variable::InheritableVariable,
-        visitor::prelude::*, PhantomDataSendSync,
+        pool::Handle, reflect::prelude::*, variable::InheritableVariable, visitor::prelude::*,
+        PhantomDataSendSync,
     },
     define_widget_deref,
     grid::{Column, GridBuilder, Row},
@@ -60,8 +60,8 @@ pub enum InheritablePropertyEditorMessage {
 }
 impl MessageData for InheritablePropertyEditorMessage {}
 
-#[derive(Debug, Clone, Visit, Reflect, TypeUuidProvider)]
-#[type_uuid(id = "d5dce72c-a54b-4754-96a3-2e923eaa802f")]
+#[derive(Debug, Clone, Visit, Reflect)]
+#[reflect(type_uuid = "d5dce72c-a54b-4754-96a3-2e923eaa802f")]
 #[reflect(derived_type = "UiNode")]
 pub struct InheritablePropertyEditor {
     widget: Widget,

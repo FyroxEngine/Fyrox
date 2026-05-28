@@ -25,7 +25,7 @@
 
 use crate::{
     core::{
-        algebra::Vector2, log::Log, math::Rect, pool::Handle, reflect::prelude::*, uuid_provider,
+        algebra::Vector2, log::Log, math::Rect, pool::Handle, reflect::prelude::*,
         variable::InheritableVariable, visitor::prelude::*,
     },
     draw::{CommandTexture, Draw, DrawingContext},
@@ -59,6 +59,7 @@ impl MessageData for GridMessage {}
 #[derive(
     Clone, Copy, PartialEq, Eq, Debug, Reflect, Visit, Default, AsRefStr, EnumString, VariantNames,
 )]
+#[reflect(type_uuid = "9c5dfbce-5df2-4a7f-8c57-c4473743a718")]
 pub enum SizeMode {
     /// The desired size of this dimension must be provided in advance,
     /// and it will always be rendered with exactly that size, regardless of what nodes it contains.
@@ -73,10 +74,9 @@ pub enum SizeMode {
     Stretch,
 }
 
-uuid_provider!(SizeMode = "9c5dfbce-5df2-4a7f-8c57-c4473743a718");
-
 /// Grid dimension defines sizing rules and constraints for [`Grid`]'s rows and columns.
 #[derive(Clone, Copy, PartialEq, Debug, Reflect, Visit, Default)]
+#[reflect(type_uuid = "5e894900-c14a-4eb6-acb9-1636efead4b4")]
 pub struct GridDimension {
     /// Current size mode of the dimension.
     pub size_mode: SizeMode,
@@ -99,8 +99,6 @@ pub struct GridDimension {
     #[reflect(hidden)]
     unmeasured_node_count: usize,
 }
-
-uuid_provider!(GridDimension = "5e894900-c14a-4eb6-acb9-1636efead4b4");
 
 impl GridDimension {
     /// Generic constructor for [`GridDimension`].
@@ -220,7 +218,10 @@ pub type Row = GridDimension;
 /// in it to be valid. For example, you can add a column and set it to a specific size via strict to provide spacing between
 /// two other columns.
 #[derive(Default, Clone, Visit, Reflect, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "98ce15e2-bd62-497d-a37b-9b1cb4a1918c"
+)]
 pub struct Grid {
     /// Base widget of the grid.
     pub widget: Widget,
@@ -400,8 +401,6 @@ fn arrange_dims(dims: &mut [GridDimension], final_size: f32) {
         location += dim.actual_size;
     }
 }
-
-uuid_provider!(Grid = "98ce15e2-bd62-497d-a37b-9b1cb4a1918c");
 
 impl Grid {
     fn initialize_measure(&self, ui: &UserInterface) {

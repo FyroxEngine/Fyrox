@@ -36,6 +36,7 @@ fn default_zoom_range() -> Range<f32> {
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
+#[reflect(type_uuid = "f468bb97-6017-4b43-b369-94374ecc4239")]
 pub struct CameraSettings {
     #[serde(default)]
     pub speed: f32,

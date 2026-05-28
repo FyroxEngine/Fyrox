@@ -22,8 +22,9 @@
 //! mechanism when you need to bundle all game resources and put them in the executable file. See
 //! [`BuiltInResource`] docs for more info.
 
-use crate::{core::Uuid, untyped::UntypedResource, Resource, TypedResourceData};
+use crate::{untyped::UntypedResource, Resource, TypedResourceData};
 use fxhash::FxHashMap;
+use fyrox_core::uuid::Uuid;
 use std::{
     borrow::Cow,
     ops::Deref,
@@ -89,23 +90,19 @@ pub struct UntypedBuiltInResource {
 /// ```rust
 /// use fyrox_resource::{
 ///     builtin::BuiltInResource,
-///     core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*, Uuid},
+///     core::{reflect::prelude::*, visitor::prelude::*},
 ///     manager::ResourceManager,
 ///     Resource, ResourceData,
 /// };
 /// use std::{error::Error, path::Path};
 ///
-/// #[derive(TypeUuidProvider, Default, Debug, Clone, Visit, Reflect)]
-/// #[type_uuid(id = "00d036bb-fbed-47f7-94e3-b3fce93dee17")]
+/// #[derive(Default, Debug, Clone, Visit, Reflect)]
+/// #[reflect(type_uuid = "00d036bb-fbed-47f7-94e3-b3fce93dee17")]
 /// struct MyResource {
 ///     some_data: String,
 /// }
 ///
 /// impl ResourceData for MyResource {
-///     fn type_uuid(&self) -> Uuid {
-///         <Self as TypeUuidProvider>::type_uuid()
-///     }
-///
 ///     fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
 ///         Ok(())
 ///     }

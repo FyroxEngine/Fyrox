@@ -138,7 +138,7 @@ macro_rules! newtype_reflect {
 
 #[macro_export]
 macro_rules! blank_reflect {
-    () => {
+    ($type_uuid:expr) => {
         fn type_info() -> $crate::reflect::TypeInfo {
             $crate::reflect::TypeInfo {
                 source_path: file!(),
@@ -146,6 +146,7 @@ macro_rules! blank_reflect {
                 assembly_name: env!("CARGO_PKG_NAME"),
                 doc_comment: "",
                 derived_types: &[],
+                type_uuid: $crate::uuid::uuid!($type_uuid),
             }
         }
 
@@ -186,7 +187,7 @@ macro_rules! blank_reflect {
 
 #[macro_export]
 macro_rules! blank_reflect_ref {
-    () => {
+    ($type_uuid:expr) => {
         fn type_info() -> $crate::reflect::TypeInfo {
             $crate::reflect::TypeInfo {
                 source_path: file!(),
@@ -194,6 +195,7 @@ macro_rules! blank_reflect_ref {
                 assembly_name: env!("CARGO_PKG_NAME"),
                 doc_comment: "",
                 derived_types: &[],
+                type_uuid: $crate::uuid::uuid!($type_uuid),
             }
         }
 

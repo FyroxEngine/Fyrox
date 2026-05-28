@@ -19,14 +19,7 @@
 // SOFTWARE.
 
 use crate::{
-    core::{
-        combine_uuids,
-        pool::Handle,
-        reflect::{prelude::*, Reflect},
-        uuid::{uuid, Uuid},
-        visitor::prelude::*,
-        TypeUuidProvider,
-    },
+    core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
     inspector::{
         editors::{
@@ -55,9 +48,9 @@ use strum::VariantNames;
 
 const LOCAL_SYNC_FLAG: u64 = 0xFF;
 
-pub trait InspectableEnum: Debug + Reflect + Clone + TypeUuidProvider + Send + 'static {}
+pub trait InspectableEnum: Debug + Reflect + Clone + Send + 'static {}
 
-impl<T: Debug + Reflect + Clone + TypeUuidProvider + Send + 'static> InspectableEnum for T {}
+impl<T: Debug + Reflect + Clone + Send + 'static> InspectableEnum for T {}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum EnumPropertyEditorMessage {
@@ -67,7 +60,10 @@ pub enum EnumPropertyEditorMessage {
 impl MessageData for EnumPropertyEditorMessage {}
 
 #[derive(Visit, Reflect)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "0dbefddc-70fa-45a9-96f0-8fe25f6c1669"
+)]
 pub struct EnumPropertyEditor<T: InspectableEnum> {
     pub widget: Widget,
     pub variant_selector: Handle<UiNode>,
@@ -137,18 +133,6 @@ impl<T: InspectableEnum> Deref for EnumPropertyEditor<T> {
 impl<T: InspectableEnum> DerefMut for EnumPropertyEditor<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
-    }
-}
-
-impl<T> TypeUuidProvider for EnumPropertyEditor<T>
-where
-    T: InspectableEnum,
-{
-    fn type_uuid() -> Uuid {
-        combine_uuids(
-            uuid!("0dbefddc-70fa-45a9-96f0-8fe25f6c1669"),
-            T::type_uuid(),
-        )
     }
 }
 

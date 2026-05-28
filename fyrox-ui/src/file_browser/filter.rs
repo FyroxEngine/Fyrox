@@ -28,6 +28,7 @@ use std::{
 };
 
 #[derive(Default, Clone, Debug, Visit, Reflect, PartialEq)]
+#[reflect(type_uuid = "0cdc330c-56cf-4bcd-97d9-9ea3abd743ef")]
 pub struct FileType {
     pub description: String,
     pub extension: String,
@@ -74,6 +75,7 @@ impl Display for FileType {
 }
 
 #[derive(Default, Clone, Debug, Visit, Reflect, PartialEq)]
+#[reflect(type_uuid = "f59f99a0-d0f2-4e2c-a04f-d64928750169")]
 pub struct PathFilter {
     pub folders_only: bool,
     pub types: Vec<FileType>,

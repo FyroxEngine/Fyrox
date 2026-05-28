@@ -22,7 +22,7 @@ use crate::{
     fyrox::{
         core::{
             parking_lot::Mutex, pool::ErasedHandle, pool::Handle, reflect::prelude::*,
-            type_traits::prelude::*, visitor::prelude::*,
+            visitor::prelude::*,
         },
         fxhash::FxHashSet,
         graph::{SceneGraph, SceneGraphNode},
@@ -159,6 +159,7 @@ impl HierarchyNode {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Visit, Reflect)]
+#[reflect(type_uuid = "760fdb9d-45f6-4fc1-9fa0-86a802a40a1f")]
 pub struct SelectedHandle {
     #[visit(skip)]
     #[reflect(hidden)]
@@ -206,9 +207,9 @@ struct TreeData {
     pub derived_type_ids: Vec<TypeId>,
 }
 
-#[derive(Debug, Clone, Visit, Reflect, TypeUuidProvider)]
+#[derive(Debug, Clone, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
-#[type_uuid(id = "1d718f90-323c-492d-b057-98d47495900a")]
+#[reflect(type_uuid = "1d718f90-323c-492d-b057-98d47495900a")]
 pub struct NodeSelector {
     widget: Widget,
     tree_root: Handle<TreeRoot>,
@@ -427,8 +428,8 @@ impl NodeSelectorBuilder {
     }
 }
 
-#[derive(Debug, Clone, Visit, Reflect, TypeUuidProvider)]
-#[type_uuid(id = "5bb00f15-d6ec-4f0e-af7e-9472b0e290b4")]
+#[derive(Debug, Clone, Visit, Reflect)]
+#[reflect(type_uuid = "5bb00f15-d6ec-4f0e-af7e-9472b0e290b4")]
 #[reflect(derived_type = "UiNode")]
 pub struct NodeSelectorWindow {
     window: Window,

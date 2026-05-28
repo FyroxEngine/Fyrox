@@ -83,11 +83,10 @@ fn convert_mag(filter: GltfMagFilter) -> FyroxMagFilter {
 
 use crate::material::{MaterialResourceBinding, MaterialTextureBinding};
 use crate::resource::texture::TextureWrapMode as FyroxWrapMode;
-use fyrox_core::Uuid;
 use fyrox_resource::builtin::BuiltInResource;
 use fyrox_resource::embedded_data_source;
 use gltf::texture::WrappingMode as GltfWrapMode;
-use uuid::uuid;
+use uuid::{uuid, Uuid};
 
 fn convert_wrap(mode: GltfWrapMode) -> FyroxWrapMode {
     match mode {

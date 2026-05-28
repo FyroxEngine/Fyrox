@@ -24,7 +24,7 @@ use crate::{
         asset::manager::ResourceManager,
         core::{
             algebra::Vector2, color::Color, log::Log, math::curve::Curve, math::Rect,
-            pool::ErasedHandle, pool::Handle, reflect::Reflect, some_or_return, uuid, uuid::Uuid,
+            pool::ErasedHandle, pool::Handle, reflect::Reflect, some_or_return, uuid::Uuid,
             variable::InheritableVariable,
         },
         engine::ApplicationLoopController,
@@ -65,6 +65,7 @@ use crate::{
     ui_scene::UiScene,
     Editor, Message,
 };
+use fyrox::core::uuid::uuid;
 use fyrox::gui::UiNode;
 use fyrox::scene::node::Node;
 use std::any::Any;

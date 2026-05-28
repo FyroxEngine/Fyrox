@@ -21,7 +21,7 @@
 use crate::{
     command::{Command, CommandGroup, SetPropertyCommand},
     fyrox::{
-        core::{algebra::Vector3, pool::Handle, reflect::Reflect, TypeUuidProvider},
+        core::{algebra::Vector3, pool::Handle, reflect::Reflect},
         engine::Engine,
         graph::SceneGraph,
         gui::{
@@ -237,7 +237,7 @@ impl ColliderControlPanel {
             }
         } else if message.destination() == self.edit {
             sender.send(Message::SetInteractionMode(
-                ColliderShapeInteractionMode::type_uuid(),
+                ColliderShapeInteractionMode::type_info().type_uuid,
             ));
         }
     }

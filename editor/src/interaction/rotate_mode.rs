@@ -26,9 +26,9 @@ use crate::{
             algebra::{UnitQuaternion, Vector2},
             math::round_to_step,
             pool::Handle,
+            reflect::prelude::*,
             some_or_return,
             uuid::{uuid, Uuid},
-            TypeUuidProvider,
         },
         gui::BuildContext,
     },
@@ -47,6 +47,8 @@ use crate::{
 };
 use fyrox::gui::button::Button;
 
+#[derive(Reflect, Debug)]
+#[reflect(non_cloneable, type_uuid = "37f20364-feb5-4731-8c19-c3df922818d6")]
 pub struct RotateInteractionMode {
     initial_rotations: Vec<UnitQuaternion<f32>>,
     rotation_gizmo: RotationGizmo,
@@ -62,12 +64,6 @@ impl RotateInteractionMode {
             interacting: false,
             message_sender,
         }
-    }
-}
-
-impl TypeUuidProvider for RotateInteractionMode {
-    fn type_uuid() -> Uuid {
-        uuid!("37f20364-feb5-4731-8c19-c3df922818d6")
     }
 }
 
@@ -304,6 +300,6 @@ impl InteractionMode for RotateInteractionMode {
     }
 
     fn uuid(&self) -> Uuid {
-        Self::type_uuid()
+        Self::type_info().type_uuid
     }
 }

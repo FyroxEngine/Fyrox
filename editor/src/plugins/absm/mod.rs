@@ -23,9 +23,8 @@ use crate::{
         core::{
             pool::{ErasedHandle, Handle},
             reflect::Reflect,
-            some_or_return, uuid,
+            some_or_return,
             variable::InheritableVariable,
-            Uuid,
         },
         engine::ApplicationLoopController,
         fxhash::FxHashSet,
@@ -71,6 +70,7 @@ use crate::{
 };
 use fyrox::core::err;
 use fyrox::core::pool::ObjectOrVariantHelper;
+use fyrox::core::uuid::{uuid, Uuid};
 use fyrox::gui::UiNode;
 use fyrox::resource::model::Model;
 use fyrox::scene::graph::Graph;

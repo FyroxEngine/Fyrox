@@ -51,7 +51,6 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
@@ -71,7 +70,10 @@ use std::ops::{Deref, DerefMut};
 
 /// See module docs.
 #[derive(Debug, Reflect, Clone, Visit)]
-#[reflect(derived_type = "Node")]
+#[reflect(
+    derived_type = "Node",
+    type_uuid = "9856a3c1-ced7-47ec-b682-4dc4dea89d8f"
+)]
 pub struct SpotLight {
     base_light: BaseLight,
 
@@ -119,12 +121,6 @@ impl Default for SpotLight {
             distance: InheritableVariable::new_modified(10.0),
             cookie_texture: InheritableVariable::new_modified(None),
         }
-    }
-}
-
-impl TypeUuidProvider for SpotLight {
-    fn type_uuid() -> Uuid {
-        uuid!("9856a3c1-ced7-47ec-b682-4dc4dea89d8f")
     }
 }
 
@@ -248,7 +244,7 @@ impl NodeTrait for SpotLight {
     }
 
     fn id(&self) -> Uuid {
-        Self::type_uuid()
+        <Self as Reflect>::type_info().type_uuid
     }
 
     fn debug_draw(&self, ctx: &mut SceneDrawingContext) {

@@ -23,7 +23,7 @@ use crate::{
     export::ExportWindow,
     fyrox::{
         asset::manager::ResourceManager,
-        core::{pool::Handle, uuid, Uuid},
+        core::pool::Handle,
         gui::{
             file_browser::{FileSelectorBuilder, FileSelectorMessage, FileType, PathFilter},
             menu::{self, MenuItemMessage},
@@ -42,6 +42,7 @@ use crate::{
     Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
 };
 use fyrox::core::parking_lot::Mutex;
+use fyrox::core::uuid::{uuid, Uuid};
 use fyrox::graph::SceneGraph;
 use fyrox::gui::file_browser::FileSelector;
 use fyrox::gui::menu::MenuItem;

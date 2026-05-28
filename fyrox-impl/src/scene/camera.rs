@@ -28,9 +28,7 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, ray::Ray, Rect},
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid::{uuid, Uuid},
-        uuid_provider,
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
@@ -58,6 +56,7 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 /// with increasing distance. This the projection type "used" by human eyes, photographic lens and
 /// it looks most realistic.
 #[derive(Reflect, Clone, Debug, PartialEq, Visit, Serialize, Deserialize)]
+#[reflect(type_uuid = "7a9662f3-28f1-4353-ba57-d610cc04834b")]
 pub struct PerspectiveProjection {
     /// Vertical angle at the top of viewing frustum, in radians. Larger values will increase field
     /// of view and create fish-eye effect, smaller values could be used to create "binocular" effect
@@ -110,6 +109,7 @@ impl PerspectiveProjection {
 /// Parallel projection. Object's size won't be affected by distance from the viewer, it can be
 /// used for 2D games.
 #[derive(Reflect, Clone, Debug, PartialEq, Visit, Serialize, Deserialize)]
+#[reflect(type_uuid = "dcfe9e8b-f6a7-42ce-a2be-5d389175d555")]
 pub struct OrthographicProjection {
     /// Location of the near clipping plane. If it is larger than [`Self::z_far`] then it will be
     /// treated like far clipping plane.
@@ -192,14 +192,13 @@ impl OrthographicProjection {
     Serialize,
     Deserialize,
 )]
+#[reflect(type_uuid = "0eb5bec0-fc4e-4945-99b6-e6c5392ad971")]
 pub enum Projection {
     /// See [`PerspectiveProjection`] docs.
     Perspective(PerspectiveProjection),
     /// See [`OrthographicProjection`] docs.
     Orthographic(OrthographicProjection),
 }
-
-uuid_provider!(Projection = "0eb5bec0-fc4e-4945-99b6-e6c5392ad971");
 
 impl Projection {
     /// Sets the new value for the near clipping plane.
@@ -303,6 +302,7 @@ impl Default for Projection {
     Serialize,
     Deserialize,
 )]
+#[reflect(type_uuid = "0e35ee3d-8baa-4b0c-b3dd-6c31a08c121e")]
 pub enum Exposure {
     /// Automatic exposure based on the frame luminance. High luminance values will result
     /// in lower exposure levels and vice versa.
@@ -321,8 +321,6 @@ pub enum Exposure {
     /// option.
     Manual(f32),
 }
-
-uuid_provider!(Exposure = "0e35ee3d-8baa-4b0c-b3dd-6c31a08c121e");
 
 impl Default for Exposure {
     fn default() -> Self {
@@ -354,7 +352,10 @@ impl Default for Exposure {
 /// Each camera forces engine to re-render same scene one more time, which may cause almost double load
 /// of your GPU.
 #[derive(Debug, Visit, Reflect, Clone)]
-#[reflect(derived_type = "Node")]
+#[reflect(
+    derived_type = "Node",
+    type_uuid = "198d3aca-433c-4ce1-bb25-3190699b757f"
+)]
 pub struct Camera {
     base: Base,
 
@@ -412,12 +413,6 @@ impl DerefMut for Camera {
 impl Default for Camera {
     fn default() -> Self {
         CameraBuilder::new(BaseBuilder::new()).build_camera()
-    }
-}
-
-impl TypeUuidProvider for Camera {
-    fn type_uuid() -> Uuid {
-        uuid!("198d3aca-433c-4ce1-bb25-3190699b757f")
     }
 }
 
@@ -812,7 +807,7 @@ impl NodeTrait for Camera {
     }
 
     fn id(&self) -> Uuid {
-        Self::type_uuid()
+        <Self as Reflect>::type_info().type_uuid
     }
 
     fn update(&mut self, context: &mut UpdateContext) {
@@ -892,6 +887,7 @@ impl Display for ColorGradingLutCreationError {
 ///
 /// See [more info in Unreal engine docs](https://docs.unrealengine.com/4.26/en-US/RenderingAndGraphics/PostProcessEffects/UsingLUTs/)
 #[derive(Visit, Clone, Default, PartialEq, Debug, Reflect, Eq)]
+#[reflect(type_uuid = "bca9c90a-7cde-4960-8814-c132edfc9614")]
 pub struct ColorGradingLut {
     unwrapped_lut: Option<TextureResource>,
 
@@ -899,8 +895,6 @@ pub struct ColorGradingLut {
     #[reflect(hidden)]
     lut: Option<TextureResource>,
 }
-
-uuid_provider!(ColorGradingLut = "bca9c90a-7cde-4960-8814-c132edfc9614");
 
 impl ColorGradingLut {
     /// Creates 3D look-up texture from 2D strip.

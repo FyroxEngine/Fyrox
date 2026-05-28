@@ -42,6 +42,7 @@ use std::{
 /// Animation handle should point to an animation in some animation container see [`AnimationContainer`] docs
 /// for more info.
 #[derive(Default, Debug, Visit, Clone, Reflect, PartialEq)]
+#[reflect(type_uuid = "8b610777-c2ad-4777-ae13-b6619286dabf")]
 pub struct PlayAnimation<T: EntityId> {
     /// Base node.
     pub base: BasePoseNode<T>,

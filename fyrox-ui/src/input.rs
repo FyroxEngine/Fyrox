@@ -26,8 +26,8 @@ use crate::{
     button::{Button, ButtonBuilder, ButtonMessage},
     control_trait_proxy_impls,
     core::{
-        algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        variable::InheritableVariable, visitor::prelude::*,
+        algebra::Vector2, pool::Handle, reflect::prelude::*, variable::InheritableVariable,
+        visitor::prelude::*,
     },
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
@@ -88,8 +88,8 @@ pub enum InputBoxResult {
 /// There's no way to change the style of the input box, nor add some widgets to it. If you need a
 /// custom input box, then you need to create your own widget. This input box is meant to be used as
 /// a standard dialog box for standard situations in the UI.
-#[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider)]
-#[type_uuid(id = "6b7b6b82-939b-4f98-9bb9-9bd19ce68b21")]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[reflect(type_uuid = "6b7b6b82-939b-4f98-9bb9-9bd19ce68b21")]
 #[reflect(derived_type = "UiNode")]
 pub struct InputBox {
     /// Base window of the input box.

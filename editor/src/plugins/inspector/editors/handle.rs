@@ -23,7 +23,7 @@ use crate::{
     fyrox::{
         core::{
             color::Color, pool::ErasedHandle, pool::Handle, reflect::prelude::*,
-            type_traits::prelude::*, visitor::prelude::*, SafeLock,
+            visitor::prelude::*, SafeLock,
         },
         graph::SceneGraph,
         gui::{
@@ -104,8 +104,8 @@ impl MessageData for HandlePropertyEditorNameMessage {}
 pub struct HandlePropertyEditorHierarchyMessage(pub HierarchyNode);
 impl MessageData for HandlePropertyEditorHierarchyMessage {}
 
-#[derive(Visit, Reflect, TypeUuidProvider)]
-#[type_uuid(id = "3ceca8c1-c365-4f03-a413-062f8f3cd685")]
+#[derive(Visit, Reflect)]
+#[reflect(type_uuid = "3ceca8c1-c365-4f03-a413-062f8f3cd685")]
 #[reflect(derived_type = "UiNode")]
 pub struct HandlePropertyEditor<T: Reflect> {
     widget: Widget,

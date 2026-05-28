@@ -26,8 +26,7 @@
 use crate::{
     brush::Brush,
     core::{
-        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, uuid_provider,
-        visitor::prelude::*,
+        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, visitor::prelude::*,
     },
     draw::DrawingContext,
     font::FontResource,
@@ -321,7 +320,10 @@ impl MessageData for TextMessage {}
 /// Please keep in mind, that like any other situation when you "changing" something via messages, you should remember
 /// that the change is **not** immediate.
 #[derive(Default, Clone, Visit, Reflect, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "22f7f502-7622-4ecb-8c5f-ba436e7ee823"
+)]
 pub struct Text {
     /// Base widget of the Text widget.
     pub widget: Widget,
@@ -355,8 +357,6 @@ impl ConstructorProvider<UiNode, UserInterface> for Text {
 }
 
 crate::define_widget_deref!(Text);
-
-uuid_provider!(Text = "22f7f502-7622-4ecb-8c5f-ba436e7ee823");
 
 impl Control for Text {
     fn measure_override(&self, _: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {

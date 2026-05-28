@@ -25,9 +25,8 @@ use crate::{
         core::{
             algebra::{Vector2, Vector3},
             pool::Handle,
+            reflect::prelude::*,
             some_or_return,
-            type_traits::prelude::*,
-            Uuid,
         },
         engine::Engine,
         graph::SceneGraph,
@@ -52,6 +51,7 @@ use crate::{
     Editor, Message,
 };
 use fyrox::core::reflect::Reflect;
+use fyrox::core::uuid::Uuid;
 use fyrox::gui::button::Button;
 use fyrox::gui::grid::Grid;
 
@@ -126,7 +126,7 @@ impl ReflectionProbePreviewControlPanel {
                     }
                 } else if message.destination == self.adjust {
                     sender.send(Message::SetInteractionMode(
-                        ReflectionProbeInteractionMode::type_uuid(),
+                        ReflectionProbeInteractionMode::type_info().type_uuid,
                     ));
                 }
             }
@@ -138,17 +138,20 @@ impl ReflectionProbePreviewControlPanel {
     }
 }
 
+#[derive(Reflect, Debug)]
+#[reflect(non_cloneable, type_uuid = "9a535782-87a9-4407-8d12-a723d67e179d")]
 struct DragContext {
     new_position: Vector3<f32>,
     plane_kind: PlaneKind,
 }
 
-#[derive(TypeUuidProvider)]
-#[type_uuid(id = "d8fd164c-523c-447a-93ab-e86f2d71eed6")]
+#[derive(Reflect, Debug)]
+#[reflect(non_cloneable, type_uuid = "d8fd164c-523c-447a-93ab-e86f2d71eed6")]
 pub struct ReflectionProbeInteractionMode {
     probe: Handle<ReflectionProbe>,
     move_gizmo: MoveGizmo,
     message_sender: MessageSender,
+    #[reflect(hidden)]
     drag_context: Option<DragContext>,
 }
 
@@ -313,7 +316,7 @@ impl InteractionMode for ReflectionProbeInteractionMode {
     }
 
     fn uuid(&self) -> Uuid {
-        Self::type_uuid()
+        <Self as Reflect>::type_info().type_uuid
     }
 }
 

@@ -41,7 +41,7 @@ use crate::{
     Engine, Mode, SceneSettingsWindow,
 };
 use fyrox::asset::manager::ResourceManager;
-use fyrox::core::Uuid;
+use fyrox::core::uuid::Uuid;
 use fyrox::gui::file_browser::FileType;
 use fyrox::gui::image::{Image, ImageBuilder};
 use fyrox::gui::menu::MenuItem;

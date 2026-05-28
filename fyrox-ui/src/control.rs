@@ -19,7 +19,6 @@
 // SOFTWARE.
 
 use crate::{
-    core::TypeUuidProvider,
     core::{algebra::Vector2, pool::Handle, reflect::Reflect, uuid::Uuid, visitor::Visit},
     draw::DrawingContext,
     message::{OsEvent, UiMessage},
@@ -58,7 +57,7 @@ pub trait BaseControl: Send + ControlAsAny {
 
 impl<T> BaseControl for T
 where
-    T: Any + Clone + 'static + Control + TypeUuidProvider,
+    T: Any + Clone + 'static + Control,
 {
     fn clone_boxed(&self) -> Box<dyn Control> {
         Box::new(self.clone())
@@ -68,8 +67,9 @@ where
         std::any::type_name::<T>()
     }
 
+    // TODO: Remove this method, use `self.type_info_ref().type_uuid` instead.
     fn id(&self) -> Uuid {
-        Self::type_uuid()
+        <Self as Reflect>::type_info().type_uuid
     }
 
     fn self_size(&self) -> usize {
@@ -185,24 +185,23 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// ```rust
     /// # use fyrox_ui::{
     /// #     core::algebra::Vector2, define_widget_deref, message::UiMessage, Control, UserInterface,
-    /// #     core::{visitor::prelude::*, reflect::prelude::*, type_traits::prelude::*,},
+    /// #     core::{visitor::prelude::*, reflect::prelude::*, },
     /// #     widget::Widget, UiNode
     /// # };
     /// # use std::{
     /// #     any::{Any, TypeId},
     /// #     ops::{Deref, DerefMut},
     /// # };
-    /// # use fyrox_core::uuid_provider;
+    /// #
     /// # use fyrox_graph::SceneGraph;
     /// #
     /// #[derive(Clone, Visit, Reflect, Debug)]
-    /// #[reflect(derived_type = "UiNode")]
+    /// #[reflect(derived_type = "UiNode", type_uuid = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd")]
     /// struct MyWidget {
     ///     widget: Widget,
     /// }
     /// #
     /// # define_widget_deref!(MyWidget);
-    /// # uuid_provider!(MyWidget = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd");
     /// impl Control for MyWidget {
     ///     fn measure_override(
     ///         &self,
@@ -255,7 +254,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// ```rust
     /// # use fyrox_ui::{
     /// #     core::{algebra::Vector2, math::Rect},
-    /// #     core::{visitor::prelude::*, reflect::prelude::*, type_traits::prelude::*,},
+    /// #     core::{visitor::prelude::*, reflect::prelude::*, },
     /// #     define_widget_deref,
     /// #     message::UiMessage,
     /// #     Control, UserInterface, widget::Widget, UiNode
@@ -264,16 +263,15 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// #     any::{Any, TypeId},
     /// #     ops::{Deref, DerefMut},
     /// # };
-    /// # use fyrox_core::uuid_provider;
+    /// #
     /// #
     /// #[derive(Clone, Visit, Reflect, Debug)]
-    /// #[reflect(derived_type = "UiNode")]
+    /// #[reflect(derived_type = "UiNode", type_uuid = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd")]
     /// struct MyWidget {
     ///     widget: Widget,
     /// }
     /// #
     /// # define_widget_deref!(MyWidget);
-    /// # uuid_provider!(MyWidget = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd");
     /// impl Control for MyWidget {
     ///     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
     ///         let final_rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
@@ -314,7 +312,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// # use fyrox_ui::{
     /// #     define_widget_deref,
     /// #     draw::{CommandTexture, Draw, DrawingContext},
-    /// #     core::{visitor::prelude::*, reflect::prelude::*, type_traits::prelude::*,},
+    /// #     core::{visitor::prelude::*, reflect::prelude::*, },
     /// #     message::UiMessage,
     /// #     Control, UserInterface, widget::Widget, UiNode
     /// # };
@@ -322,16 +320,15 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// #     any::{Any, TypeId},
     /// #     ops::{Deref, DerefMut},
     /// # };
-    /// # use fyrox_core::uuid_provider;
+    /// #
     /// #
     /// #[derive(Clone, Visit, Reflect, Debug)]
-    /// #[reflect(derived_type = "UiNode")]
+    /// #[reflect(derived_type = "UiNode", type_uuid = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd")]
     /// struct MyWidget {
     ///     widget: Widget,
     /// }
     /// #
     /// # define_widget_deref!(MyWidget);
-    /// # uuid_provider!(MyWidget = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd");
     /// impl Control for MyWidget {
     /// fn draw(&self, drawing_context: &mut DrawingContext) {
     ///     let bounds = self.widget.bounding_rect();

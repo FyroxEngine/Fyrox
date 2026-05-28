@@ -128,7 +128,7 @@ impl BrushMacroInstance {
     /// A typed reference to the configuration resource.
     pub fn settings<T>(&self) -> Option<Resource<T>>
     where
-        T: ResourceData + Default + TypeUuidProvider,
+        T: ResourceData + Default,
     {
         self.settings.as_ref()?.try_cast()
     }
@@ -211,7 +211,7 @@ impl BrushMacroCellContext {
     /// A typed reference to the configuration resource.
     pub fn settings<T>(&self) -> Option<Resource<T>>
     where
-        T: ResourceData + Default + TypeUuidProvider,
+        T: ResourceData + Default,
     {
         self.settings.as_ref()?.try_cast()
     }

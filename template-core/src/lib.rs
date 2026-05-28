@@ -714,13 +714,13 @@ pub fn init_script(root_path: &Path, raw_name: &str) -> Result<(), String> {
 #[allow(unused_imports)]
 use fyrox::graph::prelude::*;
 use fyrox::{{
-    core::{{visitor::prelude::*, reflect::prelude::*, type_traits::prelude::*}},
+    core::{{visitor::prelude::*, reflect::prelude::*}},
     event::Event, script::{{ScriptContext, ScriptDeinitContext, ScriptTrait}},
     plugin::error::GameResult
 }};
 
-#[derive(Visit, Reflect, Default, Debug, Clone, TypeUuidProvider)]
-#[type_uuid(id = "{script_uuid}")]
+#[derive(Visit, Reflect, Default, Debug, Clone)]
+#[reflect(type_uuid = "{script_uuid}")]
 #[visit(optional)]
 pub struct {script_name} {{
     // Add fields here.

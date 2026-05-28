@@ -68,6 +68,7 @@ use crate::{
     export::ExportWindow,
     fyrox::{
         asset::{io::FsResourceIo, manager::ResourceManager, untyped::ResourceKind},
+        core::info,
         core::{
             algebra::{Matrix3, Vector2},
             color::Color,
@@ -75,12 +76,12 @@ use crate::{
             make_relative_path,
             parking_lot::Mutex,
             pool::Handle,
+            reflect::prelude::*,
             task::TaskPool,
             uuid::Uuid,
             watcher::FileSystemWatcher,
-            SafeLock, TypeUuidProvider,
+            SafeLock,
         },
-        core::{info, uuid},
         dpi::{PhysicalPosition, PhysicalSize},
         engine::GraphicsContext,
         engine::{
@@ -183,6 +184,7 @@ use crate::{
     utils::doc::DocWindow,
     world::{graph::EditorSceneWrapper, menu::SceneNodeContextMenu, WorldViewer},
 };
+use fyrox::core::uuid::uuid;
 use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
@@ -1228,23 +1230,27 @@ impl Editor {
                     sender.send(Message::UndoCurrentSceneCommand);
                 } else if hot_key == key_bindings.enable_select_mode {
                     sender.send(Message::SetInteractionMode(
-                        SelectInteractionMode::type_uuid(),
+                        SelectInteractionMode::type_info().type_uuid,
                     ));
                 } else if hot_key == key_bindings.enable_move_mode {
-                    sender.send(Message::SetInteractionMode(MoveInteractionMode::type_uuid()));
+                    sender.send(Message::SetInteractionMode(
+                        MoveInteractionMode::type_info().type_uuid,
+                    ));
                 } else if hot_key == key_bindings.enable_rotate_mode {
                     sender.send(Message::SetInteractionMode(
-                        RotateInteractionMode::type_uuid(),
+                        RotateInteractionMode::type_info().type_uuid,
                     ));
                 } else if hot_key == key_bindings.enable_scale_mode {
                     sender.send(Message::SetInteractionMode(
-                        ScaleInteractionMode::type_uuid(),
+                        ScaleInteractionMode::type_info().type_uuid,
                     ));
                 } else if hot_key == key_bindings.enable_navmesh_mode {
-                    sender.send(Message::SetInteractionMode(EditNavmeshMode::type_uuid()));
+                    sender.send(Message::SetInteractionMode(
+                        EditNavmeshMode::type_info().type_uuid,
+                    ));
                 } else if hot_key == key_bindings.enable_terrain_mode {
                     sender.send(Message::SetInteractionMode(
-                        TerrainInteractionMode::type_uuid(),
+                        TerrainInteractionMode::type_info().type_uuid,
                     ));
                 } else if hot_key == key_bindings.load_scene {
                     sender.send(Message::OpenLoadSceneDialog);

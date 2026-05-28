@@ -30,7 +30,6 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, Rect, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         value_as_u8_slice,
         variable::InheritableVariable,
@@ -155,7 +154,10 @@ impl VertexTrait for SpriteVertex {
 /// to get the best possible performance. Otherwise, each your sprite will be put in a separate batch
 /// which will force your GPU to render a single sprite in dedicated draw call which is quite slow.
 #[derive(Debug, Reflect, Clone, Visit)]
-#[reflect(derived_type = "Node")]
+#[reflect(
+    derived_type = "Node",
+    type_uuid = "60fd7e34-46c1-4ae9-8803-1f5f4c341518"
+)]
 pub struct Sprite {
     base: Base,
 
@@ -198,12 +200,6 @@ impl DerefMut for Sprite {
 impl Default for Sprite {
     fn default() -> Self {
         SpriteBuilder::new(BaseBuilder::new()).build_sprite()
-    }
-}
-
-impl TypeUuidProvider for Sprite {
-    fn type_uuid() -> Uuid {
-        uuid!("60fd7e34-46c1-4ae9-8803-1f5f4c341518")
     }
 }
 
@@ -320,7 +316,7 @@ impl NodeTrait for Sprite {
     }
 
     fn id(&self) -> Uuid {
-        Self::type_uuid()
+        <Self as Reflect>::type_info().type_uuid
     }
 
     fn collect_render_data(&self, ctx: &mut RenderContext) -> RdcControlFlow {

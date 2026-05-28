@@ -27,8 +27,7 @@ use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
         err, log::Log, ok_or_continue, ok_or_return, parking_lot::Mutex, pool::Handle,
-        reflect::prelude::*, some_or_return, type_traits::prelude::*, visitor::prelude::*,
-        SafeLock,
+        reflect::prelude::*, some_or_return, visitor::prelude::*, SafeLock,
     },
     file_browser::{
         fs_tree::{sanitize_path, TreeItemPath},
@@ -101,8 +100,8 @@ enum FsEventMessage {
 }
 impl MessageData for FsEventMessage {}
 
-#[derive(Default, Visit, Reflect, TypeUuidProvider)]
-#[type_uuid(id = "b7f4610e-4b0c-4671-9b4a-60bb45268928")]
+#[derive(Default, Visit, Reflect)]
+#[reflect(type_uuid = "b7f4610e-4b0c-4671-9b4a-60bb45268928")]
 #[reflect(derived_type = "UiNode")]
 pub struct FileBrowser {
     pub widget: Widget,

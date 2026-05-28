@@ -309,9 +309,8 @@ use crate::{
         pool::{Handle, ObjectOrVariant, Pool, Ticket},
         reflect::prelude::*,
         uuid::{uuid, Uuid},
-        uuid_provider,
         visitor::prelude::*,
-        SafeLock, TypeUuidProvider,
+        SafeLock,
     },
     draw::{CommandTexture, Draw, DrawingContext},
     font::{FontResource, BUILT_IN_FONT},
@@ -366,6 +365,7 @@ pub use node::*;
 pub use thickness::*;
 
 #[derive(Default, Clone, Reflect, Debug)]
+#[reflect(type_uuid = "1eb64a98-295d-46ed-8fca-ba06e80eec6a")]
 pub(crate) struct RcUiNodeHandleInner {
     handle: Handle<UiNode>,
     #[reflect(hidden)]
@@ -407,8 +407,8 @@ impl Drop for RcUiNodeHandleInner {
 /// Reference counted handle to a widget. It is used to automatically destroy the widget it points
 /// to when the reference counter reaches zero. Its main usage in the library is to store handles
 /// to context menus that could be shared across multiple widgets.
-#[derive(Clone, Default, Visit, Reflect, TypeUuidProvider)]
-#[type_uuid(id = "9111a53b-05dc-4c75-aab1-71d5b1c93311")]
+#[derive(Clone, Default, Visit, Reflect)]
+#[reflect(type_uuid = "9111a53b-05dc-4c75-aab1-71d5b1c93311")]
 pub struct RcUiNodeHandle(Arc<Mutex<RcUiNodeHandleInner>>);
 
 impl Debug for RcUiNodeHandle {
@@ -466,6 +466,7 @@ impl RcUiNodeHandle {
     EnumString,
     VariantNames,
 )]
+#[reflect(type_uuid = "1c6ad1b0-3f4c-48be-87dd-6929cb3577bf")]
 pub enum Orientation {
     /// Vertical orientation. This is default value.
     #[default]
@@ -473,8 +474,6 @@ pub enum Orientation {
     /// Horizontal orientation.
     Horizontal,
 }
-
-uuid_provider!(Orientation = "1c6ad1b0-3f4c-48be-87dd-6929cb3577bf");
 
 #[derive(Default, Clone)]
 pub struct NodeStatistics(pub FxHashMap<&'static str, isize>);
@@ -531,6 +530,7 @@ impl NodeStatistics {
 }
 
 #[derive(Visit, Reflect, Debug, Clone)]
+#[reflect(type_uuid = "9f9d5633-1568-4611-8709-3eeb615b7c0f")]
 pub struct DragContext {
     pub is_dragging: bool,
     pub drag_node: Handle<UiNode>,
@@ -550,6 +550,7 @@ impl Default for DragContext {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Visit, Reflect)]
+#[reflect(type_uuid = "46ffe412-b7d9-41c9-b56a-3bcacdaf33b2")]
 pub struct MouseState {
     pub left: ButtonState,
     pub right: ButtonState,
@@ -568,6 +569,7 @@ impl Default for MouseState {
 }
 
 #[derive(Copy, Clone, Visit, Reflect, Debug, Default)]
+#[reflect(type_uuid = "2f1add9c-5019-4922-9045-0bd5ca2fd63a")]
 pub struct RestrictionEntry {
     /// Handle to UI node to which picking must be restricted to.
     pub handle: Handle<UiNode>,
@@ -619,6 +621,7 @@ pub enum LayoutEvent {
 }
 
 #[derive(Clone, Debug, Visit, Reflect, Default)]
+#[reflect(type_uuid = "30bc5bc5-6592-48d8-8647-9bdbbb977ffb")]
 struct DoubleClickEntry {
     timer: f32,
     click_count: u32,
@@ -679,6 +682,7 @@ pub struct UiUpdateSwitches {
 pub type WidgetPool = Pool<UiNode, WidgetContainer>;
 
 #[derive(Default, Debug, Clone, Reflect, Visit)]
+#[reflect(type_uuid = "b426e937-4050-4539-8041-ade4222539c8")]
 pub enum RenderMode {
     /// The UI will be re-rendered on every frame. This is the default behavior.
     #[default]
@@ -690,6 +694,7 @@ pub enum RenderMode {
 }
 
 #[derive(Reflect)]
+#[reflect(type_uuid = "0d065c93-ef9c-4dd2-9fe7-e2b33c1a21b6")]
 pub struct UserInterface {
     screen_size: Vector2<f32>,
     nodes: WidgetPool,
@@ -746,7 +751,7 @@ pub struct UserInterface {
 }
 
 impl Reflect for &'static mut UserInterface {
-    blank_reflect_ref!();
+    blank_reflect_ref!("7ce82d16-d0ed-4d1b-b61e-b389e3d84c8a");
 }
 
 impl Debug for UserInterface {
@@ -3912,13 +3917,7 @@ fn transform_size(transform_space_bounds: Vector2<f32>, matrix: &Matrix3<f32>) -
     Vector2::new(w, h)
 }
 
-uuid_provider!(UserInterface = "0d065c93-ef9c-4dd2-9fe7-e2b33c1a21b6");
-
 impl ResourceData for UserInterface {
-    fn type_uuid(&self) -> Uuid {
-        <Self as TypeUuidProvider>::type_uuid()
-    }
-
     fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
         self.save(path)?;
         Ok(())

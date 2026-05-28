@@ -21,7 +21,8 @@
 //! Resource metadata. See [`ResourceMetadata`] docs for more info.
 
 use crate::io::ResourceIo;
-use fyrox_core::{io::FileError, Uuid};
+use fyrox_core::io::FileError;
+use fyrox_core::uuid::Uuid;
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 use std::path::Path;

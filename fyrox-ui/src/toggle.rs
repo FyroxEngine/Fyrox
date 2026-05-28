@@ -20,7 +20,7 @@
 
 use crate::{
     border::BorderBuilder,
-    core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
+    core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     decorator::{DecoratorBuilder, DecoratorMessage},
     message::{MessageDirection, UiMessage},
     style::{resource::StyleResourceExt, Style},
@@ -32,9 +32,9 @@ use fyrox_core::pool::ObjectOrVariant;
 use crate::message::MessageData;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 
-#[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
-#[type_uuid(id = "8d8f114d-7fc6-4d7e-8f57-cd4e39958c36")]
+#[reflect(type_uuid = "8d8f114d-7fc6-4d7e-8f57-cd4e39958c36")]
 pub struct ToggleButton {
     pub widget: Widget,
     pub decorator: Handle<UiNode>,

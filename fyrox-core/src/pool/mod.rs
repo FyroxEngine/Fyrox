@@ -155,6 +155,10 @@ where
             assembly_name: env!("CARGO_PKG_NAME"),
             doc_comment: "",
             derived_types: &[],
+            type_uuid: combine_uuids(
+                uuid!("1f615965-820a-4948-970d-8e99cd588006"),
+                combine_uuids(T::type_info().type_uuid, P::type_info().type_uuid),
+            ),
         }
     }
 

@@ -29,7 +29,6 @@
 use crate::dsp::DelayLine;
 use fyrox_core::{
     reflect::prelude::*,
-    uuid_provider,
     visitor::{Visit, VisitResult, Visitor},
 };
 
@@ -218,6 +217,7 @@ pub enum BiquadKind {
 /// Generic second order digital filter.
 /// More info here: <https://ccrma.stanford.edu/~jos/filters/BiQuad_Section.html>
 #[derive(Clone, Debug, Reflect, Visit, PartialEq)]
+#[reflect(type_uuid = "4560a1b3-74fc-4b0e-802f-ff1f253bf565")]
 pub struct Biquad {
     /// B0 Coefficient of the equation.
     pub b0: f32,
@@ -234,8 +234,6 @@ pub struct Biquad {
     #[reflect(hidden)]
     prev2: f32,
 }
-
-uuid_provider!(Biquad = "4560a1b3-74fc-4b0e-802f-ff1f253bf565");
 
 impl Biquad {
     /// Creates new filter of given kind with specified parameters, where:

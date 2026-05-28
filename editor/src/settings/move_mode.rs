@@ -22,6 +22,7 @@ use crate::fyrox::core::{algebra::Vector3, math, reflect::prelude::*};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone, Reflect)]
+#[reflect(type_uuid = "cb860a68-31ca-4327-8769-082b97a200c1")]
 pub struct MoveInteractionModeSettings {
     pub grid_snapping: bool,
     pub x_snap_step: f32,

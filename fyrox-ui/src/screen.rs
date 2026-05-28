@@ -24,10 +24,7 @@
 #![warn(missing_docs)]
 
 use crate::{
-    core::{
-        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, uuid_provider,
-        visitor::prelude::*,
-    },
+    core::{algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
@@ -109,7 +106,10 @@ use std::cell::Cell;
 /// }
 /// ```
 #[derive(Default, Clone, Visit, Reflect, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "3bc7649f-a1ba-49be-bc4e-e0624654e40c"
+)]
 pub struct Screen {
     /// Base widget of the screen.
     pub widget: Widget,
@@ -139,8 +139,6 @@ impl ConstructorProvider<UiNode, UserInterface> for Screen {
 }
 
 crate::define_widget_deref!(Screen);
-
-uuid_provider!(Screen = "3bc7649f-a1ba-49be-bc4e-e0624654e40c");
 
 impl Control for Screen {
     fn measure_override(&self, ui: &UserInterface, _available_size: Vector2<f32>) -> Vector2<f32> {

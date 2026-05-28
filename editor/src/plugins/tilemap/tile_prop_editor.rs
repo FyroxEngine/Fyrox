@@ -30,9 +30,7 @@ use fyrox::gui::dropdown_list::DropdownList;
 use fyrox::gui::grid::Grid;
 use fyrox::gui::text::Text;
 use fyrox::{
-    core::{
-        algebra::Vector2, color::Color, pool::Handle, type_traits::prelude::*, ImmutableString,
-    },
+    core::{algebra::Vector2, color::Color, pool::Handle, ImmutableString},
     fxhash::FxHashMap,
     gui::{
         border::BorderBuilder,
@@ -58,6 +56,7 @@ use palette::Subposition;
 use super::*;
 
 #[derive(Debug, Clone, Visit, Reflect, PartialEq)]
+#[reflect(type_uuid = "d10c7388-94a8-41fa-870c-304e7f2805cc")]
 enum DrawValue {
     I8(i8),
     I32(i32),

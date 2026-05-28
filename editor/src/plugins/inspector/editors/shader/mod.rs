@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use fyrox::{
-    core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
+    core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     gui::{
         control_trait_proxy_impls, define_widget_deref_proxy,
         formatted_text::WrapMode,
@@ -42,8 +42,8 @@ pub enum ShaderSourceCodeEditorMessage {
 }
 impl MessageData for ShaderSourceCodeEditorMessage {}
 
-#[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider)]
-#[type_uuid(id = "c2e0bdcc-28a6-4141-93b5-5dad50c8b29c")]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[reflect(type_uuid = "c2e0bdcc-28a6-4141-93b5-5dad50c8b29c")]
 #[reflect(derived_type = "UiNode")]
 pub struct ShaderSourceCodeEditor {
     window: Window,

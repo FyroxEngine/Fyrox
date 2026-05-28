@@ -26,7 +26,6 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
@@ -74,7 +73,10 @@ pub mod listener;
 
 /// Sound source.
 #[derive(Visit, Reflect, Debug)]
-#[reflect(derived_type = "Node")]
+#[reflect(
+    derived_type = "Node",
+    type_uuid = "28621735-8cd1-4fad-8faf-ecd24bf8aa99"
+)]
 pub struct Sound {
     base: Base,
 
@@ -186,12 +188,6 @@ impl Clone for Sound {
             // Do not copy. The copy will have its own native representation.
             native: Default::default(),
         }
-    }
-}
-
-impl TypeUuidProvider for Sound {
-    fn type_uuid() -> Uuid {
-        uuid!("28621735-8cd1-4fad-8faf-ecd24bf8aa99")
     }
 }
 
@@ -410,7 +406,7 @@ impl NodeTrait for Sound {
     }
 
     fn id(&self) -> Uuid {
-        Self::type_uuid()
+        <Self as Reflect>::type_info().type_uuid
     }
 
     fn on_removed_from_graph(&mut self, graph: &mut Graph) {

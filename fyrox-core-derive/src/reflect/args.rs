@@ -65,6 +65,8 @@ pub struct TypeArgs {
 
     #[darling(default)]
     pub clone_fn: Option<Path>,
+
+    pub type_uuid: String,
 }
 
 impl TypeArgs {

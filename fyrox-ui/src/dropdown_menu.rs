@@ -23,7 +23,7 @@
 
 use crate::popup::Popup;
 use crate::{
-    core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
+    core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     message::{MouseButton, UiMessage},
     popup::{Placement, PopupBuilder, PopupMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -34,8 +34,8 @@ use std::sync::mpsc::Sender;
 
 /// A simple widget that opens a popup when clicked. It could be used to create dropdown menus that
 /// consolidates content of a group.
-#[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider)]
-#[type_uuid(id = "c0a4c51b-f041-453b-a89d-7ceb5394e321")]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[reflect(type_uuid = "c0a4c51b-f041-453b-a89d-7ceb5394e321")]
 #[reflect(derived_type = "UiNode")]
 pub struct DropdownMenu {
     /// Base widget of the dropdown menu.

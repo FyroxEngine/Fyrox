@@ -22,7 +22,7 @@ use crate::{
     fyrox::{
         core::{
             algebra::Vector2, color::Color, pool::ErasedHandle, pool::Handle, reflect::prelude::*,
-            uuid_provider, visitor::prelude::*,
+            visitor::prelude::*,
         },
         graph::SceneGraph,
         gui::{
@@ -73,6 +73,7 @@ pub enum DropAnchor {
 
 #[derive(Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
+#[reflect(type_uuid = "16f35257-a250-413b-ab51-b1ad086a3a9c")]
 pub struct SceneItem {
     pub tree: Tree,
     text_name: Handle<Text>,
@@ -129,8 +130,6 @@ impl DerefMut for SceneItem {
         &mut self.tree
     }
 }
-
-uuid_provider!(SceneItem = "16f35257-a250-413b-ab51-b1ad086a3a9c");
 
 impl Control for SceneItem {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {

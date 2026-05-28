@@ -82,6 +82,7 @@ use fyrox_core::{find_by_name_mut, find_by_name_ref, NameProvider};
 ///
 /// ```
 #[derive(Default, Debug, Visit, Reflect, Clone, PartialEq)]
+#[reflect(type_uuid = "e24e025c-b816-49f7-8227-f74f75862403")]
 pub struct MachineLayer<T: EntityId> {
     name: String,
 

@@ -25,13 +25,12 @@
 #![allow(clippy::unnecessary_to_owned)] // false-positive
 
 use crate::core::{
-    algebra::Vector2, rectpack::RectPacker, reflect::prelude::*, uuid::Uuid, uuid_provider,
-    visitor::prelude::*, TypeUuidProvider,
+    algebra::Vector2, rectpack::RectPacker, reflect::prelude::*, visitor::prelude::*,
 };
 use crate::font::loader::FontImportOptions;
 use fxhash::FxHashMap;
+use fyrox_core::err;
 use fyrox_core::math::Rect;
-use fyrox_core::{err, uuid};
 use fyrox_resource::manager::ResourceManager;
 use fyrox_resource::state::LoadError;
 use fyrox_resource::untyped::ResourceKind;
@@ -332,6 +331,7 @@ impl Atlas {
 
 /// A font resource and the associated data required for rendering glyphs from the font.
 #[derive(Default, Clone, Debug, Reflect, Visit)]
+#[reflect(type_uuid = "692fec79-103a-483c-bb0b-9fc3a349cb48")]
 pub struct Font {
     /// The source font data, such as might come from a ttf file.
     #[reflect(hidden)]
@@ -361,13 +361,7 @@ pub struct Font {
     pub fallbacks: Vec<Option<FontResource>>,
 }
 
-uuid_provider!(Font = "692fec79-103a-483c-bb0b-9fc3a349cb48");
-
 impl ResourceData for Font {
-    fn type_uuid(&self) -> Uuid {
-        <Self as TypeUuidProvider>::type_uuid()
-    }
-
     fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
         Ok(())
     }

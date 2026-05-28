@@ -24,7 +24,7 @@ use std::{fmt::Display, sync::LazyLock};
 
 use crate::{
     asset::{builtin::BuiltInResource, embedded_data_source, untyped::ResourceKind},
-    core::{log::Log, reflect::prelude::*, uuid_provider, visitor::prelude::*},
+    core::{log::Log, reflect::prelude::*, visitor::prelude::*},
 };
 use fyrox_core::color::Color;
 use fyrox_texture::{
@@ -39,6 +39,7 @@ use uuid::{uuid, Uuid};
 /// in outdoor scenes, however real use of it limited only by your imagination. Skybox
 /// will be drawn first, none of objects could be drawn before skybox.
 #[derive(Debug, Clone, Default, PartialEq, Reflect, Visit, Eq)]
+#[reflect(type_uuid = "45f359f1-e26f-4ace-81df-097f63474c72")]
 pub struct SkyBox {
     /// Texture for front face.
     #[reflect(setter = "set_front")]
@@ -69,8 +70,6 @@ pub struct SkyBox {
     #[visit(skip)]
     pub(crate) cubemap: Option<TextureResource>,
 }
-
-uuid_provider!(SkyBox = "45f359f1-e26f-4ace-81df-097f63474c72");
 
 impl SkyBox {
     /// Creates a new sky box from a single color.

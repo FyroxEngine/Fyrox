@@ -21,7 +21,7 @@
 use crate::{
     border::BorderBuilder,
     button::{Button, ButtonBuilder},
-    core::{algebra::Vector2, color::Color, parking_lot::Mutex, pool::Handle, Uuid},
+    core::{algebra::Vector2, color::Color, parking_lot::Mutex, pool::Handle},
     decorator::DecoratorBuilder,
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
@@ -38,6 +38,7 @@ use fyrox_texture::{
     TextureResourceExtension,
 };
 use std::sync::Arc;
+use uuid::Uuid;
 
 pub enum ArrowDirection {
     Top,

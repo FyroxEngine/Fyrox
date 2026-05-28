@@ -51,11 +51,10 @@ use crate::{
         pool::Handle,
         reflect::prelude::*,
         uuid::Uuid,
-        uuid_provider,
         variable::InheritableVariable,
         visitor::error::VisitError,
         visitor::{Visit, VisitResult, Visitor},
-        NameProvider, TypeUuidProvider,
+        NameProvider,
     },
     engine::SerializationContext,
     generic_animation::AnimationContainer,
@@ -83,6 +82,7 @@ pub mod loader;
 
 /// See module docs.
 #[derive(Debug, Clone, Visit, Reflect)]
+#[reflect(type_uuid = "44cd768f-b4ca-4804-a98c-0adf85577ada")]
 pub struct Model {
     #[visit(skip)]
     pub(crate) mapping: NodeMapping,
@@ -101,12 +101,6 @@ impl PrefabData for Model {
     #[inline]
     fn mapping(&self) -> NodeMapping {
         self.mapping
-    }
-}
-
-impl TypeUuidProvider for Model {
-    fn type_uuid() -> Uuid {
-        uuid!("44cd768f-b4ca-4804-a98c-0adf85577ada")
     }
 }
 
@@ -620,10 +614,6 @@ impl ModelResourceExtension for ModelResource {
 }
 
 impl ResourceData for Model {
-    fn type_uuid(&self) -> Uuid {
-        <Self as TypeUuidProvider>::type_uuid()
-    }
-
     fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
         let mut visitor = Visitor::new();
         self.scene.save("Scene", &mut visitor)?;
@@ -674,6 +664,7 @@ impl Default for Model {
     VariantNames,
     Default,
 )]
+#[reflect(type_uuid = "11634aa0-cf8f-4532-a8cd-c0fa6ef804f1")]
 pub enum MaterialSearchOptions {
     /// Search in specified materials directory. It is suitable for cases when
     /// your model resource use shared textures.
@@ -711,8 +702,6 @@ pub enum MaterialSearchOptions {
     UsePathDirectly,
 }
 
-uuid_provider!(MaterialSearchOptions = "11634aa0-cf8f-4532-a8cd-c0fa6ef804f1");
-
 impl MaterialSearchOptions {
     /// A helper to create MaterialsDirectory variant.
     pub fn materials_directory<P: AsRef<Path>>(path: P) -> Self {
@@ -736,6 +725,7 @@ impl MaterialSearchOptions {
 ///
 /// Check documentation of the field of the structure for more info about each parameter.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default, Reflect, Eq)]
+#[reflect(type_uuid = "9b1c3667-f571-4aac-81cf-bcec0dbf0e11")]
 pub struct ModelImportOptions {
     /// See [`MaterialSearchOptions`] docs for more info.
     #[serde(default)]

@@ -20,7 +20,7 @@
 
 use crate::{
     fyrox::{
-        core::{pool::Handle, uuid, Uuid},
+        core::pool::Handle,
         engine::ApplicationLoopController,
         gui::{
             menu::{MenuItem, MenuItemMessage},
@@ -36,6 +36,7 @@ use crate::{
     plugin::EditorPlugin,
     Editor,
 };
+use fyrox::core::uuid::{uuid, Uuid};
 
 /// Editor statistics, useful to track number of active widgets, memory consumption, and other
 /// various useful information.

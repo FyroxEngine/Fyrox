@@ -26,7 +26,6 @@ use crate::fyrox::{
         math::Rect,
         pool::Handle,
         reflect::prelude::*,
-        uuid_provider,
         visitor::prelude::*,
     },
     gui::{
@@ -56,7 +55,10 @@ pub enum TransitionMessage {
 impl MessageData for TransitionMessage {}
 
 #[derive(Clone, Debug, Visit, Reflect)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "01798aee-8fe5-4480-a69d-8e5b95c3cc96"
+)]
 pub struct TransitionView {
     widget: Widget,
     pub segment: Segment,
@@ -104,8 +106,6 @@ pub fn draw_transition(
 
     drawing_context.commit(clip_bounds, brush, CommandTexture::None, material, None);
 }
-
-uuid_provider!(TransitionView = "01798aee-8fe5-4480-a69d-8e5b95c3cc96");
 
 impl Control for TransitionView {
     fn draw(&self, drawing_context: &mut DrawingContext) {

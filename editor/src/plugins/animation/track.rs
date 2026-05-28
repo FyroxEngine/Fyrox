@@ -35,8 +35,6 @@ use crate::{
             pool::{ErasedHandle, Handle},
             reflect::{prelude::*, Reflect},
             some_or_return,
-            type_traits::prelude::*,
-            uuid_provider,
             variable::InheritableVariable,
             visitor::prelude::*,
         },
@@ -349,7 +347,10 @@ pub enum TrackViewMessage {
 impl MessageData for TrackViewMessage {}
 
 #[derive(Clone, Debug, Reflect, Visit)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "c1e930da-d55d-492e-b87b-16c1adf03319"
+)]
 struct TrackView {
     pub tree: Tree,
     id: Uuid,
@@ -372,8 +373,6 @@ impl DerefMut for TrackView {
         &mut self.tree.widget
     }
 }
-
-uuid_provider!(TrackView = "c1e930da-d55d-492e-b87b-16c1adf03319");
 
 impl Control for TrackView {
     fn on_remove(&self, sender: &Sender<UiMessage>) {

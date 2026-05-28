@@ -28,8 +28,8 @@ use crate::window::WindowAlignment;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
-        pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
-        ImmutableString, PhantomDataSendSync,
+        pool::Handle, reflect::prelude::*, visitor::prelude::*, ImmutableString,
+        PhantomDataSendSync,
     },
     define_widget_deref,
     draw::DrawingContext,
@@ -77,8 +77,8 @@ pub enum StyledPropertyEditorMessage {
 }
 impl MessageData for StyledPropertyEditorMessage {}
 
-#[derive(Debug, Clone, Visit, Reflect, TypeUuidProvider)]
-#[type_uuid(id = "3a863a0f-7414-44f5-a7aa-7a6668a6d406")]
+#[derive(Debug, Clone, Visit, Reflect)]
+#[reflect(type_uuid = "3a863a0f-7414-44f5-a7aa-7a6668a6d406")]
 #[reflect(derived_type = "UiNode")]
 pub struct StyledPropertySelector {
     window: Window,
@@ -308,8 +308,8 @@ impl StyledPropertySelectorBuilder {
     }
 }
 
-#[derive(Debug, Clone, Visit, Reflect, TypeUuidProvider)]
-#[type_uuid(id = "1b8fb74a-3911-4b44-bb71-1a0382ebb9a7")]
+#[derive(Debug, Clone, Visit, Reflect)]
+#[reflect(type_uuid = "1b8fb74a-3911-4b44-bb71-1a0382ebb9a7")]
 #[reflect(derived_type = "UiNode")]
 pub struct StyledPropertyEditor {
     widget: Widget,

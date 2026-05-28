@@ -27,7 +27,6 @@ use crate::{
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
@@ -221,7 +220,10 @@ type AnimationPlayerHandle = InheritableVariable<Handle<AnimationPlayer>>;
 /// }
 /// ```
 #[derive(Visit, Reflect, Clone, Debug, Default)]
-#[reflect(derived_type = "Node")]
+#[reflect(
+    derived_type = "Node",
+    type_uuid = "4b08c753-2a10-41e3-8fb2-4fd0517e86bc"
+)]
 pub struct AnimationBlendingStateMachine {
     base: Base,
     machine: MachineType,
@@ -254,12 +256,6 @@ impl AnimationBlendingStateMachine {
     /// Returns an animation player used by the node.
     pub fn animation_player(&self) -> Handle<AnimationPlayer> {
         *self.animation_player
-    }
-}
-
-impl TypeUuidProvider for AnimationBlendingStateMachine {
-    fn type_uuid() -> Uuid {
-        uuid!("4b08c753-2a10-41e3-8fb2-4fd0517e86bc")
     }
 }
 
@@ -309,7 +305,7 @@ impl NodeTrait for AnimationBlendingStateMachine {
     }
 
     fn id(&self) -> Uuid {
-        Self::type_uuid()
+        <Self as Reflect>::type_info().type_uuid
     }
 
     fn update(&mut self, context: &mut UpdateContext) {

@@ -82,9 +82,7 @@ use crate::fyrox::{
         parking_lot::{Mutex, MutexGuard},
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         visitor::prelude::*,
-        Uuid,
     },
     engine::Engine,
     fxhash::FxHashSet,
@@ -283,6 +281,7 @@ fn make_drawing_mode_button(
 
 /// The possible drawing mode when the user is editing tiles.
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, Visit, Reflect)]
+#[reflect(type_uuid = "07ae3005-13ee-46b6-aad5-b7a5bb3e1e8c")]
 pub enum DrawingMode {
     /// Paste the currently selected tiles as a stamp wherever the user clicks or drags the mouse.
     #[default]
@@ -720,7 +719,7 @@ impl EditorPlugin for TileMapEditorPlugin {
         editor
             .asset_browser
             .preview_generators
-            .add(TileSet::type_uuid(), TileSetPreview);
+            .add(TileSet::type_info().type_uuid, TileSetPreview);
         let state = editor.engine.resource_manager.state();
         state.constructors_container.add::<AutoTileInstance>();
         state.constructors_container.add::<WfcInstance>();
@@ -858,7 +857,7 @@ impl EditorPlugin for TileMapEditorPlugin {
         }
 
         if let Message::SetInteractionMode(uuid) = message {
-            if *uuid == TileMapInteractionMode::type_uuid() && self.panel.is_none() {
+            if *uuid == TileMapInteractionMode::type_info().type_uuid && self.panel.is_none() {
                 if let Some(tile_map) = self.get_tile_map_mut(editor) {
                     let resource = if let Some(brush) = tile_map.active_brush() {
                         TileBook::Brush(brush.clone())

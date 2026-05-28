@@ -39,6 +39,7 @@ use std::{
 
 /// An actual type of a property value.
 #[derive(Visit, Reflect, Clone, Copy, Debug, PartialEq, Eq, Hash, Default)]
+#[reflect(type_uuid = "8f0e5b25-2fd1-4534-8cbf-ac4844548b47")]
 pub enum ValueType {
     /// `bool`
     Bool,
@@ -353,6 +354,7 @@ impl TrackValue {
 /// reflection system, while the special cases handles bindings to standard properties (such as position, scaling, or
 /// rotation) for optimization. Reflection is quite slow to be used as the universal property setting mechanism.  
 #[derive(Default, Clone, Visit, Reflect, Debug, PartialEq, Eq)]
+#[reflect(type_uuid = "077d92ac-fa96-4c5e-bdb1-e3e0acc4adc4")]
 pub enum ValueBinding {
     /// A binding to position of a scene node.
     #[default]
@@ -462,6 +464,7 @@ mod test {
     use fyrox_core::{reflect::prelude::*, variable::InheritableVariable};
 
     #[derive(Reflect, Debug, Clone, PartialEq)]
+    #[reflect(type_uuid = "a59259ab-11a4-4008-8e25-1097841aa6f2")]
     struct OtherStruct {
         field: u32,
         inheritable_variable: InheritableVariable<u32>,
@@ -477,6 +480,7 @@ mod test {
     }
 
     #[derive(Default, Reflect, Clone, Debug, PartialEq)]
+    #[reflect(type_uuid = "4aa11b23-1f85-42cf-9c38-8928c6752f54")]
     struct MyStruct {
         some_bool: bool,
         some_property: f32,

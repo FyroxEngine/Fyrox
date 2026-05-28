@@ -51,7 +51,8 @@ use crate::{
     settings::Settings,
     Editor,
 };
-use fyrox::core::{ok_or_return, uuid, Uuid};
+use fyrox::core::ok_or_return;
+use fyrox::core::uuid::{uuid, Uuid};
 use fyrox::engine::GraphicsContext;
 use fyrox::gui::button::Button;
 use fyrox::gui::dock::DockingManager;

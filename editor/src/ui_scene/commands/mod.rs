@@ -32,6 +32,7 @@ use fyrox::gui::UiNode;
 
 #[derive(Reflect, Debug)]
 #[reflect(non_cloneable)]
+#[reflect(type_uuid = "32b695b1-7c5d-4cfd-b53b-2e879b78b749")]
 pub struct UiSceneContext {
     pub ui: &'static mut UserInterface,
     pub selection: &'static mut Selection,

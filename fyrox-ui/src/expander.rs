@@ -36,7 +36,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox_core::pool::ObjectOrVariant;
-use fyrox_core::uuid_provider;
+
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 
@@ -152,7 +152,10 @@ impl MessageData for ExpanderMessage {}
 /// To switch expander state at runtime, send [`ExpanderMessage::Expand`] to your Expander widget instance with
 /// [`crate::message::MessageDirection::ToWidget`].
 #[derive(Default, Clone, Visit, Reflect, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "24976179-b338-4c55-84c3-72d21663efd2"
+)]
 pub struct Expander {
     /// Base widget of the expander.
     pub widget: Widget,
@@ -178,8 +181,6 @@ impl ConstructorProvider<UiNode, UserInterface> for Expander {
 }
 
 crate::define_widget_deref!(Expander);
-
-uuid_provider!(Expander = "24976179-b338-4c55-84c3-72d21663efd2");
 
 impl Control for Expander {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

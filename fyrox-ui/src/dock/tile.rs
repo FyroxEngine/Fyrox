@@ -23,7 +23,7 @@ use crate::{
     brush::Brush,
     core::{
         algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
-        type_traits::prelude::*, visitor::prelude::*,
+        visitor::prelude::*,
     },
     dock::DockingManager,
     grid::{Column, GridBuilder, Row},
@@ -39,7 +39,6 @@ use crate::border::Border;
 use crate::message::MessageData;
 use core::f32;
 use fyrox_core::pool::{HandlesVecExtension, ObjectOrVariant};
-use fyrox_core::uuid_provider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;
 use std::cell::Cell;
@@ -57,6 +56,7 @@ pub enum TileMessage {
 impl MessageData for TileMessage {}
 
 #[derive(Default, Debug, PartialEq, Clone, Visit, Reflect)]
+#[reflect(type_uuid = "bed21184-6bfd-4af4-ba54-43eb9645f499")]
 pub enum TileContent {
     #[default]
     Empty,
@@ -257,7 +257,10 @@ fn deminimize_other_window(
 }
 
 #[derive(Default, Clone, Debug, Visit, Reflect)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "8ed17fa9-890e-4dd7-b4f9-a24660882234"
+)]
 pub struct Tile {
     pub widget: Widget,
     pub left_anchor: Handle<Border>,
@@ -286,8 +289,6 @@ impl ConstructorProvider<UiNode, UserInterface> for Tile {
 }
 
 crate::define_widget_deref!(Tile);
-
-uuid_provider!(Tile = "8ed17fa9-890e-4dd7-b4f9-a24660882234");
 
 impl Control for Tile {
     fn measure_override(

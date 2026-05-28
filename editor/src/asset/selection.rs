@@ -62,7 +62,7 @@ impl SaveResourceCommand {
     fn save(&self) {
         let mut guard = self.resource.lock();
         if let Some(data) = guard.state.data_mut() {
-            Log::verify(data.save(&self.path));
+            Log::verify(data.inner_mut().save(&self.path));
         }
     }
 }
@@ -218,7 +218,7 @@ impl SelectionContainer for AssetSelection {
                 if !self.resource_manager.is_built_in_resource(&resource) {
                     if let Some(command) = make_command(args, move |_| {
                         let mut guard = resource.lock();
-                        let data = &mut **guard.state.data_mut()?;
+                        let data = guard.state.data_mut()?.inner_mut();
                         // SAFETY: This is safe, because the closure owns its own copy of
                         // resource strong ref, and the entity getter is used only once per
                         // do/undo/redo calls.
@@ -277,7 +277,7 @@ impl SelectionContainer for AssetSelection {
                             value,
                             move |_| {
                                 let mut guard = resource.lock();
-                                let data = &mut **guard.state.data_mut()?;
+                                let data = guard.state.data_mut()?.inner_mut();
                                 // SAFETY: This is safe, because the closure owns its own copy of
                                 // resource strong ref, and the entity getter is used only once per
                                 // do/undo/redo calls.

@@ -22,6 +22,7 @@ use crate::fyrox::core::reflect::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone, Reflect)]
+#[reflect(type_uuid = "dd762679-f378-4e0f-9957-cb57277537d6")]
 pub struct RotateInteractionModeSettings {
     pub angle_snapping: bool,
     pub x_snap_step: f32,

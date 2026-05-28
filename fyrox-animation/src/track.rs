@@ -32,6 +32,7 @@ use std::fmt::Debug;
 /// Additionally, the binding could be disabled to temporarily prevent animation from affecting the
 /// target.
 #[derive(Debug, Visit, Reflect, Clone, PartialEq)]
+#[reflect(type_uuid = "967751f6-b1ae-433e-b511-8ee477b49bc8")]
 pub struct TrackBinding<T: EntityId> {
     /// The binding could be disabled to temporarily prevent animation from affecting the target.
     pub enabled: bool,
@@ -89,6 +90,7 @@ impl<T: EntityId> TrackBinding<T> {
 /// that contains the actual property data. Parametric curves allows the engine to perform various interpolations between
 /// key values.
 #[derive(Debug, Reflect, Clone, PartialEq, Visit)]
+#[reflect(type_uuid = "9eb99baa-8d4b-4a93-bad2-32b977032149")]
 pub struct Track {
     pub(super) binding: ValueBinding,
     pub(super) frames: TrackDataContainer,

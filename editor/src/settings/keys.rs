@@ -29,6 +29,7 @@ use fyrox::gui::message::KeyboardModifiers;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
+#[reflect(type_uuid = "fbcdc91c-ba63-4d24-b604-c8ffd58834bf")]
 pub struct TerrainKeyBindings {
     pub modify_height_map_mode: HotKey,
     pub draw_on_mask_mode: HotKey,
@@ -42,6 +43,7 @@ pub struct TerrainKeyBindings {
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
+#[reflect(type_uuid = "82d67946-8b7b-41f0-9520-5d4a927aa68f")]
 pub struct KeyBindings {
     pub move_forward: KeyBinding,
     pub move_back: KeyBinding,

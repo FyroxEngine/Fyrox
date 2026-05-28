@@ -31,7 +31,6 @@ use crate::{
             pool::{Handle, HandlesVecExtension},
             reflect::prelude::*,
             some_or_continue,
-            type_traits::prelude::*,
             visitor::prelude::*,
             PhantomDataSendSync, SafeLock,
         },
@@ -79,8 +78,8 @@ pub enum AssetSelectorMessage {
 }
 impl MessageData for AssetSelectorMessage {}
 
-#[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider)]
-#[type_uuid(id = "aa4f0726-8d25-4c90-add1-92ba392310c6")]
+#[derive(Clone, Debug, Reflect, Visit)]
+#[reflect(type_uuid = "aa4f0726-8d25-4c90-add1-92ba392310c6")]
 struct Item {
     pub widget: Widget,
     image: Handle<Image>,
@@ -230,8 +229,8 @@ impl ItemBuilder {
     }
 }
 
-#[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider)]
-#[type_uuid(id = "970bb83b-51e8-48e7-8050-f97bf0ac470b")]
+#[derive(Clone, Debug, Reflect, Visit)]
+#[reflect(type_uuid = "970bb83b-51e8-48e7-8050-f97bf0ac470b")]
 pub struct AssetSelector {
     pub widget: Widget,
     list_view: Handle<ListView>,
@@ -321,10 +320,14 @@ impl<'a> AssetSelectorBuilder<'a> {
 
         supported_resource_paths.extend(state.built_in_resources.values().filter_map(|res| {
             let resource_state = res.resource.lock();
-            if self
-                .asset_types
-                .contains(&resource_state.state.data_ref()?.type_uuid())
-            {
+            if self.asset_types.contains(
+                &resource_state
+                    .state
+                    .data_ref()?
+                    .inner_ref()
+                    .type_info_ref()
+                    .type_uuid,
+            ) {
                 Some(res.id.clone())
             } else {
                 None
@@ -384,8 +387,8 @@ impl<'a> AssetSelectorBuilder<'a> {
     }
 }
 
-#[derive(Clone, Debug, Reflect, Visit, TypeUuidProvider)]
-#[type_uuid(id = "c348ad3d-52a6-40ad-a5e4-bf63fefe1906")]
+#[derive(Clone, Debug, Reflect, Visit)]
+#[reflect(type_uuid = "c348ad3d-52a6-40ad-a5e4-bf63fefe1906")]
 pub struct AssetSelectorWindow {
     pub window: Window,
     selector: Handle<AssetSelector>,
@@ -571,7 +574,7 @@ impl<'a> AssetSelectorWindowBuilder<'a> {
                 .unwrap_or_default()
                 .into(),
         )
-        .with_asset_types(vec![<T as TypeUuidProvider>::type_uuid()])
+        .with_asset_types(vec![<T as Reflect>::type_info().type_uuid])
         .build(icon_request_sender, resource_manager, &mut ui.build_ctx());
 
         ui.send(
@@ -588,6 +591,7 @@ impl<'a> AssetSelectorWindowBuilder<'a> {
 }
 
 #[derive(Reflect, Visit, Debug)]
+#[reflect(type_uuid = "7839eb64-1e6e-4e40-a8fb-53c9d0945b16")]
 pub struct AssetSelectorMixin<T: TypedResourceData> {
     pub selector: Cell<Handle<AssetSelectorWindow>>,
     pub select: Handle<Button>,

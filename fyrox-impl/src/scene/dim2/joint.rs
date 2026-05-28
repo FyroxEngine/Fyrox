@@ -28,7 +28,6 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
@@ -41,7 +40,6 @@ use crate::{
         Scene,
     },
 };
-use fyrox_core::uuid_provider;
 
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::SceneGraph;
@@ -56,6 +54,7 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 /// allows rigid bodies to perform relative rotations. The real world example is a human shoulder,
 /// pendulum, etc.
 #[derive(Clone, Debug, Visit, PartialEq, Reflect)]
+#[reflect(type_uuid = "b35f39a3-7b93-4ea9-8f9a-01faeee658ae")]
 pub struct BallJoint {
     /// Whether angular limits are enabled or not. Default is `false`
     pub limits_enabled: bool,
@@ -76,11 +75,13 @@ impl Default for BallJoint {
 /// A fixed joint ensures that two rigid bodies does not move relative to each other. There is no
 /// straightforward real-world example, but it can be thought as two bodies were "welded" together.
 #[derive(Clone, Debug, Default, Visit, PartialEq, Reflect, Eq)]
+#[reflect(type_uuid = "cf69b42d-0d7d-41a0-9354-af7659aaf5e6")]
 pub struct FixedJoint;
 
 /// Prismatic joint prevents any relative movement between two rigid-bodies, except for relative
 /// translations along one axis. The real world example is a sliders that used to support drawers.
 #[derive(Clone, Debug, Visit, PartialEq, Reflect)]
+#[reflect(type_uuid = "4b02e35a-a1b1-4617-a08a-c06139223969")]
 pub struct PrismaticJoint {
     /// Whether linear limits along local X axis of the joint are enabled or not. Default is `false`
     pub limits_enabled: bool,
@@ -100,6 +101,7 @@ impl Default for PrismaticJoint {
 
 /// Parameters that define how the joint motor will behave.
 #[derive(Default, Clone, Debug, PartialEq, Visit, Reflect)]
+#[reflect(type_uuid = "b4dab2d7-8cba-4b6a-85c9-ac7c6dd48ed5")]
 pub struct JointMotorParams {
     /// The target velocity of the motor.
     pub target_vel: f32,
@@ -115,6 +117,7 @@ pub struct JointMotorParams {
 
 /// The exact kind of the joint.
 #[derive(Clone, Debug, PartialEq, Visit, Reflect, AsRefStr, EnumString, VariantNames)]
+#[reflect(type_uuid = "e1fa2015-3ea3-47bb-8ad3-d408559c9643")]
 pub enum JointParams {
     /// See [`BallJoint`] for more info.
     BallJoint(BallJoint),
@@ -124,8 +127,6 @@ pub enum JointParams {
     PrismaticJoint(PrismaticJoint),
 }
 
-uuid_provider!(JointParams = "e1fa2015-3ea3-47bb-8ad3-d408559c9643");
-
 impl Default for JointParams {
     fn default() -> Self {
         Self::BallJoint(Default::default())
@@ -133,6 +134,7 @@ impl Default for JointParams {
 }
 
 #[derive(Visit, Reflect, Debug, Clone, Default)]
+#[reflect(type_uuid = "d22556ef-f011-4b85-ac67-c1ff4d43d59e")]
 pub(crate) struct LocalFrame {
     pub position: Vector2<f32>,
     pub rotation: UnitComplex<f32>,
@@ -148,6 +150,7 @@ impl LocalFrame {
 }
 
 #[derive(Visit, Reflect, Debug, Clone, Default)]
+#[reflect(type_uuid = "448ce88b-1c89-4a66-b909-6835aff07d12")]
 pub(crate) struct JointLocalFrames {
     pub body1: LocalFrame,
     pub body2: LocalFrame,
@@ -165,7 +168,10 @@ impl JointLocalFrames {
 /// Joint is used to restrict motion of two rigid bodies. There are numerous examples of joints in
 /// real life: door hinge, ball joints in human arms, etc.
 #[derive(Visit, Reflect, Debug)]
-#[reflect(derived_type = "Node")]
+#[reflect(
+    derived_type = "Node",
+    type_uuid = "b8d66eda-b69f-4c57-80ba-d76665573565"
+)]
 pub struct Joint {
     base: Base,
 
@@ -235,12 +241,6 @@ impl Clone for Joint {
             contacts_enabled: self.contacts_enabled.clone(),
             native: Cell::new(ImpulseJointHandle::invalid()),
         }
-    }
-}
-
-impl TypeUuidProvider for Joint {
-    fn type_uuid() -> Uuid {
-        uuid!("b8d66eda-b69f-4c57-80ba-d76665573565")
     }
 }
 
@@ -558,7 +558,7 @@ impl NodeTrait for Joint {
     }
 
     fn id(&self) -> Uuid {
-        Self::type_uuid()
+        <Self as Reflect>::type_info().type_uuid
     }
 
     fn on_removed_from_graph(&mut self, graph: &mut Graph) {

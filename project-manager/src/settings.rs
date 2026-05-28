@@ -97,6 +97,7 @@ fn default_run_cargo_update() -> bool {
 }
 
 #[derive(Default, Serialize, Deserialize, Reflect, Clone, Debug)]
+#[reflect(type_uuid = "fab68a7a-58ce-40f5-a354-a7789c43efd3")]
 pub struct SettingsData {
     /// Defines a command to run an IDE in a project folder. This command should use either
     /// %MANIFEST_PATH% or %MANIFEST_DIR% built-in variable to provide the selected project path to

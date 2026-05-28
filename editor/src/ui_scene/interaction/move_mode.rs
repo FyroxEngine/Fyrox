@@ -19,10 +19,7 @@
 // SOFTWARE.
 
 use crate::fyrox::{
-    core::{
-        algebra::Point2, algebra::Vector2, pool::Handle, uuid::Uuid, uuid_provider,
-        TypeUuidProvider,
-    },
+    core::{algebra::Point2, algebra::Vector2, pool::Handle, reflect::prelude::*, uuid::Uuid},
     engine::Engine,
     graph::SceneGraph,
     gui::{BuildContext, UiNode},
@@ -37,6 +34,8 @@ use crate::{
 };
 use fyrox::gui::button::Button;
 
+#[derive(Reflect, Debug, Clone)]
+#[reflect(type_uuid = "05a1b439-d354-45b1-9014-10393c5ba35d")]
 struct Entry {
     widget: Handle<UiNode>,
     initial_local_position: Vector2<f32>,
@@ -44,10 +43,14 @@ struct Entry {
     delta: Vector2<f32>,
 }
 
+#[derive(Reflect, Debug, Clone)]
+#[reflect(type_uuid = "c9b6b3d6-ade9-4da2-a5e7-48893f24d97f")]
 struct MoveContext {
     entries: Vec<Entry>,
 }
 
+#[derive(Reflect, Debug, Clone)]
+#[reflect(type_uuid = "e5c09b04-5c31-4044-ac48-5227ab4a4b83")]
 pub struct MoveWidgetsInteractionMode {
     move_context: Option<MoveContext>,
     sender: MessageSender,
@@ -61,8 +64,6 @@ impl MoveWidgetsInteractionMode {
         }
     }
 }
-
-uuid_provider!(MoveWidgetsInteractionMode = "e5c09b04-5c31-4044-ac48-5227ab4a4b83");
 
 impl InteractionMode for MoveWidgetsInteractionMode {
     fn on_left_mouse_button_down(
@@ -213,6 +214,6 @@ impl InteractionMode for MoveWidgetsInteractionMode {
     }
 
     fn uuid(&self) -> Uuid {
-        Self::type_uuid()
+        Self::type_info().type_uuid
     }
 }

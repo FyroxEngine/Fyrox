@@ -25,8 +25,6 @@ use crate::fyrox::{
         math::Rect,
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
-        uuid_provider,
         visitor::prelude::*,
     },
     gui::{
@@ -162,7 +160,10 @@ struct DragContext {
 }
 
 #[derive(Clone, Visit, Reflect)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "98655c9b-428f-4977-a478-ad3674cc66d4"
+)]
 pub struct Ruler {
     widget: Widget,
     #[visit(skip)]
@@ -214,8 +215,6 @@ impl Ruler {
             .x
     }
 }
-
-uuid_provider!(Ruler = "98655c9b-428f-4977-a478-ad3674cc66d4");
 
 impl Control for Ruler {
     fn draw(&self, ctx: &mut DrawingContext) {

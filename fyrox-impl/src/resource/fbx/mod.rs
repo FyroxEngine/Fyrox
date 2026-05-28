@@ -80,12 +80,13 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_animation::track::TrackBinding;
-use fyrox_core::{err, Uuid};
+use fyrox_core::err;
 use fyrox_material::shader::{ShaderResource, ShaderResourceExtension};
 use fyrox_material::MaterialResource;
 use fyrox_resource::io::ResourceIo;
 use fyrox_resource::untyped::ResourceKind;
 use std::{cmp::Ordering, path::Path};
+use uuid::Uuid;
 
 /// Input angles in degrees
 fn quat_from_euler(euler: Vector3<f32>) -> UnitQuaternion<f32> {

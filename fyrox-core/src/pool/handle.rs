@@ -20,10 +20,7 @@
 
 use crate::pool::ObjectOrVariant;
 use crate::reflect::{ReflectHandle, TypeInfo};
-use crate::{
-    combine_uuids, pool::INVALID_GENERATION, reflect::prelude::*, uuid_provider,
-    visitor::prelude::*, TypeUuidProvider,
-};
+use crate::{pool::INVALID_GENERATION, reflect::prelude::*, visitor::prelude::*};
 use serde::{Deserialize, Serialize};
 use std::any::{type_name, TypeId};
 use std::{
@@ -33,7 +30,6 @@ use std::{
     marker::PhantomData,
     sync::atomic::{self, AtomicUsize},
 };
-use uuid::Uuid;
 
 /// Handle is some sort of non-owning reference to content in a pool. It stores
 /// index of object and additional information that allows to ensure that handle
@@ -118,6 +114,10 @@ impl<T: Reflect> Reflect for Handle<T> {
             assembly_name: env!("CARGO_PKG_NAME"),
             doc_comment: "",
             derived_types: T::type_info().derived_types,
+            type_uuid: combine_uuids(
+                uuid::uuid!("30c0668d-7a2c-47e6-8c7b-208fdcc905a1"),
+                T::type_info().type_uuid,
+            ),
         }
     }
 
@@ -310,19 +310,6 @@ impl<T> Handle<T> {
     }
 }
 
-impl<T> TypeUuidProvider for Handle<T>
-where
-    T: TypeUuidProvider,
-{
-    #[inline]
-    fn type_uuid() -> Uuid {
-        combine_uuids(
-            uuid::uuid!("30c0668d-7a2c-47e6-8c7b-208fdcc905a1"),
-            T::type_uuid(),
-        )
-    }
-}
-
 impl<T> PartialOrd for Handle<T> {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -430,6 +417,7 @@ impl Debug for AtomicHandle {
 #[derive(
     Copy, Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Hash, Reflect, Visit, Serialize, Deserialize,
 )]
+#[reflect(type_uuid = "50131acc-8b3b-40b5-b495-e2c552c94db3")]
 pub struct ErasedHandle {
     /// Index of object in pool.
     #[reflect(read_only)]
@@ -439,8 +427,6 @@ pub struct ErasedHandle {
     #[reflect(read_only)]
     generation: u32,
 }
-
-uuid_provider!(ErasedHandle = "50131acc-8b3b-40b5-b495-e2c552c94db3");
 
 impl Display for ErasedHandle {
     #[inline]

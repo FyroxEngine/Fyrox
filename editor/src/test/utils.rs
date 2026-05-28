@@ -20,7 +20,7 @@
 
 use crate::{
     fyrox::{
-        core::{algebra::Vector2, info, pool::Handle, Uuid},
+        core::{algebra::Vector2, info, pool::Handle},
         engine::ApplicationLoopController,
         gui::{test::UserInterfaceTestingExtension, Control, UiNode},
     },
@@ -29,6 +29,7 @@ use crate::{
     test::macros::Macro,
     Editor, StartupData,
 };
+use fyrox::core::uuid::Uuid;
 use std::path::PathBuf;
 
 /// Initializes the editor as is a user would open it, adds the specified plugin that runs the test

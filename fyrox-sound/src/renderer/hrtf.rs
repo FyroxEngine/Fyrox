@@ -85,7 +85,6 @@ use fyrox_core::{
     reflect::prelude::*,
     uuid::{uuid, Uuid},
     visitor::{Visit, VisitResult, Visitor},
-    TypeUuidProvider,
 };
 use fyrox_resource::untyped::ResourceKind;
 use fyrox_resource::{
@@ -143,6 +142,7 @@ impl Display for HrtfError {
 
 /// See module docs.
 #[derive(Clone, Debug, Default, Reflect)]
+#[reflect(type_uuid = "c6149a3b-7992-44a8-9b9f-16651a5d2b15")]
 pub struct HrtfRenderer {
     hrir_resource: Option<HrirSphereResource>,
     #[reflect(hidden)]
@@ -252,6 +252,7 @@ impl Default for HrirSource {
 /// Wrapper for [`HrirSphere`] to be able to use it in the resource manager, that will handle async resource
 /// loading automatically.
 #[derive(Reflect, Default, Clone, Visit)]
+#[reflect(type_uuid = "c92a0fa3-0ed3-49a9-be44-8f06271c6be2")]
 pub struct HrirSphereResourceData {
     #[reflect(hidden)]
     #[visit(skip)]
@@ -280,17 +281,7 @@ impl Debug for HrirSphereResourceData {
     }
 }
 
-impl TypeUuidProvider for HrirSphereResourceData {
-    fn type_uuid() -> Uuid {
-        uuid!("c92a0fa3-0ed3-49a9-be44-8f06271c6be2")
-    }
-}
-
 impl ResourceData for HrirSphereResourceData {
-    fn type_uuid(&self) -> Uuid {
-        <Self as TypeUuidProvider>::type_uuid()
-    }
-
     fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
         Err("Saving is not supported!".to_string().into())
     }
@@ -313,7 +304,7 @@ impl ResourceLoader for HrirSphereLoader {
     }
 
     fn data_type_uuid(&self) -> Uuid {
-        <HrirSphereResourceData as TypeUuidProvider>::type_uuid()
+        <HrirSphereResourceData as Reflect>::type_info().type_uuid
     }
 
     fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {

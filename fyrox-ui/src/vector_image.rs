@@ -35,13 +35,13 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 
-use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// Primitive is the simplest shape, that consists of one or multiple lines of the same thickness.
 #[derive(Clone, Debug, PartialEq, Visit, Reflect, AsRefStr, EnumString, VariantNames)]
+#[reflect(type_uuid = "766be1b3-6d1c-4466-bcf3-7093017c9e31")]
 pub enum Primitive {
     /// Solid triangle primitive.
     Triangle {
@@ -92,8 +92,6 @@ pub enum Primitive {
         rect: Rect<f32>,
     },
 }
-
-uuid_provider!(Primitive = "766be1b3-6d1c-4466-bcf3-7093017c9e31");
 
 impl Default for Primitive {
     fn default() -> Self {
@@ -200,7 +198,10 @@ impl Primitive {
 /// Keep in mind that all primitives located in local coordinates. The color of the vector image can be changed by
 /// setting a new foreground brush.
 #[derive(Default, Clone, Visit, Reflect, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "7e535b65-0178-414e-b310-e208afc0eeb5"
+)]
 pub struct VectorImage {
     /// Base widget of the image.
     pub widget: Widget,
@@ -222,8 +223,6 @@ impl ConstructorProvider<UiNode, UserInterface> for VectorImage {
 }
 
 crate::define_widget_deref!(VectorImage);
-
-uuid_provider!(VectorImage = "7e535b65-0178-414e-b310-e208afc0eeb5");
 
 impl Control for VectorImage {
     fn measure_override(&self, _ui: &UserInterface, _available_size: Vector2<f32>) -> Vector2<f32> {

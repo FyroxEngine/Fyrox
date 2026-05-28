@@ -36,7 +36,7 @@ pub mod camera;
 /// # };
 /// #
 /// # #[derive(Visit, Reflect, Debug)]
-/// # #[reflect(non_cloneable)]
+/// # #[reflect(non_cloneable, type_uuid = "38a3d4cf-65e1-4e86-a730-365804c51cff")]
 /// # struct Game;
 /// #
 /// # impl Plugin for Game {

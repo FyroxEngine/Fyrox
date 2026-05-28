@@ -35,6 +35,7 @@ use std::ops::{Deref, DerefMut};
 
 /// See module docs.
 #[derive(Clone, Debug, Visit, PartialEq, Reflect)]
+#[reflect(type_uuid = "6cff3e6e-bc27-4f36-8b79-cdfbc46550b7")]
 pub struct CylinderEmitter {
     emitter: BaseEmitter,
     #[reflect(min_value = 0.0, step = 0.1)]

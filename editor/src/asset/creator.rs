@@ -24,7 +24,7 @@ use crate::{
             manager::ResourceManager,
             untyped::{ResourceKind, UntypedResource},
         },
-        core::{log::Log, make_pretty_type_name, pool::Handle, SafeLock, Uuid},
+        core::{log::Log, make_pretty_type_name, pool::Handle, SafeLock},
         engine::Engine,
         gui::{
             button::{ButtonBuilder, ButtonMessage},
@@ -43,6 +43,7 @@ use crate::{
     message::MessageSender,
     Message,
 };
+use fyrox::core::uuid::Uuid;
 use fyrox::gui::button::Button;
 use fyrox::gui::list_view::ListView;
 use fyrox::gui::text_box::TextBox;

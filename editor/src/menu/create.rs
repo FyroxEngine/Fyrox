@@ -41,7 +41,7 @@ use crate::{
     Mode,
 };
 use fyrox::core::log::Log;
-use fyrox::core::{uuid, Uuid};
+use fyrox::core::uuid::{uuid, Uuid};
 use fyrox::graph::constructor::{VariantConstructor, VariantResult};
 use fyrox::gui::constructor::WidgetConstructorContainer;
 use fyrox::gui::menu::{MenuItem, SortingPredicate};

@@ -32,7 +32,7 @@ use std::{
 
 #[doc(hidden)]
 #[derive(Reflect, Debug, Default, Clone)]
-#[reflect(hide_all)]
+#[reflect(hide_all, type_uuid = "238a5490-6627-48ef-8035-4b589497293b")]
 pub struct WakersList(Vec<Waker>);
 
 impl Deref for WakersList {
@@ -61,7 +61,7 @@ impl DerefMut for WakersList {
 
 /// Arbitrary loading error, that could be optionally be empty.
 #[derive(Reflect, Debug, Clone, Default)]
-#[reflect(hide_all)]
+#[reflect(hide_all, type_uuid = "cb2257dc-b344-49e6-972e-cd99be4c3615")]
 pub struct LoadError(pub Option<Arc<dyn ResourceLoadError>>);
 
 impl std::error::Error for LoadError {}
@@ -84,20 +84,17 @@ impl Display for LoadError {
 
 #[doc(hidden)]
 #[derive(Debug, Reflect)]
+#[reflect(type_uuid = "e7675337-0b9b-49b4-962a-03cc571a0ab7")]
 pub struct ResourceDataWrapper(
     #[reflect(deref, display_name = "Resource Data")] pub Box<dyn ResourceData>,
 );
 
-impl Deref for ResourceDataWrapper {
-    type Target = dyn ResourceData;
-
-    fn deref(&self) -> &Self::Target {
+impl ResourceDataWrapper {
+    pub fn inner_ref(&self) -> &dyn ResourceData {
         &*self.0
     }
-}
 
-impl DerefMut for ResourceDataWrapper {
-    fn deref_mut(&mut self) -> &mut Self::Target {
+    pub fn inner_mut(&mut self) -> &mut dyn ResourceData {
         &mut *self.0
     }
 }
@@ -135,6 +132,7 @@ impl Clone for ResourceDataWrapper {
 /// is present. It is somewhat possible to get a UUID when a resource is failed to load, but not in
 /// 100% cases.
 #[derive(Clone, Reflect)]
+#[reflect(type_uuid = "3d49c715-4a48-4b41-b8c6-45bcb8b3fd17")]
 pub enum ResourceState {
     /// Resource is not loaded. In some situations, having a handle to a resource
     /// can be sufficient even without the resource's data.
@@ -313,7 +311,7 @@ impl ResourceState {
             ResourceState::Pending { .. }
             | ResourceState::LoadError { .. }
             | ResourceState::Unloaded => None,
-            ResourceState::Ok { data, .. } => (&**data as &dyn Any).downcast_ref::<T>(),
+            ResourceState::Ok { data, .. } => (data.inner_ref() as &dyn Any).downcast_ref::<T>(),
         }
     }
 
@@ -324,32 +322,26 @@ impl ResourceState {
             ResourceState::Pending { .. }
             | ResourceState::LoadError { .. }
             | ResourceState::Unloaded => None,
-            ResourceState::Ok { data, .. } => (&mut **data as &mut dyn Any).downcast_mut::<T>(),
+            ResourceState::Ok { data, .. } => {
+                (data.inner_mut() as &mut dyn Any).downcast_mut::<T>()
+            }
         }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use fyrox_core::{
-        reflect::{FieldRef, Reflect},
-        uuid::Uuid,
-        visitor::prelude::*,
-        TypeUuidProvider,
-    };
+    use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
     use std::error::Error;
     use std::path::Path;
 
     use super::*;
 
     #[derive(Debug, Default, Clone, Reflect, Visit)]
+    #[reflect(type_uuid = "96a59120-b174-4b2c-9069-1770ec495011")]
     struct Stub {}
 
     impl ResourceData for Stub {
-        fn type_uuid(&self) -> Uuid {
-            Uuid::default()
-        }
-
         fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
             Err("Saving is not supported!".to_string().into())
         }
@@ -360,12 +352,6 @@ mod test {
 
         fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
             Some(Box::new(self.clone()))
-        }
-    }
-
-    impl TypeUuidProvider for Stub {
-        fn type_uuid() -> Uuid {
-            Uuid::default()
         }
     }
 

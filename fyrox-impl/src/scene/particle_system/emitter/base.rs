@@ -31,6 +31,7 @@ use std::ops::Range;
 
 /// See module docs.
 #[derive(Debug, Visit, PartialEq, Reflect)]
+#[reflect(type_uuid = "61dcd2a8-58e5-4b53-92ed-7e0b531e1ed2")]
 pub struct BaseEmitter {
     /// Offset from center of particle system.
     position: Vector3<f32>,

@@ -32,13 +32,13 @@ static CURRENT_VERSION: &str = include_str!("../pm.version");
 
 use crate::{manager::ProjectManager, settings::DATA_DIR, utils::make_button};
 use fyrox::core::algebra::Vector2;
+use fyrox::core::uuid::Uuid;
 use fyrox::{
     asset::{io::FsResourceIo, manager::ResourceManager, untyped::ResourceKind},
     core::{
         algebra::Matrix3,
         log::{Log, MessageKind},
         task::TaskPool,
-        Uuid,
     },
     dpi::PhysicalSize,
     engine::{

@@ -22,8 +22,7 @@ use crate::{
     brush::Brush,
     core::{
         algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
-        some_or_return, type_traits::prelude::*, variable::InheritableVariable,
-        visitor::prelude::*,
+        some_or_return, variable::InheritableVariable, visitor::prelude::*,
     },
     draw::{CommandTexture, Draw, DrawingContext},
     message::{compare_and_set, UiMessage},
@@ -55,9 +54,8 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
     AsRefStr,
     EnumString,
     VariantNames,
-    TypeUuidProvider,
 )]
-#[type_uuid(id = "c5bb0a5c-6581-45f7-899c-78aa1da8b659")]
+#[reflect(type_uuid = "c5bb0a5c-6581-45f7-899c-78aa1da8b659")]
 pub enum StretchMode {
     /// Stretches middle sections of the widget. Could lead to distorted image.
     #[default]
@@ -82,6 +80,7 @@ impl MessageData for NinePatchMessage {}
 /// A texture slice that defines a region in a texture and margins that will be used to split the
 /// section in nine pieces.
 #[derive(Default, Clone, Visit, Reflect, Debug, PartialEq)]
+#[reflect(type_uuid = "e1ea4fee-f138-47d2-9770-c088b6c7d86e")]
 pub struct TextureSlice {
     /// Texture of the slice. This field is used only for editing purposes in the UI. Can be [`None`]
     /// if no editing is needed.
@@ -158,8 +157,8 @@ impl TextureSlice {
 ///         .build(&mut ui.build_ctx())
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider)]
-#[type_uuid(id = "c345033e-8c10-4186-b101-43f73b85981d")]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[reflect(type_uuid = "c345033e-8c10-4186-b101-43f73b85981d")]
 #[reflect(derived_type = "UiNode")]
 pub struct NinePatch {
     pub widget: Widget,

@@ -24,10 +24,7 @@
 #![warn(missing_docs)]
 
 use crate::{
-    core::{
-        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*,
-    },
+    core::{algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
     numeric::NumericType,
@@ -119,7 +116,10 @@ impl<T: NumericType> MessageData for RectEditorMessage<T> {}
 /// }
 /// ```
 #[derive(Default, Debug, Clone, Visit, Reflect)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "5a3daf9d-f33b-494b-b111-eb55721dc7ac"
+)]
 pub struct RectEditor<T>
 where
     T: NumericType,
@@ -167,18 +167,6 @@ where
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
-    }
-}
-
-impl<T> TypeUuidProvider for RectEditor<T>
-where
-    T: NumericType,
-{
-    fn type_uuid() -> Uuid {
-        combine_uuids(
-            uuid!("5a3daf9d-f33b-494b-b111-eb55721dc7ac"),
-            T::type_uuid(),
-        )
     }
 }
 

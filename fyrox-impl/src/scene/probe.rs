@@ -28,7 +28,6 @@ use crate::{
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
@@ -52,19 +51,8 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 const DEFAULT_RESOLUTION: usize = 512;
 
 /// Update mode of reflection probes.
-#[derive(
-    Clone,
-    Reflect,
-    PartialEq,
-    Default,
-    Debug,
-    Visit,
-    TypeUuidProvider,
-    AsRefStr,
-    EnumString,
-    VariantNames,
-)]
-#[type_uuid(id = "66450303-4f6c-4456-bde5-a7309f25b7ce")]
+#[derive(Clone, Reflect, PartialEq, Default, Debug, Visit, AsRefStr, EnumString, VariantNames)]
+#[reflect(type_uuid = "66450303-4f6c-4456-bde5-a7309f25b7ce")]
 pub enum UpdateMode {
     /// The probe will be updated once it is created and its content won't change until the
     /// [`ReflectionProbe::force_update`] call.
@@ -140,8 +128,8 @@ pub enum UpdateMode {
 ///     .build(graph)
 /// }
 /// ```
-#[derive(Clone, Reflect, Debug, Visit, TypeUuidProvider)]
-#[type_uuid(id = "7e0c138f-e371-4045-bd2c-ff5b165c7ee6")]
+#[derive(Clone, Reflect, Debug, Visit)]
+#[reflect(type_uuid = "7e0c138f-e371-4045-bd2c-ff5b165c7ee6")]
 #[reflect(derived_type = "Node")]
 #[visit(optional, post_visit_method = "on_visited")]
 pub struct ReflectionProbe {
@@ -282,7 +270,7 @@ impl NodeTrait for ReflectionProbe {
     }
 
     fn id(&self) -> Uuid {
-        Self::type_uuid()
+        <Self as Reflect>::type_info().type_uuid
     }
 
     fn update(&mut self, _context: &mut UpdateContext) {

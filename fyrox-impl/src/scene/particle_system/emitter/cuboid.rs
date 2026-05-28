@@ -37,6 +37,7 @@ use std::ops::{Deref, DerefMut};
 
 /// See module docs.
 #[derive(Debug, Clone, Visit, PartialEq, Reflect)]
+#[reflect(type_uuid = "3afa3670-fa3f-4da2-b971-b0223b1309ec")]
 pub struct CuboidEmitter {
     emitter: BaseEmitter,
     #[reflect(min_value = 0.0, step = 0.1)]

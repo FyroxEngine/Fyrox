@@ -460,7 +460,6 @@
 use fyrox_core::some_or_continue;
 use fyrox_core::{
     io::FileError, reflect::prelude::*, sparse::AtomicIndex, uuid::Uuid, visitor::prelude::*,
-    TypeUuidProvider,
 };
 pub use fyrox_graphics::gpu_program::{
     SamplerFallback, ShaderResourceDefinition, ShaderResourceKind,
@@ -517,6 +516,7 @@ pub const STANDARD_WIDGET_SHADER_NAME: &str = "Widget Shader";
 /// Usually you don't need to access internals of the shader, but there sometimes could be a need to
 /// read shader definition, to get supported passes and properties.
 #[derive(Default, Debug, Clone, Reflect, Visit)]
+#[reflect(type_uuid = "f1346417-b726-492a-b80f-c02096c6c019")]
 pub struct Shader {
     /// Shader definition contains description of properties and render passes.
     #[visit(optional)]
@@ -528,15 +528,9 @@ pub struct Shader {
     pub cache_index: Arc<AtomicIndex>,
 }
 
-impl TypeUuidProvider for Shader {
-    fn type_uuid() -> Uuid {
-        uuid!("f1346417-b726-492a-b80f-c02096c6c019")
-    }
-}
-
 /// A simple wrapper over string to hold shader source code.
-#[derive(Default, Clone, Debug, PartialEq, Eq, Reflect, Visit, TypeUuidProvider)]
-#[type_uuid(id = "d2aa5ba0-59e8-4f21-b7af-d6aab3a65379")]
+#[derive(Default, Clone, Debug, PartialEq, Eq, Reflect, Visit)]
+#[reflect(type_uuid = "d2aa5ba0-59e8-4f21-b7af-d6aab3a65379")]
 pub struct ShaderSourceCode(pub String);
 
 impl Serialize for ShaderSourceCode {
@@ -572,10 +566,8 @@ impl DerefMut for ShaderSourceCode {
 }
 
 /// A render pass definition. See [`ShaderResource`] docs for more info about render passes.
-#[derive(
-    Default, Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Reflect, Visit, TypeUuidProvider,
-)]
-#[type_uuid(id = "450f2f3a-bdc8-4fd8-b62e-c4c924cd94ca")]
+#[derive(Default, Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Reflect, Visit)]
+#[reflect(type_uuid = "450f2f3a-bdc8-4fd8-b62e-c4c924cd94ca")]
 pub struct RenderPassDefinition {
     /// A name of render pass.
     pub name: String,
@@ -598,6 +590,7 @@ pub struct RenderPassDefinition {
 
 /// A definition of the shader.
 #[derive(Default, Clone, Serialize, Deserialize, Debug, PartialEq, Reflect, Visit)]
+#[reflect(type_uuid = "182e300f-c810-4063-8c48-4ac4972fa5d8")]
 pub struct ShaderDefinition {
     /// A name of the shader.
     pub name: String,
@@ -827,10 +820,6 @@ impl Shader {
 }
 
 impl ResourceData for Shader {
-    fn type_uuid(&self) -> Uuid {
-        <Self as TypeUuidProvider>::type_uuid()
-    }
-
     fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
         let mut file = File::create(path)?;
         file.write_all(

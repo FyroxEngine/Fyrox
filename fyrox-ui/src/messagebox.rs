@@ -43,7 +43,6 @@ use crate::button::Button;
 use crate::message::MessageData;
 use crate::text::Text;
 use crate::window::WindowAlignment;
-use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
@@ -81,6 +80,7 @@ pub enum MessageBoxResult {
 
 /// A fixed set of possible buttons in a message box.
 #[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Debug, Visit, Reflect, Default)]
+#[reflect(type_uuid = "2fb9021b-148a-45cd-9602-8197acbab47a")]
 pub enum MessageBoxButtons {
     /// Only `Ok` button. It is typically used to show a message with the results of some finished action.
     #[default]
@@ -164,7 +164,10 @@ pub enum MessageBoxButtons {
 /// There's no way to change the style of the message box, nor add some widgets to it. If you need a custom message box, then you
 /// need to create your own widget. This message box is meant to be used as a standard dialog box for standard situations in the UI.
 #[derive(Default, Clone, Visit, Reflect, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "b14c0012-4383-45cf-b9a1-231415d95373"
+)]
 pub struct MessageBox {
     /// Base window of the message box.
     pub window: Window,
@@ -208,8 +211,6 @@ impl DerefMut for MessageBox {
         &mut self.window
     }
 }
-
-uuid_provider!(MessageBox = "b14c0012-4383-45cf-b9a1-231415d95373");
 
 // Message box extends Window widget so it delegates most of the calls
 //  to the inner window.

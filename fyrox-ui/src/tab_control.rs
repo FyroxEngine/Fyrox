@@ -29,8 +29,7 @@ use crate::{
     brush::Brush,
     button::{Button, ButtonBuilder, ButtonMessage},
     core::{
-        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        uuid_provider, visitor::prelude::*,
+        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, visitor::prelude::*,
     },
     decorator::{Decorator, DecoratorBuilder, DecoratorMessage},
     grid::{Column, Grid, GridBuilder, Row},
@@ -51,6 +50,7 @@ use std::{
     fmt::{Debug, Formatter},
     sync::Arc,
 };
+use uuid::Uuid;
 
 /// A set of messages for [`TabControl`] widget.
 #[derive(Debug, Clone, PartialEq)]
@@ -99,6 +99,7 @@ impl Debug for TabUserData {
 
 /// Tab of the [`TabControl`] widget. It stores important tab data that is widely used at runtime.
 #[derive(Default, Clone, PartialEq, Visit, Reflect, Debug)]
+#[reflect(type_uuid = "974ab85e-8808-4f83-ac67-935a5cdb58d1")]
 pub struct Tab {
     /// Unique identifier of this tab.
     pub uuid: Uuid,
@@ -205,7 +206,10 @@ pub struct Tab {
 /// # }
 /// ```
 #[derive(Default, Clone, Visit, Reflect, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "d54cfac3-0afc-464b-838a-158b3a2253f5"
+)]
 pub struct TabControl {
     /// Base widget of the tab control.
     pub widget: Widget,
@@ -237,8 +241,6 @@ impl ConstructorProvider<UiNode, UserInterface> for TabControl {
 }
 
 crate::define_widget_deref!(TabControl);
-
-uuid_provider!(TabControl = "d54cfac3-0afc-464b-838a-158b3a2253f5");
 
 impl TabControl {
     fn do_drag(&mut self, position: Vector2<f32>, ui: &mut UserInterface) {

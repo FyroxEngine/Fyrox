@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use fyrox_core::algebra::{Matrix3, Vector2};
-use fyrox_core::Uuid;
+use fyrox_core::uuid::Uuid;
 use fyrox_resource::untyped::ResourceKind;
 use fyrox_ui::button::Button;
 use fyrox_ui::image::Image;

@@ -32,8 +32,7 @@ use crate::{
     },
     Animation, AnimationContainer, AnimationEvent, AnimationPose, EntityId,
 };
-use fyrox_core::uuid::{uuid, Uuid};
-use fyrox_core::TypeUuidProvider;
+use fyrox_core::uuid::uuid;
 use std::cmp::Ordering;
 use std::{
     cell::{Cell, Ref, RefCell},
@@ -43,6 +42,7 @@ use std::{
 /// Weighted proxy for animation pose. It has an input pose source and a weight, that tells in which proportion
 /// the pose should be blended into final pose.
 #[derive(Default, Debug, Visit, Clone, Reflect, PartialEq)]
+#[reflect(type_uuid = "b01d7639-7b39-4eaf-87e6-29fd5221951b")]
 pub struct BlendPose<T: EntityId> {
     /// Weight of the pose.
     pub weight: PoseWeight,
@@ -50,12 +50,6 @@ pub struct BlendPose<T: EntityId> {
     /// A source of animation pose.
     #[reflect(hidden)]
     pub pose_source: Handle<PoseNode<T>>,
-}
-
-impl<T: EntityId> TypeUuidProvider for BlendPose<T> {
-    fn type_uuid() -> Uuid {
-        uuid!("b01d7639-7b39-4eaf-87e6-29fd5221951b")
-    }
 }
 
 impl<T: EntityId> BlendPose<T> {
@@ -94,6 +88,7 @@ impl<T: EntityId> BlendPose<T> {
 /// can decrease weight of hit animation over time and increase weight of run animation, so character will recover
 /// from his wounds.
 #[derive(Default, Debug, Visit, Clone, Reflect, PartialEq)]
+#[reflect(type_uuid = "5380c877-e6aa-4d80-b44f-8c72cffcfdb8")]
 pub struct BlendAnimations<T: EntityId> {
     /// Base node.
     pub base: BasePoseNode<T>,
@@ -230,6 +225,7 @@ impl<T: EntityId> AnimationPoseSource<T> for BlendAnimations<T> {
 /// An animation pose with specific blend time. Blend time tells the engine how many time it should use to perform
 /// blending to this pose.
 #[derive(Default, Debug, Visit, Clone, Reflect, PartialEq)]
+#[reflect(type_uuid = "92fcc992-9a68-4152-8449-657546faa286")]
 pub struct IndexedBlendInput<T: EntityId> {
     /// Blend time tells the engine how many time it should use to perform blending to this pose.
     pub blend_time: f32,
@@ -237,12 +233,6 @@ pub struct IndexedBlendInput<T: EntityId> {
     /// A handle to pose node source.
     #[reflect(hidden)]
     pub pose_source: Handle<PoseNode<T>>,
-}
-
-impl<T: EntityId> TypeUuidProvider for IndexedBlendInput<T> {
-    fn type_uuid() -> Uuid {
-        uuid!("92fcc992-9a68-4152-8449-657546faa286")
-    }
 }
 
 /// A node that switches between given animations using index and smoothly blends from one animation to another
@@ -254,6 +244,7 @@ impl<T: EntityId> TypeUuidProvider for IndexedBlendInput<T> {
 /// parameter in the machine parameters. The node will automatically perform smooth transition between different
 /// animations.
 #[derive(Default, Debug, Visit, Clone, Reflect, PartialEq)]
+#[reflect(type_uuid = "3a299514-8362-4112-84c7-277961fdb89b")]
 pub struct BlendAnimationsByIndex<T: EntityId> {
     /// Base node.
     pub base: BasePoseNode<T>,

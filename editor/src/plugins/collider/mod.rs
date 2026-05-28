@@ -35,8 +35,6 @@ mod segment2d;
 mod triangle;
 mod triangle2d;
 
-use std::sync::LazyLock;
-
 use super::inspector::InspectorPlugin;
 use crate::{
     camera::PickingOptions,
@@ -47,10 +45,8 @@ use crate::{
             color::Color,
             math::{plane::Plane, Matrix4Ext},
             pool::Handle,
-            reflect::Reflect,
+            reflect::prelude::*,
             some_or_return,
-            type_traits::prelude::*,
-            Uuid,
         },
         engine::Engine,
         graph::{SceneGraph, SceneGraphNode},
@@ -87,10 +83,13 @@ use crate::{
     settings::Settings,
     Editor, Message,
 };
+use fyrox::core::uuid::Uuid;
 use fyrox::gui::button::Button;
 use fyrox::gui::widget::WidgetMessage;
 use fyrox::scene::camera::Camera;
 use fyrox::scene::pivot::Pivot;
+use std::fmt::{Debug, Formatter};
+use std::sync::LazyLock;
 
 fn try_get_collider_shape(collider: Handle<Node>, scene: &Scene) -> Option<ColliderShape> {
     scene
@@ -299,7 +298,8 @@ fn make_handle(scene: &mut Scene, root: Handle<Pivot>, visible: bool) -> Handle<
     handle
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Reflect, Debug)]
+#[reflect(non_cloneable, type_uuid = "42b19406-299d-4c3d-a7e3-77b41817ae71")]
 enum ShapeHandleValue {
     Scalar(f32),
     Vector(Vector3<f32>),
@@ -323,15 +323,19 @@ impl ShapeHandleValue {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Reflect, Debug)]
+#[reflect(non_cloneable, type_uuid = "70d6130f-da5d-4f14-bbfd-0744927053a0")]
 enum ColliderInitialShape {
     TwoD(dim2::collider::ColliderShape),
     ThreeD(ColliderShape),
 }
 
+#[derive(Reflect, Debug)]
+#[reflect(non_cloneable, type_uuid = "e9aac4a5-0755-4d94-94ff-dfa37b40d5ca")]
 struct DragContext {
     handle: Handle<Sprite>,
     initial_handle_position: Vector3<f32>,
+    #[reflect(hidden)]
     plane: Plane,
     initial_value: ShapeHandleValue,
     handle_major_axis: Option<Vector3<f32>>,
@@ -339,15 +343,23 @@ struct DragContext {
     initial_shape: ColliderInitialShape,
 }
 
-#[derive(TypeUuidProvider)]
-#[type_uuid(id = "a012dd4c-ce6d-4e7e-8879-fd8eddaa9677")]
+#[derive(Reflect)]
+#[reflect(non_cloneable, type_uuid = "a012dd4c-ce6d-4e7e-8879-fd8eddaa9677")]
 pub struct ColliderShapeInteractionMode {
     collider: Handle<Node>,
+    #[reflect(hidden)]
     shape_gizmo: Box<dyn ShapeGizmoTrait>,
     move_gizmo: MoveGizmo,
+    #[reflect(hidden)]
     drag_context: Option<DragContext>,
     selected_handle: Handle<Sprite>,
     message_sender: MessageSender,
+}
+
+impl Debug for ColliderShapeInteractionMode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ColliderShapeInteractionMode")
+    }
 }
 
 impl ColliderShapeInteractionMode {
@@ -674,7 +686,7 @@ impl InteractionMode for ColliderShapeInteractionMode {
     }
 
     fn uuid(&self) -> Uuid {
-        Self::type_uuid()
+        Self::type_info().type_uuid
     }
 }
 

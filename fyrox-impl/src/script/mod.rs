@@ -28,10 +28,9 @@ use crate::{
     core::{
         log::Log,
         pool::{Handle, PoolError},
-        reflect::{FieldMut, FieldRef, Reflect},
+        reflect::prelude::*,
         uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
-        TypeUuidProvider,
     },
     engine::{input::InputState, task::TaskPoolHandler, GraphicsContext, ScriptMessageDispatcher},
     event::Event,
@@ -47,7 +46,6 @@ use std::{
     any::Any,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
-    str::FromStr,
     sync::mpsc::Sender,
 };
 
@@ -227,22 +225,13 @@ pub trait BaseScript: Visit + Reflect + Send + Debug + 'static {
     ///     core::reflect::prelude::*,
     ///     core::uuid::Uuid,
     ///     script::ScriptTrait,
-    ///     core::TypeUuidProvider,
-    ///     core::uuid::uuid, core::type_traits::prelude::*
+    ///     core::uuid::uuid,
     /// };
     ///
     /// #[derive(Reflect, Visit, Debug, Clone)]
+    /// // Use https://www.uuidgenerator.net/ to generate new UUID or an extension for your IDE.
+    /// #[reflect(type_uuid = "4cfbe65e-a2c1-474f-b123-57516d80b1f8")]
     /// struct MyScript { }
-    ///
-    /// // Implement TypeUuidProvider trait that will return type uuid of the type.
-    /// // Every script must implement the trait so the script can be registered in
-    /// // serialization context of the engine.
-    /// impl TypeUuidProvider for MyScript {
-    ///     fn type_uuid() -> Uuid {
-    ///         // Use https://www.uuidgenerator.net/ to generate new UUID.
-    ///         uuid!("4cfbe65e-a2c1-474f-b123-57516d80b1f8")
-    ///     }
-    /// }
     ///
     /// impl ScriptTrait for MyScript { }
     /// ```
@@ -251,7 +240,7 @@ pub trait BaseScript: Visit + Reflect + Send + Debug + 'static {
 
 impl<T> BaseScript for T
 where
-    T: Clone + ScriptTrait + Any + TypeUuidProvider,
+    T: Clone + ScriptTrait + Any,
 {
     fn clone_box(&self) -> Box<dyn ScriptTrait> {
         Box::new(self.clone())
@@ -266,7 +255,7 @@ where
     }
 
     fn id(&self) -> Uuid {
-        T::type_uuid()
+        <T as Reflect>::type_info().type_uuid
     }
 }
 
@@ -341,21 +330,21 @@ pub struct ScriptContext<'a, 'b, 'c> {
     ///
     /// ```rust
     /// # use fyrox_impl::{
-    /// #     core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
+    /// #     core::{reflect::prelude::*,  visitor::prelude::*},
     /// #     plugin::{Plugin, error::GameResult},
     /// #     script::{ScriptContext, ScriptTrait},
     /// # };
     /// #
     /// #[derive(Visit, Reflect, Default, Debug)]
-    /// #[reflect(non_cloneable)]
+    /// #[reflect(non_cloneable, type_uuid = "bf06a1f4-5e76-4560-a260-e64187a9484b")]
     /// struct Game {
     ///     player_name: String,
     /// }
     ///
     /// impl Plugin for Game {}
     ///
-    /// #[derive(Visit, Reflect, Clone, Default, Debug, TypeUuidProvider)]
-    /// #[type_uuid(id = "f732654e-5e3c-4b52-9a3d-44c0cfb14e18")]
+    /// #[derive(Visit, Reflect, Clone, Default, Debug)]
+    /// #[reflect(type_uuid = "f732654e-5e3c-4b52-9a3d-44c0cfb14e18")]
     /// struct MyScript {}
     ///
     /// impl ScriptTrait for MyScript {
@@ -663,8 +652,7 @@ pub trait ScriptTrait: BaseScript {
     ///
     /// ```rust
     /// use fyrox_impl::{
-    ///     core::{reflect::prelude::*, uuid::Uuid, visitor::prelude::*, type_traits::prelude::*},
-    ///     core::TypeUuidProvider,
+    ///     core::{reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
     ///     script::ScriptTrait,
     ///     plugin::error::GameResult,
     ///     script::{ScriptContext, ScriptMessageContext, ScriptMessagePayload},
@@ -673,13 +661,8 @@ pub trait ScriptTrait: BaseScript {
     /// struct Message;
     ///
     /// #[derive(Reflect, Visit, Debug, Clone)]
+    /// #[reflect(type_uuid = "2649187c-46c2-485f-bf62-c9d3aef0c432")]
     /// struct MyScript {}
-    ///
-    /// # impl TypeUuidProvider for MyScript {
-    /// #     fn type_uuid() -> Uuid {
-    /// #         todo!();
-    /// #     }
-    /// # }
     ///
     /// impl ScriptTrait for MyScript {
     ///     fn on_start(&mut self, ctx: &mut ScriptContext) -> GameResult {
@@ -711,6 +694,7 @@ pub trait ScriptTrait: BaseScript {
 
 /// A wrapper for actual script instance internals, it used by the engine.
 #[derive(Debug, Reflect)]
+#[reflect(type_uuid = "24ecd17d-9b46-4cc8-9d07-a1273e50a20e")]
 pub struct Script {
     #[reflect(deref, display_name = "Script")]
     instance: Box<dyn ScriptTrait>,
@@ -718,12 +702,6 @@ pub struct Script {
     pub(crate) initialized: bool,
     #[reflect(hidden)]
     pub(crate) started: bool,
-}
-
-impl TypeUuidProvider for Script {
-    fn type_uuid() -> Uuid {
-        Uuid::from_str("24ecd17d-9b46-4cc8-9d07-a1273e50a20e").unwrap()
-    }
 }
 
 impl Deref for Script {
@@ -844,14 +822,12 @@ mod test {
         scene::base::Base,
         script::{Script, ScriptTrait},
     };
-    use fyrox_core::uuid_provider;
 
     #[derive(Reflect, Visit, Debug, Clone, Default)]
+    #[reflect(type_uuid = "eed9bf56-7d71-44a0-ba8e-0f3163c59669")]
     struct MyScript {
         field: InheritableVariable<f32>,
     }
-
-    uuid_provider!(MyScript = "eed9bf56-7d71-44a0-ba8e-0f3163c59669");
 
     impl ScriptTrait for MyScript {}
 

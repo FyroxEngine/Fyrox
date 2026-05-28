@@ -23,7 +23,7 @@ use crate::fyrox::{
     gui::{menu::MenuItemMessage, message::UiMessage, BuildContext},
 };
 use crate::menu::{create_menu_item, create_root_menu_item};
-use fyrox::core::{uuid, Uuid};
+use fyrox::core::uuid::{uuid, Uuid};
 use fyrox::gui::menu::MenuItem;
 
 pub struct HelpMenu {

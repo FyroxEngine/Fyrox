@@ -164,6 +164,7 @@ impl ChannelReverb {
 
 /// See module docs.
 #[derive(Debug, Clone, Reflect, PartialEq)]
+#[reflect(type_uuid = "679fafbe-7f8e-42a2-8469-f02265327039")]
 pub struct Reverb {
     dry: f32,
     wet: f32,

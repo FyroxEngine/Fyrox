@@ -40,6 +40,7 @@ pub struct AnimationEvent {
 /// After that all you need to do is to fetch animation events one-by-one and emit respective sounds. See [`AnimationSignal`] docs
 /// for more info and examples.
 #[derive(Clone, Debug, Visit, Reflect, PartialEq)]
+#[reflect(type_uuid = "37a7fcb2-048a-4f4c-b0ae-013df0ef4f1b")]
 pub struct AnimationSignal {
     /// An id of the animation signal. Any event produced by the signal will have this id.
     pub id: Uuid,

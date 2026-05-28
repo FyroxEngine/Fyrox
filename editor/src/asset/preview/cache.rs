@@ -25,7 +25,7 @@ use crate::{
     },
     fyrox::{
         asset::untyped::UntypedResource,
-        core::{futures::executor::block_on, parking_lot::Mutex, pool::Handle, SafeLock, Uuid},
+        core::{futures::executor::block_on, parking_lot::Mutex, pool::Handle, SafeLock},
         engine::Engine,
         fxhash::FxHashMap,
         gui::UiNode,
@@ -33,6 +33,7 @@ use crate::{
     load_image,
 };
 use fyrox::core::pool::ObjectOrVariant;
+use fyrox::core::uuid::Uuid;
 use std::{
     collections::VecDeque,
     sync::{mpsc::Receiver, Arc},

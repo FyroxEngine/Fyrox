@@ -26,7 +26,7 @@
 //! for windows.
 
 use crate::{
-    core::{log::Log, pool::Handle, reflect::prelude::*, uuid_provider, visitor::prelude::*},
+    core::{log::Log, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     dock::config::{DockingManagerLayoutDescriptor, FloatingWindowDescriptor, TileDescriptor},
     message::UiMessage,
     widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -161,7 +161,10 @@ impl MessageData for DockingManagerMessage {}
 /// save the layout and use the returned layout descriptor when you need to restore the layout
 /// to its defaults.
 #[derive(Default, Clone, Visit, Reflect, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "b04299f7-3f6b-45f1-89a6-0dce4ad929e1"
+)]
 pub struct DockingManager {
     pub widget: Widget,
     pub floating_windows: RefCell<Vec<Handle<Window>>>,
@@ -181,8 +184,6 @@ impl ConstructorProvider<UiNode, UserInterface> for DockingManager {
 }
 
 crate::define_widget_deref!(DockingManager);
-
-uuid_provider!(DockingManager = "b04299f7-3f6b-45f1-89a6-0dce4ad929e1");
 
 impl Control for DockingManager {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

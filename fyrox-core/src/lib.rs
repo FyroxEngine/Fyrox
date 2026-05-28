@@ -70,7 +70,6 @@ mod safelock;
 pub mod sparse;
 pub mod sstorage;
 pub mod task;
-pub mod type_traits;
 pub mod variable;
 pub mod visitor;
 pub mod watcher;
@@ -90,7 +89,6 @@ pub use wasm_bindgen_futures;
 #[cfg(target_arch = "wasm32")]
 pub use web_sys;
 
-pub use type_traits::prelude::*;
 /// Defines as_(variant), as_mut_(variant) and is_(variant) methods.
 #[macro_export]
 macro_rules! define_is_as {
@@ -636,8 +634,9 @@ mod test {
     use std::path::Path;
 
     use crate::{
-        append_extension, cmp_strings_case_insensitive, combine_uuids, hash_combine,
-        make_relative_path, transmute_vec_as_bytes,
+        append_extension, cmp_strings_case_insensitive, hash_combine, make_relative_path,
+        reflect::prelude::*,
+        transmute_vec_as_bytes,
         visitor::{Visit, Visitor},
         BiDirHashMap,
     };

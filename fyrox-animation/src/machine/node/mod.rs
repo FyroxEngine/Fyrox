@@ -46,6 +46,7 @@ pub mod play;
 
 /// A set of common data fields that is used in every node.
 #[derive(Debug, Visit, Clone, Default, Reflect, PartialEq)]
+#[reflect(type_uuid = "8fb1a1f3-caa9-47fa-8f1f-002e52807bc7")]
 pub struct BasePoseNode<T: EntityId> {
     /// Position on the canvas, it is editor-specific data.
     pub position: Vector2<f32>,
@@ -57,6 +58,7 @@ pub struct BasePoseNode<T: EntityId> {
 
 /// Specialized node that provides animation pose. See documentation for each variant.
 #[derive(Debug, Visit, Clone, Reflect, PartialEq)]
+#[reflect(type_uuid = "064dc4e5-c45c-432c-9df0-df3bc528fb1a")]
 pub enum PoseNode<T: EntityId> {
     /// See docs for [`PlayAnimation`].
     PlayAnimation(PlayAnimation<T>),

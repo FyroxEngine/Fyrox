@@ -23,7 +23,7 @@ use super::*;
 use fyrox::gui::grid::Grid;
 use fyrox::gui::vec::VecEditor;
 use fyrox::{
-    core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
+    core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     gui::{
         button::ButtonMessage,
         define_widget_deref,
@@ -46,8 +46,8 @@ pub enum TileBoundsMessage {
 }
 impl MessageData for TileBoundsMessage {}
 
-#[derive(Clone, Default, Debug, Visit, Reflect, TypeUuidProvider)]
-#[type_uuid(id = "1e600103-6516-4c5a-a30b-f90f64fc9623")]
+#[derive(Clone, Default, Debug, Visit, Reflect)]
+#[reflect(type_uuid = "1e600103-6516-4c5a-a30b-f90f64fc9623")]
 #[reflect(derived_type = "UiNode")]
 pub struct TileBoundsEditor {
     widget: Widget,

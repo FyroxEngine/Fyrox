@@ -19,9 +19,7 @@
 // SOFTWARE.
 
 use crate::{
-    core::{
-        pool::Handle, reflect::prelude::*, uuid_provider, visitor::prelude::*, PhantomDataSendSync,
-    },
+    core::{pool::Handle, reflect::prelude::*, visitor::prelude::*, PhantomDataSendSync},
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition,
@@ -44,6 +42,7 @@ use std::sync::Arc;
 use std::{any::TypeId, fmt::Debug};
 
 #[derive(Clone, Debug, PartialEq, Visit, Reflect, Default)]
+#[reflect(type_uuid = "5c6e4785-8e2d-441f-8478-523900394b93")]
 pub struct Item {
     pub editor_instance: PropertyEditorInstance,
 }
@@ -55,15 +54,16 @@ pub enum ArrayEditorMessage {
 impl MessageData for ArrayEditorMessage {}
 
 #[derive(Clone, Debug, Visit, Reflect)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "5c6e4785-8e2d-441f-8478-523900394b93"
+)]
 pub struct ArrayEditor {
     pub widget: Widget,
     pub items: Vec<Item>,
 }
 
 crate::define_widget_deref!(ArrayEditor);
-
-uuid_provider!(ArrayEditor = "5c6e4785-8e2d-441f-8478-523900394b93");
 
 impl Control for ArrayEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

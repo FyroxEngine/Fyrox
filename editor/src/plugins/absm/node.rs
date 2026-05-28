@@ -19,10 +19,7 @@
 // SOFTWARE.
 
 use crate::fyrox::{
-    core::{
-        color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid::uuid,
-        visitor::prelude::*,
-    },
+    core::{color::Color, pool::Handle, reflect::prelude::*, uuid::uuid, visitor::prelude::*},
     gui::{
         border::{BorderBuilder, BorderMessage},
         brush::Brush,
@@ -52,13 +49,17 @@ use std::{
 };
 
 #[derive(Clone, Debug, Visit, Reflect)]
+#[reflect(type_uuid = "1a5d0042-3607-4fcb-88c6-025a0bce6111")]
 pub struct AbsmBaseNode {
     pub input_sockets: Vec<Handle<Socket>>,
     pub output_socket: Handle<Socket>,
 }
 
 #[derive(Visit, Reflect)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "15bc1a7e-a385-46e0-a65c-7e9c014b4a1d"
+)]
 pub struct AbsmNode<T>
 where
     T: Reflect,
@@ -153,12 +154,6 @@ pub enum AbsmNodeMessage {
     Edit,
 }
 impl MessageData for AbsmNodeMessage {}
-
-impl<T: Reflect> TypeUuidProvider for AbsmNode<T> {
-    fn type_uuid() -> Uuid {
-        uuid!("15bc1a7e-a385-46e0-a65c-7e9c014b4a1d")
-    }
-}
 
 impl<T> Control for AbsmNode<T>
 where

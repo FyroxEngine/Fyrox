@@ -32,7 +32,7 @@ use crate::{
     message::MessageSender,
     Message,
 };
-use fyrox::core::{uuid, Uuid};
+use fyrox::core::uuid::{uuid, Uuid};
 use fyrox::gui::menu::MenuItem;
 use fyrox::gui::window::{Window, WindowAlignment};
 

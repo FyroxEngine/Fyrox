@@ -26,10 +26,7 @@
 use crate::{
     border::BorderBuilder,
     button::{Button, ButtonBuilder, ButtonMessage},
-    core::{
-        pool::Handle, reflect::prelude::*, type_traits::prelude::*, variable::InheritableVariable,
-        visitor::prelude::*,
-    },
+    core::{pool::Handle, reflect::prelude::*, variable::InheritableVariable, visitor::prelude::*},
     define_widget_deref,
     grid::{Column, GridBuilder, Row},
     message::{MessageData, MessageDirection, UiMessage},
@@ -121,9 +118,9 @@ impl MessageData for SelectorMessage {}
 ///     }
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
-#[type_uuid(id = "25118853-5c3c-4197-9e4b-2e3b9d92f4d2")]
+#[reflect(type_uuid = "25118853-5c3c-4197-9e4b-2e3b9d92f4d2")]
 pub struct Selector {
     widget: Widget,
     items: InheritableVariable<Vec<Handle<UiNode>>>,

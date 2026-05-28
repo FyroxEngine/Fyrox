@@ -68,6 +68,7 @@ pub const DEFAULT_SCATTER_B: f32 = 0.03;
 /// scattering factor (per color channel) and other useful properties. Exact
 /// behavior defined by specific light kind.
 #[derive(Debug, Reflect, Clone, Visit)]
+#[reflect(type_uuid = "5c9486ed-5f3b-4225-bed5-95f9bde6360e")]
 pub struct BaseLight {
     base: Base,
 

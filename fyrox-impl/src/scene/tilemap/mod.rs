@@ -59,7 +59,6 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         variable::InheritableVariable,
         visitor::prelude::*,
         ImmutableString, SafeLock,
@@ -365,6 +364,7 @@ impl VertexTrait for TileVertex {
 /// Giving a particular `TilePaletteStage` to a tile map palette will control which kind of
 /// tiles it will display.
 #[derive(Clone, Copy, Default, Debug, Visit, Reflect, PartialEq)]
+#[reflect(type_uuid = "05cec1a9-faa9-45a2-a4a4-245849cb2fb4")]
 pub enum TilePaletteStage {
     /// The page tile stage. These tiles allow the user to select which page they want to use.
     #[default]
@@ -403,6 +403,7 @@ pub enum PageType {
 /// [`TileRenderData`]. For pages this is due to having an icon to allow the user to select the page.
 /// Both pages and tiles can be selected by the user, moved, and deleted.
 #[derive(Clone, Copy, Debug, PartialEq, Visit, Reflect)]
+#[reflect(type_uuid = "be84a122-3d0f-4a9f-8bba-d55cf8583aad")]
 pub enum ResourceTilePosition {
     /// This position refers to some page, and so it lacks tile coordinates.
     Page(Vector2<i32>),
@@ -487,8 +488,8 @@ impl ResourceTilePosition {
 
 /// Tile is a base block of a tile map. It has a position and a handle of tile definition, stored
 /// in the respective tile set.
-#[derive(Clone, Reflect, Default, Debug, PartialEq, Visit, TypeUuidProvider)]
-#[type_uuid(id = "e429ca1b-a311-46c3-b580-d5a2f49db7e2")]
+#[derive(Clone, Reflect, Default, Debug, PartialEq, Visit)]
+#[reflect(type_uuid = "e429ca1b-a311-46c3-b580-d5a2f49db7e2")]
 pub struct Tile {
     /// Position of the tile (in grid coordinates).
     pub position: Vector2<i32>,
@@ -518,10 +519,11 @@ impl<I: Iterator<Item = Vector2<i32>>> Iterator for TileIter<I> {
     }
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Visit, Reflect)]
 /// Abstract source of tiles, which can either be a tile set or a brush.
 /// It is called a "book" because each of these tile resources contains
 /// pages of tiles.
+#[derive(Debug, Default, Clone, PartialEq, Visit, Reflect)]
+#[reflect(type_uuid = "76563800-35fa-46aa-bb58-5f358d769654")]
 pub enum TileBook {
     /// A tile resource containing no tiles.
     #[default]
@@ -951,9 +953,9 @@ impl OrthoTransform for TileRenderData {
 /// which contains all the pages that may be referenced by the tile map's handles.
 ///
 /// Optional [`TileMapEffect`] objects may be included in the `TileMap` to change how it renders.
-#[derive(Reflect, Debug, TypeUuidProvider)]
+#[derive(Reflect, Debug)]
 #[reflect(derived_type = "Node")]
-#[type_uuid(id = "aa9a3385-a4af-4faf-a69a-8d3af1a3aa67")]
+#[reflect(type_uuid = "aa9a3385-a4af-4faf-a69a-8d3af1a3aa67")]
 pub struct TileMap {
     base: Base,
     /// The source of rendering data for tiles in this tile map.
@@ -1393,7 +1395,7 @@ impl NodeTrait for TileMap {
     }
 
     fn id(&self) -> Uuid {
-        Self::type_uuid()
+        <Self as Reflect>::type_info().type_uuid
     }
 
     fn collect_render_data(&self, ctx: &mut RenderContext) -> RdcControlFlow {

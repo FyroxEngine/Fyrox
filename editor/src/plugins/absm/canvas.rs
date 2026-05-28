@@ -25,7 +25,6 @@ use crate::fyrox::{
         math::Rect,
         pool::Handle,
         reflect::prelude::*,
-        uuid_provider,
         visitor::prelude::*,
     },
     graph::SceneGraph,
@@ -52,18 +51,21 @@ use fyrox::gui::message::MessageData;
 use std::cell::Cell;
 
 #[derive(Debug, Clone, PartialEq, Visit, Reflect, Default)]
+#[reflect(type_uuid = "d5425ec9-e945-4452-af2a-743147518eb6")]
 pub(crate) struct Entry {
     pub node: Handle<UiNode>,
     pub initial_position: Vector2<f32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Visit, Reflect, Default)]
+#[reflect(type_uuid = "575d4cac-5456-42db-bed1-36c627bc44c0")]
 pub(crate) struct DragContext {
     initial_cursor_position: Vector2<f32>,
     entries: Vec<Entry>,
 }
 
 #[derive(Debug, Clone, PartialEq, Visit, Reflect)]
+#[reflect(type_uuid = "488b0b46-11ed-4eef-b58b-a52f3a71dd84")]
 pub(crate) enum Mode {
     Normal,
     Drag {
@@ -112,7 +114,10 @@ impl MessageData for AbsmCanvasMessage {
 }
 
 #[derive(Clone, Visit, Reflect, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "100b1c33-d017-4fe6-95e7-e1daf310ef27"
+)]
 pub struct AbsmCanvas {
     widget: Widget,
     selection: Vec<Handle<UiNode>>,
@@ -302,8 +307,6 @@ impl AbsmCanvas {
         self.sync_connections_ends(Handle::NONE, ui, true);
     }
 }
-
-uuid_provider!(AbsmCanvas = "100b1c33-d017-4fe6-95e7-e1daf310ef27");
 
 impl Control for AbsmCanvas {
     fn draw(&self, ctx: &mut DrawingContext) {

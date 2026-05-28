@@ -21,11 +21,9 @@
 //! User Interface loader.
 
 use crate::constructor::WidgetConstructorContainer;
-use crate::{
-    core::{uuid::Uuid, TypeUuidProvider},
-    UserInterface,
-};
+use crate::{core::uuid::Uuid, UserInterface};
 use fyrox_core::dyntype::DynTypeConstructorContainer;
+use fyrox_core::reflect::Reflect;
 use fyrox_resource::{
     io::ResourceIo,
     loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
@@ -51,7 +49,7 @@ impl ResourceLoader for UserInterfaceLoader {
     }
 
     fn data_type_uuid(&self) -> Uuid {
-        UserInterface::type_uuid()
+        <UserInterface as Reflect>::type_info().type_uuid
     }
 
     fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {

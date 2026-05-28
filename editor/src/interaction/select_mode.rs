@@ -23,8 +23,8 @@ use crate::{
         core::{
             algebra::Vector2,
             pool::Handle,
+            reflect::prelude::*,
             uuid::{uuid, Uuid},
-            TypeUuidProvider,
         },
         gui::BuildContext,
         scene::node::Node,
@@ -41,6 +41,8 @@ use fyrox::gui::button::Button;
 use fyrox::gui::image::Image;
 use fyrox::gui::widget::WidgetMessage;
 
+#[derive(Reflect, Debug)]
+#[reflect(non_cloneable, type_uuid = "bab9ce8c-d679-4c49-beb9-f5a8482e0678")]
 pub struct SelectInteractionMode {
     preview: Handle<Image>,
     selection_frame: Handle<Border>,
@@ -62,12 +64,6 @@ impl SelectInteractionMode {
             stack: Vec::new(),
             click_pos: Vector2::default(),
         }
-    }
-}
-
-impl TypeUuidProvider for SelectInteractionMode {
-    fn type_uuid() -> Uuid {
-        uuid!("bab9ce8c-d679-4c49-beb9-f5a8482e0678")
     }
 }
 
@@ -209,6 +205,6 @@ impl InteractionMode for SelectInteractionMode {
     }
 
     fn uuid(&self) -> Uuid {
-        Self::type_uuid()
+        Self::type_info().type_uuid
     }
 }

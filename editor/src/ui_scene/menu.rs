@@ -43,7 +43,7 @@ use crate::{
     Engine, Message,
 };
 use fyrox::asset::manager::ResourceManager;
-use fyrox::core::{uuid, Uuid};
+use fyrox::core::uuid::{uuid, Uuid};
 use fyrox::gui::constructor::WidgetConstructorContainer;
 use fyrox::gui::menu::{ContextMenuBuilder, MenuItem};
 use std::path::PathBuf;

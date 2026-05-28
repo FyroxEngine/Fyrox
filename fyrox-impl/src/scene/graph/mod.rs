@@ -126,6 +126,7 @@ pub type NodePool = Pool<Node, NodeContainer>;
 
 /// See module docs.
 #[derive(Reflect)]
+#[reflect(type_uuid = "92b8e89c-3934-4876-a60a-2970286a56f6")]
 pub struct Graph {
     #[reflect(hidden)]
     root: Handle<Node>,
@@ -2216,7 +2217,6 @@ mod test {
             futures::executor::block_on,
             pool::Handle,
             reflect::prelude::*,
-            type_traits::prelude::*,
             visitor::prelude::*,
         },
         engine::{self, SerializationContext},
@@ -2240,8 +2240,8 @@ mod test {
     use fyrox_resource::untyped::ResourceKind;
     use std::{fs, path::Path, sync::Arc};
 
-    #[derive(Clone, Debug, PartialEq, Reflect, Visit, TypeUuidProvider)]
-    #[type_uuid(id = "722feb80-a10b-4ee0-8cef-5d1473df8457")]
+    #[derive(Clone, Debug, PartialEq, Reflect, Visit)]
+    #[reflect(type_uuid = "722feb80-a10b-4ee0-8cef-5d1473df8457")]
     struct MyScript {
         foo: String,
         bar: f32,
@@ -2249,8 +2249,8 @@ mod test {
 
     impl ScriptTrait for MyScript {}
 
-    #[derive(Clone, Debug, PartialEq, Reflect, Visit, TypeUuidProvider)]
-    #[type_uuid(id = "722feb80-a10b-4ee0-8cef-5d1473df8458")]
+    #[derive(Clone, Debug, PartialEq, Reflect, Visit)]
+    #[reflect(type_uuid = "722feb80-a10b-4ee0-8cef-5d1473df8458")]
     struct MyOtherScript {
         baz: u32,
         foobar: Vec<u32>,

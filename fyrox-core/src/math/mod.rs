@@ -34,10 +34,10 @@ use crate::{
     visitor::prelude::*,
 };
 use fyrox_core_derive::{impl_reflect, impl_visit};
-use std::fmt::Debug;
 
 impl_reflect!(
-    pub struct Rect<T: Debug + Copy> {}
+    #[reflect(type_uuid = "64ef33b7-d05a-4d8d-b0c7-99bcc919271f")]
+    pub struct Rect<T: Reflect + Copy> {}
 );
 
 impl<T> Visit for Rect<T>
@@ -106,6 +106,7 @@ impl Visit for Plane {
 }
 
 impl_reflect!(
+    #[reflect(type_uuid = "f317d328-8a0d-4404-8681-7aae272a0023")]
     pub struct TriangleDefinition(pub [u32; 3]);
 );
 
@@ -118,6 +119,7 @@ impl_visit!(
 );
 
 impl_reflect!(
+    #[reflect(type_uuid = "b20a5c3f-902b-4943-9de2-defbd9709dc2")]
     pub struct SmoothAngle {
         angle: f32,
         target: f32,
@@ -126,6 +128,7 @@ impl_reflect!(
 );
 
 impl_reflect!(
+    #[reflect(type_uuid = "e7e30ddb-9ae9-4bb1-9d68-726b5d99d895")]
     pub enum CurveKeyKind {
         Constant,
         Linear,
@@ -157,7 +160,7 @@ impl_visit!(
 );
 
 impl_reflect!(
-    #[reflect(hide_all)]
+    #[reflect(hide_all, type_uuid = "d42bcb0c-92c6-4fc8-8a6f-2fa5604f0d22")]
     pub struct Curve {
         pub id: Uuid,
         pub name: String,

@@ -31,7 +31,7 @@ use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
         algebra::Vector2, color::Color, log::Log, math::Rect, pool::Handle, reflect::prelude::*,
-        uuid_provider, visitor::prelude::*,
+        visitor::prelude::*,
     },
     decorator::DecoratorBuilder,
     font::FontResource,
@@ -130,6 +130,7 @@ impl MessageData for WindowMessage {}
 
 /// The state of a window's size, as controlled by the buttons in the top-right corner.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Visit, Reflect)]
+#[reflect(type_uuid = "6fe81569-a19a-4034-9ae3-392a2c3fb656")]
 pub enum WindowSizeState {
     /// The window is neither maximized nor minimized, showing its content and free to move around the screen.
     #[default]
@@ -217,7 +218,10 @@ pub enum WindowSizeState {
 ///
 /// Any window can be set and unset as a modal via the *modal* function.
 #[derive(Default, Clone, Visit, Reflect, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "9331bf32-8614-4005-874c-5239e56bb15e"
+)]
 pub struct Window {
     /// Base widget of the window.
     pub widget: Widget,
@@ -289,6 +293,7 @@ const CORNER_GRIP_SIZE: f32 = GRIP_SIZE * 2.0;
 
 /// Kind of a resizing grip.
 #[derive(Copy, Clone, Debug, Visit, Reflect, Default)]
+#[reflect(type_uuid = "fea2073e-f44e-45db-a373-c9fcee201c2d")]
 pub enum GripKind {
     /// Left-top corner grip.
     #[default]
@@ -311,6 +316,7 @@ pub enum GripKind {
 
 /// Resizing grip.
 #[derive(Clone, Visit, Default, Debug, Reflect)]
+#[reflect(type_uuid = "373815d8-77d2-4624-80de-2d851f7fd6e5")]
 pub struct Grip {
     /// Kind of the grip.
     pub kind: GripKind,
@@ -334,8 +340,6 @@ impl Grip {
 }
 
 crate::define_widget_deref!(Window);
-
-uuid_provider!(Window = "9331bf32-8614-4005-874c-5239e56bb15e");
 
 impl Control for Window {
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {

@@ -28,7 +28,6 @@ use crate::asset::state::LoadError;
 use crate::core::algebra::{Matrix4, Unit};
 use crate::core::log::Log;
 use crate::core::pool::Handle;
-use crate::core::TypeUuidProvider;
 use crate::graph::NodeMapping;
 use crate::graph::SceneGraph;
 use crate::gui::core::io::FileError;
@@ -61,6 +60,7 @@ mod surface;
 mod uri;
 
 use animation::import_animations;
+use fyrox_core::reflect::Reflect;
 use fyrox_resource::untyped::ResourceKind;
 use material::*;
 pub use surface::SurfaceDataError;
@@ -295,8 +295,8 @@ impl loader::ResourceLoader for GltfLoader {
         &["gltf", "glb"]
     }
 
-    fn data_type_uuid(&self) -> crate::core::type_traits::prelude::Uuid {
-        Model::type_uuid()
+    fn data_type_uuid(&self) -> Uuid {
+        <Model as Reflect>::type_info().type_uuid
     }
 
     fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> loader::BoxedLoaderFuture {

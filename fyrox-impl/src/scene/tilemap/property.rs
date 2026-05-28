@@ -35,8 +35,8 @@
 //! so the user can see each tile's shape and the shepe's layer at a glance.
 
 use crate::core::{
-    algebra::Vector2, color::Color, num_traits::Euclid, reflect::prelude::*,
-    type_traits::prelude::*, visitor::prelude::*, ImmutableString,
+    algebra::Vector2, color::Color, num_traits::Euclid, reflect::prelude::*, visitor::prelude::*,
+    ImmutableString,
 };
 use std::fmt::{Debug, Display, Formatter};
 
@@ -69,15 +69,19 @@ pub trait TileSetPropertyId {
 
 /// UUID for a property with values of type i32.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Visit, Reflect)]
+#[reflect(type_uuid = "013a1dfe-2f5c-4e55-91af-f234048ba2ea")]
 pub struct TileSetPropertyI32(pub Uuid);
 /// UUID for a property with values of type f32.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Visit, Reflect)]
+#[reflect(type_uuid = "1b59e7b8-aa07-455e-a153-085e9603183b")]
 pub struct TileSetPropertyF32(pub Uuid);
 /// UUID for a property with values of type ImmutableString.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Visit, Reflect)]
+#[reflect(type_uuid = "86af5ddd-037b-4687-8142-6e859f9f3145")]
 pub struct TileSetPropertyString(pub Uuid);
 /// UUID for a property with values of type [`NineI8`].
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Visit, Reflect)]
+#[reflect(type_uuid = "8546733a-3d3b-49b3-88c9-d2066f920c2f")]
 pub struct TileSetPropertyNine(pub Uuid);
 
 impl TileSetPropertyId for TileSetPropertyI32 {
@@ -112,6 +116,7 @@ impl TileSetPropertyId for TileSetPropertyNine {
 /// tile set data must allow each tile to include multiple values for its collider information.
 /// These multiple collider values are associated with their collider objects by a UUID and a name.
 #[derive(Clone, Default, Debug, Reflect, Visit)]
+#[reflect(type_uuid = "f61cca93-6df4-44d6-a9da-902d82e0c401")]
 pub struct TileSetColliderLayer {
     /// The id number that identifies the collider
     pub uuid: Uuid,
@@ -125,6 +130,7 @@ pub struct TileSetColliderLayer {
 /// across all tiles in a tile set. A tile property layer represents the association between a property name
 /// and its data type, along with other information.
 #[derive(Clone, Default, Debug, Reflect, Visit)]
+#[reflect(type_uuid = "99967dc1-b358-4480-8cd6-e519d6deecb5")]
 pub struct TileSetPropertyLayer {
     /// The id number that identifies this property
     pub uuid: Uuid,
@@ -140,6 +146,7 @@ pub struct TileSetPropertyLayer {
 /// for the game that is using the values, so it is useful to be able to label those values
 /// so their special meaning can be visible in the editor.
 #[derive(Clone, Default, Debug, Reflect, Visit)]
+#[reflect(type_uuid = "43913556-aebd-45ae-8d2a-c9ecc8e98e70")]
 pub struct NamedValue {
     /// The label associated with the value.
     pub name: String,
@@ -152,6 +159,7 @@ pub struct NamedValue {
 /// Named values can be either an integer or a float.
 /// It would make little sense to name a string or a nine slice.
 #[derive(Copy, Clone, Debug, Reflect, Visit, PartialEq)]
+#[reflect(type_uuid = "e0d453bc-a71a-476f-ad49-a9c5b0bfb6de")]
 pub enum NamableValue {
     /// A value for an element of a nine-slice
     I8(i8),
@@ -301,6 +309,7 @@ impl TileSetPropertyLayer {
 /// be stored in that property, as the data type will affect how the editor
 /// allows users to edit the property on each tile.
 #[derive(Copy, Clone, Default, Debug, Eq, PartialEq, Reflect, Visit)]
+#[reflect(type_uuid = "20a3d9d4-b3f0-41e2-bade-96eac6f34a01")]
 pub enum TileSetPropertyType {
     /// The type for integer properties.
     #[default]
@@ -341,6 +350,7 @@ impl TileSetPropertyType {
 
 /// The data stored in a tile property.
 #[derive(Clone, Debug, PartialEq, Reflect, Visit)]
+#[reflect(type_uuid = "f8bc82fc-641c-4005-af2a-35e31ab91880")]
 pub enum TileSetPropertyValue {
     /// Integer property data.
     I32(i32),
@@ -359,6 +369,7 @@ pub enum TileSetPropertyValue {
 /// is assigned a color and tiles are arranged so that whenever two tiles are adjacent the touching edges
 /// are the same color.
 #[derive(Default, Clone, Copy, PartialEq, Reflect)]
+#[reflect(type_uuid = "385699f4-3d1d-4e79-9a13-6520abb53daa")]
 pub struct NineI8(pub [i8; 9]);
 
 impl Visit for NineI8 {
@@ -426,6 +437,7 @@ impl NineI8 {
 /// For most value types, the element is the whole of the value,
 /// but a nine-slice value contains nine elements.
 #[derive(Clone, Debug, PartialEq, Visit, Reflect)]
+#[reflect(type_uuid = "f116c004-8f0a-4f96-9967-e50eae542433")]
 pub enum TileSetPropertyValueElement {
     /// Integer property data.
     I32(i32),
@@ -574,6 +586,7 @@ impl TileSetPropertyValue {
 /// A representation of data stored in a tile property, or the absence of that data
 /// when the data is unknown.
 #[derive(Clone, Debug, PartialEq, Reflect, Visit)]
+#[reflect(type_uuid = "ad0584b2-fccb-4bd5-a3fb-6c15a74148ba")]
 pub enum TileSetPropertyOptionValue {
     /// Integer property data.
     I32(Option<i32>),

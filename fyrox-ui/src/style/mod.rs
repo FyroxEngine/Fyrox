@@ -30,10 +30,7 @@ use crate::{
     brush::Brush,
     button::Button,
     check_box::CheckBox,
-    core::{
-        color::Color, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
-        ImmutableString, Uuid,
-    },
+    core::{color::Color, reflect::prelude::*, visitor::prelude::*, ImmutableString},
     dropdown_list::DropdownList,
     style::resource::{StyleResource, StyleResourceError, StyleResourceExt},
     toggle::ToggleButton,
@@ -57,8 +54,8 @@ use std::{
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// A set of potential values for styled properties.
-#[derive(Visit, Reflect, Debug, Clone, TypeUuidProvider, AsRefStr, EnumString, VariantNames)]
-#[type_uuid(id = "85b8c1e4-03a2-4a28-acb4-1850d1a29227")]
+#[derive(Visit, Reflect, Debug, Clone, AsRefStr, EnumString, VariantNames)]
+#[reflect(type_uuid = "85b8c1e4-03a2-4a28-acb4-1850d1a29227")]
 pub enum StyleProperty {
     /// A numeric property.
     Number(f32),
@@ -154,7 +151,10 @@ pub static LIGHT_STYLE: LazyLock<BuiltInResource<Style>> = LazyLock::new(|| {
 /// approach, style becomes not necessary and the value can be hardcoded. Also, the values of such
 /// properties can be updated individually.
 #[derive(Clone, Debug, Reflect, Default)]
-#[reflect(bounds = "T: Reflect + Clone")]
+#[reflect(
+    bounds = "T: Reflect + Clone",
+    type_uuid = "71e84137-2832-42a1-bcb5-f8ee95784997"
+)]
 pub struct StyledProperty<T> {
     /// Property value.
     pub property: T,
@@ -220,8 +220,8 @@ impl<T: Visit> Visit for StyledProperty<T> {
 }
 
 /// Named style property container.
-#[derive(Visit, Reflect, Clone, Default, Debug, TypeUuidProvider)]
-#[type_uuid(id = "6238f37c-c067-4dd1-be67-6a8bb8853a59")]
+#[derive(Visit, Reflect, Clone, Default, Debug)]
+#[reflect(type_uuid = "6238f37c-c067-4dd1-be67-6a8bb8853a59")]
 pub struct StylePropertyContainer {
     /// Name of the property.
     pub name: ImmutableString,
@@ -298,8 +298,8 @@ pub struct StylePropertyContainer {
 ///     ui.set_style(StyleResource::new_embedded(style));
 /// }
 /// ```
-#[derive(Visit, Reflect, Clone, Default, Debug, TypeUuidProvider)]
-#[type_uuid(id = "38a63b49-d765-4c01-8fb5-202cc43d607e")]
+#[derive(Visit, Reflect, Clone, Default, Debug)]
+#[reflect(type_uuid = "38a63b49-d765-4c01-8fb5-202cc43d607e")]
 pub struct Style {
     parent: Option<StyleResource>,
     properties: Vec<StylePropertyContainer>,

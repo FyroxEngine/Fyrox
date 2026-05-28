@@ -23,10 +23,11 @@
 //! on deserialization to create a default instance of corresponding resource.
 
 use crate::{
-    core::{parking_lot::Mutex, uuid::Uuid, SafeLock, TypeUuidProvider},
+    core::{parking_lot::Mutex, uuid::Uuid, SafeLock},
     ResourceData,
 };
 use fxhash::FxHashMap;
+use fyrox_core::reflect::Reflect;
 
 /// A simple type alias for boxed resource constructor.
 pub struct ResourceDataConstructor {
@@ -60,10 +61,10 @@ impl ResourceConstructorContainer {
     /// (if any).
     pub fn add<T>(&self)
     where
-        T: ResourceData + Default + TypeUuidProvider,
+        T: ResourceData + Default,
     {
         let previous = self.map.safe_lock().insert(
-            <T as TypeUuidProvider>::type_uuid(),
+            <T as Reflect>::type_info().type_uuid,
             ResourceDataConstructor {
                 callback: Box::new(|| Box::<T>::default()),
                 type_name: std::any::type_name::<T>().to_owned(),
@@ -113,13 +114,10 @@ mod test {
     use super::*;
 
     #[derive(Debug, Default, Clone, Reflect, Visit)]
+    #[reflect(type_uuid = "ba5f1e9b-557f-4565-bbb1-c299a6510bb7")]
     struct Stub {}
 
     impl ResourceData for Stub {
-        fn type_uuid(&self) -> Uuid {
-            Uuid::default()
-        }
-
         fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
             Err("Saving is not supported!".to_string().into())
         }
@@ -130,12 +128,6 @@ mod test {
 
         fn try_clone_box(&self) -> Option<Box<dyn ResourceData>> {
             Some(Box::new(self.clone()))
-        }
-    }
-
-    impl TypeUuidProvider for Stub {
-        fn type_uuid() -> Uuid {
-            Uuid::default()
         }
     }
 
@@ -173,7 +165,7 @@ mod test {
         let c = ResourceConstructorContainer::new();
         c.add::<Stub>();
 
-        let res = c.try_create(&Uuid::default());
+        let res = c.try_create(&uuid!("ba5f1e9b-557f-4565-bbb1-c299a6510bb7"));
         assert!(res.is_some());
     }
 }

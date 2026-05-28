@@ -26,10 +26,7 @@ use crate::message::MessageData;
 use crate::style::StyledProperty;
 use crate::{
     border::BorderBuilder,
-    core::{
-        pool::Handle, reflect::prelude::*, type_traits::prelude::*, variable::InheritableVariable,
-        visitor::prelude::*,
-    },
+    core::{pool::Handle, reflect::prelude::*, variable::InheritableVariable, visitor::prelude::*},
     decorator::DecoratorBuilder,
     font::FontResource,
     message::{KeyCode, UiMessage},
@@ -93,8 +90,8 @@ impl MessageData for ButtonMessage {}
 ///     }
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider)]
-#[type_uuid(id = "2abcf12b-2f19-46da-b900-ae8890f7c9c6")]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[reflect(type_uuid = "2abcf12b-2f19-46da-b900-ae8890f7c9c6")]
 #[reflect(derived_type = "UiNode")]
 pub struct Button {
     /// Base widget of the button.

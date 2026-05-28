@@ -59,7 +59,7 @@ use crate::{
     world::WorldViewerItemContextMenu,
     Engine, Message, PasteCommand,
 };
-use fyrox::core::{uuid, Uuid};
+use fyrox::core::uuid::{uuid, Uuid};
 use fyrox::gui::file_browser::{FileSelector, FileType};
 use fyrox::gui::menu::MenuItem;
 use fyrox::gui::window::WindowAlignment;

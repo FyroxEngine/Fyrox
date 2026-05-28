@@ -22,6 +22,7 @@ use crate::fyrox::core::reflect::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
+#[reflect(type_uuid = "7bfe6c22-7113-41df-b5d9-ec1215a724eb")]
 pub struct DebuggingSettings {
     pub show_physics: bool,
     pub show_bounds: bool,

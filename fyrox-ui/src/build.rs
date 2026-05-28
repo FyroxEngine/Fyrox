@@ -45,7 +45,7 @@ use std::{
 /// ```rust
 /// # use fyrox_ui::{
 /// #     core::pool::Handle,
-/// #     core::{visitor::prelude::*, reflect::prelude::*, type_traits::prelude::*,},
+/// #     core::{visitor::prelude::*, reflect::prelude::*, },
 /// #     define_widget_deref,
 /// #     message::UiMessage,
 /// #     widget::{Widget, WidgetBuilder},
@@ -55,17 +55,15 @@ use std::{
 /// #     any::{Any, TypeId},
 /// #     ops::{Deref, DerefMut},
 /// # };
-/// # use fyrox_core::uuid_provider;
+/// #
 /// #
 /// #[derive(Clone, Visit, Reflect, Debug)]
-/// #[reflect(derived_type = "UiNode")]
+/// #[reflect(derived_type = "UiNode", type_uuid = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd")]
 /// struct MyWidget {
 ///     widget: Widget,
 /// }
 /// #
 /// # define_widget_deref!(MyWidget);
-/// #
-/// # uuid_provider!(MyWidget = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd");
 /// #
 /// # impl Control for MyWidget {
 /// #     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

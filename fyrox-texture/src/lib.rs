@@ -53,11 +53,8 @@ use fyrox_core::{
     num_traits::Bounded,
     reflect::prelude::*,
     sparse::AtomicIndex,
-    uuid,
     uuid::Uuid,
-    uuid_provider,
     visitor::{Visit, VisitResult, Visitor},
-    TypeUuidProvider,
 };
 use fyrox_resource::{
     embedded_data_source, io::ResourceIo, manager::BuiltInResource, options::ImportOptions,
@@ -79,8 +76,8 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 pub mod loader;
 
 /// Texture kind.
-#[derive(Copy, Clone, Debug, Reflect, AsRefStr, EnumString, VariantNames, TypeUuidProvider)]
-#[type_uuid(id = "542eb785-875b-43ce-b73a-a25024535f48")]
+#[derive(Copy, Clone, Debug, Reflect, AsRefStr, EnumString, VariantNames)]
+#[reflect(type_uuid = "542eb785-875b-43ce-b73a-a25024535f48")]
 pub enum TextureKind {
     /// 1D texture.
     Line {
@@ -226,6 +223,7 @@ impl Visit for TextureKind {
 
 /// Data storage of a texture.
 #[derive(Default, Clone, Reflect)]
+#[reflect(type_uuid = "4b9c2b23-46cd-4f7f-bf13-07b0bebe5538")]
 pub struct TextureBytes(Vec<u8>);
 
 impl Debug for TextureBytes {
@@ -256,6 +254,7 @@ impl DerefMut for TextureBytes {
 
 /// Actual texture data.
 #[derive(Debug, Clone, Reflect)]
+#[reflect(type_uuid = "02c23a44-55fa-411a-bc39-eb7a5eadf15c")]
 pub struct Texture {
     kind: TextureKind,
     bytes: TextureBytes,
@@ -280,17 +279,7 @@ pub struct Texture {
     pub cache_index: Arc<AtomicIndex>,
 }
 
-impl TypeUuidProvider for Texture {
-    fn type_uuid() -> Uuid {
-        uuid!("02c23a44-55fa-411a-bc39-eb7a5eadf15c")
-    }
-}
-
 impl ResourceData for Texture {
-    fn type_uuid(&self) -> Uuid {
-        <Self as TypeUuidProvider>::type_uuid()
-    }
-
     fn save(&mut self, path: &Path) -> Result<(), Box<dyn std::error::Error>> {
         let color_type = match self.pixel_kind {
             TexturePixelKind::R8 => ColorType::L8,
@@ -409,6 +398,7 @@ impl Default for Texture {
 #[derive(
     Default, Copy, Clone, Deserialize, Serialize, Debug, Reflect, AsRefStr, EnumString, VariantNames,
 )]
+#[reflect(type_uuid = "8fa17c0e-6889-4540-b396-97db4dc952aa")]
 pub enum MipFilter {
     /// Simple nearest filter, it is the fastest filter available, but it produces noisy mip levels and
     /// in most cases it is not advised to use it. Consider its performance as 1x.
@@ -426,8 +416,6 @@ pub enum MipFilter {
     /// [`Self::Nearest`].
     Lanczos,
 }
-
-uuid_provider!(MipFilter = "8fa17c0e-6889-4540-b396-97db4dc952aa");
 
 impl MipFilter {
     fn into_filter_type(self) -> fr::FilterType {
@@ -459,6 +447,7 @@ impl MipFilter {
 /// )
 /// ```
 #[derive(Clone, Deserialize, Serialize, Debug, Reflect)]
+#[reflect(type_uuid = "c70e89c9-2245-4736-99d9-f3fe9c1c5d3c")]
 pub struct TextureImportOptions {
     #[serde(default)]
     pub(crate) minification_filter: TextureMinificationFilter,
@@ -876,9 +865,10 @@ impl TextureResourceExtension for TextureResource {
     AsRefStr,
     Visit,
     Eq,
+    Default,
 )]
 #[repr(u32)]
-#[derive(Default)]
+#[reflect(type_uuid = "824f5b6c-8957-42db-9ebc-ef2a5dece5ab")]
 pub enum TextureMagnificationFilter {
     /// Returns the value of the texture element that is nearest to the center of the pixel
     /// being textured.
@@ -889,8 +879,6 @@ pub enum TextureMagnificationFilter {
     #[default]
     Linear = 1,
 }
-
-uuid_provider!(TextureMagnificationFilter = "824f5b6c-8957-42db-9ebc-ef2a5dece5ab");
 
 /// The texture minifying function is used whenever the pixel being textured maps to an area
 /// greater than one texture element.
@@ -909,9 +897,10 @@ uuid_provider!(TextureMagnificationFilter = "824f5b6c-8957-42db-9ebc-ef2a5dece5a
     AsRefStr,
     Visit,
     Eq,
+    Default,
 )]
 #[repr(u32)]
-#[derive(Default)]
+#[reflect(type_uuid = "0ec9e072-6d0a-47b2-a9c2-498cac4de22b")]
 pub enum TextureMinificationFilter {
     /// Returns the value of the texture element that is nearest to the center of the pixel
     /// being textured.
@@ -945,8 +934,6 @@ pub enum TextureMinificationFilter {
     LinearMipMapLinear = 5,
 }
 
-uuid_provider!(TextureMinificationFilter = "0ec9e072-6d0a-47b2-a9c2-498cac4de22b");
-
 impl TextureMinificationFilter {
     /// Returns true if minification filter is using mip mapping, false - otherwise.
     pub fn is_using_mip_mapping(self) -> bool {
@@ -976,9 +963,10 @@ impl TextureMinificationFilter {
     AsRefStr,
     Visit,
     Eq,
+    Default,
 )]
 #[repr(u32)]
-#[derive(Default)]
+#[reflect(type_uuid = "e360d139-4374-4323-a66d-d192809d9d87")]
 pub enum TextureWrapMode {
     /// Causes the integer part of a coordinate to be ignored; GPU uses only the fractional part,
     /// thereby creating a repeating pattern.
@@ -1004,23 +992,9 @@ pub enum TextureWrapMode {
     MirrorClampToEdge = 4,
 }
 
-uuid_provider!(TextureWrapMode = "e360d139-4374-4323-a66d-d192809d9d87");
-
 /// Texture kind defines pixel format of texture.
-#[derive(
-    Copy,
-    Clone,
-    PartialEq,
-    Eq,
-    Debug,
-    Reflect,
-    Visit,
-    AsRefStr,
-    EnumString,
-    VariantNames,
-    TypeUuidProvider,
-)]
-#[type_uuid(id = "dcca9b9c-dd1e-412c-922f-074703d35781")]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Reflect, Visit, AsRefStr, EnumString, VariantNames)]
+#[reflect(type_uuid = "dcca9b9c-dd1e-412c-922f-074703d35781")]
 #[repr(u32)]
 pub enum TexturePixelKind {
     /// 1 byte red.
@@ -1266,9 +1240,10 @@ fn ceil_div_4(x: u32) -> u32 {
     VariantNames,
     EnumString,
     AsRefStr,
+    Default,
 )]
 #[repr(u32)]
-#[derive(Default)]
+#[reflect(type_uuid = "fbdcc081-d0b8-4b62-9925-2de6c013fbf5")]
 pub enum CompressionOptions {
     /// An image will be stored without compression if it is not already compressed.
     #[default]
@@ -1288,8 +1263,6 @@ pub enum CompressionOptions {
     /// bandwidth.
     Quality = 2,
 }
-
-uuid_provider!(CompressionOptions = "fbdcc081-d0b8-4b62-9925-2de6c013fbf5");
 
 fn transmute_slice<T>(bytes: &[u8]) -> &'_ [T] {
     // SAFETY: This is absolutely safe because `image` crate's Rgb8/Rgba8/etc. and `tbc`s Rgb8/Rgba8/etc.

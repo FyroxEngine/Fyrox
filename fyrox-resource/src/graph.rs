@@ -113,10 +113,9 @@ impl ResourceDependencyGraph {
 }
 #[cfg(test)]
 mod test {
-    use fyrox_core::Uuid;
-
     use super::*;
     use crate::untyped::ResourceKind;
+    use fyrox_core::uuid::Uuid;
 
     #[test]
     fn resource_graph_node_new() {

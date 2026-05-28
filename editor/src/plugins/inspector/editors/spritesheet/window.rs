@@ -21,7 +21,7 @@
 use crate::fyrox::graph::SceneGraph;
 use crate::fyrox::{
     core::{
-        algebra::Vector2, parking_lot::Mutex, pool::Handle, reflect::prelude::*, uuid_provider,
+        algebra::Vector2, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
         visitor::prelude::*,
     },
     gui::{
@@ -60,7 +60,10 @@ use std::{
 };
 
 #[derive(Clone, Visit, Reflect, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "55607fe0-2996-418d-ad31-a5b96fdfa4b7"
+)]
 pub struct SpriteSheetFramesEditorWindow {
     window: Window,
     editor: Handle<UiNode>,
@@ -88,8 +91,6 @@ impl DerefMut for SpriteSheetFramesEditorWindow {
         &mut self.window.widget
     }
 }
-
-uuid_provider!(SpriteSheetFramesEditorWindow = "55607fe0-2996-418d-ad31-a5b96fdfa4b7");
 
 impl Control for SpriteSheetFramesEditorWindow {
     fn on_remove(&self, sender: &Sender<UiMessage>) {

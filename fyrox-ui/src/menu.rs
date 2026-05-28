@@ -31,8 +31,8 @@ use crate::{
     brush::Brush,
     control_trait_proxy_impls,
     core::{
-        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        uuid_provider, variable::InheritableVariable, visitor::prelude::*,
+        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*,
+        variable::InheritableVariable, visitor::prelude::*,
     },
     decorator::{DecoratorBuilder, DecoratorMessage},
     grid::{Column, GridBuilder, Row},
@@ -198,7 +198,10 @@ impl MessageData for MenuItemMessage {}
 /// }
 /// ```
 #[derive(Default, Clone, Visit, Reflect, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "582a04f3-a7fd-4e70-bbd1-eb95e2275b75"
+)]
 pub struct Menu {
     widget: Widget,
     active: bool,
@@ -221,8 +224,6 @@ impl ConstructorProvider<UiNode, UserInterface> for Menu {
 }
 
 crate::define_widget_deref!(Menu);
-
-uuid_provider!(Menu = "582a04f3-a7fd-4e70-bbd1-eb95e2275b75");
 
 impl Control for Menu {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
@@ -326,6 +327,7 @@ impl Control for Menu {
 
 /// A set of possible placements of a popup with items of a menu item.
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Hash, Visit, Reflect, Default, Debug)]
+#[reflect(type_uuid = "667bb0c3-9f55-4850-bb19-b9fdf3f8d27b")]
 pub enum MenuItemPlacement {
     /// Bottom placement.
     Bottom,
@@ -335,6 +337,7 @@ pub enum MenuItemPlacement {
 }
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Hash, Visit, Reflect, Default, Debug)]
+#[reflect(type_uuid = "667bb0c3-9f55-4850-bb19-b9fdf3f8d27b")]
 enum NavigationDirection {
     #[default]
     Horizontal,
@@ -343,6 +346,7 @@ enum NavigationDirection {
 
 #[derive(Default, Clone, Debug, Visit, Reflect)]
 #[doc(hidden)]
+#[reflect(type_uuid = "667bb0c3-9f55-4850-bb19-b9fdf3f8d27b")]
 pub struct ItemsContainer {
     #[doc(hidden)]
     pub items: InheritableVariable<Vec<Handle<MenuItem>>>,
@@ -408,7 +412,10 @@ impl ItemsContainer {
 /// Menu item is a widget with arbitrary content, that has a "floating" panel (popup) for sub-items if the menu item. This was menu items can form
 /// arbitrary hierarchies. See [`Menu`] docs for examples.
 #[derive(Default, Clone, Debug, Visit, Reflect)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "72e002c6-6060-4583-b5b7-0c5500244fef"
+)]
 pub struct MenuItem {
     /// Base widget of the menu item.
     pub widget: Widget,
@@ -523,8 +530,6 @@ fn is_any_menu_item_contains_point(ui: &UserInterface, pt: Vector2<f32>) -> bool
     }
     false
 }
-
-uuid_provider!(MenuItem = "72e002c6-6060-4583-b5b7-0c5500244fef");
 
 impl Control for MenuItem {
     fn on_remove(&self, sender: &Sender<UiMessage>) {
@@ -846,6 +851,7 @@ impl MenuBuilder {
 /// Allows you to set a content of a menu item either from a pre-built "layout" with icon/text/shortcut/arrow or a custom
 /// widget.
 #[derive(Clone, Debug, Visit, Reflect, PartialEq)]
+#[reflect(type_uuid = "eb2b6aa9-a626-4410-af1a-18e71359cbfa")]
 pub enum MenuItemContent {
     /// Quick-n-dirty way of building elements. It can cover most use cases - it builds classic menu item:
     ///
@@ -1134,9 +1140,11 @@ impl MenuItemBuilder {
 
 /// A simple wrapper over [`Popup`] widget, that holds the sub-items of a menu item and provides
 /// an ability for keyboard navigation.
-#[derive(Default, Clone, Debug, Visit, Reflect, TypeUuidProvider)]
-#[type_uuid(id = "ad8e9e76-c213-4232-9bab-80ebcabd69fa")]
-#[reflect(derived_type = "UiNode")]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "ad8e9e76-c213-4232-9bab-80ebcabd69fa"
+)]
 pub struct ContextMenu {
     /// Inner popup widget of the context menu.
     pub popup: Popup,

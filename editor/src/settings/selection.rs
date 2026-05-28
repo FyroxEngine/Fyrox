@@ -22,6 +22,7 @@ use crate::fyrox::core::reflect::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
+#[reflect(type_uuid = "1c251ee7-f805-4051-90c0-0d80aa57eebe")]
 pub struct SelectionSettings {
     pub ignore_back_faces: bool,
 

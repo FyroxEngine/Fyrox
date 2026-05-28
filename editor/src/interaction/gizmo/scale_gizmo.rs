@@ -45,9 +45,12 @@ use crate::{
     settings::Settings,
     Engine,
 };
+use fyrox::core::reflect::prelude::*;
 use fyrox::scene::camera::Camera;
 use fyrox::scene::mesh::Mesh;
 
+#[derive(Reflect, Debug)]
+#[reflect(non_cloneable, type_uuid = "0555e074-bbd8-4753-a2ab-56d7092251c1")]
 pub enum ScaleGizmoMode {
     None,
     X,
@@ -56,6 +59,8 @@ pub enum ScaleGizmoMode {
     Uniform,
 }
 
+#[derive(Reflect, Debug)]
+#[reflect(non_cloneable, type_uuid = "c8827bb2-1aac-41e7-b2c1-ba04e0dc59e0")]
 pub struct ScaleGizmo {
     mode: ScaleGizmoMode,
     pub origin: Handle<Mesh>,

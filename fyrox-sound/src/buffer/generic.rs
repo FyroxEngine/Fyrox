@@ -52,6 +52,7 @@ use super::SoundBufferResourceLoadError;
 
 /// Samples container.
 #[derive(Debug, Default, Visit, Clone, Reflect)]
+#[reflect(type_uuid = "7b0ba106-9ed5-41e1-a8c7-82c609d6f74e")]
 pub struct Samples(pub Vec<f32>);
 
 impl Deref for Samples {
@@ -70,6 +71,7 @@ impl DerefMut for Samples {
 
 /// Generic sound buffer that contains decoded samples and allows random access.
 #[derive(Debug, Clone, Default, Visit, Reflect)]
+#[reflect(type_uuid = "e5bf74a5-13d9-4518-96f2-0e4f3413966e")]
 pub struct GenericBuffer {
     /// Interleaved decoded samples (mono sounds: L..., stereo sounds: LR...)
     /// For streaming buffers it contains only small part of decoded data

@@ -27,8 +27,8 @@ use crate::{
             color::Color,
             math::{ray::CylinderKind, TriangleEdge},
             pool::Handle,
+            reflect::prelude::*,
             uuid::{uuid, Uuid},
-            TypeUuidProvider,
         },
         engine::Engine,
         graph::SceneGraph,
@@ -198,6 +198,12 @@ impl NavmeshPanel {
     }
 }
 
+#[derive(Reflect, Debug)]
+#[reflect(
+    non_cloneable,
+    type_uuid = "986eb5f1-5f17-4373-bffb-1e213e7c97e5",
+    hide_all
+)]
 enum DragContext {
     MoveSelection {
         initial_positions: HashMap<usize, Vector3<f32>>,
@@ -214,9 +220,12 @@ impl DragContext {
     }
 }
 
+#[derive(Reflect, Debug)]
+#[reflect(non_cloneable, type_uuid = "a8ed875d-0932-400d-b5b0-e0dcfb78c6c1")]
 pub struct EditNavmeshMode {
     move_gizmo: MoveGizmo,
     message_sender: MessageSender,
+    #[reflect(hidden)]
     drag_context: Option<DragContext>,
     plane_kind: PlaneKind,
 }
@@ -229,12 +238,6 @@ impl EditNavmeshMode {
             drag_context: None,
             plane_kind: PlaneKind::X,
         }
-    }
-}
-
-impl TypeUuidProvider for EditNavmeshMode {
-    fn type_uuid() -> Uuid {
-        uuid!("a8ed875d-0932-400d-b5b0-e0dcfb78c6c1")
     }
 }
 
@@ -693,6 +696,6 @@ impl InteractionMode for EditNavmeshMode {
     }
 
     fn uuid(&self) -> Uuid {
-        Self::type_uuid()
+        Self::type_info().type_uuid
     }
 }

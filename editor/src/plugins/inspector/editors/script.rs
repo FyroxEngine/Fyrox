@@ -19,10 +19,7 @@
 // SOFTWARE.
 
 use crate::fyrox::{
-    core::{
-        log::Log, parking_lot::Mutex, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        uuid_provider, visitor::prelude::*,
-    },
+    core::{log::Log, parking_lot::Mutex, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     engine::SerializationContext,
     graph::SceneGraph,
     gui::{
@@ -73,7 +70,10 @@ pub enum ScriptPropertyEditorMessage {
 impl MessageData for ScriptPropertyEditorMessage {}
 
 #[derive(Clone, Debug, Visit, Reflect)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "f43c3bfb-8b39-4cc0-be77-04141a45822e"
+)]
 pub struct ScriptPropertyEditor {
     widget: Widget,
     inspector: Handle<Inspector>,
@@ -96,8 +96,6 @@ impl DerefMut for ScriptPropertyEditor {
         &mut self.widget
     }
 }
-
-uuid_provider!(ScriptPropertyEditor = "f43c3bfb-8b39-4cc0-be77-04141a45822e");
 
 impl Control for ScriptPropertyEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

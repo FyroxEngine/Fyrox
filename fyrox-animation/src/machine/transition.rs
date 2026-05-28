@@ -25,14 +25,14 @@ use crate::{
     machine::{Parameter, ParameterContainer, State},
     Animation, AnimationContainer, EntityId,
 };
-use fyrox_core::uuid::{uuid, Uuid};
-use fyrox_core::{NameProvider, TypeUuidProvider};
+use fyrox_core::uuid::uuid;
+use fyrox_core::NameProvider;
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 macro_rules! define_two_args_node {
     ($(#[$meta:meta])* $name:ident) => {
-        $(#[$meta])*
         #[derive(Debug, Clone, PartialEq, Reflect, Visit)]
+        $(#[$meta])*
         pub struct $name <T:EntityId> {
             /// Left argument.
             pub lhs: Box<LogicNode<T>>,
@@ -53,19 +53,23 @@ macro_rules! define_two_args_node {
 
 define_two_args_node!(
     /// Calculates logical AND between two arguments. Output value will be `true` iff both of the arguments is `true`.
+    #[reflect(type_uuid = "cd0e3ec8-54d0-40da-b182-d7f8e9df7ed6")]
     AndNode
 );
 define_two_args_node!(
     /// Calculates logical OR between two arguments. Output value will be `true` iff any of the arguments is `true`.
+    #[reflect(type_uuid = "ed98d148-c6d2-45a3-b322-63dc5b09f396")]
     OrNode
 );
 define_two_args_node!(
     /// Calculates logical XOR (excluding OR) between two arguments. Output value will be `true` iff the arguments differ.
+    #[reflect(type_uuid = "7b853d2e-3659-4060-a5be-2fae7a68431b")]
     XorNode
 );
 
 /// Calculates logical NOT of an argument. Output value will be `true` if the value of the argument is `false`.
 #[derive(Debug, Clone, PartialEq, Reflect, Visit)]
+#[reflect(type_uuid = "3ee5dca4-8509-4251-8591-7adb4a90264b")]
 pub struct NotNode<T: EntityId> {
     /// Argument to be negated.
     pub lhs: Box<LogicNode<T>>,
@@ -106,6 +110,7 @@ impl<T: EntityId> Default for NotNode<T> {
 /// assert_eq!(transition_logic.calculate_value(&parameters, &AnimationContainer::default()), true);
 /// ```
 #[derive(Debug, Visit, Clone, Reflect, PartialEq, AsRefStr, EnumString, VariantNames)]
+#[reflect(type_uuid = "98a5b767-5560-4ed7-ad40-1625a8868e39")]
 pub enum LogicNode<T: EntityId> {
     /// Fetches a value of `Rule` parameter and returns its value. `false` if the parameter is not found.
     Parameter(String),
@@ -119,12 +124,6 @@ pub enum LogicNode<T: EntityId> {
     Not(NotNode<T>),
     /// Returns `true` if the animation has ended, `false` - otherwise.
     IsAnimationEnded(Handle<Animation<T>>),
-}
-
-impl<T: EntityId> TypeUuidProvider for LogicNode<T> {
-    fn type_uuid() -> Uuid {
-        uuid!("98a5b767-5560-4ed7-ad40-1625a8868e39")
-    }
 }
 
 impl<T: EntityId> Default for LogicNode<T> {
@@ -174,6 +173,7 @@ impl<T: EntityId> LogicNode<T> {
 
 /// Transition is a connection between two states with a rule that defines possibility of actual transition with blending.
 #[derive(Default, Debug, Clone, Reflect, PartialEq)]
+#[reflect(type_uuid = "2c0bb5f4-4496-4a8b-a719-c0c48650dce6")]
 pub struct Transition<T: EntityId> {
     /// The name of the transition, it is used for debug output.
     pub(crate) name: String,

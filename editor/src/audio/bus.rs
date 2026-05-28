@@ -19,30 +19,24 @@
 // SOFTWARE.
 
 use crate::fyrox::{
-    core::{pool::Handle, reflect::prelude::*, uuid_provider, visitor::prelude::*},
+    core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     gui::{
         border::BorderBuilder,
         decorator::DecoratorBuilder,
         define_widget_deref,
-        dropdown_list::{DropdownListBuilder, DropdownListMessage},
+        dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
         grid::{Column, GridBuilder, Row},
-        list_view::{ListViewBuilder, ListViewMessage},
-        message::UiMessage,
-        text::{TextBuilder, TextMessage},
-        utils::make_simple_tooltip,
+        list_view::{ListView, ListViewBuilder, ListViewMessage},
+        message::{MessageData, UiMessage},
+        style::{resource::StyleResourceExt, Style},
+        text::{Text, TextBuilder, TextMessage},
+        utils::{make_dropdown_list_option, make_simple_tooltip},
         widget::{Widget, WidgetBuilder},
         BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
         VerticalAlignment,
     },
     scene::sound::{AudioBus, AudioBusGraph},
 };
-use fyrox::gui::dropdown_list::DropdownList;
-use fyrox::gui::list_view::ListView;
-use fyrox::gui::message::MessageData;
-use fyrox::gui::style::resource::StyleResourceExt;
-use fyrox::gui::style::Style;
-use fyrox::gui::text::Text;
-use fyrox::gui::utils::make_dropdown_list_option;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AudioBusViewMessage {
@@ -54,7 +48,10 @@ pub enum AudioBusViewMessage {
 impl MessageData for AudioBusViewMessage {}
 
 #[derive(Clone, Visit, Reflect, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "5439e3a9-096a-4155-922c-ed57a76a46f3"
+)]
 pub struct AudioBusView {
     widget: Widget,
     pub bus: Handle<AudioBus>,
@@ -65,8 +62,6 @@ pub struct AudioBusView {
 }
 
 define_widget_deref!(AudioBusView);
-
-uuid_provider!(AudioBusView = "5439e3a9-096a-4155-922c-ed57a76a46f3");
 
 impl Control for AudioBusView {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

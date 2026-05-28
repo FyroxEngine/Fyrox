@@ -24,15 +24,7 @@
 #![warn(missing_docs)]
 
 use crate::{
-    core::{
-        algebra::Vector2,
-        math::Rect,
-        reflect::prelude::*,
-        uuid::{uuid, Uuid},
-        uuid_provider,
-        visitor::prelude::*,
-        TypeUuidProvider,
-    },
+    core::{algebra::Vector2, math::Rect, reflect::prelude::*, uuid::uuid, visitor::prelude::*},
     spritesheet::signal::Signal,
 };
 use std::collections::vec_deque::VecDeque;
@@ -49,6 +41,7 @@ impl<T: PartialEq + Clone + Visit + Reflect + Default> SpriteSheetTexture for T 
 #[derive(
     Visit, Reflect, Copy, Clone, Eq, PartialEq, Debug, AsRefStr, EnumString, VariantNames, Default,
 )]
+#[reflect(type_uuid = "74a31122-a7a8-476c-ab87-77e53cf0523c")]
 pub enum Status {
     /// Animation is playing.
     Playing,
@@ -62,10 +55,9 @@ pub enum Status {
     Paused,
 }
 
-uuid_provider!(Status = "74a31122-a7a8-476c-ab87-77e53cf0523c");
-
 /// Some animation event.
 #[derive(Visit, Reflect, Clone, Debug, Eq, PartialEq)]
+#[reflect(type_uuid = "78d527d0-de7d-41e8-abe6-48b8ae550fc7")]
 #[non_exhaustive]
 pub enum Event {
     /// A signal with an id was hit.
@@ -80,6 +72,7 @@ impl Default for Event {
 
 /// Container for a sprite sheet animation frames.
 #[derive(Reflect, Visit, Clone, Debug, PartialEq, Eq)]
+#[reflect(type_uuid = "7c0bc2a6-b6be-463b-ac33-d6e4daf8b691")]
 pub struct SpriteSheetFramesContainer<T>
 where
     T: SpriteSheetTexture,
@@ -168,6 +161,7 @@ where
 /// Sprite sheet animation is an animation based on key frames, where each key frame is packed into single image. Usually, all key
 /// frames have the same size, but this is not mandatory.
 #[derive(Visit, Reflect, Clone, Debug)]
+#[reflect(type_uuid = "1fa13feb-a16d-4539-acde-672aaeb0f62b")]
 pub struct SpriteSheetAnimation<T>
 where
     T: SpriteSheetTexture,
@@ -197,15 +191,6 @@ impl<T: SpriteSheetTexture> PartialEq for SpriteSheetAnimation<T> {
             && self.looping == other.looping
             && self.signals == other.signals
             && self.texture == other.texture
-    }
-}
-
-impl<T> TypeUuidProvider for SpriteSheetAnimation<T>
-where
-    T: SpriteSheetTexture,
-{
-    fn type_uuid() -> Uuid {
-        uuid!("1fa13feb-a16d-4539-acde-672aaeb0f62b")
     }
 }
 
@@ -293,6 +278,7 @@ where
     /// # use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
     /// #
     /// #[derive(PartialEq, Clone, Reflect, Visit, Debug, Default)]
+    /// #[reflect(type_uuid = "cd0e3ec8-54d0-40da-b182-d7f8e9df7ed6")]
     /// struct MyTexture {}
     ///
     /// fn extract_animations() {
@@ -596,6 +582,7 @@ mod test {
     use fyrox_core::{algebra::Vector2, math::Rect, reflect::prelude::*, visitor::prelude::*};
 
     #[derive(PartialEq, Clone, Reflect, Visit, Debug, Default)]
+    #[reflect(type_uuid = "38425475-1f56-4c6a-9ef5-bb59d42d45fa")]
     struct MyTexture {}
 
     #[test]

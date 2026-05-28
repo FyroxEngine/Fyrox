@@ -25,9 +25,9 @@ use crate::{
         core::{
             algebra::{Vector2, Vector3},
             pool::Handle,
+            reflect::prelude::*,
             some_or_return,
             uuid::{uuid, Uuid},
-            TypeUuidProvider,
         },
         gui::BuildContext,
     },
@@ -44,6 +44,8 @@ use crate::{
 };
 use fyrox::gui::button::Button;
 
+#[derive(Reflect, Debug)]
+#[reflect(non_cloneable, type_uuid = "64b4da1a-5d0f-49e1-9f48-011165cd1ec5")]
 pub struct ScaleInteractionMode {
     initial_scales: Vec<Vector3<f32>>,
     scale_gizmo: ScaleGizmo,
@@ -59,12 +61,6 @@ impl ScaleInteractionMode {
             interacting: false,
             message_sender,
         }
-    }
-}
-
-impl TypeUuidProvider for ScaleInteractionMode {
-    fn type_uuid() -> Uuid {
-        uuid!("64b4da1a-5d0f-49e1-9f48-011165cd1ec5")
     }
 }
 
@@ -279,6 +275,6 @@ impl InteractionMode for ScaleInteractionMode {
     }
 
     fn uuid(&self) -> Uuid {
-        Self::type_uuid()
+        Self::type_info().type_uuid
     }
 }

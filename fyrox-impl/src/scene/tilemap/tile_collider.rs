@@ -30,7 +30,6 @@ use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2},
         reflect::prelude::*,
-        type_traits::prelude::*,
         visitor::prelude::*,
     },
 };
@@ -46,19 +45,9 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// Supported collider types for tiles.
 #[derive(
-    Clone,
-    Hash,
-    PartialEq,
-    Eq,
-    Default,
-    Visit,
-    Reflect,
-    AsRefStr,
-    EnumString,
-    VariantNames,
-    TypeUuidProvider,
+    Clone, Hash, PartialEq, Eq, Default, Visit, Reflect, AsRefStr, EnumString, VariantNames,
 )]
-#[type_uuid(id = "04a44fec-394f-4497-97d5-fe9e6f915831")]
+#[reflect(type_uuid = "04a44fec-394f-4497-97d5-fe9e6f915831")]
 pub enum TileCollider {
     /// No collider.
     #[default]
@@ -178,8 +167,8 @@ pub type CustomTileColliderResource = Resource<CustomTileCollider>;
 /// a valid string for a custom tile collider. The commas (,) are used to connect two numbers
 /// as being part of the same group. Any other characters are ignored, so this would also be
 /// accepted: "(0,0) (1,1) (1,0) \[0,1,2\]".
-#[derive(Clone, PartialEq, Debug, Default, Visit, Reflect, TypeUuidProvider)]
-#[type_uuid(id = "118da556-a444-4bd9-bd88-12d78d26107f")]
+#[derive(Clone, PartialEq, Debug, Default, Visit, Reflect)]
+#[reflect(type_uuid = "118da556-a444-4bd9-bd88-12d78d26107f")]
 pub struct CustomTileCollider {
     /// The vertices of the triangles, with the boundaries of the tile being between (0,0) and (1,1).
     pub vertices: Vec<Vector2<f32>>,
@@ -188,10 +177,6 @@ pub struct CustomTileCollider {
 }
 
 impl ResourceData for CustomTileCollider {
-    fn type_uuid(&self) -> Uuid {
-        <Self as TypeUuidProvider>::type_uuid()
-    }
-
     fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
         let mut visitor = Visitor::new();
         self.visit("CustomTileCollider", &mut visitor)?;

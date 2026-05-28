@@ -28,8 +28,8 @@ use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
 
 macro_rules! define_filter_effect {
     ($(#[$attr:meta])* $name:ident, $kind:expr) => {
-        $(#[$attr])*
         #[derive(Clone, Reflect, Visit, Debug, PartialEq)]
+         $(#[$attr])*
         pub struct $name {
             /// Cutoff frequency in Hertz.
             #[reflect(setter = "set_cutoff_frequency_hz")]
@@ -140,31 +140,37 @@ macro_rules! define_filter_effect {
 
 define_filter_effect!(
     /// Lowpass filter defines a filter that passes through every frequency below the cutoff frequency.
+    #[reflect(type_uuid = "88d111d2-50a7-4dd5-bb66-73bede961885")]
     LowPassFilterEffect,
     BiquadKind::LowPass
 );
 define_filter_effect!(
     /// Highpass filter defines a filter that passes through every frequency upper the cutoff frequency.
+    #[reflect(type_uuid = "48362041-466b-494c-9cee-706368f5b924")]
     HighPassFilterEffect,
     BiquadKind::HighPass
 );
 define_filter_effect!(
     /// Bandpass filter defines a filter that passes a band of frequencies surrounding the cutoff frequency.
+    #[reflect(type_uuid = "7e07703c-3202-4a75-8268-9bf704eb59f1")]
     BandPassFilterEffect,
     BiquadKind::BandPass
 );
 define_filter_effect!(
     /// Equally passes through each frequency, but shifts the phase of the signal by 90 degrees at the cutoff frequency.
+    #[reflect(type_uuid = "47f0e07c-e030-4166-a2d0-de123d3b1bda")]
     AllPassFilterEffect,
     BiquadKind::AllPass
 );
 define_filter_effect!(
     /// Reduces amplitude of frequencies in a shape like this ̅ \_ at the cutoff frequency.
+    #[reflect(type_uuid = "79a4a2af-a544-4852-a360-d05d94474c5c")]
     LowShelfFilterEffect,
     BiquadKind::LowShelf
 );
 define_filter_effect!(
     /// Reduces amplitude of frequencies in a shape like this _/̅  at the cutoff frequency.
+    #[reflect(type_uuid = "a80fb390-5e3c-4dc4-8d97-22c7aebc5d2b")]
     HighShelfFilterEffect,
     BiquadKind::HighShelf
 );

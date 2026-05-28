@@ -35,7 +35,7 @@ use crate::{
         reflect::prelude::*,
         task::TaskPool,
         watcher::FileSystemWatcher,
-        SafeLock, TypeUuidProvider, Uuid,
+        SafeLock,
     },
     entry::{TimedEntry, DEFAULT_RESOURCE_LIFETIME},
     event::{ResourceEvent, ResourceEventBroadcaster},
@@ -49,6 +49,7 @@ use crate::{
     Resource, TypedResourceData, UntypedResource,
 };
 use fxhash::FxHashSet;
+use fyrox_core::uuid::Uuid;
 use fyrox_core::{
     futures::executor::block_on, make_relative_path, notify::Event, ok_or_return, some_or_continue,
     some_or_return,
@@ -118,7 +119,7 @@ pub struct ResourceManagerState {
 /// It is a simple wrapper over [`ResourceManagerState`] that can be shared (cloned). In other words,
 /// it is just a strong reference to the inner state.
 #[derive(Clone, Reflect)]
-#[reflect(hide_all)] // Inner content is hidden.
+#[reflect(hide_all, type_uuid = "d2acab72-67d4-4660-b198-096df3fa3c29")] // Inner content is hidden.
 pub struct ResourceManager {
     state: Arc<Mutex<ResourceManagerState>>,
 }
@@ -448,7 +449,7 @@ impl ResourceManager {
 
         let data_type_uuid_matches = untyped
             .type_uuid_non_blocking()
-            .is_some_and(|uuid| uuid == <T as TypeUuidProvider>::type_uuid());
+            .is_some_and(|uuid| uuid == <T as Reflect>::type_info().type_uuid);
 
         if !data_type_uuid_matches {
             let has_loader_for_extension = state
@@ -490,7 +491,7 @@ impl ResourceManager {
 
         let data_type_uuid_matches = untyped
             .type_uuid_non_blocking()
-            .is_some_and(|uuid| uuid == <T as TypeUuidProvider>::type_uuid());
+            .is_some_and(|uuid| uuid == <T as Reflect>::type_info().type_uuid);
 
         if !data_type_uuid_matches {
             let has_loader_for_extension = state
@@ -503,7 +504,7 @@ impl ResourceManager {
                     "Unable to get a resource of type {} from {path:?}! The resource has no \
                     associated loader for its extension and its actual data has some other \
                     data type!",
-                    <T as TypeUuidProvider>::type_uuid(),
+                    <T as Reflect>::type_info().type_uuid,
                 )
             }
         }
@@ -532,11 +533,11 @@ impl ResourceManager {
         let untyped = state.find_uuid(uuid);
 
         if let Some(type_uuid) = untyped.type_uuid_non_blocking() {
-            if type_uuid != <T as TypeUuidProvider>::type_uuid() {
+            if type_uuid != <T as Reflect>::type_info().type_uuid {
                 panic!(
                     "Unable to get a resource of type {} from {uuid} UUID! Its actual data has some other \
                     data type with type UUID {type_uuid}!",
-                    <T as TypeUuidProvider>::type_uuid(),
+                    <T as Reflect>::type_info().type_uuid,
                 )
             }
         }
@@ -596,7 +597,7 @@ impl ResourceManager {
 
         let data_type_uuid_matches = untyped
             .type_uuid_non_blocking()
-            .is_some_and(|uuid| uuid == <T as TypeUuidProvider>::type_uuid());
+            .is_some_and(|uuid| uuid == <T as Reflect>::type_info().type_uuid);
 
         if !data_type_uuid_matches {
             let has_loader_for_extension = state
@@ -609,7 +610,7 @@ impl ResourceManager {
                     "Unable to get a resource of type {} from {path:?}! The resource has no \
                     associated loader for its extension and its actual data has some other \
                     data type!",
-                    <T as TypeUuidProvider>::type_uuid(),
+                    <T as Reflect>::type_info().type_uuid,
                 )
             }
         }
@@ -665,7 +666,7 @@ impl ResourceManager {
         state.request_resource(&mut resource.untyped);
 
         if let Some(type_uuid) = resource.untyped.type_uuid_non_blocking() {
-            let needed_type_uuid = <T as TypeUuidProvider>::type_uuid();
+            let needed_type_uuid = <T as Reflect>::type_info().type_uuid;
             if type_uuid != needed_type_uuid {
                 panic!(
                     "Unable to get a resource of type {needed_type_uuid} from resource UUID {}! The resource is \
@@ -688,7 +689,7 @@ impl ResourceManager {
         state.add_resource(&mut resource.untyped);
 
         if let Some(type_uuid) = resource.untyped.type_uuid_non_blocking() {
-            let needed_type_uuid = <T as TypeUuidProvider>::type_uuid();
+            let needed_type_uuid = <T as Reflect>::type_info().type_uuid;
             if type_uuid != needed_type_uuid {
                 panic!(
                     "Unable to add a resource of type {needed_type_uuid} from resource UUID {}! The resource is \
@@ -713,7 +714,7 @@ impl ResourceManager {
         let untyped = state.request(path.as_ref());
         if untyped
             .type_uuid_non_blocking()
-            .is_some_and(|uuid| uuid == <T as TypeUuidProvider>::type_uuid())
+            .is_some_and(|uuid| uuid == <T as Reflect>::type_info().type_uuid)
             || state
                 .loaders
                 .safe_lock()
@@ -2086,24 +2087,14 @@ mod test {
     use fyrox_core::{
         uuid::{uuid, Uuid},
         visitor::{Visit, VisitResult, Visitor},
-        TypeUuidProvider,
     };
     use std::{error::Error, fs::File, time::Duration};
 
     #[derive(Debug, Default, Clone, Reflect, Visit)]
+    #[reflect(type_uuid = "2c729b8e-93d3-4bcc-a3a7-2d89e77947e5")]
     struct Stub {}
 
-    impl TypeUuidProvider for Stub {
-        fn type_uuid() -> Uuid {
-            uuid!("9d873ff4-3126-47e1-a492-7cd8e7168239")
-        }
-    }
-
     impl ResourceData for Stub {
-        fn type_uuid(&self) -> Uuid {
-            <Self as TypeUuidProvider>::type_uuid()
-        }
-
         fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
             Err("Saving is not supported!".to_string().into())
         }
@@ -2123,7 +2114,7 @@ mod test {
         }
 
         fn data_type_uuid(&self) -> Uuid {
-            <Stub as TypeUuidProvider>::type_uuid()
+            <Stub as Reflect>::type_info().type_uuid
         }
 
         fn load(&self, _path: PathBuf, _io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {

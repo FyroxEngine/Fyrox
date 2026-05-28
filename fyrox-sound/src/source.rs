@@ -59,13 +59,13 @@ use fyrox_core::{
     algebra::Vector3,
     log::Log,
     reflect::prelude::*,
-    uuid_provider,
     visitor::{Visit, VisitResult, Visitor},
 };
 use std::time::Duration;
 
 /// Status (state) of sound source.
 #[derive(Eq, PartialEq, Copy, Clone, Debug, Reflect, Visit)]
+#[reflect(type_uuid = "1980bded-86cd-4eff-a5db-bab729bdb3ad")]
 #[repr(u32)]
 pub enum Status {
     /// Sound is stopped - it won't produces any sample and won't load mixer. This is default
@@ -80,10 +80,9 @@ pub enum Status {
     Paused = 2,
 }
 
-uuid_provider!(Status = "1980bded-86cd-4eff-a5db-bab729bdb3ad");
-
 /// See module info.
 #[derive(Debug, Clone, Reflect, Visit)]
+#[reflect(type_uuid = "1beb0bbc-72fb-42a1-9e78-5d246c84fdfe")]
 pub struct SoundSource {
     name: String,
     #[reflect(hidden)]

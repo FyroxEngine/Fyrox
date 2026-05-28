@@ -26,9 +26,7 @@ use crate::text_box::TextBox;
 use crate::{
     border::BorderBuilder,
     button::{ButtonBuilder, ButtonMessage},
-    core::{
-        algebra::Vector2, pool::Handle, reflect::prelude::*, uuid_provider, visitor::prelude::*,
-    },
+    core::{algebra::Vector2, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     draw::DrawingContext,
     dropdown_list::{DropdownListBuilder, DropdownListMessage},
     file_browser::{FileBrowserBuilder, FileBrowserMessage, PathFilter},
@@ -53,6 +51,7 @@ use std::{
 };
 
 #[derive(Default, Clone, PartialEq, Eq, Hash, Debug, Visit, Reflect)]
+#[reflect(type_uuid = "d7286bb8-5602-4c01-b537-ee53f2f6b482")]
 pub enum FileSelectorMode {
     #[default]
     Open,
@@ -75,7 +74,10 @@ impl MessageData for FileSelectorMessage {}
 /// File selector is a modal window that allows you to select a file (or directory) and commit or
 /// cancel selection.
 #[derive(Default, Clone, Debug, Visit, Reflect)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "878b2220-03e6-4a50-a97d-3a8e5397b6cb"
+)]
 pub struct FileSelector {
     pub window: Window,
     pub browser: Handle<FileBrowser>,
@@ -119,8 +121,6 @@ impl DerefMut for FileSelector {
         &mut self.window
     }
 }
-
-uuid_provider!(FileSelector = "878b2220-03e6-4a50-a97d-3a8e5397b6cb");
 
 fn extract_folder_path(path: &Path) -> Option<&Path> {
     if path.is_file() {

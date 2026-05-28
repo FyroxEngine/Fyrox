@@ -54,7 +54,7 @@ use crate::{
     message::MessageSender,
     scene::{commands::ChangeSelectionCommand, Selection},
 };
-use fyrox::core::{uuid, Uuid};
+use fyrox::core::uuid::{uuid, Uuid};
 use fyrox::gui::menu::{ContextMenuBuilder, MenuItem};
 
 pub struct CanvasContextMenu {

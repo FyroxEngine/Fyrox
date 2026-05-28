@@ -29,7 +29,6 @@ use crate::{
         parking_lot::RwLock,
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
@@ -53,6 +52,7 @@ use std::{
 };
 
 #[derive(Clone, Default, Reflect, Debug)]
+#[reflect(type_uuid = "7e5978ab-788b-4f41-a125-299ad89b81c7")]
 pub(crate) struct Container(Arc<RwLock<Navmesh>>);
 
 impl PartialEq for Container {
@@ -157,17 +157,14 @@ impl Visit for Container {
 /// }
 /// ```
 #[derive(Debug, Clone, Visit, Reflect, Default)]
-#[reflect(derived_type = "Node")]
+#[reflect(
+    derived_type = "Node",
+    type_uuid = "d0ce963c-b50a-4707-bd21-af6dc0d1c668"
+)]
 pub struct NavigationalMesh {
     base: Base,
     #[reflect(read_only)]
     navmesh: InheritableVariable<Container>,
-}
-
-impl TypeUuidProvider for NavigationalMesh {
-    fn type_uuid() -> Uuid {
-        uuid!("d0ce963c-b50a-4707-bd21-af6dc0d1c668")
-    }
 }
 
 impl Deref for NavigationalMesh {
@@ -215,7 +212,7 @@ impl NodeTrait for NavigationalMesh {
     }
 
     fn id(&self) -> Uuid {
-        Self::type_uuid()
+        <Self as Reflect>::type_info().type_uuid
     }
 
     fn debug_draw(&self, ctx: &mut SceneDrawingContext) {

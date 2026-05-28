@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use fyrox::scene::terrain::brushstroke::{BrushSender, BrushThreadMessage, UndoData};
+use std::fmt::{Debug, Formatter};
 
 use crate::{
     fyrox::{
@@ -29,8 +30,8 @@ use crate::{
             log::{Log, MessageKind},
             math::vector_to_quat,
             pool::Handle,
+            reflect::prelude::*,
             uuid::{uuid, Uuid},
-            TypeUuidProvider,
         },
         engine::Engine,
         graph::SceneGraph,
@@ -105,6 +106,12 @@ fn handle_undo_chunks(undo_chunks: UndoData, sender: &MessageSender) {
     }
 }
 
+#[derive(Reflect)]
+#[reflect(
+    non_cloneable,
+    type_uuid = "bc19eff3-3e3a-49c0-9a9d-17d36fccc34e",
+    hide_all
+)]
 pub struct TerrainInteractionMode {
     message_sender: MessageSender,
     brush_sender: Option<BrushSender>,
@@ -116,6 +123,12 @@ pub struct TerrainInteractionMode {
     brush: Brush,
     brush_panel: BrushPanel,
     scene_viewer_frame: Handle<Image>,
+}
+
+impl Debug for TerrainInteractionMode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "TerrainInteractionMode")
+    }
 }
 
 impl TerrainInteractionMode {
@@ -260,12 +273,6 @@ impl BrushGizmo {
 
     pub fn set_visible(&self, graph: &mut Graph, visibility: bool) {
         graph[self.brush].set_visibility(visibility);
-    }
-}
-
-impl TypeUuidProvider for TerrainInteractionMode {
-    fn type_uuid() -> Uuid {
-        uuid!("bc19eff3-3e3a-49c0-9a9d-17d36fccc34e")
     }
 }
 
@@ -547,7 +554,7 @@ impl InteractionMode for TerrainInteractionMode {
     }
 
     fn uuid(&self) -> Uuid {
-        Self::type_uuid()
+        Self::type_info().type_uuid
     }
 }
 

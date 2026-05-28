@@ -32,7 +32,7 @@ use fyrox::gui::text::Text;
 use fyrox::gui::text_box::TextBox;
 use fyrox::{
     asset::Resource,
-    core::{algebra::Vector2, color::Color, pool::Handle, type_traits::prelude::*},
+    core::{algebra::Vector2, color::Color, pool::Handle},
     gui::{
         border::BorderBuilder,
         brush::Brush,

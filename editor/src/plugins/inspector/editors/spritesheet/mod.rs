@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::fyrox::{
-    core::{pool::Handle, reflect::prelude::*, uuid_provider, visitor::prelude::*},
+    core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         define_widget_deref,
@@ -58,7 +58,10 @@ pub enum SpriteSheetFramesPropertyEditorMessage {
 impl MessageData for SpriteSheetFramesPropertyEditorMessage {}
 
 #[derive(Clone, Debug, Reflect, Visit)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "8994228d-6106-4e41-872c-5191840badcc"
+)]
 pub struct SpriteSheetFramesPropertyEditor {
     widget: Widget,
     edit_button: Handle<Button>,
@@ -66,8 +69,6 @@ pub struct SpriteSheetFramesPropertyEditor {
 }
 
 define_widget_deref!(SpriteSheetFramesPropertyEditor);
-
-uuid_provider!(SpriteSheetFramesPropertyEditor = "8994228d-6106-4e41-872c-5191840badcc");
 
 impl Control for SpriteSheetFramesPropertyEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

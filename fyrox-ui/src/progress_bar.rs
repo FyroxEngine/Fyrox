@@ -35,7 +35,6 @@ use crate::{
 };
 
 use crate::message::MessageData;
-use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 
@@ -89,7 +88,10 @@ impl MessageData for ProgressBarMessage {}
 /// }
 /// ```
 #[derive(Default, Clone, Debug, Visit, Reflect)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "d6ebb853-d945-46bc-86db-4c8b5d5faf8e"
+)]
 pub struct ProgressBar {
     /// Base widget of the progress bar.
     pub widget: Widget,
@@ -115,8 +117,6 @@ impl ConstructorProvider<UiNode, UserInterface> for ProgressBar {
 }
 
 crate::define_widget_deref!(ProgressBar);
-
-uuid_provider!(ProgressBar = "d6ebb853-d945-46bc-86db-4c8b5d5faf8e");
 
 impl Control for ProgressBar {
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {

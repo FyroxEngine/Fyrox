@@ -23,10 +23,7 @@ use crate::{
         core::dyntype::{DynTypeConstructorContainer, DynTypeContainer},
         graph::SceneGraph,
         gui::{
-            core::{
-                parking_lot::Mutex, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-                uuid_provider, visitor::prelude::*,
-            },
+            core::{parking_lot::Mutex, pool::Handle, reflect::prelude::*, visitor::prelude::*},
             dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
             grid::{GridBuilder, GridDimension},
             inspector::InspectorContextArgs,
@@ -65,7 +62,10 @@ pub enum DynTypePropertyEditorMessage {
 impl MessageData for DynTypePropertyEditorMessage {}
 
 #[derive(Clone, Debug, Visit, Reflect)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "f43c3bfb-8b39-4cc0-be77-04141a45822e"
+)]
 pub struct DynTypePropertyEditor {
     widget: Widget,
     inspector: Handle<Inspector>,
@@ -87,8 +87,6 @@ impl DerefMut for DynTypePropertyEditor {
         &mut self.widget
     }
 }
-
-uuid_provider!(DynTypePropertyEditor = "f43c3bfb-8b39-4cc0-be77-04141a45822e");
 
 impl Control for DynTypePropertyEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

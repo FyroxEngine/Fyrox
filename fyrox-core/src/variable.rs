@@ -37,6 +37,7 @@ use std::{
 
 #[derive(Reflect, Copy, Clone, Ord, PartialOrd, PartialEq, Eq)]
 #[repr(transparent)]
+#[reflect(type_uuid = "96d40c31-5c76-44df-a6f7-c5c69b55f36e")]
 pub struct VariableFlags(u8);
 
 bitflags! {
@@ -422,6 +423,10 @@ where
             assembly_name: env!("CARGO_PKG_NAME"),
             doc_comment: "",
             derived_types: T::type_info().derived_types,
+            type_uuid: combine_uuids(
+                uuid!("7ee965ef-5251-4fd8-b9bc-9238ff8d29fe"),
+                T::type_info().type_uuid,
+            ),
         }
     }
 
@@ -743,14 +748,15 @@ mod test {
     use std::{cell::Cell, ops::DerefMut};
 
     #[derive(Reflect, Clone, Debug, PartialEq)]
+    #[reflect(type_uuid = "c4e377d6-80db-4a1c-bfb5-75a2b9157f4e")]
     struct Foo {
         value: InheritableVariable<f32>,
     }
 
     #[derive(Reflect, Clone, Debug, PartialEq)]
+    #[reflect(type_uuid = "4c77a181-c71c-4a08-9bfe-5bbb558ddc96")]
     struct Bar {
         foo: Foo,
-
         other_value: InheritableVariable<String>,
     }
 
@@ -795,6 +801,7 @@ mod test {
     }
 
     #[derive(Reflect, Clone, Debug)]
+    #[reflect(type_uuid = "17b55aac-57f2-42e6-82e0-ead9b40a8cce")]
     enum SomeEnum {
         Bar(InheritableVariable<f32>),
         Baz {
@@ -841,17 +848,20 @@ mod test {
     #[test]
     fn test_collection_inheritance() {
         #[derive(Reflect, Clone, Debug, PartialEq)]
+        #[reflect(type_uuid = "3cbdd81f-e925-4977-88d1-b6fa8075e799")]
         struct Foo {
             some_data: f32,
         }
 
         #[derive(Reflect, Clone, Debug, PartialEq)]
+        #[reflect(type_uuid = "08e2122d-b854-4afa-a62d-95f30745297b")]
         struct CollectionItem {
             foo: InheritableVariable<Foo>,
             bar: InheritableVariable<u32>,
         }
 
         #[derive(Reflect, Clone, Debug, PartialEq)]
+        #[reflect(type_uuid = "67fb16c9-e746-42c6-a325-35db683b07c7")]
         struct MyEntity {
             collection: InheritableVariable<Vec<CollectionItem>>,
         }
@@ -884,11 +894,13 @@ mod test {
     #[test]
     fn test_compound_inheritance() {
         #[derive(Reflect, Clone, Debug, PartialEq, Eq)]
+        #[reflect(type_uuid = "8e44131e-1ef6-4ef3-bf99-edbfba937d2c")]
         struct SomeComplexData {
             foo: InheritableVariable<u32>,
         }
 
         #[derive(Reflect, Clone, Debug, PartialEq)]
+        #[reflect(type_uuid = "fe38a8bc-7580-4f41-bc4c-a14ecb7ad4a7")]
         struct MyEntity {
             some_field: InheritableVariable<f32>,
 

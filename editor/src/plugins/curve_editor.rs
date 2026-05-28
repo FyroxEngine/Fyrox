@@ -25,7 +25,7 @@ use crate::{
         asset::Resource,
         core::{
             futures::executor::block_on, math::curve::Curve, pool::Handle, reflect::prelude::*,
-            some_or_return, type_traits::prelude::*, visitor::prelude::*,
+            some_or_return, visitor::prelude::*,
         },
         engine::Engine,
         gui::{
@@ -62,6 +62,7 @@ use crate::{
 use std::{fmt::Debug, path::PathBuf};
 
 #[derive(Reflect, Clone, Debug)]
+#[reflect(type_uuid = "f29aa9c7-e0c4-4602-8588-3e8a20ab7cdc")]
 pub struct CurveEditorContext {}
 
 impl CommandContext for CurveEditorContext {}

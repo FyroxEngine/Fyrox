@@ -30,7 +30,6 @@ use crate::{
         parking_lot::Mutex,
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
@@ -60,7 +59,7 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
-use fyrox_core::{uuid_provider, warn};
+use fyrox_core::warn;
 use fyrox_graph::SceneGraph;
 use fyrox_resource::untyped::ResourceKind;
 use half::f16;
@@ -243,6 +242,7 @@ impl std::ops::IndexMut<Vector2<i32>> for ChunkHeightMutData<'_> {
 /// performance, so keep amount of layers on reasonable level (1 - 5 should be enough for most
 /// cases).
 #[derive(Debug, Clone, Visit, Reflect, PartialEq)]
+#[reflect(type_uuid = "7439d5fd-43a9-45f0-bd7c-76cf4d2ec22e")]
 pub struct Layer {
     /// Material of the layer.
     pub material: MaterialResource,
@@ -262,8 +262,6 @@ pub struct Layer {
     #[visit(optional)]
     pub node_uv_offsets_property_name: String,
 }
-
-uuid_provider!(Layer = "7439d5fd-43a9-45f0-bd7c-76cf4d2ec22e");
 
 impl Default for Layer {
     fn default() -> Self {
@@ -350,6 +348,7 @@ fn make_height_map_texture(height_map: Vec<f32>, size: Vector2<u32>) -> TextureR
 /// use its own set of materials for layers. This could be useful for different biomes, to prevent high amount of
 /// layers which could harm the performance.
 #[derive(Debug, Reflect)]
+#[reflect(type_uuid = "ae996754-69c1-49ba-9c17-a7bd4be072a9")]
 pub struct Chunk {
     #[reflect(hidden)]
     quad_tree: Mutex<QuadTree>,
@@ -376,8 +375,6 @@ pub struct Chunk {
     #[reflect(hidden)]
     height_map_modifications_count: u64,
 }
-
-uuid_provider!(Chunk = "ae996754-69c1-49ba-9c17-a7bd4be072a9");
 
 impl PartialEq for Chunk {
     fn eq(&self, other: &Self) -> bool {
@@ -1033,7 +1030,10 @@ impl BrushContext {
 /// overlap with their neighbors just as chunks overlap. Two adjacent blocks share vertices along their edge,
 /// so they also share pixels in the height map data.
 #[derive(Debug, Reflect, Clone)]
-#[reflect(derived_type = "Node")]
+#[reflect(
+    derived_type = "Node",
+    type_uuid = "4b0a7927-bcd8-41a3-949a-dd10fba8e16a"
+)]
 pub struct Terrain {
     base: Base,
 
@@ -1257,12 +1257,6 @@ fn create_zero_margin(mut data: Vec<f32>, data_size: Vector2<u32>) -> Vec<f32> {
         *v = 0.0;
     }
     data
-}
-
-impl TypeUuidProvider for Terrain {
-    fn type_uuid() -> Uuid {
-        uuid!("4b0a7927-bcd8-41a3-949a-dd10fba8e16a")
-    }
 }
 
 impl Terrain {
@@ -2432,7 +2426,7 @@ impl NodeTrait for Terrain {
     }
 
     fn id(&self) -> Uuid {
-        Self::type_uuid()
+        <Self as Reflect>::type_info().type_uuid
     }
 
     fn collect_render_data(&self, ctx: &mut RenderContext) -> RdcControlFlow {

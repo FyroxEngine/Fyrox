@@ -28,10 +28,7 @@ use crate::file_browser::{FileSelector, PathFilter};
 use crate::text_box::TextBox;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
-    core::{
-        pool::Handle, reflect::prelude::*, uuid_provider, variable::InheritableVariable,
-        visitor::prelude::*,
-    },
+    core::{pool::Handle, reflect::prelude::*, variable::InheritableVariable, visitor::prelude::*},
     file_browser::{FileSelectorBuilder, FileSelectorMessage},
     grid::{Column, GridBuilder, Row},
     message::{MessageData, UiMessage},
@@ -75,7 +72,10 @@ impl MessageData for PathEditorMessage {}
 /// To receive the changes, listen to [`PathEditorMessage::Path`] and check for its direction, it should be [`crate::message::MessageDirection::FromWidget`].
 /// To set a new path value, send [`PathEditorMessage::Path`] message, but with [`crate::message::MessageDirection::ToWidget`].
 #[derive(Default, Clone, Visit, Reflect, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "51cfe7ec-ec31-4354-9578-047004b213a1"
+)]
 pub struct PathEditor {
     /// Base widget of the editor.
     pub widget: Widget,
@@ -105,8 +105,6 @@ impl ConstructorProvider<UiNode, UserInterface> for PathEditor {
 }
 
 crate::define_widget_deref!(PathEditor);
-
-uuid_provider!(PathEditor = "51cfe7ec-ec31-4354-9578-047004b213a1");
 
 impl Control for PathEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

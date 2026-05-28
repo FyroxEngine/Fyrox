@@ -22,14 +22,13 @@
 //! resource used in your game. See [`ResourceRegistry`] docs for more info.
 
 use crate::{
-    core::{
-        append_extension, err, info, io::FileError, ok_or_return, parking_lot::Mutex, warn, Uuid,
-    },
+    core::{append_extension, err, info, io::FileError, ok_or_return, parking_lot::Mutex, warn},
     io::ResourceIo,
     loader::ResourceLoadersContainer,
     metadata::ResourceMetadata,
 };
 use fxhash::FxHashSet;
+use fyrox_core::uuid::Uuid;
 use fyrox_core::{futures::executor::block_on, SafeLock};
 use ron::ser::PrettyConfig;
 use std::sync::atomic::{AtomicBool, Ordering};

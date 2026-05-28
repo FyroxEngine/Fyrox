@@ -28,6 +28,7 @@ use commands::{MoveMapTileCommand, SetMapTilesCommand};
 use fyrox::gui::button::Button;
 use fyrox::{
     asset::untyped::UntypedResource,
+    core::reflect::prelude::*,
     core::SafeLock,
     fxhash::FxHashMap,
     scene::tilemap::{
@@ -38,6 +39,7 @@ use fyrox::{
         TransTilesUpdate,
     },
 };
+use std::fmt::Formatter;
 
 use super::*;
 
@@ -59,8 +61,12 @@ enum MouseMode {
     Drawing,
 }
 
-#[derive(TypeUuidProvider)]
-#[type_uuid(id = "33fa8ef9-a29c-45d4-a493-79571edd870a")]
+#[derive(Reflect)]
+#[reflect(
+    non_cloneable,
+    type_uuid = "33fa8ef9-a29c-45d4-a493-79571edd870a",
+    hide_all
+)]
 pub struct TileMapInteractionMode {
     tile_map: Handle<Node>,
     /// The state that is shared between this interaction mode and the
@@ -103,6 +109,12 @@ pub struct TileMapInteractionMode {
     overlay_effect: Arc<Mutex<TileOverlayEffect>>,
     erase_effect: Arc<Mutex<TileEraseEffect>>,
     update_effect: Arc<Mutex<TileUpdateEffect>>,
+}
+
+impl Debug for TileMapInteractionMode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "TileMapInteractionMode")
+    }
 }
 
 impl TileMapInteractionMode {
@@ -823,7 +835,7 @@ impl InteractionMode for TileMapInteractionMode {
     }
 
     fn uuid(&self) -> Uuid {
-        Self::type_uuid()
+        Self::type_info().type_uuid
     }
 
     fn on_hot_key_pressed(

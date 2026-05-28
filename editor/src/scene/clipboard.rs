@@ -34,7 +34,7 @@ pub struct Clipboard {
 }
 
 impl Reflect for &'static mut Clipboard {
-    blank_reflect_ref!();
+    blank_reflect_ref!("ab09394a-ad19-477b-85cb-5dccf7401c80");
 }
 
 impl Default for Clipboard {

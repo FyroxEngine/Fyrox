@@ -21,7 +21,7 @@
 use crate::fyrox::{
     core::{
         algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
-        uuid_provider, visitor::prelude::*,
+        visitor::prelude::*,
     },
     gui::{
         brush::Brush,
@@ -44,7 +44,10 @@ const PICKED_BRUSH: Brush = Brush::Solid(Color::opaque(100, 100, 100));
 const NORMAL_BRUSH: Brush = Brush::Solid(Color::opaque(80, 80, 80));
 
 #[derive(Debug, Clone, Visit, Reflect)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "c802b6fa-a5ef-4464-a097-749c731ffde0"
+)]
 pub struct Connection {
     widget: Widget,
     pub segment: Segment,
@@ -73,8 +76,6 @@ pub fn draw_connection(
     );
     drawing_context.commit(clip_bounds, brush, CommandTexture::None, material, None);
 }
-
-uuid_provider!(Connection = "c802b6fa-a5ef-4464-a097-749c731ffde0");
 
 impl Control for Connection {
     fn draw(&self, drawing_context: &mut DrawingContext) {

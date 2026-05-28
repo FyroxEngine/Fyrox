@@ -22,6 +22,7 @@ use crate::blank_reflect;
 use crate::reflect::Reflect;
 use crate::reflect::*;
 use fyrox_core_derive::impl_reflect;
+use uuid::uuid;
 
 /// [`Reflect`] sub trait for working with slices.
 pub trait ReflectArray: Reflect {
@@ -65,7 +66,8 @@ impl<const N: usize, T: Reflect + Clone> ReflectArray for [T; N] {
 }
 
 impl<const N: usize, T: Reflect + Clone> Reflect for [T; N] {
-    blank_reflect!();
+    // TODO: combine uuids.
+    blank_reflect!("6d2a2f2d-d74e-4125-8840-b4910aa2e0cc");
 
     fn as_array(&self) -> Option<&dyn ReflectArray> {
         Some(self)
@@ -77,7 +79,7 @@ impl<const N: usize, T: Reflect + Clone> Reflect for [T; N] {
 }
 
 impl_reflect! {
-    #[reflect(ReflectList, ReflectArray)]
+    #[reflect(ReflectList, ReflectArray, type_uuid = "2d704c2b-c87e-4489-b680-aa9699ba2c91")]
     pub struct Vec<T: Reflect + Clone>;
 }
 

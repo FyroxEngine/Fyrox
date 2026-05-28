@@ -19,10 +19,7 @@
 // SOFTWARE.
 
 use crate::{
-    core::{
-        algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*,
-    },
+    core::{algebra::Vector2, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     message::{ButtonState, MouseButton, UiMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface,
@@ -101,9 +98,9 @@ impl MessageData for ThumbMessage {}
 ///
 /// This example creates a new thumb widget 5px wide and shows how to use its messages to get
 /// information about the actual movement.
-#[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
-#[type_uuid(id = "71ad2ff4-6e9e-461d-b7c2-867bd4039684")]
+#[reflect(type_uuid = "71ad2ff4-6e9e-461d-b7c2-867bd4039684")]
 pub struct Thumb {
     pub widget: Widget,
     pub click_pos: Vector2<f32>,

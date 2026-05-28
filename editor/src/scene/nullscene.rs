@@ -31,6 +31,7 @@ use super::*;
 /// null scene.
 #[derive(Reflect, Debug)]
 #[reflect(non_cloneable)]
+#[reflect(type_uuid = "09ba866d-db75-46fb-938b-b3cc583f4469")]
 pub struct NullSceneContext {
     pub selection: &'static mut Selection,
     pub message_sender: MessageSender,

@@ -59,7 +59,6 @@ use crate::{
         log::{Log, MessageKind},
         pool::{Handle, Pool, Ticket},
         reflect::prelude::*,
-        type_traits::prelude::*,
         variable::InheritableVariable,
         visitor::{error::VisitError, Visit, VisitResult, Visitor},
         SafeLock,
@@ -170,19 +169,9 @@ impl IndexMut<Handle<Navmesh>> for NavMeshContainer {
 /// A set of options, that allows selecting the source of environment lighting for a scene. By
 /// default, it is set to [`EnvironmentLightingSource::SkyBox`].
 #[derive(
-    Reflect,
-    Visit,
-    Debug,
-    Default,
-    Clone,
-    Copy,
-    PartialEq,
-    AsRefStr,
-    EnumString,
-    VariantNames,
-    TypeUuidProvider,
+    Reflect, Visit, Debug, Default, Clone, Copy, PartialEq, AsRefStr, EnumString, VariantNames,
 )]
-#[type_uuid(id = "28f22fe7-22ed-47e1-ae43-779866a46cdf")]
+#[reflect(type_uuid = "28f22fe7-22ed-47e1-ae43-779866a46cdf")]
 pub enum EnvironmentLightingSource {
     /// Sky box of a scene will be the source of lighting.
     #[default]
@@ -193,6 +182,7 @@ pub enum EnvironmentLightingSource {
 
 /// Rendering options of a scene. It allows you to specify a render target to render the scene to, change its clear color, etc.
 #[derive(Debug, Visit, Reflect, PartialEq)]
+#[reflect(type_uuid = "74a58c1d-4f70-4a04-9cac-bfdaec63b321")]
 pub struct SceneRenderingOptions {
     /// A texture to draw the scene to. If empty, then the scene will be drawn on screen directly. It is useful to "embed" some scene into other
     /// by drawing a quad with this texture. This can be used to make in-game video conference - you can make separate scene with
@@ -251,6 +241,7 @@ impl Clone for SceneRenderingOptions {
 
 /// See module docs.
 #[derive(Debug, Reflect)]
+#[reflect(type_uuid = "03b3f812-3518-429b-befe-3f7a160503fa")]
 pub struct Scene {
     /// Graph is main container for all scene nodes. It calculates global transforms for nodes,
     /// updates them and performs all other important work. See `graph` module docs for more
@@ -282,7 +273,7 @@ pub struct Scene {
 }
 
 impl Reflect for &'static mut Scene {
-    blank_reflect_ref!();
+    blank_reflect_ref!("1258e495-5789-4aa4-a2c5-3f9f79bef5f4");
 }
 
 impl Clone for Scene {

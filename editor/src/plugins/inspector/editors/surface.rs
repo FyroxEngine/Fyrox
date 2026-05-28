@@ -28,7 +28,7 @@ use crate::{
         asset::manager::ResourceManager,
         core::{
             futures::executor::block_on, log::Log, make_relative_path, pool::Handle,
-            reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
+            reflect::prelude::*, visitor::prelude::*,
         },
         graph::SceneGraph,
         gui::{
@@ -67,8 +67,8 @@ pub enum SurfaceDataPropertyEditorMessage {
 }
 impl MessageData for SurfaceDataPropertyEditorMessage {}
 
-#[derive(Clone, Visit, Reflect, Debug, TypeUuidProvider)]
-#[type_uuid(id = "8461a183-4fd4-4f74-a4f4-7fd8e84bf423")]
+#[derive(Clone, Visit, Reflect, Debug)]
+#[reflect(type_uuid = "8461a183-4fd4-4f74-a4f4-7fd8e84bf423")]
 #[reflect(derived_type = "UiNode")]
 #[allow(dead_code)]
 pub struct SurfaceDataPropertyEditor {

@@ -21,8 +21,7 @@
 use crate::{
     button::{Button, ButtonMessage},
     core::{
-        color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*, PhantomDataSendSync,
+        color::Color, pool::Handle, reflect::prelude::*, visitor::prelude::*, PhantomDataSendSync,
     },
     grid::{Column, GridBuilder, Row},
     inspector::{
@@ -52,17 +51,21 @@ use std::{
 };
 
 #[derive(Clone, Debug, PartialEq, Default, Visit, Reflect)]
+#[reflect(type_uuid = "88d3a376-37db-4dbb-bdaf-794f82970690")]
 pub struct Item {
     editor_instance: PropertyEditorInstance,
     remove: Handle<Button>,
 }
 
-pub trait CollectionItem: Clone + Reflect + Default + TypeUuidProvider + Send + 'static {}
+pub trait CollectionItem: Clone + Reflect + Default + Send + 'static {}
 
-impl<T> CollectionItem for T where T: Clone + Reflect + Default + TypeUuidProvider + Send + 'static {}
+impl<T> CollectionItem for T where T: Clone + Reflect + Default + Send + 'static {}
 
 #[derive(Debug, Visit, Reflect)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "316b0319-f8ee-4b63-9ed9-3f59a857e2bc"
+)]
 pub struct CollectionEditor<T: CollectionItem> {
     pub widget: Widget,
     pub add: Handle<Button>,
@@ -109,15 +112,6 @@ pub enum CollectionEditorMessage {
     ItemChanged { index: usize, message: UiMessage },
 }
 impl MessageData for CollectionEditorMessage {}
-
-impl<T: CollectionItem> TypeUuidProvider for CollectionEditor<T> {
-    fn type_uuid() -> Uuid {
-        combine_uuids(
-            uuid!("316b0319-f8ee-4b63-9ed9-3f59a857e2bc"),
-            T::type_uuid(),
-        )
-    }
-}
 
 impl<T: CollectionItem> Control for CollectionEditor<T> {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

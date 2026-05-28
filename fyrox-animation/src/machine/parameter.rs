@@ -22,7 +22,6 @@
 
 use crate::core::{algebra::Vector2, reflect::prelude::*, visitor::prelude::*};
 use fxhash::FxHashMap;
-use fyrox_core::uuid_provider;
 use std::{
     cell::{Cell, RefCell},
     ops::{Deref, DerefMut},
@@ -33,6 +32,7 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 /// Rule parameter is used to check where transition from a state to state is possible, `Weight` parameters are used to be
 /// a source real numbers that are used to calculate blend weights, etc.
 #[derive(Copy, Clone, Debug, PartialEq, Reflect, Visit, VariantNames, EnumString, AsRefStr)]
+#[reflect(type_uuid = "ace1b8ea-15ee-444d-97be-1682cd9e4245")]
 pub enum Parameter {
     /// Weight parameter is used to control blend weight in animation blending nodes.
     Weight(f32),
@@ -47,8 +47,6 @@ pub enum Parameter {
     SamplingPoint(Vector2<f32>),
 }
 
-uuid_provider!(Parameter = "ace1b8ea-15ee-444d-97be-1682cd9e4245");
-
 impl Default for Parameter {
     fn default() -> Self {
         Self::Weight(0.0)
@@ -57,6 +55,7 @@ impl Default for Parameter {
 
 /// Specific animation pose weight.
 #[derive(Debug, Visit, Clone, PartialEq, Reflect, VariantNames, EnumString, AsRefStr)]
+#[reflect(type_uuid = "46af44ea-eae9-4f3e-803c-06306caed23f")]
 pub enum PoseWeight {
     /// Fixed scalar value. Should not be negative, negative numbers will probably result in weird visual artifacts.
     Constant(f32),
@@ -64,8 +63,6 @@ pub enum PoseWeight {
     /// Reference to Weight parameter with given name.
     Parameter(String),
 }
-
-uuid_provider!(PoseWeight = "46af44ea-eae9-4f3e-803c-06306caed23f");
 
 impl PoseWeight {
     /// Calculates the actual pose weight value.
@@ -91,6 +88,7 @@ impl Default for PoseWeight {
 
 /// A parameter value with its name.
 #[derive(Reflect, Visit, Default, Debug, Clone, PartialEq)]
+#[reflect(type_uuid = "6cbba5c9-8daf-4f4c-a920-9716ed233d89")]
 pub struct ParameterDefinition {
     /// Name of the parameter.
     pub name: String,
@@ -98,8 +96,6 @@ pub struct ParameterDefinition {
     /// Value of the parameter.
     pub value: Parameter,
 }
-
-uuid_provider!(ParameterDefinition = "6cbba5c9-8daf-4f4c-a920-9716ed233d89");
 
 #[derive(Default, Debug, Clone)]
 struct Wrapper {
@@ -136,6 +132,7 @@ impl DerefMut for Wrapper {
 
 /// A container for all parameters used by a state machine. Parameters are shared across multiple animation layers.
 #[derive(Reflect, Visit, Default, Debug)]
+#[reflect(type_uuid = "d4e8f9fe-24af-4ee8-bcba-c896b1b9a40f")]
 pub struct ParameterContainer {
     #[reflect(deref)]
     parameters: Wrapper,

@@ -49,7 +49,8 @@ where
     V: Reflect + Clone,
     S: BuildHasher + Clone + 'static,
 {
-    blank_reflect!();
+    // TODO: combine uuids
+    blank_reflect!("56412555-c491-4f28-9604-4609b3f47e53");
 
     fn as_hash_map(&self) -> Option<&dyn ReflectHashMap> {
         Some(self)

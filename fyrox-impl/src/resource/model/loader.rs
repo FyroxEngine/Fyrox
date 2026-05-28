@@ -29,11 +29,12 @@ use crate::{
         manager::ResourceManager,
         options::{try_get_import_settings, try_get_import_settings_opaque, BaseImportOptions},
     },
-    core::{uuid::Uuid, TypeUuidProvider},
+    core::uuid::Uuid,
     engine::SerializationContext,
     resource::model::{Model, ModelImportOptions},
 };
 use fyrox_core::dyntype::DynTypeConstructorContainer;
+use fyrox_core::reflect::Reflect;
 use fyrox_resource::state::LoadError;
 use std::{path::PathBuf, sync::Arc};
 
@@ -60,7 +61,7 @@ impl ResourceLoader for ModelLoader {
     }
 
     fn data_type_uuid(&self) -> Uuid {
-        Model::type_uuid()
+        <Model as Reflect>::type_info().type_uuid
     }
 
     fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {

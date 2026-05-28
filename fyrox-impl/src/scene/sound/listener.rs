@@ -29,7 +29,6 @@ use crate::{
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
@@ -58,7 +57,10 @@ use std::ops::{Deref, DerefMut};
 /// 2D sound sources (with spatial blend == 0.0) are not influenced by listener's position and
 /// orientation.
 #[derive(Visit, Reflect, Default, Clone, Debug)]
-#[reflect(derived_type = "Node")]
+#[reflect(
+    derived_type = "Node",
+    type_uuid = "2c7dabc1-5666-4256-b020-01532701e4c6"
+)]
 pub struct Listener {
     base: Base,
 }
@@ -74,12 +76,6 @@ impl Deref for Listener {
 impl DerefMut for Listener {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.base
-    }
-}
-
-impl TypeUuidProvider for Listener {
-    fn type_uuid() -> Uuid {
-        uuid!("2c7dabc1-5666-4256-b020-01532701e4c6")
     }
 }
 
@@ -110,7 +106,7 @@ impl NodeTrait for Listener {
     }
 
     fn id(&self) -> Uuid {
-        Self::type_uuid()
+        <Self as Reflect>::type_info().type_uuid
     }
 
     fn sync_native(&self, _self_handle: Handle<Node>, context: &mut SyncContext) {

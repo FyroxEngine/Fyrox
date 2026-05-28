@@ -36,6 +36,7 @@ pub enum SelectableMessage {
 impl MessageData for SelectableMessage {}
 
 #[derive(Default, Clone, Debug, PartialEq, Eq, Visit, Reflect)]
+#[reflect(type_uuid = "5a49c5e4-8b2f-4631-8c83-7cc1eb0b2754")]
 pub struct Selectable {
     pub selected: bool,
 }

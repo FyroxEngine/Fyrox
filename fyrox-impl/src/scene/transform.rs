@@ -75,6 +75,7 @@ use std::cell::Cell;
 
 /// See module docs.
 #[derive(Clone, Debug, Reflect)]
+#[reflect(type_uuid = "16c75838-4a4f-4880-acf5-7e612fc54f01")]
 pub struct Transform {
     // Indicates that some property has changed and matrix must be
     // recalculated before use. This is some sort of lazy evaluation.

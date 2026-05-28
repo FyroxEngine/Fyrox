@@ -489,6 +489,7 @@ impl MessageData for WidgetMessage {
 
 #[doc(hidden)]
 #[derive(Clone, Debug, Reflect, PartialEq)]
+#[reflect(type_uuid = "30c8f89a-ba53-422e-84f6-9a4dbf20978b")]
 pub struct WidgetMaterial(pub MaterialResource);
 
 impl Visit for WidgetMaterial {
@@ -539,6 +540,7 @@ impl WidgetRenderDataSet {
 /// for layout information, basic visual appearance, visibility options, parent-child information. It does almost nothing
 /// on its own, instead, the user interface modifies its state accordingly.
 #[derive(Default, Debug, Clone, Reflect, Visit)]
+#[reflect(type_uuid = "77e1b0ed-0d0a-4fae-9956-19bbd7145401")]
 #[visit(optional)]
 pub struct Widget {
     /// Self handle of the widget. It is valid **only**, if the widget is added to the user interface, in other

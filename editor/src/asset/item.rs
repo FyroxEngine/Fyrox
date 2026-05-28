@@ -26,8 +26,7 @@ use crate::{
         asset::{manager::ResourceManager, untyped::UntypedResource, Resource, TypedResourceData},
         core::{
             algebra::Vector2, color::Color, futures::executor::block_on, make_relative_path,
-            parking_lot::lock_api::Mutex, pool::Handle, reflect::prelude::*, uuid_provider,
-            visitor::prelude::*,
+            parking_lot::lock_api::Mutex, pool::Handle, reflect::prelude::*, visitor::prelude::*,
         },
         graph::SceneGraph,
         gui::{
@@ -81,7 +80,10 @@ impl MessageData for AssetItemMessage {}
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Visit, Reflect)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "54f7d9c1-e707-4c8c-a5c9-3fc5cc80b545"
+)]
 pub struct AssetItem {
     widget: Widget,
     pub path: PathBuf,
@@ -253,8 +255,6 @@ impl DerefMut for AssetItem {
         &mut self.widget
     }
 }
-
-uuid_provider!(AssetItem = "54f7d9c1-e707-4c8c-a5c9-3fc5cc80b545");
 
 impl Control for AssetItem {
     fn draw(&self, drawing_context: &mut DrawingContext) {

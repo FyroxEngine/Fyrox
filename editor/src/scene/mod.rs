@@ -35,7 +35,6 @@ use crate::{
             pool::{ErasedHandle, Handle},
             reflect::Reflect,
             visitor::Visitor,
-            Uuid,
         },
         engine::{Engine, SerializationContext},
         fxhash::FxHashSet,
@@ -97,6 +96,7 @@ use crate::{
     Message, Settings,
 };
 use fyrox::core::blank_reflect_ref;
+use fyrox::core::uuid::Uuid;
 use fyrox::engine::GraphicsContext;
 use fyrox::gui::file_browser::FileType;
 use fyrox::scene::collider::BitMask;
@@ -1207,7 +1207,7 @@ impl dyn SelectionContainer {
 pub struct Selection(pub Option<Box<dyn SelectionContainer>>);
 
 impl Reflect for &'static mut Selection {
-    blank_reflect_ref!();
+    blank_reflect_ref!("f740f60a-ade1-4357-ac6f-7088e9189518");
 }
 
 impl PartialEq for Selection {

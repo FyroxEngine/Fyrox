@@ -21,10 +21,7 @@
 //! UI node is a type-agnostic wrapper for any widget type. See [`UiNode`] docs for more info.
 
 use crate::{
-    core::{
-        pool::Handle, reflect::prelude::*, uuid_provider, variable, visitor::prelude::*,
-        NameProvider,
-    },
+    core::{pool::Handle, reflect::prelude::*, variable, visitor::prelude::*, NameProvider},
     widget::Widget,
     Control, ControlAsAny, UserInterface,
 };
@@ -47,6 +44,7 @@ pub mod container;
 /// casting, field fetching, etc. You could also be interested in [`Control`] docs, since it
 /// contains all the interesting stuff and detailed description for each method.
 #[derive(Reflect)]
+#[reflect(type_uuid = "d9b45ecc-91b0-40ea-a92a-4a7dee4667c9")]
 pub struct UiNode(#[reflect(deref, display_name = "UiNode")] pub Box<dyn Control>);
 
 impl<T: Control> From<T> for UiNode {
@@ -54,8 +52,6 @@ impl<T: Control> From<T> for UiNode {
         Self(Box::new(value))
     }
 }
-
-uuid_provider!(UiNode = "d9b45ecc-91b0-40ea-a92a-4a7dee4667c9");
 
 impl Clone for UiNode {
     #[inline]
@@ -156,7 +152,7 @@ impl UiNode {
     /// # use fyrox_ui::{
     /// #     core::pool::Handle,
     /// #     define_widget_deref,
-    /// #     core::{visitor::prelude::*, reflect::prelude::*, type_traits::prelude::*,},
+    /// #     core::{visitor::prelude::*, reflect::prelude::*, },
     /// #     message::UiMessage,
     /// #     widget::{Widget, WidgetBuilder},
     /// #     BuildContext, Control, UiNode, UserInterface,
@@ -165,17 +161,15 @@ impl UiNode {
     /// #     any::{Any, TypeId},
     /// #     ops::{Deref, DerefMut},
     /// # };
-    /// # use fyrox_core::uuid_provider;
+    /// #
     /// #
     /// #[derive(Clone, Visit, Reflect, Debug)]
-    /// #[reflect(derived_type = "UiNode")]
+    /// #[reflect(derived_type = "UiNode", type_uuid = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd")]
     /// struct MyWidget {
     ///     widget: Widget,
     /// }
     /// #
     /// # define_widget_deref!(MyWidget);
-    /// #
-    /// # uuid_provider!(MyWidget = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd");
     /// #
     /// # impl Control for MyWidget {
     /// #     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

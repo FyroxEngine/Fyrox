@@ -19,9 +19,7 @@
 // SOFTWARE.
 
 use crate::{
-    core::{
-        num_traits, pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
-    },
+    core::{num_traits, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
     numeric::{NumericType, NumericUpDownBuilder, NumericUpDownMessage},
@@ -76,7 +74,10 @@ where
 impl<const R: usize, const C: usize, T: NumericType> MessageData for MatrixEditorMessage<R, C, T> {}
 
 #[derive(Clone, Visit, Reflect, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "9f05427a-5862-4574-bb21-ebaf52aa8c72"
+)]
 pub struct MatrixEditor<const R: usize, const C: usize, T>
 where
     T: NumericType,
@@ -130,23 +131,6 @@ where
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
-    }
-}
-
-impl<const R: usize, const C: usize, T: NumericType> TypeUuidProvider for MatrixEditor<R, C, T> {
-    fn type_uuid() -> Uuid {
-        let r_id = Uuid::from_u64_pair(R as u64, R as u64);
-        let c_id = Uuid::from_u64_pair(C as u64, C as u64);
-        combine_uuids(
-            c_id,
-            combine_uuids(
-                r_id,
-                combine_uuids(
-                    uuid!("9f05427a-5862-4574-bb21-ebaf52aa8c72"),
-                    T::type_uuid(),
-                ),
-            ),
-        )
     }
 }
 

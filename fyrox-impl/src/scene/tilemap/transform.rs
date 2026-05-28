@@ -50,6 +50,7 @@ use super::OptionTileRect;
 /// These transformations are useful in situations where positions are
 /// restricted to an orthogonal grid, as in a tile map.
 #[derive(Copy, Clone, Hash, Eq, PartialEq, Visit, Reflect)]
+#[reflect(type_uuid = "fc588f6b-0f07-467c-af6c-c6b62ffc6063")]
 pub struct OrthoTransformation(i8);
 
 /// A map from `Vector2<i32>` to values. It can be transformed to flip and rotate the positions of the values.

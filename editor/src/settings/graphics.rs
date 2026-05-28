@@ -22,6 +22,7 @@ use crate::fyrox::{core::reflect::prelude::*, renderer::QualitySettings};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, PartialEq, Debug, Clone, Reflect)]
+#[reflect(type_uuid = "e748b2e7-9d51-4c9b-bb88-ada78bcfa447")]
 pub struct GraphicsSettings {
     pub quality: QualitySettings,
     pub z_near: f32,

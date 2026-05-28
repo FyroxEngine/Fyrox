@@ -21,7 +21,7 @@
 //! Font loader.
 
 use crate::{
-    core::{reflect::prelude::*, uuid::Uuid, TypeUuidProvider},
+    core::{reflect::prelude::*, uuid::Uuid},
     font::{Font, FontResource},
 };
 use fyrox_resource::{
@@ -43,6 +43,7 @@ fn default_page_size() -> usize {
 /// Options to control how a font is imported, allowing data to be included beyond
 /// what is stored in the font file.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Reflect, Eq)]
+#[reflect(type_uuid = "6d281c95-d4ac-4bc6-a1b2-2ff0515f6a21")]
 pub struct FontImportOptions {
     /// The size of each page of the atlas where glyphs are copied before they are rendered.
     /// Each page is a square `page_size` x `page_size` large, and no glyph may be so large
@@ -97,7 +98,7 @@ impl ResourceLoader for FontLoader {
     }
 
     fn data_type_uuid(&self) -> Uuid {
-        Font::type_uuid()
+        <Font as Reflect>::type_info().type_uuid
     }
 
     fn default_import_options(&self) -> Option<Box<dyn BaseImportOptions>> {

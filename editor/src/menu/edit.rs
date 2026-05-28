@@ -33,7 +33,7 @@ use crate::{
     scene::{commands::PasteCommand, GameScene, Selection},
     Engine, Message, Mode,
 };
-use fyrox::core::{uuid, Uuid};
+use fyrox::core::uuid::{uuid, Uuid};
 use fyrox::gui::menu;
 use fyrox::gui::menu::MenuItem;
 

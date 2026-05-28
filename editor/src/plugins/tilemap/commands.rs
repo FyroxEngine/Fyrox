@@ -20,10 +20,15 @@
 
 //! Commands that allow modifications to tile maps, tile sets, and brushes.
 
+use crate::{
+    command::{CommandContext, CommandTrait},
+    scene::commands::GameSceneContext,
+};
+use fyrox::core::uuid::Uuid;
 use fyrox::{
     core::{
         algebra::Vector2, color::Color, log::Log, pool::Handle, swap_hash_map_entry,
-        ImmutableString, Uuid,
+        ImmutableString,
     },
     fxhash::FxHashMap,
     material::MaterialResource,
@@ -40,11 +45,6 @@ use fyrox::{
             TileSetUpdate, TilesUpdate,
         },
     },
-};
-
-use crate::{
-    command::{CommandContext, CommandTrait},
-    scene::commands::GameSceneContext,
 };
 
 #[derive(Debug)]

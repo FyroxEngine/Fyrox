@@ -31,12 +31,13 @@ pub mod prelude {
 use fxhash::FxHashMap;
 use fyrox_core::pool::{ObjectOrVariant, PayloadContainer, PoolError};
 use fyrox_core::reflect::ReflectHandle;
+use fyrox_core::uuid::Uuid;
 use fyrox_core::{
     log::{Log, MessageKind},
     pool::Handle,
     reflect::prelude::*,
     variable::{self, InheritableVariable},
-    NameProvider, Uuid,
+    NameProvider,
 };
 use fyrox_resource::{untyped::UntypedResource, Resource, TypedResourceData};
 use std::cmp::Ordering;
@@ -47,6 +48,7 @@ use std::{
 };
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Reflect)]
+#[reflect(type_uuid = "057d3a49-913a-4f83-9203-549a5c2872aa")]
 #[repr(u32)]
 pub enum NodeMapping {
     UseNames = 0,
@@ -1581,11 +1583,11 @@ where
 mod test {
     use crate::{NodeHandleMap, NodeMapping, PrefabData, SceneGraph, SceneGraphNode};
     use fyrox_core::pool::{ObjectOrVariant, ObjectOrVariantHelper, PoolError};
+    use fyrox_core::uuid::Uuid;
     use fyrox_core::{
         define_as_any_trait,
         pool::{Handle, PayloadContainer, Pool},
         reflect::prelude::*,
-        type_traits::prelude::*,
         visitor::prelude::*,
         NameProvider,
     };
@@ -1600,6 +1602,7 @@ mod test {
     };
 
     #[derive(Visit, Reflect, Debug, Clone)]
+    #[reflect(type_uuid = "34f5e3ea-3008-45e9-9e6e-0b8fbff1ac28")]
     pub struct Base {
         name: String,
         self_handle: Handle<Node>,
@@ -1659,6 +1662,7 @@ mod test {
     }
 
     #[derive(Debug, Reflect)]
+    #[reflect(type_uuid = "e2c18cd6-f1bf-40e5-9ec6-0dc48cc75409")]
     pub struct Node(#[reflect(deref, display_name = "Node")] Box<dyn NodeTrait>);
 
     impl Clone for Node {
@@ -1702,6 +1706,7 @@ mod test {
     /// A wrapper for node pool record that allows to define custom visit method to have full
     /// control over instantiation process at deserialization.
     #[derive(Debug, Default, Clone, Reflect)]
+    #[reflect(type_uuid = "08052dac-c0c0-4df3-8005-1330827bf9c2")]
     pub struct NodeContainer(Option<Node>);
 
     impl Visit for NodeContainer {
@@ -1802,18 +1807,14 @@ mod test {
         }
     }
 
-    #[derive(Default, Clone, TypeUuidProvider, Visit, Reflect, Debug)]
-    #[type_uuid(id = "fc887063-7780-44af-8710-5e0bcf9a83fd")]
+    #[derive(Default, Clone, Visit, Reflect, Debug)]
+    #[reflect(type_uuid = "fc887063-7780-44af-8710-5e0bcf9a83fd")]
     pub struct Graph {
         root: Handle<Node>,
         nodes: Pool<Node, NodeContainer>,
     }
 
     impl ResourceData for Graph {
-        fn type_uuid(&self) -> Uuid {
-            <Graph as TypeUuidProvider>::type_uuid()
-        }
-
         fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
             Ok(())
         }
@@ -2050,6 +2051,7 @@ mod test {
 
     #[derive(Clone, Reflect, Visit, Default, Debug)]
     #[reflect(derived_type = "Node")]
+    #[reflect(type_uuid = "c7452fb6-78c1-4e77-a2f9-d9ae31f50327")]
     pub struct Pivot {
         base: Base,
     }
@@ -2072,6 +2074,7 @@ mod test {
 
     #[derive(Clone, Reflect, Visit, Default, Debug)]
     #[reflect(derived_type = "Node")]
+    #[reflect(type_uuid = "17cc2d25-6ba4-4e2d-a31e-867e429bc659")]
     pub struct RigidBody {
         base: Base,
     }
@@ -2094,6 +2097,7 @@ mod test {
 
     #[derive(Clone, Reflect, Visit, Default, Debug)]
     #[reflect(derived_type = "Node")]
+    #[reflect(type_uuid = "1f869298-37b1-4153-a2a9-6576daa0e8b3")]
     pub struct Joint {
         base: Base,
         connected_body1: Handle<RigidBody>,

@@ -21,7 +21,8 @@
 //! Texture loader.
 
 use crate::{Texture, TextureImportOptions};
-use fyrox_core::{uuid::Uuid, TypeUuidProvider};
+use fyrox_core::reflect::Reflect;
+use fyrox_core::uuid::Uuid;
 use fyrox_resource::{
     io::ResourceIo, loader::BoxedImportOptionsLoaderFuture, loader::BoxedLoaderFuture,
     loader::LoaderPayload, loader::ResourceLoader, options::try_get_import_settings,
@@ -43,7 +44,7 @@ impl ResourceLoader for TextureLoader {
     }
 
     fn data_type_uuid(&self) -> Uuid {
-        Texture::type_uuid()
+        <Texture as Reflect>::type_info().type_uuid
     }
 
     fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {

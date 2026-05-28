@@ -57,6 +57,7 @@ pub mod selection;
 pub mod windows;
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Default, Debug, Reflect)]
+#[reflect(type_uuid = "8b5064fc-e25b-442c-af34-67b12b6f9e66")]
 pub struct SettingsData {
     #[reflect(tag = "Group.Selection")]
     pub selection: SelectionSettings,

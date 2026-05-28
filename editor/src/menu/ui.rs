@@ -33,7 +33,7 @@ use crate::{
     scene::Selection,
     ui_scene::{commands::graph::AddWidgetCommand, UiScene},
 };
-use fyrox::core::{uuid, Uuid};
+use fyrox::core::uuid::{uuid, Uuid};
 use fyrox::gui::menu::{MenuItem, SortingPredicate};
 
 pub struct UiMenu {

@@ -71,8 +71,8 @@ pub struct WfcMacro {
     current_terrain: TileTerrainId,
 }
 
-#[derive(Debug, Clone, Visit, Reflect, TypeUuidProvider)]
-#[type_uuid(id = "24f9947e-f58b-4623-ad14-cb21cd09297e")]
+#[derive(Debug, Clone, Visit, Reflect)]
+#[reflect(type_uuid = "24f9947e-f58b-4623-ad14-cb21cd09297e")]
 pub(super) struct WfcInstance {
     frequency_property: Option<TileSetPropertyF32>,
     pattern_property: Option<TileSetPropertyNine>,
@@ -238,10 +238,6 @@ impl WfcInstance {
 }
 
 impl ResourceData for WfcInstance {
-    fn type_uuid(&self) -> Uuid {
-        <Self as TypeUuidProvider>::type_uuid()
-    }
-
     fn save(&mut self, _path: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
         Err("Saving is not supported!".to_string().into())
     }

@@ -31,7 +31,6 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, Rect, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         value_as_u8_slice,
         variable::InheritableVariable,
@@ -172,7 +171,10 @@ impl Hash for RectangleVertex {
 /// which means `[0; 0]` corresponds to top-left corner of the texture and `[1; 1]` corresponds to
 /// right-bottom corner.
 #[derive(Reflect, Debug, Clone, Visit)]
-#[reflect(derived_type = "Node")]
+#[reflect(
+    derived_type = "Node",
+    type_uuid = "bb57b5e0-367a-4490-bf30-7f547407d5b5"
+)]
 pub struct Rectangle {
     base: Base,
 
@@ -219,12 +221,6 @@ impl Deref for Rectangle {
 impl DerefMut for Rectangle {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.base
-    }
-}
-
-impl TypeUuidProvider for Rectangle {
-    fn type_uuid() -> Uuid {
-        uuid!("bb57b5e0-367a-4490-bf30-7f547407d5b5")
     }
 }
 
@@ -321,7 +317,7 @@ impl NodeTrait for Rectangle {
     }
 
     fn id(&self) -> Uuid {
-        Self::type_uuid()
+        <Self as Reflect>::type_info().type_uuid
     }
 
     fn collect_render_data(&self, ctx: &mut RenderContext) -> RdcControlFlow {

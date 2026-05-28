@@ -29,7 +29,6 @@ use crate::{
         num_traits::{Euclid, NumCast, One, Zero},
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
         uuid::uuid,
         visitor::prelude::*,
     },
@@ -71,7 +70,6 @@ pub trait BitContainer:
     + Reflect
     + Visit
     + Send
-    + TypeUuidProvider
     + 'static
 {
 }
@@ -92,7 +90,6 @@ impl<T> BitContainer for T where
         + Reflect
         + Visit
         + Send
-        + TypeUuidProvider
         + 'static
 {
 }
@@ -117,7 +114,10 @@ impl<T: BitContainer> ConstructorProvider<UiNode, UserInterface> for BitField<T>
 }
 
 #[derive(Default, Clone, Reflect, Visit, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "6c19b266-18be-46d2-bfd3-f1dc9cb3f36c"
+)]
 pub struct BitField<T>
 where
     T: BitContainer,
@@ -206,18 +206,6 @@ fn bit_to_rect(index: usize, width: usize) -> Rect<f32> {
 fn position_to_bit(position: Vector2<f32>, size: usize, width: f32) -> Option<usize> {
     let byte_width = byte_width(width);
     (0..size).find(|&i| bit_to_rect(i, byte_width).contains(position))
-}
-
-impl<T> TypeUuidProvider for BitField<T>
-where
-    T: BitContainer,
-{
-    fn type_uuid() -> Uuid {
-        combine_uuids(
-            uuid!("6c19b266-18be-46d2-bfd3-f1dc9cb3f36c"),
-            T::type_uuid(),
-        )
-    }
 }
 
 impl<T> Control for BitField<T>

@@ -25,7 +25,7 @@
 
 use crate::{
     button::{Button, ButtonMessage},
-    core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
+    core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     define_widget_deref,
     grid::{Column, GridBuilder, Row},
     message::{MessageData, UiMessage},
@@ -35,7 +35,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
-use fyrox_core::uuid_provider;
+
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 
 /// A set of messages that is used to fetch or modify values of [`UuidEditor`] widgets.
@@ -67,7 +67,10 @@ impl MessageData for UuidEditorMessage {}
 /// }
 /// ```
 #[derive(Default, Clone, Visit, Reflect, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "667f7f48-2448-42da-91dd-cd743ca7117e"
+)]
 pub struct UuidEditor {
     widget: Widget,
     value: Uuid,
@@ -89,8 +92,6 @@ impl ConstructorProvider<UiNode, UserInterface> for UuidEditor {
 }
 
 define_widget_deref!(UuidEditor);
-
-uuid_provider!(UuidEditor = "667f7f48-2448-42da-91dd-cd743ca7117e");
 
 impl Control for UuidEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

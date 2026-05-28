@@ -21,7 +21,7 @@
 use crate::{
     fyrox::{
         asset::untyped::ResourceKind,
-        core::{algebra::Matrix4, math::Matrix4Ext, pool::Handle, sstorage::ImmutableString, Uuid},
+        core::{algebra::Matrix4, math::Matrix4Ext, pool::Handle, sstorage::ImmutableString},
         graphics::{
             buffer::BufferUsage, error::FrameworkError, geometry_buffer::GpuGeometryBuffer,
             server::GraphicsServer,
@@ -41,6 +41,7 @@ use crate::{
     },
     Editor,
 };
+use fyrox::core::uuid::Uuid;
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
 pub struct OverlayRenderPass {

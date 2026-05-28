@@ -72,6 +72,7 @@ static LOG: LazyLock<Mutex<Log>> = LazyLock::new(|| {
 
 /// A kind of message.
 #[derive(Debug, Default, Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Visit, Reflect)]
+#[reflect(type_uuid = "090d0418-4766-43df-821f-dff65dfe9b6e")]
 #[repr(u32)]
 pub enum MessageKind {
     /// Some useful information.

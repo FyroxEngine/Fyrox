@@ -34,8 +34,6 @@ use crate::{
         parking_lot::{MappedMutexGuard, Mutex, MutexGuard},
         pool::Handle,
         reflect::prelude::*,
-        type_traits::prelude::*,
-        uuid_provider,
         visitor::prelude::*,
         SafeLock,
     },
@@ -63,6 +61,7 @@ use std::{
     cell::{Cell, RefCell},
     sync::mpsc::Sender,
 };
+use uuid::Uuid;
 
 pub mod key;
 
@@ -102,6 +101,7 @@ impl MessageData for CurveEditorMessage {
 
 /// Highlight zone in values space.
 #[derive(Clone, Debug, PartialEq, Visit, Reflect, Default)]
+#[reflect(type_uuid = "88052cf5-4ea5-4a2e-b81a-4aca85e74c55")]
 pub struct HighlightZone {
     pub rect: Rect<f32>,
     pub brush: Brush,
@@ -359,6 +359,7 @@ impl Iterator for StepIterator {
 }
 
 #[derive(Default, Clone, Visit, Reflect, Debug)]
+#[reflect(type_uuid = "4b640057-639e-4f47-9a08-c08d94eca68e")]
 pub struct CurvesContainer {
     curves: Vec<CurveKeyViewContainer>,
 }
@@ -412,7 +413,10 @@ impl CurvesContainer {
 }
 
 #[derive(Default, Clone, Visit, Reflect, Debug)]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "5c7b087e-871e-498d-b064-187b604a37d8"
+)]
 pub struct CurveEditor {
     widget: Widget,
     background_curves: CurvesContainer,
@@ -468,6 +472,7 @@ impl ConstructorProvider<UiNode, UserInterface> for CurveEditor {
 crate::define_widget_deref!(CurveEditor);
 
 #[derive(Default, Clone, Visit, Reflect, Debug)]
+#[reflect(type_uuid = "c81d942c-394d-498d-b460-1dc508288ed3")]
 struct ContextMenu {
     widget: RcUiNodeHandle,
     add_key: Handle<MenuItem>,
@@ -543,8 +548,6 @@ impl Selection {
         Self::Keys { keys }
     }
 }
-
-uuid_provider!(CurveEditor = "5c7b087e-871e-498d-b064-187b604a37d8");
 
 impl Control for CurveEditor {
     fn draw(&self, ctx: &mut DrawingContext) {

@@ -23,8 +23,8 @@ use crate::{
         core::{
             algebra::{Vector2, Vector3},
             pool::Handle,
+            reflect::prelude::*,
             uuid::Uuid,
-            TypeUuidProvider,
         },
         gui::{
             border::BorderBuilder,
@@ -62,7 +62,7 @@ pub mod terrain;
 
 define_as_any_trait!(InteractionModeAsAny => InteractionMode);
 
-pub trait InteractionMode: InteractionModeAsAny {
+pub trait InteractionMode: Reflect + InteractionModeAsAny {
     fn on_left_mouse_button_down(
         &mut self,
         editor_selection: &Selection,
@@ -302,8 +302,8 @@ impl InteractionModeContainer {
         }
     }
 
-    pub fn remove_typed<T: InteractionMode + TypeUuidProvider>(&mut self) -> Option<Box<T>> {
-        self.remove(&T::type_uuid())
+    pub fn remove_typed<T: InteractionMode>(&mut self) -> Option<Box<T>> {
+        self.remove(&T::type_info().type_uuid)
             .and_then(|mode| mode.into_any().downcast::<T>().ok())
     }
 
@@ -325,13 +325,13 @@ impl InteractionModeContainer {
             .map(|mode| &mut **mode)
     }
 
-    pub fn of_type<T: InteractionMode + TypeUuidProvider>(&self) -> Option<&T> {
-        self.get(&T::type_uuid())
+    pub fn of_type<T: InteractionMode>(&self) -> Option<&T> {
+        self.get(&T::type_info().type_uuid)
             .and_then(|mode| mode.as_any().downcast_ref())
     }
 
-    pub fn of_type_mut<T: InteractionMode + TypeUuidProvider>(&mut self) -> Option<&mut T> {
-        self.get_mut(&T::type_uuid())
+    pub fn of_type_mut<T: InteractionMode>(&mut self) -> Option<&mut T> {
+        self.get_mut(&T::type_info().type_uuid)
             .and_then(|mode| mode.as_any_mut().downcast_mut())
     }
 

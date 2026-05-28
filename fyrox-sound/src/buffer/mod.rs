@@ -32,9 +32,7 @@ use crate::{
     buffer::{generic::GenericBuffer, streaming::StreamingBuffer},
     error::SoundError,
 };
-use fyrox_core::{
-    io::FileError, reflect::prelude::*, uuid, uuid::Uuid, visitor::prelude::*, TypeUuidProvider,
-};
+use fyrox_core::{io::FileError, reflect::prelude::*, uuid::Uuid, visitor::prelude::*};
 use fyrox_resource::untyped::ResourceKind;
 use fyrox_resource::{
     io::{FileReader, ResourceIo},
@@ -240,6 +238,7 @@ impl std::error::Error for SoundBufferResourceLoadError {}
 /// Sound buffer is a data source for sound sources. See module documentation for more info.
 #[derive(Debug, Visit, Reflect)]
 #[reflect(non_cloneable)]
+#[reflect(type_uuid = "f6a077b7-c8ff-4473-a95b-0289441ea9d8")]
 pub enum SoundBuffer {
     /// General-purpose buffer, usually contains all the data and allows random
     /// access to samples. It is also used to make streaming buffer via composition.
@@ -296,12 +295,6 @@ impl SoundBufferResourceExtension for SoundBufferResource {
     }
 }
 
-impl TypeUuidProvider for SoundBuffer {
-    fn type_uuid() -> Uuid {
-        uuid!("f6a077b7-c8ff-4473-a95b-0289441ea9d8")
-    }
-}
-
 impl SoundBuffer {
     /// Tries to create new streaming sound buffer from a given data source. It returns raw sound
     /// buffer that has to be wrapped into Arc<Mutex<>> for use with sound sources.
@@ -347,10 +340,6 @@ impl DerefMut for SoundBuffer {
 }
 
 impl ResourceData for SoundBuffer {
-    fn type_uuid(&self) -> Uuid {
-        uuid!("f6a077b7-c8ff-4473-a95b-0289441ea9d8")
-    }
-
     fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
         Err("Saving is not supported!".to_string().into())
     }

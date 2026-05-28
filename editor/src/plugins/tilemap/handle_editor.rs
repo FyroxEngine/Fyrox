@@ -28,10 +28,7 @@ use fyrox::gui::inspector::FieldAction;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::text_box::TextBox;
 use fyrox::{
-    core::{
-        color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*,
-    },
+    core::{color::Color, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     gui::{
         brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
@@ -79,9 +76,9 @@ impl MessageData for TileDefinitionHandleEditorMessage {}
 /// pair is the page coordinates and the second pair is the tile coordinates.
 /// When editing the handle, one need merely type four integers. Whatever
 /// characters separate the integers are ignored, so "1 2 3 4" would be accepted.
-#[derive(Clone, Debug, Visit, Reflect, TypeUuidProvider)]
+#[derive(Clone, Debug, Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
-#[type_uuid(id = "60146cf0-33e3-4757-8e66-e7196324271f")]
+#[reflect(type_uuid = "60146cf0-33e3-4757-8e66-e7196324271f")]
 pub struct TileDefinitionHandleEditor {
     widget: Widget,
     field: Handle<TextBox>,

@@ -458,6 +458,7 @@ fn isometry2_to_mat4(isometry: &Isometry2<f32>) -> Matrix4<f32> {
 /// methods, mostly for ray casting. You should add physical entities using scene graph nodes, such
 /// as RigidBody, Collider, Joint.
 #[derive(Visit, Reflect)]
+#[reflect(type_uuid = "035cccc1-a098-4b25-bbd6-cac507d6649d")]
 pub struct PhysicsWorld {
     /// A flag that defines whether physics simulation is enabled or not.
     pub enabled: InheritableVariable<bool>,

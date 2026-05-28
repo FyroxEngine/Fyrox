@@ -25,10 +25,7 @@
 #![warn(missing_docs)]
 
 use crate::{
-    core::{
-        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*,
-    },
+    core::{algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
@@ -69,8 +66,8 @@ use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 ///     .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider)]
-#[type_uuid(id = "6b843a36-53da-467b-b85e-2380fe891ca1")]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[reflect(type_uuid = "6b843a36-53da-467b-b85e-2380fe891ca1")]
 #[reflect(derived_type = "UiNode")]
 pub struct Canvas {
     /// Base widget of the canvas.

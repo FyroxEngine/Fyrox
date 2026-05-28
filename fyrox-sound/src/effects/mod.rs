@@ -27,7 +27,7 @@ use crate::{
     },
     effects::reverb::Reverb,
 };
-use fyrox_core::{reflect::prelude::*, uuid_provider, visitor::prelude::*};
+use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 pub mod filter;
@@ -35,6 +35,7 @@ pub mod reverb;
 
 /// Attenuation effect.
 #[derive(Debug, Clone, PartialEq, Visit, Reflect)]
+#[reflect(type_uuid = "91c3bef1-4754-4df9-8e02-6f5ebd8e7450")]
 pub struct Attenuate {
     gain: f32,
 }
@@ -69,6 +70,7 @@ impl EffectRenderTrait for Attenuate {
 /// For example, [`LowPassFilterEffect`] could be used to muffle audio sources; to create "underwater"
 /// effect.
 #[derive(Debug, Clone, PartialEq, Visit, Reflect, AsRefStr, EnumString, VariantNames)]
+#[reflect(type_uuid = "fc52e441-d1ec-4881-937c-9e2e53a6d621")]
 pub enum Effect {
     /// See [`Attenuate`] docs for more info.
     Attenuate(Attenuate),
@@ -87,8 +89,6 @@ pub enum Effect {
     /// See [`HighShelfFilterEffect`] docs for more info.
     HighShelfFilter(HighShelfFilterEffect),
 }
-
-uuid_provider!(Effect = "fc52e441-d1ec-4881-937c-9e2e53a6d621");
 
 impl Default for Effect {
     fn default() -> Self {

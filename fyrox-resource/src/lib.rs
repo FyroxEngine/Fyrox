@@ -27,12 +27,10 @@
 
 use crate::{
     core::{
-        combine_uuids,
         parking_lot::MutexGuard,
         reflect::prelude::*,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
-        TypeUuidProvider,
     },
     state::{LoadError, ResourceState},
     untyped::{ResourceHeader, ResourceKind, UntypedResource},
@@ -71,9 +69,6 @@ pub mod untyped;
 
 /// A trait for resource data.
 pub trait ResourceData: Debug + Visit + Send + Reflect {
-    /// Returns unique data type id.
-    fn type_uuid(&self) -> Uuid;
-
     /// Saves the resource data a file at the specified path. This method is free to
     /// decide how the resource data is saved. This is needed, because there are multiple formats
     /// that defines various kinds of resources. For example, a rectangular texture could be saved
@@ -95,10 +90,10 @@ pub trait ResourceData: Debug + Visit + Send + Reflect {
 /// Extension trait for a resource data of a particular type, which adds additional functionality,
 /// such as: a way to get default state of the data (`Default` impl), a way to get data's type uuid.
 /// The trait has automatic implementation for any type that implements
-/// ` ResourceData + Default + TypeUuidProvider` traits.
-pub trait TypedResourceData: ResourceData + Default + TypeUuidProvider {}
+/// ` ResourceData + Default ` traits.
+pub trait TypedResourceData: ResourceData + Default {}
 
-impl<T> TypedResourceData for T where T: ResourceData + Default + TypeUuidProvider {}
+impl<T> TypedResourceData for T where T: ResourceData + Default {}
 
 /// A trait for resource load error.
 pub trait ResourceLoadError: 'static + Debug + Display + Send + Sync {}
@@ -145,7 +140,7 @@ where
     /// type of the resource.
     pub fn data(&mut self) -> Option<&mut T> {
         if let ResourceState::Ok { ref mut data, .. } = self.guard.state {
-            (&mut **data as &mut dyn Any).downcast_mut::<T>()
+            (data.inner_mut() as &mut dyn Any).downcast_mut::<T>()
         } else {
             None
         }
@@ -156,7 +151,7 @@ where
     /// type of the resource.
     pub fn data_ref(&self) -> Option<&T> {
         if let ResourceState::Ok { ref data, .. } = self.guard.state {
-            (&**data as &dyn Any).downcast_ref::<T>()
+            (data.inner_ref() as &dyn Any).downcast_ref::<T>()
         } else {
             None
         }
@@ -168,7 +163,7 @@ where
     pub fn data_ref_with_id(&self) -> Option<(&T, &Uuid)> {
         let uuid = &self.guard.uuid;
         if let ResourceState::Ok { ref data } = self.guard.state {
-            (&**data as &dyn Any)
+            (data.inner_ref() as &dyn Any)
                 .downcast_ref::<T>()
                 .map(|typed| (typed, uuid))
         } else {
@@ -189,13 +184,14 @@ where
     from = "UntypedResource",
     into = "UntypedResource"
 )]
-pub struct Resource<T: Debug> {
+#[reflect(type_uuid = "790b1a1c-a997-46c4-ac3b-8565501f0052")]
+pub struct Resource<T: Reflect + Debug> {
     untyped: UntypedResource,
     #[reflect(hidden)]
     phantom: PhantomData<T>,
 }
 
-impl<T: Debug> Debug for Resource<T> {
+impl<T: Reflect> Debug for Resource<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -218,22 +214,16 @@ impl AsRef<UntypedResource> for UntypedResource {
     }
 }
 
-impl<T: TypedResourceData> TypeUuidProvider for Resource<T> {
-    fn type_uuid() -> Uuid {
-        combine_uuids(
-            uuid!("790b1a1c-a997-46c4-ac3b-8565501f0052"),
-            <T as TypeUuidProvider>::type_uuid(),
-        )
-    }
-}
-
 impl<T> Visit for Resource<T>
 where
     T: TypedResourceData,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.untyped
-            .visit_with_type_uuid(name, Some(<T as TypeUuidProvider>::type_uuid()), visitor)
+        self.untyped.visit_with_type_uuid(
+            name,
+            Some(<T as Reflect>::type_info().type_uuid),
+            visitor,
+        )
     }
 }
 
@@ -414,7 +404,7 @@ where
     }
 }
 
-impl<T: Debug> Clone for Resource<T> {
+impl<T: Reflect> Clone for Resource<T> {
     #[inline]
     fn clone(&self) -> Self {
         Self {
@@ -440,7 +430,7 @@ where
     #[inline]
     fn from(untyped: UntypedResource) -> Self {
         if let Some(type_uuid) = untyped.type_uuid() {
-            let expected = <T as TypeUuidProvider>::type_uuid();
+            let expected = <T as Reflect>::type_info().type_uuid;
             if type_uuid != expected {
                 panic!("Resource type mismatch. Expected: {expected}. Found: {type_uuid}");
             }
@@ -493,7 +483,7 @@ where
     #[inline]
     pub fn as_loaded_ref(&self) -> Option<&T> {
         match self.guard.state {
-            ResourceState::Ok { ref data, .. } => (&**data as &dyn Any).downcast_ref(),
+            ResourceState::Ok { ref data, .. } => (data.inner_ref() as &dyn Any).downcast_ref(),
             _ => None,
         }
     }
@@ -501,7 +491,9 @@ where
     #[inline]
     pub fn as_loaded_mut(&mut self) -> Option<&mut T> {
         match self.guard.state {
-            ResourceState::Ok { ref mut data, .. } => (&mut **data as &mut dyn Any).downcast_mut(),
+            ResourceState::Ok { ref mut data, .. } => {
+                (data.inner_mut() as &mut dyn Any).downcast_mut()
+            }
             _ => None,
         }
     }
@@ -567,7 +559,7 @@ where
                 };
                 panic!("Attempt to get reference to resource data which failed to load! Type {}. Path: {path}. Error: {error:?}", std::any::type_name::<T>())
             }
-            ResourceState::Ok { ref data } => (&**data as &dyn Any)
+            ResourceState::Ok { ref data } => (data.inner_ref() as &dyn Any)
                 .downcast_ref()
                 .expect("Type mismatch!"),
         }
@@ -590,7 +582,7 @@ where
             ResourceState::LoadError { .. } => {
                 panic!("Attempt to get reference to resource data which failed to load!")
             }
-            ResourceState::Ok { ref mut data, .. } => (&mut **data as &mut dyn Any)
+            ResourceState::Ok { ref mut data, .. } => (data.inner_mut() as &mut dyn Any)
                 .downcast_mut()
                 .expect("Type mismatch!"),
         }
@@ -697,8 +689,7 @@ mod tests {
     };
     use fyrox_core::{
         append_extension, futures::executor::block_on, io::FileError, parking_lot::Mutex,
-        reflect::prelude::*, task::TaskPool, uuid, visitor::prelude::*, SafeLock, TypeUuidProvider,
-        Uuid,
+        reflect::prelude::*, task::TaskPool, visitor::prelude::*, SafeLock,
     };
     use ron::ser::PrettyConfig;
     use serde::{Deserialize, Serialize};
@@ -711,8 +702,8 @@ mod tests {
         sync::Arc,
     };
 
-    #[derive(Serialize, Deserialize, Default, Debug, Clone, Visit, Reflect, TypeUuidProvider)]
-    #[type_uuid(id = "241d14c7-079e-4395-a63c-364f0fc3e6ea")]
+    #[derive(Serialize, Deserialize, Default, Debug, Clone, Visit, Reflect)]
+    #[reflect(type_uuid = "241d14c7-079e-4395-a63c-364f0fc3e6ea")]
     struct MyData {
         data: u32,
     }
@@ -733,10 +724,6 @@ mod tests {
     }
 
     impl ResourceData for MyData {
-        fn type_uuid(&self) -> Uuid {
-            <Self as TypeUuidProvider>::type_uuid()
-        }
-
         fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
             let string = ron::ser::to_string_pretty(self, PrettyConfig::default())
                 .map_err(|err| {
@@ -773,7 +760,7 @@ mod tests {
         }
 
         fn data_type_uuid(&self) -> Uuid {
-            <MyData as TypeUuidProvider>::type_uuid()
+            <MyData as Reflect>::type_info().type_uuid
         }
 
         fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {

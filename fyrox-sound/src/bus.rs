@@ -102,6 +102,7 @@ impl PingPongBuffer {
 /// to some other audio bus and be processed again, but with different sound effects (this can be done via
 /// [`AudioBusGraph`].
 #[derive(Debug, Reflect, Visit, Clone)]
+#[reflect(type_uuid = "de4c1709-c9ac-4823-8f77-22199bb53645")]
 pub struct AudioBus {
     pub(crate) name: String,
     effects: Vec<Effect>,
@@ -309,6 +310,7 @@ impl AudioBus {
 ///
 /// If you delete an audio bus to which a bunch of sound sources is bound, then they will simply stop playing.
 #[derive(Default, Debug, Clone, Visit, Reflect)]
+#[reflect(type_uuid = "417d2cff-e699-4396-bd90-a57b5564372a")]
 pub struct AudioBusGraph {
     buses: Pool<AudioBus>,
     root: Handle<AudioBus>,

@@ -28,7 +28,7 @@ use crate::{
     color::draw_checker_board,
     core::{
         algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
-        type_traits::prelude::*, variable::InheritableVariable, visitor::prelude::*,
+        variable::InheritableVariable, visitor::prelude::*,
     },
     draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
@@ -157,8 +157,8 @@ impl MessageData for ImageMessage {}
 /// It is useful if you have many custom UI elements packed in a single texture atlas. Drawing using atlases is much more
 /// efficient and faster. This could also be used for animations when you have multiple frames packed in a single atlas
 /// and changing texture coordinates over time.
-#[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider)]
-#[type_uuid(id = "18e18d0f-cb84-4ac1-8050-3480a2ec3de5")]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[reflect(type_uuid = "18e18d0f-cb84-4ac1-8050-3480a2ec3de5")]
 #[visit(optional)]
 #[reflect(derived_type = "UiNode")]
 pub struct Image {
