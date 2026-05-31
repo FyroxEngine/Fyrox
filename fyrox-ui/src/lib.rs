@@ -3534,7 +3534,6 @@ impl PrefabData for UserInterface {
 
 impl SceneGraph for UserInterface {
     type Prefab = Self;
-    type NodeContainer = WidgetContainer;
     type Node = UiNode;
 
     fn summary(&self) -> String {

@@ -29,7 +29,7 @@ pub mod prelude {
 }
 
 use fxhash::FxHashMap;
-use fyrox_core::pool::{ObjectOrVariant, PayloadContainer, PoolError};
+use fyrox_core::pool::{ObjectOrVariant, PoolError};
 use fyrox_core::reflect::ReflectHandle;
 use fyrox_core::uuid::Uuid;
 use fyrox_core::{
@@ -650,7 +650,6 @@ impl<N> Default for LinkScheme<N> {
 /// SceneGraph is a trait for all scene graphs to implement.
 pub trait SceneGraph: 'static {
     type Prefab: PrefabData<Graph = Self>;
-    type NodeContainer: PayloadContainer<Element = Self::Node>;
     type Node: SceneGraphNode<SceneGraph = Self, ResourceData = Self::Prefab>;
 
     /// Generate a string that briefly summarizes the content of the graph for debugging.
@@ -1858,7 +1857,6 @@ mod test {
 
     impl SceneGraph for Graph {
         type Prefab = Graph;
-        type NodeContainer = NodeContainer;
         type Node = Node;
 
         fn summary(&self) -> String {

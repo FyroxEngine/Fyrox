@@ -2010,7 +2010,6 @@ impl Visit for Graph {
 
 impl SceneGraph for Graph {
     type Prefab = Model;
-    type NodeContainer = NodeContainer;
     type Node = Node;
 
     /// Create a brief debug summary of the contents of this graph.
