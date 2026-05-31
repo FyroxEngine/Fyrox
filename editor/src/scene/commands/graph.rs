@@ -25,7 +25,7 @@ use crate::{
             algebra::{UnitQuaternion, Vector3},
             pool::{Handle, Ticket},
         },
-        graph::{LinkScheme, SceneGraph, SceneGraphNode},
+        graph::{LinkScheme, NodeWrapper, SceneGraph},
         scene::{
             base::Base,
             graph::{Graph, SubGraph},

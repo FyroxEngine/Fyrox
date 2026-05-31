@@ -54,7 +54,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_core::{ok_or_continue, warn};
-use fyrox_graph::SceneGraphNode;
+use fyrox_graph::NodeWrapper;
 use fyrox_material::Material;
 use fyrox_resource::ResourceData;
 use lightmap::light::{

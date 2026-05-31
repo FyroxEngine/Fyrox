@@ -58,7 +58,7 @@ use crate::{
     },
     engine::SerializationContext,
     generic_animation::AnimationContainer,
-    graph::{NodeHandleMap, NodeMapping, PrefabData, SceneGraph, SceneGraphNode},
+    graph::{NodeHandleMap, NodeMapping, NodeWrapper, PrefabData, SceneGraph},
     resource::fbx::{self, error::FbxError},
     scene::{
         animation::Animation, base::SceneNodeId, graph::Graph, node::Node, transform::Transform,
@@ -198,9 +198,9 @@ pub trait AnimationSource {
     /// Prefab type.
     type Prefab: PrefabData<Graph = Self::SceneGraph>;
     /// Scene graph type.
-    type SceneGraph: SceneGraph<Node = Self::Node, Prefab = Self::Prefab>;
+    type SceneGraph: SceneGraph<NodeWrapper = Self::Node, Prefab = Self::Prefab>;
     /// Scene node type.
-    type Node: SceneGraphNode<SceneGraph = Self::SceneGraph, ResourceData = Self::Prefab>;
+    type Node: NodeWrapper<SceneGraph = Self::SceneGraph, ResourceData = Self::Prefab>;
 
     /// Returns a reference to an inner graph.
     fn inner_graph(&self) -> &Self::SceneGraph;

@@ -38,7 +38,7 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
         NameProvider,
     },
-    graph::SceneGraphNode,
+    graph::NodeWrapper,
     renderer::bundle::RenderContext,
     resource::model::{Model, ModelResource},
     scene::{
@@ -374,7 +374,7 @@ impl Clone for Node {
     }
 }
 
-impl SceneGraphNode for Node {
+impl NodeWrapper for Node {
     type Base = Base;
     type SceneGraph = Graph;
     type ResourceData = Model;

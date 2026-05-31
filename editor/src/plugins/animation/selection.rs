@@ -30,7 +30,7 @@ use crate::{
         },
         engine::Engine,
         generic_animation::{Animation, AnimationContainer},
-        graph::{SceneGraph, SceneGraphNode},
+        graph::{NodeWrapper, SceneGraph},
         gui::inspector::PropertyChanged,
         scene::SceneContainer,
     },

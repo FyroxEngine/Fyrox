@@ -24,7 +24,7 @@ use crate::{
         asset::manager::ResourceManager,
         core::{futures::executor::block_on, log::Log, pool::ErasedHandle, pool::Handle},
         generic_animation::{Animation, AnimationContainer, RootMotionSettings},
-        graph::{PrefabData, SceneGraph, SceneGraphNode},
+        graph::{NodeWrapper, PrefabData, SceneGraph},
         gui::{
             border::BorderBuilder,
             button::{Button, ButtonBuilder, ButtonMessage},
@@ -218,8 +218,8 @@ impl RootMotionDropdownArea {
         root: Handle<N>,
         selection: &AnimationSelection<N>,
     ) where
-        G: SceneGraph<Node = N>,
-        N: SceneGraphNode<SceneGraph = G>,
+        G: SceneGraph<NodeWrapper = N>,
+        N: NodeWrapper<SceneGraph = G>,
     {
         let send_command = |settings: Option<RootMotionSettings<Handle<N>>>| {
             sender.do_command(SetAnimationRootMotionSettingsCommand {
@@ -346,8 +346,8 @@ impl RootMotionDropdownArea {
         graph: &G,
         ui: &mut UserInterface,
     ) where
-        G: SceneGraph<Node = N>,
-        N: SceneGraphNode,
+        G: SceneGraph<NodeWrapper = N>,
+        N: NodeWrapper,
     {
         fn sync_checked(ui: &UserInterface, check_box: Handle<CheckBox>, checked: bool) {
             ui.send_sync(check_box, CheckBoxMessage::Check(Some(checked)));
@@ -736,8 +736,8 @@ impl Toolbar {
         selection: &AnimationSelection<N>,
     ) -> ToolbarAction
     where
-        G: SceneGraph<Node = N>,
-        N: SceneGraphNode<SceneGraph = G>,
+        G: SceneGraph<NodeWrapper = N>,
+        N: NodeWrapper<SceneGraph = G>,
     {
         if let Ok(animation) = animations.try_get(selection.animation) {
             self.root_motion_dropdown_area
@@ -915,8 +915,8 @@ impl Toolbar {
         resource_manager: &ResourceManager,
     ) where
         P: PrefabData<Graph = G> + AnimationSource<Node = N, SceneGraph = G, Prefab = P>,
-        G: SceneGraph<Node = N, Prefab = P>,
-        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        G: SceneGraph<NodeWrapper = N, Prefab = P>,
+        N: NodeWrapper<SceneGraph = G, ResourceData = P>,
     {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.import || message.destination() == self.reimport {
@@ -1065,8 +1065,8 @@ impl Toolbar {
         ui: &mut UserInterface,
         in_preview_mode: bool,
     ) where
-        G: SceneGraph<Node = N>,
-        N: SceneGraphNode,
+        G: SceneGraph<NodeWrapper = N>,
+        N: NodeWrapper,
     {
         let new_items = animations
             .pair_iter()

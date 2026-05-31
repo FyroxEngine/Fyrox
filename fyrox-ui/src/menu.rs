@@ -50,7 +50,7 @@ use crate::{
 use fyrox_core::pool::{HandlesVecExtension, ObjectOrVariant};
 use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
-    SceneGraph, SceneGraphNode,
+    NodeWrapper, SceneGraph,
 };
 use std::{
     cmp::Ordering,

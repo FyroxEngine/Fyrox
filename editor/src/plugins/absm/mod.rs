@@ -35,7 +35,7 @@ use crate::{
             },
             AnimationContainer,
         },
-        graph::{PrefabData, SceneGraph, SceneGraphNode},
+        graph::{NodeWrapper, PrefabData, SceneGraph},
         gui::{
             check_box::CheckBoxMessage,
             dock::{
@@ -141,8 +141,8 @@ where
 
 fn machine_container<G, N>(graph: &mut G, absm_handle: Handle<N>) -> Option<&mut Machine<Handle<N>>>
 where
-    G: SceneGraph<Node = N>,
-    N: SceneGraphNode<SceneGraph = G>,
+    G: SceneGraph<NodeWrapper = N>,
+    N: NodeWrapper<SceneGraph = G>,
 {
     graph
         .try_get_node_mut(absm_handle)
@@ -159,8 +159,8 @@ fn animation_container<G, N, AnimationPlayer>(
     absm_handle: Handle<N>,
 ) -> Option<(Handle<AnimationPlayer>, &mut AnimationContainer<Handle<N>>)>
 where
-    G: SceneGraph<Node = N>,
-    N: SceneGraphNode<SceneGraph = G>,
+    G: SceneGraph<NodeWrapper = N>,
+    N: NodeWrapper<SceneGraph = G>,
     AnimationPlayer: Reflect,
     PhantomData<AnimationPlayer>: ObjectOrVariantHelper<N, AnimationPlayer>,
 {
@@ -180,8 +180,8 @@ where
 
 fn machine_container_ref<G, N>(graph: &G, absm_handle: Handle<N>) -> Option<&Machine<Handle<N>>>
 where
-    G: SceneGraph<Node = N>,
-    N: SceneGraphNode<SceneGraph = G>,
+    G: SceneGraph<NodeWrapper = N>,
+    N: NodeWrapper<SceneGraph = G>,
 {
     graph
         .try_get_node(absm_handle)
@@ -198,8 +198,8 @@ pub fn animation_container_ref<G, N, AnimationPlayer>(
     absm_handle: Handle<N>,
 ) -> Option<(Handle<AnimationPlayer>, &AnimationContainer<Handle<N>>)>
 where
-    G: SceneGraph<Node = N>,
-    N: SceneGraphNode<SceneGraph = G>,
+    G: SceneGraph<NodeWrapper = N>,
+    N: NodeWrapper<SceneGraph = G>,
     AnimationPlayer: Reflect,
     PhantomData<AnimationPlayer>: ObjectOrVariantHelper<N, AnimationPlayer>,
 {
@@ -320,8 +320,8 @@ impl AbsmEditor {
         node_overrides: &mut FxHashSet<Handle<N>>,
     ) where
         P: PrefabData<Graph = G>,
-        G: SceneGraph<Node = N, Prefab = P>,
-        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        G: SceneGraph<NodeWrapper = N, Prefab = P>,
+        N: NodeWrapper<SceneGraph = G, ResourceData = P>,
     {
         assert!(self.preview_mode_data.is_none());
 
@@ -350,8 +350,8 @@ impl AbsmEditor {
         node_overrides: &mut FxHashSet<Handle<N>>,
     ) where
         P: PrefabData<Graph = G>,
-        G: SceneGraph<Node = N, Prefab = P>,
-        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        G: SceneGraph<NodeWrapper = N, Prefab = P>,
+        N: NodeWrapper<SceneGraph = G, ResourceData = P>,
     {
         ui.send(self.toolbar.preview, CheckBoxMessage::Check(Some(false)));
 
@@ -383,8 +383,8 @@ impl AbsmEditor {
         node_overrides: &mut FxHashSet<Handle<N>>,
     ) where
         P: PrefabData<Graph = G>,
-        G: SceneGraph<Node = N, Prefab = P>,
-        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        G: SceneGraph<NodeWrapper = N, Prefab = P>,
+        N: NodeWrapper<SceneGraph = G, ResourceData = P>,
         AnimationPlayer: Reflect,
         PhantomData<AnimationPlayer>: ObjectOrVariantHelper<N, AnimationPlayer>,
     {
@@ -417,8 +417,8 @@ impl AbsmEditor {
         node_overrides: &mut FxHashSet<Handle<N>>,
     ) where
         P: PrefabData<Graph = G>,
-        G: SceneGraph<Node = N, Prefab = P>,
-        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        G: SceneGraph<NodeWrapper = N, Prefab = P>,
+        N: NodeWrapper<SceneGraph = G, ResourceData = P>,
     {
         // Leave preview mode before execution of any scene command.
         if let Message::DoCommand(_)
@@ -445,8 +445,8 @@ impl AbsmEditor {
         ui: &mut UserInterface,
     ) where
         P: PrefabData<Graph = G>,
-        G: SceneGraph<Node = N, Prefab = P>,
-        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        G: SceneGraph<NodeWrapper = N, Prefab = P>,
+        N: NodeWrapper<SceneGraph = G, ResourceData = P>,
         AnimationPlayer: Reflect,
         PhantomData<AnimationPlayer>: ObjectOrVariantHelper<N, AnimationPlayer>,
     {
@@ -532,8 +532,8 @@ impl AbsmEditor {
         ui: &mut UserInterface,
     ) where
         P: PrefabData<Graph = G>,
-        G: SceneGraph<Node = N, Prefab = P>,
-        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        G: SceneGraph<NodeWrapper = N, Prefab = P>,
+        N: NodeWrapper<SceneGraph = G, ResourceData = P>,
     {
         self.handle_machine_events(editor_selection, graph, ui);
     }
@@ -545,8 +545,8 @@ impl AbsmEditor {
         ui: &mut UserInterface,
     ) where
         P: PrefabData<Graph = G>,
-        G: SceneGraph<Node = N, Prefab = P>,
-        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        G: SceneGraph<NodeWrapper = N, Prefab = P>,
+        N: NodeWrapper<SceneGraph = G, ResourceData = P>,
     {
         let selection = fetch_selection(editor_selection);
 
@@ -579,8 +579,8 @@ impl AbsmEditor {
         node_overrides: &mut FxHashSet<Handle<N>>,
     ) where
         P: PrefabData<Graph = G>,
-        G: SceneGraph<Node = N, Prefab = P>,
-        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        G: SceneGraph<NodeWrapper = N, Prefab = P>,
+        N: NodeWrapper<SceneGraph = G, ResourceData = P>,
         AnimationPlayer: Reflect,
         PhantomData<AnimationPlayer>: ObjectOrVariantHelper<N, AnimationPlayer>,
     {

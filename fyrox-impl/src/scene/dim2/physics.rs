@@ -38,7 +38,7 @@ use crate::{
         visitor::prelude::*,
         BiDirHashMap, ImmutableString, SafeLock,
     },
-    graph::{SceneGraph, SceneGraphNode},
+    graph::{NodeWrapper, SceneGraph},
     scene::{
         self,
         collider::{self},

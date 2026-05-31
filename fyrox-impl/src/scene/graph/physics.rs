@@ -78,7 +78,7 @@ use std::{
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
-use fyrox_graph::{SceneGraph, SceneGraphNode};
+use fyrox_graph::{NodeWrapper, SceneGraph};
 pub use rapier3d::geometry::shape::*;
 use rapier3d::math::{Pose3, Vec3};
 use rapier3d::parry::query::DefaultQueryDispatcher;

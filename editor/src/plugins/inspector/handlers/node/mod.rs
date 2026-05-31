@@ -22,7 +22,7 @@ use crate::{
     command::make_command,
     fyrox::{
         core::pool::Handle,
-        graph::{SceneGraph, SceneGraphNode},
+        graph::{NodeWrapper, SceneGraph},
         gui::inspector::{CollectionAction, FieldAction, PropertyChanged},
         scene::{node::Node, terrain::Terrain},
     },

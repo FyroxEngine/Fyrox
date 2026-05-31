@@ -24,7 +24,7 @@ use crate::{
         core::{color::Color, pool::Handle, pool::ObjectOrVariantHelper, reflect::Reflect},
         fxhash::FxHashSet,
         generic_animation::machine::{mask::LayerMask, Machine, MachineLayer},
-        graph::{PrefabData, SceneGraph, SceneGraphNode},
+        graph::{NodeWrapper, PrefabData, SceneGraph},
         gui::{
             button::{Button, ButtonMessage},
             dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
@@ -167,8 +167,8 @@ impl Toolbar {
     ) -> ToolbarAction
     where
         P: PrefabData<Graph = G>,
-        G: SceneGraph<Node = N, Prefab = P>,
-        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        G: SceneGraph<NodeWrapper = N, Prefab = P>,
+        N: NodeWrapper<SceneGraph = G, ResourceData = P>,
         AnimationPlayer: Reflect,
         PhantomData<AnimationPlayer>: ObjectOrVariantHelper<N, AnimationPlayer>,
     {
@@ -376,8 +376,8 @@ impl Toolbar {
         selection: &AbsmSelection<N>,
     ) where
         P: PrefabData<Graph = G>,
-        G: SceneGraph<Node = N, Prefab = P>,
-        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        G: SceneGraph<NodeWrapper = N, Prefab = P>,
+        N: NodeWrapper<SceneGraph = G, ResourceData = P>,
     {
         let layers = machine
             .layers()

@@ -25,7 +25,7 @@ use crate::{
             visitor::prelude::*,
         },
         fxhash::FxHashSet,
-        graph::{SceneGraph, SceneGraphNode},
+        graph::{NodeWrapper, SceneGraph},
         gui::{
             border::BorderBuilder,
             button::{ButtonBuilder, ButtonMessage},
@@ -76,8 +76,8 @@ pub struct HierarchyNode {
 impl HierarchyNode {
     pub fn from_scene_node<G, N>(node_handle: Handle<N>, ignored_node: Handle<N>, graph: &G) -> Self
     where
-        G: SceneGraph<Node = N>,
-        N: SceneGraphNode<SceneGraph = G>,
+        G: SceneGraph<NodeWrapper = N>,
+        N: NodeWrapper<SceneGraph = G>,
     {
         let node = graph.node(node_handle);
 

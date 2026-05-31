@@ -446,15 +446,24 @@ fn reset_property_modified_flag(entity: &mut dyn Reflect, path: &str) {
     })
 }
 
-pub trait SceneGraphNode: Reflect + NameProvider + Clone {
+pub trait NodeWrapper: Reflect + NameProvider + Clone {
     type Base: Clone;
-    type SceneGraph: SceneGraph<Node = Self>;
+    type SceneGraph: SceneGraph<NodeWrapper = Self>;
     type ResourceData: PrefabData<Graph = Self::SceneGraph>;
 
+    /// Returns a shared reference to the instance of the actual node type of this wrapper.
     fn inner_ref(&self) -> &dyn Reflect;
+
+    /// Returns a mutable reference to the instance of the actual node type of this wrapper.
     fn inner_mut(&mut self) -> &mut dyn Reflect;
+
+    /// Returns a shared reference to the common part of all nodes. Typically, it is a structure
+    /// that contains node's transform, name, etc.
     fn base(&self) -> &Self::Base;
+
+    /// Set the base of this node.
     fn set_base(&mut self, base: Self::Base);
+
     fn is_resource_instance_root(&self) -> bool;
     fn original_handle_in_resource(&self) -> Handle<Self>;
     fn set_original_handle_in_resource(&mut self, handle: Handle<Self>);
@@ -650,110 +659,120 @@ impl<N> Default for LinkScheme<N> {
 /// SceneGraph is a trait for all scene graphs to implement.
 pub trait SceneGraph: 'static {
     type Prefab: PrefabData<Graph = Self>;
-    type Node: SceneGraphNode<SceneGraph = Self, ResourceData = Self::Prefab>;
+    type NodeWrapper: NodeWrapper<SceneGraph = Self, ResourceData = Self::Prefab>;
 
     /// Generate a string that briefly summarizes the content of the graph for debugging.
     fn summary(&self) -> String;
 
     /// Returns actual type id of the node.
-    fn actual_type_id(&self, handle: Handle<Self::Node>) -> Result<TypeId, PoolError>;
+    fn actual_type_id(&self, handle: Handle<Self::NodeWrapper>) -> Result<TypeId, PoolError>;
 
     /// Returns actual type name of the node.
-    fn actual_type_name(&self, handle: Handle<Self::Node>) -> Result<&'static str, PoolError>;
+    fn actual_type_name(
+        &self,
+        handle: Handle<Self::NodeWrapper>,
+    ) -> Result<&'static str, PoolError>;
 
     /// Returns a list of derived type ids of the node.
-    fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Result<Vec<TypeId>, PoolError>;
+    fn derived_type_ids(&self, handle: Handle<Self::NodeWrapper>)
+        -> Result<Vec<TypeId>, PoolError>;
 
     /// Returns a handle of the root node of the graph.
-    fn root(&self) -> Handle<Self::Node>;
+    fn root(&self) -> Handle<Self::NodeWrapper>;
 
     /// Sets the new root of the graph. If used incorrectly, it may create isolated sub-graphs.
-    fn set_root(&mut self, root: Handle<Self::Node>);
+    fn set_root(&mut self, root: Handle<Self::NodeWrapper>);
 
     /// Tries to borrow a node, returns Ok(node) if the handle is valid, Err(...) - otherwise.
-    fn try_get_node(&self, handle: Handle<Self::Node>) -> Result<&Self::Node, PoolError>;
+    fn try_get_node(
+        &self,
+        handle: Handle<Self::NodeWrapper>,
+    ) -> Result<&Self::NodeWrapper, PoolError>;
 
     /// Tries to borrow a node, returns Ok(node) if the handle is valid, Err(...) - otherwise.
     fn try_get_node_mut(
         &mut self,
-        handle: Handle<Self::Node>,
-    ) -> Result<&mut Self::Node, PoolError>;
+        handle: Handle<Self::NodeWrapper>,
+    ) -> Result<&mut Self::NodeWrapper, PoolError>;
 
     /// Checks whether the given node handle is valid or not.
-    fn is_valid_handle(&self, handle: Handle<impl ObjectOrVariant<Self::Node>>) -> bool;
+    fn is_valid_handle(&self, handle: Handle<impl ObjectOrVariant<Self::NodeWrapper>>) -> bool;
 
     /// Adds a new node to the graph.
-    fn add_node(&mut self, node: Self::Node) -> Handle<Self::Node>;
+    fn add_node(&mut self, node: Self::NodeWrapper) -> Handle<Self::NodeWrapper>;
 
     /// Adds a new node to the graph at the given handle.
-    fn add_node_at_handle(&mut self, node: Self::Node, handle: Handle<Self::Node>);
+    fn add_node_at_handle(&mut self, node: Self::NodeWrapper, handle: Handle<Self::NodeWrapper>);
 
     /// Destroys the node and its children recursively.
-    fn remove_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>);
+    fn remove_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::NodeWrapper>>);
 
     /// Links specified child with specified parent.
     fn link_nodes(
         &mut self,
-        child: Handle<impl ObjectOrVariant<Self::Node>>,
-        parent: Handle<impl ObjectOrVariant<Self::Node>>,
+        child: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
+        parent: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
     );
 
     /// Unlinks specified node from its parent and attaches it to root graph node.
-    fn unlink_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>);
+    fn unlink_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::NodeWrapper>>);
 
     /// Detaches the node from its parent, making the node unreachable from any other node in the
     /// graph.
-    fn isolate_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>);
+    fn isolate_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::NodeWrapper>>);
 
     /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
-    fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)>;
+    fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::NodeWrapper>, &Self::NodeWrapper)>;
 
     /// Creates an iterator that has linear iteration order over internal collection
     /// of nodes. It does *not* perform any tree traversal!
-    fn linear_iter(&self) -> impl Iterator<Item = &Self::Node>;
+    fn linear_iter(&self) -> impl Iterator<Item = &Self::NodeWrapper>;
 
     /// Creates an iterator that has linear iteration order over internal collection
     /// of nodes. It does *not* perform any tree traversal!
-    fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node>;
+    fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::NodeWrapper>;
 
     /// Tries to borrow a graph node by the given handle. This method accepts both type-agnostic
-    /// container (read - [`Self::Node`]) handles and the actual node type handles. For example,
+    /// container (read - [`Self::NodeWrapper`]) handles and the actual node type handles. For example,
     /// if the container type is `Node` (holds `Box<dyn NodeTrait>`) and there's a `SpecificNode`
     /// (implements the `NodeTrait`), then this method can accept both `Handle<Node>` and
     /// `Handle<SpecificNode>`. Internally, this method will try to downcast the container to
     /// the specified type (which may fail). If the downcast is failed, then the implementation will
     /// also search for the field of the specified type in the node.
-    fn try_get<U: ObjectOrVariant<Self::Node>>(&self, handle: Handle<U>) -> Result<&U, PoolError>;
+    fn try_get<U: ObjectOrVariant<Self::NodeWrapper>>(
+        &self,
+        handle: Handle<U>,
+    ) -> Result<&U, PoolError>;
 
     /// Tries to borrow a graph node by the given handle. This method accepts both type-agnostic
-    /// container (read - [`Self::Node`]) handles and the actual node type handles. For example,
+    /// container (read - [`Self::NodeWrapper`]) handles and the actual node type handles. For example,
     /// if the container type is `Node` (holds `Box<dyn NodeTrait>`) and there's a `SpecificNode`
     /// (implements the `NodeTrait`), then this method can accept both `Handle<Node>` and
     /// `Handle<SpecificNode>`. Internally, this method will try to downcast the container to
     /// the specified type (which may fail). If the downcast is failed, then the implementation will
     /// also search for the field of the specified type in the node.
-    fn try_get_mut<U: ObjectOrVariant<Self::Node>>(
+    fn try_get_mut<U: ObjectOrVariant<Self::NodeWrapper>>(
         &mut self,
         handle: Handle<U>,
     ) -> Result<&mut U, PoolError>;
 
     /// Borrows a node by its handle.
-    fn node(&self, handle: Handle<Self::Node>) -> &Self::Node {
+    fn node(&self, handle: Handle<Self::NodeWrapper>) -> &Self::NodeWrapper {
         self.try_get_node(handle).unwrap()
     }
 
     /// Borrows a node by its handle.
-    fn node_mut(&mut self, handle: Handle<Self::Node>) -> &mut Self::Node {
+    fn node_mut(&mut self, handle: Handle<Self::NodeWrapper>) -> &mut Self::NodeWrapper {
         self.try_get_node_mut(handle).unwrap()
     }
 
     /// Tries to borrow a node, returns Some(node) if the uuid is valid, None - otherwise.
-    fn try_get_node_by_uuid(&self, uuid: Uuid) -> Option<&Self::Node> {
+    fn try_get_node_by_uuid(&self, uuid: Uuid) -> Option<&Self::NodeWrapper> {
         self.linear_iter().find(|n| n.instance_id() == uuid)
     }
 
     /// Tries to borrow a node, returns Some(node) if the uuid is valid, None - otherwise.
-    fn try_get_node_by_uuid_mut(&mut self, uuid: Uuid) -> Option<&mut Self::Node> {
+    fn try_get_node_by_uuid_mut(&mut self, uuid: Uuid) -> Option<&mut Self::NodeWrapper> {
         self.linear_iter_mut().find(|n| n.instance_id() == uuid)
     }
 
@@ -785,9 +804,9 @@ pub trait SceneGraph: 'static {
     #[allow(clippy::unnecessary_to_owned)] // False-positive
     fn change_hierarchy_root(
         &mut self,
-        prev_root: Handle<impl ObjectOrVariant<Self::Node>>,
-        new_root: Handle<impl ObjectOrVariant<Self::Node>>,
-    ) -> LinkScheme<Self::Node> {
+        prev_root: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
+        new_root: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
+    ) -> LinkScheme<Self::NodeWrapper> {
         let prev_root = prev_root.to_base();
         let new_root = new_root.to_base();
 
@@ -825,7 +844,7 @@ pub trait SceneGraph: 'static {
     /// Applies the given link scheme to the graph, basically reverting graph structure to the one
     /// that was before the call of [`Self::change_hierarchy_root`].
     #[inline]
-    fn apply_link_scheme(&mut self, mut scheme: LinkScheme<Self::Node>) {
+    fn apply_link_scheme(&mut self, mut scheme: LinkScheme<Self::NodeWrapper>) {
         for (child, parent) in scheme.links.drain(..) {
             if parent.is_some() {
                 self.link_nodes(child, parent);
@@ -840,7 +859,7 @@ pub trait SceneGraph: 'static {
 
     /// Removes all the nodes from the given slice.
     #[inline]
-    fn remove_nodes(&mut self, nodes: &[Handle<impl ObjectOrVariant<Self::Node>>]) {
+    fn remove_nodes(&mut self, nodes: &[Handle<impl ObjectOrVariant<Self::NodeWrapper>>]) {
         for &node in nodes {
             if self.is_valid_handle(node) {
                 self.remove_node(node)
@@ -851,7 +870,7 @@ pub trait SceneGraph: 'static {
     /// Tries to borrow a node at the given handle and downcast it to the specified type. If downcasting
     /// it is not possible, tries to find a field of the specified type.
     #[inline]
-    fn try_get_of_type<T>(&self, handle: Handle<Self::Node>) -> Result<&T, PoolError>
+    fn try_get_of_type<T>(&self, handle: Handle<Self::NodeWrapper>) -> Result<&T, PoolError>
     where
         T: Reflect,
     {
@@ -865,7 +884,10 @@ pub trait SceneGraph: 'static {
     /// Tries to mutably borrow a node at the given handle and downcast it to the specified type. If downcasting
     /// it is not possible, tries to find a field of the specified type.
     #[inline]
-    fn try_get_mut_of_type<T>(&mut self, handle: Handle<Self::Node>) -> Result<&mut T, PoolError>
+    fn try_get_mut_of_type<T>(
+        &mut self,
+        handle: Handle<Self::NodeWrapper>,
+    ) -> Result<&mut T, PoolError>
     where
         T: Reflect,
     {
@@ -880,7 +902,7 @@ pub trait SceneGraph: 'static {
     /// to the specified type. If the downcasting is not possible, this method tries to find a field
     /// of the given type.
     #[inline]
-    fn is_or_has_field<T>(&self, handle: Handle<impl ObjectOrVariant<Self::Node>>) -> bool
+    fn is_or_has_field<T>(&self, handle: Handle<impl ObjectOrVariant<Self::NodeWrapper>>) -> bool
     where
         T: Reflect,
     {
@@ -892,11 +914,11 @@ pub trait SceneGraph: 'static {
     #[inline]
     fn find_map<C, T>(
         &self,
-        root_node: Handle<impl ObjectOrVariant<Self::Node>>,
+        root_node: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
         cmp: &mut C,
-    ) -> Option<(Handle<Self::Node>, &T)>
+    ) -> Option<(Handle<Self::NodeWrapper>, &T)>
     where
-        C: FnMut(&Self::Node) -> Option<&T>,
+        C: FnMut(&Self::NodeWrapper) -> Option<&T>,
         T: ?Sized,
     {
         let root_node = root_node.to_base();
@@ -914,11 +936,11 @@ pub trait SceneGraph: 'static {
     #[inline]
     fn find_up<C>(
         &self,
-        root_node: Handle<impl ObjectOrVariant<Self::Node>>,
+        root_node: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
         cmp: &mut C,
-    ) -> Option<(Handle<Self::Node>, &Self::Node)>
+    ) -> Option<(Handle<Self::NodeWrapper>, &Self::NodeWrapper)>
     where
-        C: FnMut(&Self::Node) -> bool,
+        C: FnMut(&Self::NodeWrapper) -> bool,
     {
         let mut handle = root_node.to_base();
         while let Ok(node) = self.try_get_node(handle) {
@@ -935,11 +957,11 @@ pub trait SceneGraph: 'static {
     #[inline]
     fn find_handle_up<C>(
         &self,
-        root_node: Handle<impl ObjectOrVariant<Self::Node>>,
+        root_node: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
         cmp: &mut C,
-    ) -> Handle<Self::Node>
+    ) -> Handle<Self::NodeWrapper>
     where
-        C: FnMut(&Self::Node) -> bool,
+        C: FnMut(&Self::NodeWrapper) -> bool,
     {
         self.find_up(root_node, cmp)
             .map(|(h, _)| h)
@@ -949,8 +971,8 @@ pub trait SceneGraph: 'static {
     #[inline]
     fn find_self_or_field_up<T>(
         &self,
-        node_handle: Handle<impl ObjectOrVariant<Self::Node>>,
-    ) -> Option<(Handle<Self::Node>, &T)>
+        node_handle: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
+    ) -> Option<(Handle<Self::NodeWrapper>, &T)>
     where
         T: Reflect,
     {
@@ -962,8 +984,8 @@ pub trait SceneGraph: 'static {
     #[inline]
     fn find_self_or_field<T>(
         &self,
-        node_handle: Handle<impl ObjectOrVariant<Self::Node>>,
-    ) -> Option<(Handle<Self::Node>, &T)>
+        node_handle: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
+    ) -> Option<(Handle<Self::NodeWrapper>, &T)>
     where
         T: Reflect,
     {
@@ -977,11 +999,11 @@ pub trait SceneGraph: 'static {
     #[inline]
     fn find_up_map<C, T>(
         &self,
-        root_node: Handle<impl ObjectOrVariant<Self::Node>>,
+        root_node: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
         cmp: &mut C,
-    ) -> Option<(Handle<Self::Node>, &T)>
+    ) -> Option<(Handle<Self::NodeWrapper>, &T)>
     where
-        C: FnMut(&Self::Node) -> Option<&T>,
+        C: FnMut(&Self::NodeWrapper) -> Option<&T>,
         T: ?Sized,
     {
         let mut handle = root_node.to_base();
@@ -999,9 +1021,9 @@ pub trait SceneGraph: 'static {
     #[inline]
     fn find_by_name(
         &self,
-        root_node: Handle<impl ObjectOrVariant<Self::Node>>,
+        root_node: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
         name: &str,
-    ) -> Option<(Handle<Self::Node>, &Self::Node)> {
+    ) -> Option<(Handle<Self::NodeWrapper>, &Self::NodeWrapper)> {
         self.find(root_node, &mut |node| node.name() == name)
     }
 
@@ -1010,21 +1032,24 @@ pub trait SceneGraph: 'static {
     #[inline]
     fn find_up_by_name(
         &self,
-        root_node: Handle<impl ObjectOrVariant<Self::Node>>,
+        root_node: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
         name: &str,
-    ) -> Option<(Handle<Self::Node>, &Self::Node)> {
+    ) -> Option<(Handle<Self::NodeWrapper>, &Self::NodeWrapper)> {
         self.find_up(root_node, &mut |node| node.name() == name)
     }
 
     /// Searches for a node with the specified name down the tree starting from the graph root. Returns a tuple with a
     /// handle and a reference to the found node. If nothing is found, it returns [`None`].
     #[inline]
-    fn find_by_name_from_root(&self, name: &str) -> Option<(Handle<Self::Node>, &Self::Node)> {
+    fn find_by_name_from_root(
+        &self,
+        name: &str,
+    ) -> Option<(Handle<Self::NodeWrapper>, &Self::NodeWrapper)> {
         self.find_by_name(self.root(), name)
     }
 
     #[inline]
-    fn find_handle_by_name_from_root(&self, name: &str) -> Handle<Self::Node> {
+    fn find_handle_by_name_from_root(&self, name: &str) -> Handle<Self::NodeWrapper> {
         self.find_by_name(self.root(), name)
             .map(|(h, _)| h)
             .unwrap_or_default()
@@ -1033,9 +1058,12 @@ pub trait SceneGraph: 'static {
     /// Searches node using specified compare closure starting from root. Returns a tuple with a handle and
     /// a reference to the found node. If nothing is found, it returns [`None`].
     #[inline]
-    fn find_from_root<C>(&self, cmp: &mut C) -> Option<(Handle<Self::Node>, &Self::Node)>
+    fn find_from_root<C>(
+        &self,
+        cmp: &mut C,
+    ) -> Option<(Handle<Self::NodeWrapper>, &Self::NodeWrapper)>
     where
-        C: FnMut(&Self::Node) -> bool,
+        C: FnMut(&Self::NodeWrapper) -> bool,
     {
         self.find(self.root(), cmp)
     }
@@ -1046,11 +1074,11 @@ pub trait SceneGraph: 'static {
     #[inline]
     fn find<C>(
         &self,
-        root_node: Handle<impl ObjectOrVariant<Self::Node>>,
+        root_node: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
         cmp: &mut C,
-    ) -> Option<(Handle<Self::Node>, &Self::Node)>
+    ) -> Option<(Handle<Self::NodeWrapper>, &Self::NodeWrapper)>
     where
-        C: FnMut(&Self::Node) -> bool,
+        C: FnMut(&Self::NodeWrapper) -> bool,
     {
         let root_node = root_node.to_base();
         self.try_get_node(root_node).ok().and_then(|root| {
@@ -1067,11 +1095,11 @@ pub trait SceneGraph: 'static {
     #[inline]
     fn find_handle<C>(
         &self,
-        root_node: Handle<impl ObjectOrVariant<Self::Node>>,
+        root_node: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
         cmp: &mut C,
-    ) -> Handle<Self::Node>
+    ) -> Handle<Self::NodeWrapper>
     where
-        C: FnMut(&Self::Node) -> bool,
+        C: FnMut(&Self::NodeWrapper) -> bool,
     {
         self.find(root_node, cmp)
             .map(|(h, _)| h)
@@ -1093,9 +1121,9 @@ pub trait SceneGraph: 'static {
     #[inline]
     fn relative_position(
         &self,
-        child: Handle<impl ObjectOrVariant<Self::Node>>,
+        child: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
         offset: isize,
-    ) -> Option<(Handle<Self::Node>, usize)> {
+    ) -> Option<(Handle<Self::NodeWrapper>, usize)> {
         let child = child.to_base();
         let parents_parent_handle = self.try_get_node(child).ok()?.parent();
         let parents_parent_ref = self.try_get_node(parents_parent_handle).ok()?;
@@ -1110,8 +1138,8 @@ pub trait SceneGraph: 'static {
     #[inline]
     fn traverse_iter(
         &self,
-        from: Handle<impl ObjectOrVariant<Self::Node>>,
-    ) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
+        from: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
+    ) -> impl Iterator<Item = (Handle<Self::NodeWrapper>, &Self::NodeWrapper)> {
         GraphTraverseIteratorRef {
             graph: self,
             start_node_handle: from.to_base(),
@@ -1125,8 +1153,8 @@ pub trait SceneGraph: 'static {
     #[inline]
     fn traverse_iter_mut(
         &mut self,
-        from: Handle<impl ObjectOrVariant<Self::Node>>,
-    ) -> impl Iterator<Item = (Handle<Self::Node>, &mut Self::Node)> {
+        from: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
+    ) -> impl Iterator<Item = (Handle<Self::NodeWrapper>, &mut Self::NodeWrapper)> {
         GraphTraverseIteratorMut {
             graph: self,
             start_node_handle: from.to_base(),
@@ -1139,8 +1167,8 @@ pub trait SceneGraph: 'static {
     #[inline]
     fn traverse_handle_iter(
         &self,
-        from: Handle<impl ObjectOrVariant<Self::Node>>,
-    ) -> impl Iterator<Item = Handle<Self::Node>> {
+        from: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
+    ) -> impl Iterator<Item = Handle<Self::NodeWrapper>> {
         self.traverse_iter(from).map(|(handle, _)| handle)
     }
 
@@ -1150,14 +1178,14 @@ pub trait SceneGraph: 'static {
     fn restore_integrity<F>(
         &mut self,
         mut instantiate: F,
-    ) -> Vec<(Handle<Self::Node>, Resource<Self::Prefab>)>
+    ) -> Vec<(Handle<Self::NodeWrapper>, Resource<Self::Prefab>)>
     where
         F: FnMut(
             Resource<Self::Prefab>,
             &Self::Prefab,
-            Handle<Self::Node>,
+            Handle<Self::NodeWrapper>,
             &mut Self,
-        ) -> (Handle<Self::Node>, NodeHandleMap<Self::Node>),
+        ) -> (Handle<Self::NodeWrapper>, NodeHandleMap<Self::NodeWrapper>),
     {
         Log::writeln(MessageKind::Information, "Checking integrity...");
 
@@ -1247,8 +1275,9 @@ pub trait SceneGraph: 'static {
 
                     // Root of the resource is not belongs to resource, it is just a convenient way of
                     // consolidation all descendants under a single node.
-                    let mut compare =
-                        |n: &Self::Node| n.original_handle_in_resource() == resource_node_handle;
+                    let mut compare = |n: &Self::NodeWrapper| {
+                        n.original_handle_in_resource() == resource_node_handle
+                    };
 
                     if resource_node_handle != resource_graph.root()
                         && self.find(instance_root, &mut compare).is_none()
@@ -1308,7 +1337,7 @@ pub trait SceneGraph: 'static {
         ignored_types: &[TypeId],
         mut before_inherit: F,
     ) where
-        F: FnMut(&Self::Node, &mut Self::Node),
+        F: FnMut(&Self::NodeWrapper, &mut Self::NodeWrapper),
     {
         let mut ignored_types = ignored_types.to_vec();
         // Do not try to inspect resources, because it most likely cause a deadlock.
@@ -1404,7 +1433,7 @@ pub trait SceneGraph: 'static {
     ///
     /// To do so, we at first, build node handle mapping (original handle -> instance handle) starting from
     /// instance root. Then we must find all inheritable properties and try to remap them to instance handles.
-    fn remap_handles(&mut self, instances: &[(Handle<Self::Node>, Resource<Self::Prefab>)]) {
+    fn remap_handles(&mut self, instances: &[(Handle<Self::NodeWrapper>, Resource<Self::Prefab>)]) {
         for (instance_root, resource) in instances {
             // Prepare old -> new handle mapping first by walking over the graph
             // starting from instance root.
@@ -1456,8 +1485,8 @@ pub struct GraphTraverseIteratorRef<'a, G: ?Sized, N> {
 
 impl<'a, G: ?Sized, N> Iterator for GraphTraverseIteratorRef<'a, G, N>
 where
-    G: SceneGraph<Node = N>,
-    N: SceneGraphNode,
+    G: SceneGraph<NodeWrapper = N>,
+    N: NodeWrapper,
 {
     type Item = (Handle<N>, &'a N);
 
@@ -1514,8 +1543,8 @@ pub struct GraphTraverseIteratorMut<'a, G: ?Sized, N> {
 
 impl<'a, G: ?Sized, N> Iterator for GraphTraverseIteratorMut<'a, G, N>
 where
-    G: SceneGraph<Node = N>,
-    N: SceneGraphNode,
+    G: SceneGraph<NodeWrapper = N>,
+    N: NodeWrapper,
 {
     type Item = (Handle<N>, &'a mut N);
 
@@ -1580,7 +1609,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::{NodeHandleMap, NodeMapping, PrefabData, SceneGraph, SceneGraphNode};
+    use crate::{NodeHandleMap, NodeMapping, NodeWrapper, PrefabData, SceneGraph};
     use fyrox_core::pool::{ObjectOrVariant, ObjectOrVariantHelper, PoolError};
     use fyrox_core::uuid::Uuid;
     use fyrox_core::{
@@ -1747,7 +1776,7 @@ mod test {
         }
     }
 
-    impl SceneGraphNode for Node {
+    impl NodeWrapper for Node {
         type Base = Base;
         type SceneGraph = Graph;
         type ResourceData = Graph;
@@ -1857,31 +1886,35 @@ mod test {
 
     impl SceneGraph for Graph {
         type Prefab = Graph;
-        type Node = Node;
+        type NodeWrapper = Node;
 
         fn summary(&self) -> String {
             "Summary".to_string()
         }
 
-        fn root(&self) -> Handle<Self::Node> {
+        fn root(&self) -> Handle<Self::NodeWrapper> {
             self.root
         }
 
-        fn set_root(&mut self, root: Handle<Self::Node>) {
+        fn set_root(&mut self, root: Handle<Self::NodeWrapper>) {
             self.root = root;
         }
 
-        fn is_valid_handle(&self, handle: Handle<impl ObjectOrVariant<Self::Node>>) -> bool {
+        fn is_valid_handle(&self, handle: Handle<impl ObjectOrVariant<Self::NodeWrapper>>) -> bool {
             self.nodes.is_valid_handle(handle)
         }
 
-        fn add_node(&mut self, node: Self::Node) -> Handle<Self::Node> {
+        fn add_node(&mut self, node: Self::NodeWrapper) -> Handle<Self::NodeWrapper> {
             let handle = self.nodes.next_free_handle();
             self.add_node_at_handle(node, handle);
             handle
         }
 
-        fn add_node_at_handle(&mut self, mut node: Self::Node, handle: Handle<Self::Node>) {
+        fn add_node_at_handle(
+            &mut self,
+            mut node: Self::NodeWrapper,
+            handle: Handle<Self::NodeWrapper>,
+        ) {
             let children = node.children.clone();
             node.children.clear();
             let handle = self
@@ -1903,7 +1936,7 @@ mod test {
             node.self_handle = handle;
         }
 
-        fn remove_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>) {
+        fn remove_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::NodeWrapper>>) {
             let node_handle = node_handle.to_base();
             self.isolate_node(node_handle);
             let mut stack = vec![node_handle];
@@ -1915,8 +1948,8 @@ mod test {
 
         fn link_nodes(
             &mut self,
-            child: Handle<impl ObjectOrVariant<Self::Node>>,
-            parent: Handle<impl ObjectOrVariant<Self::Node>>,
+            child: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
+            parent: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
         ) {
             let child = child.to_base();
             let parent = parent.to_base();
@@ -1925,12 +1958,12 @@ mod test {
             self.nodes[parent].children.push(child);
         }
 
-        fn unlink_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>) {
+        fn unlink_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::NodeWrapper>>) {
             self.isolate_node(node_handle);
             self.link_nodes(node_handle, self.root);
         }
 
-        fn isolate_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>) {
+        fn isolate_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::NodeWrapper>>) {
             let node_handle = node_handle.to_base();
 
             let parent_handle =
@@ -1943,44 +1976,55 @@ mod test {
             }
         }
 
-        fn try_get_node(&self, handle: Handle<Self::Node>) -> Result<&Self::Node, PoolError> {
+        fn try_get_node(
+            &self,
+            handle: Handle<Self::NodeWrapper>,
+        ) -> Result<&Self::NodeWrapper, PoolError> {
             self.nodes.try_borrow(handle)
         }
 
         fn try_get_node_mut(
             &mut self,
-            handle: Handle<Self::Node>,
-        ) -> Result<&mut Self::Node, PoolError> {
+            handle: Handle<Self::NodeWrapper>,
+        ) -> Result<&mut Self::NodeWrapper, PoolError> {
             self.nodes.try_borrow_mut(handle)
         }
 
-        fn actual_type_id(&self, handle: Handle<Self::Node>) -> Result<TypeId, PoolError> {
+        fn actual_type_id(&self, handle: Handle<Self::NodeWrapper>) -> Result<TypeId, PoolError> {
             self.nodes
                 .try_borrow(handle)
                 .map(|n| NodeAsAny::as_any(n.0.deref()).type_id())
         }
 
-        fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Result<Vec<TypeId>, PoolError> {
+        fn derived_type_ids(
+            &self,
+            handle: Handle<Self::NodeWrapper>,
+        ) -> Result<Vec<TypeId>, PoolError> {
             self.nodes
                 .try_borrow(handle)
                 .map(|n| n.0.deref().type_info_ref().derived_types.to_vec())
         }
 
-        fn actual_type_name(&self, handle: Handle<Self::Node>) -> Result<&'static str, PoolError> {
+        fn actual_type_name(
+            &self,
+            handle: Handle<Self::NodeWrapper>,
+        ) -> Result<&'static str, PoolError> {
             self.nodes
                 .try_borrow(handle)
                 .map(|n| n.0.deref().type_info_ref().type_name)
         }
 
-        fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
+        fn pair_iter(
+            &self,
+        ) -> impl Iterator<Item = (Handle<Self::NodeWrapper>, &Self::NodeWrapper)> {
             self.nodes.pair_iter()
         }
 
-        fn linear_iter(&self) -> impl Iterator<Item = &Self::Node> {
+        fn linear_iter(&self) -> impl Iterator<Item = &Self::NodeWrapper> {
             self.nodes.iter()
         }
 
-        fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node> {
+        fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::NodeWrapper> {
             self.nodes.iter_mut()
         }
 

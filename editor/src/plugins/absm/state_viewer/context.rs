@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::graph::SceneGraphNode;
+use crate::fyrox::graph::NodeWrapper;
 use crate::fyrox::{
     core::{algebra::Vector2, pool::Handle},
     generic_animation::machine::{
@@ -138,7 +138,7 @@ impl CanvasContextMenu {
         }
     }
 
-    pub fn handle_ui_message<N: SceneGraphNode>(
+    pub fn handle_ui_message<N: NodeWrapper>(
         &mut self,
         sender: &MessageSender,
         message: &UiMessage,
@@ -267,7 +267,7 @@ impl NodeContextMenu {
         }
     }
 
-    pub fn handle_ui_message<N: SceneGraphNode>(
+    pub fn handle_ui_message<N: NodeWrapper>(
         &mut self,
         message: &UiMessage,
         machine_layer: &MachineLayer<Handle<N>>,
@@ -360,7 +360,7 @@ impl ConnectionContextMenu {
         }
     }
 
-    pub fn handle_ui_message<N: SceneGraphNode>(
+    pub fn handle_ui_message<N: NodeWrapper>(
         &mut self,
         message: &UiMessage,
         ui: &mut UserInterface,

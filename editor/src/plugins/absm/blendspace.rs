@@ -31,7 +31,7 @@ use crate::fyrox::{
         node::blendspace::BlendSpacePoint, node::PoseNode, parameter::Parameter,
         parameter::ParameterContainer, Machine, MachineLayer,
     },
-    graph::{PrefabData, SceneGraph, SceneGraphNode},
+    graph::{NodeWrapper, PrefabData, SceneGraph},
     gui::{
         brush::Brush,
         define_widget_deref,
@@ -824,8 +824,8 @@ impl BlendSpaceEditor {
         ui: &mut UserInterface,
     ) where
         P: PrefabData<Graph = G>,
-        G: SceneGraph<Node = N, Prefab = P>,
-        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        G: SceneGraph<NodeWrapper = N, Prefab = P>,
+        N: NodeWrapper<SceneGraph = G, ResourceData = P>,
     {
         if let Some(SelectedEntity::PoseNode(first)) = selection.entities.first() {
             if let PoseNode::BlendSpace(blend_space) = layer.node(*first) {
@@ -881,8 +881,8 @@ impl BlendSpaceEditor {
         is_preview_mode_active: bool,
     ) where
         P: PrefabData<Graph = G>,
-        G: SceneGraph<Node = N, Prefab = P>,
-        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        G: SceneGraph<NodeWrapper = N, Prefab = P>,
+        N: NodeWrapper<SceneGraph = G, ResourceData = P>,
     {
         if let Some(SelectedEntity::PoseNode(first)) = selection.entities.first() {
             if let Some(layer_index) = selection.layer {

@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::{
-    fyrox::graph::{SceneGraph, SceneGraphNode},
+    fyrox::graph::{NodeWrapper, SceneGraph},
     fyrox::{
         core::pool::Handle,
         gui::{

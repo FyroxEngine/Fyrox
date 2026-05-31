@@ -24,7 +24,7 @@ use crate::{
     fyrox::{
         core::{pool::Handle, reflect::Reflect, some_or_return},
         engine::Engine,
-        graph::{SceneGraph, SceneGraphNode},
+        graph::{NodeWrapper, SceneGraph},
         gui::{inspector::PropertyChanged, UiNode, UserInterface},
         scene::SceneContainer,
     },

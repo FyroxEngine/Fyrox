@@ -28,7 +28,7 @@ use crate::{
 };
 use fyrox_core::err;
 use fyrox_core::pool::ObjectOrVariant;
-use fyrox_graph::{SceneGraph, SceneGraphNode};
+use fyrox_graph::{NodeWrapper, SceneGraph};
 use uuid::Uuid;
 
 pub trait UserInterfaceTestingExtension {

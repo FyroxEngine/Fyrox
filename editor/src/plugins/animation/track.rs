@@ -45,7 +45,7 @@ use crate::{
             value::{ValueBinding, ValueType},
             Animation,
         },
-        graph::{SceneGraph, SceneGraphNode},
+        graph::{NodeWrapper, SceneGraph},
         graphics::DrawParameters,
         gui::{
             border::BorderBuilder,
@@ -769,8 +769,8 @@ impl TrackList {
         graph: &G,
         sender: &MessageSender,
     ) where
-        G: SceneGraph<Node = N>,
-        N: SceneGraphNode<SceneGraph = G> + TransformProvider,
+        G: SceneGraph<NodeWrapper = N>,
+        N: NodeWrapper<SceneGraph = G> + TransformProvider,
     {
         let nodes = if let Some(ui) = selection.as_ui() {
             ui.widgets
@@ -812,8 +812,8 @@ impl TrackList {
 
                     struct CurveKeyAdder<'a, G, N>
                     where
-                        G: SceneGraph<Node = N>,
-                        N: SceneGraphNode<SceneGraph = G> + TransformProvider,
+                        G: SceneGraph<NodeWrapper = N>,
+                        N: NodeWrapper<SceneGraph = G> + TransformProvider,
                     {
                         animation_player: Handle<N>,
                         animation_handle: Handle<Animation<Handle<N>>>,
@@ -824,8 +824,8 @@ impl TrackList {
 
                     impl<'a, G, N> CurveKeyAdder<'a, G, N>
                     where
-                        G: SceneGraph<Node = N>,
-                        N: SceneGraphNode<SceneGraph = G> + TransformProvider,
+                        G: SceneGraph<NodeWrapper = N>,
+                        N: NodeWrapper<SceneGraph = G> + TransformProvider,
                     {
                         fn add(&mut self, values: &[f32]) {
                             for (curve, current_value) in
@@ -933,8 +933,8 @@ impl TrackList {
         ui: &mut UserInterface,
         graph: &G,
     ) where
-        G: SceneGraph<Node = N>,
-        N: SceneGraphNode<SceneGraph = G> + TransformProvider,
+        G: SceneGraph<NodeWrapper = N>,
+        N: NodeWrapper<SceneGraph = G> + TransformProvider,
     {
         let selected_animation = animation_container_ref(graph, selection.animation_player)
             .and_then(|c| c.try_get(selection.animation).ok());
@@ -1269,8 +1269,8 @@ impl TrackList {
         ui: &mut UserInterface,
     ) -> Handle<PropertySelectorWindow>
     where
-        G: SceneGraph<Node = N>,
-        N: SceneGraphNode,
+        G: SceneGraph<NodeWrapper = N>,
+        N: NodeWrapper,
     {
         let mut descriptors = Vec::new();
         if let Ok(node) = graph.try_get_node(node) {
@@ -1349,8 +1349,8 @@ impl TrackList {
         animation: &Animation<Handle<N>>,
         ui: &mut UserInterface,
     ) where
-        G: SceneGraph<Node = N>,
-        N: SceneGraphNode,
+        G: SceneGraph<NodeWrapper = N>,
+        N: NodeWrapper,
     {
         let Some(first_selected_track) = selection.first_selected_track() else {
             return;
@@ -1385,8 +1385,8 @@ impl TrackList {
         animation: &Animation<Handle<N>>,
         sender: &MessageSender,
     ) where
-        G: SceneGraph<Node = N>,
-        N: SceneGraphNode,
+        G: SceneGraph<NodeWrapper = N>,
+        N: NodeWrapper,
     {
         let Some(first_selected_track) = selection.first_selected_track() else {
             return;
@@ -1440,8 +1440,8 @@ impl TrackList {
         selection: &AnimationSelection<N>,
         ui: &mut UserInterface,
     ) where
-        G: SceneGraph<Node = N>,
-        N: SceneGraphNode,
+        G: SceneGraph<NodeWrapper = N>,
+        N: NodeWrapper,
     {
         let state = animation.tracks_data().state();
         let Some(tracks_data) = state.data_ref() else {

@@ -329,7 +329,7 @@ use crate::{
 use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
 pub use fyrox_animation as generic_animation;
-use fyrox_graph::{NodeHandleMap, NodeMapping, PrefabData, SceneGraph, SceneGraphNode};
+use fyrox_graph::{NodeHandleMap, NodeMapping, NodeWrapper, PrefabData, SceneGraph};
 use fyrox_resource::{
     io::{FsResourceIo, ResourceIo},
     manager::ResourceManager,
@@ -3534,7 +3534,7 @@ impl PrefabData for UserInterface {
 
 impl SceneGraph for UserInterface {
     type Prefab = Self;
-    type Node = UiNode;
+    type NodeWrapper = UiNode;
 
     fn summary(&self) -> String {
         let mut result = String::new();
@@ -3543,60 +3543,73 @@ impl SceneGraph for UserInterface {
     }
 
     #[inline]
-    fn actual_type_id(&self, handle: Handle<Self::Node>) -> Result<TypeId, PoolError> {
+    fn actual_type_id(&self, handle: Handle<Self::NodeWrapper>) -> Result<TypeId, PoolError> {
         self.nodes
             .try_borrow(handle)
             .map(|n| ControlAsAny::as_any(n.0.deref()).type_id())
     }
 
-    fn actual_type_name(&self, handle: Handle<Self::Node>) -> Result<&'static str, PoolError> {
+    fn actual_type_name(
+        &self,
+        handle: Handle<Self::NodeWrapper>,
+    ) -> Result<&'static str, PoolError> {
         self.nodes
             .try_borrow(handle)
             .map(|n| n.0.deref().type_info_ref().type_name)
     }
 
-    fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Result<Vec<TypeId>, PoolError> {
+    fn derived_type_ids(
+        &self,
+        handle: Handle<Self::NodeWrapper>,
+    ) -> Result<Vec<TypeId>, PoolError> {
         self.nodes
             .try_borrow(handle)
             .map(|n| n.0.deref().type_info_ref().derived_types.to_vec())
     }
 
     #[inline]
-    fn root(&self) -> Handle<Self::Node> {
+    fn root(&self) -> Handle<Self::NodeWrapper> {
         self.root_canvas
     }
 
     #[inline]
-    fn set_root(&mut self, root: Handle<Self::Node>) {
+    fn set_root(&mut self, root: Handle<Self::NodeWrapper>) {
         self.root_canvas = root;
     }
 
     #[inline]
-    fn try_get_node(&self, handle: Handle<Self::Node>) -> Result<&Self::Node, PoolError> {
+    fn try_get_node(
+        &self,
+        handle: Handle<Self::NodeWrapper>,
+    ) -> Result<&Self::NodeWrapper, PoolError> {
         self.nodes.try_borrow(handle)
     }
 
     #[inline]
     fn try_get_node_mut(
         &mut self,
-        handle: Handle<Self::Node>,
-    ) -> Result<&mut Self::Node, PoolError> {
+        handle: Handle<Self::NodeWrapper>,
+    ) -> Result<&mut Self::NodeWrapper, PoolError> {
         self.nodes.try_borrow_mut(handle)
     }
 
     #[inline]
-    fn is_valid_handle(&self, handle: Handle<impl ObjectOrVariant<Self::Node>>) -> bool {
+    fn is_valid_handle(&self, handle: Handle<impl ObjectOrVariant<Self::NodeWrapper>>) -> bool {
         self.nodes.is_valid_handle(handle)
     }
 
     #[inline]
-    fn add_node(&mut self, node: Self::Node) -> Handle<Self::Node> {
+    fn add_node(&mut self, node: Self::NodeWrapper) -> Handle<Self::NodeWrapper> {
         let handle = self.nodes.next_free_handle();
         self.add_node_at_handle(node, handle);
         handle
     }
 
-    fn add_node_at_handle(&mut self, mut node: Self::Node, node_handle: Handle<Self::Node>) {
+    fn add_node_at_handle(
+        &mut self,
+        mut node: Self::NodeWrapper,
+        node_handle: Handle<Self::NodeWrapper>,
+    ) {
         let children = node.children().to_vec();
         node.clear_children();
         self.nodes
@@ -3620,7 +3633,7 @@ impl SceneGraph for UserInterface {
     }
 
     #[inline]
-    fn remove_node(&mut self, node: Handle<impl ObjectOrVariant<Self::Node>>) {
+    fn remove_node(&mut self, node: Handle<impl ObjectOrVariant<Self::NodeWrapper>>) {
         let node = node.to_base();
         self.isolate_node(node);
 
@@ -3656,20 +3669,20 @@ impl SceneGraph for UserInterface {
     #[inline]
     fn link_nodes(
         &mut self,
-        child: Handle<impl ObjectOrVariant<Self::Node>>,
-        parent: Handle<impl ObjectOrVariant<Self::Node>>,
+        child: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
+        parent: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
     ) {
         self.link_nodes(child.to_base(), parent.to_base(), false)
     }
 
     #[inline]
-    fn unlink_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>) {
+    fn unlink_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::NodeWrapper>>) {
         self.isolate_node(node_handle);
         self.link_nodes(node_handle, self.root_canvas, false);
     }
 
     #[inline]
-    fn isolate_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>) {
+    fn isolate_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::NodeWrapper>>) {
         let node_handle = node_handle.to_base();
         let node = self.nodes.borrow_mut(node_handle);
         let parent_handle = node.parent();
@@ -3682,17 +3695,17 @@ impl SceneGraph for UserInterface {
     }
 
     #[inline]
-    fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
+    fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::NodeWrapper>, &Self::NodeWrapper)> {
         self.nodes.pair_iter()
     }
 
     #[inline]
-    fn linear_iter(&self) -> impl Iterator<Item = &Self::Node> {
+    fn linear_iter(&self) -> impl Iterator<Item = &Self::NodeWrapper> {
         self.nodes.iter()
     }
 
     #[inline]
-    fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node> {
+    fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::NodeWrapper> {
         self.nodes.iter_mut()
     }
 

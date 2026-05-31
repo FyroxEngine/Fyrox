@@ -27,7 +27,7 @@ use crate::{
     ui_scene::clipboard::Clipboard,
 };
 use fyrox::core::pool::Handle;
-use fyrox::graph::SceneGraphNode;
+use fyrox::graph::NodeWrapper;
 use fyrox::gui::UiNode;
 
 #[derive(Reflect, Debug)]

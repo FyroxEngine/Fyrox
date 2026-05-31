@@ -27,7 +27,7 @@ use crate::{
             some_or_return,
         },
         engine::Engine,
-        graph::{SceneGraph, SceneGraphNode},
+        graph::{NodeWrapper, SceneGraph},
         gui::inspector::PropertyChanged,
         scene::{graph::Graph, node::Node, SceneContainer},
     },

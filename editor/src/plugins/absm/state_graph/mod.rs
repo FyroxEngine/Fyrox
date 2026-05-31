@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::graph::{PrefabData, SceneGraphNode};
+use crate::fyrox::graph::{NodeWrapper, PrefabData};
 use crate::fyrox::{
     core::pool::{ErasedHandle, Handle},
     generic_animation::machine::{Machine, MachineLayer, State, Transition},
@@ -173,8 +173,8 @@ impl StateGraphViewer {
         editor_selection: &Selection,
     ) where
         P: PrefabData<Graph = G>,
-        G: SceneGraph<Node = N, Prefab = P>,
-        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        G: SceneGraph<NodeWrapper = N, Prefab = P>,
+        N: NodeWrapper<SceneGraph = G, ResourceData = P>,
     {
         if message.destination() == self.canvas {
             if let Some(msg) = message.data::<AbsmCanvasMessage>() {
@@ -299,8 +299,8 @@ impl StateGraphViewer {
         editor_selection: &Selection,
     ) where
         P: PrefabData<Graph = G>,
-        G: SceneGraph<Node = N, Prefab = P>,
-        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        G: SceneGraph<NodeWrapper = N, Prefab = P>,
+        N: NodeWrapper<SceneGraph = G, ResourceData = P>,
     {
         let canvas = &ui[self.canvas];
         let current_selection = fetch_selection(editor_selection);

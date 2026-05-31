@@ -29,7 +29,7 @@ use crate::{
             },
             pool::Handle,
         },
-        graph::{SceneGraph, SceneGraphNode},
+        graph::{NodeWrapper, SceneGraph},
         gui::message::{KeyCode, KeyboardModifiers, MouseButton},
         renderer::bundle::{RenderContext, RenderDataBundleStorage},
         scene::{

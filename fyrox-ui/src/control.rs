@@ -28,7 +28,7 @@ use crate::{
 use fyrox_core::{define_as_any_trait, pool::ObjectOrVariantHelper};
 
 use fyrox_core::algebra::Matrix3;
-use fyrox_graph::SceneGraphNode;
+use fyrox_graph::NodeWrapper;
 use std::{
     any::Any,
     marker::PhantomData,

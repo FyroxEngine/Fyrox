@@ -26,7 +26,7 @@ use crate::{
     Control, ControlAsAny, UserInterface,
 };
 
-use fyrox_graph::SceneGraphNode;
+use fyrox_graph::NodeWrapper;
 use fyrox_resource::{untyped::UntypedResource, Resource};
 use std::{
     any::TypeId,
@@ -60,7 +60,7 @@ impl Clone for UiNode {
     }
 }
 
-impl SceneGraphNode for UiNode {
+impl NodeWrapper for UiNode {
     type Base = Widget;
     type SceneGraph = UserInterface;
     type ResourceData = UserInterface;

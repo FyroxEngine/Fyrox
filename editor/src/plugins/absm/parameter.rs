@@ -25,7 +25,7 @@ use crate::{
         generic_animation::machine::parameter::{
             Parameter, ParameterContainer, ParameterDefinition,
         },
-        graph::{PrefabData, SceneGraph, SceneGraphNode},
+        graph::{NodeWrapper, PrefabData, SceneGraph},
         gui::{
             inspector::{
                 editors::{
@@ -152,8 +152,8 @@ impl ParameterPanel {
         is_in_preview_mode: bool,
     ) where
         P: PrefabData<Graph = G>,
-        G: SceneGraph<Node = N, Prefab = P>,
-        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        G: SceneGraph<NodeWrapper = N, Prefab = P>,
+        N: NodeWrapper<SceneGraph = G, ResourceData = P>,
     {
         if let Some(InspectorMessage::PropertyChanged(args)) =
             message.data_from::<InspectorMessage>(self.inspector)

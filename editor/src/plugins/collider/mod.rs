@@ -49,7 +49,7 @@ use crate::{
             some_or_return,
         },
         engine::Engine,
-        graph::{SceneGraph, SceneGraphNode},
+        graph::{NodeWrapper, SceneGraph},
         gui::{message::UiMessage, BuildContext},
         material::{
             shader::{ShaderResource, ShaderResourceExtension},

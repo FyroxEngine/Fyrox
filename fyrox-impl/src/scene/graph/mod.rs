@@ -54,7 +54,7 @@ use crate::{
         reflect::prelude::*,
         visitor::{Visit, VisitResult, Visitor},
     },
-    graph::{NodeHandleMap, SceneGraph, SceneGraphNode},
+    graph::{NodeHandleMap, NodeWrapper, SceneGraph},
     material::{MaterialResourceBinding, MaterialTextureBinding},
     resource::model::{Model, ModelResource, ModelResourceExtension},
     scene::{
@@ -2010,7 +2010,7 @@ impl Visit for Graph {
 
 impl SceneGraph for Graph {
     type Prefab = Model;
-    type Node = Node;
+    type NodeWrapper = Node;
 
     /// Create a brief debug summary of the contents of this graph.
     fn summary(&self) -> String {
@@ -2020,35 +2020,39 @@ impl SceneGraph for Graph {
     }
 
     #[inline]
-    fn actual_type_id(&self, handle: Handle<Self::Node>) -> Result<TypeId, PoolError> {
+    fn actual_type_id(&self, handle: Handle<Self::NodeWrapper>) -> Result<TypeId, PoolError> {
         self.pool
             .try_borrow(handle)
             .map(|n| NodeAsAny::as_any(n.0.deref()).type_id())
     }
 
     #[inline]
-    fn root(&self) -> Handle<Self::Node> {
+    fn root(&self) -> Handle<Self::NodeWrapper> {
         self.root
     }
 
     #[inline]
-    fn set_root(&mut self, root: Handle<Self::Node>) {
+    fn set_root(&mut self, root: Handle<Self::NodeWrapper>) {
         self.root = root;
     }
 
     #[inline]
-    fn is_valid_handle(&self, handle: Handle<impl ObjectOrVariant<Self::Node>>) -> bool {
+    fn is_valid_handle(&self, handle: Handle<impl ObjectOrVariant<Self::NodeWrapper>>) -> bool {
         self.pool.is_valid_handle(handle)
     }
 
     #[inline]
-    fn add_node(&mut self, node: Self::Node) -> Handle<Self::Node> {
+    fn add_node(&mut self, node: Self::NodeWrapper) -> Handle<Self::NodeWrapper> {
         let handle = self.pool.next_free_handle();
         self.add_node_at_handle(node, handle);
         handle
     }
 
-    fn add_node_at_handle(&mut self, mut node: Self::Node, handle: Handle<Self::Node>) {
+    fn add_node_at_handle(
+        &mut self,
+        mut node: Self::NodeWrapper,
+        handle: Handle<Self::NodeWrapper>,
+    ) {
         let children = node.children.clone();
         node.children.clear();
         let script_count = node.scripts.len();
@@ -2085,7 +2089,7 @@ impl SceneGraph for Graph {
     }
 
     #[inline]
-    fn remove_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>) {
+    fn remove_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::NodeWrapper>>) {
         let node_handle = node_handle.to_base();
 
         self.isolate_node(node_handle);
@@ -2110,8 +2114,8 @@ impl SceneGraph for Graph {
     #[inline]
     fn link_nodes(
         &mut self,
-        child: Handle<impl ObjectOrVariant<Self::Node>>,
-        parent: Handle<impl ObjectOrVariant<Self::Node>>,
+        child: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
+        parent: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
     ) {
         let child = child.to_base();
         let parent = parent.to_base();
@@ -2127,7 +2131,7 @@ impl SceneGraph for Graph {
     }
 
     #[inline]
-    fn unlink_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>) {
+    fn unlink_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::NodeWrapper>>) {
         let node_handle = node_handle.to_base();
         self.isolate_node(node_handle);
         self.link_nodes(node_handle, self.root);
@@ -2137,7 +2141,7 @@ impl SceneGraph for Graph {
     }
 
     #[inline]
-    fn isolate_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::Node>>) {
+    fn isolate_node(&mut self, node_handle: Handle<impl ObjectOrVariant<Self::NodeWrapper>>) {
         let node_handle = node_handle.to_base();
         // Replace parent handle of child
         let parent_handle = std::mem::replace(&mut self.pool[node_handle].parent, Handle::NONE);
@@ -2155,42 +2159,51 @@ impl SceneGraph for Graph {
     }
 
     #[inline]
-    fn try_get_node(&self, handle: Handle<Self::Node>) -> Result<&Self::Node, PoolError> {
+    fn try_get_node(
+        &self,
+        handle: Handle<Self::NodeWrapper>,
+    ) -> Result<&Self::NodeWrapper, PoolError> {
         self.pool.try_borrow(handle)
     }
 
     #[inline]
     fn try_get_node_mut(
         &mut self,
-        handle: Handle<Self::Node>,
-    ) -> Result<&mut Self::Node, PoolError> {
+        handle: Handle<Self::NodeWrapper>,
+    ) -> Result<&mut Self::NodeWrapper, PoolError> {
         self.pool.try_borrow_mut(handle)
     }
 
-    fn derived_type_ids(&self, handle: Handle<Self::Node>) -> Result<Vec<TypeId>, PoolError> {
+    fn derived_type_ids(
+        &self,
+        handle: Handle<Self::NodeWrapper>,
+    ) -> Result<Vec<TypeId>, PoolError> {
         self.pool
             .try_borrow(handle)
             .map(|n| Box::deref(&n.0).type_info_ref().derived_types.to_vec())
     }
 
-    fn actual_type_name(&self, handle: Handle<Self::Node>) -> Result<&'static str, PoolError> {
+    fn actual_type_name(
+        &self,
+        handle: Handle<Self::NodeWrapper>,
+    ) -> Result<&'static str, PoolError> {
         self.pool
             .try_borrow(handle)
             .map(|n| n.0.deref().type_info_ref().type_name)
     }
 
     #[inline]
-    fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
+    fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::NodeWrapper>, &Self::NodeWrapper)> {
         self.pool.pair_iter()
     }
 
     #[inline]
-    fn linear_iter(&self) -> impl Iterator<Item = &Self::Node> {
+    fn linear_iter(&self) -> impl Iterator<Item = &Self::NodeWrapper> {
         self.pool.iter()
     }
 
     #[inline]
-    fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node> {
+    fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::NodeWrapper> {
         self.pool.iter_mut()
     }
 

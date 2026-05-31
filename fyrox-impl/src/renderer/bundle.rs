@@ -79,7 +79,7 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
-use fyrox_graph::SceneGraphNode;
+use fyrox_graph::NodeWrapper;
 use fyrox_resource::manager::ResourceManager;
 use std::{
     fmt::{Debug, Formatter},

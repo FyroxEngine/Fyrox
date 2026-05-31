@@ -21,7 +21,7 @@
 use crate::command::{Command, CommandGroup};
 use crate::fyrox::generic_animation::machine::Machine;
 use crate::fyrox::generic_animation::AnimationContainer;
-use crate::fyrox::graph::{PrefabData, SceneGraphNode};
+use crate::fyrox::graph::{NodeWrapper, PrefabData};
 use crate::fyrox::{
     core::pool::{ErasedHandle, Handle},
     generic_animation::{
@@ -130,8 +130,8 @@ fn make_play_animation_name<P, G, N>(
 ) -> String
 where
     P: PrefabData<Graph = G>,
-    G: SceneGraph<Node = N, Prefab = P>,
-    N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+    G: SceneGraph<NodeWrapper = N, Prefab = P>,
+    N: NodeWrapper<SceneGraph = G, ResourceData = P>,
 {
     if let Some(animation) =
         animation_container.and_then(|container| container.try_get(animation).ok())
@@ -148,8 +148,8 @@ fn make_pose_node_name<P, G, N>(
 ) -> String
 where
     P: PrefabData<Graph = G>,
-    G: SceneGraph<Node = N, Prefab = P>,
-    N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+    G: SceneGraph<NodeWrapper = N, Prefab = P>,
+    N: NodeWrapper<SceneGraph = G, ResourceData = P>,
 {
     match model_ref {
         PoseNode::PlayAnimation(play_animation) => {
@@ -216,8 +216,8 @@ impl StateViewer {
         ui: &UserInterface,
     ) where
         P: PrefabData<Graph = G>,
-        G: SceneGraph<Node = N, Prefab = P>,
-        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        G: SceneGraph<NodeWrapper = N, Prefab = P>,
+        N: NodeWrapper<SceneGraph = G, ResourceData = P>,
     {
         assert!(state.is_some());
 
@@ -280,8 +280,8 @@ impl StateViewer {
         editor_selection: &Selection,
     ) where
         P: PrefabData<Graph = G>,
-        G: SceneGraph<Node = N, Prefab = P>,
-        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        G: SceneGraph<NodeWrapper = N, Prefab = P>,
+        N: NodeWrapper<SceneGraph = G, ResourceData = P>,
     {
         if let Some(layer) = machine.layers().get(layer_index) {
             if message.destination() == self.canvas {
@@ -416,8 +416,8 @@ impl StateViewer {
         animation_container: Option<&AnimationContainer<Handle<N>>>,
     ) where
         P: PrefabData<Graph = G>,
-        G: SceneGraph<Node = N, Prefab = P>,
-        N: SceneGraphNode<SceneGraph = G, ResourceData = P>,
+        G: SceneGraph<NodeWrapper = N, Prefab = P>,
+        N: NodeWrapper<SceneGraph = G, ResourceData = P>,
     {
         if let Ok(parent_state_ref) = machine_layer.states().try_borrow(self.state.into()) {
             let current_selection = fetch_selection(editor_selection);

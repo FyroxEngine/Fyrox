@@ -29,7 +29,7 @@ use crate::{
             make_relative_path,
             pool::{ErasedHandle, Handle},
         },
-        graph::{SceneGraph, SceneGraphNode},
+        graph::{NodeWrapper, SceneGraph},
         resource::model::{Model, ModelResourceExtension},
         scene::{node::Node, Scene},
     },
