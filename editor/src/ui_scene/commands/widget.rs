@@ -105,7 +105,7 @@ impl CommandTrait for RevertWidgetPropertyCommand {
         if let Some(old_value) = self.value.take() {
             let mut old_value = Some(old_value);
             let node = context.get_mut::<UiSceneContext>().ui.node_mut(self.handle);
-            (node as &mut dyn Reflect).set_field_by_path(
+            node.inner_mut().set_field_by_path(
                 &self.path,
                 old_value.take().unwrap(),
                 &mut |result| {
