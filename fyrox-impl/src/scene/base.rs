@@ -992,11 +992,11 @@ impl Base {
             .filter_map(|e| e.script.as_mut().and_then(|s| s.cast_mut::<T>()))
     }
 
-    /// Tries find a component of the given type `C` across **all** available scripts of the node.
-    /// If you want to search a component `C` in a particular script, then use [`Self::try_get_script`]
-    /// and then search for component in it.
+    /// Tries find a field of the given type `C` across **all** available scripts of the node.
+    /// If you want to search a field `C` in a particular script, then use [`Self::try_get_script`]
+    /// and then search for field in it.
     #[inline]
-    pub fn try_get_script_component<C>(&self) -> Option<&C>
+    pub fn try_get_script_field<C>(&self) -> Option<&C>
     where
         C: Reflect,
     {
@@ -1005,11 +1005,11 @@ impl Base {
             .find_map(|s| s.as_ref().and_then(|s| s.self_or_field_ref::<C>()))
     }
 
-    /// Tries find a component of the given type `C` across **all** available scripts of the node.
-    /// If you want to search a component `C` in a particular script, then use [`Self::try_get_script`]
-    /// and then search for component in it.
+    /// Tries find a field of the given type `C` across **all** available scripts of the node.
+    /// If you want to search a field `C` in a particular script, then use [`Self::try_get_script`]
+    /// and then search for field in it.
     #[inline]
-    pub fn try_get_script_component_mut<C>(&mut self) -> Option<&mut C>
+    pub fn try_get_script_field_mut<C>(&mut self) -> Option<&mut C>
     where
         C: Reflect,
     {

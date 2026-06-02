@@ -342,12 +342,12 @@ pub enum GraphError {
         /// Type name of the script.
         script_type_name: &'static str,
     },
-    /// There's no script component of the requested type.
-    NoScriptComponent {
+    /// There's no script field of the requested type.
+    NoScriptField {
         /// Handle of the node.
         handle: Handle<Node>,
-        /// Type name of the script component.
-        component_type_name: &'static str,
+        /// Type name of the script field.
+        field_type_name: &'static str,
     },
     /// There's no scene node with the given id.
     UnknownId(SceneNodeId),
@@ -366,13 +366,13 @@ impl Display for GraphError {
                     "There's no script {script_type_name} on the scene node {handle}"
                 )
             }
-            GraphError::NoScriptComponent {
+            GraphError::NoScriptField {
                 handle,
-                component_type_name,
+                field_type_name,
             } => {
                 write!(
                     f,
-                    "There's no script component {component_type_name} on the scene node {handle}"
+                    "There's no script field {field_type_name} on the scene node {handle}"
                 )
             }
             GraphError::UnknownId(id) => {
@@ -1905,11 +1905,11 @@ impl Graph {
         Ok(node.try_get_scripts_mut())
     }
 
-    /// Tries to borrow a node and find a component of the given type `C` across **all** available
-    /// scripts of the node. If you want to search a component `C` in a particular script, then use
-    /// [`Self::try_get_script_of`] and then search for component in it.
+    /// Tries to borrow a node and find a field of the given type `C` across **all** available
+    /// scripts of the node. If you want to search a field `C` in a particular script, then use
+    /// [`Self::try_get_script_of`] and then search for field in it.
     #[inline]
-    pub fn try_get_script_component_of<C>(
+    pub fn try_get_script_field_of<C>(
         &self,
         handle: Handle<impl ObjectOrVariant<Node>>,
     ) -> Result<&C, GraphError>
@@ -1918,18 +1918,18 @@ impl Graph {
     {
         let handle = handle.to_base();
         let node = self.try_get_node(handle)?;
-        node.try_get_script_component()
-            .ok_or_else(|| GraphError::NoScriptComponent {
+        node.try_get_script_field()
+            .ok_or_else(|| GraphError::NoScriptField {
                 handle,
-                component_type_name: std::any::type_name::<C>(),
+                field_type_name: std::any::type_name::<C>(),
             })
     }
 
-    /// Tries to borrow a node and find a component of the given type `C` across **all** available
-    /// scripts of the node. If you want to search a component `C` in a particular script, then use
-    /// [`Self::try_get_script_of_mut`] and then search for component in it.
+    /// Tries to borrow a node and find a field of the given type `C` across **all** available
+    /// scripts of the node. If you want to search a field `C` in a particular script, then use
+    /// [`Self::try_get_script_of_mut`] and then search for field in it.
     #[inline]
-    pub fn try_get_script_component_of_mut<C>(
+    pub fn try_get_script_field_of_mut<C>(
         &mut self,
         handle: Handle<impl ObjectOrVariant<Node>>,
     ) -> Result<&mut C, GraphError>
@@ -1938,10 +1938,10 @@ impl Graph {
     {
         let handle = handle.to_base();
         let node = self.try_get_node_mut(handle)?;
-        node.try_get_script_component_mut()
-            .ok_or_else(|| GraphError::NoScriptComponent {
+        node.try_get_script_field_mut()
+            .ok_or_else(|| GraphError::NoScriptField {
                 handle,
-                component_type_name: std::any::type_name::<C>(),
+                field_type_name: std::any::type_name::<C>(),
             })
     }
 
