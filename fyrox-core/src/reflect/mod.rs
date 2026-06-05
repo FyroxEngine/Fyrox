@@ -53,6 +53,7 @@ pub mod prelude {
         TypeInfo,
     };
     pub use crate::uuid::{uuid, Uuid};
+    pub use std::any::Any;
 }
 
 #[inline]
@@ -174,6 +175,11 @@ pub trait Reflect: Any + Debug {
     /// Tries to clone the object and return it as a boxed trait object. This method can return
     /// [`None`] for non-cloneable objects.
     fn try_clone_box(&self) -> Option<Box<dyn Reflect>>;
+
+    /// Tries to compare this object with some other. The result is `Some(bool)` if the underlying
+    /// type implements [`PartialEq`] trait, `None` - otherwise or if the type is marked with
+    /// `#[reflect(non_comparable)]` attribute.
+    fn try_compare(&self, other: &dyn Reflect) -> Option<bool>;
 
     /// Calls the given closure with the reference to a slice that contains description for all
     /// fields in the object.
@@ -1021,7 +1027,7 @@ mod test {
         },
     }
 
-    #[derive(Reflect, Clone, Default, Debug)]
+    #[derive(Reflect, Clone, Default, Debug, PartialEq)]
     #[reflect(type_uuid = "97718a85-3901-407e-9347-b684c0047743")]
     struct Foo {
         enum_field: InheritableVariable<Enum>,
@@ -1031,13 +1037,13 @@ mod test {
         hash_map: HashMap<String, Item>,
     }
 
-    #[derive(Reflect, Clone, Default, Debug)]
+    #[derive(Reflect, Clone, Default, Debug, PartialEq)]
     #[reflect(type_uuid = "9465ea72-dd27-43f3-8ccf-b634e4b2887f")]
     struct Item {
         payload: u32,
     }
 
-    #[derive(Reflect, Clone, Default, Debug)]
+    #[derive(Reflect, Clone, Default, Debug, PartialEq)]
     #[reflect(type_uuid = "8fb478ac-e4c4-4762-a43a-451147e6e509")]
     struct Bar {
         stuff: String,

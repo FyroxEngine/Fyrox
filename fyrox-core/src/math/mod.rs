@@ -37,7 +37,7 @@ use fyrox_core_derive::{impl_reflect, impl_visit};
 
 impl_reflect!(
     #[reflect(type_uuid = "64ef33b7-d05a-4d8d-b0c7-99bcc919271f")]
-    pub struct Rect<T: Reflect + Copy> {}
+    pub struct Rect<T: Reflect + Copy + PartialEq> {}
 );
 
 impl<T> Visit for Rect<T>

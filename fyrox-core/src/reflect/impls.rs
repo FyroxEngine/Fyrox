@@ -334,6 +334,8 @@ macro_rules! impl_reflect_inner_mutability {
             Some(Box::new($clone))
         }
 
+
+
         fn fields_ref(&$self, func: &mut dyn FnMut(&[FieldRef])) {
             let guard = $acquire_lock_guard;
             func(&[{

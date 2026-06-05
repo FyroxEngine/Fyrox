@@ -64,6 +64,9 @@ pub struct TypeArgs {
     pub non_cloneable: bool,
 
     #[darling(default)]
+    pub non_comparable: bool,
+
+    #[darling(default)]
     pub clone_fn: Option<Path>,
 
     pub type_uuid: String,

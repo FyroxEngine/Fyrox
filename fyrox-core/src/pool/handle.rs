@@ -207,6 +207,12 @@ impl<T: Reflect> Reflect for Handle<T> {
             None
         }
     }
+
+    fn try_compare(&self, other: &dyn Reflect) -> Option<bool> {
+        (other as &dyn std::any::Any)
+            .downcast_ref::<Self>()
+            .map(|other| other == self)
+    }
 }
 
 impl<T> Copy for Handle<T> {}
