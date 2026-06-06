@@ -144,8 +144,8 @@ where
 
 impl<T, P> Reflect for Pool<T, P>
 where
-    T: Reflect,
-    P: PayloadContainer<Element = T> + Reflect,
+    T: Reflect + PartialEq,
+    P: PayloadContainer<Element = T> + Reflect + PartialEq,
     Pool<T, P>: Clone,
 {
     fn type_info() -> TypeInfo {
@@ -213,8 +213,8 @@ where
 
 impl<T, P> ReflectArray for Pool<T, P>
 where
-    T: Reflect,
-    P: PayloadContainer<Element = T> + Reflect,
+    T: Reflect + PartialEq,
+    P: PayloadContainer<Element = T> + Reflect + PartialEq,
     Pool<T, P>: Clone,
 {
     #[inline]

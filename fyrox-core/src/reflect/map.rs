@@ -45,8 +45,8 @@ pub trait ReflectHashMap: Reflect {
 
 impl<K, V, S> Reflect for HashMap<K, V, S>
 where
-    K: Reflect + Eq + Hash + Clone + 'static,
-    V: Reflect + Clone,
+    K: Reflect + Eq + Hash + Clone + PartialEq + 'static,
+    V: Reflect + Clone + PartialEq,
     S: BuildHasher + Clone + 'static,
 {
     // TODO: combine uuids
@@ -63,8 +63,8 @@ where
 
 impl<K, V, S> ReflectHashMap for HashMap<K, V, S>
 where
-    K: Reflect + Eq + Hash + Clone + 'static,
-    V: Reflect + Clone,
+    K: Reflect + Eq + Hash + Clone + PartialEq + 'static,
+    V: Reflect + Clone + PartialEq,
     S: BuildHasher + Clone + 'static,
 {
     fn reflect_insert(

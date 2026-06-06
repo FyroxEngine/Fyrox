@@ -47,7 +47,12 @@ impl_reflect! {
 
 impl_reflect! {
     #[reflect(type_uuid = "53ca268f-7f7a-4b1c-bdee-af49f2d89945")]
-    pub struct Matrix<T: Reflect + Copy, R: Dim + Reflect, C: Dim + Reflect, S: Copy + Reflect> {
+    pub struct Matrix<
+        T: Reflect + Copy + PartialEq,
+        R: Dim + Reflect + PartialEq,
+        C: Dim + Reflect + PartialEq,
+        S: Copy + Reflect + PartialEq + RawStorage<T,R,C>
+    > {
         pub data: S,
         // _phantoms: PhantomData<(T, R, C)>,
     }
@@ -55,11 +60,11 @@ impl_reflect! {
 
 impl_reflect! {
     #[reflect(type_uuid = "469986cd-6611-4e61-b6f0-bd2d984913c4")]
-    pub struct ArrayStorage<T: Copy + Reflect, const R: usize, const C: usize>(pub [[T; R]; C]);
+    pub struct ArrayStorage<T: Copy + Reflect + PartialEq, const R: usize, const C: usize>(pub [[T; R]; C]);
 }
 
 impl_reflect! {
-    #[reflect(type_uuid = "470e104b-992f-405f-ba6c-c2634502a668")]
+    #[reflect(type_uuid = "470e104b-992f-405f-ba6c-c2634502a668", non_comparable)]
     pub struct Unit<T: Copy + Reflect> {
         // pub(crate) value: T,
     }
@@ -67,14 +72,14 @@ impl_reflect! {
 
 impl_reflect! {
     #[reflect(type_uuid = "3b45cc6d-6db4-4fa3-9d96-edcc87d47919")]
-    pub struct Quaternion<T: Copy + Debug + Reflect> {
+    pub struct Quaternion<T: Copy + Debug + Reflect + PartialEq> {
         pub coords: Vector4<T>,
     }
 }
 
 impl_reflect! {
     #[reflect(type_uuid = "399bf5fd-e506-4874-9d2f-ca40ed11bc5d")]
-    pub struct Complex<T: Copy + Debug + Reflect> {
+    pub struct Complex<T: Copy + Debug + Reflect + PartialEq> {
         pub re: T,
         pub im: T,
     }
@@ -158,45 +163,45 @@ impl Reflect for ImmutableString {
 
 impl<T0> Reflect for (T0,)
 where
-    T0: Clone + Reflect,
+    T0: Clone + Reflect + PartialEq,
 {
     blank_reflect!("874c2dd7-8e5c-44dd-a4f0-b6e64e07113d");
 }
 
 impl<T0, T1> Reflect for (T0, T1)
 where
-    T0: Clone + Reflect,
-    T1: Clone + Reflect,
+    T0: Clone + Reflect + PartialEq,
+    T1: Clone + Reflect + PartialEq,
 {
     blank_reflect!("2722316a-172e-4c95-8cb6-b75c81454233");
 }
 
 impl<T0, T1, T2> Reflect for (T0, T1, T2)
 where
-    T0: Clone + Reflect,
-    T1: Clone + Reflect,
-    T2: Clone + Reflect,
+    T0: Clone + Reflect + PartialEq,
+    T1: Clone + Reflect + PartialEq,
+    T2: Clone + Reflect + PartialEq,
 {
     blank_reflect!("99983877-3ed7-4e58-aef0-3a5951789900");
 }
 
 impl<T0, T1, T2, T3> Reflect for (T0, T1, T2, T3)
 where
-    T0: Clone + Reflect,
-    T1: Clone + Reflect,
-    T2: Clone + Reflect,
-    T3: Clone + Reflect,
+    T0: Clone + Reflect + PartialEq,
+    T1: Clone + Reflect + PartialEq,
+    T2: Clone + Reflect + PartialEq,
+    T3: Clone + Reflect + PartialEq,
 {
     blank_reflect!("1d9b68be-0bf4-498a-a337-d84960d08049");
 }
 
 impl<T0, T1, T2, T3, T4> Reflect for (T0, T1, T2, T3, T4)
 where
-    T0: Clone + Reflect,
-    T1: Clone + Reflect,
-    T2: Clone + Reflect,
-    T3: Clone + Reflect,
-    T4: Clone + Reflect,
+    T0: Clone + Reflect + PartialEq,
+    T1: Clone + Reflect + PartialEq,
+    T2: Clone + Reflect + PartialEq,
+    T3: Clone + Reflect + PartialEq,
+    T4: Clone + Reflect + PartialEq,
 {
     blank_reflect!("02a92848-9a7b-4bdf-8cc0-0e525a1a8021");
 }
@@ -212,12 +217,12 @@ impl_reflect! {
 
 impl_reflect! {
     #[reflect(type_uuid = "c0112c31-73fb-4457-a851-a15c0bae00e6")]
-    pub struct Cell<T: Reflect + Debug + Copy>;
+    pub struct Cell<T: Reflect + Debug + Copy + PartialEq>;
 }
 
 impl_reflect! {
     #[reflect(type_uuid = "99c30632-b72f-4460-8f3b-c7d3c47b1702")]
-    pub enum Option<T: Clone + Debug + Reflect> {
+    pub enum Option<T: Clone + Debug + Reflect + PartialEq> {
         Some(T),
         None
     }
@@ -225,13 +230,13 @@ impl_reflect! {
 
 impl_reflect! {
     #[reflect(type_uuid = "0e37a8f6-fae7-48a7-b7b4-f824e40d6d7e")]
-    pub struct Range<Idx: Clone + Debug + Reflect> {
+    pub struct Range<Idx: Clone + Debug + Reflect + PartialEq> {
         pub start: Idx,
         pub end: Idx,
     }
 }
 
-impl<T: Reflect + Clone> Reflect for Box<T> {
+impl<T: Reflect + Clone + PartialEq> Reflect for Box<T> {
     fn type_info() -> TypeInfo {
         TypeInfo {
             source_path: file!(),
@@ -277,6 +282,12 @@ impl<T: Reflect + Clone> Reflect for Box<T> {
         Some(Box::new(self.clone()))
     }
 
+    fn try_compare(&self, other: &dyn Reflect) -> Option<bool> {
+        (other as &dyn std::any::Any)
+            .downcast_ref::<Self>()
+            .map(|other| other == self)
+    }
+
     fn field_direct_ref(&self, index: usize) -> Option<FieldRef> {
         if index == 0 {
             Some(FieldRef {
@@ -314,7 +325,7 @@ static CONTENT_METADATA: FieldMetadata = FieldMetadata {
 };
 
 macro_rules! impl_reflect_inner_mutability {
-    ($self:ident, $acquire_lock_guard:block, $clone:block) => {
+    ($self:ident, $acquire_lock_guard:block, $clone:block, $other:ident, $compare:block) => {
         fn type_info() -> TypeInfo {
             TypeInfo {
                 source_path: file!(),
@@ -334,7 +345,9 @@ macro_rules! impl_reflect_inner_mutability {
             Some(Box::new($clone))
         }
 
-
+        fn try_compare(&$self, $other: &dyn Reflect) -> Option<bool> {
+            $compare
+        }
 
         fn fields_ref(&$self, func: &mut dyn FnMut(&[FieldRef])) {
             let guard = $acquire_lock_guard;
@@ -371,63 +384,103 @@ macro_rules! impl_reflect_inner_mutability {
     };
 }
 
-impl<T: Reflect + Clone> Reflect for parking_lot::Mutex<T> {
-    impl_reflect_inner_mutability!(self, { self.safe_lock() }, {
-        parking_lot::Mutex::new(self.safe_lock().clone())
-    });
+impl<T: Reflect + Clone + PartialEq> Reflect for parking_lot::Mutex<T> {
+    impl_reflect_inner_mutability!(
+        self,
+        { self.safe_lock() },
+        { parking_lot::Mutex::new(self.safe_lock().clone()) },
+        other,
+        { Some(*self.safe_lock() == *other.downcast_ref::<Self>()?.safe_lock()) }
+    );
 }
 
-impl<T: Reflect + Clone> Reflect for parking_lot::RwLock<T> {
-    impl_reflect_inner_mutability!(self, { self.write() }, {
-        parking_lot::RwLock::new(self.read().clone())
-    });
+impl<T: Reflect + Clone + PartialEq> Reflect for parking_lot::RwLock<T> {
+    impl_reflect_inner_mutability!(
+        self,
+        { self.write() },
+        { parking_lot::RwLock::new(self.read().clone()) },
+        other,
+        { Some(*self.read() == *other.downcast_ref::<Self>()?.read()) }
+    );
 }
 
 #[allow(clippy::mut_mutex_lock)]
-impl<T: Reflect + Clone> Reflect for std::sync::Mutex<T> {
-    impl_reflect_inner_mutability!(self, { self.safe_lock().unwrap() }, {
-        std::sync::Mutex::new(self.safe_lock().unwrap().clone())
-    });
+impl<T: Reflect + Clone + PartialEq> Reflect for std::sync::Mutex<T> {
+    impl_reflect_inner_mutability!(
+        self,
+        { self.safe_lock().unwrap() },
+        { std::sync::Mutex::new(self.safe_lock().unwrap().clone()) },
+        other,
+        { Some(*self.safe_lock().ok()? == *other.downcast_ref::<Self>()?.safe_lock().ok()?) }
+    );
 }
 
-impl<T: Reflect + Clone> Reflect for std::sync::RwLock<T> {
-    impl_reflect_inner_mutability!(self, { self.write().unwrap() }, {
-        std::sync::RwLock::new(self.read().unwrap().clone())
-    });
+impl<T: Reflect + Clone + PartialEq> Reflect for std::sync::RwLock<T> {
+    impl_reflect_inner_mutability!(
+        self,
+        { self.write().unwrap() },
+        { std::sync::RwLock::new(self.read().unwrap().clone()) },
+        other,
+        { Some(*self.read().ok()? == *other.downcast_ref::<Self>()?.read().ok()?) }
+    );
 }
 
 impl<T: Reflect + Clone> Reflect for Arc<parking_lot::Mutex<T>> {
-    impl_reflect_inner_mutability!(self, { self.safe_lock() }, {
-        Arc::new(parking_lot::Mutex::new(self.safe_lock().clone()))
-    });
+    impl_reflect_inner_mutability!(
+        self,
+        { self.safe_lock() },
+        { Arc::new(parking_lot::Mutex::new(self.safe_lock().clone())) },
+        other,
+        { Some(Arc::ptr_eq(self, other.downcast_ref::<Self>()?)) }
+    );
 }
 
 impl<T: Reflect + Clone> Reflect for Arc<std::sync::Mutex<T>> {
-    impl_reflect_inner_mutability!(self, { self.lock().unwrap() }, {
-        Arc::new(std::sync::Mutex::new(self.safe_lock().unwrap().clone()))
-    });
+    impl_reflect_inner_mutability!(
+        self,
+        { self.lock().unwrap() },
+        { Arc::new(std::sync::Mutex::new(self.safe_lock().unwrap().clone())) },
+        other,
+        { Some(Arc::ptr_eq(self, other.downcast_ref::<Self>()?)) }
+    );
 }
 
 impl<T: Reflect + Clone> Reflect for Arc<std::sync::RwLock<T>> {
-    impl_reflect_inner_mutability!(self, { self.write().unwrap() }, {
-        Arc::new(std::sync::RwLock::new(self.read().unwrap().clone()))
-    });
+    impl_reflect_inner_mutability!(
+        self,
+        { self.write().unwrap() },
+        { Arc::new(std::sync::RwLock::new(self.read().unwrap().clone())) },
+        other,
+        { Some(Arc::ptr_eq(self, other.downcast_ref::<Self>()?)) }
+    );
 }
 
 impl<T: Reflect + Clone> Reflect for Arc<parking_lot::RwLock<T>> {
-    impl_reflect_inner_mutability!(self, { self.write() }, {
-        Arc::new(parking_lot::RwLock::new(self.read().clone()))
-    });
+    impl_reflect_inner_mutability!(
+        self,
+        { self.write() },
+        { Arc::new(parking_lot::RwLock::new(self.read().clone())) },
+        other,
+        { Some(Arc::ptr_eq(self, other.downcast_ref::<Self>()?)) }
+    );
 }
 
-impl<T: Reflect + Clone> Reflect for RefCell<T> {
-    impl_reflect_inner_mutability!(self, { self.borrow_mut() }, {
-        RefCell::new(self.borrow().clone())
-    });
+impl<T: Reflect + Clone + PartialEq> Reflect for RefCell<T> {
+    impl_reflect_inner_mutability!(
+        self,
+        { self.borrow_mut() },
+        { RefCell::new(self.borrow().clone()) },
+        other,
+        { Some(*self.borrow() == *other.downcast_ref::<Self>()?.borrow()) }
+    );
 }
 
 impl<T: Reflect + Clone> Reflect for Rc<RefCell<T>> {
-    impl_reflect_inner_mutability!(self, { self.borrow_mut() }, {
-        Rc::new(RefCell::new(self.borrow().clone()))
-    });
+    impl_reflect_inner_mutability!(
+        self,
+        { self.borrow_mut() },
+        { Rc::new(RefCell::new(self.borrow().clone())) },
+        other,
+        { Some(Rc::ptr_eq(self, other.downcast_ref::<Self>()?)) }
+    );
 }

@@ -1100,7 +1100,7 @@ mod test {
         );
     }
 
-    #[derive(Reflect, Clone, Debug)]
+    #[derive(Reflect, Clone, PartialEq, Debug)]
     #[reflect(
         derived_type = "Derived",
         type_uuid = "8c093dc1-fd18-45ff-97bc-8d2364b7ed30"
