@@ -34,7 +34,7 @@ use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, sync::Arc};
 
 /// Defines sound buffer resource import options.
-#[derive(Clone, Deserialize, Serialize, Default, Debug, Reflect)]
+#[derive(Clone, Deserialize, Serialize, Default, Debug, PartialEq, Reflect)]
 #[reflect(type_uuid = "032e333a-f0bd-41f2-a7e5-79207f6064ce")]
 pub struct SoundBufferImportOptions {
     /// Whether the buffer is streaming or not.

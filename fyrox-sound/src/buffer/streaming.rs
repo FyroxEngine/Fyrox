@@ -75,6 +75,12 @@ pub struct StreamingBuffer {
     streaming_source: StreamingSource,
 }
 
+impl PartialEq for StreamingBuffer {
+    fn eq(&self, other: &Self) -> bool {
+        self.generic == other.generic
+    }
+}
+
 #[derive(Debug, Default)]
 enum StreamingSource {
     #[default]

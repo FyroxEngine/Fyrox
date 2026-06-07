@@ -76,7 +76,7 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 pub mod loader;
 
 /// Texture kind.
-#[derive(Copy, Clone, Debug, Reflect, AsRefStr, EnumString, VariantNames)]
+#[derive(Copy, Clone, Debug, PartialEq, Reflect, AsRefStr, EnumString, VariantNames)]
 #[reflect(type_uuid = "542eb785-875b-43ce-b73a-a25024535f48")]
 pub enum TextureKind {
     /// 1D texture.
@@ -222,7 +222,7 @@ impl Visit for TextureKind {
 }
 
 /// Data storage of a texture.
-#[derive(Default, Clone, Reflect)]
+#[derive(Default, PartialEq, Clone, Reflect)]
 #[reflect(type_uuid = "4b9c2b23-46cd-4f7f-bf13-07b0bebe5538")]
 pub struct TextureBytes(Vec<u8>);
 
@@ -253,7 +253,7 @@ impl DerefMut for TextureBytes {
 }
 
 /// Actual texture data.
-#[derive(Debug, Clone, Reflect)]
+#[derive(Debug, Clone, PartialEq, Reflect)]
 #[reflect(type_uuid = "02c23a44-55fa-411a-bc39-eb7a5eadf15c")]
 pub struct Texture {
     kind: TextureKind,
@@ -396,7 +396,17 @@ impl Default for Texture {
 
 /// A filter for mip-map generation.
 #[derive(
-    Default, Copy, Clone, Deserialize, Serialize, Debug, Reflect, AsRefStr, EnumString, VariantNames,
+    Default,
+    Copy,
+    Clone,
+    Deserialize,
+    Serialize,
+    PartialEq,
+    Debug,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    VariantNames,
 )]
 #[reflect(type_uuid = "8fa17c0e-6889-4540-b396-97db4dc952aa")]
 pub enum MipFilter {
@@ -446,7 +456,7 @@ impl MipFilter {
 ///     compression: NoCompression,
 /// )
 /// ```
-#[derive(Clone, Deserialize, Serialize, Debug, Reflect)]
+#[derive(Clone, Deserialize, Serialize, Debug, PartialEq, Reflect)]
 #[reflect(type_uuid = "c70e89c9-2245-4736-99d9-f3fe9c1c5d3c")]
 pub struct TextureImportOptions {
     #[serde(default)]

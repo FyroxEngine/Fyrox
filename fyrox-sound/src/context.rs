@@ -113,7 +113,7 @@ impl PartialEq for SoundContext {
 
 /// A set of flags, that can be used to define what should be skipped during the
 /// serialization of a sound context.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, PartialEq, Clone)]
 pub struct SerializationOptions {
     /// All sources won't be serialized, if set.
     pub skip_sources: bool,
@@ -122,7 +122,7 @@ pub struct SerializationOptions {
 }
 
 /// Internal state of context.
-#[derive(Default, Debug, Clone, Reflect)]
+#[derive(Default, Debug, Clone, PartialEq, Reflect)]
 #[reflect(type_uuid = "10f5a7ce-efe4-4bcc-aabc-c399e8fd1a3c")]
 pub struct State {
     sources: Pool<SoundSource>,

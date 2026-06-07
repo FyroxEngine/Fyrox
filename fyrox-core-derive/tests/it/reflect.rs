@@ -458,7 +458,7 @@ fn inspect_attributes() {
 
 #[test]
 fn inspect_struct() {
-    #[derive(Debug, Default, Clone, Reflect)]
+    #[derive(Debug, Default, Clone, PartialEq, Reflect)]
     #[reflect(type_uuid = "488c51be-b7d8-4d2b-ad70-fbfd688f372f")]
     struct Tuple(f32, f32);
 

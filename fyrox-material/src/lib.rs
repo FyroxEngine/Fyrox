@@ -36,7 +36,7 @@ pub mod loader;
 pub mod shader;
 
 /// A texture binding.
-#[derive(Default, Debug, Visit, Clone, Reflect)]
+#[derive(Default, Debug, Visit, PartialEq, Clone, Reflect)]
 #[reflect(type_uuid = "e1642a47-d372-4840-a8eb-f16350f436f8")]
 pub struct MaterialTextureBinding {
     /// Actual value of the texture binding. Could be [`None`], in this case fallback value of the
@@ -50,7 +50,7 @@ pub struct MaterialTextureBinding {
 ///
 /// There is a limited set of possible types that can be passed to a shader, most of them are
 /// just simple data types.
-#[derive(Debug, Visit, Clone, Reflect, AsRefStr, EnumString, VariantNames)]
+#[derive(Debug, Visit, Clone, PartialEq, Reflect, AsRefStr, EnumString, VariantNames)]
 #[reflect(type_uuid = "2df8f1e5-0075-4d0d-9860-70fc27d3e165")]
 pub enum MaterialResourceBinding {
     /// A texture.
@@ -78,7 +78,7 @@ impl MaterialResourceBinding {
 
 /// Property group stores a bunch of named values of a fixed set of types, that will be used for
 /// rendering with some shader.
-#[derive(Default, Debug, Visit, Clone, Reflect)]
+#[derive(Default, Debug, Visit, Clone, PartialEq, Reflect)]
 #[reflect(type_uuid = "f7bfc838-f115-463d-a714-ab48d309058a")]
 pub struct MaterialPropertyGroup {
     properties: FxHashMap<ImmutableString, MaterialProperty>,
@@ -166,7 +166,7 @@ impl MaterialPropertyGroup {
 }
 
 /// A set of possible material property types.
-#[derive(Debug, Visit, Clone, Reflect, AsRefStr, EnumString, VariantNames)]
+#[derive(Debug, Visit, Clone, PartialEq, Reflect, AsRefStr, EnumString, VariantNames)]
 #[reflect(type_uuid = "1c25018d-ab6e-4dca-99a6-e3d9639bc33c")]
 pub enum MaterialProperty {
     /// Real number.
@@ -600,7 +600,7 @@ impl Default for MaterialProperty {
 /// As you can see it is slightly more complex that with the standard shader. The main difference here is
 /// that we using resource manager to get shader instance, and then we just use the instance to create
 /// material instance. Then we populate properties as usual.
-#[derive(Debug, Clone, Reflect)]
+#[derive(Debug, Clone, PartialEq, Reflect)]
 #[reflect(type_uuid = "0e54fe44-0c58-4108-a681-d6eefc88c234")]
 pub struct Material {
     shader: ShaderResource,

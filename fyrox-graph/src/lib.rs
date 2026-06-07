@@ -1629,7 +1629,7 @@ mod test {
         path::Path,
     };
 
-    #[derive(Visit, Reflect, Debug, Clone)]
+    #[derive(Visit, Reflect, PartialEq, Debug, Clone)]
     #[reflect(type_uuid = "34f5e3ea-3008-45e9-9e6e-0b8fbff1ac28")]
     pub struct Base {
         name: String,
@@ -1699,6 +1699,12 @@ mod test {
         }
     }
 
+    impl PartialEq for Node {
+        fn eq(&self, other: &Self) -> bool {
+            self.0.try_compare(other.0.deref()).unwrap_or_default()
+        }
+    }
+
     impl Node {
         fn new(node: impl NodeTrait) -> Self {
             Self(Box::new(node))
@@ -1733,7 +1739,7 @@ mod test {
 
     /// A wrapper for node pool record that allows to define custom visit method to have full
     /// control over instantiation process at deserialization.
-    #[derive(Debug, Default, Clone, Reflect)]
+    #[derive(Debug, Default, Clone, PartialEq, Reflect)]
     #[reflect(type_uuid = "08052dac-c0c0-4df3-8005-1330827bf9c2")]
     pub struct NodeContainer(Option<Node>);
 
@@ -1835,7 +1841,7 @@ mod test {
         }
     }
 
-    #[derive(Default, Clone, Visit, Reflect, Debug)]
+    #[derive(Default, Clone, Visit, Reflect, PartialEq, Debug)]
     #[reflect(type_uuid = "fc887063-7780-44af-8710-5e0bcf9a83fd")]
     pub struct Graph {
         root: Handle<Node>,
@@ -2091,7 +2097,7 @@ mod test {
         }
     }
 
-    #[derive(Clone, Reflect, Visit, Default, Debug)]
+    #[derive(Clone, Reflect, Visit, PartialEq, Default, Debug)]
     #[reflect(derived_type = "Node")]
     #[reflect(type_uuid = "c7452fb6-78c1-4e77-a2f9-d9ae31f50327")]
     pub struct Pivot {
@@ -2114,7 +2120,7 @@ mod test {
         }
     }
 
-    #[derive(Clone, Reflect, Visit, Default, Debug)]
+    #[derive(Clone, Reflect, Visit, PartialEq, Default, Debug)]
     #[reflect(derived_type = "Node")]
     #[reflect(type_uuid = "17cc2d25-6ba4-4e2d-a31e-867e429bc659")]
     pub struct RigidBody {
@@ -2137,7 +2143,7 @@ mod test {
         }
     }
 
-    #[derive(Clone, Reflect, Visit, Default, Debug)]
+    #[derive(Clone, Reflect, Visit, PartialEq, Default, Debug)]
     #[reflect(derived_type = "Node")]
     #[reflect(type_uuid = "1f869298-37b1-4153-a2a9-6576daa0e8b3")]
     pub struct Joint {

@@ -35,6 +35,12 @@ use std::{
 #[reflect(hide_all, type_uuid = "238a5490-6627-48ef-8035-4b589497293b")]
 pub struct WakersList(Vec<Waker>);
 
+impl PartialEq for WakersList {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.len() == other.0.len()
+    }
+}
+
 impl Deref for WakersList {
     type Target = Vec<Waker>;
 
@@ -63,6 +69,16 @@ impl DerefMut for WakersList {
 #[derive(Reflect, Debug, Clone, Default)]
 #[reflect(hide_all, type_uuid = "cb2257dc-b344-49e6-972e-cd99be4c3615")]
 pub struct LoadError(pub Option<Arc<dyn ResourceLoadError>>);
+
+impl PartialEq for LoadError {
+    fn eq(&self, other: &Self) -> bool {
+        if let (Some(a), Some(b)) = (&self.0, &other.0) {
+            Arc::ptr_eq(a, b)
+        } else {
+            false
+        }
+    }
+}
 
 impl std::error::Error for LoadError {}
 
@@ -99,6 +115,14 @@ impl ResourceDataWrapper {
     }
 }
 
+impl PartialEq for ResourceDataWrapper {
+    fn eq(&self, other: &Self) -> bool {
+        self.0
+            .try_compare(other.0.deref() as &dyn Reflect)
+            .unwrap_or_default()
+    }
+}
+
 impl Clone for ResourceDataWrapper {
     fn clone(&self) -> Self {
         Self(ResourceData::try_clone_box(&*self.0).unwrap())
@@ -131,7 +155,7 @@ impl Clone for ResourceDataWrapper {
 /// to get the UUID earlier: the UUID is stored in a metadata file which exists only if the resource
 /// is present. It is somewhat possible to get a UUID when a resource is failed to load, but not in
 /// 100% cases.
-#[derive(Clone, Reflect)]
+#[derive(Clone, PartialEq, Reflect)]
 #[reflect(type_uuid = "3d49c715-4a48-4b41-b8c6-45bcb8b3fd17")]
 pub enum ResourceState {
     /// Resource is not loaded. In some situations, having a handle to a resource
@@ -337,7 +361,7 @@ mod test {
 
     use super::*;
 
-    #[derive(Debug, Default, Clone, Reflect, Visit)]
+    #[derive(Debug, Default, Clone, Reflect, PartialEq, Visit)]
     #[reflect(type_uuid = "96a59120-b174-4b2c-9069-1770ec495011")]
     struct Stub {}
 

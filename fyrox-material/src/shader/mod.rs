@@ -515,7 +515,7 @@ pub const STANDARD_WIDGET_SHADER_NAME: &str = "Widget Shader";
 ///
 /// Usually you don't need to access internals of the shader, but there sometimes could be a need to
 /// read shader definition, to get supported passes and properties.
-#[derive(Default, Debug, Clone, Reflect, Visit)]
+#[derive(Default, Debug, Clone, Reflect, PartialEq, Visit)]
 #[reflect(type_uuid = "f1346417-b726-492a-b80f-c02096c6c019")]
 pub struct Shader {
     /// Shader definition contains description of properties and render passes.

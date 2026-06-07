@@ -110,7 +110,7 @@ impl Display for ResourceKind {
 
 /// Header of a resource, it contains a common data about the resource, such as its data type uuid,
 /// its kind, etc.
-#[derive(Reflect, Clone, Debug)]
+#[derive(Reflect, PartialEq, Clone, Debug)]
 #[reflect(type_uuid = "2a41dd3e-bb8f-4654-ad0b-d8b7ca0cc9f2")]
 pub struct ResourceHeader {
     /// The unique identifier of this resource.
@@ -641,7 +641,7 @@ mod test {
 
     use super::*;
 
-    #[derive(Debug, Default, Reflect, Visit, Clone, Copy)]
+    #[derive(Debug, Default, PartialEq, Reflect, Visit, Clone, Copy)]
     #[reflect(type_uuid = "7130e63a-8aa3-44f7-b264-bc19072a70ba")]
     struct Stub {}
 
