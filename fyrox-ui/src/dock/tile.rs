@@ -256,7 +256,7 @@ fn deminimize_other_window(
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "8ed17fa9-890e-4dd7-b4f9-a24660882234"

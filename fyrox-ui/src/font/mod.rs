@@ -330,7 +330,7 @@ impl Atlas {
 }
 
 /// A font resource and the associated data required for rendering glyphs from the font.
-#[derive(Default, Clone, Debug, Reflect, PartialEq, Visit)]
+#[derive(Default, Clone, Debug, Reflect, Visit)]
 #[reflect(type_uuid = "692fec79-103a-483c-bb0b-9fc3a349cb48")]
 pub struct Font {
     /// The source font data, such as might come from a ttf file.
@@ -359,6 +359,17 @@ pub struct Font {
     /// font.
     #[visit(skip)]
     pub fallbacks: Vec<Option<FontResource>>,
+}
+
+impl PartialEq for Font {
+    fn eq(&self, other: &Self) -> bool {
+        self.atlases == other.atlases
+            && self.page_size == other.page_size
+            && self.bold == other.bold
+            && self.italic == other.italic
+            && self.bold_italic == other.bold_italic
+            && self.fallbacks == other.fallbacks
+    }
 }
 
 impl ResourceData for Font {

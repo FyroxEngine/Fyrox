@@ -519,7 +519,7 @@ impl DerefMut for WidgetMaterial {
 }
 
 /// A set of data emitted by a widget during the draw pass.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, PartialEq, Clone)]
 pub struct WidgetRenderDataSet {
     /// The result of calling the [`crate::control::Control::draw`] method.
     pub draw_result: RenderData,
@@ -539,7 +539,7 @@ impl WidgetRenderDataSet {
 /// Widget is a base UI element, that is always used to build derived, more complex, widgets. In general, it is a container
 /// for layout information, basic visual appearance, visibility options, parent-child information. It does almost nothing
 /// on its own, instead, the user interface modifies its state accordingly.
-#[derive(Default, Debug, Clone, Reflect, Visit)]
+#[derive(Default, Debug, Clone, Reflect, PartialEq, Visit)]
 #[reflect(type_uuid = "77e1b0ed-0d0a-4fae-9956-19bbd7145401")]
 #[visit(optional)]
 pub struct Widget {

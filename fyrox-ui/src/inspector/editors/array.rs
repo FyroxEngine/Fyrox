@@ -53,7 +53,7 @@ pub enum ArrayEditorMessage {
 }
 impl MessageData for ArrayEditorMessage {}
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Clone, Debug, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "5c6e4785-8e2d-441f-8478-523900394b93"

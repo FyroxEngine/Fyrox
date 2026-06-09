@@ -151,7 +151,7 @@ impl MessageData for ExpanderMessage {}
 ///
 /// To switch expander state at runtime, send [`ExpanderMessage::Expand`] to your Expander widget instance with
 /// [`crate::message::MessageDirection::ToWidget`].
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "24976179-b338-4c55-84c3-72d21663efd2"

@@ -142,7 +142,7 @@ impl BoundValueCollectionExt for BoundValueCollection {
 /// Animation player is a node that contains multiple animations. It updates and plays all the animations.
 /// The node could be a source of animations for animation blending state machines. To learn more about
 /// animations, see [`Animation`] docs.
-#[derive(Visit, Reflect, Clone, Debug)]
+#[derive(Visit, PartialEq, Reflect, Clone, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "44d1c94e-354f-4f9a-b918-9d31c28aa16a"

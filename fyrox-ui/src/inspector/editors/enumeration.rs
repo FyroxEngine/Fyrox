@@ -48,9 +48,9 @@ use strum::VariantNames;
 
 const LOCAL_SYNC_FLAG: u64 = 0xFF;
 
-pub trait InspectableEnum: Debug + Reflect + Clone + Send + 'static {}
+pub trait InspectableEnum: Debug + Reflect + PartialEq + Clone + Send + 'static {}
 
-impl<T: Debug + Reflect + Clone + Send + 'static> InspectableEnum for T {}
+impl<T: Debug + Reflect + PartialEq + Clone + Send + 'static> InspectableEnum for T {}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum EnumPropertyEditorMessage {
@@ -59,7 +59,7 @@ pub enum EnumPropertyEditorMessage {
 }
 impl MessageData for EnumPropertyEditorMessage {}
 
-#[derive(Visit, Reflect)]
+#[derive(Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "0dbefddc-70fa-45a9-96f0-8fe25f6c1669"

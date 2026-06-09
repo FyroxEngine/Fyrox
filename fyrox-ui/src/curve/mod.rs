@@ -110,6 +110,12 @@ pub struct HighlightZone {
 #[derive(Debug, Default)]
 pub struct CurveTransformCell(Mutex<CurveTransform>);
 
+impl PartialEq for CurveTransformCell {
+    fn eq(&self, other: &Self) -> bool {
+        *self.0.safe_lock() == *other.0.safe_lock()
+    }
+}
+
 impl Clone for CurveTransformCell {
     fn clone(&self) -> Self {
         Self(Mutex::new(self.0.safe_lock().clone()))
@@ -211,7 +217,7 @@ fn standardize_step(step: f32) -> f32 {
 ///
 /// Since widgets are not mutable during layout and rendering, a CurveTransform
 /// is intended to be used within a [CurveTransformCell] which provides interior mutability.
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct CurveTransform {
     /// Position of the center of the curve editor in the curve coordinate space.
     pub position: Vector2<f32>,
@@ -358,7 +364,7 @@ impl Iterator for StepIterator {
     }
 }
 
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(type_uuid = "4b640057-639e-4f47-9a08-c08d94eca68e")]
 pub struct CurvesContainer {
     curves: Vec<CurveKeyViewContainer>,
@@ -412,7 +418,7 @@ impl CurvesContainer {
     }
 }
 
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "5c7b087e-871e-498d-b064-187b604a37d8"
@@ -471,7 +477,7 @@ impl ConstructorProvider<UiNode, UserInterface> for CurveEditor {
 
 crate::define_widget_deref!(CurveEditor);
 
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(type_uuid = "c81d942c-394d-498d-b460-1dc508288ed3")]
 struct ContextMenu {
     widget: RcUiNodeHandle,
@@ -495,7 +501,7 @@ struct DragEntry {
     initial_position: Vector2<f32>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 enum OperationContext {
     DragKeys {
         // In local coordinates.
@@ -527,7 +533,7 @@ impl OperationContext {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone,PartialEq,  Debug)]
 enum Selection {
     Keys { keys: FxHashSet<Uuid> },
     LeftTangent { key_id: Uuid },

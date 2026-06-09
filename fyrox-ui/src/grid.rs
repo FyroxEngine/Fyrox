@@ -217,7 +217,7 @@ pub type Row = GridDimension;
 /// You can add any number of rows and columns to a grid widget, and each grid cell does **not** need to have a UI widget
 /// in it to be valid. For example, you can add a column and set it to a specific size via strict to provide spacing between
 /// two other columns.
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "98ce15e2-bd62-497d-a37b-9b1cb4a1918c"
@@ -262,7 +262,7 @@ crate::define_widget_deref!(Grid);
 
 /// Cell of the grid, that contains additional information for layout purposes. It does not have any
 /// particular use outside of grid's internals.
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Cell {
     /// A set of nodes of the cell.
     pub nodes: Vec<Handle<UiNode>>,

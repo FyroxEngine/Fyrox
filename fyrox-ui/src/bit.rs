@@ -113,7 +113,7 @@ impl<T: BitContainer> ConstructorProvider<UiNode, UserInterface> for BitField<T>
     }
 }
 
-#[derive(Default, Clone, Reflect, Visit, Debug)]
+#[derive(Default, Clone, PartialEq, Reflect, Visit, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "6c19b266-18be-46d2-bfd3-f1dc9cb3f36c"

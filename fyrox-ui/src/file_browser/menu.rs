@@ -43,7 +43,7 @@ use std::{
     sync::mpsc::Sender,
 };
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "6a9d597f-6a9f-4bad-b569-4cff1a6deff7"

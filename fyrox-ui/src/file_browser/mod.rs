@@ -100,7 +100,7 @@ enum FsEventMessage {
 }
 impl MessageData for FsEventMessage {}
 
-#[derive(Default, Visit, Reflect)]
+#[derive(Default, Visit, PartialEq, Reflect)]
 #[reflect(type_uuid = "b7f4610e-4b0c-4671-9b4a-60bb45268928")]
 #[reflect(derived_type = "UiNode")]
 pub struct FileBrowser {
@@ -120,7 +120,6 @@ pub struct FileBrowser {
     #[visit(skip)]
     #[reflect(hidden)]
     pub item_context_menu: RcUiNodeHandle,
-    #[allow(clippy::type_complexity)]
     #[visit(skip)]
     #[reflect(hidden)]
     pub watcher: Option<notify::RecommendedWatcher>,

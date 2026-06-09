@@ -106,7 +106,7 @@ impl<T: NumericType> MessageData for RangeEditorMessage<T> {}
 ///
 /// Be very careful about the type of the range when sending a message, you need to send a range of exact type, that match the type
 /// of your editor, otherwise the message have no effect. The same applied to fetching.
-#[derive(Default, Debug, Clone, Reflect, Visit)]
+#[derive(Default, Debug, Clone, PartialEq, Reflect, Visit)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "0eb2948e-8485-490e-8719-18a0bb6fe275"

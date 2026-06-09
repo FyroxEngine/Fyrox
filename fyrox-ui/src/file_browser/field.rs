@@ -46,7 +46,7 @@ impl MessageData for FileSelectorFieldMessage {}
 
 define_widget_deref!(FileSelectorField);
 
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "2dbda730-8a60-4f62-aee8-2ff0ccd15bf2"

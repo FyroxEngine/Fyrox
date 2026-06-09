@@ -217,7 +217,7 @@ pub enum WindowSizeState {
 /// to interact with anything else until the modal is dismissed.
 ///
 /// Any window can be set and unset as a modal via the *modal* function.
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, PartialEq, Visit, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "9331bf32-8614-4005-874c-5239e56bb15e"
@@ -292,7 +292,7 @@ const GRIP_SIZE: f32 = 6.0;
 const CORNER_GRIP_SIZE: f32 = GRIP_SIZE * 2.0;
 
 /// Kind of a resizing grip.
-#[derive(Copy, Clone, Debug, Visit, Reflect, Default)]
+#[derive(Copy, Clone, Debug, Visit, PartialEq, Reflect, Default)]
 #[reflect(type_uuid = "fea2073e-f44e-45db-a373-c9fcee201c2d")]
 pub enum GripKind {
     /// Left-top corner grip.
@@ -315,7 +315,7 @@ pub enum GripKind {
 }
 
 /// Resizing grip.
-#[derive(Clone, Visit, Default, Debug, Reflect)]
+#[derive(Clone, Visit, PartialEq, Default, Debug, Reflect)]
 #[reflect(type_uuid = "373815d8-77d2-4624-80de-2d851f7fd6e5")]
 pub struct Grip {
     /// Kind of the grip.

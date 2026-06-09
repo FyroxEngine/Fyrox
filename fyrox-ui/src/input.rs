@@ -88,7 +88,7 @@ pub enum InputBoxResult {
 /// There's no way to change the style of the input box, nor add some widgets to it. If you need a
 /// custom input box, then you need to create your own widget. This input box is meant to be used as
 /// a standard dialog box for standard situations in the UI.
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(type_uuid = "6b7b6b82-939b-4f98-9bb9-9bd19ce68b21")]
 #[reflect(derived_type = "UiNode")]
 pub struct InputBox {

@@ -157,7 +157,7 @@ impl TextureSlice {
 ///         .build(&mut ui.build_ctx())
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(type_uuid = "c345033e-8c10-4186-b101-43f73b85981d")]
 #[reflect(derived_type = "UiNode")]
 pub struct NinePatch {

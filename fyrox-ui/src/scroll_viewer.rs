@@ -166,7 +166,7 @@ impl ScrollViewerMessage {
 ///     ui.send(scroll_viewer, ScrollViewerMessage::BringIntoView(child))
 /// }
 /// ```
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "173e869f-7da0-4ae2-915a-5d545d8150cc"

@@ -91,7 +91,7 @@ where
 }
 impl<T: NumericType, const D: usize> MessageData for VecEditorMessage<T, D> {}
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "0332144f-c70e-456a-812b-f9b89980d2ba"

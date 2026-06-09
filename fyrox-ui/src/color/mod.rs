@@ -103,7 +103,7 @@ pub enum ColorFieldMessage {
 }
 impl MessageData for ColorFieldMessage {}
 
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "956d4cae-7953-486b-99da-a9b852c2e144"
@@ -384,7 +384,7 @@ impl AlphaBarBuilder {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "af28f977-85e7-4c9e-9a61-7f208844acb5"
@@ -547,7 +547,7 @@ impl HueBarBuilder {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "ab6bfad5-0c4b-42a5-8da5-fc5687b1afc7"
@@ -764,7 +764,7 @@ impl SaturationBrightnessFieldBuilder {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "b7a5d650-5b77-4938-83c1-37f3fe107885"
@@ -1154,7 +1154,7 @@ impl ColorPickerBuilder {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "68dec1ac-23c6-41df-bc85-499f2a82e908"

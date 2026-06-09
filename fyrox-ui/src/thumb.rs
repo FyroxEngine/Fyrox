@@ -98,7 +98,7 @@ impl MessageData for ThumbMessage {}
 ///
 /// This example creates a new thumb widget 5px wide and shows how to use its messages to get
 /// information about the actual movement.
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 #[reflect(type_uuid = "71ad2ff4-6e9e-461d-b7c2-867bd4039684")]
 pub struct Thumb {

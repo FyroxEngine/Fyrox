@@ -47,6 +47,12 @@ pub mod container;
 #[reflect(type_uuid = "d9b45ecc-91b0-40ea-a92a-4a7dee4667c9")]
 pub struct UiNode(#[reflect(deref, display_name = "UiNode")] pub Box<dyn Control>);
 
+impl PartialEq for UiNode {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.try_compare(other.0.deref()).unwrap_or_default()
+    }
+}
+
 impl<T: Control> From<T> for UiNode {
     fn from(value: T) -> Self {
         Self(Box::new(value))

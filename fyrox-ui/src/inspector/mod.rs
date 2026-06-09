@@ -511,7 +511,7 @@ pub trait InspectorEnvironment: Send + Sync + Reflect {
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "c599c0f5-f749-4033-afed-1a9949c937a1"

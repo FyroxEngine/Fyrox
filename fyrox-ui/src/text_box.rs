@@ -393,7 +393,7 @@ pub type FilterCallback = dyn FnMut(char) -> bool + Send;
 ///
 /// You can change brush of caret by using [`TextBoxBuilder::with_caret_brush`] and also selection brush by using
 /// [`TextBoxBuilder::with_selection_brush`], it could be useful if you don't like default colors.
-#[derive(Default, Clone, Visit, Reflect)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "536276f2-a175-4c05-a376-5a7d8bf0d10b"

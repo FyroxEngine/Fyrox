@@ -77,7 +77,7 @@ pub enum StyledPropertyEditorMessage {
 }
 impl MessageData for StyledPropertyEditorMessage {}
 
-#[derive(Debug, Clone, Visit, Reflect)]
+#[derive(Debug, Clone, Visit, PartialEq, Reflect)]
 #[reflect(type_uuid = "3a863a0f-7414-44f5-a7aa-7a6668a6d406")]
 #[reflect(derived_type = "UiNode")]
 pub struct StyledPropertySelector {
@@ -308,7 +308,7 @@ impl StyledPropertySelectorBuilder {
     }
 }
 
-#[derive(Debug, Clone, Visit, Reflect)]
+#[derive(Debug, Clone, Visit, PartialEq, Reflect)]
 #[reflect(type_uuid = "1b8fb74a-3911-4b44-bb71-1a0382ebb9a7")]
 #[reflect(derived_type = "UiNode")]
 pub struct StyledPropertyEditor {

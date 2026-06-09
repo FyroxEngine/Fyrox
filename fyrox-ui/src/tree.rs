@@ -292,7 +292,7 @@ impl MessageData for TreeRootMessage {}
 ///     });
 /// }
 /// ```
-#[derive(Default, Debug, Clone, Visit, Reflect)]
+#[derive(Default, Debug, Clone, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "e090e913-393a-4192-a220-e1d87e272170"
@@ -809,7 +809,7 @@ fn build_expander(
 ///     ui.send(tree, TreeRootMessage::Select(new_selection));
 /// }
 /// ```
-#[derive(Default, Debug, Clone, Visit, Reflect)]
+#[derive(Default, Debug, Clone, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "cf7c0476-f779-4e4b-8b7e-01a23ff51a72"

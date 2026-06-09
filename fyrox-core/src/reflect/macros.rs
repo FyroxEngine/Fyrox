@@ -213,6 +213,10 @@ macro_rules! blank_reflect_ref {
             None
         }
 
+        fn try_compare(&self, other: &dyn Reflect) -> Option<bool> {
+            None
+        }
+
         fn fields_ref(&self, func: &mut dyn FnMut(&[$crate::reflect::FieldRef])) {
             func(&[])
         }

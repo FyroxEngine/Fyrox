@@ -693,7 +693,7 @@ pub enum RenderMode {
     OnChanges,
 }
 
-#[derive(Reflect)]
+#[derive(Reflect, PartialEq)]
 #[reflect(type_uuid = "0d065c93-ef9c-4dd2-9fe7-e2b33c1a21b6")]
 pub struct UserInterface {
     screen_size: Vector2<f32>,

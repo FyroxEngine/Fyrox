@@ -87,7 +87,7 @@ impl MessageData for ProgressBarMessage {}
 ///     ui.send(progress_bar, ProgressBarMessage::Progress(0.33));
 /// }
 /// ```
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "d6ebb853-d945-46bc-86db-4c8b5d5faf8e"

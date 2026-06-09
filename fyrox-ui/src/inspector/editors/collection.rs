@@ -57,11 +57,11 @@ pub struct Item {
     remove: Handle<Button>,
 }
 
-pub trait CollectionItem: Clone + Reflect + Default + Send + 'static {}
+pub trait CollectionItem: Clone + PartialEq + Reflect + Default + Send + 'static {}
 
-impl<T> CollectionItem for T where T: Clone + Reflect + Default + Send + 'static {}
+impl<T> CollectionItem for T where T: Clone + PartialEq + Reflect + Default + Send + 'static {}
 
-#[derive(Debug, Visit, Reflect)]
+#[derive(Debug, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "316b0319-f8ee-4b63-9ed9-3f59a857e2bc"

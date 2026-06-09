@@ -118,7 +118,7 @@ pub mod prelude {
 ///
 /// The node does **not** contain any animations, instead it just takes animations from an animation
 /// player node and mixes them.
-#[derive(Visit, Reflect, Clone, Debug, Default)]
+#[derive(Visit, PartialEq, Reflect, Clone, Debug, Default)]
 #[reflect(type_uuid = "4b08c753-2a10-41e3-8fb2-4fd0517e86bc")]
 #[reflect(derived_type = "UiNode")]
 pub struct AnimationBlendingStateMachine {
@@ -276,7 +276,7 @@ pub struct EventAction {
 }
 
 /// A widget that listens for particular events and sets parameters in an ABSM accordingly.
-#[derive(Visit, Reflect, Clone, Debug, Default)]
+#[derive(Visit, PartialEq, Reflect, Clone, Debug, Default)]
 #[reflect(type_uuid = "15f306b8-3bb8-4b35-87bd-6e9e5d748455")]
 #[reflect(derived_type = "UiNode")]
 pub struct AbsmEventProvider {

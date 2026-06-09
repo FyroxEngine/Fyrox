@@ -99,7 +99,7 @@ use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 /// .with_stroke_thickness(Thickness {left: 2.0, right: 2.0, top: 2.0, bottom: 2.0}.into())
 /// .build(&mut ui.build_ctx());
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(type_uuid = "6aba3dc5-831d-481a-bc83-ec10b2b2bf12")]
 #[reflect(derived_type = "UiNode")]
 pub struct Border {

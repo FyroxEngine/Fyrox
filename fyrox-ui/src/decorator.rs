@@ -86,7 +86,7 @@ impl MessageData for DecoratorMessage {}
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "bb4b60aa-c657-4ed6-8db6-d7f374397c73"
