@@ -411,13 +411,34 @@ pub fn array_as_u8_slice_mut<T: Sized + Pod>(v: &mut [T]) -> &'_ mut [u8] {
 }
 
 /// "Transmutes" array of any sized type to a slice of some other type.
-pub fn transmute_slice<T: Sized, U: Sized>(v: &[T]) -> &'_ [U] {
-    // SAFETY: It is safe to reinterpret data to read it.
+///
+/// Both `T` and `U` must be [`Pod`] types (no padding, no invalid bit patterns).
+///
+/// # Panics
+///
+/// Panics if:
+/// - `U` is a zero-sized type
+/// - The byte length of `v` is not a multiple of `size_of::<U>()`
+/// - The pointer to `v` is not properly aligned for type `U`
+pub fn transmute_slice<T: Sized + Pod, U: Sized + Pod>(v: &[T]) -> &'_ [U] {
+    let byte_len = std::mem::size_of_val(v);
+    let target_size = std::mem::size_of::<U>();
+    assert!(target_size != 0, "transmute_slice: target type must not be zero-sized");
+    assert!(
+        byte_len % target_size == 0,
+        "transmute_slice: source byte length ({byte_len}) is not a multiple of target type size ({target_size})",
+    );
+    let ptr = v.as_ptr() as *const U;
+    assert!(
+        ptr.is_aligned(),
+        "transmute_slice: source pointer is not aligned for target type (required {} byte alignment, got pointer {:?})",
+        std::mem::align_of::<U>(),
+        ptr,
+    );
+    // SAFETY: T and U are Pod (no uninit bytes, no invalid bit patterns). Alignment and
+    // divisibility are checked above.
     unsafe {
-        std::slice::from_raw_parts(
-            v.as_ptr() as *const U,
-            std::mem::size_of_val(v) / std::mem::size_of::<U>(),
-        )
+        std::slice::from_raw_parts(ptr, byte_len / target_size)
     }
 }
 
