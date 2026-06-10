@@ -51,7 +51,7 @@ use crate::{
 };
 
 use fyrox::gui::button::Button;
-use fyrox::gui::inspector::InspectorContextArgs;
+use fyrox::gui::inspector::{InspectorContextArgs, InspectorEnvironmentContainer};
 use fyrox::gui::message::MessageData;
 use fyrox::gui::utils::make_dropdown_list_option;
 use fyrox::gui::{Thickness, VerticalAlignment};
@@ -216,7 +216,7 @@ impl ScriptPropertyEditorBuilder {
         open_in_ide_button: Handle<Button>,
         variant_selector: Handle<UiNode>,
         script_uuid: Option<Uuid>,
-        environment: Option<Arc<dyn InspectorEnvironment>>,
+        environment: Option<InspectorEnvironmentContainer>,
         layer_index: usize,
         generate_property_string_values: bool,
         filter: PropertyFilter,

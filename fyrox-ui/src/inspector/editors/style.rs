@@ -502,7 +502,7 @@ where
 
 impl<T> PropertyEditorDefinition for StyledPropertyEditorDefinition<T>
 where
-    T: Reflect + Clone,
+    T: Reflect + Clone + PartialEq,
 {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<StyledProperty<T>>()

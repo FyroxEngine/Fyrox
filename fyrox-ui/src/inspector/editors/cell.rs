@@ -66,7 +66,7 @@ where
 
 impl<T> PropertyEditorDefinition for CellPropertyEditorDefinition<T>
 where
-    T: Reflect + Copy,
+    T: Reflect + Copy + PartialEq,
 {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<Cell<T>>()

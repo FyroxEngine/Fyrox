@@ -69,7 +69,7 @@ where
 
 impl<T> PropertyEditorDefinition for RefCellPropertyEditorDefinition<T>
 where
-    T: Reflect + Clone,
+    T: Reflect + Clone + PartialEq,
 {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<RefCell<T>>()

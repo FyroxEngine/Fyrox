@@ -873,7 +873,7 @@ impl RenderData {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct DrawingContext {
     pub render_data: RenderData,
     pub transform_stack: TransformStack,

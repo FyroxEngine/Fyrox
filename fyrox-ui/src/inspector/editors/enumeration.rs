@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::inspector::InspectorEnvironmentContainer;
 use crate::{
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
@@ -28,8 +29,7 @@ use crate::{
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
         make_expander_container, FieldAction, Inspector, InspectorBuilder, InspectorContext,
-        InspectorContextArgs, InspectorEnvironment, InspectorError, InspectorMessage,
-        PropertyChanged, PropertyFilter,
+        InspectorContextArgs, InspectorError, InspectorMessage, PropertyChanged, PropertyFilter,
     },
     message::{MessageData, UiMessage},
     utils::make_dropdown_list_option,
@@ -76,7 +76,7 @@ pub struct EnumPropertyEditor<T: InspectableEnum> {
     pub definition_container: Arc<PropertyEditorDefinitionContainer>,
     #[visit(skip)]
     #[reflect(hidden)]
-    pub environment: Option<Arc<dyn InspectorEnvironment>>,
+    pub environment: Option<InspectorEnvironmentContainer>,
     #[visit(skip)]
     #[reflect(hidden)]
     pub layer_index: usize,
@@ -183,7 +183,7 @@ impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
 pub struct EnumPropertyEditorBuilder {
     widget_builder: WidgetBuilder,
     definition_container: Option<Arc<PropertyEditorDefinitionContainer>>,
-    environment: Option<Arc<dyn InspectorEnvironment>>,
+    environment: Option<InspectorEnvironmentContainer>,
     variant_selector: Handle<UiNode>,
     layer_index: usize,
     generate_property_string_values: bool,
@@ -211,7 +211,7 @@ impl EnumPropertyEditorBuilder {
         self
     }
 
-    pub fn with_environment(mut self, environment: Option<Arc<dyn InspectorEnvironment>>) -> Self {
+    pub fn with_environment(mut self, environment: Option<InspectorEnvironmentContainer>) -> Self {
         self.environment = environment;
         self
     }
@@ -293,6 +293,7 @@ impl EnumPropertyEditorBuilder {
     }
 }
 
+#[derive(PartialEq)]
 pub struct EnumPropertyEditorDefinition<T: InspectableEnum> {
     pub variant_generator: fn(usize) -> T,
     pub index_generator: fn(&T) -> usize,

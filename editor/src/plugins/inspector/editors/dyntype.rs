@@ -47,6 +47,7 @@ use crate::{
     plugins::inspector::EditorEnvironment,
 };
 use fyrox::core::dyntype::DynTypeWrapper;
+use fyrox::gui::inspector::InspectorEnvironmentContainer;
 use std::{
     any::TypeId,
     cell::Cell,
@@ -141,7 +142,7 @@ impl DynTypePropertyEditorBuilder {
         self,
         variant_selector: Handle<UiNode>,
         dyn_type_uuid: Option<Uuid>,
-        environment: Option<Arc<dyn InspectorEnvironment>>,
+        environment: Option<InspectorEnvironmentContainer>,
         layer_index: usize,
         generate_property_string_values: bool,
         filter: PropertyFilter,

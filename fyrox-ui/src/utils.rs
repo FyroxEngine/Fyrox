@@ -18,10 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::widget::UserData;
 use crate::{
     border::BorderBuilder,
     button::{Button, ButtonBuilder},
-    core::{algebra::Vector2, color::Color, parking_lot::Mutex, pool::Handle},
+    core::{algebra::Vector2, color::Color, pool::Handle},
     decorator::DecoratorBuilder,
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
@@ -37,7 +38,6 @@ use fyrox_texture::{
     CompressionOptions, TextureImportOptions, TextureMinificationFilter, TextureResource,
     TextureResourceExtension,
 };
-use std::sync::Arc;
 use uuid::Uuid;
 
 pub enum ArrowDirection {
@@ -233,7 +233,7 @@ pub fn make_dropdown_list_option_universal<T: Send + 'static>(
             BorderBuilder::new(
                 WidgetBuilder::new()
                     .with_height(height)
-                    .with_user_data(Arc::new(Mutex::new(user_data)))
+                    .with_user_data(UserData::new(user_data))
                     .with_child(
                         TextBuilder::new(WidgetBuilder::new().with_margin(text_margin()))
                             .with_vertical_text_alignment(VerticalAlignment::Center)

@@ -150,7 +150,7 @@ pub static LIGHT_STYLE: LazyLock<BuiltInResource<Style>> = LazyLock::new(|| {
 /// the style and why do we need to store the value as well? The answer is flexibility. In this
 /// approach, style becomes not necessary and the value can be hardcoded. Also, the values of such
 /// properties can be updated individually.
-#[derive(Clone, Debug, PartialEq, Reflect, Default)]
+#[derive(Clone, Debug, Reflect, Default)]
 #[reflect(
     bounds = "T: Reflect + Clone + PartialEq",
     type_uuid = "71e84137-2832-42a1-bcb5-f8ee95784997"

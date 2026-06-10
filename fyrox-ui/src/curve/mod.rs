@@ -495,7 +495,7 @@ struct ContextMenu {
     paste_keys: Handle<MenuItem>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 struct DragEntry {
     key_id: Uuid,
     initial_position: Vector2<f32>,
@@ -533,7 +533,7 @@ impl OperationContext {
     }
 }
 
-#[derive(Clone,PartialEq,  Debug)]
+#[derive(Clone, PartialEq, Debug)]
 enum Selection {
     Keys { keys: FxHashSet<Uuid> },
     LeftTangent { key_id: Uuid },
@@ -952,7 +952,7 @@ impl Control for CurveEditor {
                             // but when it works, who cares.
                             self.zoom_to_fit_timer = Some(10);
                         } else {
-                            self.zoom_to_fit(&ui.sender);
+                            self.zoom_to_fit(&ui.ui_message_channel.sender);
                         }
 
                         self.invalidate_visual();
@@ -1088,7 +1088,7 @@ impl Control for CurveEditor {
         if let Some(timer) = self.zoom_to_fit_timer.as_mut() {
             *timer = timer.saturating_sub(1);
             if *timer == 0 {
-                self.zoom_to_fit(&ui.sender);
+                self.zoom_to_fit(&ui.ui_message_channel.sender);
                 self.zoom_to_fit_timer = None;
             }
         }

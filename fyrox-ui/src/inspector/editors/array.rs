@@ -26,8 +26,7 @@ use crate::{
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        make_expander_container, CollectionAction, FieldAction, InspectorEnvironment,
-        InspectorError, PropertyChanged,
+        make_expander_container, CollectionAction, FieldAction, InspectorError, PropertyChanged,
     },
     inspector::{make_property_margin, PropertyFilter},
     message::{MessageDirection, UiMessage},
@@ -36,6 +35,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 
+use crate::inspector::InspectorEnvironmentContainer;
 use crate::message::{DeliveryMode, MessageData};
 use fyrox_graph::SceneGraph;
 use std::sync::Arc;
@@ -92,7 +92,7 @@ where
 {
     widget_builder: WidgetBuilder,
     collection: Option<I>,
-    environment: Option<Arc<dyn InspectorEnvironment>>,
+    environment: Option<InspectorEnvironmentContainer>,
     definition_container: Option<Arc<PropertyEditorDefinitionContainer>>,
     layer_index: usize,
     generate_property_string_values: bool,
@@ -111,7 +111,7 @@ fn create_item_views(items: &[Item]) -> Vec<Handle<UiNode>> {
 
 fn create_items<'a, 'b, T, I>(
     iter: I,
-    environment: Option<Arc<dyn InspectorEnvironment>>,
+    environment: Option<InspectorEnvironmentContainer>,
     definition_container: Arc<PropertyEditorDefinitionContainer>,
     property_info: &FieldRef<'a, 'b>,
     ctx: &mut BuildContext,
@@ -209,7 +209,7 @@ where
         self
     }
 
-    pub fn with_environment(mut self, environment: Option<Arc<dyn InspectorEnvironment>>) -> Self {
+    pub fn with_environment(mut self, environment: Option<InspectorEnvironmentContainer>) -> Self {
         self.environment = environment;
         self
     }
@@ -317,7 +317,7 @@ where
 
 impl<T, const N: usize> PropertyEditorDefinition for ArrayPropertyEditorDefinition<T, N>
 where
-    T: Reflect + Clone,
+    T: Reflect + Clone + PartialEq,
 {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<[T; N]>()

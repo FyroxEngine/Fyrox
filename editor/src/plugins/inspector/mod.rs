@@ -62,6 +62,7 @@ use crate::{
     utils::window_content,
     Editor, Message, WidgetMessage, WrapMode,
 };
+use fyrox::gui::inspector::InspectorEnvironmentContainer;
 use std::{any::Any, sync::mpsc::Sender, sync::Arc};
 
 pub mod editors;
@@ -93,7 +94,7 @@ pub struct EditorEnvironment {
 
 impl EditorEnvironment {
     pub fn try_get_from(
-        environment: &Option<Arc<dyn InspectorEnvironment>>,
+        environment: &Option<InspectorEnvironmentContainer>,
     ) -> Result<&Self, InspectorError> {
         let environment = &**environment.as_ref().ok_or(InspectorError::Custom(
             "Missing InspectorEnvironment".into(),

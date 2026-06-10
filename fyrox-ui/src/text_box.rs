@@ -50,6 +50,7 @@ use crate::{
 };
 use copypasta::ClipboardProvider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
+use std::ops::Deref;
 use std::{
     cell::RefCell,
     fmt::{Debug, Formatter},
@@ -194,6 +195,23 @@ impl SelectionRange {
 /// Defines a function, that could be used to filter out desired characters. It must return `true` for characters, that pass
 /// the filter, and `false` - otherwise.
 pub type FilterCallback = dyn FnMut(char) -> bool + Send;
+
+#[derive(Clone)]
+pub struct TextBoxFilter(pub Arc<Mutex<FilterCallback>>);
+
+impl PartialEq for TextBoxFilter {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Deref for TextBoxFilter {
+    type Target = Mutex<FilterCallback>;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+}
 
 /// TextBox is a text widget that allows you to edit text and create specialized input fields. It has various options like
 /// word wrapping, text alignment, and so on.
@@ -427,7 +445,7 @@ pub struct TextBox {
     /// Current character filter of the text box.
     #[visit(skip)]
     #[reflect(hidden)]
-    pub filter: Option<Arc<Mutex<FilterCallback>>>,
+    pub filter: Option<TextBoxFilter>,
     /// Current text commit mode of the text box.
     pub commit_mode: InheritableVariable<TextCommitMode>,
     /// `true` if the multiline mode is active.
@@ -1527,7 +1545,7 @@ pub struct TextBoxBuilder<'a> {
     text: String,
     caret_brush: Brush,
     selection_brush: Brush,
-    filter: Option<Arc<Mutex<FilterCallback>>>,
+    filter: Option<TextBoxFilter>,
     vertical_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
     wrap: WrapMode,
@@ -1613,7 +1631,7 @@ impl<'a> TextBoxBuilder<'a> {
     }
 
     /// Sets the desired character filter of the text box. See [`FilterCallback`] for more info.
-    pub fn with_filter(mut self, filter: Arc<Mutex<FilterCallback>>) -> Self {
+    pub fn with_filter(mut self, filter: TextBoxFilter) -> Self {
         self.filter = Some(filter);
         self
     }

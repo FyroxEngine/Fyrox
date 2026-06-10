@@ -41,9 +41,10 @@ use crate::{
         resource::{StyleResource, StyleResourceExt},
         Style, StyledProperty, DEFAULT_STYLE,
     },
-    BuildContext, HorizontalAlignment, LayoutEvent, MouseButton, MouseState, RcUiNodeHandle,
-    Thickness, UiNode, UserInterface, VerticalAlignment,
+    BuildContext, HorizontalAlignment, LayoutEvent, LayoutEventsSender, MouseButton, MouseState,
+    RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox_core::parking_lot::{MappedMutexGuard, MutexGuard};
 use fyrox_core::pool::ObjectOrVariant;
 use fyrox_graph::SceneGraph;
 use fyrox_material::{Material, MaterialResource};
@@ -54,7 +55,7 @@ use std::{
     cmp::Ordering,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
-    sync::{mpsc::Sender, Arc},
+    sync::Arc,
 };
 
 /// Sorting predicate that is used to sort widgets by some criteria.
@@ -536,6 +537,25 @@ impl WidgetRenderDataSet {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct UserData(pub Arc<Mutex<dyn Any + Send>>);
+
+impl UserData {
+    pub fn new<T: Any + Send>(v: T) -> Self {
+        Self(Arc::new(Mutex::new(v)))
+    }
+
+    pub fn downcast<T: Any + Send>(&self) -> Option<MappedMutexGuard<T>> {
+        MutexGuard::try_map(self.0.safe_lock(), |v| v.downcast_mut::<T>()).ok()
+    }
+}
+
+impl PartialEq for UserData {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
 /// Widget is a base UI element, that is always used to build derived, more complex, widgets. In general, it is a container
 /// for layout information, basic visual appearance, visibility options, parent-child information. It does almost nothing
 /// on its own, instead, the user interface modifies its state accordingly.
@@ -619,7 +639,7 @@ pub struct Widget {
     /// Optional, user-defined data.
     #[reflect(hidden)]
     #[visit(skip)]
-    pub user_data: Option<Arc<Mutex<dyn Any + Send>>>,
+    pub user_data: Option<UserData>,
     /// A flag, that defines whether the widget should be drawn in a separate drawing pass after any other widget that draws
     /// normally.
     pub draw_on_top: InheritableVariable<bool>,
@@ -675,7 +695,7 @@ pub struct Widget {
     /// Internal sender for layout events.
     #[reflect(hidden)]
     #[visit(skip)]
-    pub layout_events_sender: Option<Sender<LayoutEvent>>,
+    pub layout_events_sender: Option<LayoutEventsSender>,
     /// Unique identifier of the widget.
     pub id: Uuid,
     /// A flag, that indicates whether this widget is a root widget of a hierarchy of widgets
@@ -1564,11 +1584,10 @@ impl Widget {
 
     /// Tries to fetch user-defined data of the specified type `T`.
     #[inline]
-    pub fn user_data_cloned<T: Clone + 'static>(&self) -> Option<T> {
-        self.user_data.as_ref().and_then(|v| {
-            let guard = v.safe_lock();
-            guard.downcast_ref::<T>().cloned()
-        })
+    pub fn user_data_cloned<T: Any + Send + Clone + 'static>(&self) -> Option<T> {
+        self.user_data
+            .as_ref()
+            .and_then(|v| Some(T::clone(&*v.downcast::<T>()?)))
     }
 
     /// Returns current clipping bounds of the widget. It is valid only after at least one layout pass.
@@ -1701,7 +1720,7 @@ pub struct WidgetBuilder {
     /// Whether the drop of the widget is allowed or not.
     pub allow_drop: bool,
     /// User-defined data.
-    pub user_data: Option<Arc<Mutex<dyn Any + Send>>>,
+    pub user_data: Option<UserData>,
     /// Whether to draw the widget on top of any other or not.
     pub draw_on_top: bool,
     /// Whether the widget is enabled or not.
@@ -1981,7 +2000,7 @@ impl WidgetBuilder {
     /// Sets the desired widget user data.
     pub fn with_user_data_value_opt<T: Any + Send>(mut self, user_data: Option<T>) -> Self {
         if let Some(data) = user_data {
-            self.user_data = Some(Arc::new(Mutex::new(data)));
+            self.user_data = Some(UserData::new(data));
         }
         self
     }
@@ -1992,7 +2011,7 @@ impl WidgetBuilder {
     }
 
     /// Sets the desired widget user data.
-    pub fn with_user_data(mut self, user_data: Arc<Mutex<dyn Any + Send>>) -> Self {
+    pub fn with_user_data(mut self, user_data: UserData) -> Self {
         self.user_data = Some(user_data);
         self
     }
