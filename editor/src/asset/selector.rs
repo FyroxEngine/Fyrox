@@ -79,7 +79,7 @@ pub enum AssetSelectorMessage {
 impl MessageData for AssetSelectorMessage {}
 
 #[derive(Clone, Debug, Reflect, Visit)]
-#[reflect(type_uuid = "aa4f0726-8d25-4c90-add1-92ba392310c6")]
+#[reflect(type_uuid = "aa4f0726-8d25-4c90-add1-92ba392310c6", non_comparable)]
 struct Item {
     pub widget: Widget,
     image: Handle<Image>,
@@ -229,7 +229,7 @@ impl ItemBuilder {
     }
 }
 
-#[derive(Clone, Debug, Reflect, Visit)]
+#[derive(Clone, Debug, PartialEq, Reflect, Visit)]
 #[reflect(type_uuid = "970bb83b-51e8-48e7-8050-f97bf0ac470b")]
 pub struct AssetSelector {
     pub widget: Widget,
@@ -387,7 +387,7 @@ impl<'a> AssetSelectorBuilder<'a> {
     }
 }
 
-#[derive(Clone, Debug, Reflect, Visit)]
+#[derive(Clone, Debug, PartialEq, Reflect, Visit)]
 #[reflect(type_uuid = "c348ad3d-52a6-40ad-a5e4-bf63fefe1906")]
 pub struct AssetSelectorWindow {
     pub window: Window,
@@ -591,7 +591,7 @@ impl<'a> AssetSelectorWindowBuilder<'a> {
 }
 
 #[derive(Reflect, Visit, Debug)]
-#[reflect(type_uuid = "7839eb64-1e6e-4e40-a8fb-53c9d0945b16")]
+#[reflect(type_uuid = "7839eb64-1e6e-4e40-a8fb-53c9d0945b16", non_comparable)]
 pub struct AssetSelectorMixin<T: TypedResourceData> {
     pub selector: Cell<Handle<AssetSelectorWindow>>,
     pub select: Handle<Button>,

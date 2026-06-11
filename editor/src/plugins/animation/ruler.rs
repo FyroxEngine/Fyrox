@@ -65,7 +65,7 @@ pub enum RulerMessage {
 }
 impl MessageData for RulerMessage {}
 
-#[derive(Clone)]
+#[derive(PartialEq, Clone)]
 struct ContextMenu {
     menu: RcUiNodeHandle,
     add_signal: Handle<MenuItem>,
@@ -148,18 +148,18 @@ impl SignalView {
     const SIZE: f32 = 10.0;
 }
 
-#[derive(Clone)]
+#[derive(PartialEq, Clone)]
 enum DragEntity {
     TimePosition,
     Signal(Uuid),
 }
 
-#[derive(Clone)]
+#[derive(PartialEq, Clone)]
 struct DragContext {
     entity: DragEntity,
 }
 
-#[derive(Clone, Visit, Reflect)]
+#[derive(Clone, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "98655c9b-428f-4977-a478-ad3674cc66d4"

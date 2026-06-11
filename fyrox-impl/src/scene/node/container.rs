@@ -35,7 +35,7 @@ use fyrox_core::visitor::error::VisitError;
 
 /// A wrapper for node pool record that allows to define custom visit method to have full
 /// control over instantiation process at deserialization.
-#[derive(Debug, Clone, Default, Reflect)]
+#[derive(Debug, Clone, Default, PartialEq, Reflect)]
 #[reflect(type_uuid = "be27db20-c0b0-491e-9421-8b1ebc357b9a")]
 pub struct NodeContainer(Option<Node>);
 

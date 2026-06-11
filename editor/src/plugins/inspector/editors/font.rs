@@ -54,7 +54,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-#[derive(Clone, Visit, Reflect)]
+#[derive(Clone, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "5db49479-ff89-49b8-a038-0766253d6493"

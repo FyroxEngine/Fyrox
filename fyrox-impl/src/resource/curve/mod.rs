@@ -72,7 +72,7 @@ impl From<VisitError> for CurveResourceError {
 }
 
 /// State of the [`CurveResource`]
-#[derive(Debug, Clone, Visit, Default, Reflect)]
+#[derive(Debug, Clone, Visit, Default, PartialEq, Reflect)]
 #[reflect(type_uuid = "f28b949f-28a2-4b68-9089-59c234f58b6b")]
 pub struct CurveResourceState {
     /// Actual curve.

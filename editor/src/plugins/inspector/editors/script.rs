@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::fyrox::{
-    core::{log::Log, parking_lot::Mutex, pool::Handle, reflect::prelude::*, visitor::prelude::*},
+    core::{log::Log, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     engine::SerializationContext,
     graph::SceneGraph,
     gui::{
@@ -33,8 +33,7 @@ use crate::fyrox::{
                 PropertyEditorMessageContext, PropertyEditorTranslationContext,
             },
             make_expander_container, FieldAction, Inspector, InspectorBuilder, InspectorContext,
-            InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged,
-            PropertyFilter,
+            InspectorError, InspectorMessage, PropertyChanged, PropertyFilter,
         },
         message::{MessageDirection, UiMessage},
         text::TextBuilder,
@@ -54,6 +53,7 @@ use fyrox::gui::button::Button;
 use fyrox::gui::inspector::{InspectorContextArgs, InspectorEnvironmentContainer};
 use fyrox::gui::message::MessageData;
 use fyrox::gui::utils::make_dropdown_list_option;
+use fyrox::gui::widget::UserData;
 use fyrox::gui::{Thickness, VerticalAlignment};
 use std::{
     any::TypeId,
@@ -69,7 +69,7 @@ pub enum ScriptPropertyEditorMessage {
 }
 impl MessageData for ScriptPropertyEditorMessage {}
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Clone, Debug, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "f43c3bfb-8b39-4cc0-be77-04141a45822e"
@@ -267,10 +267,7 @@ fn create_items(
 ) -> Vec<Handle<UiNode>> {
     let mut items = vec![{
         let empty = make_dropdown_list_option(ctx, "<No Script>");
-        ctx[empty].user_data = Some(Arc::new(Mutex::new((
-            Uuid::default(),
-            Option::<String>::None,
-        ))));
+        ctx[empty].user_data = Some(UserData::new((Uuid::default(), Option::<String>::None)));
         empty
     }];
 
@@ -278,10 +275,10 @@ fn create_items(
         |(type_uuid, constructor)| {
             let item = make_dropdown_list_option(ctx, &constructor.name);
 
-            ctx[item].user_data = Some(Arc::new(Mutex::new((
+            ctx[item].user_data = Some(UserData::new((
                 *type_uuid,
                 Some(constructor.source_path.to_string()),
-            ))));
+            )));
 
             item
         },

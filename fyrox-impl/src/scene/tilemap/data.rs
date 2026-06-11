@@ -50,7 +50,7 @@ fn tile_position_to_chunk_position(position: Vector2<i32>) -> (Vector2<i32>, Vec
     )
 }
 
-#[derive(Clone, Debug, Reflect)]
+#[derive(Clone, Debug, PartialEq, Reflect)]
 #[reflect(type_uuid = "dad649ae-eb5f-4328-832a-891edd79aff5")]
 struct Chunk([TileDefinitionHandle; CHUNK_WIDTH * CHUNK_HEIGHT]);
 
@@ -176,7 +176,7 @@ impl<'a, P: FnMut(Vector2<i32>) -> bool> TileMapDataIterator<'a, P> {
 }
 
 /// Asset containing the tile handles of a tile map.
-#[derive(Clone, Default, Debug, Reflect)]
+#[derive(Clone, Default, Debug, PartialEq, Reflect)]
 #[reflect(type_uuid = "a8e4b6b4-c1bd-4ed9-a753-0d5a3dfe1729")]
 pub struct TileMapData {
     content: FxHashMap<Vector2<i32>, Chunk>,

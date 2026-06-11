@@ -53,7 +53,7 @@ pub enum SocketDirection {
     Output,
 }
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Clone, Debug, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "a6c0473e-7073-4e91-a681-cf88795af52a"

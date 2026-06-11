@@ -74,7 +74,8 @@ impl MessageData for MaterialFieldMessage {}
 #[derive(Clone, Visit, Reflect)]
 #[reflect(
     derived_type = "UiNode",
-    type_uuid = "d3fa0a7c-52d6-4cca-885e-0db8b18542e2"
+    type_uuid = "d3fa0a7c-52d6-4cca-885e-0db8b18542e2",
+    non_comparable
 )]
 pub struct MaterialFieldEditor {
     widget: Widget,

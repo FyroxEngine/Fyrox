@@ -38,8 +38,11 @@ use crate::{
     },
     keyboard::{KeyCode, ModifiersState},
 };
+use fyrox_core::parking_lot::{Mutex, MutexGuard};
+use fyrox_core::SafeLock;
 use fyrox_ui::message::CursorIcon;
 use half::f16;
+use std::collections::VecDeque;
 use std::{any::Any, sync::Arc};
 use winit::{event::Touch, keyboard::PhysicalKey};
 
@@ -823,4 +826,32 @@ pub fn vec3_f16_from_f32(v: Vector3<f32>) -> Vector3<f16> {
 /// Converts `Vector3<f16>` -> `Vector3<f32>`.
 pub fn vec3_f32_from_f16(v: Vector3<f16>) -> Vector3<f32> {
     v.map(|v| v.to_f32())
+}
+
+/// A [`VecDeque`] wrapped into a mutex.
+#[derive(Debug)]
+pub struct ThreadSafeQueue<T>(Mutex<VecDeque<T>>);
+
+impl<T> Default for ThreadSafeQueue<T> {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
+impl<T> ThreadSafeQueue<T> {
+    /// Pushes a new item at the back of the queue.
+    pub fn push(&mut self, action: T) {
+        self.0.get_mut().push_back(action)
+    }
+
+    /// Returns the locked inner queue.
+    pub fn inner(&self) -> MutexGuard<VecDeque<T>> {
+        self.0.safe_lock()
+    }
+}
+
+impl<T: PartialEq> PartialEq for ThreadSafeQueue<T> {
+    fn eq(&self, other: &Self) -> bool {
+        *self.0.safe_lock() == *other.0.safe_lock()
+    }
 }

@@ -149,8 +149,9 @@ use winit::{
 #[reflect(
     hide_all,
     non_cloneable,
+    non_comparable,
     type_uuid = "1973a8c9-6ac6-48a2-bca1-9b4f3cce0774"
-)] // TODO
+)]
 pub struct SerializationContext {
     /// A node constructor container.
     pub node_constructors: NodeConstructorContainer,
@@ -2926,7 +2927,7 @@ mod test {
     }
 
     #[derive(Debug, Clone, Reflect, Visit)]
-    #[reflect(type_uuid = "2569de84-d4b2-427d-969b-d5c7b31a0ba6")]
+    #[reflect(type_uuid = "2569de84-d4b2-427d-969b-d5c7b31a0ba6", non_comparable)]
     struct MyScript {
         #[reflect(hidden)]
         #[visit(skip)]
@@ -2993,7 +2994,7 @@ mod test {
     }
 
     #[derive(Debug, Clone, Reflect, Visit)]
-    #[reflect(type_uuid = "1cebacd9-b500-4753-93be-39db344add21")]
+    #[reflect(type_uuid = "1cebacd9-b500-4753-93be-39db344add21", non_comparable)]
     struct MySubScript {
         #[reflect(hidden)]
         #[visit(skip)]
@@ -3152,7 +3153,7 @@ mod test {
     }
 
     #[derive(Debug, Clone, Reflect, Visit)]
-    #[reflect(type_uuid = "bf2976ad-f41d-4de6-9a32-b1a293956058")]
+    #[reflect(type_uuid = "bf2976ad-f41d-4de6-9a32-b1a293956058", non_comparable)]
     struct ScriptListeningToMessages {
         index: u32,
         #[reflect(hidden)]
@@ -3202,7 +3203,7 @@ mod test {
         }
     }
 
-    #[derive(Debug, Clone, Reflect, Visit)]
+    #[derive(Debug, Clone, PartialEq, Reflect, Visit)]
     #[reflect(type_uuid = "6bcbf9b4-9546-42d3-965a-de055ab85475")]
     struct ScriptSendingMessages {
         index: u32,
@@ -3392,7 +3393,7 @@ mod test {
     }
 
     #[derive(Clone, Debug, Reflect, Visit)]
-    #[reflect(type_uuid = "9bcbf9b4-9546-42d3-965a-de055ab85475")]
+    #[reflect(type_uuid = "9bcbf9b4-9546-42d3-965a-de055ab85475", non_comparable)]
     pub struct ScriptThatDeletesItself {
         #[reflect(hidden)]
         #[visit(skip)]
@@ -3433,7 +3434,7 @@ mod test {
     }
 
     #[derive(Clone, Debug, Reflect, Visit)]
-    #[reflect(type_uuid = "9bcbf9b4-9546-42d3-965a-de055ab85475")]
+    #[reflect(type_uuid = "9bcbf9b4-9546-42d3-965a-de055ab85475", non_comparable)]
     pub struct ScriptThatAddsScripts {
         num: usize,
         #[reflect(hidden)]
@@ -3482,7 +3483,7 @@ mod test {
     }
 
     #[derive(Clone, Debug, Reflect, Visit)]
-    #[reflect(type_uuid = "9bcbf9b4-9546-42d3-965a-de055ab85475")]
+    #[reflect(type_uuid = "9bcbf9b4-9546-42d3-965a-de055ab85475", non_comparable)]
     pub struct SimpleScript {
         stuff: usize,
         #[reflect(hidden)]

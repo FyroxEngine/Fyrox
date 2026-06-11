@@ -29,7 +29,7 @@ use super::*;
 
 /// The [`CommandContext`] that is used when the current scene is the
 /// null scene.
-#[derive(Reflect, Debug)]
+#[derive(PartialEq, Reflect, Debug)]
 #[reflect(non_cloneable)]
 #[reflect(type_uuid = "09ba866d-db75-46fb-938b-b3cc583f4469")]
 pub struct NullSceneContext {

@@ -40,7 +40,7 @@ const CELL_WITH_MACRO_COLOR: Color = Color::DARK_SLATE_BLUE;
 const CELL_WITHOUT_MACRO_COLOR: Color = Color::opaque(50, 50, 50);
 
 #[derive(Visit, Clone, Reflect)]
-#[reflect(type_uuid = "b003f118-4dda-4529-a791-ad20860c124d")]
+#[reflect(type_uuid = "b003f118-4dda-4529-a791-ad20860c124d", non_comparable)]
 pub struct MacroInspector {
     handle: Handle<UiNode>,
     content: Handle<UiNode>,

@@ -39,7 +39,7 @@ use fyrox_graph::SceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// A simplest possible node which represents point in space.
-#[derive(Clone, Reflect, Default, Debug)]
+#[derive(Clone, PartialEq, Reflect, Default, Debug)]
 #[reflect(
     derived_type = "Node",
     type_uuid = "dd2ecb96-b1f4-4ee0-943b-2a4d1844e3bb"

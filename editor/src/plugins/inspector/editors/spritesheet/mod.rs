@@ -57,7 +57,7 @@ pub enum SpriteSheetFramesPropertyEditorMessage {
 }
 impl MessageData for SpriteSheetFramesPropertyEditorMessage {}
 
-#[derive(Clone, Debug, Reflect, Visit)]
+#[derive(Clone, Debug, PartialEq, Reflect, Visit)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "8994228d-6106-4e41-872c-5191840badcc"

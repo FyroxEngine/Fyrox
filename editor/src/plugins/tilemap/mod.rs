@@ -59,7 +59,7 @@ use fyrox::gui::text::TextBuilder;
 use fyrox::gui::{message::KeyCode, texture::TextureResource};
 use fyrox::gui::{HorizontalAlignment, VerticalAlignment};
 use fyrox::scene::tilemap::tileset::{TileSetPropertyLayer, ELEMENT_MATCH_HIGHLIGHT_COLOR};
-use fyrox::scene::tilemap::{StampElement, TileMapEffectRef};
+use fyrox::scene::tilemap::StampElement;
 pub use handle_editor::*;
 use handle_field::*;
 use interaction_mode::*;

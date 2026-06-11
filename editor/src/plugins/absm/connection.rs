@@ -43,7 +43,7 @@ use fyrox::material::MaterialResource;
 const PICKED_BRUSH: Brush = Brush::Solid(Color::opaque(100, 100, 100));
 const NORMAL_BRUSH: Brush = Brush::Solid(Color::opaque(80, 80, 80));
 
-#[derive(Debug, Clone, Visit, Reflect)]
+#[derive(Debug, Clone, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "c802b6fa-a5ef-4464-a097-749c731ffde0"

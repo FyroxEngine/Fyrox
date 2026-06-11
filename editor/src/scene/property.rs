@@ -20,8 +20,8 @@
 
 use crate::fyrox::{
     core::{
-        make_pretty_type_name, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
-        sstorage::ImmutableString, visitor::prelude::*,
+        make_pretty_type_name, pool::Handle, reflect::prelude::*, sstorage::ImmutableString,
+        visitor::prelude::*,
     },
     fxhash::FxHashSet,
     graph::SceneGraph,
@@ -50,10 +50,10 @@ use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
 use fyrox::gui::tree::TreeRoot;
+use fyrox::gui::widget::UserData;
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
-    sync::Arc,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -140,13 +140,13 @@ impl PropertyDescriptor {
                 make_pretty_type_name(&self.type_name)
             );
 
-            TreeBuilder::new(WidgetBuilder::new().with_user_data(Arc::new(Mutex::new(
+            TreeBuilder::new(WidgetBuilder::new().with_user_data(UserData::new(
                 PropertyDescriptorData {
                     name: name.clone(),
                     path: self.path.clone(),
                     type_id: self.type_id,
                 },
-            ))))
+            )))
             .with_items(items)
             .with_content(
                 TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
@@ -290,7 +290,7 @@ where
     descriptors
 }
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "8e58e123-48a1-4e18-9e90-fd35a1669bdc"
@@ -480,7 +480,7 @@ impl PropertySelectorBuilder {
     }
 }
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "725e4a10-eca6-4345-9833-d54dae2f20f2"

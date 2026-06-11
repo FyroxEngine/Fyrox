@@ -49,7 +49,7 @@ pub struct BuildOutput {
 
 pub type BuildResult = Result<BuildOutput, String>;
 
-#[derive(Reflect, Debug, Clone)]
+#[derive(PartialEq, Reflect, Debug, Clone)]
 #[reflect(type_uuid = "b1387e05-fb9f-48d8-8776-5b1d2993fa1a")]
 pub struct ExportOptions {
     #[reflect(hidden)]

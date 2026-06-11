@@ -23,9 +23,7 @@
 use crate::menu::create_menu_item_shortcut;
 use crate::{
     fyrox::{
-        core::{
-            log::Log, parking_lot::lock_api::Mutex, pool::Handle, reflect::Reflect, some_or_return,
-        },
+        core::{log::Log, pool::Handle, reflect::Reflect, some_or_return},
         engine::Engine,
         graph::SceneGraph,
         gui::{
@@ -61,6 +59,7 @@ use fyrox::gui::scroll_viewer::ScrollViewer;
 use fyrox::gui::searchbar::SearchBar;
 use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
+use fyrox::gui::widget::UserData;
 use fyrox::gui::window::{Window, WindowAlignment};
 use rust_fuzzy_search::fuzzy_compare;
 use std::sync::Arc;
@@ -224,19 +223,19 @@ impl SettingsWindow {
             base_path: Default::default(),
             has_parent_object: false,
         });
-        let groups =
-            context
-                .entries
-                .iter()
-                .map(|entry| {
-                    ButtonBuilder::new(WidgetBuilder::new().with_user_data(Arc::new(Mutex::new(
-                        GroupName(entry.property_tag.clone()),
-                    ))))
-                    .with_text(&entry.property_display_name)
-                    .build(ctx)
-                    .to_base()
-                })
-                .collect::<Vec<_>>();
+        let groups = context
+            .entries
+            .iter()
+            .map(|entry| {
+                ButtonBuilder::new(
+                    WidgetBuilder::new()
+                        .with_user_data(UserData::new(GroupName(entry.property_tag.clone()))),
+                )
+                .with_text(&entry.property_display_name)
+                .build(ctx)
+                .to_base()
+            })
+            .collect::<Vec<_>>();
         ui.send(self.groups, WidgetMessage::ReplaceChildren(groups));
         ui.send(self.inspector, InspectorMessage::Context(context));
     }

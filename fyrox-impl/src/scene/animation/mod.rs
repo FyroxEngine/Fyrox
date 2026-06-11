@@ -242,7 +242,7 @@ impl BoundValueCollectionExt for BoundValueCollection {
 /// The example creates a bounce animation first - it is a simple animation that animates position of a given node
 /// (`animated_node`). Only then it creates an animation player node with an animation container with a single animation.
 /// To understand why this is so complicated, see the docs of [`Animation`].
-#[derive(Visit, Reflect, Clone, Debug)]
+#[derive(Visit, PartialEq, Reflect, Clone, Debug)]
 #[reflect(
     derived_type = "Node",
     type_uuid = "44d1c94e-354f-4f9a-b918-9d31c28aa16a"

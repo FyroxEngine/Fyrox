@@ -240,7 +240,7 @@ impl Clone for SceneRenderingOptions {
 }
 
 /// See module docs.
-#[derive(Debug, Reflect)]
+#[derive(Debug, PartialEq, Reflect)]
 #[reflect(type_uuid = "03b3f812-3518-429b-befe-3f7a160503fa")]
 pub struct Scene {
     /// Graph is main container for all scene nodes. It calculates global transforms for nodes,
@@ -296,7 +296,7 @@ impl Default for Scene {
 }
 
 /// A structure that holds times that specific update step took.
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, PartialEq, Default, Debug)]
 pub struct PerformanceStatistics {
     /// Graph performance statistics.
     pub graph: GraphPerformanceStatistics,

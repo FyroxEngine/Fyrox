@@ -20,10 +20,11 @@
 
 use super::*;
 use crate::command::{Command, CommandContext, CommandTrait};
+use fyrox::asset::TypedResourceData;
 use fyrox::gui::dropdown_list::DropdownList;
 use fyrox::gui::message::{DeliveryMode, MessageData};
 use fyrox::{
-    asset::{untyped::UntypedResource, Resource, ResourceData, ResourceDataRef},
+    asset::{untyped::UntypedResource, Resource, ResourceDataRef},
     core::{
         futures::executor::block_on,
         log::Log,
@@ -53,6 +54,12 @@ const UNKNOWN_PROPERTY: &str = "UNKNOWN PROPERTY";
 /// the list are the tile map interaction mode and the [`TileSetEditor`].
 #[derive(Default, Clone)]
 pub struct BrushMacroListRef(Arc<Mutex<BrushMacroList>>);
+
+impl PartialEq for BrushMacroListRef {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
 
 impl BrushMacroListRef {
     /// Create a new reference and assign it to point to the given macro list.
@@ -128,7 +135,7 @@ impl BrushMacroInstance {
     /// A typed reference to the configuration resource.
     pub fn settings<T>(&self) -> Option<Resource<T>>
     where
-        T: ResourceData + Default,
+        T: TypedResourceData,
     {
         self.settings.as_ref()?.try_cast()
     }
@@ -211,7 +218,7 @@ impl BrushMacroCellContext {
     /// A typed reference to the configuration resource.
     pub fn settings<T>(&self) -> Option<Resource<T>>
     where
-        T: ResourceData + Default,
+        T: TypedResourceData,
     {
         self.settings.as_ref()?.try_cast()
     }
@@ -651,7 +658,7 @@ impl TileSetPropertyMessage {
 /// A field that allows the user to choose a property value from a [`TileSet`].
 /// The property is represented as a [`TileSetPropertyValueElement`] internally, but the user
 /// is given a dropdown list of value names if possible.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct MacroPropertyValueField {
     handle: Handle<UiNode>,
     textbox: Handle<UiNode>,

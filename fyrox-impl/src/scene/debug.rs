@@ -32,7 +32,7 @@ use rapier2d::pipeline::{DebugColor, DebugRenderObject};
 use std::ops::Range;
 
 /// Colored line between two points.
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Line {
     /// Beginning of the line.
     pub begin: Vector3<f32>,
@@ -86,7 +86,7 @@ pub struct Line {
 ///
 /// The engine renders the entire set of lines in a single draw call, so it very fast - you should be able to draw
 /// up to few millions of lines without any significant performance issues.
-#[derive(Default, Clone, Debug)]
+#[derive(Default, PartialEq, Clone, Debug)]
 pub struct SceneDrawingContext {
     /// List of lines to draw.
     pub lines: Vec<Line>,

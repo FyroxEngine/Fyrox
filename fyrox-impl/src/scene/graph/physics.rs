@@ -193,7 +193,7 @@ impl Into<rapier2d::dynamics::CoefficientCombineRule> for CoefficientCombineRule
 }
 
 /// Performance statistics for the physics part of the engine.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct PhysicsPerformanceStatistics {
     /// A time that was needed to perform a single simulation step.
     pub step_time: Duration,
@@ -912,7 +912,7 @@ impl Default for IntegrationParameters {
 /// methods, mostly for ray casting. You should add physical entities using scene graph nodes, such
 /// as RigidBody, Collider, Joint.
 #[derive(Visit, Reflect)]
-#[reflect(type_uuid = "17e663b8-98a4-46db-be71-a336246f571a")]
+#[reflect(type_uuid = "17e663b8-98a4-46db-be71-a336246f571a", non_comparable)]
 pub struct PhysicsWorld {
     /// A flag that defines whether physics simulation is enabled or not.
     pub enabled: InheritableVariable<bool>,
@@ -1441,7 +1441,7 @@ impl PhysicsWorld {
         // 1) `get_mut` is **very** expensive because it forces physics engine to recalculate contacts
         //    and a lot of other stuff, this is why we need `anything_changed` flag.
         if rigid_body_node.native.get() != RigidBodyHandle::invalid() {
-            let mut actions = rigid_body_node.actions.safe_lock();
+            let mut actions = rigid_body_node.actions.inner();
             if rigid_body_node.need_sync_model() || !actions.is_empty() {
                 if let Some(native) = self.bodies.get_mut(rigid_body_node.native.get()) {
                     // Sync native rigid body's properties with scene node's in case if they

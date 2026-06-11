@@ -292,7 +292,7 @@ impl OrthoTransform for TileBounds {
 
 /// A tile set can contain multiple pages of tiles, and each page may have its own
 /// independent source of tile data.
-#[derive(Clone, Default, Debug, Visit, Reflect)]
+#[derive(Clone, Default, Debug, PartialEq, Visit, Reflect)]
 #[reflect(type_uuid = "d781e98c-802a-4e0a-b228-77b13368c24d")]
 pub struct TileSetPage {
     /// The tile that represents this page in the editor
@@ -1256,14 +1256,14 @@ impl<'a> OptionTileSet<'a> {
 
 /// The index of an animation within the animation list, and an offset
 /// to indicate where we should start playing within the animation.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, PartialEq, Clone)]
 struct AnimationRef {
     index: usize,
     offset: i32,
 }
 
 /// The position and length of an animation within some animation page.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, PartialEq, Clone)]
 struct Animation {
     start: TileDefinitionHandle,
     length: i32,
@@ -1289,7 +1289,7 @@ impl Animation {
 }
 
 /// A lookup table to locate animations within a tile set.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, PartialEq, Clone)]
 struct AnimationCache {
     handle_to_animation: FxHashMap<TileDefinitionHandle, AnimationRef>,
     animations: Vec<Animation>,
@@ -1332,7 +1332,7 @@ impl AnimationCache {
 /// Each layer has a name and a color. The color is used to allow the user to quickly
 /// identify which shapes correspond to which layers while in the tile set editor.
 /// See [`TileSetColliderLayer`] for more information.
-#[derive(Clone, Default, Debug, Visit, Reflect)]
+#[derive(Clone, Default, PartialEq, Debug, Visit, Reflect)]
 #[reflect(type_uuid = "7b7e057b-a41e-4150-ab3b-0ae99f4024f0")]
 pub struct TileSet {
     /// A mapping from animated tiles to the corresponding cells on animation pages.

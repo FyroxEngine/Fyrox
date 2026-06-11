@@ -63,7 +63,7 @@ pub mod emitter;
 pub mod particle;
 
 /// Pseudo-random numbers generator for particle systems.
-#[derive(Debug, Clone, Reflect)]
+#[derive(Debug, Clone, PartialEq, Reflect)]
 #[reflect(type_uuid = "13d58184-e65c-41a3-9986-fc8d31231636")]
 pub struct ParticleSystemRng {
     rng_seed: u64,
@@ -218,7 +218,7 @@ impl Visit for ParticleSystemRng {
 ///     .build(graph);
 /// }
 /// ```
-#[derive(Debug, Clone, Reflect)]
+#[derive(Debug, Clone, PartialEq, Reflect)]
 #[reflect(
     derived_type = "Node",
     type_uuid = "8b210eff-97a4-494f-ba7a-a581d3f4a442"

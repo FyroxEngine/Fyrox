@@ -138,14 +138,14 @@ impl ReflectionProbePreviewControlPanel {
     }
 }
 
-#[derive(Reflect, Debug)]
+#[derive(PartialEq, Reflect, Debug)]
 #[reflect(non_cloneable, type_uuid = "9a535782-87a9-4407-8d12-a723d67e179d")]
 struct DragContext {
     new_position: Vector3<f32>,
     plane_kind: PlaneKind,
 }
 
-#[derive(Reflect, Debug)]
+#[derive(PartialEq, Reflect, Debug)]
 #[reflect(non_cloneable, type_uuid = "d8fd164c-523c-447a-93ab-e86f2d71eed6")]
 pub struct ReflectionProbeInteractionMode {
     probe: Handle<ReflectionProbe>,

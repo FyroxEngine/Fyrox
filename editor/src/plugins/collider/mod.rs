@@ -298,7 +298,7 @@ fn make_handle(scene: &mut Scene, root: Handle<Pivot>, visible: bool) -> Handle<
     handle
 }
 
-#[derive(Copy, Clone, Reflect, Debug)]
+#[derive(Copy, Clone, PartialEq, Reflect, Debug)]
 #[reflect(non_cloneable, type_uuid = "42b19406-299d-4c3d-a7e3-77b41817ae71")]
 enum ShapeHandleValue {
     Scalar(f32),
@@ -323,14 +323,14 @@ impl ShapeHandleValue {
     }
 }
 
-#[derive(Clone, Reflect, Debug)]
+#[derive(Clone, PartialEq, Reflect, Debug)]
 #[reflect(non_cloneable, type_uuid = "70d6130f-da5d-4f14-bbfd-0744927053a0")]
 enum ColliderInitialShape {
     TwoD(dim2::collider::ColliderShape),
     ThreeD(ColliderShape),
 }
 
-#[derive(Reflect, Debug)]
+#[derive(PartialEq, Reflect, Debug)]
 #[reflect(non_cloneable, type_uuid = "e9aac4a5-0755-4d94-94ff-dfa37b40d5ca")]
 struct DragContext {
     handle: Handle<Sprite>,
@@ -344,7 +344,11 @@ struct DragContext {
 }
 
 #[derive(Reflect)]
-#[reflect(non_cloneable, type_uuid = "a012dd4c-ce6d-4e7e-8879-fd8eddaa9677")]
+#[reflect(
+    non_cloneable,
+    non_comparable,
+    type_uuid = "a012dd4c-ce6d-4e7e-8879-fd8eddaa9677"
+)]
 pub struct ColliderShapeInteractionMode {
     collider: Handle<Node>,
     #[reflect(hidden)]

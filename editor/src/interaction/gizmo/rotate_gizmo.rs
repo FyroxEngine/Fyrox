@@ -51,7 +51,7 @@ use fyrox::scene::camera::Camera;
 use fyrox::scene::mesh::Mesh;
 use fyrox::scene::pivot::Pivot;
 
-#[derive(Reflect, Debug)]
+#[derive(PartialEq, Reflect, Debug)]
 #[reflect(non_cloneable, type_uuid = "5ef2c27b-18af-458d-9549-1395f0869551")]
 pub enum RotateGizmoMode {
     Pitch,
@@ -59,7 +59,7 @@ pub enum RotateGizmoMode {
     Roll,
 }
 
-#[derive(Reflect, Debug)]
+#[derive(PartialEq, Reflect, Debug)]
 #[reflect(non_cloneable, type_uuid = "36fc1ea4-33cd-4108-ae61-bab544f8ac02")]
 pub struct RotationGizmo {
     mode: RotateGizmoMode,

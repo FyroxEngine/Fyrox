@@ -20,10 +20,7 @@
 
 use crate::{
     fyrox::{
-        core::{
-            parking_lot::Mutex, pool::ErasedHandle, pool::Handle, reflect::prelude::*,
-            visitor::prelude::*,
-        },
+        core::{pool::ErasedHandle, pool::Handle, reflect::prelude::*, visitor::prelude::*},
         fxhash::FxHashSet,
         graph::{NodeWrapper, SceneGraph},
         gui::{
@@ -55,12 +52,12 @@ use fyrox::gui::scroll_viewer::ScrollViewer;
 use fyrox::gui::searchbar::SearchBar;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
 use fyrox::gui::tree::TreeRoot;
+use fyrox::gui::widget::UserData;
 use std::hash::{Hash, Hasher};
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
     ops::{Deref, DerefMut},
-    sync::Arc,
 };
 
 #[derive(Eq, Clone, Debug, PartialEq)]
@@ -135,14 +132,12 @@ impl HierarchyNode {
             ctx.style.property(Style::BRUSH_LIGHT)
         };
 
-        TreeBuilder::new(
-            WidgetBuilder::new().with_user_data(Arc::new(Mutex::new(TreeData {
-                name: self.name.clone(),
-                handle: self.handle,
-                inner_type_id: self.inner_type_id,
-                derived_type_ids: self.derived_type_ids.clone(),
-            }))),
-        )
+        TreeBuilder::new(WidgetBuilder::new().with_user_data(UserData::new(TreeData {
+            name: self.name.clone(),
+            handle: self.handle,
+            inner_type_id: self.inner_type_id,
+            derived_type_ids: self.derived_type_ids.clone(),
+        })))
         .with_items(
             self.children
                 .iter()
@@ -207,7 +202,7 @@ struct TreeData {
     pub derived_type_ids: Vec<TypeId>,
 }
 
-#[derive(Debug, Clone, Visit, Reflect)]
+#[derive(Debug, Clone,PartialEq,  Visit, Reflect)]
 #[reflect(derived_type = "UiNode")]
 #[reflect(type_uuid = "1d718f90-323c-492d-b057-98d47495900a")]
 pub struct NodeSelector {
@@ -428,7 +423,7 @@ impl NodeSelectorBuilder {
     }
 }
 
-#[derive(Debug, Clone, Visit, Reflect)]
+#[derive(Debug, Clone,PartialEq,  Visit, Reflect)]
 #[reflect(type_uuid = "5bb00f15-d6ec-4f0e-af7e-9472b0e290b4")]
 #[reflect(derived_type = "UiNode")]
 pub struct NodeSelectorWindow {

@@ -544,7 +544,7 @@ fn find_collider_value(
         .unwrap_or_default()
 }
 
-#[derive(Clone, Default, Debug, Visit, Reflect)]
+#[derive(Clone, Default, Debug, Visit, PartialEq, Reflect)]
 #[reflect(type_uuid = "9c65682b-0160-443c-95fc-0b88f86a497b")]
 struct InspectorField {
     handle: Handle<Grid>,
@@ -572,7 +572,7 @@ impl InspectorField {
 
 /// Object that keeps track of the editors for all the property layers.
 #[derive(Clone, Default, Visit, Reflect)]
-#[reflect(type_uuid = "89171a35-a7e7-4ce7-a017-124e8eec5746")]
+#[reflect(type_uuid = "89171a35-a7e7-4ce7-a017-124e8eec5746", non_comparable)]
 struct PropertyEditors {
     handle: Handle<UiNode>,
     content: Handle<UiNode>,
@@ -646,7 +646,7 @@ impl PropertyEditors {
 
 /// Object that keeps track of the editors for all the collider layers.
 #[derive(Clone, Default, Visit, Reflect)]
-#[reflect(type_uuid = "97acc27d-c6fc-491b-9faa-6ad2f124f126")]
+#[reflect(type_uuid = "97acc27d-c6fc-491b-9faa-6ad2f124f126", non_comparable)]
 struct ColliderEditors {
     handle: Handle<UiNode>,
     content: Handle<UiNode>,
@@ -719,7 +719,7 @@ impl ColliderEditors {
 }
 
 #[derive(Visit, Reflect, Clone)]
-#[reflect(type_uuid = "cd0f6716-3d7c-4c39-a2aa-98274ca6efa2")]
+#[reflect(type_uuid = "cd0f6716-3d7c-4c39-a2aa-98274ca6efa2", non_comparable)]
 pub struct TileInspector {
     handle: Handle<UiNode>,
     /// The shared state that represents the user's currently selected tool and tiles.

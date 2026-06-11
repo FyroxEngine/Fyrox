@@ -25,7 +25,7 @@ use crate::core::{algebra::Vector3, color::Color, visitor::prelude::*};
 use std::cell::Cell;
 
 /// See module docs.
-#[derive(Clone, Debug, Visit)]
+#[derive(Clone, Debug, PartialEq, Visit)]
 pub struct Particle {
     /// Position of particle in local coordinates.
     #[visit(rename = "Pos")]

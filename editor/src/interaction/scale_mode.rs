@@ -44,7 +44,7 @@ use crate::{
 };
 use fyrox::gui::button::Button;
 
-#[derive(Reflect, Debug)]
+#[derive(PartialEq, Reflect, Debug)]
 #[reflect(non_cloneable, type_uuid = "64b4da1a-5d0f-49e1-9f48-011165cd1ec5")]
 pub struct ScaleInteractionMode {
     initial_scales: Vec<Vector3<f32>>,

@@ -106,7 +106,7 @@ fn handle_undo_chunks(undo_chunks: UndoData, sender: &MessageSender) {
     }
 }
 
-#[derive(Reflect)]
+#[derive(PartialEq, Reflect)]
 #[reflect(
     non_cloneable,
     type_uuid = "bc19eff3-3e3a-49c0-9a9d-17d36fccc34e",
@@ -243,6 +243,7 @@ impl TerrainInteractionMode {
     }
 }
 
+#[derive(PartialEq)]
 pub struct BrushGizmo {
     brush: Handle<Mesh>,
 }
@@ -558,6 +559,7 @@ impl InteractionMode for TerrainInteractionMode {
     }
 }
 
+#[derive(PartialEq)]
 struct BrushPanel {
     window: Handle<Window>,
     inspector: Handle<Inspector>,

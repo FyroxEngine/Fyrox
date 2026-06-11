@@ -113,7 +113,7 @@ impl MessageData for AbsmCanvasMessage {
     }
 }
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "100b1c33-d017-4fe6-95e7-e1daf310ef27"

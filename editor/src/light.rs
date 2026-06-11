@@ -55,7 +55,7 @@ use std::{
     },
 };
 
-#[derive(Reflect, Clone, Debug)]
+#[derive(PartialEq, Reflect, Clone, Debug)]
 #[reflect(type_uuid = "86eed637-0d96-4ad2-9566-a451f0b00237")]
 struct LightmapperSettings {
     /// Name of the property in a material that will be modified in all materials for all surfaces

@@ -49,7 +49,7 @@ use fyrox::core::reflect::prelude::*;
 use fyrox::scene::camera::Camera;
 use fyrox::scene::mesh::Mesh;
 
-#[derive(Reflect, Debug)]
+#[derive(PartialEq, Reflect, Debug)]
 #[reflect(non_cloneable, type_uuid = "0555e074-bbd8-4753-a2ab-56d7092251c1")]
 pub enum ScaleGizmoMode {
     None,
@@ -59,7 +59,7 @@ pub enum ScaleGizmoMode {
     Uniform,
 }
 
-#[derive(Reflect, Debug)]
+#[derive(PartialEq, Reflect, Debug)]
 #[reflect(non_cloneable, type_uuid = "c8827bb2-1aac-41e7-b2c1-ba04e0dc59e0")]
 pub struct ScaleGizmo {
     mode: ScaleGizmoMode,

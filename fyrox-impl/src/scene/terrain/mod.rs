@@ -1029,7 +1029,7 @@ impl BrushContext {
 /// count the number of pixels needed to render the vertices of that part of the terrain, which means that they
 /// overlap with their neighbors just as chunks overlap. Two adjacent blocks share vertices along their edge,
 /// so they also share pixels in the height map data.
-#[derive(Debug, Reflect, Clone)]
+#[derive(Debug, PartialEq, Reflect, Clone)]
 #[reflect(
     derived_type = "Node",
     type_uuid = "4b0a7927-bcd8-41a3-949a-dd10fba8e16a"

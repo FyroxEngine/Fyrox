@@ -704,6 +704,14 @@ pub struct Script {
     pub(crate) started: bool,
 }
 
+impl PartialEq for Script {
+    fn eq(&self, other: &Self) -> bool {
+        self.instance
+            .try_compare(&*other.instance)
+            .unwrap_or_default()
+    }
+}
+
 impl Deref for Script {
     type Target = dyn ScriptTrait;
 
@@ -823,7 +831,7 @@ mod test {
         script::{Script, ScriptTrait},
     };
 
-    #[derive(Reflect, Visit, Debug, Clone, Default)]
+    #[derive(PartialEq, Reflect, Visit, Debug, Clone, Default)]
     #[reflect(type_uuid = "eed9bf56-7d71-44a0-ba8e-0f3163c59669")]
     struct MyScript {
         field: InheritableVariable<f32>,

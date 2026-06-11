@@ -26,7 +26,7 @@ use crate::{
         asset::{manager::ResourceManager, untyped::UntypedResource, Resource, TypedResourceData},
         core::{
             algebra::Vector2, color::Color, futures::executor::block_on, make_relative_path,
-            parking_lot::lock_api::Mutex, pool::Handle, reflect::prelude::*, visitor::prelude::*,
+            pool::Handle, reflect::prelude::*, visitor::prelude::*,
         },
         graph::SceneGraph,
         gui::{
@@ -54,10 +54,10 @@ use fyrox::core::ok_or_return;
 use fyrox::gui::border::Border;
 use fyrox::gui::image::Image;
 use fyrox::gui::message::MessageData;
+use fyrox::gui::widget::UserData;
 use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
-    sync::Arc,
 };
 
 pub const DEFAULT_SIZE: f32 = 60.0;
@@ -79,7 +79,7 @@ pub enum AssetItemMessage {
 impl MessageData for AssetItemMessage {}
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Visit, Reflect)]
+#[derive(Debug, Clone, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "54f7d9c1-e707-4c8c-a5c9-3fc5cc80b545"
@@ -432,7 +432,7 @@ impl AssetItemBuilder {
         let item = AssetItem {
             widget: self
                 .widget_builder
-                .with_user_data(Arc::new(Mutex::new(self.path.clone())))
+                .with_user_data(UserData::new(self.path.clone()))
                 .with_margin(Thickness::uniform(1.0))
                 .with_allow_drag(true)
                 .with_allow_drop(true)

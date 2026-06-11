@@ -87,7 +87,7 @@ impl Default for BlendShape {
 }
 
 /// A container for multiple blend shapes/
-#[derive(Reflect, Debug, Clone, Default)]
+#[derive(Reflect, Debug, Clone, PartialEq, Default)]
 #[reflect(type_uuid = "bd60343b-4a27-42aa-959e-b0d1bc8682db")]
 pub struct BlendShapesContainer {
     /// A list of blend shapes.
@@ -220,7 +220,7 @@ impl BlendShapesContainer {
 /// Data source of a surface. Each surface can share same data source, this is used
 /// in instancing technique to render multiple instances of same model at different
 /// places.
-#[derive(Debug, Clone, Default, Reflect)]
+#[derive(Debug, Clone, Default, PartialEq, Reflect)]
 #[reflect(type_uuid = "8a23a414-e66d-4e12-9628-92c6ab49c2f0")]
 pub struct SurfaceData {
     /// Current vertex buffer.

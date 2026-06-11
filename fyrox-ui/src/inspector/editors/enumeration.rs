@@ -294,6 +294,7 @@ impl EnumPropertyEditorBuilder {
 }
 
 #[derive(PartialEq)]
+#[allow(unpredictable_function_pointer_comparisons)]
 pub struct EnumPropertyEditorDefinition<T: InspectableEnum> {
     pub variant_generator: fn(usize) -> T,
     pub index_generator: fn(&T) -> usize,

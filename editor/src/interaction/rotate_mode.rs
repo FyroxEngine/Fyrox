@@ -47,7 +47,7 @@ use crate::{
 };
 use fyrox::gui::button::Button;
 
-#[derive(Reflect, Debug)]
+#[derive(PartialEq, Reflect, Debug)]
 #[reflect(non_cloneable, type_uuid = "37f20364-feb5-4731-8c19-c3df922818d6")]
 pub struct RotateInteractionMode {
     initial_rotations: Vec<UnitQuaternion<f32>>,

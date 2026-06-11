@@ -22,7 +22,7 @@ use crate::Matrix4Ext;
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 use rectutils::{OptionRect, Rect};
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub struct AxisAlignedBoundingBox {
     pub min: Vector3<f32>,
     pub max: Vector3<f32>,

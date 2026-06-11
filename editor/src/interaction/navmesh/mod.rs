@@ -198,7 +198,7 @@ impl NavmeshPanel {
     }
 }
 
-#[derive(Reflect, Debug)]
+#[derive(PartialEq, Reflect, Debug)]
 #[reflect(
     non_cloneable,
     type_uuid = "986eb5f1-5f17-4373-bffb-1e213e7c97e5",
@@ -220,7 +220,7 @@ impl DragContext {
     }
 }
 
-#[derive(Reflect, Debug)]
+#[derive(PartialEq, Reflect, Debug)]
 #[reflect(non_cloneable, type_uuid = "a8ed875d-0932-400d-b5b0-e0dcfb78c6c1")]
 pub struct EditNavmeshMode {
     move_gizmo: MoveGizmo,

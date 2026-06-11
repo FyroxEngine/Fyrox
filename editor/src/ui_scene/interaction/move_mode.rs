@@ -34,7 +34,7 @@ use crate::{
 };
 use fyrox::gui::button::Button;
 
-#[derive(Reflect, Debug, Clone)]
+#[derive(PartialEq, Reflect, Debug, Clone)]
 #[reflect(type_uuid = "05a1b439-d354-45b1-9014-10393c5ba35d")]
 struct Entry {
     widget: Handle<UiNode>,
@@ -43,13 +43,13 @@ struct Entry {
     delta: Vector2<f32>,
 }
 
-#[derive(Reflect, Debug, Clone)]
+#[derive(PartialEq, Reflect, Debug, Clone)]
 #[reflect(type_uuid = "c9b6b3d6-ade9-4da2-a5e7-48893f24d97f")]
 struct MoveContext {
     entries: Vec<Entry>,
 }
 
-#[derive(Reflect, Debug, Clone)]
+#[derive(PartialEq, Reflect, Debug, Clone)]
 #[reflect(type_uuid = "e5c09b04-5c31-4044-ac48-5227ab4a4b83")]
 pub struct MoveWidgetsInteractionMode {
     move_context: Option<MoveContext>,

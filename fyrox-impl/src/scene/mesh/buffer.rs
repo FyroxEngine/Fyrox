@@ -170,7 +170,7 @@ pub struct VertexAttributeDescriptor {
 
 /// Vertex attribute is a simple "bridge" between raw data and its interpretation. In
 /// other words it defines how to treat raw data in vertex shader.
-#[derive(Reflect, Visit, Copy, Clone, Default, Debug, Hash)]
+#[derive(Reflect, Visit, Copy, PartialEq, Clone, Default, Debug, Hash)]
 #[reflect(type_uuid = "705f8ad3-69b4-4b39-99aa-a3f97e319202")]
 pub struct VertexAttribute {
     /// Claimed usage of the attribute. It could be Position, Normal, etc.
@@ -219,7 +219,7 @@ impl Display for VertexAttribute {
 }
 
 /// Bytes storage of a vertex buffer.
-#[derive(Reflect, Clone, Debug)]
+#[derive(Reflect, Clone, PartialEq, Debug)]
 #[reflect(type_uuid = "493045ee-fba2-4c5f-a5cd-c27034d1ec71")]
 pub struct BytesStorage {
     bytes: Vec<u8>,
@@ -399,7 +399,7 @@ impl Deref for BytesStorage {
 ///
 /// Vertex size cannot be more than 256 bytes, this limitation shouldn't be a problem because almost every GPU supports up to
 /// 16 vertex attributes with 16 bytes of size each, which gives exactly 256 bytes.
-#[derive(Reflect, Clone, Visit, Default, Debug)]
+#[derive(Reflect, Clone, Visit, PartialEq, Default, Debug)]
 #[reflect(type_uuid = "edab7161-6695-4e2a-b947-13305709d451")]
 pub struct VertexBuffer {
     dense_layout: Vec<VertexAttribute>,
@@ -1468,7 +1468,7 @@ impl VertexWriteTrait for VertexViewMut<'_> {
 }
 
 /// A buffer for data that defines connections between vertices.
-#[derive(Reflect, Default, Clone, Debug)]
+#[derive(Reflect, Default, PartialEq, Clone, Debug)]
 #[reflect(type_uuid = "ed9f9aa9-e1fb-4f58-b1cb-162d51dbc9e7")]
 pub struct TriangleBuffer {
     triangles: Vec<TriangleDefinition>,

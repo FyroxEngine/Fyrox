@@ -92,10 +92,11 @@ use crate::{
 };
 use fyrox::gui::dock::DockingManager;
 use fyrox::gui::stack_panel::StackPanel;
+use fyrox::gui::widget::UserData;
 use fyrox::gui::window::Window;
 use std::{
     path::PathBuf,
-    sync::{mpsc::Receiver, mpsc::Sender, Arc},
+    sync::{mpsc::Receiver, mpsc::Sender},
 };
 
 pub mod editor;
@@ -461,7 +462,7 @@ impl MaterialEditor {
                     let editor = TextureEditorBuilder::new(
                         WidgetBuilder::new()
                             .with_height(28.0)
-                            .with_user_data(Arc::new(Mutex::new(resource.name.clone())))
+                            .with_user_data(UserData::new(resource.name.clone()))
                             .with_allow_drop(true)
                             .with_tooltip(make_simple_tooltip(ctx, &path)),
                     )

@@ -54,7 +54,7 @@ use super::OptionTileRect;
 pub struct OrthoTransformation(i8);
 
 /// A map from `Vector2<i32>` to values. It can be transformed to flip and rotate the positions of the values.
-#[derive(Clone, Debug, Visit)]
+#[derive(Clone, Debug, PartialEq, Visit)]
 pub struct OrthoTransformMap<V: Visit + Default> {
     transform: OrthoTransformation,
     map: FxHashMap<Vector2<i32>, V>,

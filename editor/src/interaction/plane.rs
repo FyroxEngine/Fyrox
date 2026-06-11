@@ -22,7 +22,7 @@ use crate::fyrox::core::{algebra::Vector3, math::plane::Plane, num_traits::Zero}
 use fyrox::core::reflect::prelude::*;
 use strum_macros::EnumIter;
 
-#[derive(Copy, Clone, Debug, EnumIter, Reflect)]
+#[derive(Copy, Clone, PartialEq, Debug, EnumIter, Reflect)]
 #[reflect(type_uuid = "f50af953-308e-40e8-85ae-48c905ba5f46")]
 pub enum PlaneKind {
     X,

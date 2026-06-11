@@ -585,7 +585,7 @@ impl TileSetUpdate {
 /// A stamp element plus the transformation of the [`Stamp`] where the element is taken from,
 /// allowing the stamp element itself to be later transformed before it is applied to a tile map,
 /// tile set, or brush.
-#[derive(Debug, Clone, Reflect)]
+#[derive(Debug, Clone, PartialEq, Reflect)]
 #[reflect(type_uuid = "276857c4-1104-496e-8878-f3fd4368afe9")]
 pub struct RotTileHandle {
     /// The transformation of the element.

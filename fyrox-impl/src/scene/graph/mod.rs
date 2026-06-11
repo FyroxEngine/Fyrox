@@ -90,7 +90,7 @@ pub mod physics;
 
 /// Graph performance statistics. Allows you to find out "hot" parts of the scene graph, which
 /// parts takes the most time to update.
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, PartialEq, Default, Debug)]
 pub struct GraphPerformanceStatistics {
     /// Amount of time that was needed to update global transform, visibility, and every other
     /// property of every object which depends on the state of a parent node.
@@ -172,6 +172,12 @@ pub struct Graph {
 
     #[reflect(read_only)]
     instance_id_map: FxHashMap<SceneNodeId, Handle<Node>>,
+}
+
+impl PartialEq for Graph {
+    fn eq(&self, other: &Self) -> bool {
+        self.root == other.root && self.pool == other.pool
+    }
 }
 
 impl Debug for Graph {

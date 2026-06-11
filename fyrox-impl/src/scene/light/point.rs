@@ -62,7 +62,7 @@ use fyrox_graph::SceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.
-#[derive(Debug, Reflect, Clone, Visit)]
+#[derive(Debug, PartialEq, Reflect, Clone, Visit)]
 #[reflect(
     derived_type = "Node",
     type_uuid = "c81dcc31-7cb9-465f-abd9-b385ac6f4d37"

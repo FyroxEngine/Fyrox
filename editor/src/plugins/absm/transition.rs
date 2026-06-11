@@ -54,7 +54,7 @@ pub enum TransitionMessage {
 }
 impl MessageData for TransitionMessage {}
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Clone, Debug, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "01798aee-8fe5-4480-a69d-8e5b95c3cc96"

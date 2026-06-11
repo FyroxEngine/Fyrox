@@ -51,7 +51,7 @@ pub enum ThumbMessage {
 }
 impl MessageData for ThumbMessage {}
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "820ba009-54e0-4050-ba7e-28f1f5b40429"

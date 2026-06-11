@@ -185,6 +185,12 @@ pub enum TerrainTextureKind {
 /// Sender with methods for sending the messages which control a brush painting thread.
 pub struct BrushSender(Sender<BrushThreadMessage>);
 
+impl PartialEq for BrushSender {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
 impl BrushSender {
     /// Create a new BrushSender using the given Sender.
     pub fn new(sender: Sender<BrushThreadMessage>) -> Self {
@@ -684,7 +690,7 @@ impl<V> StrokeData<V> {
 }
 
 /// Shape of a brush.
-#[derive(Copy, Clone, Reflect, Debug)]
+#[derive(Copy, Clone, PartialEq, Reflect, Debug)]
 #[reflect(type_uuid = "a4dbfba0-077c-4658-9972-38384a8432f9")]
 pub enum BrushShape {
     /// Circle with given radius.
@@ -773,7 +779,7 @@ pub enum BrushTarget {
 }
 
 /// Brush is used to modify terrain. It supports multiple shapes and modes.
-#[derive(Clone, Reflect, Debug)]
+#[derive(Clone, PartialEq, Reflect, Debug)]
 #[reflect(type_uuid = "dcc4c17b-dad6-42ba-accf-8b88aa2ad31b")]
 pub struct Brush {
     /// Shape of the brush.

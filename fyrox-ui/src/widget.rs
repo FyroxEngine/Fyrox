@@ -537,14 +537,17 @@ impl WidgetRenderDataSet {
     }
 }
 
+/// Arbitrary user data wrapped in Arc<Mutex<...>>.
 #[derive(Clone, Debug)]
 pub struct UserData(pub Arc<Mutex<dyn Any + Send>>);
 
 impl UserData {
+    /// Creates new user data instance from the given value.
     pub fn new<T: Any + Send>(v: T) -> Self {
         Self(Arc::new(Mutex::new(v)))
     }
 
+    /// Tries to downcast the underlying data to the given type.
     pub fn downcast<T: Any + Send>(&self) -> Option<MappedMutexGuard<T>> {
         MutexGuard::try_map(self.0.safe_lock(), |v| v.downcast_mut::<T>()).ok()
     }

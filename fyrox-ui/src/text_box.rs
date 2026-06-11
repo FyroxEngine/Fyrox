@@ -196,6 +196,7 @@ impl SelectionRange {
 /// the filter, and `false` - otherwise.
 pub type FilterCallback = dyn FnMut(char) -> bool + Send;
 
+/// A wrapper over a shared text box filter closure.
 #[derive(Clone)]
 pub struct TextBoxFilter(pub Arc<Mutex<FilterCallback>>);
 

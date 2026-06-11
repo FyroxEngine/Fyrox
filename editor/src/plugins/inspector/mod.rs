@@ -68,7 +68,7 @@ use std::{any::Any, sync::mpsc::Sender, sync::Arc};
 pub mod editors;
 pub mod handlers;
 
-#[derive(Clone, Reflect, Debug)]
+#[derive(Clone, PartialEq, Reflect, Debug)]
 #[reflect(type_uuid = "e617f0b6-fb5f-4e41-85c2-9dbb1869af30")]
 pub struct AnimationDefinition {
     name: String,
@@ -76,7 +76,11 @@ pub struct AnimationDefinition {
 }
 
 #[derive(Reflect, Clone, Debug)]
-#[reflect(non_cloneable, type_uuid = "ff4bc6f3-a735-47d8-b455-f9fd6354bd5f")]
+#[reflect(
+    non_cloneable,
+    non_comparable,
+    type_uuid = "ff4bc6f3-a735-47d8-b455-f9fd6354bd5f"
+)]
 pub struct EditorEnvironment {
     pub resource_manager: ResourceManager,
     #[reflect(hidden)]
@@ -345,7 +349,7 @@ impl InspectorPlugin {
             object: obj,
             ctx: &mut ui.build_ctx(),
             definition_container: property_editors,
-            environment: Some(environment),
+            environment: Some(InspectorEnvironmentContainer(environment)),
             layer_index: 0,
             generate_property_string_values: true,
             filter: Default::default(),
