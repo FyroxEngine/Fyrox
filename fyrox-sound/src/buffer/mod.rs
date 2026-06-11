@@ -236,7 +236,7 @@ impl std::fmt::Display for SoundBufferResourceLoadError {
 impl std::error::Error for SoundBufferResourceLoadError {}
 
 /// Sound buffer is a data source for sound sources. See module documentation for more info.
-#[derive(Debug, Visit,  PartialEq, Reflect)]
+#[derive(Debug, Visit, PartialEq, Reflect)]
 #[reflect(non_cloneable)]
 #[reflect(type_uuid = "f6a077b7-c8ff-4473-a95b-0289441ea9d8")]
 pub enum SoundBuffer {
