@@ -351,7 +351,7 @@ impl Default for Exposure {
 ///
 /// Each camera forces engine to re-render same scene one more time, which may cause almost double load
 /// of your GPU.
-#[derive(Debug, Visit, Reflect, Clone)]
+#[derive(Debug, Visit, PartialEq, Reflect, Clone)]
 #[reflect(
     derived_type = "Node",
     type_uuid = "198d3aca-433c-4ce1-bb25-3190699b757f"

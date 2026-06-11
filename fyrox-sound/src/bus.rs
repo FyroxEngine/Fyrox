@@ -30,7 +30,7 @@ use fyrox_core::{
 };
 use std::fmt::{Debug, Formatter};
 
-#[derive(Default, Clone)]
+#[derive(Default, PartialEq, Clone)]
 struct PingPongBuffer {
     buffer1: Vec<(f32, f32)>,
     buffer2: Vec<(f32, f32)>,
@@ -101,7 +101,7 @@ impl PingPongBuffer {
 /// samples through a chain of effects. Output signal is then can be either sent to an audio playback device or
 /// to some other audio bus and be processed again, but with different sound effects (this can be done via
 /// [`AudioBusGraph`].
-#[derive(Debug, Reflect, Visit, Clone)]
+#[derive(Debug, PartialEq, Reflect, Visit, Clone)]
 #[reflect(type_uuid = "de4c1709-c9ac-4823-8f77-22199bb53645")]
 pub struct AudioBus {
     pub(crate) name: String,
@@ -309,7 +309,7 @@ impl AudioBus {
 /// ```
 ///
 /// If you delete an audio bus to which a bunch of sound sources is bound, then they will simply stop playing.
-#[derive(Default, Debug, Clone, Visit, Reflect)]
+#[derive(Default, Debug, PartialEq, Clone, Visit, Reflect)]
 #[reflect(type_uuid = "417d2cff-e699-4396-bd90-a57b5564372a")]
 pub struct AudioBusGraph {
     buses: Pool<AudioBus>,

@@ -107,7 +107,7 @@ use std::ops::{Deref, DerefMut};
 ///         .build(graph)
 /// }
 /// ```
-#[derive(Debug, Visit, Default, Clone, Reflect)]
+#[derive(Debug, Visit, Default, Clone, PartialEq, Reflect)]
 #[reflect(
     derived_type = "Node",
     type_uuid = "c4d24e48-edd1-4fb2-ad82-4b3d3ea985d8"

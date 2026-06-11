@@ -118,7 +118,7 @@ impl MessageData for SelectorMessage {}
 ///     }
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 #[reflect(type_uuid = "25118853-5c3c-4197-9e4b-2e3b9d92f4d2")]
 pub struct Selector {

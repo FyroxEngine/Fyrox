@@ -372,6 +372,12 @@ pub(crate) struct RcUiNodeHandleInner {
     sender: Option<Sender<UiMessage>>,
 }
 
+impl PartialEq for RcUiNodeHandleInner {
+    fn eq(&self, other: &Self) -> bool {
+        self.handle == other.handle
+    }
+}
+
 impl Visit for RcUiNodeHandleInner {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         self.handle.visit(name, visitor)?;
@@ -529,7 +535,7 @@ impl NodeStatistics {
     }
 }
 
-#[derive(Visit, Reflect, Debug, Clone)]
+#[derive(Visit, Reflect, PartialEq, Debug, Clone)]
 #[reflect(type_uuid = "9f9d5633-1568-4611-8709-3eeb615b7c0f")]
 pub struct DragContext {
     pub is_dragging: bool,
@@ -568,7 +574,7 @@ impl Default for MouseState {
     }
 }
 
-#[derive(Copy, Clone, Visit, Reflect, Debug, Default)]
+#[derive(Copy, Clone, Visit, PartialEq, Reflect, Debug, Default)]
 #[reflect(type_uuid = "2f1add9c-5019-4922-9045-0bd5ca2fd63a")]
 pub struct RestrictionEntry {
     /// Handle to UI node to which picking must be restricted to.
@@ -584,7 +590,7 @@ pub struct RestrictionEntry {
     pub stop: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct TooltipEntry {
     pub tooltip: RcUiNodeHandle,
     pub appear_timer: f32,
@@ -620,7 +626,7 @@ pub enum LayoutEvent {
     TransformChanged(Handle<UiNode>),
 }
 
-#[derive(Clone, Debug, Visit, Reflect, Default)]
+#[derive(Clone, Debug, Visit, Reflect, PartialEq, Default)]
 #[reflect(type_uuid = "30bc5bc5-6592-48d8-8647-9bdbbb977ffb")]
 struct DoubleClickEntry {
     timer: f32,
@@ -629,13 +635,19 @@ struct DoubleClickEntry {
 
 struct Clipboard(Option<RefCell<ClipboardContext>>);
 
+impl PartialEq for Clipboard {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
 impl Debug for Clipboard {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "Clipboard")
     }
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, PartialEq, Debug, Clone)]
 struct WidgetMethodsRegistry {
     preview_message: FxHashSet<Handle<UiNode>>,
     on_update: FxHashSet<Handle<UiNode>>,
@@ -681,7 +693,7 @@ pub struct UiUpdateSwitches {
 
 pub type WidgetPool = Pool<UiNode, WidgetContainer>;
 
-#[derive(Default, Debug, Clone, Reflect, Visit)]
+#[derive(Default, Debug, Clone, PartialEq, Reflect, Visit)]
 #[reflect(type_uuid = "b426e937-4050-4539-8041-ade4222539c8")]
 pub enum RenderMode {
     /// The UI will be re-rendered on every frame. This is the default behavior.
@@ -693,7 +705,30 @@ pub enum RenderMode {
     OnChanges,
 }
 
-#[derive(Reflect)]
+#[derive(Debug)]
+pub struct UiMessageChannel {
+    pub receiver: Receiver<UiMessage>,
+    pub sender: Sender<UiMessage>,
+}
+
+impl UiMessageChannel {
+    pub fn new() -> Self {
+        let (sender, receiver) = mpsc::channel();
+        Self { receiver, sender }
+    }
+
+    pub fn send(&self, message: UiMessage) {
+        let _ = self.sender.send(message);
+    }
+}
+
+impl PartialEq for UiMessageChannel {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+#[derive(Reflect, PartialEq)]
 #[reflect(type_uuid = "0d065c93-ef9c-4dd2-9fe7-e2b33c1a21b6")]
 pub struct UserInterface {
     screen_size: Vector2<f32>,
@@ -709,9 +744,7 @@ pub struct UserInterface {
     cursor_position: Vector2<f32>,
     pub style: StyleResource,
     #[reflect(hidden)]
-    receiver: Receiver<UiMessage>,
-    #[reflect(hidden)]
-    sender: Sender<UiMessage>,
+    ui_message_channel: UiMessageChannel,
     stack: Vec<Handle<UiNode>>,
     picking_stack: Vec<RestrictionEntry>,
     #[reflect(hidden)]
@@ -727,9 +760,9 @@ pub struct UserInterface {
     #[reflect(hidden)]
     clipboard: Clipboard,
     #[reflect(hidden)]
-    layout_events_receiver: Receiver<LayoutEvent>,
+    layout_events_receiver: LayoutEventsReceiver,
     #[reflect(hidden)]
-    layout_events_sender: Sender<LayoutEvent>,
+    layout_events_sender: LayoutEventsSender,
     #[reflect(hidden)]
     z_index_update_set: FxHashSet<Handle<UiNode>>,
     #[reflect(hidden)]
@@ -767,8 +800,7 @@ impl Debug for UserInterface {
             .field("keyboard_focus_node", &self.keyboard_focus_node)
             .field("cursor_position", &self.cursor_position)
             .field("style", &self.style)
-            .field("receiver", &self.receiver)
-            .field("sender", &self.sender)
+            .field("ui_message_channel", &self.ui_message_channel)
             .field("stack", &self.stack)
             .field("picking_stack", &self.picking_stack)
             .field("bubble_queue", &self.bubble_queue)
@@ -842,10 +874,46 @@ impl Visit for UserInterface {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct LayoutEventsSender(pub Sender<LayoutEvent>);
+
+impl PartialEq for LayoutEventsSender {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+impl Deref for LayoutEventsSender {
+    type Target = Sender<LayoutEvent>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[derive(Debug)]
+pub struct LayoutEventsReceiver(pub Receiver<LayoutEvent>);
+
+impl PartialEq for LayoutEventsReceiver {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+impl Deref for LayoutEventsReceiver {
+    type Target = Receiver<LayoutEvent>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl Clone for UserInterface {
     fn clone(&self) -> Self {
-        let (sender, receiver) = mpsc::channel();
+        let ui_message_channel = UiMessageChannel::new();
         let (layout_events_sender, layout_events_receiver) = mpsc::channel();
+        let layout_events_sender = LayoutEventsSender(layout_events_sender);
+        let layout_events_receiver = LayoutEventsReceiver(layout_events_receiver);
         let mut nodes = Pool::new();
         for (handle, node) in self.nodes.pair_iter() {
             let mut clone = node.clone_boxed();
@@ -865,8 +933,7 @@ impl Clone for UserInterface {
             keyboard_focus_node: self.keyboard_focus_node,
             cursor_position: self.cursor_position,
             style: DEFAULT_STYLE.resource.clone(),
-            receiver,
-            sender,
+            ui_message_channel,
             stack: self.stack.clone(),
             picking_stack: self.picking_stack.clone(),
             bubble_queue: self.bubble_queue.clone(),
@@ -1160,21 +1227,19 @@ pub struct PollResult {
 
 impl UserInterface {
     pub fn new(screen_size: Vector2<f32>) -> UserInterface {
-        let (sender, receiver) = mpsc::channel();
-        Self::new_with_channel(sender, receiver, screen_size)
+        let ui_message_channel = UiMessageChannel::new();
+        Self::new_with_channel(ui_message_channel, screen_size)
     }
 
     pub fn new_with_channel(
-        sender: Sender<UiMessage>,
-        receiver: Receiver<UiMessage>,
+        ui_message_channel: UiMessageChannel,
         screen_size: Vector2<f32>,
     ) -> UserInterface {
         let (layout_events_sender, layout_events_receiver) = mpsc::channel();
         let style = DEFAULT_STYLE.resource.clone();
         let mut ui = UserInterface {
             screen_size,
-            sender,
-            receiver,
+            ui_message_channel,
             visual_debug: false,
             captured_node: Handle::NONE,
             root_canvas: Handle::NONE,
@@ -1195,8 +1260,8 @@ impl UserInterface {
             active_tooltip: Default::default(),
             methods_registry: Default::default(),
             clipboard: Clipboard(ClipboardContext::new().ok().map(RefCell::new)),
-            layout_events_receiver,
-            layout_events_sender,
+            layout_events_receiver: LayoutEventsReceiver(layout_events_receiver),
+            layout_events_sender: LayoutEventsSender(layout_events_sender),
             z_index_update_set: Default::default(),
             default_font: BUILT_IN_FONT.resource(),
             double_click_entries: Default::default(),
@@ -2025,11 +2090,11 @@ impl UserInterface {
     /// Returns instance of message sender which can be used to push messages into queue
     /// from other threads.
     pub fn sender(&self) -> Sender<UiMessage> {
-        self.sender.clone()
+        self.ui_message_channel.sender.clone()
     }
 
     pub fn send_message(&self, message: UiMessage) {
-        self.sender.send(message).unwrap()
+        self.ui_message_channel.send(message)
     }
 
     pub fn try_send_response(&self, message: &UiMessage) -> bool {
@@ -2048,13 +2113,11 @@ impl UserInterface {
     }
 
     pub fn send(&self, handle: Handle<impl ObjectOrVariant<UiNode>>, data: impl MessageData) {
-        self.sender
-            .send(
-                UiMessage::with_data(data)
-                    .with_destination(handle.transmute())
-                    .with_direction(MessageDirection::ToWidget),
-            )
-            .unwrap()
+        self.ui_message_channel.send(
+            UiMessage::with_data(data)
+                .with_destination(handle.transmute())
+                .with_direction(MessageDirection::ToWidget),
+        )
     }
 
     pub fn send_handled(
@@ -2062,25 +2125,21 @@ impl UserInterface {
         handle: Handle<impl ObjectOrVariant<UiNode>>,
         data: impl MessageData,
     ) {
-        self.sender
-            .send(
-                UiMessage::with_data(data)
-                    .with_destination(handle.transmute())
-                    .with_direction(MessageDirection::ToWidget)
-                    .with_handled(true),
-            )
-            .unwrap()
+        self.ui_message_channel.send(
+            UiMessage::with_data(data)
+                .with_destination(handle.transmute())
+                .with_direction(MessageDirection::ToWidget)
+                .with_handled(true),
+        )
     }
 
     pub fn send_sync(&self, handle: Handle<impl ObjectOrVariant<UiNode>>, data: impl MessageData) {
-        self.sender
-            .send(
-                UiMessage::with_data(data)
-                    .with_destination(handle.transmute())
-                    .with_direction(MessageDirection::ToWidget)
-                    .with_delivery_mode(DeliveryMode::SyncOnly),
-            )
-            .unwrap()
+        self.ui_message_channel.send(
+            UiMessage::with_data(data)
+                .with_destination(handle.transmute())
+                .with_direction(MessageDirection::ToWidget)
+                .with_delivery_mode(DeliveryMode::SyncOnly),
+        )
     }
 
     pub fn send_with_flags<T: MessageData>(
@@ -2089,14 +2148,12 @@ impl UserInterface {
         flags: u64,
         data: T,
     ) {
-        self.sender
-            .send(
-                UiMessage::with_data(data)
-                    .with_destination(handle.transmute())
-                    .with_direction(MessageDirection::ToWidget)
-                    .with_flags(flags),
-            )
-            .unwrap()
+        self.ui_message_channel.send(
+            UiMessage::with_data(data)
+                .with_destination(handle.transmute())
+                .with_direction(MessageDirection::ToWidget)
+                .with_flags(flags),
+        )
     }
 
     pub fn send_many<const N: usize, T: MessageData>(
@@ -2120,13 +2177,11 @@ impl UserInterface {
     }
 
     pub fn post<T: MessageData>(&self, handle: Handle<impl ObjectOrVariant<UiNode>>, data: T) {
-        self.sender
-            .send(
-                UiMessage::with_data(data)
-                    .with_destination(handle.transmute())
-                    .with_direction(MessageDirection::FromWidget),
-            )
-            .unwrap()
+        self.ui_message_channel.send(
+            UiMessage::with_data(data)
+                .with_destination(handle.transmute())
+                .with_direction(MessageDirection::FromWidget),
+        )
     }
 
     pub fn post_many<const N: usize, T: MessageData>(
@@ -2248,7 +2303,7 @@ impl UserInterface {
             message: None,
         };
 
-        while let Ok(message) = self.receiver.try_recv() {
+        while let Ok(message) = self.ui_message_channel.receiver.try_recv() {
             poll_result.processed_messages += 1;
             if let Some(message) = self.poll_single_message(message) {
                 poll_result.message = Some(message);
@@ -2584,7 +2639,7 @@ impl UserInterface {
     /// Find any tooltips that are being hovered and activate them.
     /// As well, update their time.
     fn update_tooltips(&mut self, dt: f32) {
-        let sender = self.sender.clone();
+        let sender = self.ui_message_channel.sender.clone();
         if let Some(entry) = self.active_tooltip.as_mut() {
             if entry.shown {
                 entry.disappear_timer -= dt;
@@ -3488,13 +3543,15 @@ impl UserInterface {
         let (mut ui, data) = {
             let data = io.load_file(path.as_ref()).await?;
             let mut visitor = Visitor::load_from_memory(&data)?;
-            let (sender, receiver) = mpsc::channel();
+            let ui_message_channel = UiMessageChannel::new();
             visitor.blackboard.register(constructors);
-            visitor.blackboard.register(Arc::new(sender.clone()));
+            visitor
+                .blackboard
+                .register(Arc::new(ui_message_channel.sender.clone()));
             visitor.blackboard.register(Arc::new(resource_manager));
             visitor.blackboard.register(dyn_type_constructors);
             let mut ui =
-                UserInterface::new_with_channel(sender, receiver, Vector2::new(100.0, 100.0));
+                UserInterface::new_with_channel(ui_message_channel, Vector2::new(100.0, 100.0));
             ui.visit("Ui", &mut visitor)?;
             (ui, data)
         };
@@ -3637,7 +3694,7 @@ impl SceneGraph for UserInterface {
         let node = node.to_base();
         self.isolate_node(node);
 
-        let sender = self.sender.clone();
+        let sender = self.ui_message_channel.sender.clone();
         let mut stack = vec![node];
         while let Some(handle) = stack.pop() {
             if self.prev_picked_node == handle {

@@ -158,6 +158,12 @@ macro_rules! blank_reflect {
             Some(Box::new(self.clone()))
         }
 
+        fn try_compare(&self, other: &dyn Reflect) -> Option<bool> {
+            (other as &dyn std::any::Any)
+                .downcast_ref::<Self>()
+                .map(|other| other == self)
+        }
+
         fn fields_ref(&self, func: &mut dyn FnMut(&[$crate::reflect::FieldRef])) {
             func(&[])
         }
@@ -204,6 +210,10 @@ macro_rules! blank_reflect_ref {
         }
 
         fn try_clone_box(&self) -> Option<Box<dyn $crate::reflect::Reflect>> {
+            None
+        }
+
+        fn try_compare(&self, other: &dyn Reflect) -> Option<bool> {
             None
         }
 

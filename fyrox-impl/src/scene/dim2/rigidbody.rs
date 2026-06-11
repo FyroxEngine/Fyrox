@@ -34,7 +34,6 @@ use crate::{
         algebra::{Isometry2, Matrix4, UnitComplex, Vector2},
         log::Log,
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
-        parking_lot::Mutex,
         pool::Handle,
         reflect::prelude::*,
         uuid::{uuid, Uuid},
@@ -52,17 +51,17 @@ use crate::{
 };
 
 use crate::scene::dim2::collider::ColliderShape;
+use crate::utils::ThreadSafeQueue;
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::SceneGraph;
 use rapier2d::prelude::RigidBodyHandle;
 use std::{
     cell::Cell,
-    collections::VecDeque,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub(crate) enum ApplyAction {
     Force(Vector2<f32>),
     Torque(f32),
@@ -82,6 +81,8 @@ pub(crate) enum ApplyAction {
     NextPosition(Isometry2<f32>),
 }
 
+pub(crate) type ActionsQueue = ThreadSafeQueue<ApplyAction>;
+
 /// Rigid body is a physics entity that responsible for the dynamics and kinematics of the solid.
 /// Use this node when you need to simulate real-world physics in your game.
 ///
@@ -89,7 +90,7 @@ pub(crate) enum ApplyAction {
 ///
 /// Rigid body that does not move for some time will go asleep. This means that the body will not
 /// move unless it is woken up by some other moving body. This feature allows to save CPU resources.
-#[derive(Visit, Reflect)]
+#[derive(Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "Node",
     type_uuid = "0b242335-75a4-4c65-9685-3e82a8979047"
@@ -148,7 +149,7 @@ pub struct RigidBody {
 
     #[visit(skip)]
     #[reflect(hidden)]
-    pub(crate) actions: Mutex<VecDeque<ApplyAction>>,
+    pub(crate) actions: ActionsQueue,
 }
 
 impl Debug for RigidBody {
@@ -361,39 +362,33 @@ impl RigidBody {
     /// Applies a force at the center-of-mass of this rigid-body. The force will be applied in the
     /// next simulation step. This does nothing on non-dynamic bodies.
     pub fn apply_force(&mut self, force: Vector2<f32>) {
-        self.actions.get_mut().push_back(ApplyAction::Force(force))
+        self.actions.push(ApplyAction::Force(force))
     }
 
     /// Applies a torque at the center-of-mass of this rigid-body. The torque will be applied in
     /// the next simulation step. This does nothing on non-dynamic bodies.
     pub fn apply_torque(&mut self, torque: f32) {
-        self.actions
-            .get_mut()
-            .push_back(ApplyAction::Torque(torque))
+        self.actions.push(ApplyAction::Torque(torque))
     }
 
     /// Applies a force at the given world-space point of this rigid-body. The force will be applied
     /// in the next simulation step. This does nothing on non-dynamic bodies.
     pub fn apply_force_at_point(&mut self, force: Vector2<f32>, point: Vector2<f32>) {
         self.actions
-            .get_mut()
-            .push_back(ApplyAction::ForceAtPoint { force, point })
+            .push(ApplyAction::ForceAtPoint { force, point })
     }
 
     /// Applies an impulse at the center-of-mass of this rigid-body. The impulse is applied right
     /// away, changing the linear velocity. This does nothing on non-dynamic bodies.
     pub fn apply_impulse(&mut self, impulse: Vector2<f32>) {
-        self.actions
-            .get_mut()
-            .push_back(ApplyAction::Impulse(impulse))
+        self.actions.push(ApplyAction::Impulse(impulse))
     }
 
     /// Applies an angular impulse at the center-of-mass of this rigid-body. The impulse is applied
     /// right away, changing the angular velocity. This does nothing on non-dynamic bodies.
     pub fn apply_torque_impulse(&mut self, torque_impulse: f32) {
         self.actions
-            .get_mut()
-            .push_back(ApplyAction::TorqueImpulse(torque_impulse))
+            .push(ApplyAction::TorqueImpulse(torque_impulse))
     }
 
     /// Applies an impulse at the given world-space point of this rigid-body. The impulse is applied
@@ -401,32 +396,25 @@ impl RigidBody {
     /// bodies.
     pub fn apply_impulse_at_point(&mut self, impulse: Vector2<f32>, point: Vector2<f32>) {
         self.actions
-            .get_mut()
-            .push_back(ApplyAction::ImpulseAtPoint { impulse, point })
+            .push(ApplyAction::ImpulseAtPoint { impulse, point })
     }
 
     /// If this rigid body is kinematic, sets its future translation after
     /// the next timestep integration.
     pub fn set_next_kinematic_translation(&mut self, translation: Vector2<f32>) {
-        self.actions
-            .get_mut()
-            .push_back(ApplyAction::NextTranslation(translation));
+        self.actions.push(ApplyAction::NextTranslation(translation));
     }
 
     /// If this rigid body is kinematic, sets its future orientation after
     /// the next timestep integration.
     pub fn set_next_kinematic_rotation(&mut self, rotation: UnitComplex<f32>) {
-        self.actions
-            .get_mut()
-            .push_back(ApplyAction::NextRotation(rotation));
+        self.actions.push(ApplyAction::NextRotation(rotation));
     }
 
     /// If this rigid body is kinematic, sets its future position (translation and orientation) after
     /// the next timestep integration.
     pub fn set_next_kinematic_position(&mut self, position: Isometry2<f32>) {
-        self.actions
-            .get_mut()
-            .push_back(ApplyAction::NextPosition(position));
+        self.actions.push(ApplyAction::NextPosition(position));
     }
 
     /// Sets whether the rigid body can sleep or not. If `false` is passed, it _automatically_ wake
@@ -442,7 +430,7 @@ impl RigidBody {
 
     /// Wakes up rigid body, forcing it to return to participate in the simulation.
     pub fn wake_up(&mut self) {
-        self.actions.get_mut().push_back(ApplyAction::WakeUp)
+        self.actions.push(ApplyAction::WakeUp)
     }
 
     pub(crate) fn need_sync_model(&self) -> bool {

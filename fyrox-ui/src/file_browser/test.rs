@@ -20,8 +20,9 @@
 
 use crate::file_browser::fs_tree::{sanitize_path, TreeItemPath};
 use crate::file_browser::{FileType, PathFilter};
+use crate::widget::UserData;
 use crate::{
-    core::{algebra::Vector2, parking_lot::Mutex, pool::Handle},
+    core::{algebra::Vector2, pool::Handle},
     file_browser::{
         fs_tree::{self, read_dir_entries, DisksProvider},
         FileBrowserBuilder, FileBrowserMessage,
@@ -35,7 +36,6 @@ use fyrox_graph::SceneGraph;
 use std::{
     fs::File,
     path::{Path, PathBuf},
-    sync::Arc,
 };
 
 fn create_dir(path: impl AsRef<Path>) {
@@ -124,7 +124,7 @@ fn test_find_tree() {
     let mut ui = UserInterface::new(Vector2::new(100.0, 100.0));
 
     let root = TreeRootBuilder::new(
-        WidgetBuilder::new().with_user_data(Arc::new(Mutex::new(PathBuf::from("test")))),
+        WidgetBuilder::new().with_user_data(UserData::new(PathBuf::from("test"))),
     )
     .build(&mut ui.build_ctx())
     .to_base();

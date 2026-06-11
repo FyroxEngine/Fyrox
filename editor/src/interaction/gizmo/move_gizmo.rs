@@ -52,7 +52,7 @@ use fyrox::scene::camera::Camera;
 use fyrox::scene::mesh::Mesh;
 use fyrox::scene::pivot::Pivot;
 
-#[derive(Reflect, Debug, Clone)]
+#[derive(PartialEq, Reflect, Debug, Clone)]
 #[reflect(type_uuid = "060abe31-ce96-4696-aa5d-e44e9639df0e")]
 pub struct MoveGizmo {
     pub origin: Handle<Pivot>,

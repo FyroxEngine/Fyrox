@@ -28,6 +28,12 @@ pub struct AtomicIndex {
     index: AtomicUsize,
 }
 
+impl PartialEq for AtomicIndex {
+    fn eq(&self, other: &Self) -> bool {
+        self.get() == other.get()
+    }
+}
+
 impl Clone for AtomicIndex {
     fn clone(&self) -> Self {
         Self {

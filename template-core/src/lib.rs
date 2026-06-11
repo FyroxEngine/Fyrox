@@ -175,7 +175,7 @@ use fyrox::{
 pub use fyrox;
 
 #[derive(Default, Visit, Reflect, Debug)]
-#[reflect(non_cloneable, type_uuid = "84a89ed3-796e-4592-92d6-d24c2db302c9")]
+#[reflect(non_cloneable, non_comparable, type_uuid = "84a89ed3-796e-4592-92d6-d24c2db302c9")]
 pub struct Game { }
 
 impl Plugin for Game {
@@ -719,7 +719,7 @@ use fyrox::{{
     plugin::error::GameResult
 }};
 
-#[derive(Visit, Reflect, Default, Debug, Clone)]
+#[derive(Visit, Reflect, Default, Debug, PartialEq, Clone)]
 #[reflect(type_uuid = "{script_uuid}")]
 #[visit(optional)]
 pub struct {script_name} {{

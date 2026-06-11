@@ -23,7 +23,7 @@ use crate::{
         core::dyntype::{DynTypeConstructorContainer, DynTypeContainer},
         graph::SceneGraph,
         gui::{
-            core::{parking_lot::Mutex, pool::Handle, reflect::prelude::*, visitor::prelude::*},
+            core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
             dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
             grid::{GridBuilder, GridDimension},
             inspector::InspectorContextArgs,
@@ -34,8 +34,8 @@ use crate::{
                     PropertyEditorMessageContext, PropertyEditorTranslationContext,
                 },
                 make_expander_container, FieldAction, Inspector, InspectorBuilder,
-                InspectorContext, InspectorEnvironment, InspectorError, InspectorMessage,
-                PropertyChanged, PropertyFilter,
+                InspectorContext, InspectorError, InspectorMessage, PropertyChanged,
+                PropertyFilter,
             },
             message::MessageData,
             message::{MessageDirection, UiMessage},
@@ -47,6 +47,8 @@ use crate::{
     plugins::inspector::EditorEnvironment,
 };
 use fyrox::core::dyntype::DynTypeWrapper;
+use fyrox::gui::inspector::InspectorEnvironmentContainer;
+use fyrox::gui::widget::UserData;
 use std::{
     any::TypeId,
     cell::Cell,
@@ -61,7 +63,7 @@ pub enum DynTypePropertyEditorMessage {
 }
 impl MessageData for DynTypePropertyEditorMessage {}
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Clone, Debug, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "f43c3bfb-8b39-4cc0-be77-04141a45822e"
@@ -141,7 +143,7 @@ impl DynTypePropertyEditorBuilder {
         self,
         variant_selector: Handle<UiNode>,
         dyn_type_uuid: Option<Uuid>,
-        environment: Option<Arc<dyn InspectorEnvironment>>,
+        environment: Option<InspectorEnvironmentContainer>,
         layer_index: usize,
         generate_property_string_values: bool,
         filter: PropertyFilter,
@@ -191,13 +193,13 @@ fn create_items(
 ) -> Vec<Handle<UiNode>> {
     let mut items = vec![{
         let empty = make_dropdown_list_option(ctx, "<Not Set>");
-        ctx[empty].user_data = Some(Arc::new(Mutex::new(Uuid::default())));
+        ctx[empty].user_data = Some(UserData::new(Uuid::default()));
         empty
     }];
 
     items.extend(constructors.inner().iter().map(|(type_uuid, constructor)| {
         let item = make_dropdown_list_option(ctx, &constructor.name);
-        ctx[item].user_data = Some(Arc::new(Mutex::new(*type_uuid)));
+        ctx[item].user_data = Some(UserData::new(*type_uuid));
         item
     }));
 

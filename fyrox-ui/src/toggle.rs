@@ -32,7 +32,7 @@ use fyrox_core::pool::ObjectOrVariant;
 use crate::message::MessageData;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(derived_type = "UiNode")]
 #[reflect(type_uuid = "8d8f114d-7fc6-4d7e-8f57-cd4e39958c36")]
 pub struct ToggleButton {

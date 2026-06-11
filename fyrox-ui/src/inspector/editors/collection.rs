@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::inspector::InspectorEnvironmentContainer;
 use crate::{
     button::{Button, ButtonMessage},
     core::{
@@ -31,7 +32,7 @@ use crate::{
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
         make_expander_container, make_property_margin, CollectionAction, FieldAction,
-        InspectorEnvironment, InspectorError, ObjectValue, PropertyChanged, PropertyFilter,
+        InspectorError, ObjectValue, PropertyChanged, PropertyFilter,
     },
     message::{DeliveryMode, MessageData, MessageDirection, UiMessage},
     resources,
@@ -57,11 +58,11 @@ pub struct Item {
     remove: Handle<Button>,
 }
 
-pub trait CollectionItem: Clone + Reflect + Default + Send + 'static {}
+pub trait CollectionItem: Clone + PartialEq + Reflect + Default + Send + 'static {}
 
-impl<T> CollectionItem for T where T: Clone + Reflect + Default + Send + 'static {}
+impl<T> CollectionItem for T where T: Clone + PartialEq + Reflect + Default + Send + 'static {}
 
-#[derive(Debug, Visit, Reflect)]
+#[derive(Debug, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "316b0319-f8ee-4b63-9ed9-3f59a857e2bc"
@@ -177,7 +178,7 @@ where
 {
     widget_builder: WidgetBuilder,
     collection: Option<I>,
-    environment: Option<Arc<dyn InspectorEnvironment>>,
+    environment: Option<InspectorEnvironmentContainer>,
     definition_container: Option<Arc<PropertyEditorDefinitionContainer>>,
     add: Handle<Button>,
     layer_index: usize,
@@ -209,7 +210,7 @@ fn create_item_views(items: &[Item], ctx: &mut BuildContext) -> Vec<Handle<UiNod
 
 fn create_items<'a, 'b, T, I>(
     iter: I,
-    environment: Option<Arc<dyn InspectorEnvironment>>,
+    environment: Option<InspectorEnvironmentContainer>,
     definition_container: Arc<PropertyEditorDefinitionContainer>,
     property_info: &FieldRef<'a, 'b>,
     ctx: &mut BuildContext,
@@ -321,7 +322,7 @@ where
         self
     }
 
-    pub fn with_environment(mut self, environment: Option<Arc<dyn InspectorEnvironment>>) -> Self {
+    pub fn with_environment(mut self, environment: Option<InspectorEnvironmentContainer>) -> Self {
         self.environment = environment;
         self
     }

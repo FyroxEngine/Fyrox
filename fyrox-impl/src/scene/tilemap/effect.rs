@@ -42,6 +42,24 @@ use super::*;
 /// rendered specially.
 pub type TileMapEffectRef = Arc<Mutex<dyn TileMapEffect>>;
 
+/// A reference to [`TileMapEffect`]. A TileMap keeps some of these if it needs to be
+/// rendered specially.
+#[derive(Clone, Debug)]
+pub struct TileMapEffectRefContainer(pub TileMapEffectRef);
+
+impl TileMapEffectRefContainer {
+    /// Returns a reference to the actual tile map effect.
+    pub fn inner(&self) -> MutexGuard<dyn TileMapEffect> {
+        self.0.safe_lock()
+    }
+}
+
+impl PartialEq for TileMapEffectRefContainer {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
 /// A trait for objects that can perform specialized rendering for a tile map by
 /// adding them to [`TileMap::before_effects`] or [`TileMap::after_effects`],
 /// depending on whether the effect should render before the tile map renders

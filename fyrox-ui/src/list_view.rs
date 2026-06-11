@@ -233,7 +233,7 @@ impl ListViewMessage {
 ///     ui.send(my_list_view, ListViewMessage::BringItemIntoView(my_item));
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[visit(optional)]
 #[reflect(
     derived_type = "UiNode",
@@ -325,7 +325,7 @@ impl ListView {
 }
 
 /// A wrapper for list view items, that is used to add selection functionality to arbitrary items.
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "02f21415-5843-42f5-a3e4-b4a21e7739ad"

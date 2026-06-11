@@ -91,9 +91,9 @@ pub trait ResourceData: Debug + Visit + Send + Reflect {
 /// such as: a way to get default state of the data (`Default` impl), a way to get data's type uuid.
 /// The trait has automatic implementation for any type that implements
 /// ` ResourceData + Default ` traits.
-pub trait TypedResourceData: ResourceData + Default {}
+pub trait TypedResourceData: ResourceData + Default + PartialEq {}
 
-impl<T> TypedResourceData for T where T: ResourceData + Default {}
+impl<T> TypedResourceData for T where T: ResourceData + Default + PartialEq {}
 
 /// A trait for resource load error.
 pub trait ResourceLoadError: 'static + Debug + Display + Send + Sync {}
@@ -185,13 +185,13 @@ where
     into = "UntypedResource"
 )]
 #[reflect(type_uuid = "790b1a1c-a997-46c4-ac3b-8565501f0052")]
-pub struct Resource<T: Reflect + Debug> {
+pub struct Resource<T: TypedResourceData> {
     untyped: UntypedResource,
     #[reflect(hidden)]
     phantom: PhantomData<T>,
 }
 
-impl<T: Reflect> Debug for Resource<T> {
+impl<T: TypedResourceData> Debug for Resource<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -404,7 +404,7 @@ where
     }
 }
 
-impl<T: Reflect> Clone for Resource<T> {
+impl<T: TypedResourceData> Clone for Resource<T> {
     #[inline]
     fn clone(&self) -> Self {
         Self {
@@ -702,7 +702,7 @@ mod tests {
         sync::Arc,
     };
 
-    #[derive(Serialize, Deserialize, Default, Debug, Clone, Visit, Reflect)]
+    #[derive(Serialize, Deserialize, Default, Debug, Clone, Visit, PartialEq, Reflect)]
     #[reflect(type_uuid = "241d14c7-079e-4395-a63c-364f0fc3e6ea")]
     struct MyData {
         data: u32,

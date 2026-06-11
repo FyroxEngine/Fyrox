@@ -160,7 +160,7 @@ impl MessageData for DockingManagerMessage {}
 /// To be able to restore the layout to its defaults, just create a desired layout from code,
 /// save the layout and use the returned layout descriptor when you need to restore the layout
 /// to its defaults.
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "b04299f7-3f6b-45f1-89a6-0dce4ad929e1"

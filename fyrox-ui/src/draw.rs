@@ -40,7 +40,7 @@ use fyrox_texture::TextureResource;
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
 
-#[derive(Clone, Copy, Debug, Pod, Zeroable)]
+#[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct Vertex {
     pub pos: Vector2<f32>,
@@ -58,7 +58,7 @@ impl Vertex {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum CommandTexture {
     None,
     Texture(TextureResource),
@@ -70,7 +70,7 @@ pub enum CommandTexture {
 }
 
 /// A set of triangles that will be used for clipping.
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct ClippingGeometry {
     pub vertex_buffer: Vec<Vertex>,
     pub triangle_buffer: Vec<TriangleDefinition>,
@@ -126,7 +126,7 @@ impl ClippingGeometry {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Command {
     /// Clipping bounds, should be used for scissor-test. Screen-space.
     pub clip_bounds: Rect<f32>,
@@ -753,7 +753,7 @@ pub trait Draw {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct TransformStack {
     transform: Matrix3<f32>,
     stack: Vec<Matrix3<f32>>,
@@ -806,7 +806,7 @@ impl TransformStack {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct RenderData {
     pub vertex_buffer: Vec<Vertex>,
     pub triangle_buffer: Vec<TriangleDefinition>,
@@ -873,7 +873,7 @@ impl RenderData {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct DrawingContext {
     pub render_data: RenderData,
     pub transform_stack: TransformStack,

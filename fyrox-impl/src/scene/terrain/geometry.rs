@@ -35,7 +35,7 @@ use uuid::Uuid;
 
 /// The [SurfaceSharedData](crate::scene::mesh::surface::SurfaceResource) of a grid mesh for use
 /// in rendering a terrain.
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, PartialEq, Clone)]
 pub struct TerrainGeometry {
     pub data: SurfaceResource,
     /// Triangle ranges for each quadrant (in clockwise order; left-top -> right-top -> right-bottom -> left-bottom).

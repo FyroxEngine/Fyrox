@@ -26,8 +26,8 @@
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
-        err, log::Log, ok_or_continue, ok_or_return, parking_lot::Mutex, pool::Handle,
-        reflect::prelude::*, some_or_return, visitor::prelude::*, SafeLock,
+        err, log::Log, ok_or_continue, ok_or_return, pool::Handle, reflect::prelude::*,
+        some_or_return, visitor::prelude::*,
     },
     file_browser::{
         fs_tree::{sanitize_path, TreeItemPath},
@@ -52,11 +52,12 @@ use fyrox_graph::{
     SceneGraph,
 };
 use notify::{Event, Watcher};
+use std::ops::{Deref, DerefMut};
 use std::{
     collections::VecDeque,
     fmt::{Debug, Formatter},
     path::{Path, PathBuf},
-    sync::{mpsc::Sender, Arc},
+    sync::mpsc::Sender,
 };
 
 mod dialog;
@@ -72,6 +73,7 @@ use crate::button::Button;
 use crate::scroll_viewer::ScrollViewer;
 use crate::text::Text;
 use crate::text_box::TextBox;
+use crate::widget::UserData;
 pub use field::*;
 pub use filter::*;
 pub use selector::*;
@@ -100,7 +102,30 @@ enum FsEventMessage {
 }
 impl MessageData for FsEventMessage {}
 
-#[derive(Default, Visit, Reflect)]
+#[derive(Debug)]
+pub struct FsWatcher(notify::RecommendedWatcher);
+
+impl PartialEq for FsWatcher {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+impl Deref for FsWatcher {
+    type Target = notify::RecommendedWatcher;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for FsWatcher {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+#[derive(Default, Visit, PartialEq, Reflect)]
 #[reflect(type_uuid = "b7f4610e-4b0c-4671-9b4a-60bb45268928")]
 #[reflect(derived_type = "UiNode")]
 pub struct FileBrowser {
@@ -120,10 +145,9 @@ pub struct FileBrowser {
     #[visit(skip)]
     #[reflect(hidden)]
     pub item_context_menu: RcUiNodeHandle,
-    #[allow(clippy::type_complexity)]
     #[visit(skip)]
     #[reflect(hidden)]
-    pub watcher: Option<notify::RecommendedWatcher>,
+    pub watcher: Option<FsWatcher>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for FileBrowser {
@@ -283,7 +307,7 @@ impl FileBrowser {
         };
         if let Some(root) = self.root.clone() {
             self.set_path(&root, ui);
-            let tree_item_path = Arc::new(Mutex::new(TreeItemPath::root(root.clone())));
+            let tree_item_path = UserData::new(TreeItemPath::root(root.clone()));
             ui[self.tree_root].user_data = Some(tree_item_path.clone());
             self.user_data = Some(tree_item_path);
         }
@@ -559,7 +583,7 @@ impl Control for FileBrowser {
         ui.node(widget)
             .user_data
             .as_ref()
-            .is_some_and(|data| data.safe_lock().downcast_ref::<TreeItemPath>().is_some())
+            .is_some_and(|data| data.downcast::<TreeItemPath>().is_some())
     }
 }
 
@@ -820,7 +844,7 @@ fn setup_file_browser_fs_watcher(
     sender: Sender<UiMessage>,
     file_browser_handle: Handle<FileBrowser>,
     the_path: PathBuf,
-) -> Option<notify::RecommendedWatcher> {
+) -> Option<FsWatcher> {
     let handler = EventReceiver {
         file_browser_handle,
         sender,
@@ -829,7 +853,7 @@ fn setup_file_browser_fs_watcher(
     match notify::RecommendedWatcher::new(handler, config) {
         Ok(mut watcher) => {
             Log::verify(watcher.watch(&the_path, notify::RecursiveMode::Recursive));
-            Some(watcher)
+            Some(FsWatcher(watcher))
         }
         Err(_) => None,
     }

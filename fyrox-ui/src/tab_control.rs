@@ -205,7 +205,7 @@ pub struct Tab {
 /// };
 /// # }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "d54cfac3-0afc-464b-838a-158b3a2253f5"

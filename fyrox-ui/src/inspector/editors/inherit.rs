@@ -60,7 +60,7 @@ pub enum InheritablePropertyEditorMessage {
 }
 impl MessageData for InheritablePropertyEditorMessage {}
 
-#[derive(Debug, Clone, Visit, Reflect)]
+#[derive(Debug, Clone, Visit, PartialEq, Reflect)]
 #[reflect(type_uuid = "d5dce72c-a54b-4754-96a3-2e923eaa802f")]
 #[reflect(derived_type = "UiNode")]
 pub struct InheritablePropertyEditor {

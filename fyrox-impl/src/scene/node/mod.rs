@@ -362,6 +362,12 @@ impl<T: NodeTrait> ObjectOrVariantHelper<Node, T> for PhantomData<T> {
 #[reflect(type_uuid = "a9bc5231-155c-4564-b0ca-f23972673925")]
 pub struct Node(#[reflect(deref, display_name = "Node")] pub(crate) Box<dyn NodeTrait>);
 
+impl PartialEq for Node {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.try_compare(&*other.0).unwrap_or_default()
+    }
+}
+
 impl<T: NodeTrait> From<T> for Node {
     fn from(value: T) -> Self {
         Self(Box::new(value))
@@ -608,7 +614,7 @@ mod test {
     use fyrox_resource::untyped::ResourceKind;
     use std::{fs, path::Path, sync::Arc};
 
-    #[derive(Debug, Clone, Reflect, Visit, Default)]
+    #[derive(Debug, Clone, PartialEq, Reflect, Visit, Default)]
     #[reflect(type_uuid = "d3f66902-803f-4ace-8170-0aa485d98b40")]
     struct MyScript {
         some_field: InheritableVariable<String>,

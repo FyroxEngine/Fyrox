@@ -144,8 +144,8 @@ where
 
 impl<T, P> Reflect for Pool<T, P>
 where
-    T: Reflect,
-    P: PayloadContainer<Element = T> + Reflect,
+    T: Reflect + PartialEq,
+    P: PayloadContainer<Element = T> + Reflect + PartialEq,
     Pool<T, P>: Clone,
 {
     fn type_info() -> TypeInfo {
@@ -168,6 +168,12 @@ where
 
     fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
         Some(Box::new(self.clone()))
+    }
+
+    fn try_compare(&self, other: &dyn Reflect) -> Option<bool> {
+        (other as &dyn std::any::Any)
+            .downcast_ref::<Self>()
+            .map(|other| other == self)
     }
 
     #[inline]
@@ -207,8 +213,8 @@ where
 
 impl<T, P> ReflectArray for Pool<T, P>
 where
-    T: Reflect,
-    P: PayloadContainer<Element = T> + Reflect,
+    T: Reflect + PartialEq,
+    P: PayloadContainer<Element = T> + Reflect + PartialEq,
     Pool<T, P>: Clone,
 {
     #[inline]

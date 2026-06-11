@@ -163,7 +163,7 @@ pub enum MessageBoxButtons {
 ///
 /// There's no way to change the style of the message box, nor add some widgets to it. If you need a custom message box, then you
 /// need to create your own widget. This message box is meant to be used as a standard dialog box for standard situations in the UI.
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "b14c0012-4383-45cf-b9a1-231415d95373"

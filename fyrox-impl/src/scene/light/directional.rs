@@ -125,7 +125,7 @@ impl CsmOptions {
 }
 
 /// See module docs.
-#[derive(Default, Debug, Visit, Reflect, Clone)]
+#[derive(Default, Debug, Visit, PartialEq, Reflect, Clone)]
 #[reflect(
     derived_type = "Node",
     type_uuid = "8b8248e1-1cdf-42a3-9abe-0691de82c519"

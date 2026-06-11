@@ -41,7 +41,7 @@ use fyrox::gui::button::Button;
 use fyrox::gui::image::Image;
 use fyrox::gui::widget::WidgetMessage;
 
-#[derive(Reflect, Debug)]
+#[derive(PartialEq, Reflect, Debug)]
 #[reflect(non_cloneable, type_uuid = "bab9ce8c-d679-4c49-beb9-f5a8482e0678")]
 pub struct SelectInteractionMode {
     preview: Handle<Image>,

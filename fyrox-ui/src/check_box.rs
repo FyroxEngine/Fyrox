@@ -148,7 +148,7 @@ impl MessageData for CheckBoxMessage {}
 /// 2) [`CheckBoxBuilder::with_check_mark`] - sets the widget that will be used as checked icon.
 /// 3) [`CheckBoxBuilder::with_uncheck_mark`] - sets the widget that will be used as unchecked icon.
 /// 4) [`CheckBoxBuilder::with_undefined_mark`] - sets the widget that will be used as undefined icon.
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, PartialEq, Reflect)]
 #[reflect(type_uuid = "3a866ba8-7682-4ce7-954a-46360f5837dc")]
 #[reflect(derived_type = "UiNode")]
 pub struct CheckBox {

@@ -42,7 +42,7 @@ pub enum ShaderSourceCodeEditorMessage {
 }
 impl MessageData for ShaderSourceCodeEditorMessage {}
 
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(type_uuid = "c2e0bdcc-28a6-4141-93b5-5dad50c8b29c")]
 #[reflect(derived_type = "UiNode")]
 pub struct ShaderSourceCodeEditor {

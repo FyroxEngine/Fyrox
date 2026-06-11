@@ -81,7 +81,7 @@ use uuid::uuid;
 pub mod loader;
 
 /// See module docs.
-#[derive(Debug, Clone, Visit, Reflect)]
+#[derive(Debug, PartialEq, Clone, Visit, Reflect)]
 #[reflect(type_uuid = "44cd768f-b4ca-4804-a98c-0adf85577ada")]
 pub struct Model {
     #[visit(skip)]

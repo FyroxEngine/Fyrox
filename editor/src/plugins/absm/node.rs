@@ -48,7 +48,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Clone, Debug, Visit, PartialEq, Reflect)]
 #[reflect(type_uuid = "1a5d0042-3607-4fcb-88c6-025a0bce6111")]
 pub struct AbsmBaseNode {
     pub input_sockets: Vec<Handle<Socket>>,
@@ -58,7 +58,8 @@ pub struct AbsmBaseNode {
 #[derive(Visit, Reflect)]
 #[reflect(
     derived_type = "UiNode",
-    type_uuid = "15bc1a7e-a385-46e0-a65c-7e9c014b4a1d"
+    type_uuid = "15bc1a7e-a385-46e0-a65c-7e9c014b4a1d",
+    non_comparable
 )]
 pub struct AbsmNode<T>
 where

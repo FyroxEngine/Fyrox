@@ -71,7 +71,7 @@ pub struct WfcMacro {
     current_terrain: TileTerrainId,
 }
 
-#[derive(Debug, Clone, Visit, Reflect)]
+#[derive(Debug, Clone, PartialEq, Visit, Reflect)]
 #[reflect(type_uuid = "24f9947e-f58b-4623-ad14-cb21cd09297e")]
 pub(super) struct WfcInstance {
     frequency_property: Option<TileSetPropertyF32>,

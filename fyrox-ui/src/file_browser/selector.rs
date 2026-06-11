@@ -73,7 +73,7 @@ impl MessageData for FileSelectorMessage {}
 
 /// File selector is a modal window that allows you to select a file (or directory) and commit or
 /// cancel selection.
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "878b2220-03e6-4a50-a97d-3a8e5397b6cb"

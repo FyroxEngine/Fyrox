@@ -31,7 +31,6 @@ use crate::{
             log::Log,
             math::curve::{CurveKey, CurveKeyKind},
             ok_or_continue,
-            parking_lot::Mutex,
             pool::{ErasedHandle, Handle},
             reflect::{prelude::*, Reflect},
             some_or_return,
@@ -103,12 +102,13 @@ use crate::{
     utils::{self},
 };
 use fyrox::core::warn;
+use fyrox::gui::widget::UserData;
 use std::{
     any::{Any, TypeId},
     cmp::Ordering,
     collections::hash_map::Entry,
     ops::{Deref, DerefMut},
-    sync::{mpsc::Sender, Arc},
+    sync::mpsc::Sender,
 };
 
 #[derive(PartialEq, Eq)]
@@ -346,7 +346,7 @@ pub enum TrackViewMessage {
 }
 impl MessageData for TrackViewMessage {}
 
-#[derive(Clone, Debug, Reflect, Visit)]
+#[derive(Clone, Debug, PartialEq, Reflect, Visit)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "c1e930da-d55d-492e-b87b-16c1adf03319"
@@ -1560,9 +1560,9 @@ impl TrackList {
                                 };
 
                                 let curve_view = TreeBuilder::new(
-                                    WidgetBuilder::new().with_user_data(Arc::new(Mutex::new(
+                                    WidgetBuilder::new().with_user_data(UserData::new(
                                         CurveViewData { id: curve.id() },
-                                    ))),
+                                    )),
                                 )
                                 .with_content(
                                     GridBuilder::new(

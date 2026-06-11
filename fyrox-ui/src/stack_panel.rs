@@ -107,7 +107,7 @@ impl MessageData for StackPanelMessage {}
 ///     .build(ctx);
 /// # }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "d868f554-a2c5-4280-abfc-396d10a0e1ed"

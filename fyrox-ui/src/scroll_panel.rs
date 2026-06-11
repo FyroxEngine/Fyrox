@@ -143,7 +143,7 @@ impl MessageData for ScrollPanelMessage {
 ///     ui.send(scroll_panel, ScrollPanelMessage::BringIntoView(child))
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "1ab4936d-58c8-4cf7-b33c-4b56092f4826"

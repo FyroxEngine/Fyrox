@@ -128,6 +128,12 @@ pub enum Message {
 #[reflect(hide_all, type_uuid = "86eed637-0d96-4ad2-9566-a451f0b00237")]
 pub struct MessageSender(pub Sender<Message>);
 
+impl PartialEq for MessageSender {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
 impl Default for MessageSender {
     fn default() -> Self {
         let (rx, _) = channel();

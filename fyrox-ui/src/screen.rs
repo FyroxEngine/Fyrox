@@ -105,7 +105,7 @@ use std::cell::Cell;
 ///     .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "3bc7649f-a1ba-49be-bc4e-e0624654e40c"

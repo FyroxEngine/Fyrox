@@ -68,8 +68,11 @@ pub enum SurfaceDataPropertyEditorMessage {
 impl MessageData for SurfaceDataPropertyEditorMessage {}
 
 #[derive(Clone, Visit, Reflect, Debug)]
-#[reflect(type_uuid = "8461a183-4fd4-4f74-a4f4-7fd8e84bf423")]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    type_uuid = "8461a183-4fd4-4f74-a4f4-7fd8e84bf423",
+    derived_type = "UiNode",
+    non_comparable
+)]
 #[allow(dead_code)]
 pub struct SurfaceDataPropertyEditor {
     widget: Widget,

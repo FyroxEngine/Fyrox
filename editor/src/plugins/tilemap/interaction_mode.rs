@@ -20,12 +20,14 @@
 
 //! The [`InteractionMode`] for editing a tile map.
 
+use super::*;
 use crate::{
     command::{Command, CommandGroup},
     make_color_material,
 };
 use commands::{MoveMapTileCommand, SetMapTilesCommand};
 use fyrox::gui::button::Button;
+use fyrox::scene::tilemap::{TileMapEffectRef, TileMapEffectRefContainer};
 use fyrox::{
     asset::untyped::UntypedResource,
     core::reflect::prelude::*,
@@ -40,8 +42,6 @@ use fyrox::{
     },
 };
 use std::fmt::Formatter;
-
-use super::*;
 
 const CURSOR_COLOR: Color = Color::from_rgba(255, 255, 255, 30);
 const SELECT_COLOR: Color = Color::from_rgba(255, 255, 0, 200);
@@ -64,6 +64,7 @@ enum MouseMode {
 #[derive(Reflect)]
 #[reflect(
     non_cloneable,
+    non_comparable,
     type_uuid = "33fa8ef9-a29c-45d4-a493-79571edd870a",
     hide_all
 )]
@@ -172,15 +173,15 @@ impl TileMapInteractionMode {
     pub fn on_tile_map_selected(&mut self, tile_map: &mut TileMap) {
         tile_map.before_effects.clear();
         tile_map.before_effects.extend([
-            self.overlay_effect.clone() as TileMapEffectRef,
-            self.update_effect.clone() as TileMapEffectRef,
-            self.erase_effect.clone() as TileMapEffectRef,
+            TileMapEffectRefContainer(self.overlay_effect.clone() as TileMapEffectRef),
+            TileMapEffectRefContainer(self.update_effect.clone() as TileMapEffectRef),
+            TileMapEffectRefContainer(self.erase_effect.clone() as TileMapEffectRef),
         ]);
         tile_map.after_effects.clear();
         tile_map.after_effects.extend([
-            self.cursor_effect.clone() as TileMapEffectRef,
-            self.erase_select_effect.clone() as TileMapEffectRef,
-            self.select_effect.clone() as TileMapEffectRef,
+            TileMapEffectRefContainer(self.cursor_effect.clone() as TileMapEffectRef),
+            TileMapEffectRefContainer(self.erase_select_effect.clone() as TileMapEffectRef),
+            TileMapEffectRefContainer(self.select_effect.clone() as TileMapEffectRef),
         ]);
     }
     fn pick_grid(

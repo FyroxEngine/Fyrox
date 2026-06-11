@@ -52,7 +52,7 @@ use crate::{
 use fyrox::core::some_or_return;
 use fyrox::gui::button::Button;
 
-#[derive(Reflect, Debug, Clone)]
+#[derive(PartialEq, Reflect, Debug, Clone)]
 #[reflect(type_uuid = "067c67e2-865b-4112-8d60-133ee1e1883a")]
 struct Entry {
     node: Handle<Node>,
@@ -62,7 +62,7 @@ struct Entry {
     new_local_position: Vector3<f32>,
 }
 
-#[derive(Reflect, Debug, Clone)]
+#[derive(PartialEq, Reflect, Debug, Clone)]
 #[reflect(type_uuid = "f50af953-308e-40e8-85ae-48c905ba5f46")]
 struct MoveContext {
     #[reflect(hidden)]
@@ -280,7 +280,7 @@ impl MoveContext {
     }
 }
 
-#[derive(Reflect, Debug, Clone)]
+#[derive(PartialEq, Reflect, Debug, Clone)]
 #[reflect(type_uuid = "067c67e2-865b-4112-8d60-133ee1e1883a")]
 pub struct MoveInteractionMode {
     move_context: Option<MoveContext>,

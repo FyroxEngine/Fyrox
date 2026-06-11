@@ -156,7 +156,7 @@ impl Visit for Container {
 ///     scene.graph[handle].as_navigational_mesh_mut()
 /// }
 /// ```
-#[derive(Debug, Clone, Visit, Reflect, Default)]
+#[derive(Debug, Clone, Visit, PartialEq, Reflect, Default)]
 #[reflect(
     derived_type = "Node",
     type_uuid = "d0ce963c-b50a-4707-bd21-af6dc0d1c668"

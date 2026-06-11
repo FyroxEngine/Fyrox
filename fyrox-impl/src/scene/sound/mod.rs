@@ -72,7 +72,7 @@ pub mod context;
 pub mod listener;
 
 /// Sound source.
-#[derive(Visit, Reflect, Debug)]
+#[derive(Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "Node",
     type_uuid = "28621735-8cd1-4fad-8faf-ecd24bf8aa99"

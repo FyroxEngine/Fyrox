@@ -74,7 +74,7 @@ use fyrox::scene::joint::Joint;
 use fyrox::scene::ragdoll::Ragdoll;
 use std::{ops::Range, sync::Arc};
 
-#[derive(Reflect, Clone, Debug)]
+#[derive(PartialEq, Reflect, Clone, Debug)]
 #[reflect(type_uuid = "07d73807-1716-4ea6-bef4-91903c214f7e")]
 pub struct RagdollPreset {
     /// A handle of a hips (pelvis) bone.

@@ -66,7 +66,7 @@ impl MessageData for UuidEditorMessage {}
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "667f7f48-2448-42da-91dd-cd743ca7117e"

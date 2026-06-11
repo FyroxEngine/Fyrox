@@ -142,11 +142,17 @@ impl Display for HrtfError {
 
 /// See module docs.
 #[derive(Clone, Debug, Default, Reflect)]
-#[reflect(type_uuid = "c6149a3b-7992-44a8-9b9f-16651a5d2b15")]
+#[reflect(type_uuid = "c6149a3b-7992-44a8-9b9f-16651a5d2b15", non_comparable)]
 pub struct HrtfRenderer {
     hrir_resource: Option<HrirSphereResource>,
     #[reflect(hidden)]
     processor: Option<hrtf::HrtfProcessor>,
+}
+
+impl PartialEq for HrtfRenderer {
+    fn eq(&self, other: &Self) -> bool {
+        self.hrir_resource == other.hrir_resource
+    }
 }
 
 impl Visit for HrtfRenderer {
@@ -243,6 +249,16 @@ enum HrirSource {
     RawData(Vec<u8>),
 }
 
+impl PartialEq for HrirSource {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Preloaded(a), Self::Preloaded(b)) => a.source() == b.source(),
+            (Self::RawData(a), Self::RawData(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
 impl Default for HrirSource {
     fn default() -> Self {
         Self::RawData(Default::default())
@@ -251,8 +267,8 @@ impl Default for HrirSource {
 
 /// Wrapper for [`HrirSphere`] to be able to use it in the resource manager, that will handle async resource
 /// loading automatically.
-#[derive(Reflect, Default, Clone, Visit)]
-#[reflect(type_uuid = "c92a0fa3-0ed3-49a9-be44-8f06271c6be2")]
+#[derive(Reflect, Default, PartialEq, Clone, Visit)]
+#[reflect(type_uuid = "c92a0fa3-0ed3-49a9-be44-8f06271c6be2", non_comparable)]
 pub struct HrirSphereResourceData {
     #[reflect(hidden)]
     #[visit(skip)]

@@ -81,7 +81,7 @@ pub enum Status {
 }
 
 /// See module info.
-#[derive(Debug, Clone, Reflect, Visit)]
+#[derive(Debug, Clone, PartialEq, Reflect, Visit)]
 #[reflect(type_uuid = "1beb0bbc-72fb-42a1-9e78-5d246c84fdfe")]
 pub struct SoundSource {
     name: String,

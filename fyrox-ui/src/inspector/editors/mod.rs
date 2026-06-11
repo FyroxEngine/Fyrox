@@ -21,6 +21,7 @@
 //! A collection of [PropertyEditorDefinition] objects for a wide variety of types,
 //! including standard Rust types and Fyrox core types.
 
+use crate::inspector::InspectorEnvironmentContainer;
 use crate::style::{StyleProperty, StylePropertyContainer};
 use crate::{
     absm::{EventAction, EventKind},
@@ -80,7 +81,7 @@ use crate::{
                 Vec4PropertyEditorDefinition,
             },
         },
-        InspectorEnvironment, InspectorError, PropertyChanged, PropertyFilter,
+        InspectorError, PropertyChanged, PropertyFilter,
     },
     key::{HotKeyEditor, KeyBinding, KeyBindingEditor},
     list_view::{ListView, ListViewItem},
@@ -166,7 +167,7 @@ pub struct PropertyEditorBuildContext<'a, 'b, 'c, 'd> {
     /// [fyroxed_base::inspector::EditorEnvironment](https://docs.rs/fyroxed_base/latest/fyroxed_base/inspector/struct.EditorEnvironment.html)
     /// when the Inspector is being used in Fyroxed, but Inspector widgets can be used in other applications,
     /// and we can access those applications by casting the environment to the appropriate type.
-    pub environment: Option<Arc<dyn InspectorEnvironment>>,
+    pub environment: Option<InspectorEnvironmentContainer>,
     /// The list of the Inspectors property editors.
     /// This allows one property editor to make use of other property editors.
     pub definition_container: Arc<PropertyEditorDefinitionContainer>,
@@ -215,7 +216,7 @@ pub struct PropertyEditorMessageContext<'a, 'b, 'c> {
     /// this property is being translated. This allows the created message to
     /// adapt to the situation if we can successfully cast the given
     /// [InspectorEnvironment] into a specific type.
-    pub environment: Option<Arc<dyn InspectorEnvironment>>,
+    pub environment: Option<InspectorEnvironmentContainer>,
     /// When true, this indicates that an Inspector should generate strings from `format!("{:?}", field)`, for each field.
     /// Having this in the property editor build context indicates how any Inspectors that are update due to the created message
     /// should behave.
@@ -251,7 +252,7 @@ pub struct PropertyEditorTranslationContext<'b, 'c> {
     /// [fyrox::script::Script](https://docs.rs/fyrox/latest/fyrox/script/struct.Script.html)
     /// when it receives a
     /// [ScriptPropertyEditorMessage::Value](https://docs.rs/fyroxed_base/latest/fyroxed_base/inspector/editors/script/enum.ScriptPropertyEditorMessage.html#variant.Value).
-    pub environment: Option<Arc<dyn InspectorEnvironment>>,
+    pub environment: Option<InspectorEnvironmentContainer>,
     /// The name of the property being edited.
     /// This comes from [ContextEntry::property_name](crate::inspector::ContextEntry).
     pub name: &'b str,
@@ -370,6 +371,18 @@ pub struct PropertyEditorDefinitionContainer {
     /// that plugin.
     pub context_type_id: Mutex<TypeId>,
     definitions: RwLock<FxHashMap<TypeId, PropertyEditorDefinitionContainerEntry>>,
+}
+
+impl PartialEq for PropertyEditorDefinitionContainer {
+    fn eq(&self, other: &Self) -> bool {
+        *self.context_type_id.safe_lock() == *other.context_type_id.safe_lock()
+            && self
+                .definitions
+                .read()
+                .keys()
+                .zip(other.definitions.read().keys())
+                .all(|(a, b)| *a == *b)
+    }
 }
 
 impl Debug for PropertyEditorDefinitionContainer {

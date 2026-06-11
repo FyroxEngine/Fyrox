@@ -237,7 +237,7 @@ impl Visit for SceneNodeId {
 }
 
 /// A script container record.
-#[derive(Clone, Reflect, Debug, Default)]
+#[derive(Clone, Reflect, Debug, PartialEq, Default)]
 #[reflect(type_uuid = "51bc577b-5a50-4a97-9b31-eda2f3d46c9d")]
 pub struct ScriptRecord {
     // Script is wrapped into `Option` to be able to do take-return trick to bypass borrow checker
@@ -326,6 +326,12 @@ impl<T: Visit> Visit for TrackedProperty<T> {
     }
 }
 
+impl<T: PartialEq> PartialEq for TrackedProperty<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.property == other.property
+    }
+}
+
 impl<T> Deref for TrackedProperty<T> {
     type Target = T;
 
@@ -343,6 +349,18 @@ impl<T> DerefMut for TrackedProperty<T> {
             }))
         }
         &mut self.property
+    }
+}
+
+#[derive(Debug, Clone)]
+struct MessageSenders {
+    script_message_sender: Sender<NodeScriptMessage>,
+    message_sender: Sender<NodeMessage>,
+}
+
+impl PartialEq for MessageSenders {
+    fn eq(&self, _other: &Self) -> bool {
+        true
     }
 }
 
@@ -366,17 +384,14 @@ impl<T> DerefMut for TrackedProperty<T> {
 ///         .build(graph)
 /// }
 /// ```
-#[derive(Debug, Reflect, Clone)]
+#[derive(Debug, Reflect, PartialEq, Clone)]
 #[reflect(type_uuid = "5bf7fb77-fd50-4b92-83d7-27153b7da531")]
 pub struct Base {
     #[reflect(hidden)]
     self_handle: Handle<Node>,
 
     #[reflect(hidden)]
-    script_message_sender: Option<Sender<NodeScriptMessage>>,
-
-    #[reflect(hidden)]
-    message_sender: Option<Sender<NodeMessage>>,
+    senders: Option<MessageSenders>,
 
     // Name is not inheritable, because property inheritance works bad with external 3D models.
     // They use names to search "original" nodes.
@@ -509,8 +524,10 @@ impl Base {
         script_message_sender: Sender<NodeScriptMessage>,
     ) {
         self.self_handle = self_handle;
-        self.message_sender = Some(message_sender.clone());
-        self.script_message_sender = Some(script_message_sender);
+        self.senders = Some(MessageSenders {
+            message_sender: message_sender.clone(),
+            script_message_sender,
+        });
         self.local_transform
             .set_message_data(message_sender.clone(), self_handle);
         self.visibility
@@ -523,10 +540,10 @@ impl Base {
     }
 
     fn notify(&self, node: Handle<Node>, kind: NodeMessageKind) {
-        let Some(sender) = self.message_sender.as_ref() else {
+        let Some(senders) = self.senders.as_ref() else {
             return;
         };
-        Log::verify(sender.send(NodeMessage::new(node, kind)));
+        Log::verify(senders.message_sender.send(NodeMessage::new(node, kind)));
     }
 
     /// Returns shared reference to local transform of a node, can be used to fetch
@@ -866,12 +883,14 @@ impl Base {
             // We might be in a middle of a script method execution, where script is temporarily
             // extracted from the array.
             if let Some(script) = entry.take() {
-                if let Some(sender) = self.script_message_sender.as_ref() {
-                    Log::verify(sender.send(NodeScriptMessage::DestroyScript {
-                        script,
-                        handle: self.self_handle,
-                        script_index: index,
-                    }));
+                if let Some(senders) = self.senders.as_ref() {
+                    Log::verify(senders.script_message_sender.send(
+                        NodeScriptMessage::DestroyScript {
+                            script,
+                            handle: self.self_handle,
+                            script_index: index,
+                        },
+                    ));
                 } else {
                     Log::warn(format!(
                         "There is a script instance on a node {}, but no message sender. \
@@ -901,12 +920,14 @@ impl Base {
 
         if let Some(entry) = self.scripts.get_mut(index) {
             entry.script = script;
-            if let Some(sender) = self.script_message_sender.as_ref() {
+            if let Some(senders) = self.senders.as_ref() {
                 if entry.script.is_some() {
-                    Log::verify(sender.send(NodeScriptMessage::InitializeScript {
-                        handle: self.self_handle,
-                        script_index: index,
-                    }));
+                    Log::verify(senders.script_message_sender.send(
+                        NodeScriptMessage::InitializeScript {
+                            handle: self.self_handle,
+                            script_index: index,
+                        },
+                    ));
                 }
             }
         }
@@ -922,11 +943,15 @@ impl Base {
     {
         let script_index = self.scripts.len();
         self.scripts.push(ScriptRecord::new(Script::new(script)));
-        if let Some(sender) = self.script_message_sender.as_ref() {
-            Log::verify(sender.send(NodeScriptMessage::InitializeScript {
-                handle: self.self_handle,
-                script_index,
-            }));
+        if let Some(senders) = self.senders.as_ref() {
+            Log::verify(
+                senders
+                    .script_message_sender
+                    .send(NodeScriptMessage::InitializeScript {
+                        handle: self.self_handle,
+                        script_index,
+                    }),
+            );
         }
     }
 
@@ -1344,8 +1369,7 @@ impl BaseBuilder {
     pub fn build_base(self) -> Base {
         Base {
             self_handle: Default::default(),
-            script_message_sender: None,
-            message_sender: None,
+            senders: None,
             name: self.name.into(),
             children: self.children,
             local_transform: TrackedProperty::unbound(

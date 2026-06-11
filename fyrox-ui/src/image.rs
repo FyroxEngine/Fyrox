@@ -157,7 +157,7 @@ impl MessageData for ImageMessage {}
 /// It is useful if you have many custom UI elements packed in a single texture atlas. Drawing using atlases is much more
 /// efficient and faster. This could also be used for animations when you have multiple frames packed in a single atlas
 /// and changing texture coordinates over time.
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(type_uuid = "18e18d0f-cb84-4ac1-8050-3480a2ec3de5")]
 #[visit(optional)]
 #[reflect(derived_type = "UiNode")]

@@ -43,7 +43,7 @@ pub trait ReflectList: ReflectArray {
     ) -> Result<(), Box<dyn Reflect>>;
 }
 
-impl<const N: usize, T: Reflect + Clone> ReflectArray for [T; N] {
+impl<const N: usize, T: Reflect + Clone + PartialEq> ReflectArray for [T; N] {
     fn reflect_index(&self, index: usize) -> Option<&dyn Reflect> {
         if let Some(item) = self.get(index) {
             Some(item)
@@ -65,7 +65,7 @@ impl<const N: usize, T: Reflect + Clone> ReflectArray for [T; N] {
     }
 }
 
-impl<const N: usize, T: Reflect + Clone> Reflect for [T; N] {
+impl<const N: usize, T: Reflect + Clone + PartialEq> Reflect for [T; N] {
     // TODO: combine uuids.
     blank_reflect!("6d2a2f2d-d74e-4125-8840-b4910aa2e0cc");
 
@@ -80,10 +80,10 @@ impl<const N: usize, T: Reflect + Clone> Reflect for [T; N] {
 
 impl_reflect! {
     #[reflect(ReflectList, ReflectArray, type_uuid = "2d704c2b-c87e-4489-b680-aa9699ba2c91")]
-    pub struct Vec<T: Reflect + Clone>;
+    pub struct Vec<T: Reflect + Clone + PartialEq>;
 }
 
-impl<T: Reflect + Clone> ReflectArray for Vec<T> {
+impl<T: Reflect + Clone + PartialEq> ReflectArray for Vec<T> {
     fn reflect_index(&self, index: usize) -> Option<&dyn Reflect> {
         self.get(index).map(|x| x as &dyn Reflect)
     }
@@ -98,7 +98,7 @@ impl<T: Reflect + Clone> ReflectArray for Vec<T> {
 }
 
 /// REMARK: `Reflect` is implemented for `Vec<T>` where `T: Reflect` only.
-impl<T: Reflect + Clone> ReflectList for Vec<T> {
+impl<T: Reflect + Clone + PartialEq> ReflectList for Vec<T> {
     fn reflect_push(&mut self, value: Box<dyn Reflect>) -> Result<(), Box<dyn Reflect>> {
         self.push(*value.downcast::<T>()?);
         Ok(())

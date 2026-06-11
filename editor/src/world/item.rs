@@ -62,7 +62,7 @@ pub enum SceneItemMessage {
 }
 impl MessageData for SceneItemMessage {}
 
-#[derive(Copy, Clone)]
+#[derive(Copy, PartialEq, Clone)]
 pub enum DropAnchor {
     Side {
         visual_offset: f32,
@@ -71,7 +71,7 @@ pub enum DropAnchor {
     OnTop,
 }
 
-#[derive(Visit, Reflect)]
+#[derive(Visit, PartialEq, Reflect)]
 #[reflect(derived_type = "UiNode")]
 #[reflect(type_uuid = "16f35257-a250-413b-ab51-b1ad086a3a9c")]
 pub struct SceneItem {

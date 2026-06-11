@@ -113,7 +113,7 @@ mod test {
 
     use super::*;
 
-    #[derive(Debug, Default, Clone, Reflect, Visit)]
+    #[derive(Debug, Default, Clone, PartialEq, Reflect, Visit)]
     #[reflect(type_uuid = "ba5f1e9b-557f-4565-bbb1-c299a6510bb7")]
     struct Stub {}
 

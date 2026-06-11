@@ -40,6 +40,15 @@ pub struct UiSceneContext {
     pub clipboard: &'static mut Clipboard,
 }
 
+impl PartialEq for UiSceneContext {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::addr_eq(self.ui, other.ui)
+            && std::ptr::addr_eq(self.selection, other.selection)
+            && std::ptr::addr_eq(self.clipboard, other.clipboard)
+            && self.message_sender == other.message_sender
+    }
+}
+
 impl UiSceneContext {
     pub fn exec<'a, F>(
         ui: &'a mut UserInterface,

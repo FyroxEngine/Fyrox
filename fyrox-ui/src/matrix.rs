@@ -73,7 +73,7 @@ where
 }
 impl<const R: usize, const C: usize, T: NumericType> MessageData for MatrixEditorMessage<R, C, T> {}
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "9f05427a-5862-4574-bb21-ebaf52aa8c72"

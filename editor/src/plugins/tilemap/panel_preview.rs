@@ -50,8 +50,11 @@ use fyrox::material::MaterialResource;
 /// currently selected tile stamp, including whatever transformations have been applied
 /// to the stamp.
 #[derive(Clone, Debug, Visit, Reflect)]
-#[reflect(type_uuid = "5356a864-c026-4bd7-a4b1-30bacf77d8fa")]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    non_comparable,
+    derived_type = "UiNode",
+    type_uuid = "5356a864-c026-4bd7-a4b1-30bacf77d8fa"
+)]
 pub struct PanelPreview {
     widget: Widget,
     /// The tile editing state that is shared with palette widgets, the tile map interaction mode,

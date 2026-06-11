@@ -124,6 +124,12 @@ pub struct ResourceManager {
     state: Arc<Mutex<ResourceManagerState>>,
 }
 
+impl PartialEq for ResourceManager {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.state, &other.state)
+    }
+}
+
 impl Debug for ResourceManager {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "ResourceManager")
@@ -2090,7 +2096,7 @@ mod test {
     };
     use std::{error::Error, fs::File, time::Duration};
 
-    #[derive(Debug, Default, Clone, Reflect, Visit)]
+    #[derive(Debug, Default, Clone, PartialEq, Reflect, Visit)]
     #[reflect(type_uuid = "2c729b8e-93d3-4bcc-a3a7-2d89e77947e5")]
     struct Stub {}
 

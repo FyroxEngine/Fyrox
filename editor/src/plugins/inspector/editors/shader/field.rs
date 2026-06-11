@@ -45,7 +45,7 @@ use crate::{
 use fyrox::gui::button::Button;
 use std::{any::TypeId, cell::RefCell};
 
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(type_uuid = "f2024683-812e-4e0d-8065-7d168a82cce6")]
 #[reflect(derived_type = "UiNode")]
 pub struct ShaderSourceCodeEditorField {

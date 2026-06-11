@@ -115,7 +115,7 @@ impl TileSetPropertyId for TileSetPropertyNine {
 /// Since a tile map may require multiple colliders to represent the diverse ways that physics objects may interact with the tiles,
 /// tile set data must allow each tile to include multiple values for its collider information.
 /// These multiple collider values are associated with their collider objects by a UUID and a name.
-#[derive(Clone, Default, Debug, Reflect, Visit)]
+#[derive(Clone, Default, Debug, PartialEq, Reflect, Visit)]
 #[reflect(type_uuid = "f61cca93-6df4-44d6-a9da-902d82e0c401")]
 pub struct TileSetColliderLayer {
     /// The id number that identifies the collider
@@ -129,7 +129,7 @@ pub struct TileSetColliderLayer {
 /// In order to allow tile properties to be easily edited, properties need to have consistent names and data types
 /// across all tiles in a tile set. A tile property layer represents the association between a property name
 /// and its data type, along with other information.
-#[derive(Clone, Default, Debug, Reflect, Visit)]
+#[derive(Clone, Default, Debug, PartialEq, Reflect, Visit)]
 #[reflect(type_uuid = "99967dc1-b358-4480-8cd6-e519d6deecb5")]
 pub struct TileSetPropertyLayer {
     /// The id number that identifies this property
@@ -145,7 +145,7 @@ pub struct TileSetPropertyLayer {
 /// A value with an associated name. Often certain property values will have special meanings
 /// for the game that is using the values, so it is useful to be able to label those values
 /// so their special meaning can be visible in the editor.
-#[derive(Clone, Default, Debug, Reflect, Visit)]
+#[derive(Clone, Default, Debug, PartialEq, Reflect, Visit)]
 #[reflect(type_uuid = "43913556-aebd-45ae-8d2a-c9ecc8e98e70")]
 pub struct NamedValue {
     /// The label associated with the value.

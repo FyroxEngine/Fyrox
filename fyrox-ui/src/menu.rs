@@ -197,7 +197,7 @@ impl MessageData for MenuItemMessage {}
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "582a04f3-a7fd-4e70-bbd1-eb95e2275b75"
@@ -344,7 +344,7 @@ enum NavigationDirection {
     Vertical,
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, PartialEq, Reflect)]
 #[doc(hidden)]
 #[reflect(type_uuid = "667bb0c3-9f55-4850-bb19-b9fdf3f8d27b")]
 pub struct ItemsContainer {
@@ -411,7 +411,7 @@ impl ItemsContainer {
 
 /// Menu item is a widget with arbitrary content, that has a "floating" panel (popup) for sub-items if the menu item. This was menu items can form
 /// arbitrary hierarchies. See [`Menu`] docs for examples.
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "72e002c6-6060-4583-b5b7-0c5500244fef"
@@ -1140,7 +1140,7 @@ impl MenuItemBuilder {
 
 /// A simple wrapper over [`Popup`] widget, that holds the sub-items of a menu item and provides
 /// an ability for keyboard navigation.
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "ad8e9e76-c213-4232-9bab-80ebcabd69fa"

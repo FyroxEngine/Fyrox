@@ -61,7 +61,8 @@ use std::{
 #[derive(Clone, Visit, Reflect)]
 #[reflect(
     derived_type = "UiNode",
-    type_uuid = "5db49479-ff89-49b8-a038-0766253d6493"
+    type_uuid = "5db49479-ff89-49b8-a038-0766253d6493",
+    non_comparable
 )]
 pub struct TextureEditor {
     widget: Widget,

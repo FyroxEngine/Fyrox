@@ -438,6 +438,12 @@ where
         Some(Box::new(self.clone()))
     }
 
+    fn try_compare(&self, other: &dyn Reflect) -> Option<bool> {
+        (other as &dyn std::any::Any)
+            .downcast_ref::<Self>()
+            .map(|other| other == self)
+    }
+
     fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
         func(&[{
             FieldRef {
@@ -800,7 +806,7 @@ mod test {
         assert!(va.value_equals(&vb))
     }
 
-    #[derive(Reflect, Clone, Debug)]
+    #[derive(Reflect, PartialEq, Clone, Debug)]
     #[reflect(type_uuid = "17b55aac-57f2-42e6-82e0-ead9b40a8cce")]
     enum SomeEnum {
         Bar(InheritableVariable<f32>),

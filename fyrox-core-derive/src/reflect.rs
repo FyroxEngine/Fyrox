@@ -443,6 +443,18 @@ fn gen_impl(
         }
     };
 
+    let try_compare = if ty_args.non_comparable {
+        quote! {
+            fn try_compare(&self, _other: &dyn Reflect) -> Option<bool> { None }
+        }
+    } else {
+        quote! {
+            fn try_compare(&self, other: &dyn Reflect) -> Option<bool> {
+                (other as &dyn Any).downcast_ref::<Self>().map(|other| other == self)
+            }
+        }
+    };
+
     let type_uuid_str = ty_args.type_uuid.as_str();
     let type_uuid = if ty_args.generics.params.is_empty() {
         quote! { uuid!(#type_uuid_str) }
@@ -493,6 +505,8 @@ fn gen_impl(
             }
 
             #try_clone_box
+
+            #try_compare
 
             fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
                 #metadata_ref

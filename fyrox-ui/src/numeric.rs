@@ -65,6 +65,7 @@ pub trait NumericType:
     + Copy
     + NumOps
     + PartialOrd
+    + PartialEq
     + Display
     + Bounded
     + Debug
@@ -85,6 +86,7 @@ impl<T> NumericType for T where
         + Copy
         + NumOps
         + PartialOrd
+        + PartialEq
         + Bounded
         + Display
         + Debug
@@ -121,7 +123,7 @@ pub enum NumericUpDownMessage<T: NumericType> {
 impl<T: NumericType> MessageData for NumericUpDownMessage<T> {}
 
 /// Used to store drag info when dragging the cursor on the up/down buttons.
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum DragContext<T: NumericType> {
     /// Dragging is just started.
     PreDrag {
@@ -233,7 +235,7 @@ pub enum DragContext<T: NumericType> {
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "f852eda4-18e5-4480-83ae-a607ce1c26f7"

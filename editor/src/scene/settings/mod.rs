@@ -56,7 +56,7 @@ use crate::{
     GameScene, Message,
 };
 use fyrox::gui::inspector::editors::inspectable::InspectablePropertyEditorDefinition;
-use fyrox::gui::inspector::Inspector;
+use fyrox::gui::inspector::{Inspector, InspectorEnvironmentContainer};
 use std::sync::{mpsc::Sender, Arc};
 
 pub struct SceneSettingsWindow {
@@ -160,7 +160,7 @@ impl SceneSettingsWindow {
             object,
             ctx: &mut ui.build_ctx(),
             definition_container: self.property_definitions.clone(),
-            environment: Some(environment),
+            environment: Some(InspectorEnvironmentContainer(environment)),
             layer_index: 0,
             generate_property_string_values: false,
             filter: PropertyFilter::new(|property| {

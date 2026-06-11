@@ -156,9 +156,15 @@ impl Clone for DynTypeWrapper {
     }
 }
 
+impl PartialEq for DynTypeWrapper {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.try_compare(other.0.deref()).unwrap_or_default()
+    }
+}
+
 /// "Nullable" container for a dyntype. This container is essentially a wrapper for [`Option`] that
 /// supports additional functionality and handles serialization for you.
-#[derive(Default, Reflect, Clone, Debug)]
+#[derive(Default, Reflect, Clone, PartialEq, Debug)]
 #[reflect(type_uuid = "c0510bdd-36cd-451c-975b-9333b18db308")]
 pub struct DynTypeContainer(pub Option<DynTypeWrapper>);
 
@@ -269,6 +275,14 @@ pub struct DynTypeConstructorDefinition {
     pub assembly_name: &'static str,
 }
 
+impl PartialEq for DynTypeConstructorDefinition {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+            && std::ptr::addr_eq(self.constructor.deref(), other.constructor.deref())
+            && self.assembly_name == other.assembly_name
+    }
+}
+
 /// A set of constructors that allows to create a dyntype by its type uuid.
 #[derive(Default, Reflect)]
 #[reflect(
@@ -278,6 +292,12 @@ pub struct DynTypeConstructorDefinition {
 )] // TODO
 pub struct DynTypeConstructorContainer {
     map: Mutex<FxHashMap<Uuid, DynTypeConstructorDefinition>>,
+}
+
+impl PartialEq for DynTypeConstructorContainer {
+    fn eq(&self, other: &Self) -> bool {
+        *self.map.lock() == *other.map.lock()
+    }
 }
 
 impl Debug for DynTypeConstructorContainer {

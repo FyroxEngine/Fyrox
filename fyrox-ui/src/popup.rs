@@ -287,7 +287,7 @@ impl Placement {
 ///
 /// Popup widget can automatically adjust its position to always remain on screen, which is useful for tooltips, dropdown lists,
 /// etc. To enable this option, use [`PopupBuilder::with_smart_placement`] with `true` as the first argument.
-#[derive(Default, Clone, Visit, Debug, Reflect)]
+#[derive(Default, Clone, Visit, Debug, PartialEq, Reflect)]
 #[reflect(derived_type = "UiNode")]
 #[reflect(type_uuid = "5c4bf90d-cfe7-464f-bcf8-71deacb14dd8")]
 pub struct Popup {

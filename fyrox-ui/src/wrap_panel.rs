@@ -76,7 +76,7 @@ impl MessageData for WrapPanelMessage {}
 ///
 /// Wrap panel can stack your widgets either in vertical or horizontal direction. Use `.with_orientation` while building
 /// the panel to switch orientation to desired.
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "f488ab8e-8f8b-473c-a450-5ac33f1afb39"
@@ -108,7 +108,7 @@ impl ConstructorProvider<UiNode, UserInterface> for WrapPanel {
 crate::define_widget_deref!(WrapPanel);
 
 /// Represents a single line (either vertical or horizontal) with arranged widgets.
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Line {
     /// Indices of the children widgets that belongs to this line.
     pub children: Range<usize>,

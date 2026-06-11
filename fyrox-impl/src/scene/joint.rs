@@ -176,7 +176,7 @@ impl Default for JointParams {
     }
 }
 
-#[derive(Visit, Reflect, Debug, Clone, Default)]
+#[derive(Visit, PartialEq, Reflect, Debug, Clone, Default)]
 #[reflect(type_uuid = "1be0b82e-d05e-4b93-808a-41895c5a1627")]
 pub(crate) struct LocalFrame {
     pub position: Vector3<f32>,
@@ -192,7 +192,7 @@ impl LocalFrame {
     }
 }
 
-#[derive(Visit, Reflect, Debug, Clone, Default)]
+#[derive(Visit, PartialEq, Reflect, Debug, Clone, Default)]
 #[reflect(type_uuid = "2a8e0d9c-4c14-454e-967b-920a032bbafb")]
 pub(crate) struct JointLocalFrames {
     pub body1: LocalFrame,
@@ -210,7 +210,7 @@ impl JointLocalFrames {
 
 /// Joint is used to restrict motion of two rigid bodies. There are numerous examples of joints in
 /// real life: door hinge, ball joints in human arms, etc.
-#[derive(Visit, Reflect, Debug)]
+#[derive(Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "Node",
     type_uuid = "439d48f5-e3a3-4255-aa08-353c1ca42e3b"

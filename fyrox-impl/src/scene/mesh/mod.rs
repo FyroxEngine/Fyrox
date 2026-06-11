@@ -157,13 +157,13 @@ pub enum BatchingMode {
     Dynamic,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 struct Batch {
     data: SurfaceResource,
     material: MaterialResource,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, PartialEq, Clone)]
 struct BatchContainer {
     batches: FxHashMap<u64, Batch>,
 }
@@ -191,6 +191,12 @@ impl BatchContainer {
 
 #[derive(Debug, Default)]
 struct BatchContainerWrapper(Mutex<BatchContainer>);
+
+impl PartialEq for BatchContainerWrapper {
+    fn eq(&self, other: &Self) -> bool {
+        *self.0.safe_lock() == *other.0.safe_lock()
+    }
+}
 
 impl Clone for BatchContainerWrapper {
     fn clone(&self) -> Self {
@@ -314,7 +320,7 @@ impl RenderDataBundleStorageTrait for BatchContainer {
 ///
 /// This example creates a unit cube surface with default material and then creates a mesh with this surface. If you need to create
 /// custom surface, see [`crate::scene::mesh::surface::SurfaceData`] docs for more info.
-#[derive(Debug, Reflect, Clone, Visit)]
+#[derive(Debug, PartialEq, Reflect, Clone, Visit)]
 #[reflect(
     derived_type = "Node",
     type_uuid = "caaf9d7b-bd74-48ce-b7cc-57e9dc65c2e6"

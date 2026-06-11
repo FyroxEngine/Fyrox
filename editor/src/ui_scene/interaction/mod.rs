@@ -43,7 +43,7 @@ use fyrox::gui::image::Image;
 
 pub mod move_mode;
 
-#[derive(Reflect, Clone, Debug)]
+#[derive(PartialEq, Reflect, Clone, Debug)]
 #[reflect(type_uuid = "12e550dc-0fb2-4a45-8060-fa363db3e197")]
 pub struct UiSelectInteractionMode {
     preview: Handle<Image>,

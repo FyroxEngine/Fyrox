@@ -273,7 +273,7 @@ impl ColliderShape {
 
 /// Collider is a geometric entity that can be attached to a rigid body to allow to participate in
 /// contact generation, collision response and proximity queries.
-#[derive(Reflect, Visit, Debug)]
+#[derive(PartialEq, Reflect, Visit, Debug)]
 #[reflect(
     derived_type = "Node",
     type_uuid = "2b1659ea-a116-4224-bcd4-7931e3ae3b40"
@@ -865,7 +865,6 @@ impl ColliderBuilder {
 
 #[cfg(test)]
 mod test {
-
     use crate::core::algebra::Vector2;
     use crate::scene::{
         base::BaseBuilder,

@@ -97,7 +97,7 @@ impl MessageData for SearchBarMessage {}
 ///     }
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "23db1179-0e07-493d-98fd-2b3c0c795215"

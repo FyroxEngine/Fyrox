@@ -66,7 +66,7 @@ use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 ///     .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(type_uuid = "6b843a36-53da-467b-b85e-2380fe891ca1")]
 #[reflect(derived_type = "UiNode")]
 pub struct Canvas {

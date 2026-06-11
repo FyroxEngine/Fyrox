@@ -116,7 +116,7 @@ pub struct AutoTileMacro {
     autotiler: TileSetAutoTiler,
 }
 
-#[derive(Default, Debug, Clone, Reflect)]
+#[derive(Default, Debug, PartialEq, Clone, Reflect)]
 #[reflect(type_uuid = "e50fa366-145d-4491-8126-acdd162031ea")]
 struct CellData {
     terrain_id: TileTerrainId,
@@ -138,7 +138,7 @@ impl Visit for CellData {
     }
 }
 
-#[derive(Debug, Default, Clone, Visit, Reflect)]
+#[derive(Debug, Default, Clone, PartialEq, Visit, Reflect)]
 #[reflect(type_uuid = "b320543d-3df0-43fd-b0d9-60a398f49853")]
 pub(super) struct AutoTileInstance {
     frequency_property: Option<TileSetPropertyF32>,
@@ -151,7 +151,7 @@ pub(super) struct AutoTileInstance {
     widgets: InstanceCellWidgets,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, PartialEq, Clone)]
 struct InstanceCellWidgets {
     handle: Handle<UiNode>,
     value_field: MacroPropertyValueField,

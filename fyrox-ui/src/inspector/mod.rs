@@ -54,6 +54,7 @@ use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     SceneGraph,
 };
+use std::ops::Deref;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Display, Formatter},
@@ -432,6 +433,23 @@ pub trait InspectorEnvironment: Send + Sync + Reflect {
     fn name(&self) -> String;
 }
 
+#[derive(Clone)]
+pub struct InspectorEnvironmentContainer(pub Arc<dyn InspectorEnvironment>);
+
+impl PartialEq for InspectorEnvironmentContainer {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.try_compare(&*other.0).unwrap_or_default()
+    }
+}
+
+impl Deref for InspectorEnvironmentContainer {
+    type Target = dyn InspectorEnvironment;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+}
+
 /// Inspector is a widget, that allows you to generate visual representation for internal fields an arbitrary
 /// structure or enumeration recursively. It's primary usage is provide unified and simple way of introspection.
 ///
@@ -511,7 +529,7 @@ pub trait InspectorEnvironment: Send + Sync + Reflect {
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "c599c0f5-f749-4033-afed-1a9949c937a1"
@@ -813,7 +831,7 @@ pub struct InspectorContext {
     pub property_definitions: Arc<PropertyEditorDefinitionContainer>,
     /// Untyped information from the application that is using the inspector. This can be used by editors that may be
     /// supplied by that application, if those editors know the actual type of this value to be able to successfully cast it.
-    pub environment: Option<Arc<dyn InspectorEnvironment>>,
+    pub environment: Option<InspectorEnvironmentContainer>,
     /// Type id of the object for which the context was created.
     pub object_type_id: TypeId,
     /// A width of the property name column.
@@ -1009,6 +1027,16 @@ fn make_simple_property_container(
 #[derive(Default, Clone)]
 pub struct PropertyFilter(pub Option<Arc<dyn Fn(&dyn Reflect) -> bool + Send + Sync>>);
 
+impl PartialEq for PropertyFilter {
+    fn eq(&self, other: &Self) -> bool {
+        if let (Some(a), Some(b)) = (self.0.as_ref(), other.0.as_ref()) {
+            Arc::ptr_eq(a, b)
+        } else {
+            false
+        }
+    }
+}
+
 impl PropertyFilter {
     pub fn new<T>(func: T) -> Self
     where
@@ -1046,7 +1074,7 @@ pub struct InspectorContextArgs<'a, 'b, 'c> {
     pub object: &'a dyn Reflect,
     pub ctx: &'b mut BuildContext<'c>,
     pub definition_container: Arc<PropertyEditorDefinitionContainer>,
-    pub environment: Option<Arc<dyn InspectorEnvironment>>,
+    pub environment: Option<InspectorEnvironmentContainer>,
     pub layer_index: usize,
     pub generate_property_string_values: bool,
     pub filter: PropertyFilter,

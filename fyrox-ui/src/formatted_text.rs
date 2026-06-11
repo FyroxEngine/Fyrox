@@ -55,7 +55,7 @@ pub struct Position {
     pub offset: usize,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct TextGlyph {
     pub bounds: Rect<f32>,
     pub tex_coords: [Vector2<f32>; 4],
@@ -63,7 +63,7 @@ pub struct TextGlyph {
     pub source_char_index: usize,
 }
 
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, PartialEq, Debug, Default)]
 pub struct TextLine {
     /// Index of starting symbol in text array.
     pub begin: usize,
@@ -256,7 +256,7 @@ impl LineSink for WrapSink<'_> {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, PartialEq, Reflect)]
 #[reflect(type_uuid = "a48f1f1d-24ce-4a84-a45d-706ac541cf0a")]
 pub struct FormattedText {
     font: InheritableVariable<Option<FontResource>>,

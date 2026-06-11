@@ -47,7 +47,7 @@ pub enum AudioBusViewMessage {
 }
 impl MessageData for AudioBusViewMessage {}
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "5439e3a9-096a-4155-922c-ed57a76a46f3"

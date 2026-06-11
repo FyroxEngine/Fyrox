@@ -115,7 +115,7 @@ impl<T: NumericType> MessageData for RectEditorMessage<T> {}
 ///     }
 /// }
 /// ```
-#[derive(Default, Debug, Clone, Visit, Reflect)]
+#[derive(Default, Debug, Clone, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
     type_uuid = "5a3daf9d-f33b-494b-b111-eb55721dc7ac"

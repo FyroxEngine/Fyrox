@@ -42,7 +42,7 @@ use std::ops::Range;
 /// Flying camera controller script is used to create flying cameras, that can be rotated via mouse and moved via keyboard keys.
 /// Use it, if you need to create a sort of "spectator" camera. To use it, all you need to do is to assign it to your camera
 /// node (or one if its parent nodes).
-#[derive(Visit, Reflect, Debug, Clone)]
+#[derive(Visit, PartialEq, Reflect, Debug, Clone)]
 #[reflect(type_uuid = "8d9e2feb-8c61-482c-8ba4-b0b13b201113")]
 pub struct FlyingCameraController {
     /// Current yaw of the camera pivot (in radians).

@@ -219,7 +219,7 @@ type AnimationPlayerHandle = InheritableVariable<Handle<AnimationPlayer>>;
 ///         .build(graph)
 /// }
 /// ```
-#[derive(Visit, Reflect, Clone, Debug, Default)]
+#[derive(Visit, PartialEq, Reflect, Clone, Debug, Default)]
 #[reflect(
     derived_type = "Node",
     type_uuid = "4b08c753-2a10-41e3-8fb2-4fd0517e86bc"
