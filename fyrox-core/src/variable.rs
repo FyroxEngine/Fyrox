@@ -562,11 +562,6 @@ where
     }
 
     #[inline]
-    fn clone_value_box(&self) -> Box<dyn Reflect> {
-        Box::new(self.value.clone())
-    }
-
-    #[inline]
     fn mark_modified(&mut self) {
         self.mark_modified()
     }

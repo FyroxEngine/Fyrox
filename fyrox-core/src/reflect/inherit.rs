@@ -42,9 +42,6 @@ pub trait ReflectInheritableVariable: Reflect {
     /// Returns true if value was modified.
     fn is_modified(&self) -> bool;
 
-    /// Clones self value.
-    fn clone_value_box(&self) -> Box<dyn Reflect>;
-
     /// Marks value as modified, so its value won't be overwritten during property inheritance.
     fn mark_modified(&mut self);
 

@@ -555,7 +555,7 @@ pub trait NodeWrapper: Reflect + NameProvider + Clone {
                 .resolve_path(path, &mut |result| match result {
                     Ok(parent_field) => {
                         if let Some(parent_inheritable) = parent_field.as_inheritable_variable() {
-                            parent_value = Some(parent_inheritable.clone_value_box());
+                            parent_value = parent_inheritable.inner_value_ref().try_clone_box();
                         }
                     }
                     Err(e) => Log::err(format!(
