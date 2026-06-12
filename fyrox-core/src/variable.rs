@@ -562,13 +562,6 @@ where
     }
 
     #[inline]
-    fn value_equals(&self, other: &dyn ReflectInheritableVariable) -> bool {
-        (other as &dyn Reflect)
-            .downcast_ref::<Self>()
-            .is_some_and(|v| v == self)
-    }
-
-    #[inline]
     fn clone_value_box(&self) -> Box<dyn Reflect> {
         Box::new(self.value.clone())
     }
@@ -803,7 +796,7 @@ mod test {
         let va = InheritableVariable::new_non_modified(1.23);
         let vb = InheritableVariable::new_non_modified(1.23);
 
-        assert!(va.value_equals(&vb))
+        assert!(va.try_compare(&vb).unwrap())
     }
 
     #[derive(Reflect, PartialEq, Clone, Debug)]
