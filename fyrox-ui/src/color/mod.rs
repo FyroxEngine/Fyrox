@@ -963,14 +963,15 @@ pub struct ColorPickerBuilder {
 }
 
 fn make_text_mark(ctx: &mut BuildContext, text: &str, row: usize, column: usize) -> Handle<Text> {
-    TextBuilder::new(
-        WidgetBuilder::new()
-            .with_vertical_alignment(VerticalAlignment::Center)
-            .on_row(row)
-            .on_column(column),
-    )
-    .with_text(text)
-    .build(ctx)
+    TextBuilder::new()
+        .with_widget_builder(
+            WidgetBuilder::new()
+                .with_vertical_alignment(VerticalAlignment::Center)
+                .on_row(row)
+                .on_column(column),
+        )
+        .with_text(text)
+        .build(ctx)
 }
 
 fn make_input_field(

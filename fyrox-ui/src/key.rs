@@ -313,7 +313,7 @@ impl HotKeyEditorBuilder {
 
     /// Finishes widget building and adds it to the user interface, returning a handle to the new instance.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<HotKeyEditor> {
-        let text = TextBuilder::new(WidgetBuilder::new())
+        let text = TextBuilder::new()
             .with_text(format!("{}", self.value))
             .build(ctx);
 
@@ -512,7 +512,7 @@ impl KeyBindingEditorBuilder {
 
     /// Finishes widget building and adds the new widget instance to the user interface, returning a handle of it.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<KeyBindingEditor> {
-        let text = TextBuilder::new(WidgetBuilder::new())
+        let text = TextBuilder::new()
             .with_text(format!("{}", self.value))
             .build(ctx);
 

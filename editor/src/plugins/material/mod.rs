@@ -131,7 +131,7 @@ fn make_item_container(ctx: &mut BuildContext, name: &str, item: Handle<UiNode>)
         WidgetBuilder::new()
             .with_margin(Thickness::uniform(1.0))
             .with_child(
-                TextBuilder::new(WidgetBuilder::new())
+                TextBuilder::new()
                     .with_text(name)
                     .with_vertical_text_alignment(VerticalAlignment::Center)
                     .build(ctx),
@@ -306,15 +306,16 @@ impl MaterialEditor {
                             WidgetBuilder::new()
                                 .on_row(0)
                                 .with_child(
-                                    TextBuilder::new(
-                                        WidgetBuilder::new()
-                                            .on_row(0)
-                                            .on_column(0)
-                                            .with_margin(Thickness::uniform(3.0)),
-                                    )
-                                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                                    .with_text("Shader")
-                                    .build(ctx),
+                                    TextBuilder::new()
+                                        .with_widget_builder(
+                                            WidgetBuilder::new()
+                                                .on_row(0)
+                                                .on_column(0)
+                                                .with_margin(Thickness::uniform(3.0)),
+                                        )
+                                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                                        .with_text("Shader")
+                                        .build(ctx),
                                 )
                                 .with_child({
                                     shader = ResourceFieldBuilder::<Shader>::new(

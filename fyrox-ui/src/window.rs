@@ -992,18 +992,19 @@ fn make_text_title(
     font: FontResource,
     size: StyledProperty<f32>,
 ) -> Handle<Text> {
-    TextBuilder::new(
-        WidgetBuilder::new()
-            .with_margin(Thickness::left(5.0))
-            .on_row(0)
-            .on_column(0),
-    )
-    .with_font_size(size)
-    .with_font(font)
-    .with_vertical_text_alignment(VerticalAlignment::Center)
-    .with_horizontal_text_alignment(HorizontalAlignment::Left)
-    .with_text(text)
-    .build(ctx)
+    TextBuilder::new()
+        .with_widget_builder(
+            WidgetBuilder::new()
+                .with_margin(Thickness::left(5.0))
+                .on_row(0)
+                .on_column(0),
+        )
+        .with_font_size(size)
+        .with_font(font)
+        .with_vertical_text_alignment(VerticalAlignment::Center)
+        .with_horizontal_text_alignment(HorizontalAlignment::Left)
+        .with_text(text)
+        .build(ctx)
 }
 
 enum HeaderButton {

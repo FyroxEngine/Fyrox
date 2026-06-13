@@ -116,7 +116,7 @@ impl TilePropertyEditor {
         ctx: &mut BuildContext,
     ) -> Self {
         let draw_button = make_draw_button(Some(0), ctx);
-        let name_field = TextBuilder::new(WidgetBuilder::new())
+        let name_field = TextBuilder::new()
             .with_text(prop_layer.name.clone())
             .build(ctx);
         let value_field = match prop_layer.prop_type {

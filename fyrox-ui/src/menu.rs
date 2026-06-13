@@ -1011,26 +1011,28 @@ impl MenuItemBuilder {
                     .with_vertical_alignment(VerticalAlignment::Center)
                     .with_child(*icon)
                     .with_child(
-                        TextBuilder::new(
-                            WidgetBuilder::new()
-                                .with_margin(Thickness::left(2.0))
-                                .on_column(1)
-                                .with_vertical_alignment(VerticalAlignment::Center),
-                        )
-                        .with_text(text)
-                        .build(ctx),
+                        TextBuilder::new()
+                            .with_widget_builder(
+                                WidgetBuilder::new()
+                                    .with_margin(Thickness::left(2.0))
+                                    .on_column(1)
+                                    .with_vertical_alignment(VerticalAlignment::Center),
+                            )
+                            .with_text(text)
+                            .build(ctx),
                     )
                     .with_child(
-                        TextBuilder::new(
-                            WidgetBuilder::new()
-                                .with_foreground(ctx.style.property(Style::BRUSH_LIGHTEST))
-                                .with_horizontal_alignment(HorizontalAlignment::Right)
-                                .with_vertical_alignment(VerticalAlignment::Center)
-                                .with_margin(Thickness::uniform(1.0))
-                                .on_column(2),
-                        )
-                        .with_text(shortcut)
-                        .build(ctx),
+                        TextBuilder::new()
+                            .with_widget_builder(
+                                WidgetBuilder::new()
+                                    .with_foreground(ctx.style.property(Style::BRUSH_LIGHTEST))
+                                    .with_horizontal_alignment(HorizontalAlignment::Right)
+                                    .with_vertical_alignment(VerticalAlignment::Center)
+                                    .with_margin(Thickness::uniform(1.0))
+                                    .on_column(2),
+                            )
+                            .with_text(shortcut)
+                            .build(ctx),
                     )
                     .with_child({
                         arrow_widget = if *arrow {
@@ -1060,14 +1062,13 @@ impl MenuItemBuilder {
             .add_column(Column::strict(5.0))
             .build(ctx)
             .to_base(),
-            Some(MenuItemContent::TextCentered(text)) => {
-                TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::left_right(5.0)))
-                    .with_text(text)
-                    .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                    .build(ctx)
-                    .to_base()
-            }
+            Some(MenuItemContent::TextCentered(text)) => TextBuilder::new()
+                .with_widget_builder(WidgetBuilder::new().with_margin(Thickness::left_right(5.0)))
+                .with_text(text)
+                .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                .with_vertical_text_alignment(VerticalAlignment::Center)
+                .build(ctx)
+                .to_base(),
             Some(MenuItemContent::Node(node)) => *node,
         };
 

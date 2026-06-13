@@ -317,23 +317,24 @@ impl SceneItemBuilder {
                     .build(ctx),
                 )
                 .with_child({
-                    text_name = TextBuilder::new(
-                        WidgetBuilder::new()
-                            .with_foreground(
-                                self.text_brush
-                                    .unwrap_or(ctx.style.property(Style::BRUSH_TEXT)),
-                            )
-                            .with_margin(Thickness::left(1.0))
-                            .on_column(1),
-                    )
-                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                    .with_text(format!(
-                        "{} ({}:{})",
-                        self.name,
-                        self.entity_handle.index(),
-                        self.entity_handle.generation()
-                    ))
-                    .build(ctx);
+                    text_name = TextBuilder::new()
+                        .with_widget_builder(
+                            WidgetBuilder::new()
+                                .with_foreground(
+                                    self.text_brush
+                                        .unwrap_or(ctx.style.property(Style::BRUSH_TEXT)),
+                                )
+                                .with_margin(Thickness::left(1.0))
+                                .on_column(1),
+                        )
+                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                        .with_text(format!(
+                            "{} ({}:{})",
+                            self.name,
+                            self.entity_handle.index(),
+                            self.entity_handle.generation()
+                        ))
+                        .build(ctx);
                     text_name
                 }),
         )

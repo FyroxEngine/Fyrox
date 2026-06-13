@@ -346,7 +346,8 @@ impl ConstructorProvider<UiNode, UserInterface> for Text {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()
             .with_variant("Text", |ui| {
-                TextBuilder::new(WidgetBuilder::new().with_name("Text"))
+                TextBuilder::new()
+                    .with_widget_builder(WidgetBuilder::new().with_name("Text"))
                     .with_text("Text")
                     .build(&mut ui.build_ctx())
                     .to_base()
@@ -539,7 +540,7 @@ impl Text {
 
 /// TextBuilder is used to create instances of [`Text`] widget and register them in the user interface.
 pub struct TextBuilder {
-    widget_builder: WidgetBuilder,
+    widget_builder: Option<WidgetBuilder>,
     bbcode: Option<String>,
     text: Option<String>,
     font: Option<FontResource>,
@@ -556,10 +557,10 @@ pub struct TextBuilder {
 }
 
 impl TextBuilder {
-    /// Creates new [`TextBuilder`] instance using the provided base widget builder.
-    pub fn new(widget_builder: WidgetBuilder) -> Self {
+    /// Creates new [`TextBuilder`] instance.
+    pub fn new() -> Self {
         Self {
-            widget_builder,
+            widget_builder: None,
             bbcode: None,
             text: None,
             font: None,
@@ -574,6 +575,12 @@ impl TextBuilder {
             runs: Vec::default(),
             trim_text: true,
         }
+    }
+
+    /// Sets the base widget builder used to build the widget.
+    pub fn with_widget_builder(mut self, widget_builder: WidgetBuilder) -> Self {
+        self.widget_builder = Some(widget_builder);
+        self
     }
 
     /// Sets the desired text of the widget, with BBcode tags that will
@@ -675,15 +682,16 @@ impl TextBuilder {
     }
 
     /// Finishes text widget creation and registers it in the user interface, returning its handle to you.
-    pub fn build(mut self, ctx: &mut BuildContext) -> Handle<Text> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<Text> {
+        let mut widget_builder = self.widget_builder.unwrap_or_default();
         let font = if let Some(font) = self.font {
             font
         } else {
             ctx.default_font()
         };
 
-        if self.widget_builder.foreground.is_none() {
-            self.widget_builder.foreground = Some(ctx.style.property(Style::BRUSH_TEXT));
+        if widget_builder.foreground.is_none() {
+            widget_builder.foreground = Some(ctx.style.property(Style::BRUSH_TEXT));
         }
 
         let text_builder = if let Some(bbcode) = &self.bbcode {
@@ -710,7 +718,7 @@ impl TextBuilder {
             .build();
 
         let text = Text {
-            widget: self.widget_builder.build(ctx),
+            widget: widget_builder.build(ctx),
             bbcode: self.bbcode.unwrap_or_default().into(),
             formatted_text: RefCell::new(formatted_text),
         };
@@ -720,11 +728,11 @@ impl TextBuilder {
 
 #[cfg(test)]
 mod test {
+    use crate::test::test_widget_deletion;
     use crate::text::TextBuilder;
-    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
 
     #[test]
     fn test_deletion() {
-        test_widget_deletion(|ctx| TextBuilder::new(WidgetBuilder::new()).build(ctx));
+        test_widget_deletion(|ctx| TextBuilder::new().build(ctx));
     }
 }

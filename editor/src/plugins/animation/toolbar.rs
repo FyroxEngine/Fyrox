@@ -121,7 +121,8 @@ struct RootMotionDropdownArea {
 impl RootMotionDropdownArea {
     fn new(ctx: &mut BuildContext) -> Self {
         fn text(text: &str, row: usize, ctx: &mut BuildContext) -> Handle<Text> {
-            TextBuilder::new(WidgetBuilder::new().on_row(row).on_column(0))
+            TextBuilder::new()
+                .with_widget_builder(WidgetBuilder::new().on_row(row).on_column(0))
                 .with_vertical_text_alignment(VerticalAlignment::Center)
                 .with_text(text)
                 .build(ctx)
@@ -532,7 +533,7 @@ impl Toolbar {
                                         )),
                                 )
                                 .with_content(
-                                    TextBuilder::new(WidgetBuilder::new())
+                                    TextBuilder::new()
                                         .with_vertical_text_alignment(VerticalAlignment::Center)
                                         .with_text("Enabled")
                                         .build(ctx),

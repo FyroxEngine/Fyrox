@@ -575,29 +575,30 @@ impl ScrollBarBuilder {
         let value = self.value.unwrap_or(0.0).clamp(min, max);
 
         let value_text = if self.show_value {
-            let value_text = TextBuilder::new(
-                WidgetBuilder::new()
-                    .with_visibility(self.show_value)
-                    .with_horizontal_alignment(HorizontalAlignment::Center)
-                    .with_vertical_alignment(VerticalAlignment::Center)
-                    .with_hit_test_visibility(false)
-                    .with_margin(Thickness::uniform(3.0))
-                    .on_column(match orientation {
-                        Orientation::Horizontal => 1,
-                        Orientation::Vertical => 0,
-                    })
-                    .on_row(match orientation {
-                        Orientation::Horizontal => 0,
-                        Orientation::Vertical => 1,
-                    }),
-            )
-            .with_font(self.font.unwrap_or_else(|| ctx.default_font()))
-            .with_font_size(
-                self.font_size
-                    .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
-            )
-            .with_text(format!("{:.1$}", value, self.value_precision))
-            .build(ctx);
+            let value_text = TextBuilder::new()
+                .with_widget_builder(
+                    WidgetBuilder::new()
+                        .with_visibility(self.show_value)
+                        .with_horizontal_alignment(HorizontalAlignment::Center)
+                        .with_vertical_alignment(VerticalAlignment::Center)
+                        .with_hit_test_visibility(false)
+                        .with_margin(Thickness::uniform(3.0))
+                        .on_column(match orientation {
+                            Orientation::Horizontal => 1,
+                            Orientation::Vertical => 0,
+                        })
+                        .on_row(match orientation {
+                            Orientation::Horizontal => 0,
+                            Orientation::Vertical => 1,
+                        }),
+                )
+                .with_font(self.font.unwrap_or_else(|| ctx.default_font()))
+                .with_font_size(
+                    self.font_size
+                        .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),
+                )
+                .with_text(format!("{:.1$}", value, self.value_precision))
+                .build(ctx);
 
             ctx.link(value_text, indicator);
 

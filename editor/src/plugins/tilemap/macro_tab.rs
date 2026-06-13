@@ -108,26 +108,28 @@ pub fn make_list_item(
     let content = GridBuilder::new(
         WidgetBuilder::new()
             .with_child(
-                TextBuilder::new(
-                    WidgetBuilder::new()
-                        .with_margin(Thickness::right(5.0))
-                        .on_column(0),
-                )
-                .with_vertical_text_alignment(VerticalAlignment::Center)
-                .with_horizontal_text_alignment(HorizontalAlignment::Right)
-                .with_text(macro_name)
-                .build(ctx),
+                TextBuilder::new()
+                    .with_widget_builder(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::right(5.0))
+                            .on_column(0),
+                    )
+                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .with_horizontal_text_alignment(HorizontalAlignment::Right)
+                    .with_text(macro_name)
+                    .build(ctx),
             )
             .with_child(
-                TextBuilder::new(
-                    WidgetBuilder::new()
-                        .with_margin(Thickness::left(5.0))
-                        .on_column(1),
-                )
-                .with_vertical_text_alignment(VerticalAlignment::Center)
-                .with_horizontal_text_alignment(HorizontalAlignment::Left)
-                .with_text(instance_name)
-                .build(ctx),
+                TextBuilder::new()
+                    .with_widget_builder(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::left(5.0))
+                            .on_column(1),
+                    )
+                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .with_horizontal_text_alignment(HorizontalAlignment::Left)
+                    .with_text(instance_name)
+                    .build(ctx),
             ),
     )
     .add_row(Row::auto())
@@ -236,13 +238,14 @@ impl MacroTab {
                 .build(ctx),
         )
         .build(ctx);
-        let left_label = TextBuilder::new(
-            WidgetBuilder::new()
-                .with_horizontal_alignment(HorizontalAlignment::Center)
-                .with_margin(Thickness::uniform(2.0)),
-        )
-        .with_text("Macros:")
-        .build(ctx);
+        let left_label = TextBuilder::new()
+            .with_widget_builder(
+                WidgetBuilder::new()
+                    .with_horizontal_alignment(HorizontalAlignment::Center)
+                    .with_margin(Thickness::uniform(2.0)),
+            )
+            .with_text("Macros:")
+            .build(ctx);
         let left_side = GridBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(2.0))
@@ -257,13 +260,14 @@ impl MacroTab {
         .add_row(Row::auto())
         .add_column(Column::stretch())
         .build(ctx);
-        let name_text = TextBuilder::new(
-            WidgetBuilder::new()
-                .with_vertical_alignment(VerticalAlignment::Center)
-                .with_margin(Thickness::right(4.0)),
-        )
-        .with_text("Name:")
-        .build(ctx);
+        let name_text = TextBuilder::new()
+            .with_widget_builder(
+                WidgetBuilder::new()
+                    .with_vertical_alignment(VerticalAlignment::Center)
+                    .with_margin(Thickness::right(4.0)),
+            )
+            .with_text("Name:")
+            .build(ctx);
         let name_field = TextBoxBuilder::new(WidgetBuilder::new().with_height(20.0).on_column(1))
             .with_text_commit_mode(TextCommitMode::Changed)
             .with_vertical_text_alignment(VerticalAlignment::Center)

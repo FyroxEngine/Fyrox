@@ -145,7 +145,8 @@ impl HierarchyNode {
                 .collect(),
         )
         .with_content(
-            TextBuilder::new(WidgetBuilder::new().with_foreground(brush))
+            TextBuilder::new()
+                .with_widget_builder(WidgetBuilder::new().with_foreground(brush))
                 .with_text(make_node_name(&self.name, self.handle) + " - " + &self.inner_type_name)
                 .build(ctx),
         )
@@ -572,22 +573,23 @@ impl NodeSelectorWindowBuilder {
         let content = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child(
-                    TextBuilder::new(
-                        WidgetBuilder::new()
-                            .with_visibility(!self.allowed_types.is_empty())
-                            .with_margin(Thickness::uniform(2.0)),
-                    )
-                    .with_text(
-                        "Select a node of the following type(s):\n".to_string()
-                            + &self
-                                .allowed_types
-                                .iter()
-                                .map(|ty| ty.name.clone())
-                                .collect::<Vec<_>>()
-                                .join("\n"),
-                    )
-                    .with_wrap(WrapMode::Letter)
-                    .build(ctx),
+                    TextBuilder::new()
+                        .with_widget_builder(
+                            WidgetBuilder::new()
+                                .with_visibility(!self.allowed_types.is_empty())
+                                .with_margin(Thickness::uniform(2.0)),
+                        )
+                        .with_text(
+                            "Select a node of the following type(s):\n".to_string()
+                                + &self
+                                    .allowed_types
+                                    .iter()
+                                    .map(|ty| ty.name.clone())
+                                    .collect::<Vec<_>>()
+                                    .join("\n"),
+                        )
+                        .with_wrap(WrapMode::Letter)
+                        .build(ctx),
                 )
                 .with_child({
                     selector = NodeSelectorBuilder::new(WidgetBuilder::new().on_row(1))

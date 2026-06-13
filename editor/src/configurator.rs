@@ -84,7 +84,8 @@ fn make_history_entry_widget(ctx: &mut BuildContext, entry: &HistoryEntry) -> Ha
                 bottom: 1.0,
             })
             .with_child(
-                TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::left(5.0)))
+                TextBuilder::new()
+                    .with_widget_builder(WidgetBuilder::new().with_margin(Thickness::left(5.0)))
                     .with_text(format!("{}", entry.work_dir.display(),))
                     .with_vertical_text_alignment(VerticalAlignment::Center)
                     .build(ctx),
@@ -143,7 +144,10 @@ impl Configurator {
                 WidgetBuilder::new()
                     .with_margin(Thickness::uniform(1.0))
                     .with_child(
-                        TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                        TextBuilder::new()
+                            .with_widget_builder(
+                                WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                            )
                             .with_text(message)
                             .with_wrap(WrapMode::Word)
                             .build(ctx),
@@ -153,15 +157,16 @@ impl Configurator {
                             WidgetBuilder::new()
                                 .on_row(1)
                                 .with_child(
-                                    TextBuilder::new(
-                                        WidgetBuilder::new()
-                                            .on_row(0)
-                                            .on_column(0)
-                                            .with_margin(Thickness::uniform(1.0))
-                                            .with_vertical_alignment(VerticalAlignment::Center),
-                                    )
-                                    .with_text("Working Directory")
-                                    .build(ctx),
+                                    TextBuilder::new()
+                                        .with_widget_builder(
+                                            WidgetBuilder::new()
+                                                .on_row(0)
+                                                .on_column(0)
+                                                .with_margin(Thickness::uniform(1.0))
+                                                .with_vertical_alignment(VerticalAlignment::Center),
+                                        )
+                                        .with_text("Working Directory")
+                                        .build(ctx),
                                 )
                                 .with_child({
                                     tb_work_dir = TextBoxBuilder::new(
@@ -201,14 +206,15 @@ impl Configurator {
                         .build(ctx),
                     )
                     .with_child(
-                        TextBuilder::new(
-                            WidgetBuilder::new()
-                                .with_margin(Thickness::uniform(5.0))
-                                .on_row(2),
-                        )
-                        .with_text("Previous Configurations")
-                        .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                        .build(ctx),
+                        TextBuilder::new()
+                            .with_widget_builder(
+                                WidgetBuilder::new()
+                                    .with_margin(Thickness::uniform(5.0))
+                                    .on_row(2),
+                            )
+                            .with_text("Previous Configurations")
+                            .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                            .build(ctx),
                     )
                     .with_child({
                         lv_history = ListViewBuilder::new(

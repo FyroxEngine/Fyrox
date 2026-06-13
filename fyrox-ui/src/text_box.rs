@@ -1525,15 +1525,16 @@ impl<'a> EmptyTextPlaceholder<'a> {
     fn build(self, main_text: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
         match self {
             EmptyTextPlaceholder::None => Handle::NONE,
-            EmptyTextPlaceholder::Text(text) => TextBuilder::new(
-                WidgetBuilder::new()
-                    .with_visibility(main_text.is_empty())
-                    .with_foreground(ctx.style.property(Style::BRUSH_LIGHTER)),
-            )
-            .with_text(text)
-            .with_vertical_text_alignment(VerticalAlignment::Center)
-            .build(ctx)
-            .to_base(),
+            EmptyTextPlaceholder::Text(text) => TextBuilder::new()
+                .with_widget_builder(
+                    WidgetBuilder::new()
+                        .with_visibility(main_text.is_empty())
+                        .with_foreground(ctx.style.property(Style::BRUSH_LIGHTER)),
+                )
+                .with_text(text)
+                .with_vertical_text_alignment(VerticalAlignment::Center)
+                .build(ctx)
+                .to_base(),
             EmptyTextPlaceholder::Widget(widget) => widget,
         }
     }

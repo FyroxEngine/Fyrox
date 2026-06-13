@@ -124,7 +124,10 @@ fn make_type_widget(ctx: &mut BuildContext, prop_type: TileSetPropertyType) -> H
         TileSetPropertyType::String => "STRING",
         TileSetPropertyType::NineSlice => "NINE",
     };
-    TextBuilder::new(WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Center))
+    TextBuilder::new()
+        .with_widget_builder(
+            WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Center),
+        )
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .with_horizontal_text_alignment(HorizontalAlignment::Right)
         .with_font_size((10.0).into())
@@ -137,15 +140,16 @@ fn make_list_item(ctx: &mut BuildContext, property: &TileSetPropertyLayer) -> Ha
         WidgetBuilder::new()
             .with_child(make_type_widget(ctx, property.prop_type))
             .with_child(
-                TextBuilder::new(
-                    WidgetBuilder::new()
-                        .with_margin(Thickness::left(10.0))
-                        .on_column(1),
-                )
-                .with_vertical_text_alignment(VerticalAlignment::Center)
-                .with_horizontal_text_alignment(HorizontalAlignment::Left)
-                .with_text(property.name.clone())
-                .build(ctx),
+                TextBuilder::new()
+                    .with_widget_builder(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::left(10.0))
+                            .on_column(1),
+                    )
+                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .with_horizontal_text_alignment(HorizontalAlignment::Left)
+                    .with_text(property.name.clone())
+                    .build(ctx),
             ),
     )
     .add_row(Row::auto())
@@ -175,7 +179,10 @@ fn make_value_widget(ctx: &mut BuildContext, value: NamableValue) -> Handle<Text
         NamableValue::I32(x) => x.to_string(),
         NamableValue::F32(x) => x.to_string(),
     };
-    TextBuilder::new(WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Center))
+    TextBuilder::new()
+        .with_widget_builder(
+            WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Center),
+        )
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .with_horizontal_text_alignment(HorizontalAlignment::Right)
         .with_text(text)
@@ -199,15 +206,16 @@ fn make_name_list_item(ctx: &mut BuildContext, named_value: &NamedValue) -> Hand
             )
             .with_child(make_value_widget(ctx, named_value.value))
             .with_child(
-                TextBuilder::new(
-                    WidgetBuilder::new()
-                        .with_margin(Thickness::left(10.0))
-                        .on_column(2),
-                )
-                .with_vertical_text_alignment(VerticalAlignment::Center)
-                .with_horizontal_text_alignment(HorizontalAlignment::Left)
-                .with_text(&named_value.name)
-                .build(ctx),
+                TextBuilder::new()
+                    .with_widget_builder(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::left(10.0))
+                            .on_column(2),
+                    )
+                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .with_horizontal_text_alignment(HorizontalAlignment::Left)
+                    .with_text(&named_value.name)
+                    .build(ctx),
             ),
     )
     .add_row(Row::auto())
@@ -292,13 +300,14 @@ impl PropertiesTab {
         .add_column(Column::stretch())
         .add_column(Column::stretch())
         .build(ctx);
-        let left_label = TextBuilder::new(
-            WidgetBuilder::new()
-                .with_horizontal_alignment(HorizontalAlignment::Center)
-                .with_margin(Thickness::uniform(2.0)),
-        )
-        .with_text("Properties:")
-        .build(ctx);
+        let left_label = TextBuilder::new()
+            .with_widget_builder(
+                WidgetBuilder::new()
+                    .with_horizontal_alignment(HorizontalAlignment::Center)
+                    .with_margin(Thickness::uniform(2.0)),
+            )
+            .with_text("Properties:")
+            .build(ctx);
         let left_side = GridBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(2.0))
@@ -313,20 +322,22 @@ impl PropertiesTab {
         .add_row(Row::auto())
         .add_column(Column::stretch())
         .build(ctx);
-        let name_text_0 = TextBuilder::new(
-            WidgetBuilder::new()
-                .with_vertical_alignment(VerticalAlignment::Center)
-                .with_margin(Thickness::right(4.0)),
-        )
-        .with_text("Name:")
-        .build(ctx);
-        let name_text_1 = TextBuilder::new(
-            WidgetBuilder::new()
-                .with_vertical_alignment(VerticalAlignment::Center)
-                .with_margin(Thickness::right(4.0)),
-        )
-        .with_text("Name:")
-        .build(ctx);
+        let name_text_0 = TextBuilder::new()
+            .with_widget_builder(
+                WidgetBuilder::new()
+                    .with_vertical_alignment(VerticalAlignment::Center)
+                    .with_margin(Thickness::right(4.0)),
+            )
+            .with_text("Name:")
+            .build(ctx);
+        let name_text_1 = TextBuilder::new()
+            .with_widget_builder(
+                WidgetBuilder::new()
+                    .with_vertical_alignment(VerticalAlignment::Center)
+                    .with_margin(Thickness::right(4.0)),
+            )
+            .with_text("Name:")
+            .build(ctx);
         let name_field = TextBoxBuilder::new(WidgetBuilder::new().with_height(20.0).on_column(1))
             .with_vertical_text_alignment(VerticalAlignment::Center)
             .with_text_commit_mode(TextCommitMode::Changed)

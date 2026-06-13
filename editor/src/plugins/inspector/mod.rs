@@ -239,16 +239,17 @@ impl InspectorPlugin {
                 GridBuilder::new(
                     WidgetBuilder::new()
                         .with_child({
-                            warning_text = TextBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_visibility(false)
-                                    .with_margin(Thickness::left(4.0))
-                                    .with_foreground(ctx.style.property(Style::BRUSH_ERROR))
-                                    .on_row(0),
-                            )
-                            .with_wrap(WrapMode::Word)
-                            .with_text(warning_text_str)
-                            .build(ctx);
+                            warning_text = TextBuilder::new()
+                                .with_widget_builder(
+                                    WidgetBuilder::new()
+                                        .with_visibility(false)
+                                        .with_margin(Thickness::left(4.0))
+                                        .with_foreground(ctx.style.property(Style::BRUSH_ERROR))
+                                        .on_row(0),
+                                )
+                                .with_wrap(WrapMode::Word)
+                                .with_text(warning_text_str)
+                                .build(ctx);
                             warning_text
                         })
                         .with_child(
@@ -256,14 +257,15 @@ impl InspectorPlugin {
                                 WidgetBuilder::new()
                                     .on_row(1)
                                     .with_child({
-                                        type_name_text = TextBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(4.0))
-                                                .on_row(0)
-                                                .on_column(0),
-                                        )
-                                        .with_wrap(WrapMode::NoWrap)
-                                        .build(ctx);
+                                        type_name_text = TextBuilder::new()
+                                            .with_widget_builder(
+                                                WidgetBuilder::new()
+                                                    .with_margin(Thickness::uniform(4.0))
+                                                    .on_row(0)
+                                                    .on_column(0),
+                                            )
+                                            .with_wrap(WrapMode::NoWrap)
+                                            .build(ctx);
                                         type_name_text
                                     })
                                     .with_child({

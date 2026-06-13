@@ -177,19 +177,20 @@ impl CommandStackViewer {
                     ui.style.property(Style::BRUSH_LIGHTEST)
                 };
 
-                TextBuilder::new(
-                    WidgetBuilder::new()
-                        .with_margin(Thickness {
-                            left: 2.0,
-                            top: 1.0,
-                            right: 2.0,
-                            bottom: 0.0,
-                        })
-                        .with_foreground(brush),
-                )
-                .with_text(name)
-                .build(&mut ui.build_ctx())
-                .to_base()
+                TextBuilder::new()
+                    .with_widget_builder(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness {
+                                left: 2.0,
+                                top: 1.0,
+                                right: 2.0,
+                                bottom: 0.0,
+                            })
+                            .with_foreground(brush),
+                    )
+                    .with_text(name)
+                    .build(&mut ui.build_ctx())
+                    .to_base()
             })
             .collect();
 

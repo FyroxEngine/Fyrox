@@ -105,7 +105,7 @@ pub struct TileColliderEditor {
 }
 
 pub fn make_list_option(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
-    let text = TextBuilder::new(WidgetBuilder::new())
+    let text = TextBuilder::new()
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .with_horizontal_text_alignment(HorizontalAlignment::Left)
         .with_text(name)
@@ -140,7 +140,8 @@ impl TileColliderEditor {
         .build(ctx);
         let draw_button = make_draw_button(Some(0), ctx);
         let show_button = make_show_button(Some(1), ctx);
-        let name_field = TextBuilder::new(WidgetBuilder::new().on_column(3))
+        let name_field = TextBuilder::new()
+            .with_widget_builder(WidgetBuilder::new().on_column(3))
             .with_text(collider_layer.name.clone())
             .build(ctx);
         let custom_field =
@@ -149,7 +150,8 @@ impl TileColliderEditor {
                 .with_wrap(WrapMode::Word)
                 .with_text_commit_mode(TextCommitMode::Changed)
                 .build(ctx);
-        let error_field = TextBuilder::new(WidgetBuilder::new().with_visibility(false))
+        let error_field = TextBuilder::new()
+            .with_widget_builder(WidgetBuilder::new().with_visibility(false))
             .with_wrap(WrapMode::Word)
             .with_horizontal_text_alignment(HorizontalAlignment::Center)
             .build(ctx);

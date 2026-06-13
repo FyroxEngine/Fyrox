@@ -413,7 +413,7 @@ impl WorldViewer {
                 .build(ctx),
             )
             .with_content(
-                TextBuilder::new(WidgetBuilder::new())
+                TextBuilder::new()
                     .with_vertical_text_alignment(VerticalAlignment::Center)
                     .with_text(if self.breadcrumbs.is_empty() {
                         name.to_owned()

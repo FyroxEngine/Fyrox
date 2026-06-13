@@ -92,7 +92,8 @@ fn make_failure_log_list(
 }
 
 fn make_list_item(text: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
-    let content = TextBuilder::new(WidgetBuilder::new().on_column(1))
+    let content = TextBuilder::new()
+        .with_widget_builder(WidgetBuilder::new().on_column(1))
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .with_horizontal_text_alignment(HorizontalAlignment::Left)
         .with_text(text)
@@ -493,9 +494,7 @@ impl BrushMacro for AutoTileMacro {
             tile_set,
             ctx,
         );
-        let failure_log_label = TextBuilder::new(WidgetBuilder::new())
-            .with_text("Failure Log Level")
-            .build(ctx);
+        let failure_log_label = TextBuilder::new().with_text("Failure Log Level").build(ctx);
         self.failure_log_list = make_failure_log_list(
             WidgetBuilder::new().on_column(1),
             instance.failure_log_kind,
@@ -511,16 +510,16 @@ impl BrushMacro for AutoTileMacro {
         .add_column(Row::strict(PROPERTY_LABEL_WIDTH))
         .add_column(Row::stretch())
         .build(ctx);
-        let pattern_prop_help_text =
-            TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(5.0)))
-                .with_wrap(WrapMode::Word)
-                .with_text(PATTERN_PROP_DESC)
-                .build(ctx);
-        let freq_prop_help_text =
-            TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(5.0)))
-                .with_wrap(WrapMode::Word)
-                .with_text(FREQUENCY_PROP_DESC)
-                .build(ctx);
+        let pattern_prop_help_text = TextBuilder::new()
+            .with_widget_builder(WidgetBuilder::new().with_margin(Thickness::uniform(5.0)))
+            .with_wrap(WrapMode::Word)
+            .with_text(PATTERN_PROP_DESC)
+            .build(ctx);
+        let freq_prop_help_text = TextBuilder::new()
+            .with_widget_builder(WidgetBuilder::new().with_margin(Thickness::uniform(5.0)))
+            .with_wrap(WrapMode::Word)
+            .with_text(FREQUENCY_PROP_DESC)
+            .build(ctx);
         let handle = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(5.0))
@@ -573,7 +572,8 @@ impl BrushMacro for AutoTileMacro {
         let adjacent_field = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child(
-                    TextBuilder::new(WidgetBuilder::new().on_column(1))
+                    TextBuilder::new()
+                        .with_widget_builder(WidgetBuilder::new().on_column(1))
                         .with_text("Adjacent")
                         .build(ctx),
                 )
@@ -586,7 +586,8 @@ impl BrushMacro for AutoTileMacro {
         let diagonal_field = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child(
-                    TextBuilder::new(WidgetBuilder::new().on_column(1))
+                    TextBuilder::new()
+                        .with_widget_builder(WidgetBuilder::new().on_column(1))
                         .with_text("Diagonal")
                         .build(ctx),
                 )

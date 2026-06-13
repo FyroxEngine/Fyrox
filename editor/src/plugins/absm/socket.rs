@@ -195,12 +195,13 @@ impl SocketBuilder {
                                 pin
                             })
                             .with_child(if self.show_index {
-                                TextBuilder::new(
-                                    WidgetBuilder::new().with_margin(Thickness::left(2.0)),
-                                )
-                                .with_vertical_text_alignment(VerticalAlignment::Center)
-                                .with_text(format!("{:?}", self.index))
-                                .build(ctx)
+                                TextBuilder::new()
+                                    .with_widget_builder(
+                                        WidgetBuilder::new().with_margin(Thickness::left(2.0)),
+                                    )
+                                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                                    .with_text(format!("{:?}", self.index))
+                                    .build(ctx)
                             } else {
                                 Handle::NONE
                             }),

@@ -227,7 +227,8 @@ impl SurfaceDataPropertyEditor {
 
         let select = make_pick_button(1, ctx);
 
-        let text = TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+        let text = TextBuilder::new()
+            .with_widget_builder(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
             .with_text(surface_data_info(&resource_manager, &surface_resource))
             .build(ctx);
 

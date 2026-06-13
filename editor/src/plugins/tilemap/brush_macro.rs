@@ -713,9 +713,7 @@ impl MacroPropertyValueField {
         ctx: &mut BuildContext,
     ) -> Self {
         use TileSetPropertyValueElement as Element;
-        let label = TextBuilder::new(WidgetBuilder::new())
-            .with_text(label)
-            .build(ctx);
+        let label = TextBuilder::new().with_text(label).build(ctx);
         let wb = WidgetBuilder::new().on_column(1);
         let textbox = match &value {
             Element::I32(v) => NumericUpDownBuilder::<i32>::new(wb)
@@ -888,11 +886,7 @@ impl MacroPropertyValueField {
 
 fn make_item(text: &str, ctx: &mut BuildContext) -> Handle<UiNode> {
     DecoratorBuilder::new(BorderBuilder::new(
-        WidgetBuilder::new().with_child(
-            TextBuilder::new(WidgetBuilder::new())
-                .with_text(text)
-                .build(ctx),
-        ),
+        WidgetBuilder::new().with_child(TextBuilder::new().with_text(text).build(ctx)),
     ))
     .build(ctx)
     .to_base()
@@ -953,9 +947,7 @@ impl MacroPropertyField {
         tile_set: Option<&TileSet>,
         ctx: &mut BuildContext,
     ) -> Self {
-        let label = TextBuilder::new(WidgetBuilder::new())
-            .with_text(label)
-            .build(ctx);
+        let label = TextBuilder::new().with_text(label).build(ctx);
         let (index, items) = make_index_and_items(prop_type, value, tile_set, ctx);
         let list = DropdownListBuilder::new(WidgetBuilder::new().on_column(1))
             .with_items(items)

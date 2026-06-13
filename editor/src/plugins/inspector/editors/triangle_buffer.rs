@@ -59,13 +59,14 @@ impl PropertyEditorDefinition for TriangleBufferPropertyEditorDefinition {
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<TriangleBuffer>()?;
         Ok(PropertyEditorInstance::simple(
-            TextBuilder::new(
-                WidgetBuilder::new()
-                    .with_margin(Thickness::top_bottom(1.0))
-                    .with_vertical_alignment(VerticalAlignment::Center),
-            )
-            .with_text(triangle_buffer_description(value))
-            .build(ctx.build_context),
+            TextBuilder::new()
+                .with_widget_builder(
+                    WidgetBuilder::new()
+                        .with_margin(Thickness::top_bottom(1.0))
+                        .with_vertical_alignment(VerticalAlignment::Center),
+                )
+                .with_text(triangle_buffer_description(value))
+                .build(ctx.build_context),
         ))
     }
 

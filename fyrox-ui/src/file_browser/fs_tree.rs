@@ -142,19 +142,20 @@ pub fn build_tree_item<P: AsRef<Path>>(
                 Handle::NONE
             })
             .with_child(
-                TextBuilder::new(
-                    WidgetBuilder::new()
-                        .with_margin(Thickness::left(4.0))
-                        .on_column(1),
-                )
-                .with_text(
-                    path.as_ref()
-                        .to_string_lossy()
-                        .replace(&parent_path.as_ref().to_string_lossy().to_string(), "")
-                        .replace('\\', ""),
-                )
-                .with_vertical_text_alignment(VerticalAlignment::Center)
-                .build(ctx),
+                TextBuilder::new()
+                    .with_widget_builder(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::left(4.0))
+                            .on_column(1),
+                    )
+                    .with_text(
+                        path.as_ref()
+                            .to_string_lossy()
+                            .replace(&parent_path.as_ref().to_string_lossy().to_string(), "")
+                            .replace('\\', ""),
+                    )
+                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .build(ctx),
             ),
     )
     .add_row(Row::stretch())

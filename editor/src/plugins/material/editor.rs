@@ -319,11 +319,13 @@ impl MaterialFieldEditorBuilder {
             WidgetBuilder::new()
                 .on_column(1)
                 .with_child({
-                    text =
-                        TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
-                            .with_text(make_name(&resource_manager, &material))
-                            .with_vertical_text_alignment(VerticalAlignment::Center)
-                            .build(ctx);
+                    text = TextBuilder::new()
+                        .with_widget_builder(
+                            WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                        )
+                        .with_text(make_name(&resource_manager, &material))
+                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                        .build(ctx);
                     text
                 })
                 .with_child(buttons),

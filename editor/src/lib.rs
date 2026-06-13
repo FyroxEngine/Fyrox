@@ -553,7 +553,7 @@ pub struct SceneLoadingWindow {
 
 impl SceneLoadingWindow {
     pub fn new(ctx: &mut BuildContext) -> Self {
-        let scene_list_text = TextBuilder::new(WidgetBuilder::new()).build(ctx);
+        let scene_list_text = TextBuilder::new().build(ctx);
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(100.0))
             .with_title(WindowTitle::text("Please wait..."))
             .can_close(false)
@@ -566,15 +566,16 @@ impl SceneLoadingWindow {
                     WidgetBuilder::new()
                         .with_margin(Thickness::uniform(2.0))
                         .with_child(
-                            TextBuilder::new(
-                                WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
-                            )
-                            .with_wrap(WrapMode::Word)
-                            .with_text(
-                                "Please wait until the following scene(s) are \
+                            TextBuilder::new()
+                                .with_widget_builder(
+                                    WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
+                                )
+                                .with_wrap(WrapMode::Word)
+                                .with_text(
+                                    "Please wait until the following scene(s) are \
                                 fully loaded.",
-                            )
-                            .build(ctx),
+                                )
+                                .build(ctx),
                         )
                         .with_child(scene_list_text),
                 )
@@ -2272,7 +2273,10 @@ impl Editor {
         .with_text("Click Me!")
         .build(&mut ui.build_ctx());
 
-        TextBuilder::new(WidgetBuilder::new().with_desired_position(Vector2::new(300.0, 300.0)))
+        TextBuilder::new()
+            .with_widget_builder(
+                WidgetBuilder::new().with_desired_position(Vector2::new(300.0, 300.0)),
+            )
             .with_text("This is some text.")
             .build(&mut ui.build_ctx());
 

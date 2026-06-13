@@ -176,7 +176,7 @@ impl FontFieldBuilder {
             .widget_builder
             .with_allow_drop(true)
             .with_child({
-                text_preview = TextBuilder::new(WidgetBuilder::new())
+                text_preview = TextBuilder::new()
                     .with_wrap(WrapMode::Word)
                     .with_text(make_name(&resource_manager, &self.font))
                     .with_font(self.font.clone())

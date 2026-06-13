@@ -372,14 +372,15 @@ impl FileSelectorBuilder {
                 .on_row(1)
                 .on_column(0)
                 .with_child(
-                    TextBuilder::new(
-                        WidgetBuilder::new()
-                            .on_row(0)
-                            .on_column(0)
-                            .with_vertical_alignment(VerticalAlignment::Center),
-                    )
-                    .with_text("File Name:")
-                    .build(ctx),
+                    TextBuilder::new()
+                        .with_widget_builder(
+                            WidgetBuilder::new()
+                                .on_row(0)
+                                .on_column(0)
+                                .with_vertical_alignment(VerticalAlignment::Center),
+                        )
+                        .with_text("File Name:")
+                        .build(ctx),
                 )
                 .with_child({
                     file_name = TextBoxBuilder::new(
@@ -422,14 +423,15 @@ impl FileSelectorBuilder {
                 .on_row(2)
                 .on_column(0)
                 .with_child(
-                    TextBuilder::new(
-                        WidgetBuilder::new()
-                            .on_row(0)
-                            .on_column(0)
-                            .with_vertical_alignment(VerticalAlignment::Center),
-                    )
-                    .with_text("File Type:")
-                    .build(ctx),
+                    TextBuilder::new()
+                        .with_widget_builder(
+                            WidgetBuilder::new()
+                                .on_row(0)
+                                .on_column(0)
+                                .with_vertical_alignment(VerticalAlignment::Center),
+                        )
+                        .with_text("File Type:")
+                        .build(ctx),
                 )
                 .with_child({
                     extension_selector = DropdownListBuilder::new(

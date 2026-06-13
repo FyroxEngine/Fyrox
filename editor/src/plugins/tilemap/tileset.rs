@@ -133,7 +133,8 @@ fn make_tab(
 ) -> TabDefinition {
     TabDefinition {
         uuid,
-        header: TextBuilder::new(WidgetBuilder::new().with_margin(TAB_MARGIN))
+        header: TextBuilder::new()
+            .with_widget_builder(WidgetBuilder::new().with_margin(TAB_MARGIN))
             .with_text(name)
             .build(ctx)
             .to_base(),
@@ -163,9 +164,7 @@ fn make_button(
 }
 
 fn make_label(name: &str, ctx: &mut BuildContext) -> Handle<Text> {
-    TextBuilder::new(WidgetBuilder::new())
-        .with_text(name)
-        .build(ctx)
+    TextBuilder::new().with_text(name).build(ctx)
 }
 
 fn tile_set_to_title(resource_manager: &ResourceManager, tile_book: &TileBook) -> String {
@@ -239,7 +238,7 @@ impl TileSetEditor {
         let remove;
         let all_pages;
         let all_tiles;
-        let cell_position = TextBuilder::new(WidgetBuilder::new()).build(ctx);
+        let cell_position = TextBuilder::new().build(ctx);
         let pick_button = make_drawing_mode_button(
             ctx,
             20.0,

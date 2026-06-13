@@ -137,15 +137,16 @@ impl UuidEditorBuilder {
         let grid = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child({
-                    text = TextBuilder::new(
-                        WidgetBuilder::new()
-                            .on_column(0)
-                            .on_row(0)
-                            .with_margin(Thickness::uniform(1.0))
-                            .with_vertical_alignment(VerticalAlignment::Center),
-                    )
-                    .with_text(self.value.to_string())
-                    .build(ctx);
+                    text = TextBuilder::new()
+                        .with_widget_builder(
+                            WidgetBuilder::new()
+                                .on_column(0)
+                                .on_row(0)
+                                .with_margin(Thickness::uniform(1.0))
+                                .with_vertical_alignment(VerticalAlignment::Center),
+                        )
+                        .with_text(self.value.to_string())
+                        .build(ctx);
                     text
                 })
                 .with_child({

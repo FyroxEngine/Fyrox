@@ -723,7 +723,7 @@ impl AssetPreviewGenerator for FontPreview {
             let mut ui = UserInterface::new(asset::item::DEFAULT_VEC_SIZE);
             ScreenBuilder::new(
                 WidgetBuilder::new().with_child(
-                    TextBuilder::new(WidgetBuilder::new())
+                    TextBuilder::new()
                         .with_font(font)
                         .with_font_size(16.0.into())
                         .with_vertical_text_alignment(VerticalAlignment::Center)

@@ -517,14 +517,15 @@ impl TrackViewBuilder {
                     track_enabled_switch
                 })
                 .with_child({
-                    name_text = TextBuilder::new(
-                        WidgetBuilder::new()
-                            .with_margin(Thickness::uniform(1.0))
-                            .with_vertical_alignment(VerticalAlignment::Center)
-                            .on_column(1),
-                    )
-                    .with_text(self.name)
-                    .build(ctx);
+                    name_text = TextBuilder::new()
+                        .with_widget_builder(
+                            WidgetBuilder::new()
+                                .with_margin(Thickness::uniform(1.0))
+                                .with_vertical_alignment(VerticalAlignment::Center)
+                                .on_column(1),
+                        )
+                        .with_text(self.name)
+                        .build(ctx);
                     name_text
                 }),
         )
@@ -1507,7 +1508,7 @@ impl TrackList {
                                 let ctx = &mut ui.build_ctx();
                                 let group = TreeBuilder::new(WidgetBuilder::new())
                                     .with_content(
-                                        TextBuilder::new(WidgetBuilder::new())
+                                        TextBuilder::new()
                                             .with_vertical_text_alignment(VerticalAlignment::Center)
                                             .with_text(format!(
                                                 "{} ({}:{})",
@@ -1583,17 +1584,18 @@ impl TrackList {
                                                 .build(ctx),
                                             )
                                             .with_child(
-                                                TextBuilder::new(
-                                                    WidgetBuilder::new().on_column(1).with_margin(
-                                                        Thickness {
-                                                            top: 2.0,
-                                                            left: 3.0,
-                                                            ..Default::default()
-                                                        },
-                                                    ),
-                                                )
-                                                .with_text(curve_name)
-                                                .build(ctx),
+                                                TextBuilder::new()
+                                                    .with_widget_builder(
+                                                        WidgetBuilder::new()
+                                                            .on_column(1)
+                                                            .with_margin(Thickness {
+                                                                top: 2.0,
+                                                                left: 3.0,
+                                                                ..Default::default()
+                                                            }),
+                                                    )
+                                                    .with_text(curve_name)
+                                                    .build(ctx),
                                             ),
                                     )
                                     .add_row(Row::auto())

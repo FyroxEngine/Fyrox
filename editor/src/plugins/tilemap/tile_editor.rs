@@ -109,9 +109,7 @@ pub trait TileEditor: Send {
 }
 
 fn make_label(name: &str, ctx: &mut BuildContext) -> Handle<Text> {
-    TextBuilder::new(WidgetBuilder::new())
-        .with_text(name)
-        .build(ctx)
+    TextBuilder::new().with_text(name).build(ctx)
 }
 
 fn make_draw_button(

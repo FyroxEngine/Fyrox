@@ -165,7 +165,9 @@ impl TileMapPanel {
     /// or the current active tool has changed, so the main purpose of the tile map panel is to manipulate
     /// this state.
     pub fn new(ctx: &mut BuildContext, state: TileDrawStateRef, sender: MessageSender) -> Self {
-        let tile_set_name = TextBuilder::new(WidgetBuilder::new().on_row(0)).build(ctx);
+        let tile_set_name = TextBuilder::new()
+            .with_widget_builder(WidgetBuilder::new().on_row(0))
+            .build(ctx);
         let preview = PanelPreviewBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(1.0))

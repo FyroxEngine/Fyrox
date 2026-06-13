@@ -116,19 +116,20 @@ pub struct ProjectWizard {
 }
 
 fn make_text(text: &str, row: usize, ctx: &mut BuildContext) -> Handle<Text> {
-    TextBuilder::new(
-        WidgetBuilder::new()
-            .with_vertical_alignment(VerticalAlignment::Center)
-            .with_margin(Thickness {
-                left: 5.0,
-                top: 1.0,
-                right: 1.0,
-                bottom: 1.0,
-            })
-            .on_row(row),
-    )
-    .with_text(text)
-    .build(ctx)
+    TextBuilder::new()
+        .with_widget_builder(
+            WidgetBuilder::new()
+                .with_vertical_alignment(VerticalAlignment::Center)
+                .with_margin(Thickness {
+                    left: 5.0,
+                    top: 1.0,
+                    right: 1.0,
+                    bottom: 1.0,
+                })
+                .on_row(row),
+        )
+        .with_text(text)
+        .build(ctx)
 }
 
 fn full_project_path(folder: &Path, name: &str) -> String {
@@ -205,14 +206,15 @@ impl ProjectWizard {
         .with_orientation(Orientation::Horizontal)
         .build(ctx);
 
-        let full_project_path = TextBuilder::new(
-            WidgetBuilder::new()
-                .with_margin(Thickness::uniform(1.0))
-                .on_row(4)
-                .on_column(1),
-        )
-        .with_text(full_project_path(&path, &name))
-        .build(ctx);
+        let full_project_path = TextBuilder::new()
+            .with_widget_builder(
+                WidgetBuilder::new()
+                    .with_margin(Thickness::uniform(1.0))
+                    .on_row(4)
+                    .on_column(1),
+            )
+            .with_text(full_project_path(&path, &name))
+            .build(ctx);
 
         let grid = GridBuilder::new(
             WidgetBuilder::new()
@@ -238,14 +240,15 @@ impl ProjectWizard {
         .add_column(Column::stretch())
         .build(ctx);
 
-        let validation_text = TextBuilder::new(
-            WidgetBuilder::new()
-                .on_row(1)
-                .with_foreground(ctx.style.property(style::Style::BRUSH_ERROR)),
-        )
-        .with_font_size(12.0.into())
-        .with_wrap(WrapMode::Word)
-        .build(ctx);
+        let validation_text = TextBuilder::new()
+            .with_widget_builder(
+                WidgetBuilder::new()
+                    .on_row(1)
+                    .with_foreground(ctx.style.property(style::Style::BRUSH_ERROR)),
+            )
+            .with_font_size(12.0.into())
+            .with_wrap(WrapMode::Word)
+            .build(ctx);
 
         let outer_grid = GridBuilder::new(
             WidgetBuilder::new()

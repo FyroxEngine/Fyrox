@@ -78,22 +78,23 @@ impl UpgradeTool {
     pub fn new(project: &Project, ctx: &mut BuildContext) -> Self {
         let dependency = utils::fyrox_dependency_from_path(&project.manifest_path).unwrap();
 
-        let version = TextBuilder::new(
-            WidgetBuilder::new()
-                .on_row(0)
-                .with_margin(Thickness::uniform(1.0)),
-        )
-        .with_text(format!(
-            "Current Engine Version: {}\nSource: {}",
-            dependency.req,
-            dependency
-                .source
-                .as_ref()
-                .map(|s| s.to_string())
-                .or_else(|| dependency.path.as_ref().map(|s| s.to_string()))
-                .unwrap_or_default()
-        ))
-        .build(ctx);
+        let version = TextBuilder::new()
+            .with_widget_builder(
+                WidgetBuilder::new()
+                    .on_row(0)
+                    .with_margin(Thickness::uniform(1.0)),
+            )
+            .with_text(format!(
+                "Current Engine Version: {}\nSource: {}",
+                dependency.req,
+                dependency
+                    .source
+                    .as_ref()
+                    .map(|s| s.to_string())
+                    .or_else(|| dependency.path.as_ref().map(|s| s.to_string()))
+                    .unwrap_or_default()
+            ))
+            .build(ctx);
 
         let is_local = dependency.path.is_some();
 
