@@ -151,11 +151,11 @@ impl PropertyAction {
     pub fn from_field_action(field_action: &FieldAction) -> Self {
         match field_action {
             FieldAction::ObjectAction(ref value) => Self::Modify {
-                value: value.clone().into_box_reflect(),
+                value: value.clone().value,
             },
             FieldAction::CollectionAction(ref collection_changed) => match **collection_changed {
                 CollectionAction::Add(ref value) => Self::AddItem {
-                    value: value.clone().into_box_reflect(),
+                    value: value.clone().value,
                 },
                 CollectionAction::Remove(index) => Self::RemoveItem { index },
                 CollectionAction::ItemChanged {
@@ -243,8 +243,6 @@ impl PropertyAction {
 /// Trait of values that can be edited by an Inspector through reflection.
 pub trait Value: Reflect + Send {
     fn clone_box(&self) -> Box<dyn Value>;
-
-    fn into_box_reflect(self: Box<Self>) -> Box<dyn Reflect>;
 }
 
 impl<T> Value for T
@@ -253,10 +251,6 @@ where
 {
     fn clone_box(&self) -> Box<dyn Value> {
         Box::new(self.clone())
-    }
-
-    fn into_box_reflect(self: Box<Self>) -> Box<dyn Reflect> {
-        Box::new(*(self as Box<dyn Reflect>).downcast::<T>().unwrap())
     }
 }
 
@@ -297,10 +291,6 @@ impl ObjectValue {
         } else {
             false
         }
-    }
-
-    pub fn into_box_reflect(self) -> Box<dyn Reflect> {
-        self.value.into_box_reflect()
     }
 }
 
