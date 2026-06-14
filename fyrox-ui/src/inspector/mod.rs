@@ -277,11 +277,7 @@ impl Clone for ObjectValue {
 
 impl PartialEq for ObjectValue {
     fn eq(&self, other: &Self) -> bool {
-        // Cast fat pointers to thin first.
-        let ptr_a = &*self.value as *const _ as *const ();
-        let ptr_b = &*other.value as *const _ as *const ();
-        // Compare thin pointers.
-        std::ptr::eq(ptr_a, ptr_b)
+        self.value.try_compare(&*other.value).unwrap_or_default()
     }
 }
 
