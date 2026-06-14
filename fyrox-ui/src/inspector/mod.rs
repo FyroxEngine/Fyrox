@@ -772,15 +772,13 @@ pub struct ContextEntry {
 
 impl PartialEq for ContextEntry {
     fn eq(&self, other: &Self) -> bool {
-        // Cast fat pointers to thin first.
-        let ptr_a = &*self.property_editor_definition_container as *const _ as *const ();
-        let ptr_b = &*other.property_editor_definition_container as *const _ as *const ();
-
         self.property_editor == other.property_editor
             && self.property_name == other.property_name
-            && self.property_value_type_id ==other.property_value_type_id
-            // Compare thin pointers.
-            && std::ptr::eq(ptr_a, ptr_b)
+            && self.property_value_type_id == other.property_value_type_id
+            && Arc::ptr_eq(
+                &self.property_editor_definition_container,
+                &other.property_editor_definition_container,
+            )
     }
 }
 
