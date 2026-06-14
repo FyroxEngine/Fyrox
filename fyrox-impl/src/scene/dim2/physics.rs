@@ -1267,16 +1267,6 @@ impl PhysicsWorld {
         }
 
         if let Some(native) = self.joints.set.get_mut(joint.native.get(), false) {
-            joint.body1.try_sync_model(|v| {
-                if let Ok(rigid_body_node) = nodes.try_get(v) {
-                    native.body1 = rigid_body_node.native.get();
-                }
-            });
-            joint.body2.try_sync_model(|v| {
-                if let Ok(rigid_body_node) = nodes.try_get(v) {
-                    native.body2 = rigid_body_node.native.get();
-                }
-            });
             joint.params.try_sync_model(|v| {
                 native.data =
                     // Preserve local frames.
@@ -1307,11 +1297,11 @@ impl PhysicsWorld {
                 // wake up the bodies connected to the joint to ensure they respond to the motor changes immediately
                 // however, the rigid bodies may fall asleep any time later unless Joint::set_motor_* functions are called periodically,
                 // or the rigid bodies are set to cannot sleep
-                let Some(body1) = self.bodies.get_mut(native.body1) else {
+                let Some(body1) = self.bodies.get_mut(native.body1()) else {
                     return;
                 };
                 body1.wake_up(true);
-                let Some(body2) = self.bodies.get_mut(native.body2) else {
+                let Some(body2) = self.bodies.get_mut(native.body2()) else {
                     return;
                 };
                 body2.wake_up(true);
@@ -1319,6 +1309,7 @@ impl PhysicsWorld {
             joint.contacts_enabled.try_sync_model(|v| {
                 native.data.set_contacts_enabled(v);
             });
+
             let mut local_frames = joint.local_frames.borrow_mut();
             if local_frames.is_none() {
                 if let (Ok(body1), Ok(body2)) =
@@ -1330,6 +1321,30 @@ impl PhysicsWorld {
                     *local_frames = Some(JointLocalFrames::new(&local_frame1, &local_frame2));
                 }
             }
+            joint.body1.try_sync_model(|v| {
+                if let (Ok(rigid_body_node1), Ok(rigid_body_node2)) =
+                    (nodes.try_get(v), nodes.try_get(*joint.body2))
+                {
+                    self.joints.set.set_bodies(
+                        joint.native.get(),
+                        rigid_body_node1.native.get(),
+                        rigid_body_node2.native.get(),
+                        false,
+                    );
+                }
+            });
+            joint.body2.try_sync_model(|v| {
+                if let (Ok(rigid_body_node2), Ok(rigid_body_node1)) =
+                    (nodes.try_get(v), nodes.try_get(*joint.body1))
+                {
+                    self.joints.set.set_bodies(
+                        joint.native.get(),
+                        rigid_body_node1.native.get(),
+                        rigid_body_node2.native.get(),
+                        false,
+                    );
+                }
+            });
         } else {
             let body1_handle = joint.body1();
             let body2_handle = joint.body2();
