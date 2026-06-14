@@ -111,9 +111,14 @@ pub struct TypeInfo {
 /// - `#[reflect(bounds)]` - add type boundary for `Reflect` impl, for example
 /// `#[reflect(bounds = "T: Reflect + Clone")]`
 /// - `#[reflect(non_cloneable)]` - prevent the macro from generating an implementation of
-/// [`Self::try_clone_box`] trait for your type. Could be useful for non-cloneable types.
+/// [`Self::try_clone_box`] method for your type. Could be useful for non-cloneable types.
+/// - `#[reflect(non_comparable)]` - prevent the macro from generating an implementation of
+/// [`Self::try_compare`] method for your type. Could be useful for types that does not implement
+/// `PartialEq` trait.
 /// - `#[reflect(derived_type = "Type")]` - marks the type for which the attribute is added as a
 /// subtype for the `Type`.
+/// - `#[reflect(type_uuid = "5989667c-ca43-46ca-b906-ae4319f659a5")]` - assigns a unique identifier
+/// for the type. See the respective section below for more info.
 ///
 /// ### Direct vs Indirect Access
 ///
@@ -121,7 +126,7 @@ pub struct TypeInfo {
 /// one is called indirect - such methods accepts a closure that will be called by the method. These
 /// methods support types with interior mutability (Mutex, RefCell, etc.), but cannot give you a
 /// direct reference outside the provided closure. This is essential limitation to support types with
-/// interior mutability (for example, mutex requires holding some sort of a lock guard while accessing
+/// interior mutability (for example, mutex requires holding some sort of lock guard while accessing
 /// its content). Indirect access can be quite annoying to use, and it is possible to get direct
 /// access to the fields by the price of not supporting types with interior mutability.
 ///
@@ -156,6 +161,24 @@ pub struct TypeInfo {
 /// that your type implements the [`Clone`] trait. Not all types can implement this trait, in this
 /// case, add `#[reflect(non_cloneable)]` attribute for your type. This will force the implementation
 /// of [`Self::try_clone_box`] to return `None`.
+///
+/// ### PartialEq
+///
+/// By default, the proc macro adds an implementation of [`Self::try_compare`] with the assumption
+/// that your type implements the [`PartialEq`] trait. Not all types can implement this trait, in this
+/// case, add `#[reflect(non_comparable)]` attribute for your type. This will force the implementation
+/// of [`Self::try_compare`] to return `None`.
+///
+/// ### Type UUID
+///
+/// Every type that implements `Reflect` trait must provide a unique type UUID. Such an id can be
+/// added using `#[reflect(type_uuid = "unique_identifier")]` attribute. Where `unique_identifier`
+/// must be a UUID (for example - "59676ed4-d974-4851-a896-fadb314fafee"). UUID can be generated
+/// using online tools, a plugin for your IDE, or simply manual by changing hex characters of the
+/// UUID in the example. It is very important to provide truly unique identifiers across your
+/// project, otherwise the engine can be confused by two or more types with the same UUID. It is
+/// especially important in case of trait object serialization, where the UUID is used to link the
+/// actual type with its representation in a serialized form.
 ///
 /// ## Additional Trait Bounds
 ///
