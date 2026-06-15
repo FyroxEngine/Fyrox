@@ -79,7 +79,7 @@ use std::{
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 use fyrox_graph::{NodeWrapper, SceneGraph};
-pub use rapier3d::geometry::shape::*;
+pub use rapier3d::geometry;
 use rapier3d::math::{Pose3, Vec3};
 use rapier3d::parry::query::DefaultQueryDispatcher;
 use rapier3d::prelude::FrictionModel;
@@ -1288,7 +1288,7 @@ impl PhysicsWorld {
     pub fn cast_shape(
         &self,
         graph: &Graph,
-        shape: &dyn Shape,
+        shape: &dyn geometry::Shape,
         shape_pos: &Isometry3<f32>,
         shape_vel: &Vector3<f32>,
         max_toi: f32,

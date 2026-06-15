@@ -58,7 +58,7 @@ use crate::{
         tilemap::TileMap,
     },
 };
-pub use rapier2d::geometry::shape::*;
+pub use rapier2d::geometry;
 use rapier2d::math::{Pose2, Vec2};
 use rapier2d::parry::query::DefaultQueryDispatcher;
 use rapier2d::{
@@ -840,7 +840,7 @@ impl PhysicsWorld {
     pub fn cast_shape(
         &self,
         graph: &Graph,
-        shape: &dyn Shape,
+        shape: &dyn geometry::Shape,
         shape_pos: &Isometry2<f32>,
         shape_vel: &Vector2<f32>,
         max_toi: f32,
