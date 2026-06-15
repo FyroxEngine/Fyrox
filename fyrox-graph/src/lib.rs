@@ -1106,6 +1106,36 @@ pub trait SceneGraph: 'static {
             .unwrap_or_default()
     }
 
+    /// The same as [`Self::find_handle`], but starts the search from the root node of the graph.
+    #[inline]
+    fn find_handle_from_root<C>(&self, cmp: &mut C) -> Handle<Self::NodeWrapper>
+    where
+        C: FnMut(&Self::NodeWrapper) -> bool,
+    {
+        self.find_handle(self.root(), cmp)
+    }
+
+    /// Tries to find a node of the given type starting from the specified node. Returns [`Handle::NONE`]
+    /// if nothing was found.
+    fn find_handle_of_type<T>(
+        &self,
+        root_node: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
+    ) -> Handle<T>
+    where
+        T: ObjectOrVariant<Self::NodeWrapper> + 'static,
+    {
+        self.find_handle(root_node, &mut |n| (n.inner_ref() as &dyn Any).is::<T>())
+            .transmute::<T>()
+    }
+
+    /// The same as [`Self::find_handle_of_type`], but starts the search from the root node of the graph.
+    fn find_handle_of_type_from_root<T>(&self) -> Handle<T>
+    where
+        T: ObjectOrVariant<Self::NodeWrapper> + 'static,
+    {
+        self.find_handle_of_type(self.root())
+    }
+
     /// Returns position of the node in its parent children list and the handle to the parent. Adds
     /// given `offset` to the position. For example, if you have the following hierarchy:
     ///
