@@ -846,7 +846,7 @@ impl PhysicsWorld {
         max_toi: f32,
         stop_at_penetration: bool,
         filter: QueryFilter,
-    ) -> Option<(Handle<Node>, TOI)> {
+    ) -> Option<(Handle<dim2::collider::Collider>, TOI)> {
         let predicate = |handle: ColliderHandle, _: &Collider| -> bool {
             if let Some(pred) = filter.predicate {
                 let h = Handle::decode_from_u128(self.colliders.get(handle).unwrap().user_data);
@@ -925,7 +925,7 @@ impl PhysicsWorld {
         max_toi: f32,
         stop_at_penetration: bool,
         filter: QueryFilter,
-    ) -> Option<(Handle<Node>, TOI)> {
+    ) -> Option<(Handle<dim2::collider::Collider>, TOI)> {
         let collider = self
             .colliders
             .get(graph.try_get(collider_handle).ok()?.native.get())?;
