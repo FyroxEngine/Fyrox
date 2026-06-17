@@ -986,7 +986,9 @@ impl Clone for PhysicsWorld {
     }
 }
 
-fn isometry_from_global_transform(transform: &Matrix4<f32>) -> Isometry3<f32> {
+/// Extracts [`Isometry3`] from the given [`Matrix4`]. Any scaling or skew will be discarded in the
+/// resulting isometry.
+pub fn isometry_from_global_transform(transform: &Matrix4<f32>) -> Isometry3<f32> {
     Isometry3 {
         translation: Translation3::new(transform[12], transform[13], transform[14]),
         rotation: UnitQuaternion::from_matrix_eps(
