@@ -1361,6 +1361,33 @@ impl PhysicsWorld {
             })
     }
 
+    /// Same as [`Self::cast_shape`], but uses the shape of the given collider. Additionally, may
+    /// return [`None`] if `collider_handle` is invalid and if there's no native collider's shape
+    /// exist (for example, if the collider was destroyed).
+    pub fn cast_collider_shape(
+        &self,
+        graph: &Graph,
+        collider_handle: Handle<collider::Collider>,
+        shape_pos: &Isometry3<f32>,
+        shape_vel: &Vector3<f32>,
+        max_toi: f32,
+        stop_at_penetration: bool,
+        filter: QueryFilter,
+    ) -> Option<(Handle<Node>, TOI)> {
+        let collider = self
+            .colliders
+            .get(graph.try_get(collider_handle).ok()?.native.get())?;
+        self.cast_shape(
+            graph,
+            collider.shape(),
+            shape_pos,
+            shape_vel,
+            max_toi,
+            stop_at_penetration,
+            filter,
+        )
+    }
+
     pub(crate) fn set_rigid_body_position(
         &mut self,
         rigid_body: &scene::rigidbody::RigidBody,
