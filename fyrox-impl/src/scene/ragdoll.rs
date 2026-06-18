@@ -107,6 +107,8 @@ pub struct Ragdoll {
     pub deactivate_colliders: InheritableVariable<bool>,
     #[reflect(hidden)]
     prev_enabled: bool,
+    #[reflect(hidden)]
+    character_rigid_body_type: Option<RigidBodyType>,
 }
 
 impl Deref for Ragdoll {
@@ -275,9 +277,15 @@ impl NodeTrait for Ragdoll {
                     character_rigid_body
                         .local_transform_mut()
                         .set_position(position);
-                    character_rigid_body.set_body_type(RigidBodyType::KinematicPositionBased);
-                } else {
-                    character_rigid_body.set_body_type(RigidBodyType::Dynamic);
+                    let prev =
+                        character_rigid_body.set_body_type(RigidBodyType::KinematicPositionBased);
+                    if self.character_rigid_body_type.is_none() {
+                        self.character_rigid_body_type = Some(prev);
+                    }
+                } else if let Some(character_rigid_body_type) =
+                    self.character_rigid_body_type.take()
+                {
+                    character_rigid_body.set_body_type(character_rigid_body_type);
                 }
             }
         }
@@ -338,6 +346,7 @@ impl RagdollBuilder {
             root_limb: self.root_limb.into(),
             deactivate_colliders: self.deactivate_colliders.into(),
             prev_enabled: self.is_active,
+            character_rigid_body_type: None,
         }
     }
 
