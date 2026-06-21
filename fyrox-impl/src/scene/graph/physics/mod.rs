@@ -20,6 +20,8 @@
 
 //! Scene physics module.
 
+pub mod character;
+
 use crate::{
     core::{
         algebra::{
@@ -53,7 +55,8 @@ use crate::{
     },
     utils::raw_mesh::{RawMeshBuilder, RawVertex},
 };
-use rapier3d::geometry::Array2;
+use fyrox_graph::{NodeWrapper, SceneGraph};
+pub use rapier3d::geometry;
 use rapier3d::{
     dynamics::{
         CCDSolver, GenericJoint, GenericJointBuilder, ImpulseJointHandle, ImpulseJointSet,
@@ -61,12 +64,13 @@ use rapier3d::{
         RigidBodyActivation, RigidBodyBuilder, RigidBodyHandle, RigidBodySet, RigidBodyType,
     },
     geometry::{
-        Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid, DefaultBroadPhase,
+        Array2, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid, DefaultBroadPhase,
         InteractionGroups, NarrowPhase, Ray, SharedShape,
     },
-    parry::{query::ShapeCastOptions, shape::HeightField},
-    pipeline::{DebugRenderPipeline, EventHandler, PhysicsPipeline},
-    prelude::{HeightFieldCellStatus, JointAxis, MassProperties},
+    math::{Pose3, Vec3},
+    parry::{query::DefaultQueryDispatcher, query::ShapeCastOptions, shape::HeightField},
+    pipeline::{DebugRenderPipeline, EventHandler, PhysicsPipeline, QueryPipeline},
+    prelude::{FrictionModel, HeightFieldCellStatus, JointAxis, MassProperties},
 };
 use std::{
     cell::Cell,
@@ -77,12 +81,6 @@ use std::{
     time::Duration,
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};
-
-use fyrox_graph::{NodeWrapper, SceneGraph};
-pub use rapier3d::geometry;
-use rapier3d::math::{Pose3, Vec3};
-use rapier3d::parry::query::DefaultQueryDispatcher;
-use rapier3d::prelude::FrictionModel;
 
 /// Shape-dependent identifier.
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
@@ -1017,6 +1015,8 @@ fn u32_to_group(v: u32) -> rapier3d::geometry::Group {
     rapier3d::geometry::Group::from_bits(v).unwrap_or_else(rapier3d::geometry::Group::all)
 }
 
+pub(crate) type FilterPredicate<'a> = Option<&'a dyn Fn(Handle<Node>, &collider::Collider) -> bool>;
+
 /// A filter tha describes what collider should be included or excluded from a scene query.
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::type_complexity)]
@@ -1031,7 +1031,55 @@ pub struct QueryFilter<'a> {
     /// If set, any collider attached to this rigid-body will be excluded from the scene query.
     pub exclude_rigid_body: Option<Handle<Node>>,
     /// If set, any collider for which this closure returns false will be excluded from the scene query.
-    pub predicate: Option<&'a dyn Fn(Handle<Node>, &collider::Collider) -> bool>,
+    pub predicate: FilterPredicate<'a>,
+}
+
+pub(crate) fn filter_by_predicate(
+    pred: FilterPredicate,
+    handle: ColliderHandle,
+    graph: &Graph,
+    colliders: &ColliderSet,
+) -> bool {
+    if let Some(pred) = pred {
+        let h = Handle::decode_from_u128(colliders.get(handle).unwrap().user_data);
+        pred(
+            h,
+            graph
+                .node(h)
+                .self_or_field_ref::<collider::Collider>()
+                .unwrap(),
+        )
+    } else {
+        true
+    }
+}
+
+impl<'a> QueryFilter<'a> {
+    fn to_native(
+        self,
+        graph: &Graph,
+        predicate: &'a dyn Fn(ColliderHandle, &Collider) -> bool,
+    ) -> rapier3d::pipeline::QueryFilter<'a> {
+        rapier3d::pipeline::QueryFilter {
+            flags: rapier3d::pipeline::QueryFilterFlags::from_bits(self.flags.bits()).unwrap(),
+            groups: self.groups.map(|g| {
+                InteractionGroups::new(
+                    u32_to_group(g.memberships.0),
+                    u32_to_group(g.filter.0),
+                    Default::default(),
+                )
+            }),
+            exclude_collider: self
+                .exclude_collider
+                .and_then(|h| graph.try_get_of_type::<collider::Collider>(h).ok())
+                .map(|c| c.native.get()),
+            exclude_rigid_body: self
+                .exclude_collider
+                .and_then(|h| graph.try_get_of_type::<rigidbody::RigidBody>(h).ok())
+                .map(|c| c.native.get()),
+            predicate: Some(predicate),
+        }
+    }
 }
 
 /// The result of a time-of-impact (TOI) computation.
@@ -1218,20 +1266,29 @@ impl PhysicsWorld {
         );
     }
 
+    pub(crate) fn query_pipeline<'a>(
+        &'a self,
+        filter: rapier3d::pipeline::QueryFilter<'a>,
+    ) -> QueryPipeline<'a> {
+        self.broad_phase.as_query_pipeline(
+            &DefaultQueryDispatcher,
+            &self.bodies,
+            &self.colliders,
+            filter,
+        )
+    }
+
     /// Casts a ray with given options.
     pub fn cast_ray<S: QueryResultsStorage>(&self, opts: RayCastOptions, query_buffer: &mut S) {
         let time = instant::Instant::now();
 
-        let query = self.broad_phase.as_query_pipeline(
-            &DefaultQueryDispatcher,
-            &self.bodies,
-            &self.colliders,
-            rapier3d::pipeline::QueryFilter::new().groups(InteractionGroups::new(
+        let query = self.query_pipeline(rapier3d::pipeline::QueryFilter::new().groups(
+            InteractionGroups::new(
                 u32_to_group(opts.groups.memberships.0),
                 u32_to_group(opts.groups.filter.0),
                 Default::default(),
-            )),
-        );
+            ),
+        ));
 
         query_buffer.clear();
         let ray = Ray::new(
@@ -1298,46 +1355,10 @@ impl PhysicsWorld {
         filter: QueryFilter,
     ) -> Option<(Handle<collider::Collider>, TOI)> {
         let predicate = |handle: ColliderHandle, _: &Collider| -> bool {
-            if let Some(pred) = filter.predicate {
-                let h = Handle::decode_from_u128(self.colliders.get(handle).unwrap().user_data);
-                pred(
-                    h,
-                    graph
-                        .node(h)
-                        .self_or_field_ref::<collider::Collider>()
-                        .unwrap(),
-                )
-            } else {
-                true
-            }
+            filter_by_predicate(filter.predicate, handle, graph, &self.colliders)
         };
-
-        let filter = rapier3d::pipeline::QueryFilter {
-            flags: rapier3d::pipeline::QueryFilterFlags::from_bits(filter.flags.bits()).unwrap(),
-            groups: filter.groups.map(|g| {
-                InteractionGroups::new(
-                    u32_to_group(g.memberships.0),
-                    u32_to_group(g.filter.0),
-                    Default::default(),
-                )
-            }),
-            exclude_collider: filter
-                .exclude_collider
-                .and_then(|h| graph.try_get_of_type::<collider::Collider>(h).ok())
-                .map(|c| c.native.get()),
-            exclude_rigid_body: filter
-                .exclude_collider
-                .and_then(|h| graph.try_get_of_type::<rigidbody::RigidBody>(h).ok())
-                .map(|c| c.native.get()),
-            predicate: Some(&predicate),
-        };
-
-        let query = self.broad_phase.as_query_pipeline(
-            &DefaultQueryDispatcher,
-            &self.bodies,
-            &self.colliders,
-            filter,
-        );
+        let filter = filter.to_native(graph, &predicate);
+        let query = self.query_pipeline(filter);
 
         let opts = ShapeCastOptions {
             max_time_of_impact: max_toi,
