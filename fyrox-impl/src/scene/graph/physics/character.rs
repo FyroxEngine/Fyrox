@@ -71,7 +71,7 @@ impl Into<rapier3d::control::CharacterLength> for CharacterLength {
 }
 
 /// Configuration for the auto-stepping character controller feature.
-#[derive(Default, Visit, Reflect, Copy, Clone, Debug, PartialEq)]
+#[derive(Visit, Reflect, Copy, Clone, Debug, PartialEq)]
 #[reflect(type_uuid = "3b458b79-159c-4ab9-a01a-b0c866e997c3")]
 pub struct CharacterAutostep {
     /// The maximum step height a character can automatically step over.
@@ -80,6 +80,16 @@ pub struct CharacterAutostep {
     pub min_width: CharacterLength,
     /// Can the character automatically step over dynamic bodies too?
     pub include_dynamic_bodies: bool,
+}
+
+impl Default for CharacterAutostep {
+    fn default() -> Self {
+        Self {
+            max_height: CharacterLength::Relative(0.25),
+            min_width: CharacterLength::Relative(0.5),
+            include_dynamic_bodies: true,
+        }
+    }
 }
 
 impl Into<rapier3d::control::CharacterAutostep> for CharacterAutostep {
