@@ -1055,7 +1055,7 @@ pub(crate) fn filter_by_predicate(
 }
 
 impl<'a> QueryFilter<'a> {
-    fn to_native(
+    pub(crate) fn to_native(
         self,
         graph: &Graph,
         predicate: &'a dyn Fn(ColliderHandle, &Collider) -> bool,

@@ -20,6 +20,8 @@
 
 //! Scene physics module.
 
+pub mod character;
+
 use super::collider::GeometrySource;
 use crate::{
     core::{
@@ -61,6 +63,7 @@ use crate::{
 pub use rapier2d::geometry;
 use rapier2d::math::{Pose2, Vec2};
 use rapier2d::parry::query::DefaultQueryDispatcher;
+use rapier2d::pipeline::QueryPipeline;
 use rapier2d::{
     dynamics::{
         CCDSolver, GenericJoint, GenericJointBuilder, ImpulseJointHandle, ImpulseJointSet,
@@ -570,6 +573,8 @@ fn u32_to_group(v: u32) -> rapier2d::geometry::Group {
     rapier2d::geometry::Group::from_bits(v).unwrap_or_else(rapier2d::geometry::Group::all)
 }
 
+pub(crate) type FilterPredicate<'a> = Option<&'a dyn Fn(Handle<Node>, &collider::Collider) -> bool>;
+
 /// A filter tha describes what collider should be included or excluded from a scene query.
 #[derive(Copy, Clone, Default)]
 #[allow(clippy::type_complexity)]
@@ -584,7 +589,55 @@ pub struct QueryFilter<'a> {
     /// If set, any collider attached to this rigid-body will be excluded from the scene query.
     pub exclude_rigid_body: Option<Handle<Node>>,
     /// If set, any collider for which this closure returns false will be excluded from the scene query.
-    pub predicate: Option<&'a dyn Fn(Handle<Node>, &collider::Collider) -> bool>,
+    pub predicate: FilterPredicate<'a>,
+}
+
+pub(crate) fn filter_by_predicate(
+    pred: FilterPredicate,
+    handle: ColliderHandle,
+    graph: &Graph,
+    colliders: &ColliderSet,
+) -> bool {
+    if let Some(pred) = pred {
+        let h = Handle::decode_from_u128(colliders.get(handle).unwrap().user_data);
+        pred(
+            h,
+            graph
+                .node(h)
+                .self_or_field_ref::<collider::Collider>()
+                .unwrap(),
+        )
+    } else {
+        true
+    }
+}
+
+impl<'a> QueryFilter<'a> {
+    pub(crate) fn to_native(
+        self,
+        graph: &Graph,
+        predicate: &'a dyn Fn(ColliderHandle, &Collider) -> bool,
+    ) -> rapier2d::pipeline::QueryFilter<'a> {
+        rapier2d::pipeline::QueryFilter {
+            flags: rapier2d::pipeline::QueryFilterFlags::from_bits(self.flags.bits()).unwrap(),
+            groups: self.groups.map(|g| {
+                InteractionGroups::new(
+                    u32_to_group(g.memberships.0),
+                    u32_to_group(g.filter.0),
+                    Default::default(),
+                )
+            }),
+            exclude_collider: self
+                .exclude_collider
+                .and_then(|h| graph.try_get_of_type::<dim2::collider::Collider>(h).ok())
+                .map(|c| c.native.get()),
+            exclude_rigid_body: self
+                .exclude_collider
+                .and_then(|h| graph.try_get_of_type::<dim2::rigidbody::RigidBody>(h).ok())
+                .map(|c| c.native.get()),
+            predicate: Some(predicate),
+        }
+    }
 }
 
 /// The result of a time-of-impact (TOI) computation.
@@ -770,6 +823,18 @@ impl PhysicsWorld {
         );
     }
 
+    pub(crate) fn query_pipeline<'a>(
+        &'a self,
+        filter: rapier2d::pipeline::QueryFilter<'a>,
+    ) -> QueryPipeline<'a> {
+        self.broad_phase.as_query_pipeline(
+            &DefaultQueryDispatcher,
+            &self.bodies,
+            &self.colliders,
+            filter,
+        )
+    }
+
     /// Casts a ray with given options.
     pub fn cast_ray<S: QueryResultsStorage>(&self, opts: RayCastOptions, query_buffer: &mut S) {
         let time = instant::Instant::now();
@@ -850,46 +915,10 @@ impl PhysicsWorld {
         filter: QueryFilter,
     ) -> Option<(Handle<dim2::collider::Collider>, TOI)> {
         let predicate = |handle: ColliderHandle, _: &Collider| -> bool {
-            if let Some(pred) = filter.predicate {
-                let h = Handle::decode_from_u128(self.colliders.get(handle).unwrap().user_data);
-                pred(
-                    h,
-                    graph
-                        .node(h)
-                        .self_or_field_ref::<collider::Collider>()
-                        .unwrap(),
-                )
-            } else {
-                true
-            }
+            filter_by_predicate(filter.predicate, handle, graph, &self.colliders)
         };
-
-        let filter = rapier2d::pipeline::QueryFilter {
-            flags: rapier2d::pipeline::QueryFilterFlags::from_bits(filter.flags.bits()).unwrap(),
-            groups: filter.groups.map(|g| {
-                InteractionGroups::new(
-                    u32_to_group(g.memberships.0),
-                    u32_to_group(g.filter.0),
-                    Default::default(),
-                )
-            }),
-            exclude_collider: filter
-                .exclude_collider
-                .and_then(|h| graph.try_get_of_type::<dim2::collider::Collider>(h).ok())
-                .map(|c| c.native.get()),
-            exclude_rigid_body: filter
-                .exclude_collider
-                .and_then(|h| graph.try_get_of_type::<dim2::rigidbody::RigidBody>(h).ok())
-                .map(|c| c.native.get()),
-            predicate: Some(&predicate),
-        };
-
-        let query = self.broad_phase.as_query_pipeline(
-            &DefaultQueryDispatcher,
-            &self.bodies,
-            &self.colliders,
-            filter,
-        );
+        let filter = filter.to_native(graph, &predicate);
+        let query = self.query_pipeline(filter);
 
         let opts = ShapeCastOptions {
             max_time_of_impact: max_toi,
