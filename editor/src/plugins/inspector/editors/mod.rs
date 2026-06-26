@@ -199,6 +199,9 @@ use crate::{
         selection::SelectionSettings,
     },
 };
+use fyrox::scene::graph::physics::character::{
+    CharacterAutostep, CharacterLength, KinematicCharacterController,
+};
 use fyrox_build_tools::{BuildProfile, CommandDescriptor, EnvironmentVariable};
 
 pub mod animation;
@@ -685,6 +688,17 @@ pub fn make_property_editors_container(
 
     container.insert(VertexBufferPropertyEditorDefinition);
     container.insert(TriangleBufferPropertyEditorDefinition);
+
+    container.insert(InspectablePropertyEditorDefinition::<
+        KinematicCharacterController,
+    >::new());
+    container.insert(InspectablePropertyEditorDefinition::<
+        dim2::physics::character::KinematicCharacterController,
+    >::new());
+    container.insert(InspectablePropertyEditorDefinition::<CharacterAutostep>::new());
+
+    container.insert(EnumPropertyEditorDefinition::<CharacterLength>::new());
+    container.insert(EnumPropertyEditorDefinition::<CharacterLength>::new_optional());
 
     reg_node_handle_editors!(
         container,

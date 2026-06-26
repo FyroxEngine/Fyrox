@@ -36,9 +36,10 @@ use rapier3d::{
     math::Pose,
     na::Isometry3,
 };
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// A length measure used for various options of a character controller.
-#[derive(Visit, Reflect, Copy, Clone, Debug, PartialEq)]
+#[derive(Visit, Reflect, Copy, Clone, Debug, PartialEq, AsRefStr, EnumString, VariantNames)]
 #[reflect(type_uuid = "9b0843a3-dea4-46ed-91fa-7c4831302340")]
 pub enum CharacterLength {
     /// The length is specified relative to some of the character shape’s size.
