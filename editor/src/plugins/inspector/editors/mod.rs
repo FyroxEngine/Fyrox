@@ -696,6 +696,7 @@ pub fn make_property_editors_container(
         dim2::physics::character::KinematicCharacterController,
     >::new());
     container.insert(InspectablePropertyEditorDefinition::<CharacterAutostep>::new());
+    container.insert(EnumPropertyEditorDefinition::<CharacterAutostep>::new_optional());
 
     container.insert(EnumPropertyEditorDefinition::<CharacterLength>::new());
     container.insert(EnumPropertyEditorDefinition::<CharacterLength>::new_optional());
