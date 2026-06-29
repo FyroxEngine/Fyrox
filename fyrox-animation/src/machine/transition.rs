@@ -27,6 +27,7 @@ use crate::{
 };
 use fyrox_core::uuid::uuid;
 use fyrox_core::NameProvider;
+use std::ops::{Deref, DerefMut};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 macro_rules! define_two_args_node {
@@ -35,8 +36,10 @@ macro_rules! define_two_args_node {
         $(#[$meta])*
         pub struct $name <T:EntityId> {
             /// Left argument.
+            #[reflect(deref)]
             pub lhs: Box<LogicNode<T>>,
             /// Right argument.
+            #[reflect(deref)]
             pub rhs: Box<LogicNode<T>>,
         }
 
