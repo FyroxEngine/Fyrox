@@ -227,9 +227,9 @@ impl StateGraphViewer {
                                         Some(SelectedEntity::State(state_node.model_handle))
                                     } else {
                                         node_ref.self_or_field_ref::<TransitionView>().map(
-                                            |state_node| {
+                                            |transition| {
                                                 SelectedEntity::Transition(
-                                                    state_node.model_handle.into(),
+                                                    transition.model_handle.into(),
                                                 )
                                             },
                                         )

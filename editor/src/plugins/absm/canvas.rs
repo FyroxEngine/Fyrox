@@ -401,14 +401,14 @@ impl Control for AbsmCanvas {
 
         if let Some(SelectableMessage::Select(true)) = message.data() {
             if message.direction() == MessageDirection::FromWidget && !message.handled() {
-                let selected_node = message.destination();
+                let selected_entity = message.destination();
 
                 let new_selection = if ui.keyboard_modifiers().control {
                     let mut selection = self.selection.clone();
-                    selection.push(selected_node);
+                    selection.push(selected_entity);
                     selection
                 } else {
-                    vec![selected_node]
+                    vec![selected_entity]
                 };
 
                 self.set_selection(&new_selection, ui);
