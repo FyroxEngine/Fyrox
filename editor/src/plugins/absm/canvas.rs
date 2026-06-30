@@ -444,7 +444,10 @@ impl Control for AbsmCanvas {
                             self.mode = Mode::Drag {
                                 drag_context: self.make_drag_context(ui),
                             }
-                        } else {
+                        } else if self
+                            .fetch_dest_node_component::<TransitionView>(message.destination(), ui)
+                            .is_none()
+                        {
                             self.set_selection(&[], ui);
                         }
                     }
