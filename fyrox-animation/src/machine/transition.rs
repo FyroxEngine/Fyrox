@@ -75,6 +75,7 @@ define_two_args_node!(
 #[reflect(type_uuid = "3ee5dca4-8509-4251-8591-7adb4a90264b")]
 pub struct NotNode<T: EntityId> {
     /// Argument to be negated.
+    #[reflect(deref)]
     pub lhs: Box<LogicNode<T>>,
 }
 
