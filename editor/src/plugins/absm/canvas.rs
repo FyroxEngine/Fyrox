@@ -68,6 +68,10 @@ pub(crate) struct DragContext {
 #[reflect(type_uuid = "488b0b46-11ed-4eef-b58b-a52f3a71dd84")]
 pub(crate) enum Mode {
     Normal,
+    BoxSelection {
+        initial_cursor_position: Vector2<f32>,
+        current_cursor_position: Vector2<f32>,
+    },
     Drag {
         drag_context: DragContext,
     },
@@ -102,7 +106,6 @@ pub(crate) enum AbsmCanvasMessage {
         source_node: Handle<UiNode>,
         dest_nodes: Vec<Handle<UiNode>>,
     },
-
     SelectionChanged(Vec<Handle<UiNode>>),
     ForceSyncDependentObjects,
 }
@@ -364,7 +367,21 @@ impl Control for AbsmCanvas {
                     &self.material,
                 );
             }
-
+            Mode::BoxSelection {
+                initial_cursor_position,
+                current_cursor_position,
+            } => {
+                let pt_a = self.point_to_local_space(*initial_cursor_position);
+                let pt_b = self.point_to_local_space(*current_cursor_position);
+                ctx.push_rect(&Rect::from_points(pt_a, pt_b), 1.0);
+                ctx.commit(
+                    self.clip_bounds(),
+                    Brush::Solid(Color::WHITE),
+                    CommandTexture::None,
+                    &self.material,
+                    None,
+                );
+            }
             _ => {}
         }
     }
@@ -444,11 +461,22 @@ impl Control for AbsmCanvas {
                             self.mode = Mode::Drag {
                                 drag_context: self.make_drag_context(ui),
                             }
-                        } else if self
-                            .fetch_dest_node_component::<TransitionView>(message.destination(), ui)
-                            .is_none()
-                        {
-                            self.set_selection(&[], ui);
+                        } else {
+                            let transition_clicked = self
+                                .fetch_dest_node_component::<TransitionView>(
+                                    message.destination(),
+                                    ui,
+                                )
+                                .is_some();
+
+                            if !transition_clicked {
+                                self.mode = Mode::BoxSelection {
+                                    initial_cursor_position: ui.cursor_position(),
+                                    current_cursor_position: ui.cursor_position(),
+                                };
+                                ui.capture_mouse(self.handle());
+                                self.invalidate_visual();
+                            }
                         }
                     }
 
@@ -512,7 +540,31 @@ impl Control for AbsmCanvas {
 
                         self.mode = Mode::Normal;
                     }
-
+                    Mode::BoxSelection {
+                        initial_cursor_position,
+                        ref mut current_cursor_position,
+                    } => {
+                        ui.release_mouse_capture();
+                        *current_cursor_position = ui.cursor_position();
+                        let rect =
+                            Rect::from_points(initial_cursor_position, *current_cursor_position);
+                        let selection = self
+                            .children()
+                            .iter()
+                            .filter(|n| {
+                                let node = ui.node(**n);
+                                if node.is_or_has_field::<Selectable>() {
+                                    rect.intersects(node.screen_bounds())
+                                } else {
+                                    false
+                                }
+                            })
+                            .cloned()
+                            .collect::<Vec<_>>();
+                        self.set_selection(&selection, ui);
+                        self.invalidate_visual();
+                        self.mode = Mode::Normal;
+                    }
                     _ => {}
                 }
             }
@@ -544,6 +596,13 @@ impl Control for AbsmCanvas {
                     ref mut dest_pos, ..
                 } => {
                     *dest_pos = local_cursor_position;
+                }
+                Mode::BoxSelection {
+                    ref mut current_cursor_position,
+                    ..
+                } => {
+                    *current_cursor_position = ui.cursor_position();
+                    self.invalidate_visual();
                 }
                 _ => (),
             }
