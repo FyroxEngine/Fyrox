@@ -158,6 +158,26 @@ impl SkyBox {
         Ok(())
     }
 
+    /// Checks whether this skybox uses all the textures from the built in skybox or not.
+    pub fn is_built_in(&self) -> bool {
+        #[inline(always)]
+        fn is_equal(
+            texture: &Option<TextureResource>,
+            built_in: &BuiltInResource<Texture>,
+        ) -> bool {
+            texture
+                .as_ref()
+                .is_some_and(|tex| tex == &built_in.resource)
+        }
+
+        is_equal(&self.back, &BUILT_IN_SKYBOX_BACK)
+            && is_equal(&self.front, &BUILT_IN_SKYBOX_FRONT)
+            && is_equal(&self.left, &BUILT_IN_SKYBOX_LEFT)
+            && is_equal(&self.right, &BUILT_IN_SKYBOX_RIGHT)
+            && is_equal(&self.top, &BUILT_IN_SKYBOX_TOP)
+            && is_equal(&self.bottom, &BUILT_IN_SKYBOX_BOTTOM)
+    }
+
     /// Creates a cubemap using provided faces. If some face has not been provided corresponding side will be black.
     ///
     /// # Important notes.
@@ -165,6 +185,15 @@ impl SkyBox {
     /// It will fail if provided face's kind is not TextureKind::Rectangle.
     pub fn create_cubemap(&mut self) -> Result<(), SkyBoxError> {
         self.validate()?;
+
+        if LazyLock::get(&BUILT_IN_SKYBOX).is_some() && self.is_built_in() {
+            // Share the same cube map for built-in sky box to reduce memory usage. Since the built-in
+            // skybox is used by default in all scenes, the cube map without this check would be created
+            // from scratch everytime. This leads to wasted 4 Mb of RAM/VRAM per scene. This includes
+            // prefabs, since it is just a scene.
+            self.cubemap = BUILT_IN_SKYBOX.cubemap.clone();
+            return Ok(());
+        }
 
         let (kind, pixel_kind, bytes_per_face) =
             self.textures().iter().find(|face| face.is_some()).map_or(
