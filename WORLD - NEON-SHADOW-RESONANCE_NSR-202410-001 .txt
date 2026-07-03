@@ -1,0 +1,1371 @@
+Neon Shadow Resonance: The Genesis Container Mythos
+Source guide
+This technical blueprint outlines Neon Shadow Resonance, a narrative universe contained within a structured digital framework known as a Genesis Container. The story follows a cyberpunk artist’s evolution from a mainstream pop idol into a vengeful Shadow Priestess after suffering a profound corporate betrayal. Built on a 16-based Capacity Law, the world is mathematically organized into four thematic departments and sixteen distinct Mythos, ranging from the oppressive corporate heights of the Neon Canopy to the illicit, ritualistic UnderGrid. This document serves as a canonical foundation, locking in the specific locations, characters, and sensory data required to simulate a complex tale of lost love and digital rebellion.
+
+
+
+
+
+
+
+
+
+
+
+The unique world Neon Shadow Resonance has been established within a Genesis Container. This world explores the intersection of a cyberpunk pop icon's ascent to fame and her hidden identity as a Shadow Priestess, navigating a landscape of lost love and corporate betrayal.
+The structure follows the 16-based Capacity Law, organizing the universe into 16 Mythos across four thematic departments: The Digital Veil, The Persona Archetypes, The Forbidden Archive, and The Resonance Forge.
+{
+"formatVersion": "1.0",
+"packageId": "nsr-universe-001",
+"genesis_id": "NSR-202410-001",
+"name": "Neon Shadow Resonance",
+"domain": "narrative",
+"description": "The canonical Genesis Container for the Neon-Shadow Resonance world. Follows the narrative and performative journey of a cyber-punk Singer/Visual Artist who moonlights as a Shadow Priestess. Themes center on her rise to fame, a catastrophic lost love, and ultimate betrayal by her corporate label. Organized into 16 Mythos.",
+"lifecycle": "sealed",
+"sealed": true,
+"created_at": "2024-10-24T00:00:00Z",
+"capsuleCount": 64,
+"capsuleCapacity": 4096,
+"capacityLocked": true,
+"wireTypes": [
+"AGT",
+"AST",
+"AUD",
+"BHV",
+"CTL",
+"DAT",
+"ENR",
+"EVT",
+"IDN",
+"LGC",
+"NAR",
+"SOC",
+"SPA",
+"TMP",
+"VIS"
+],
+"bDnaSignature": "0x7A9B3C11E4F28D55",
+"schemaVersion": "genesis-v1.0",
+"cipherRegistered": true,
+"dependsOn": [],
+"seedAnswers": [
+{
+"id": "sq-001",
+"question": "What is the primary domain of this Genesis Container?",
+"answer": "Narrative/Worldbuilding — A cyberpunk story world centered on a musical and visual artist uncovering dark secrets.",
+"lockedAt": 1729728000000
+},
+{
+"id": "sq-002",
+"question": "What is the capacity law governing this container?",
+"answer": "16 Story Arcs (Mythos) × 16 Scenes/Locations (Containers) × 16 Lore/Entities (Capsules) = 4096 total atomic parameters",
+"lockedAt": 1729728000000
+},
+{
+"id": "sq-003",
+"question": "Who is the issuing authority?",
+"answer": "The Resonance Forge / Shadow Cult Network",
+"lockedAt": 1729728000000
+}
+],
+"assets": {
+"genesis": {
+"icon": "assets/_genesis/neon_icon.png",
+"banner": "assets/_genesis/shadow_banner.webp",
+"sealArt": "assets/_genesis/priestess_seal.png",
+"crestSvg": "assets/_genesis/resonance_crest.svg"
+}
+},
+"departments": {
+"TheDigitalVeil": {
+"modules": [
+"UnderGrid",
+"NeonCanopy",
+"ShadowNet",
+"HolographicDistricts"
+],
+"color": "#1e8cff"
+},
+"ThePersonaArchetypes": {
+"modules": [
+"TheSiren",
+"TheArchitect",
+"ThePriestess",
+"TheBetrayer"
+],
+"color": "#f4c025"
+},
+"TheForbiddenArchive": {
+"modules": [
+"ErasedMemories",
+"CrypticLedgers",
+"StolenStems",
+"EchoesOfBetrayal"
+],
+"color": "#8c50ff"
+},
+"TheResonanceForge": {
+"modules": [
+"StageMechanics",
+"DarkAmbientSynthesis",
+"VisualHexCasting",
+"AudienceUplink"
+],
+"color": "#30e060"
+}
+},
+"mythos": [
+{
+"id": "MYTH-01",
+"parentGenesisId": "NSR-202410-001",
+"name": "UnderGrid",
+"crest": "ConcreteRoots",
+"color": "#1e8cff",
+"department": "TheDigitalVeil",
+"description": "The foundational underbelly of the city. Where the Shadow Priestess conducts her illicit underground concerts and rituals. Maps physical locations, hidden clubs, and grid-leak environments.",
+"implementationStatus": "built",
+"primaryWireOut": "SPA",
+"lifecycle": "sealed",
+"capacity": 16,
+"assets": {
+"icon": "assets/MYTH-01/_meta/icon.png",
+"previewImage": "assets/MYTH-01/_meta/cover.png",
+"crestSvg": "assets/MYTH-01/_meta/crest.svg",
+"splashScreen": "assets/MYTH-01/_meta/splash.html",
+"banner": "assets/MYTH-01/_meta/banner.webp"
+},
+"containers": [
+{
+"id": "CONT-01-00",
+"parentMythosId": "MYTH-01",
+"name": "Sector Zero Ruins",
+"symbol": "SZR",
+"wireOut": "SPA",
+"description": "The collapsed original city center, now an underground cathedral for cyber-cultists.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 1 },
+"capsules": [
+{
+"id": "0x1A2B3C4D5E6F7G8H",
+"name": "Main Altar Coordinates",
+"wireType": "SPA",
+"payload": { "x": -452.1, "y": -1080.5, "z": 12.0, "zone_type": "ritual_space" },
+"lineageHash": "0x8A37B77EE646CABF",
+"createdAt": 1729728000,
+"tags": ["location", "altar", "underground"]
+},
+{
+"id": "0x8H7G6F5E4D3C2B1A",
+"name": "Acoustic Resonance Map",
+"wireType": "SPA",
+"payload": { "reverb_decay": 4.5, "echo_nodes": [12, 15, 29] },
+"lineageHash": "0xA826F09109CE9525",
+"createdAt": 1729728000,
+"tags": ["acoustics", "mapping"]
+}
+]
+},
+{
+"id": "CONT-01-01",
+"parentMythosId": "MYTH-01",
+"name": "Black-Market Venues",
+"symbol": "BMV",
+"wireOut": "SOC",
+"description": "Secret locations where illicit performances and data-drops happen.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 1 },
+"capsules": [
+{
+"id": "0x2B3C4D5E6F7G8H1A",
+"name": "The Neon Crypt",
+"wireType": "SOC",
+"payload": { "faction_control": "Shadow Cult", "capacity": 500, "bribe_level": "high" },
+"lineageHash": "0x17A22E28F8D0D08A",
+"createdAt": 1729728000,
+"tags": ["venue", "faction_hub"]
+},
+{
+"id": "0x3C4D5E6F7G8H1A2B",
+"name": "Audience Reputation Ledger",
+"wireType": "SOC",
+"payload": { "trusted_fans": 1420, "infiltrators_detected": 12 },
+"lineageHash": "0x7D279D0C1D1C873E",
+"createdAt": 1729728000,
+"tags": ["reputation", "audience"]
+}
+]
+},
+{
+"id": "CONT-01-02",
+"parentMythosId": "MYTH-01",
+"name": "Subway Transit Lines",
+"symbol": "STL",
+"wireOut": "SPA",
+"description": "Abandoned mag-lev routes used to transport the artist undetected.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 1 },
+"capsules": [
+{
+"id": "0x4D5E6F7G8H1A2B3C",
+"name": "Line 9 Ghost Route",
+"wireType": "SPA",
+"payload": { "entry_node": "Grid 4", "exit_node": "Grid 12", "active": true },
+"lineageHash": "0x48C11BE7A9C6803D",
+"createdAt": 1729728000,
+"tags": ["transit", "stealth"]
+},
+{
+"id": "0x5E6F7G8H1A2B3C4D",
+"name": "Maintenance Shaft Alpha",
+"wireType": "SPA",
+"payload": { "security_clearance": "bypass", "elevation": -200 },
+"lineageHash": "0x04746421F055C86F",
+"createdAt": 1729728000,
+"tags": ["transit", "access"]
+}
+]
+},
+{
+"id": "CONT-01-03",
+"parentMythosId": "MYTH-01",
+"name": "Forgotten Server Farms",
+"symbol": "FSF",
+"wireOut": "DAT",
+"description": "Where the old albums and forbidden visual assets are stored offline.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 2 },
+"capsules": [
+{
+"id": "0x6F7G8H1A2B3C4D5E",
+"name": "Stolen Studio Masters",
+"wireType": "DAT",
+"payload": { "file_count": 24, "encryption": "quantum", "status": "corrupted_by_lover" },
+"lineageHash": "0x163DF86FF35CC9D7",
+"createdAt": 1729728000,
+"tags": ["data", "music_stems", "betrayal"]
+},
+{
+"id": "0x7G8H1A2B3C4D5E6F",
+"name": "Priestess Visual Assets",
+"wireType": "DAT",
+"payload": { "format": ".qplugin", "size_tb": 14.2, "hologram_ready": true },
+"lineageHash": "0x7435DF88CBDEB3FB",
+"createdAt": 1729728000,
+"tags": ["data", "visuals"]
+}
+]
+},
+{
+"id": "CONT-01-04",
+"parentMythosId": "MYTH-01",
+"name": "Illicit Cyb-Clinics",
+"symbol": "ICC",
+"wireOut": "BHV",
+"description": "Underground bodyshops for vocal and optical enhancements.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 2 },
+"capsules": [
+{
+"id": "0x8H1A2B3C4D5E6F7G",
+"name": "Vocal Chord Synthesizer Mod",
+"wireType": "BHV",
+"payload": { "octave_range": 6, "distortion_cap": 0.85, "pain_tolerance": "high" },
+"lineageHash": "0xAD784D82204AB00D",
+"createdAt": 1729728000,
+"tags": ["cyberware", "vocals", "modification"]
+},
+{
+"id": "0x1A2B3C4D5E6F7G9H",
+"name": "Optical Glitch Implant",
+"wireType": "BHV",
+"payload": { "vision_mode": "shadow_spectrum", "side_effect": "hallucinations" },
+"lineageHash": "0x6239AB095EA6D9F1",
+"createdAt": 1729728000,
+"tags": ["cyberware", "vision", "risk"]
+}
+]
+},
+{
+"id": "CONT-01-05",
+"parentMythosId": "MYTH-01",
+"name": "Grid-Leak Zones",
+"symbol": "GLZ",
+"wireOut": "ENR",
+"description": "Areas where raw city power arcs through the environment, used to power rogue stages.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 2 },
+"capsules": [
+{
+"id": "0x2B3C4D5E6F7G9H1A",
+"name": "Main Transformer Tap",
+"wireType": "ENR",
+"payload": { "megawatts": 400, "stability": 0.32, "danger_level": "lethal" },
+"lineageHash": "0x079F183ADB76F88F",
+"createdAt": 1729728000,
+"tags": ["energy", "stage_power"]
+},
+{
+"id": "0x3C4D5E6F7G9H1A2B",
+"name": "Neon Coolant Rivers",
+"wireType": "ENR",
+"payload": { "flow_rate": 1500, "toxicity": "high", "visual_fx": "glowing_blue" },
+"lineageHash": "0x0EC40FA5834D19C4",
+"createdAt": 1729728000,
+"tags": ["energy", "environment", "visual"]
+}
+]
+},
+{
+"id": "CONT-01-06",
+"parentMythosId": "MYTH-01",
+"name": "Rogue AI Enclaves",
+"symbol": "RAE",
+"wireOut": "AGT",
+"description": "Sectors controlled by abandoned algorithms that produce dark-ambient tracks.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 3 },
+"capsules": [
+{
+"id": "0x4D5E6F7G9H1A2B3C",
+"name": "MUSE-7 Generator",
+"wireType": "AGT",
+"payload": { "role": "co-producer", "alignment": "chaotic_neutral", "autonomy_level": 0.9 },
+"lineageHash": "0xF38E4F6B9DB79DAA",
+"createdAt": 1729728000,
+"tags": ["ai", "music_generation"]
+},
+{
+"id": "0x5E6F7G9H1A2B3C4D",
+"name": "Security Drone Swarm",
+"wireType": "AGT",
+"payload": { "unit_count": 50, "directive": "protect_the_priestess" },
+"lineageHash": "0xB85725941A93B145",
+"createdAt": 1729728000,
+"tags": ["ai", "security"]
+}
+]
+},
+{
+"id": "CONT-01-07",
+"parentMythosId": "MYTH-01",
+"name": "Abandoned Sound Stages",
+"symbol": "ASS",
+"wireOut": "AUD",
+"description": "Where the artist filmed her first music videos before the betrayal.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 3 },
+"capsules": [
+{
+"id": "0x6F7G9H1A2B3C4D5E",
+"name": "Studio 4 Acoustic Profile",
+"wireType": "AUD",
+"payload": { "room_tone": "dead", "historical_significance": "debut_album" },
+"lineageHash": "0xE020AAF3D7A8FD21",
+"createdAt": 1729728000,
+"tags": ["audio", "history", "recording"]
+},
+{
+"id": "0x7G9H1A2B3C4D5E6F",
+"name": "Residual Echo Phenomenon",
+"wireType": "AUD",
+"payload": { "frequency": 432, "anomaly": "phantom_vocals_detected" },
+"lineageHash": "0xF7A38607E9C60C8B",
+"createdAt": 1729728000,
+"tags": ["audio", "mystery"]
+}
+]
+},
+{
+"id": "CONT-01-08",
+"parentMythosId": "MYTH-01",
+"name": "Shadow Cult Shrines",
+"symbol": "SCS",
+"wireOut": "NAR",
+"description": "Lore nodes where followers leave offerings to the Priestess persona.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 3 },
+"capsules": [
+{
+"id": "0x9H1A2B3C4D5E6F7G",
+"name": "The First Vow",
+"wireType": "NAR",
+"payload": { "text": "We sing in the static. We hide in the noise.", "author": "Unknown Disciple" },
+"lineageHash": "0xC9B4F1F6FEACF2E0",
+"createdAt": 1729728000,
+"tags": ["lore", "cult", "narrative"]
+},
+{
+"id": "0x1A2B3C4D5E6F8G9H",
+"name": "Betrayal Prophecy",
+"wireType": "NAR",
+"payload": { "text": "The corporate sun will burn her wings, but the shadow will catch her.", "foreshadowing": true },
+"lineageHash": "0x1BCF5C2A8A3F3685",
+"createdAt": 1729728000,
+"tags": ["lore", "prophecy"]
+}
+]
+},
+{
+"id": "CONT-01-09",
+"parentMythosId": "MYTH-01",
+"name": "Neon-Slum Housing",
+"symbol": "NSH",
+"wireOut": "SPA",
+"description": "Dense, procedurally generated residential blocks.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 4 },
+"capsules": [
+{
+"id": "0x2B3C4D5E6F8G9H1A",
+"name": "Block 99 Topology",
+"wireType": "SPA",
+"payload": { "vertical_density": 0.95, "pathfinding_complexity": "extreme" },
+"lineageHash": "0x6D5F0D0CB09F2BE2",
+"createdAt": 1729728000,
+"tags": ["spatial", "housing"]
+},
+{
+"id": "0x3C4D5E6F8G9H1A2B",
+"name": "Artist Safehouse",
+"wireType": "SPA",
+"payload": { "hidden": true, "defenses": "biometric_lock" },
+"lineageHash": "0xF3CD328AED75B270",
+"createdAt": 1729728000,
+"tags": ["spatial", "safehouse"]
+}
+]
+},
+{
+"id": "CONT-01-10",
+"parentMythosId": "MYTH-01",
+"name": "Smuggler Routes",
+"symbol": "SMR",
+"wireOut": "SPA",
+"description": "Physical logic pathways for moving contraband audio gear.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 4 },
+"capsules": [
+{
+"id": "0x4D5E6F8G9H1A2B3C",
+"name": "The Synth Run",
+"wireType": "SPA",
+"payload": { "risk_level": "moderate", "choke_points": 3 },
+"lineageHash": "0xF23E213715A48E0E",
+"createdAt": 1729728000,
+"tags": ["route", "smuggling"]
+},
+{
+"id": "0x5E6F8G9H1A2B3C4D",
+"name": "Blind Spot Map",
+"wireType": "SPA",
+"payload": { "camera_evasion_zones": [ { "x": 12, "y": 45 }, { "x": 88, "y": 91 } ] },
+"lineageHash": "0xFEF5667495AEFAD8",
+"createdAt": 1729728000,
+"tags": ["route", "stealth"]
+}
+]
+},
+{
+"id": "CONT-01-11",
+"parentMythosId": "MYTH-01",
+"name": "The Abyss Firewall",
+"symbol": "ABF",
+"wireOut": "CTL",
+"description": "Logic gates separating the corporate grid from the underground.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 4 },
+"capsules": [
+{
+"id": "0x6F8G9H1A2B3C4D5E",
+"name": "Corporate Intrusion Trigger",
+"wireType": "CTL",
+"payload": { "condition": "if (corp_ping == true) { execute_purge() }" },
+"lineageHash": "0xE19213C6F3577ADB",
+"createdAt": 1729728000,
+"tags": ["control", "security"]
+},
+{
+"id": "0x7G8H9H1A2B3C4D5E",
+"name": "Backdoor Access Switch",
+"wireType": "CTL",
+"payload": { "state": "open", "authorized_identities": ["The Priestess"] },
+"lineageHash": "0x5B5B4E55F779EB1A",
+"createdAt": 1729728000,
+"tags": ["control", "bypass"]
+}
+]
+},
+{
+"id": "CONT-01-12",
+"parentMythosId": "MYTH-01",
+"name": "Phantom Broadcast Towers",
+"symbol": "PBT",
+"wireOut": "AUD",
+"description": "Pirate radio stations playing the Artist's unreleased tracks.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 4 },
+"capsules": [
+{
+"id": "0x8H9H1A2B3C4D5E6F",
+"name": "Tower Alpha Stream",
+"wireType": "AUD",
+"payload": { "frequency": "104.4 FM", "current_track": "Betrayal_Stem_01.wav" },
+"lineageHash": "0x308FB9523063E042",
+"createdAt": 1729728000,
+"tags": ["audio", "broadcast"]
+},
+{
+"id": "0x9H1A2B3C4D5E6F8G",
+"name": "Interference Pattern",
+"wireType": "AUD",
+"payload": { "noise_floor": 0.4, "encrypted_message": "Find me in the shadow" },
+"lineageHash": "0x6514BE0F1657ACBB",
+"createdAt": 1729728000,
+"tags": ["audio", "encryption"]
+}
+]
+},
+{
+"id": "CONT-01-13",
+"parentMythosId": "MYTH-01",
+"name": "Hologram Graveyard",
+"symbol": "HLG",
+"wireOut": "VIS",
+"description": "A dump site for discarded corporate mascots, reprogrammed into ritual totems.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 4 },
+"capsules": [
+{
+"id": "0x1A3B5C7D9E1F3G5H",
+"name": "Corrupted Idol Shader",
+"wireType": "VIS",
+"payload": { "glitch_intensity": 0.8, "base_color": "#ff0055", "model_ref": "idol_v2.obj" },
+"lineageHash": "0xD868FFDA9A478DE8",
+"createdAt": 1729728000,
+"tags": ["visual", "glitch", "idol"]
+},
+{
+"id": "0x2B4C6D8E0F2G4H6A",
+"name": "Ritual Aura Emitter",
+"wireType": "VIS",
+"payload": { "particle_type": "shadow_smoke", "emission_rate": 500 },
+"lineageHash": "0x359C7F8E2CAC72EE",
+"createdAt": 1729728000,
+"tags": ["visual", "particles", "ritual"]
+}
+]
+},
+{
+"id": "CONT-01-14",
+"parentMythosId": "MYTH-01",
+"name": "Sub-level Hydroponics",
+"symbol": "SLH",
+"wireOut": "ENR",
+"description": "Bioluminescent flora providing ambient light and chemical energy.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 4 },
+"capsules": [
+{
+"id": "0x3C5D7E9F1G3H5A7B",
+"name": "Bio-Light Canopy",
+"wireType": "ENR",
+"payload": { "lux_output": 250, "color": "cyan_glow" },
+"lineageHash": "0x9F2F3E5E26060932",
+"createdAt": 1729728000,
+"tags": ["energy", "botanical"]
+},
+{
+"id": "0x4D6E8F0G2H4A6B8C",
+"name": "Toxic Spore Cloud",
+"wireType": "ENR",
+"payload": { "hazard_radius": 15, "damage_per_tick": 2 },
+"lineageHash": "0xDD079D4F60D6D631",
+"createdAt": 1729728000,
+"tags": ["energy", "hazard"]
+}
+]
+},
+{
+"id": "CONT-01-15",
+"parentMythosId": "MYTH-01",
+"name": "Memory-Wipe Alley",
+"symbol": "MWA",
+"wireOut": "IDN",
+"description": "Where the protagonist erased her former identity after the betrayal.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 4 },
+"capsules": [
+{
+"id": "0x5E7F9G1H3A5B7C9D",
+"name": "Shattered B-DNA Core",
+"wireType": "IDN",
+"payload": { "original_name": "[REDACTED]", "new_alias": "The Shadow Priestess", "covenant": "broken" },
+"lineageHash": "0xD9F99F1983AE9C5B",
+"createdAt": 1729728000,
+"tags": ["identity", "rebirth"]
+},
+{
+"id": "0x6F8G0H2A4B6C8D0E",
+"name": "The Betrayer's Fingerprint",
+"wireType": "IDN",
+"payload": { "target_id": "Executive_Vance", "relationship_status": "hostile" },
+"lineageHash": "0xA814989F76326136",
+"createdAt": 1729728000,
+"tags": ["identity", "antagonist"]
+}
+]
+}
+]
+},
+{
+"id": "MYTH-02",
+"parentGenesisId": "NSR-202410-001",
+"name": "NeonCanopy",
+"crest": "Skyline",
+"color": "#8050e0",
+"department": "TheDigitalVeil",
+"description": "The oppressive corporate stratosphere. Gleaming megastructures where the Artist once reigned as a pop idol before her fall from grace.",
+"implementationStatus": "built",
+"primaryWireOut": "VIS",
+"lifecycle": "sealed",
+"capacity": 16,
+"assets": {
+"icon": "assets/MYTH-02/_meta/icon.png",
+"previewImage": "assets/MYTH-02/_meta/cover.png",
+"crestSvg": "assets/MYTH-02/_meta/crest.svg",
+"splashScreen": "assets/MYTH-02/_meta/splash.html",
+"banner": "assets/MYTH-02/_meta/banner.webp"
+},
+"containers": [
+{
+"id": "CONT-02-00",
+"parentMythosId": "MYTH-02",
+"name": "Mega-Corp Billboards",
+"symbol": "MCB",
+"wireOut": "VIS",
+"description": "Towering holographic ads showing the Artist's corporate replacement.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 1 },
+"capsules": [
+{
+"id": "0x7G9H1A3B5C7D9E1F",
+"name": "Idol Replacement Visual",
+"wireType": "VIS",
+"payload": { "model": "synth_idol_v4", "brightness": 1.5, "glitch_hack_active": false },
+"lineageHash": "0x7A7162D97924C58A",
+"createdAt": 1729728000,
+"tags": ["visual", "corporate", "propaganda"]
+},
+{
+"id": "0x8H0A2B4C6D8E0F2G",
+"name": "Subliminal Messaging Layer",
+"wireType": "VIS",
+"payload": { "hidden_text": "OBEY THE LABEL", "opacity": 0.05 },
+"lineageHash": "0x2B1F1DA5244B7826",
+"createdAt": 1729728000,
+"tags": ["visual", "subliminal"]
+}
+]
+},
+{
+"id": "CONT-02-01",
+"parentMythosId": "MYTH-02",
+"name": "Aerial Traffic Corridors",
+"symbol": "ATC",
+"wireOut": "SPA",
+"description": "High-altitude flight paths for executive transports.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 1 },
+"capsules": [
+{
+"id": "0x9A1B3C5D7E9F1G3H",
+"name": "V-TOL Lane Alpha",
+"wireType": "SPA",
+"payload": { "altitude": 3500, "speed_limit": 400, "clearance_required": "Level_9" },
+"lineageHash": "0xBCA336BE3044F7DE",
+"createdAt": 1729728000,
+"tags": ["spatial", "traffic"]
+},
+{
+"id": "0x0B2C4D6E8F0G2H4A",
+"name": "Sniper Vantage Point",
+"wireType": "SPA",
+"payload": { "coordinates": [400, 3200, -150], "line_of_sight": "Penthouse_Balcony" },
+"lineageHash": "0xC808C68BBAD87EA8",
+"createdAt": 1729728000,
+"tags": ["spatial", "tactical"]
+}
+]
+},
+{
+"id": "CONT-02-02",
+"parentMythosId": "MYTH-02",
+"name": "Elite Penthouses",
+"symbol": "EPH",
+"wireOut": "SOC",
+"description": "Opulent living spaces of the label executives.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 1 },
+"capsules": [
+{
+"id": "0x1C3D5E7F9G1H3A5B",
+"name": "Vance's Sanctuary",
+"wireType": "SOC",
+"payload": { "owner": "Executive_Vance", "security_rating": 9.9 },
+"lineageHash": "0x50D0673DF556F1C5",
+"createdAt": 1729728000,
+"tags": ["society", "antagonist_lair"]
+},
+{
+"id": "0x2D4E6F8G0H2A4B6C",
+"name": "Corporate Social Ledger",
+"wireType": "SOC",
+"payload": { "vance_reputation": "untouchable", "allied_factions": ["Media_Conglomerate", "Sec-Forces"] },
+"lineageHash": "0xE021ED43441935BE",
+"createdAt": 1729728000,
+"tags": ["society", "reputation"]
+}
+]
+},
+{
+"id": "CONT-02-03",
+"parentMythosId": "MYTH-02",
+"name": "Surveillance Drones",
+"symbol": "SVD",
+"wireOut": "AGT",
+"description": "AI-driven cameras hunting for the missing artist.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 2 },
+"capsules": [
+{
+"id": "0x3E5F7G9H1A3B5C7D",
+"name": "Hunter-Seeker AI Node",
+"wireType": "AGT",
+"payload": { "target_facial_recognition": "Artist_Profile_Archived", "aggression": 0.8 },
+"lineageHash": "0x5D00592F651FE727",
+"createdAt": 1729728000,
+"tags": ["agent", "surveillance"]
+},
+{
+"id": "0x4F6G8H0A2B4C6D8E",
+"name": "Drone Hive Mind",
+"wireType": "AGT",
+"payload": { "patrol_pattern": "randomized_canopy", "sync_rate": 0.05 },
+"lineageHash": "0x645427E820B7985D",
+"createdAt": 1729728000,
+"tags": ["agent", "swarm"]
+}
+]
+},
+{
+"id": "CONT-02-04",
+"parentMythosId": "MYTH-02",
+"name": "Skyline Broadcasting",
+"symbol": "SLB",
+"wireOut": "AUD",
+"description": "The official corporate radio networks filling the city with sanitized pop.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 2 },
+"capsules": [
+{
+"id": "0x5G7H9A1B3C5D7E9F",
+"name": "Sanitized Pop Stem",
+"wireType": "AUD",
+"payload": { "bpm": 128, "vocal_tuning": "maximum_autotune", "prompt": "upbeat, empty corporate pop" },
+"lineageHash": "0x2810C030BF2A1E37",
+"createdAt": 1729728000,
+"tags": ["audio", "corporate"]
+},
+{
+"id": "0x6H8A0B2C4D6E8F0G",
+"name": "Audio Override Trigger",
+"wireType": "AUD",
+"payload": { "hack_ready": true, "payload_track": "Shadow_Ritual_Anthem.wav" },
+"lineageHash": "0xA52870E7F71B4068",
+"createdAt": 1729728000,
+"tags": ["audio", "hack", "rebellion"]
+}
+]
+},
+{
+"id": "CONT-02-05",
+"parentMythosId": "MYTH-02",
+"name": "Weather Control Grid",
+"symbol": "WCG",
+"wireOut": "ENR",
+"description": "Energy systems that keep the upper city clear and push acid rain to the slums.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 2 },
+"capsules": [
+{
+"id": "0x7A9B1C3D5E7F9G1H",
+"name": "Cloud Dispersal Laser",
+"wireType": "ENR",
+"payload": { "energy_draw": 5000, "status": "active", "beam_color": "invisible" },
+"lineageHash": "0x05E06BD13C4B5B6D",
+"createdAt": 1729728000,
+"tags": ["energy", "weather"]
+},
+{
+"id": "0x8B0C2D4E6F8G0H2A",
+"name": "Acid Rain Deflector Shield",
+"wireType": "ENR",
+"payload": { "coverage_radius": 2000, "power_efficiency": 0.98 },
+"lineageHash": "0xC6901DE487465498",
+"createdAt": 1729728000,
+"tags": ["energy", "shield"]
+}
+]
+},
+{
+"id": "CONT-02-06",
+"parentMythosId": "MYTH-02",
+"name": "Neon Light Sculptures",
+"symbol": "NLS",
+"wireOut": "VIS",
+"description": "Massive kinetic art pieces decorating the corporate sector.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 3 },
+"capsules": [
+{
+"id": "0x9C1D3E5F7G9H1A3B",
+"name": "The Platinum Helix",
+"wireType": "VIS",
+"payload": { "color_palette": ["#ffffff", "#cccccc", "#ffb3ff"], "spin_rate": 0.5 },
+"lineageHash": "0xFA5A5DFAD0F29615",
+"createdAt": 1729728000,
+"tags": ["visual", "sculpture"]
+},
+{
+"id": "0x0D2E4F6G8H0A2B4C",
+"name": "Vance Corp Logo Projection",
+"wireType": "VIS",
+"payload": { "scale": 100, "material": "solid_hologram" },
+"lineageHash": "0x7E635B5C5286BAA1",
+"createdAt": 1729728000,
+"tags": ["visual", "logo"]
+}
+]
+},
+{
+"id": "CONT-02-07",
+"parentMythosId": "MYTH-02",
+"name": "VIP Nightclubs",
+"symbol": "VNC",
+"wireOut": "SOC",
+"description": "Exclusive clubs where the betrayal was first plotted.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 3 },
+"capsules": [
+{
+"id": "0x1E3F5G7H9A1B3C5D",
+"name": "Club Zenith",
+"wireType": "SOC",
+"payload": { "entry_requirement": "Platinum_DNA", "current_event": "Label Launch Party" },
+"lineageHash": "0xCE21CF6AE39014A3",
+"createdAt": 1729728000,
+"tags": ["society", "club"]
+},
+{
+"id": "0x2F4G6H8A0B2C4D6E",
+"name": "The Velvet Room Betrayal Scene",
+"wireType": "SOC",
+"payload": { "actors_present": ["Vance", "The Siren"], "memory_locked": true },
+"lineageHash": "0x4E302A4FA6618293",
+"createdAt": 1729728000,
+"tags": ["society", "memory", "plot_point"]
+}
+]
+},
+{
+"id": "CONT-02-08",
+"parentMythosId": "MYTH-02",
+"name": "Canopy Security Hubs",
+"symbol": "CSH",
+"wireOut": "CTL",
+"description": "Centralized control centers for upper city enforcement.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 3 },
+"capsules": [
+{
+"id": "0x3G5H7A9B1C3D5E7F",
+"name": "Sector 1 Lockdown Protocol",
+"wireType": "CTL",
+"payload": { "trigger_condition": "unauthorized_audio_broadcast", "action": "deploy_emp" },
+"lineageHash": "0xBAA58E6BD29AE86C",
+"createdAt": 1729728000,
+"tags": ["control", "lockdown"]
+},
+{
+"id": "0x4H6A8B0C2D4E6F8G",
+"name": "Turret Control Array",
+"wireType": "CTL",
+"payload": { "active_turrets": 24, "target_priority": "shadow_entities" },
+"lineageHash": "0x825E3EE8FF4A7AF4",
+"createdAt": 1729728000,
+"tags": ["control", "weapons"]
+}
+]
+},
+{
+"id": "CONT-02-09",
+"parentMythosId": "MYTH-02",
+"name": "Corporate Databanks",
+"symbol": "CDB",
+"wireOut": "DAT",
+"description": "Servers holding the artist's stolen royalties and intellectual property contracts.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 4 },
+"capsules": [
+{
+"id": "0x5A7B9C1D3E5F7G9H",
+"name": "Contract 88-B",
+"wireType": "DAT",
+"payload": { "terms": "perpetual_soul_ownership", "signatory": "The Siren", "status": "contested" },
+"lineageHash": "0x7A935D5B45CCEFE0",
+"createdAt": 1729728000,
+"tags": ["data", "contract", "lore"]
+},
+{
+"id": "0x6B8C0D2E4F6G8H0A",
+"name": "Royalty Escrow Account",
+"wireType": "DAT",
+"payload": { "balance": 1500000000, "frozen": true },
+"lineageHash": "0xEC6D1C887FAB3586",
+"createdAt": 1729728000,
+"tags": ["data", "finance"]
+}
+]
+},
+{
+"id": "CONT-02-10",
+"parentMythosId": "MYTH-02",
+"name": "Executive Transport Pads",
+"symbol": "ETP",
+"wireOut": "SPA",
+"description": "Helipads for corporate escape routes.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 4 },
+"capsules": [
+{
+"id": "0x7C9D1E3F5G7H9A1B",
+"name": "Vance's Personal Pad",
+"wireType": "SPA",
+"payload": { "x": 1200, "y": 4500, "z": 800, "vehicle_ready": true },
+"lineageHash": "0xA14E86A089A0A655",
+"createdAt": 1729728000,
+"tags": ["spatial", "escape"]
+},
+{
+"id": "0x8D0E2F4G6H8A0B2C",
+"name": "Rooftop Edge Geometry",
+"wireType": "SPA",
+"payload": { "drop_depth": 4000, "wind_shear": "high" },
+"lineageHash": "0x5D5EE126539D6255",
+"createdAt": 1729728000,
+"tags": ["spatial", "hazard"]
+}
+]
+},
+{
+"id": "CONT-02-11",
+"parentMythosId": "MYTH-02",
+"name": "Holographic Idols",
+"symbol": "HGI",
+"wireOut": "VIS",
+"description": "Constructs designed to replace the human artist.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 4 },
+"capsules": [
+{
+"id": "0x9E1F3G5H7A9B1C3D",
+"name": "Echo-01 Model",
+"wireType": "VIS",
+"payload": { "mesh_data": "perfect_symmetry", "uncanny_valley_index": 0.8 },
+"lineageHash": "0x321EE70BFB7CBAAC",
+"createdAt": 1729728000,
+"tags": ["visual", "model", "fake"]
+},
+{
+"id": "0x0F2G4H6A8B0C2D4E",
+"name": "Stolen Persona Mappings",
+"wireType": "VIS",
+"payload": { "source": "The Siren", "application": "Echo_Series_Idols" },
+"lineageHash": "0x47DF04518AC82B4D",
+"createdAt": 1729728000,
+"tags": ["visual", "data_theft"]
+}
+]
+},
+{
+"id": "CONT-02-12",
+"parentMythosId": "MYTH-02",
+"name": "Stratosphere Studios",
+"symbol": "STS",
+"wireOut": "AUD",
+"description": "High-end recording suites where pop tracks are engineered.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 4 },
+"capsules": [
+{
+"id": "0x1G3H5A7B9C1D3E5F",
+"name": "Vocal Isolation Booth",
+"wireType": "AUD",
+"payload": { "reverb": 0.0, "noise_cancellation": "absolute" },
+"lineageHash": "0x32029ADBC4028FD6",
+"createdAt": 1729728000,
+"tags": ["audio", "studio"]
+},
+{
+"id": "0x2H4A6B8C0D2E4F6G",
+"name": "AI Producer Rack",
+"wireType": "AUD",
+"payload": { "algorithm": "hit_maker_v9", "soul_metric": 0.01 },
+"lineageHash": "0x4AB5E692C008250A",
+"createdAt": 1729728000,
+"tags": ["audio", "ai", "corporate"]
+}
+]
+},
+{
+"id": "CONT-02-13",
+"parentMythosId": "MYTH-02",
+"name": "Atmospheric Condensers",
+"symbol": "ATC",
+"wireOut": "TMP",
+"description": "Clock signals regulating the artificial day/night cycles of the canopy.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 4 },
+"capsules": [
+{
+"id": "0x3A5B7C9D1E3F5G7H",
+"name": "Artificial Dawn Timer",
+"wireType": "TMP",
+"payload": { "trigger_time": "06:00:00", "duration": "12_hours" },
+"lineageHash": "0x063A7AE40EEF592D",
+"createdAt": 1729728000,
+"tags": ["time", "environment"]
+},
+{
+"id": "0x4B6C8D0E2F4G6H8A",
+"name": "Perpetual Golden Hour Override",
+"wireType": "TMP",
+"payload": { "status": "active_for_executives", "target_zone": "Penthouses" },
+"lineageHash": "0x9B9B0DDE9B61DD78",
+"createdAt": 1729728000,
+"tags": ["time", "override"]
+}
+]
+},
+{
+"id": "CONT-02-14",
+"parentMythosId": "MYTH-02",
+"name": "Glitch-Art Installations",
+"symbol": "GAI",
+"wireOut": "VIS",
+"description": "Vandalized corporate art, hacked by the Shadow Priestess's followers.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 4 },
+"capsules": [
+{
+"id": "0x5C7D9E1F3G5H7A9B",
+"name": "Hacked Monument",
+"wireType": "VIS",
+"payload": { "original_form": "Vance Statue", "current_form": "Bleeding Skull" },
+"lineageHash": "0xE8723F0D11A7B5CC",
+"createdAt": 1729728000,
+"tags": ["visual", "vandalism", "rebellion"]
+},
+{
+"id": "0x6D8E0F2G4H6A8B0C",
+"name": "Subversive Color Palette",
+"wireType": "VIS",
+"payload": { "colors": ["#000000", "#ff0000", "#330033"] },
+"lineageHash": "0x6F6335F82D43E627",
+"createdAt": 1729728000,
+"tags": ["visual", "palette", "shadow"]
+}
+]
+},
+{
+"id": "CONT-02-15",
+"parentMythosId": "MYTH-02",
+"name": "The Upper Firewall",
+"symbol": "UFW",
+"wireOut": "LGC",
+"description": "Final logic barrier protecting the executives from digital and physical assassination.",
+"capacity": 16,
+"lifecycle": "sealed",
+"metadata": { "layer": 4 },
+"capsules": [
+{
+"id": "0x7E9F1G3H5A7B9C1D",
+"name": "Identity Verification Loop",
+"wireType": "LGC",
+"payload": { "condition": "dna_match && bio_rhythm_sync", "failure_penalty": "lethal_shock" },
+"lineageHash": "0xCFD4EE639924FBE4",
+"createdAt": 1729728000,
+"tags": ["logic", "security", "firewall"]
+},
+{
+"id": "0x8F0G2H4A6B8C0D2E",
+"name": "The Priestess Paradox (Hack)",
+"wireType": "LGC",
+"payload": { "exploit": "null_pointer_identity", "success_rate": 0.12 },
+"lineageHash": "0x272CC2F7FE75695D",
+"createdAt": 1729728000,
+"tags": ["logic", "hack", "bypass"]
+}
+]
+}
+]
+},
+{
+"id": "MYTH-03",
+"parentGenesisId": "NSR-202410-001",
+"name": "ShadowNet",
+"crest": "Nodes",
+"color": "#1e8cff",
+"department": "TheDigitalVeil",
+"description": "Decentralized mesh network running below the city's tracking systems.",
+"implementationStatus": "shell",
+"primaryWireOut": "DAT",
+"lifecycle": "sealed",
+"capacity": 16,
+"containers": []
+},
+{
+"id": "MYTH-04",
+"parentGenesisId": "NSR-202410-001",
+"name": "HolographicDistricts",
+"crest": "Prism",
+"color": "#1e8cff",
+"department": "TheDigitalVeil",
+"description": "Sectors of the city entirely composed of hard-light and augmented reality.",
+"implementationStatus": "shell",
+"primaryWireOut": "VIS",
+"lifecycle": "sealed",
+"capacity": 16,
+"containers": []
+},
+{
+"id": "MYTH-05",
+"parentGenesisId": "NSR-202410-001",
+"name": "TheSiren",
+"crest": "Microphone",
+"color": "#f4c025",
+"department": "ThePersonaArchetypes",
+"description": "The original pop-star identity. Represents the past, innocence, and mainstream appeal.",
+"implementationStatus": "shell",
+"primaryWireOut": "IDN",
+"lifecycle": "sealed",
+"capacity": 16,
+"containers": []
+},
+{
+"id": "MYTH-06",
+"parentGenesisId": "NSR-202410-001",
+"name": "TheArchitect",
+"crest": "Eye",
+"color": "#f4c025",
+"department": "ThePersonaArchetypes",
+"description": "The visual designer identity. Builds the concert geometries and hacking tools.",
+"implementationStatus": "shell",
+"primaryWireOut": "IDN",
+"lifecycle": "sealed",
+"capacity": 16,
+"containers": []
+},
+{
+"id": "MYTH-07",
+"parentGenesisId": "NSR-202410-001",
+"name": "ThePriestess",
+"crest": "Hood",
+"color": "#f4c025",
+"department": "ThePersonaArchetypes",
+"description": "The dark, evolved identity. Channels audience energy into digital rituals.",
+"implementationStatus": "shell",
+"primaryWireOut": "IDN",
+"lifecycle": "sealed",
+"capacity": 16,
+"containers": []
+},
+{
+"id": "MYTH-08",
+"parentGenesisId": "NSR-202410-001",
+"name": "TheBetrayer",
+"crest": "Dagger",
+"color": "#f4c025",
+"department": "ThePersonaArchetypes",
+"description": "Executive Vance and the former lover who sold her out. The antagonist forces.",
+"implementationStatus": "shell",
+"primaryWireOut": "SOC",
+"lifecycle": "sealed",
+"capacity": 16,
+"containers": []
+},
+{
+"id": "MYTH-09",
+"parentGenesisId": "NSR-202410-001",
+"name": "ErasedMemories",
+"crest": "BrokenGlass",
+"color": "#8c50ff",
+"department": "TheForbiddenArchive",
+"description": "Narrative sequences detailing the protagonist's lost past and deleted cyber-logs.",
+"implementationStatus": "shell",
+"primaryWireOut": "NAR",
+"lifecycle": "sealed",
+"capacity": 16,
+"containers": []
+},
+{
+"id": "MYTH-10",
+"parentGenesisId": "NSR-202410-001",
+"name": "CrypticLedgers",
+"crest": "Padlock",
+"color": "#8c50ff",
+"department": "TheForbiddenArchive",
+"description": "The hidden financial and social truths driving the corporate dystopia.",
+"implementationStatus": "shell",
+"primaryWireOut": "DAT",
+"lifecycle": "sealed",
+"capacity": 16,
+"containers": []
+},
+{
+"id": "MYTH-11",
+"parentGenesisId": "NSR-202410-001",
+"name": "StolenStems",
+"crest": "Waveform",
+"color": "#8c50ff",
+"department": "TheForbiddenArchive",
+"description": "Audio fragments of the legendary unreleased album that sparked the betrayal.",
+"implementationStatus": "shell",
+"primaryWireOut": "AUD",
+"lifecycle": "sealed",
+"capacity": 16,
+"containers": []
+},
+{
+"id": "MYTH-12",
+"parentGenesisId": "NSR-202410-001",
+"name": "EchoesOfBetrayal",
+"crest": "Shadow",
+"color": "#8c50ff",
+"department": "TheForbiddenArchive",
+"description": "Climactic narrative moments and confrontations stored as emotional playback.",
+"implementationStatus": "shell",
+"primaryWireOut": "NAR",
+"lifecycle": "sealed",
+"capacity": 16,
+"containers": []
+},
+{
+"id": "MYTH-13",
+"parentGenesisId": "NSR-202410-001",
+"name": "StageMechanics",
+"crest": "Gear",
+"color": "#30e060",
+"department": "TheResonanceForge",
+"description": "The physical and holographic mechanisms used in her underground concerts.",
+"implementationStatus": "shell",
+"primaryWireOut": "CTL",
+"lifecycle": "sealed",
+"capacity": 16,
+"containers": []
+},
+{
+"id": "MYTH-14",
+"parentGenesisId": "NSR-202410-001",
+"name": "DarkAmbientSynthesis",
+"crest": "Synth",
+"color": "#30e060",
+"department": "TheResonanceForge",
+"description": "The generative audio pipelines creating her new sound.",
+"implementationStatus": "shell",
+"primaryWireOut": "AUD",
+"lifecycle": "sealed",
+"capacity": 16,
+"containers": []
+},
+{
+"id": "MYTH-15",
+"parentGenesisId": "NSR-202410-001",
+"name": "VisualHexCasting",
+"crest": "Rune",
+"color": "#30e060",
+"department": "TheResonanceForge",
+"description": "VFX shaders that act as cognitive hacks on the corporate audience.",
+"implementationStatus": "shell",
+"primaryWireOut": "VIS",
+"lifecycle": "sealed",
+"capacity": 16,
+"containers": []
+},
+{
+"id": "MYTH-16",
+"parentGenesisId": "NSR-202410-001",
+"name": "AudienceUplink",
+"crest": "Signal",
+"color": "#30e060",
+"department": "TheResonanceForge",
+"description": "Network event routers handling live interaction and ritual feedback from fans.",
+"implementationStatus": "shell",
+"primaryWireOut": "EVT",
+"lifecycle": "sealed",
+"capacity": 16,
+"containers": []
+}
+],
+"seal": {
+"sealId": "NSR_PRIESTESS_SEAL_V1",
+"status": "sealed",
+"sealed_at": 1729728000,
+"sealedAtMs": 1729728000000,
+"algorithm": "AES-256-GCM",
+"kdf": "Argon2id",
+"sealFileRequired": true,
+"cipherVaultRef": "vault://cipher/keys/nsr-universe-001",
+"lineage_hash": "0xDB99F7228E6E7A63",
+"note": "World physics locked. The Betrayal is canon. The Priestess seeks her revenge."
+},
+"meta": {
+"protocol": "16x16x16_FRACTAL_LOGIC",
+"schema_version": "genesis-v1.0",
+"biospark_certified": true,
+"bdna_signature": "0x7A9B3C11E4F28D55",
+"generated_by": "KALYX-16 Procedural Generator",
+"migrated_to_qgcp": "2024-10-24"
+}
+}

@@ -1,0 +1,2770 @@
+
+QQ-Tech-Manual-COMPLETE.txt
+
+Page
+1
+/
+1
+100%
+╔══════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                ║
+║          Q U A N T U M   Q U I L L   —   T E C H N I C A L   M A N U A L      ║
+║                                                                                ║
+║                     BioSpark Studios  ·  Internal Reference                   ║
+║                     Version 2.0  ·  Compiled June 2026                        ║
+║                                                                                ║
+╚══════════════════════════════════════════════════════════════════════════════════╝
+
+"Genesis is a narrative engine. Rendering is a consequence."
+                                              — The Prime Law, myth-os Architecture
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                             TABLE OF CONTENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PART I    PROJECT FOUNDATION
+  Ch. 1   Origin & Philosophy
+  Ch. 2   Glossary of Core Terms
+  Ch. 3   Design Principles
+
+PART II   SYSTEM ARCHITECTURE
+  Ch. 4   The Three-Layer Architecture
+  Ch. 5   myth-os Workspace Layout
+  Ch. 6   Process Model & TCP Communication
+  Ch. 7   Wire Type System
+  Ch. 8   B-DNA Lineage System
+
+PART III  VAULT SYSTEM
+  Ch. 9   Vault Overview & Data Model
+  Ch. 10  Vault API Reference
+  Ch. 11  Vault CLI Reference
+
+PART IV   CONTAINER & CAPSULE SYSTEM
+  Ch. 12  Genesis Container Architecture
+  Ch. 13  Octave Capacity Law
+  Ch. 14  Growth Modes: Fixed vs. Dynamic
+  Ch. 15  Container Hierarchy — Rust Structs
+  Ch. 16  Capacity Enforcement & Insertion Rules
+
+PART V    AGENT SYSTEM
+  Ch. 17  Quantum Agent Overview
+  Ch. 18  Rust Kernel — Aetherium Loom (8 Crates)
+  Ch. 19  Python/FastAPI Agent (FORGE · BRIDGE · CORTEX)
+  Ch. 20  LLM Routing — Ollama Local-First Architecture
+
+PART VI   QUANTUM MODULES
+  Ch. 21  Module Registry Overview
+  Ch. 22  Dept I — World Construction
+  Ch. 23  Dept II — Entity Systems
+  Ch. 24  Dept III — Narrative Systems
+  Ch. 25  Dept IV — Pipeline Systems
+  Ch. 26  Module Independence Law
+
+PART VII  HERALDRY & SYMBOLIC TAXONOMY
+  Ch. 27  Overview — 20 Symbolic Types
+  Ch. 28  Level 1: Seals (Greater & Lesser)
+  Ch. 29  Level 2: Crests
+  Ch. 30  Level 3: Glyphs, Devices, Emblems
+  Ch. 31  Level 4: Traits, Marks, Tokens, Sigils
+  Ch. 32  Three-Way Alignment Requirement
+
+PART VIII FACTION SYSTEM
+  Ch. 33  Five Factions — World-Agnostic Aesthetic Presets
+  Ch. 34  Faction Conditioning — LLM & Suno Integration
+  Ch. 35  Multi-Faction Blending
+
+PART IX   XYRONA PRIME & ORDER OF THE QUANTUM QUILL
+  Ch. 36  Xyrona Prime — The Mythic Universe
+  Ch. 37  The Seven Races & Resonance Frequencies
+  Ch. 38  The Order of the Quantum Quill — 8 Members
+  Ch. 39  RULE-EQUIL-02 & World Resonance Balance
+  Ch. 40  The Myralith — 7 Debug Nodes
+
+PART X    NARRATIVE ENGINE — LOOM & SEQUENCER
+  Ch. 41  LoomEngine — 5-Stage Pipeline
+  Ch. 42  Quantum Director — Screenplay Tool
+  Ch. 43  Arc & Chapter Structure
+  Ch. 44  Director Metadata Block
+
+PART XI   CONDITION ENGINE & RESONANCE PHYSICS
+  Ch. 45  Harmonic Tensor Graph
+  Ch. 46  Gate Conditions & Trinary Validation Gate
+  Ch. 47  Resonance Thresholds & Shadow Elements
+  Ch. 48  Heraldic Ascent / Descent Mechanics
+
+PART XII  SECURITY & SOVEREIGN SEALS
+  Ch. 49  Sovereign Seals
+  Ch. 50  White-Light Handshake Protocol
+  Ch. 51  WebSocket Protocol
+
+PART XIII DIVINE REGISTRY
+  Ch. 52  The Six Divinities as Shader/SVG Specifications
+
+PART XIV  DEPLOYMENT & OPERATIONS
+  Ch. 53  Local-First Stack — Database & Inference
+  Ch. 54  Pre-Flight Checklist
+  Ch. 55  Anti-Patterns to Avoid
+
+PART XV   APPENDICES
+  App. A  Complete Wire Type Table
+  App. B  Faction Color & Border Specifications
+  App. C  Capsule YAML Template
+  App. D  Quantum Module Manifest Format
+  App. E  Sacred Constants Reference
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PART I  ·  PROJECT FOUNDATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 1  ·  Origin & Philosophy
+────────────────────────────────────────────────────────────────────────────────
+
+1.1  THE 65-PAGE PROBLEM
+
+Every large creative project eventually produces a document too heavy to carry.
+Characters sprawl. World rules contradict each other three arcs later. Lore written
+in Act I becomes invisible by the time Act III needs it. A writer sitting down to
+continue work must re-read sixty-five pages of notes before writing a single sentence.
+
+This is the problem Quantum Quill was built to solve.
+
+The Quantum Quill is not a writing tool. It is not a note-taking app, a wikis
+system, or a lore database. It is a Narrative DAW — a Digital Audio Workstation
+whose medium is story instead of sound.
+
+A music producer does not manually track every note, every layer, every effect
+across a forty-eight-track session. The DAW does it. The producer composes. The
+DAW manages the state. When the producer needs the bass line from Act II, they
+grab it from the arrange view and drop it in. It is always there. It is always
+consistent with everything around it.
+
+Quantum Quill applies that exact philosophy to worldbuilding and narrative. Every
+character, event, faction, object, and piece of lore is a Capsule — an atomic
+unit that knows what it is, where it came from, and what it connects to. Capsules
+live inside Containers. Containers live inside Mythos domains. Everything lives
+inside the Genesis Container — the sealed, physics-locked root of the entire world.
+
+The 65-page problem disappears when you stop writing notes and start seeding
+a world engine.
+
+1.2  THE DAW METAPHOR — WHY IT WORKS
+
+Digital Audio Workstations solved state management for sound. Every parameter of
+every sound at every point in time is tracked, versioned, and recallable. Layers
+are independent but composable. Rendering (playing the audio) is separate from
+the arrangement that defines it. You can change the mix without changing the
+composition. You can export to any format without touching the project.
+
+Quantum Quill applies each of these properties to narrative:
+
+  · Every story element is tracked, versioned (via B-DNA lineage), and recallable.
+  · Narrative layers (Capsules, Containers, Mythos domains) are independent but
+    composable through the Wire type system.
+  · Rendering (exporting to screenplay, prose, game data, or audio script) is
+    separate from the world state that defines the narrative. The world runs
+    headless. Output adapters observe it.
+  · You can change the visual presentation without changing the story engine.
+  · You can export to any format without touching the simulation.
+
+The DAW metaphor is not decoration. It is the architectural specification.
+
+1.3  BIOSPARK STUDIOS — THE CREATOR ENTITY
+
+BioSpark Studios is the creative and technical entity behind the entire Quantum
+ecosystem. It operates as a full creative studio — narrative, music, software,
+and simulation — with all projects living inside the Quantum architecture.
+
+The Quantum Quill is BioSpark Studios' internal operating system for creative work.
+Everything made at BioSpark Studios is a Genesis Container. Every artist, world,
+album, software module, and agent is seeded into the hierarchy and governed by
+the Octave Capacity Law, the Wire type system, and the B-DNA lineage registry.
+
+The fictional universe of Xyrona Prime provides the symbolic and mythic DNA for
+all visual design, faction conditioning, agent behavior, and resonance physics
+across the entire stack. The mythology is not separate from the technology — it
+is the naming and aesthetic layer that makes the technology feel alive.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 2  ·  Glossary of Core Terms
+────────────────────────────────────────────────────────────────────────────────
+
+GENESIS CONTAINER
+  The sealed, physics-locked root of a BioSpark project. Every world, application,
+  musical artist, or simulation lives inside exactly one Genesis Container. It
+  declares the base resonance frequency, the wire types active in the world, the
+  growth mode, and the seed answers that defined the world's physics. A Genesis
+  Container at seal time is immutable in structure. It is the canvas with its
+  dimensions locked.
+
+MYTHOS CONTAINER
+  The first level of subdivision inside a Genesis Container. Mythos Containers
+  represent major domains: a story arc, a world region, an album series, a software
+  department, or an agent guild. They each declare their own octave depth and growth
+  mode, independent of the Genesis Container's settings.
+
+CONTAINER
+  The second subdivision level. Containers hold Capsules. In narrative terms, a
+  Container might be a chapter collection, a culture, or a faction. In music, it
+  is an album. In software, it is a feature set. Containers are the organizational
+  workhorse of the hierarchy.
+
+CAPSULE
+  The atomic unit of everything. A Capsule is a single entity: one character, one
+  event, one lore entry, one track, one component, one agent. Every Capsule carries
+  a wire type (what kind of data it carries), a B-DNA lineage hash (where it came
+  from), a resonance frequency (its place in the Harmonic Tensor Graph), and a
+  heraldic birth position (its symbolic identity at creation). Capsules cannot be
+  subdivided further.
+
+VAULT
+  The persistent storage and publication system for all completed or shared
+  BioSpark artifacts. Blueprints, Modules, Collections, Tomes, and Revisions
+  are the Vault's primary data model. The Vault is the delivery layer — the
+  Genesis Container is the creative layer.
+
+WIRE TYPE
+  The signal type carried by a connection between nodes. There are 17 wire types
+  in the current canonical system (see Chapter 7). Wire types are strictly enforced
+  — a DATA wire cannot carry AUDIO data without an explicit conversion node.
+
+B-DNA
+  Biographical DNA. The lineage record attached to every Capsule and Container that
+  tracks its origin, generation, parent IDs, and any covenant bindings. The B-DNA
+  system answers three questions: Where did this come from? What has it evolved
+  into? What rules follow it wherever it goes?
+
+SEAL / SEALING
+  The act of locking a Genesis Container's structure. After sealing, the hierarchy
+  is immutable. Capsule payloads may update, but no new Containers can be added and
+  no existing ones removed. Sealing is irreversible. The world's physics are frozen.
+
+PORTAL
+  The user-facing access point for interacting with the Quantum Quill. Where the
+  DAW's arrange view meets the user's creative intent.
+
+STUDIO SCRIBE
+  The AI layer that translates natural language input into Capsule seeds, B-DNA
+  records, and wire connections. The Scribe listens. The engine acts.
+
+LOOM ENGINE
+  The five-stage narrative composition pipeline: Warp Threads → Pattern Harnesses
+  → Operation Shuttle → Reed Merger → Take-Up Roll. The Loom is the part of the
+  engine that turns discrete Capsule events into flowing narrative output.
+
+BLOOM EFFECTS
+  The emergent narrative events that arise from Capsule interaction — events the
+  author did not explicitly program, which the engine surfaces from the state of
+  the world. Bloom is the difference between a story engine and a story database.
+
+OCTAVE
+  A power-of-2 capacity level. Octave 4 = 16 children (canonical default).
+  Octave 5 = 32. Octave 3 = 8. See Chapter 13 for the full law.
+
+RESONANCE
+  Every node in the system — Genesis Container, Mythos, Container, Capsule, Module
+  — declares a resonance frequency in Hz. These frequencies form the Harmonic Tensor
+  Graph, which governs dynamic edge formation, gate condition evaluation, and heraldic
+  position calculation. 440Hz is the Aethel-Vora handshake frequency. 432Hz governs
+  the Forge/soul-weight system. 88Hz is the Sky-Surface trade (the Holy Hum).
+
+FACTION
+  One of five world-agnostic aesthetic presets (Luminarite, Venturan, Sylvanid,
+  Hydralis, Syntaran) that can be applied to any BioSpark project to condition its
+  visual design, emotional register, and AI generation output.
+
+CREST
+  A Level 2 heraldic symbol representing dynastic identity. Crests are assigned to
+  major systems, departments, or domains. There are 11 named Crests (Core, Atlas,
+  Vault, Mythos, Codex, Loom, Composer, Forge, Order, Mind, Soul) plus 5 reserved.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 3  ·  Design Principles
+────────────────────────────────────────────────────────────────────────────────
+
+3.1  EMERGENCE OVER PRESCRIPTION
+
+The engine does not tell stories. It runs worlds. Stories emerge from the state of
+the world as actors make decisions, relationships form under social pressure, and
+resources shift between factions. The author seeds the world — the world tells
+its story.
+
+This principle has a direct technical implication: the narrative engine must run
+headless. It must produce events, evolve state, and generate Bloom Effects with
+no renderer attached. If you cannot run the world from the command line and see
+it producing events, the engine is not designed correctly. Rendering is a
+consequence of the simulation. It is never the host.
+
+3.2  MODULARITY WITHOUT COUPLING
+
+Every Quantum Module is a standalone library crate. It communicates with other
+modules exclusively via WirePackets through the Theater compositor. A module never
+imports another module's types. A module never calls another module's functions.
+They are strangers to each other — neighbors who communicate only through the mail
+system they share.
+
+This is not an abstract principle. It is enforced at the Cargo dependency level.
+If adding Module A as a dependency of Module B does not cause a compilation error,
+the isolation is accidental. The correct state is that it IS a compilation error,
+because Module A is never in Module B's dep tree.
+
+3.3  USER AGENCY — THE CANVAS BEFORE THE PAINT
+
+Every container declares its constraints before content enters it. Growth mode
+(Fixed or Dynamic), octave depth, resonance frequency, and wire types are seed
+decisions — made once, at the beginning, before any Capsules are added. This is
+not a limitation. It is the canvas size. A painter chooses their canvas before
+picking up a brush, not after the painting is half-finished.
+
+Fixed containers provide creative constraints intentionally — the boundary IS the
+point. Dynamic containers grow as the work demands — the shape is allowed to emerge.
+Both modes are valid. The choice is the design decision.
+
+3.4  PROVENANCE IS MANDATORY
+
+Nothing without provenance enters a sealed Genesis Container. Every Capsule must
+have a B-DNA lineage hash. Every derivative work must declare its parentIds. Every
+covenant binding must specify its scope (local, inherited, or cross-context).
+
+This is not bureaucracy. It is the answer to the 65-page problem. When you need
+to know whether the lore event in Act III contradicts the physics established in
+Act I, you do not re-read sixty-five pages. You follow the B-DNA chain.
+
+3.5  LOCAL-FIRST ALWAYS
+
+All inference, storage, and state management defaults to local hardware. Ollama is
+the primary LLM provider. SQLite and ChromaDB are the default storage systems.
+Firebase, Firestore, and cloud services are only considered when there is absolutely
+no local alternative that meets the requirement.
+
+This principle applies universally — to agent routing, to model selection, to vector
+search, and to data persistence. The system must function without internet access.
+Cloud is a feature, not a requirement.
+
+3.6  ENGINE DEFINES CONCEPTS. WORLDS DEFINE CONSTANTS.
+
+The narrative engine is world-agnostic at the code level. It defines resonance as a
+concept, factions as a concept, and sacred frequencies as a concept. It does not
+hardcode what any of these mean.
+
+A world running on this engine declares its own constants in its SeedAnswers — what
+frequency is sacred, what factions exist, what the balance law looks like. The engine
+reads these values and operates on them without caring whether they came from Xyrona
+Prime or a hard-sci-fi megastructure simulation.
+
+  Engine-level (always present, always agnostic):
+    · WireType enum (17 types)
+    · BDna([bool; 64]) — the lineage mechanism
+    · Octave Capacity Law — the capacity math
+    · Four hierarchy levels
+    · FactionPreset struct — the concept of a faction
+    · WorldConstants struct — the concept of sacred values
+    · CovenantBinding — the concept of a world law
+
+  World-level (declared in SeedAnswers and world seed files):
+    · The names and colors of factions
+    · The frequencies that are sacred
+    · Which balance laws are active
+    · What the agent personas are called
+    · What the visual divinity specs look like
+
+Xyrona Prime is the canonical default world seed. It ships as xyrona-prime.qgcp —
+a fully seeded Genesis Container with the Five Factions, the three sacred frequencies
+(440/432/88 Hz), and RULE-EQUIL-02 pre-defined as a CovenantBinding. Any world that
+wants a head start can load this seed. Any world that doesn't is free to ignore it
+entirely without fighting any engine-level assumptions.
+
+This means the constant declarations in Appendix E are Xyrona Prime's constants, not
+the engine's. They live in the world seed file. The engine code has no `const
+AETHEL_VORA_HZ`. It has `world.constants.handshake_hz`.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PART II  ·  SYSTEM ARCHITECTURE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 4  ·  The Three-Layer Architecture
+────────────────────────────────────────────────────────────────────────────────
+
+The myth-os system — the Rust engine beneath the Quantum Quill — is organized
+into exactly three layers. Violating the boundary between any two layers has caused
+full project restarts. The rules are not flexible.
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  LAYER 1 — NARRATIVE ENGINE                                                  │
+│  crates: myth-wire, mythos, qgcp                                             │
+│                                                                              │
+│  Pure Rust. Zero renderer dependencies. Runs headless.                       │
+│  Owns: world state, actor simulation, wire protocol,                         │
+│  genesis container hierarchy, B-DNA, tick loop.                              │
+│                                                                              │
+│  Compile check: cargo build -p mythos                                        │
+│  must succeed with ZERO renderer crates in the dep tree.                     │
+│  Run: cargo tree -p mythos | grep bevy → must return nothing.                │
+└──────────────────────────────────────────────────────────────────────────────┘
+           │  emits WirePackets, exposes WorldState
+           ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  LAYER 2 — MODULES                                                           │
+│  crates: one per Quantum module (terrain, loom, chronicle…)                  │
+│                                                                              │
+│  Each module is a standalone library crate.                                  │
+│  Depends on: myth-wire + its own domain libs only.                           │
+│  Has a fn main() so it can run standalone.                                   │
+│  Communicates with other modules via WirePackets ONLY.                       │
+│  Never imports another module crate directly.                                │
+└──────────────────────────────────────────────────────────────────────────────┘
+           │  modules emit/consume WirePackets
+           ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  LAYER 3 — OUTPUT ADAPTERS                                                   │
+│  crate: biospark-theater (with Cargo feature gates)                          │
+│  bins:  engine, instruments, theater-bin                                     │
+│                                                                              │
+│  Adapters read world state and module output.                                │
+│  They have NO write access to the narrative engine.                          │
+│  They are entirely optional — the world runs without them.                   │
+│  Renderer deps live HERE only (bevy, egui, cpal).                            │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+4.1  LAYER 1: NARRATIVE ENGINE
+
+The narrative engine is the only layer that knows the world exists. It holds world
+state, runs the actor simulation, enforces the Octave Capacity Law, manages B-DNA
+records, and emits WirePackets describing everything that changes.
+
+Three crates live in this layer:
+
+  myth-wire   — The type system. WireType enum (17 variants), WirePacket,
+                WirePayload, BDna (Vec<bool>, exactly 64 elements), ModuleId,
+                ChannelId. Pure types. No logic. No async runtime. Deps: serde
+                and bincode only. No other deps are permitted, ever.
+
+  mythos      — The simulation core. World state types, actor simulation logic
+                (instinct, memory, social drive, dialogue), Genesis Container
+                hierarchy, Octave Capacity Law enforcement, and the tick loop.
+                Deps: myth-wire, serde. No renderer. No async runtime. No
+                module-specific logic (that lives in Layer 2).
+
+  qgcp        — The file format layer. Defines .qgenesis and .qgcp serialization.
+                Deps: myth-wire, serde. This crate is how worlds are saved,
+                loaded, packaged, and distributed.
+
+4.2  LAYER 2: MODULES
+
+There are 16 Quantum Modules, each living in its own standalone library crate
+under the modules/ directory. Each module:
+
+  · Implements the TheaterModule trait from biospark-theater
+  · Defines its WireType inputs and outputs
+  · Can run standalone via `cargo run -p <module-name>`
+  · Depends only on myth-wire and its own domain-specific libraries
+  · Does NOT depend on any other module crate
+  · Does NOT depend on Bevy unless the module is inherently spatial/visual
+  · Does NOT share mutable state with any other module
+  · Communicates exclusively via WirePackets through the Theater compositor
+
+A module that cannot run standalone is not correctly designed. If `cargo run -p
+terrain` fails without other modules running, the terrain module has an implicit
+coupling that must be severed before development continues.
+
+4.3  LAYER 3: OUTPUT ADAPTERS
+
+Output adapters are the observation layer. They read what the simulation produced
+and present it to a human or downstream system. They have no write access to the
+narrative engine — they cannot change world state, only observe it.
+
+The biospark-theater crate is the compositor library. It manages Channels (named
+data streams), ChannelState, the TheaterModule and OutputHandler traits, and the
+EngineTransport trait with its TcpTransport implementation. All renderer-specific
+deps (bevy, egui, cpal) live behind Cargo feature gates in this crate only.
+
+  [features]
+  default = []
+  bevy  = ["dep:bevy"]
+  egui  = ["dep:egui", "dep:eframe"]
+  audio = ["dep:cpal"]
+
+A project that only needs prose output activates only the egui feature. No Bevy
+is compiled. No audio. Only what is needed. Feature gate discipline is what keeps
+the engine fast and the dep tree clean.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 5  ·  myth-os Workspace Layout
+────────────────────────────────────────────────────────────────────────────────
+
+The canonical workspace layout for the myth-os project is:
+
+  myth-os/
+  ├── Cargo.toml              workspace root — lists all member crates
+  │
+  ├── crates/                 LIBRARY CRATES — importable, publishable
+  │   ├── myth-wire/          wire types, BDna, IDs (zero renderer deps)
+  │   ├── mythos/             narrative engine core
+  │   ├── qgcp/               .qgenesis / .qgcp format
+  │   └── theater/            compositor lib (biospark-theater)
+  │
+  ├── modules/                MODULE CRATES — one per Quantum module
+  │   ├── terrain/            GEN-01 · Atlas
+  │   ├── environment/        GEN-02 · Mythos
+  │   ├── architect/          GEN-03 · Architect
+  │   ├── lighting/           GEN-04 · Prism
+  │   ├── modeling/           GEN-05 · Animus
+  │   ├── choreography/       GEN-06 · Loom
+  │   ├── behavior/           GEN-07 · Instinct
+  │   ├── society/            GEN-08 · Order
+  │   ├── sequencer/          GEN-09 · Chronicle
+  │   ├── story/              GEN-10 · Quill
+  │   ├── memory/             GEN-11 · Codex
+  │   ├── sound/              GEN-12 · Composer
+  │   ├── logic/              GEN-13 · Axiom
+  │   ├── simulation/         GEN-14 · Continuum
+  │   ├── forge/              GEN-15 · Forge
+  │   └── network/            GEN-16 · Nexus
+  │
+  ├── adapters/               OUTPUT ADAPTER CRATES
+  │   ├── theater-bevy/       Bevy 3D handler (behind theater's bevy feature)
+  │   ├── theater-egui/       egui 2D/UI handler
+  │   └── theater-audio/      CPAL audio handler
+  │
+  ├── bins/                   BINARY CRATES — thin wrappers only (30–100 lines)
+  │   ├── engine/             headless TCP server — 127.0.0.1:7700
+  │   ├── instruments/        egui rack UI — sends CTL, receives state
+  │   └── theater-bin/        compositor binary — receives packets, renders
+  │
+  ├── library/                Library UI — vault management (separate app)
+  │
+  └── docs/
+      └── skills/             Skill documents — source of truth for architecture
+          ├── myth-os-architecture.md
+          ├── biospark-theater.md
+          ├── genesis-container.md
+          └── …
+
+5.1  CRATE OWNERSHIP RULES
+
+myth-wire
+  ✓ WireType enum (17 variants — never add more without a formal decision)
+  ✓ WirePacket, WirePayload (must be Serialize + Deserialize — always)
+  ✓ BDna (Vec<bool>, exactly 64 elements — this invariant never relaxes)
+  ✓ ModuleId, ChannelId (typed newtypes, not bare strings)
+  ✗ NO logic, NO simulation, NO rendering
+  ✗ NO async runtime
+  ✗ deps beyond serde + bincode are PROHIBITED
+
+mythos
+  ✓ World state types
+  ✓ Actor simulation logic (instinct, memory, social drive, dialogue)
+  ✓ Genesis Container hierarchy (GenesisContainer → Capsule)
+  ✓ Octave Capacity Law enforcement
+  ✓ Tick loop / simulation step trait
+  ✗ NO Bevy, NO egui, NO window, NO renderer of any kind
+  ✗ NO async runtime (std channels only)
+  ✗ NO module-specific logic (modules live in modules/)
+
+Module crates (e.g., terrain, loom)
+  ✓ Implements TheaterModule trait from biospark-theater
+  ✓ Defines its WireType inputs and outputs
+  ✓ Can run standalone: cargo run -p terrain
+  ✓ deps: myth-wire + domain-specific libs
+  ✗ Does NOT depend on other module crates
+  ✗ Does NOT depend on Bevy unless inherently spatial/visual
+  ✗ Does NOT share mutable state with other modules
+
+biospark-theater
+  ✓ Channel, ChannelState, compositor logic
+  ✓ TheaterModule + OutputHandler traits
+  ✓ EngineTransport trait + TcpTransport impl
+  ✓ Renderer deps behind Cargo features ONLY
+  ✗ Does NOT run the simulation
+  ✗ Does NOT own world state
+  ✗ Routes by WireType only — payload content is the handler's concern
+
+Binaries (engine, instruments, theater-bin)
+  ✓ 30–100 lines of wiring
+  ✓ Imports library crates, connects them, starts the process
+  ✗ Contains NO business logic
+  ✗ Contains NO simulation code
+  ✗ Contains NO rendering code
+
+5.2  PUBLISHING PROGRESSION
+
+Development uses workspace path deps:
+
+  [dependencies]
+  myth-wire = { path = "../myth-wire" }
+
+When the API stabilizes, promote to git deps:
+
+  myth-wire = { git = "...", tag = "v0.1" }
+
+Only publish to crates.io when the API is genuinely stable. Premature publishing
+followed by breaking changes is a project debt that compounds. Stay in path deps
+until stability is confirmed.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 6  ·  Process Model & TCP Communication
+────────────────────────────────────────────────────────────────────────────────
+
+The three binaries are three separate OS processes. They communicate over TCP.
+Always. Even on localhost. This is not a performance decision — it is an
+architectural discipline.
+
+  engine          binds  127.0.0.1:7700     headless, no window
+  instruments     client  egui rack UI       sends CTL packets, receives state
+  theater-bin     client  compositor         receives WirePackets, renders
+
+The discipline of using a network boundary guarantees that the separation between
+simulation and renderer is real, not accidental. Moving from localhost to a home
+network is a config line change. Moving to the cloud is a config line plus a TLS
+wrapper. Nothing in the simulation logic changes.
+
+Arc<Mutex<>> across process boundaries defeats the purpose entirely. Shared memory
+between these three processes is prohibited.
+
+The EngineTransport trait abstracts the connection mechanism:
+
+  · Local: TcpTransport on 127.0.0.1:7700
+  · Network: TcpTransport with remote IP + TLS wrapper
+  · Test: MockTransport that collects WirePackets in memory
+
+Always program against the EngineTransport trait. Never against TcpTransport
+directly. The abstraction layer is what makes the test harness work.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 7  ·  Wire Type System
+────────────────────────────────────────────────────────────────────────────────
+
+Wire types are the language of the system. Every connection between nodes — every
+WirePacket emitted by a module, every edge in the Harmonic Tensor Graph — carries
+exactly one wire type. There are 17 canonical wire types. This number is fixed.
+Adding a new wire type requires a formal architectural decision, not a code change.
+
+  #   Symbol   Full Name       Carries
+  ─── ──────── ─────────────── ──────────────────────────────────────────────────
+  01  DAT      DATA            Typed JSON payloads — universal fallback for any
+                               data that doesn't fit a more specific type.
+  02  CTL      CONTROL         Boolean, gate, and trigger signals. Used for
+                               activating modules, opening gates, switching states.
+  03  AUD      AUDIO           Waveform and sample streams.
+  04  NAR      NARRATIVE       Story text, prose, dialogue, and lore payloads.
+  05  TMP      TEMPORAL        Time signals: tick counts, clock data, timestamps.
+  06  AGT      AGENT           Agent instruction packets and state streams.
+  07  VIS      VISUAL          Image, render, and shader streams.
+  08  SPA      SPATIAL         3D coordinates, voxel data, hex grid data.
+  09  BHV      BEHAVIORAL      Emotion signals, drive values, decision packets.
+  10  SOC      SOCIAL          Relationship maps, faction data, reputation values.
+  11  ENR      ENERGY          Power levels, resource flows, capacity values.
+  12  IDN      IDENTITY        B-DNA records, lineage chains, covenant data.
+  13  EVT      EVENT           Cosmic bus events — world-level broadcast signals.
+  14  AST      ASSET           File references, binary blobs, media URIs.
+  15  MET      META            Schema definitions, type structures, manifest data.
+  16  LGC      LOGIC           Boolean expressions, rule payloads, condition trees.
+  17  RES      RESONANCE       Resonance field values — the gravity of the graph.
+                               New. Every node that participates in the Condition
+                               Engine must support at least one RES input.
+
+DAT is the universal fallback. When data doesn't clearly belong to a more specific
+type, use DAT — and then evaluate during the next architecture review whether a
+dedicated type is warranted.
+
+RES (Resonance) is the newest addition. It carries field values through the Harmonic
+Tensor Graph, enabling resonance-based gate evaluation and dynamic edge formation
+in the Condition Engine. Any node that contributes to or is influenced by world
+resonance must declare a RES input.
+
+7.1  TYPE ENFORCEMENT
+
+Wire types are strictly enforced. A connection between a NAR output and an AUD
+input is a type error. The router in biospark-theater enforces this at connection
+time — mismatched types do not produce silent data corruption, they produce a
+hard error at wire-up.
+
+Conversion between types requires an explicit conversion node. A NAR→TTS→AUD
+pipeline (text to audio) is valid because it passes through a declared TTS node.
+There is no implicit coercion.
+
+7.2  THE BDna TYPE
+
+Every Capsule, every Container, every agent in the system carries a BDna field.
+In Rust:
+
+  struct BDna(Vec<bool>);
+
+The Vec<bool> must be exactly 64 elements. This invariant never relaxes. Shorter
+or longer arrays are rejected at deserialization time. The 64 positions encode
+the complete lineage position of the entity in the world hierarchy — its place
+in the cosmic order as a binary signature.
+
+In Rust this is a fixed-size array — the compiler enforces the 64-element
+invariant at the type level, no runtime validation needed:
+
+  bdna: [bool; 64],  // exactly 64 positions — compile-time guarantee
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 8  ·  B-DNA Lineage System
+────────────────────────────────────────────────────────────────────────────────
+
+B-DNA (Biographical DNA) is the provenance system of the Quantum Quill. It answers
+three questions for every entity in the system:
+
+  1. Where did this come from?
+  2. What has it evolved into?
+  3. What rules follow it wherever it goes?
+
+8.1  THE B-DNA RECORD
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct BDnaRecord {
+      pub signature:   String,                  // 64-bit binary string derived from lineage
+      pub generation:  u32,                     // 0 = original, 1+ = derivative
+      pub parent_ids:  Option<Vec<String>>,     // IDs of direct parent entities
+      pub root_id:     Option<String>,          // ID of the original generation-0 entity
+      pub covenant:    Option<CovenantRecord>,  // binding rules that follow this entity
+      pub metadata:    Option<BDnaMeta>,
+      pub sealed:      bool,                    // if true, covenant and parent_ids are immutable
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct BDnaMeta {
+      pub forked_from: Option<String>,          // if this entity was forked from another
+      pub created_by:  Option<String>,          // creator identity
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  #[serde(rename_all = "snake_case")]
+  pub enum CovenantScope {
+      Local,          // applies only to this entity
+      Inherited,      // applies to all descendants
+      CrossContext,   // follows the entity across any Genesis Container
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct CovenantBinding {
+      pub rule:        String,         // the binding rule as a plain-English string
+      pub scope:       CovenantScope,
+      pub enforceable: bool,           // true = mechanical enforcement; false = narrative
+  }
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct CovenantRecord {
+      pub bindings: Vec<CovenantBinding>,
+  }
+
+8.2  GENERATION SEMANTICS
+
+Generation 0 is the original. It has no parentIds and no rootId. It is its own
+root. Every derivative sets generation to parentGeneration + 1 and sets rootId
+to the generation-0 ancestor's ID.
+
+When an entity is forked — a character variant, a parallel timeline event, an
+alternate module configuration — the fork records the forkedFrom field in metadata,
+increments the generation counter, and carries forward any covenant bindings that
+have scope 'inherited' or 'cross-context'.
+
+8.3  COVENANT BINDING
+
+Covenants are the rules that follow an entity. A covenant binding with scope
+'local' applies only to that entity. A binding with scope 'inherited' applies
+to all descendants. A binding with scope 'cross-context' applies to the entity
+and any entity that references it, regardless of which Genesis Container they
+inhabit.
+
+Covenants with enforceable: true are enforced mechanically — the engine will
+reject operations that violate them. Covenants with enforceable: false are
+narrative covenants — they are honored by agents and storytellers but not
+enforced by the engine. This distinction matters for game design: narrative
+covenants create dramatic tension. Mechanical covenants create hard system rules.
+
+8.4  THE LINEAGE HASH REQUIREMENT
+
+No Capsule may be inserted into a sealed Genesis Container without a lineage_hash
+field in its BDna record. This is a hard insertion rule enforced by assert_capacity
+and the Vault submission pipeline. An entity without provenance is not an entity —
+it is noise.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PART III  ·  VAULT SYSTEM
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 9  ·  Vault Overview & Data Model
+────────────────────────────────────────────────────────────────────────────────
+
+The Vault is the delivery and publication layer of the Quantum ecosystem. Where the
+Genesis Container is the creative workspace — the sealed physics of a living world —
+the Vault is the archive and distribution system for artifacts produced within it.
+
+The Vault stores everything that has completed its creative lifecycle and is ready
+for use by other projects, agents, or human collaborators. It is the bridge between
+creation and consumption.
+
+9.1  VAULT DATA MODEL
+
+Five primary entity types govern the Vault:
+
+BLUEPRINT
+  A complete world specification, software module definition, or narrative framework.
+  The root entry point. A Blueprint can be submitted, validated, reviewed, and
+  approved. Once approved, it may be modularized into Modules and assembled into
+  Tomes.
+
+  {
+    id:       string,    // unique Blueprint ID
+    title:    string,    // human-readable name
+    author:   string,    // creator identity
+    version:  string,    // semver string
+    status:   'draft' | 'pending' | 'approved' | 'rejected' | 'archived'
+  }
+
+MODULE
+  A self-contained component derived from a Blueprint. Modules are the atomic
+  reusable units of the Vault — a single character profile, a single software
+  component, a single audio patch, a single visual asset. Modules can be tagged,
+  versioned, searched, and assembled into Collections.
+
+  {
+    id:            string,
+    blueprintId:   string,      // parent Blueprint
+    componentType: string,      // the type of component this module represents
+    tags:          string[],    // searchable tags
+    dependencies:  string[]     // IDs of other Modules this depends on
+  }
+
+COLLECTION
+  A curated group of Modules assembled for a specific purpose. Collections are
+  the building blocks of Tomes. A Collection might group all the character modules
+  for Act I of a story, or all the UI components for a software release.
+
+TOME
+  A compiled artifact ready for distribution. A Tome assembles one or more
+  Collections into a single deliverable — a complete story arc export, a software
+  release package, a music album, or a world seed package. Tomes include a
+  compiledArtifactURL pointing to the packaged output.
+
+  {
+    id:                   string,
+    title:                string,
+    collectionIds:        string[],
+    compiledArtifactURL:  string
+  }
+
+REVISION
+  A versioned snapshot of a Blueprint or Module. Revisions track what changed,
+  when, and why. They are the time axis of the Vault — the full history of how
+  an artifact evolved from submission to publication.
+
+9.2  VAULT WORKFLOW
+
+The Vault pipeline moves every Blueprint through a defined sequence of stages:
+
+  Submit → Validate → Review → Modularize → Register → Assemble → Publish
+
+  1. SUBMIT      Author submits a Blueprint via CLI or API.
+  2. VALIDATE    Automated validation checks wire type consistency, B-DNA
+                 requirements, and structural integrity.
+  3. REVIEW      Human or agent review. Approves or rejects with feedback.
+  4. MODULARIZE  Approved Blueprint is broken into constituent Modules.
+                 Each Module gets its own ID, tags, and dependency list.
+  5. REGISTER    Modules are registered in the Vault index for search and discovery.
+  6. ASSEMBLE    Modules are selected into Collections. Collections are composed
+                 into Tomes.
+  7. PUBLISH     Tome is compiled and its compiledArtifactURL is set. The Tome
+                 becomes discoverable and downloadable.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 10  ·  Vault API Reference
+────────────────────────────────────────────────────────────────────────────────
+
+The Vault exposes a REST API for all create, read, update, and delete operations.
+
+BLUEPRINTS
+
+  POST    /vault/blueprints
+          Submit a new Blueprint. Body: { title, author, version, content }
+          Returns: { id, status: 'pending' }
+
+  GET     /vault/blueprints
+          List all Blueprints. Supports query params: status=, author=, tag=
+
+  GET     /vault/blueprints/:id
+          Retrieve a specific Blueprint with all Revisions and derived Modules.
+
+  DELETE  /vault/blueprints/:id
+          Archive a Blueprint. Does not delete Modules derived from it.
+
+MODULES
+
+  POST    /vault/modules
+          Register a new Module (typically called by the Modularize pipeline step).
+          Body: { blueprintId, componentType, tags, dependencies }
+
+  GET     /vault/modules
+          List Modules. Supports query params: tag=, componentType=, blueprintId=
+
+  PATCH   /vault/modules/:id
+          Update a Module's tags or metadata. Cannot change componentType.
+
+COLLECTIONS
+
+  POST    /vault/collections
+          Create a new Collection.
+          Body: { name, moduleIds, purpose }
+          Returns: { id, moduleIds }
+
+TOMES
+
+  POST    /vault/tomes
+          Assemble a Tome from Collections.
+          Body: { title, collectionIds }
+          Returns: { id, status: 'assembling' }
+
+  GET     /vault/tomes/:id
+          Retrieve a Tome. When compilation is complete, includes compiledArtifactURL.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 11  ·  Vault CLI Reference
+────────────────────────────────────────────────────────────────────────────────
+
+The vault-cli provides command-line access to all Vault operations. Designed for
+use in automated pipelines, agent workflows, and developer workflows.
+
+  vault-cli submit-blueprint <path>
+      Submit a Blueprint from a local file. Validates structure before submission.
+      Flags:
+        --author <name>      override author field
+        --version <semver>   override version field
+        --dry-run            validate only, do not submit
+
+  vault-cli approve-revision <revision-id>
+      Approve a pending Revision. Moves the parent Blueprint to 'approved' status
+      and triggers the Modularize pipeline step.
+      Flags:
+        --comment <text>     add a review comment
+
+  vault-cli list-modules
+      List all Modules in the Vault.
+      Flags:
+        --tag <tag>          filter by tag
+        --type <type>        filter by componentType
+        --blueprint <id>     filter by parent Blueprint
+
+  vault-cli assemble-tome <name> --collections <id,...>
+      Create a Tome from the specified Collection IDs.
+
+  vault-cli status <blueprint-id>
+      Show the current status and revision history of a Blueprint.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PART IV  ·  CONTAINER & CAPSULE SYSTEM
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 12  ·  Genesis Container Architecture
+────────────────────────────────────────────────────────────────────────────────
+
+The Genesis Container is the sealed universe of a BioSpark project. Everything
+inside it obeys the Octave Capacity Law — a power-of-2 recursive depth system.
+Containers declare their growth behavior at seeding and seal at whatever depth
+they actually reach.
+
+12.1  FOUR HIERARCHY LEVELS
+
+The hierarchy has exactly four levels. The level names are stable. The capacity
+at each level is determined by the declared or reached octave depth of that
+specific container instance — not a universal fixed number.
+
+  Level 0   GENESIS CONTAINER    The sealed universe / project root
+  Level 1   MYTHOS CONTAINER     Major domain, arc, collection, or department
+  Level 2   CONTAINER            Sub-collection, chapter, module, feature
+  Level 3   CAPSULE              Atomic unit — one entity, track, item, component
+
+Each level instance has its own growth mode and octave. A Mythos Container at
+octave 4 holds up to 16 Containers. The same Mythos Container at octave 5 holds
+32. The law is always relative to the declared octave — there is no globally
+fixed number of children at any level.
+
+12.2  CANONICAL DEFAULT: OCTAVE 4
+
+Octave 4 (16 children) is the canonical default for most containers. This is not
+arbitrary — it aligns with:
+
+  · 16-bit audio depth (standard digital audio)
+  · 16-bar musical phrases (standard song structure)
+  · 16-channel MIDI mixing (General MIDI standard)
+  · 2^4 — a natural power-of-two memory allocation size
+
+Departing from octave 4 is a deliberate architectural decision that must be
+declared at seeding time. Departing without declaration is a protocol violation.
+
+12.3  DOMAIN MAPPINGS
+
+The four-level hierarchy applies universally across all BioSpark project types:
+
+  Narrative / Worldbuilding:
+    Genesis  → Story World / Universe
+    Mythos   → Story Arc / Region / Era
+    Container → Scene Collection / Culture / Faction
+    Capsule  → Character / Event / Object / Lore Entry
+    (Dynamic growth recommended — worlds grow organically)
+
+  Music & Discography:
+    Genesis  → Artist / Band / Musical Persona
+    Mythos   → Album Series / Season / World Arc
+    Container → Album / EP / Compilation
+    Capsule  → Individual Track / Song
+    (Fixed octave 4 for Albums. Dynamic for Artist Genesis Container.)
+
+  Software / Application:
+    Genesis  → Application / Platform
+    Mythos   → Module / Department
+    Container → Feature Set / Sub-system
+    Capsule  → Component / Function / Node
+    (Fixed octave 4 recommended. Module boundaries are intentional constraints.)
+
+  Agent Systems:
+    Genesis  → Simulation / World
+    Mythos   → Guild / Department
+    Container → Squad / Project
+    Capsule  → Individual Actor / Tool
+    (Dynamic for Actor containers. Fixed for Guild/Department.)
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 13  ·  Octave Capacity Law
+────────────────────────────────────────────────────────────────────────────────
+
+The Octave Capacity Law is the mathematical spine of the container system. It
+replaces any earlier fixed-number scheme. All capacity exists on a binary recursive
+scale — the same scale that governs audio octaves, binary memory addressing, and
+power-of-two resonance harmonics.
+
+  Octave 0  →    1    The Prime Seal / root law / unified physics
+  Octave 1  →    2    Duality — polarity, signal/noise, on/off
+  Octave 2  →    4    Quadrants — cardinal anchors, four states
+  Octave 3  →    8    First musical octave — melody emerges from rhythm
+  Octave 4  →   16    CANONICAL DEFAULT — where most containers rest
+  Octave 5  →   32    Extended depth — complex systems, sprawling worlds
+  Octave 6  →   64    Deep systems — full creative ecosystems
+  Octave 7  →  128    Maximum practical depth — rare, Genesis-scale only
+
+Note: Earlier design documents may reference a "12-12-12" or "1,728 capsule"
+scheme. Those documents are outdated. The Octave Capacity Law supersedes all
+prior fixed-number specifications. There is no system-wide cap of 1,728 capsules
+or any other fixed number.
+
+13.1  OCTAVE BEHAVIOR MODES
+
+Beyond the linear Expand mode, containers can be configured to behave differently:
+
+  Expand   — Linear: grows deeper, multiply by 2 per octave (standard)
+  Bounce   — Reverse: 64 → 32 → 16 → 8 → ... used for decay, entropy arcs
+  Loop     — Cyclic: hits floor and starts next octave up, for cyclic systems
+  Fade     — Weighted: contribution weight reduces with depth, like volume envelope
+
+Behavior mode is a seeding decision. It is declared once and governs the container
+for its entire lifecycle.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 14  ·  Growth Modes: Fixed vs. Dynamic
+────────────────────────────────────────────────────────────────────────────────
+
+Every container declares a growth mode at seeding. This is the most architecturally
+significant decision made about a container, after octave depth.
+
+14.1  FIXED (VHD-STYLE)
+
+Octave depth is declared at seeding. That declaration is the ceiling AND the law
+from day one. The container pre-allocates its shape. Validation is fast. Creative
+constraints are enforced intentionally — like choosing a canvas size before painting.
+
+  {
+    "growth_mode": "fixed",
+    "declared_octave": 4,
+    "max_children": 16
+  }
+
+Best for: World Genesis Containers, sealed physics systems, module definitions,
+any container where the boundary is the creative point.
+
+14.2  DYNAMIC (VHDX-STYLE)
+
+Starts at octave 1 and grows as content is added, expanding to the next octave
+automatically when it fills. Shape emerges from use — it mirrors how creative work
+actually develops.
+
+An optional estimated ceiling can be set, adjusted, and re-estimated while the
+container is active. At seal time the ceiling locks to actual depth reached. The
+estimate becomes historical metadata — it records the story of how the creator
+understood the work as it grew.
+
+  {
+    "growth_mode": "dynamic",
+    "estimated_ceiling_octave": 4,
+    "current_octave": 2,
+    "ceiling_adjustments": 1,
+    "max_children": null    // null until sealed
+  }
+
+Best for: Actor/Character containers, living narrative systems, artist discographies,
+anything that grows organically over time.
+
+The baby analogy: You might estimate 8 pounds but adjust to 12 as reality develops.
+At birth (seal), whatever weight the child actually is becomes the locked truth.
+The estimate is the ultrasound. The sealed value is the birth record.
+
+A container that consistently exceeded its estimated ceiling tells a different story
+than one that sealed at half the estimate. The agent layer uses this metadata to
+reason about world health over time.
+
+14.3  SEALED STATE
+
+Regardless of growth mode, a sealed container is structurally immutable. No new
+Capsules can be added. No Containers can be removed. The hierarchy is frozen.
+
+Capsule payloads (the content of individual Capsules) may still be updated after
+sealing. Hierarchy is frozen. Content is not.
+
+  {
+    "growth_mode": "dynamic",
+    "estimated_ceiling_octave": 4,
+    "sealed_octave": 6,         // grew past estimate — that's information
+    "ceiling_adjustments": 2,   // estimated twice, still underestimated
+    "sealed_at": 1746321600000
+  }
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 15  ·  Container Hierarchy — Rust Structs
+────────────────────────────────────────────────────────────────────────────────
+
+Canonical Rust struct definitions for all container levels. All types live in
+`crates/mythos/src/container.rs` and `crates/myth-wire/src/types.rs`.
+
+  // Lifecycle states
+  #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+  #[serde(rename_all = "snake_case")]
+  pub enum LifecycleState {
+      Seeding,     // world is being defined — questions being answered
+      Active,      // open, accepting writes
+      Sealed,      // immutable, physics locked
+      Archived,    // read-only, discoverable
+      Deprecated,  // scheduled for purge
+  }
+
+  #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+  #[serde(rename_all = "snake_case")]
+  pub enum GrowthMode { Fixed, Dynamic }
+
+  // Capacity metadata — tracked on every container
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct CapacityMetadata {
+      pub growth_mode:              GrowthMode,
+      pub declared_octave:          Option<u8>,   // fixed mode only
+      pub estimated_ceiling_octave: Option<u8>,   // dynamic, mutable until seal
+      pub current_octave:           u8,            // actual current depth
+      pub sealed_octave:            Option<u8>,   // set at seal time
+      pub ceiling_adjustments:      u32,           // how many times estimate revised
+      pub max_children_current:     u32,           // 2u32.pow(current_octave as u32)
+      pub child_count:              u32,           // actual current children
+      pub capacity_utilization:     f32,           // child_count / max_children_current
+  }
+
+  // Level 3 — Atomic unit
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct Capsule {
+      pub id:                  String,
+      pub parent_container_id: String,
+      pub name:                String,
+      pub wire_type:           WireType,
+      pub payload:             serde_json::Value,
+      pub lineage_hash:        String,              // B-DNA lineage — REQUIRED
+      pub created_at:          i64,                 // Unix ms timestamp
+      pub tags:                Vec<String>,
+      pub resonance_hz:        f32,                 // node resonance frequency
+      pub heraldic_birth:      HeraldricPosition,   // symbolic identity at creation
+      pub heraldic_current:    HeraldricPosition,   // may differ from birth after ascent
+      pub bdna:                [bool; 64],           // 64 positions — compile-time guarantee
+  }
+
+  // Level 2
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct Container {
+      pub id:               String,
+      pub parent_mythos_id: String,
+      pub name:             String,
+      pub capsules:         Vec<Capsule>,
+      pub capacity:         CapacityMetadata,
+      pub domain:           Option<String>,
+      pub lifecycle:        LifecycleState,
+      pub metadata:         serde_json::Value,
+      pub resonance_hz:     f32,
+      pub bound_elements:   Vec<String>,            // element IDs from thaumaturgy table
+  }
+
+  // Level 1
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct MythosContainer {
+      pub id:                String,
+      pub parent_genesis_id: String,
+      pub name:              String,
+      pub crest:             Option<String>,         // Level 2 heraldic Crest
+      pub containers:        Vec<Container>,
+      pub capacity:          CapacityMetadata,
+      pub domain:            Option<String>,
+      pub lifecycle:         LifecycleState,
+      pub resonance_hz:      f32,
+      pub bound_elements:    Vec<String>,
+  }
+
+  #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+  #[serde(rename_all = "snake_case")]
+  pub enum SealType { Greater, Lesser }
+
+  // World-level constants — declared by each Genesis Container, never engine-hardcoded
+  #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+  pub struct WorldConstants(pub std::collections::HashMap<String, f32>);
+
+  impl WorldConstants {
+      pub fn get(&self, key: &str) -> Option<f32> { self.0.get(key).copied() }
+      pub fn get_or(&self, key: &str, default: f32) -> f32 {
+          self.0.get(key).copied().unwrap_or(default)
+      }
+  }
+
+  // Level 0 — Root
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct GenesisContainer {
+      pub id:               String,
+      pub name:             String,
+      pub seal_type:        SealType,
+      pub domain:           String,
+      pub seed_answers:     Vec<SeedQuestion>,      // world-defining Q&A at creation
+      pub constants:        WorldConstants,         // world-level named constants (hz, thresholds…)
+      pub factions:         Vec<FactionPreset>,     // this world's faction presets (0–N, world-defined)
+      pub mythos:           Vec<MythosContainer>,
+      pub capacity:         CapacityMetadata,
+      pub lifecycle:        LifecycleState,
+      pub sealed_at:        Option<i64>,            // Unix ms; None until sealed
+      pub bdna_signature:   String,                 // root lineage hash
+      pub wire_types:       Vec<WireType>,          // active types in this world
+      pub resonance_hz:     f32,                    // base frequency
+      pub parent_seal_id:   Option<String>,         // None for Greater Seal
+      pub harmonic_ratio:   Option<f32>,            // ratio to parent seal frequency
+      pub bound_elements:   Vec<String>,            // from thaumaturgy table
+  }
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 16  ·  Capacity Enforcement & Insertion Rules
+────────────────────────────────────────────────────────────────────────────────
+
+16.1  THE assert_capacity FUNCTION
+
+Before every insert, the assert_capacity guard runs on the target container.
+Returns Ok(()) if insertion is allowed, expanding octave if dynamic.
+Returns Err if the container is full and growth_mode is Fixed.
+
+  /// Capacity guard — enforces current octave limit.
+  /// Call before every capsule or child container insertion.
+  pub fn assert_capacity(cap: &mut CapacityMetadata, label: &str) -> Result<(), String> {
+      let limit = 2u32.pow(cap.current_octave as u32);
+      if cap.child_count >= limit {
+          match cap.growth_mode {
+              GrowthMode::Dynamic => {
+                  // Expand to next octave automatically
+                  cap.current_octave += 1;
+                  cap.max_children_current = 2u32.pow(cap.current_octave as u32);
+                  if let Some(ceiling) = cap.estimated_ceiling_octave {
+                      if cap.current_octave > ceiling {
+                          cap.ceiling_adjustments += 1;
+                          // Caller should log a ceiling revision event
+                      }
+                  }
+                  Ok(())
+              }
+              GrowthMode::Fixed => Err(format!(
+                  "Capacity violation: {} is full at octave {} ({} children). \
+                   Fixed mode — create a new parent container.",
+                  label, cap.current_octave, limit
+              )),
+          }
+      } else {
+          Ok(())
+      }
+  }
+
+16.2  SEVEN INSERTION RULES
+
+  1. Call assert_capacity() on the target container before every insert.
+
+  2. Fixed mode overflow: The container is full. Create a new sibling container
+     under the same or a new Mythos. Do not exceed the declared octave.
+
+  3. Dynamic mode overflow: The container expands to the next octave automatically.
+     If expansion would exceed estimated_ceiling_octave, log a ceiling revision
+     event and increment ceiling_adjustments.
+
+  4. Sealed container: No structural changes permitted after seal. Capsule payload
+     updates are allowed. Hierarchy is frozen.
+
+  5. B-DNA requirement: Every Capsule must have a lineage_hash. Nothing without
+     provenance enters a sealed Genesis Container.
+
+  6. Resonance requirement: Every container must declare a resonance_hz at seeding.
+     Lesser Seals must declare a harmonic_ratio to their parent seal frequency.
+
+  7. Vault storage: Any asset not in active use must be stored in the Vault, not
+     retained in the active Genesis Container's working memory.
+
+16.3  GREATER SEAL vs. LESSER SEAL
+
+Greater Seal — the root container of the entire metaverse. No declared size. Grows
+until resonance can no longer sustain coherent expansion. Exactly one per metaverse.
+Cannot be nested inside anything. Has no parent_seal_id.
+
+Lesser Seal — every other sealed container. Has declared growth mode and optional
+estimated ceiling. Can nest inside other Lesser Seals if resonance is harmonically
+compatible. A Lesser Seal cannot contain a Greater Seal. This is a hard physics law.
+
+Every Lesser Seal must declare a harmonic_ratio to its parent seal frequency. The
+harmonic relationship between nested seals determines their compatibility in the
+Harmonic Tensor Graph and governs resonance-based gate conditions between them.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PART V  ·  AGENT SYSTEM
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 17  ·  Quantum Agent Overview
+────────────────────────────────────────────────────────────────────────────────
+
+The Quantum Agent system gives the Narrative DAW its intelligence layer. Where the
+myth-os engine manages world state and the Vault manages artifacts, the Agent system
+provides the active actors — the entities that perceive the world, make decisions,
+generate content, and orchestrate creative workflows.
+
+There are two parallel agent implementations, each addressing a different layer
+of the stack:
+
+  Aetherium Loom (Rust/8 crates)    — Low-level, performance-critical kernel.
+                                       Manages the simulation-layer agents that
+                                       live inside myth-os and operate on world
+                                       state directly.
+
+  Quantum Agent Python/FastAPI       — High-level orchestration layer. Manages
+                                       LLM-based creative agents, MCP tool use,
+                                       memory/RAG pipelines, and code generation.
+                                       Lives at F:\quantum-agent\quantum-agent.
+
+Both implementations follow the local-first principle: Ollama is the primary
+inference provider at every layer. Cloud fallbacks exist but are not the default.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 18  ·  Rust Kernel — Aetherium Loom (8 Crates)
+────────────────────────────────────────────────────────────────────────────────
+
+The Aetherium Loom is a Rust workspace of 8 crates, each assigned a system ID
+and a specific domain of responsibility.
+
+  SHA-256 integrity signature for the canonical package:
+  a3ce26b1afd15788114b1d6f7a03a7e5729f4b6976fe359e4635c51e5f60bbc6
+
+Crate inventory:
+
+  rust_kernel_orchestrator     SYS_01
+    The central coordinator. Defines AgentId (UUID-based typed newtype) and the
+    KernelOrchestrator struct that manages the lifecycle of all other crates.
+    The only crate with global visibility into the agent system state.
+
+  sentinel_sandbox_guardian    SEC_01
+    Cross-platform sandboxing. Isolates agent execution environments so that
+    a misbehaving agent cannot corrupt the world state or access filesystem
+    paths outside its declared scope. Manages permission grants and revocations.
+
+  mcp_hyperlink_bridge         NAV_01
+    Bridges the MCP (Model Context Protocol) tool system to the Tokio async
+    runtime via MPSC channels. Handles tool registration, dispatch, and result
+    routing. All external tool calls from agents flow through this crate.
+
+  quantum_lense_react_portal   UI_01
+    The native egui/eframe UI for the agent rack. Provides a visual interface
+    for monitoring running agents, inspecting their state, sending manual CTL
+    packets, and reviewing agent logs. Communicates with the kernel via the
+    theater TCP channel.
+
+  chronos_evolution_registry   MAP_01
+    Temporal evolution tracking. Records every state transition of every agent
+    over time, creating a time-indexed map of agent behavior. Used for debugging,
+    for B-DNA lineage calculations in agent derivatives, and for the Chronicle
+    pipeline.
+
+  cortex_memory_engine         COG_01
+    Cognitive state management. Serializes and deserializes agent memory using
+    Serde JSON. Manages short-term working memory (in-context), long-term
+    episodic memory (persisted to SQLite/ChromaDB), and semantic retrieval for
+    RAG queries. The cognitive substrate that makes agents feel consistent across
+    sessions.
+
+  sonic_status_emitter         MED_01
+    MIDI telemetry layer via midir. Emits MIDI signals representing agent state
+    transitions — alive/dead, active/idle, error states. Enables monitoring of
+    the agent system through physical MIDI hardware and the Composer module.
+    Uses the RES wire type to communicate with the Harmonic Tensor Graph.
+
+  forge_script_synthesizer     NAR_01
+    Dynamic Rust code generation. Takes NAR-type payloads (natural language
+    descriptions of desired behavior) and generates Rust code that implements
+    that behavior. The basis of the self-modifying capability of advanced agents.
+    Output is validated and sandboxed before execution.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 19  ·  Python/FastAPI Agent (FORGE · BRIDGE · CORTEX)
+────────────────────────────────────────────────────────────────────────────────
+
+Location: F:\quantum-agent\quantum-agent
+
+The Python agent is a FastAPI orchestration server that manages three subsystems:
+
+FORGE — Code Generation Subsystem
+  Handles all code generation requests. Takes a natural language specification and
+  produces working code in the requested language. Validates output before returning.
+  Integrates with the forge_script_synthesizer Rust crate via the BRIDGE.
+
+BRIDGE — MCP Hub
+  The central switchboard for all external tool connections. Manages three MCP
+  server processes:
+    mcp_shell       — shell command execution in sandboxed environment
+    mcp_filesystem  — file read/write with path permission enforcement
+    mcp_browser     — web browsing and page content extraction
+  All MCP calls from agents are routed through the BRIDGE. Results are typed
+  and returned as WirePacket-compatible data structures.
+
+CORTEX — Memory & RAG
+  Manages agent memory at three scales:
+    Working memory  — in-context, single session, managed by LiteLLM context window
+    Episodic memory — persistent to SQLite, tagged by session and agent ID
+    Semantic memory — ChromaDB vector store, enables similarity search across all
+                      past interactions
+  The CORTEX handles embedding generation (via local Ollama embeddings), vector
+  store queries, and memory consolidation between sessions.
+
+19.1  STORAGE LAYER
+
+  Primary vector store: ChromaDB (local)
+  Relational store:     SQLite (local)
+  No cloud database required for any baseline functionality.
+
+19.2  LLM PROVIDER CONFIGURATION
+
+The Python agent uses LiteLLM as the provider abstraction layer, enabling model
+switching without code changes. Provider priority order (local-first):
+
+  1. ollama/llama3.1    — primary local inference (Ollama)
+  2. Gemini             — cloud fallback 1
+  3. Anthropic          — cloud fallback 2
+  4. OpenRouter         — cloud fallback 3 (access to many models)
+
+The provider selection is configured in the agent startup environment. Agents
+running on a machine with Ollama installed and a model pulled will never hit
+cloud providers unless explicitly configured to do so.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 20  ·  LLM Routing — Ollama Local-First Architecture
+────────────────────────────────────────────────────────────────────────────────
+
+All LLM inference in the Quantum Quill system defaults to local models via Ollama.
+The routing logic follows a strict precedence:
+
+  Local Ollama → Available? → Use it.
+        ↓ Not available
+  Check internet connection → Available? → Use configured cloud fallback.
+        ↓ Not available
+  Return cached response if one exists for this query.
+        ↓ No cache
+  Return degraded-mode response (inform user of limited functionality).
+
+This routing ensures the system is maximally useful offline and on low-bandwidth
+connections, while being able to leverage cloud models for tasks that exceed local
+capacity.
+
+The faction conditioning system (Chapter 34) injects faction identity into every
+LLM system prompt, regardless of which provider is serving the request. The prompt
+injection is provider-agnostic.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PART VI  ·  QUANTUM MODULES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 21  ·  Module Registry Overview
+────────────────────────────────────────────────────────────────────────────────
+
+The Quantum Module system divides the world engine's capability space into 16
+independent modules organized across 4 departments. Each module is a self-contained
+library crate in the myth-os workspace, communicates exclusively via WirePackets,
+and can run standalone.
+
+  Package:     bsqm-modules-001
+  Genesis ID:  BSQM-20240418-001
+  Format:      .qgcp
+  Capsules:    4096/4096  sealed
+
+Module components follow a Standard Components format. Each module has four component
+groups (Roman numerals I-IV), each containing four components — 16 components per
+module, 256 components total across all 16 modules. Component names include the
+wire type they carry: "World Origin Anchor WOA SPA" means the World Origin Anchor
+component carries SPA (Spatial) wire data.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 22  ·  Dept I — World Construction
+────────────────────────────────────────────────────────────────────────────────
+
+Department I governs the physical foundation of every world — terrain, atmosphere,
+architecture, and lighting. These modules define where things exist before defining
+what they do.
+
+01 · TERRAIN  |  Atlas  |  #1e8cff
+The coordinate and cartographic backbone. All spatial data — hex grids, heightmaps,
+biome boundaries, pathfinding — flows through Terrain.
+
+  I  — Coordinate:   World Origin Anchor WOA SPA · Hex Grid Mapper HGM SPA
+                     Strata Depth Calculator SDC SPA · Coordinate Transform Engine CTE SPA
+  II — Cartographic: Heightmap Generator HMG SPA · Watershed Tracer WST SPA
+                     Biome Boundary Painter BBP SPA · Geological Fault Seeder GFS SPA
+  III— Navigation:   Pathfinding Solver PFS SPA · Zone Transition Gate ZTG CTL
+                     Travel Cost Calculator TCC SPA · Encounter Radius Probe ERP SPA
+  IV — Intelligence: Region Oracle RGO DAT · Terrain Hazard Evaluator THE ENR
+                     Resource Node Scanner RNS DAT · Geographic Memory Cache GMC DAT
+
+02 · ENVIRONMENT  |  Mythos  |  #8050e0
+Weather, atmospheric conditions, climate cycles, and world-level environmental
+events. The Mythos module gives the world its breath.
+
+  I  — Atmospheric:  Weather Engine WEA ENR · Wind Pattern Mapper WPM SPA
+                     Humidity Gradient HUM ENR · Pressure System PSY ENR
+  II — Climate:      Seasonal Cycle SCY TMP · Temperature Gradient TGR ENR
+                     Precipitation Tracker PCT DAT · Climate Zone Registry CZR DAT
+  III— Events:       Storm Event Spawner SES EVT · Eclipse Scheduler ECS TMP
+                     Seismic Trigger SIS EVT · Volcanic Activity Monitor VAM ENR
+  IV — Ecology:      Flora Density Mapper FDM SPA · Fauna Migration Tracker FMT SPA
+                     Ecosystem Health Index EHI ENR · Biome Succession Engine BSE TMP
+
+03 · ARCHITECT  |  Architect  |  #64b4ff
+Procedural building generation, structural integrity simulation, and spatial layout
+for settlements, dungeons, fortresses, and cities.
+
+  I  — Layout:       District Planner DPL SPA · Street Grid Generator SGG SPA
+                     Plot Subdivider PSB SPA · Zone Classifier ZCL DAT
+  II — Structure:    Building Facade Generator BFG VIS · Interior Layout Engine ILE SPA
+                     Structural Load Calculator SLC ENR · Foundation Depth Assessor FDA SPA
+  III— Fortification:Wall Segment Placer WSP SPA · Gate Position Optimizer GPO SPA
+                     Tower Coverage Calculator TCC SPA · Siege Line Mapper SLM SPA
+  IV — Heritage:     Ruin Decay Simulator RDS TMP · Architecture Style Registry ASR DAT
+                     Cultural Embellishment Engine CEE NAR · Historical Layer Mapper HLM TMP
+
+04 · LIGHTING  |  Prism  |  #e0d8ff
+Global illumination, dynamic day/night cycles, magical light sources, and chromatic
+atmosphere. The Prism module is the visual soul of the world.
+
+  I  — Solar:        Day/Night Cycle Controller DNC TMP · Shadow Length Calculator SLC SPA
+                     Solar Angle Tracker SAT SPA · Twilight Gradient Engine TGE VIS
+  II — Chromatic:    Ambient Color Mixer ACM VIS · Fog Density Controller FDC ENR
+                     Color Temperature Shifter CTS VIS · Spectral Filter Bank SFB VIS
+  III— Magic:        Aetheric Glow Emitter AGE VIS · Resonance Halo Generator RHG RES
+                     Faction Light Conditioner FLC VIS · Portal Luminance Engine PLE VIS
+  IV — Night:        Star Field Generator SFG VIS · Moon Phase Tracker MPT TMP
+                     Bioluminescence Mapper BLM SPA · Darkness Depth Calculator DDC ENR
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 23  ·  Dept II — Entity Systems
+────────────────────────────────────────────────────────────────────────────────
+
+Department II governs the actors that populate the world — their bodies, their
+movement, their behavior, and their social relationships.
+
+05 · MODELING  |  Animus  |  #f4c025
+Character and creature physical definition. Body proportions, visual appearance,
+animation rigs, and morphological data.
+
+  I  — Anatomy:      Body Proportion Engine BPE SPA · Skeletal Rig Generator SRG SPA
+                     Facial Feature Composer FFC VIS · Age Progression Simulator APS TMP
+  II — Appearance:   Skin/Scale Texture Mapper STM VIS · Hair/Follicle Density Engine HFE VIS
+                     Clothing Layer Compositor CLC VIS · Accessory Slot Registry ASR DAT
+  III— Animation:    Locomotion State Machine LSM BHV · Gesture Library Index GLI DAT
+                     Facial Animation Blender FAB VIS · Combat Stance Switcher CSS BHV
+  IV — Variance:     Genetic Drift Simulator GDS IDN · Population Variance Engine PVE DAT
+                     Faction Aesthetic Marker FAM IDN · Injury State Tracker IST BHV
+
+06 · CHOREOGRAPHY  |  Loom  |  #dc3c78
+Movement orchestration, crowd simulation, spatial interaction, and positional logic.
+
+  I  — Individual:   Pathfinding Override PFO SPA · Personal Space Enforcer PSE SPA
+                     Collision Resolver COR SPA · Velocity Integrator VEL SPA
+  II — Group:        Formation Manager FRM SPA · Crowd Flow Simulator CFS SPA
+                     Dispersal Pattern Engine DPE SPA · Bottleneck Resolver BTR SPA
+  III— Interaction:  Proximity Trigger Zone PTZ CTL · Stance Exchange Protocol SEP BHV
+                     Item Handoff Controller IHC DAT · Combat Engagement Router CER BHV
+  IV — Spectacle:    Choreographed Sequence Loader CSL TMP · Performance Stage Manager PSM SPA
+                     Ritual Formation Engine RFE SPA · Parade Route Controller PRC SPA
+
+07 · BEHAVIOR  |  Instinct  |  #9030d0
+The decision engine for every actor — goals, drives, emotional states, memory
+access, and the moment-by-moment choices that make characters feel alive.
+
+  I  — Drive:        Hunger/Satiation Manager HSM ENR · Rest Cycle Controller RCC TMP
+                     Social Belonging Meter SBM SOC · Achievement Drive Calculator ADC BHV
+  II — Emotional:    Emotion State Machine ESM BHV · Mood Transition Engine MTE BHV
+                     Trauma Event Processor TEP BHV · Joy Cascade Trigger JCT BHV
+  III— Cognition:    Goal Stack Manager GSM BHV · Memory Access Router MAR DAT
+                     Decision Tree Evaluator DTE LGC · Attention Focus Controller AFC BHV
+  IV — Reactive:     Threat Response System TRS BHV · Curiosity Probe Engine CPE BHV
+                     Comfort Zone Calculator CZC SPA · Flight/Fight Resolver FFR BHV
+
+08 · SOCIETY  |  Order  |  #c8a860
+Faction relationships, social hierarchies, reputation systems, cultural norms,
+and collective behavior patterns that emerge when actors interact at scale.
+
+  I  — Faction:      Faction Registry FRG DAT · Alliance Web Mapper AWM SOC
+                     Tension Gradient Calculator TGC SOC · Treaty Compliance Monitor TCM LGC
+  II — Reputation:   Individual Reputation Tracker IRT SOC · Rumor Propagation Engine RPE SOC
+                     Public Opinion Synthesizer POS SOC · Notoriety Escalation Monitor NEM SOC
+  III— Hierarchy:    Power Ranking Calculator PRC SOC · Succession Logic Engine SLE LGC
+                     Role Assignment Dispatcher RAD SOC · Authority Challenge Resolver ACR LGC
+  IV — Culture:      Tradition Registry TDR DAT · Taboo Enforcement Engine TEE LGC
+                     Festival Calendar Manager FCM TMP · Cultural Drift Simulator CDS TMP
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 24  ·  Dept III — Narrative Systems
+────────────────────────────────────────────────────────────────────────────────
+
+Department III is the heart of the Narrative DAW — the systems that translate world
+state into story, manage time, and produce all textual and auditory creative output.
+
+09 · SEQUENCER  |  Chronicle  |  #b08030
+The master timeline of the world. Every event, decision, and state change is indexed
+and made available for narrative retrieval and temporal reasoning.
+
+  I  — Recording:    Event Ingestion Queue EIQ EVT · Timestamp Normalizer TSN TMP
+                     Event Classifier ECL MET · Duplicate Suppressor DPS LGC
+  II — Indexing:     Narrative Thread Tracker NTT NAR · Causality Chain Builder CCB LGC
+                     Character Arc Indexer CAI NAR · World Beat Counter WBC TMP
+  III— Retrieval:    Event Query Engine EQE DAT · Timeline Slice Extractor TSE TMP
+                     Foreshadow Seed Injector FSI NAR · Callback Event Locator CEL NAR
+  IV — Export:       Screenplay Formatter SPF NAR · Novel Chapter Assembler NCA NAR
+                     Game Event Serializer GES DAT · Summary Digest Generator SDG NAR
+
+10 · STORY  |  Quill  |  #8c50ff
+The author-facing composition layer. Where the Narrative DAW becomes a writing tool —
+beat sheets, scene structures, dialogue flows, and Bloom Effects detection.
+
+  I  — Beat:         Story Beat Scheduler SBS NAR · Tension Meter Engine TME ENR
+                     Pacing Regulator PCR TMP · Act Structure Enforcer ASE LGC
+  II — Scene:        Scene Condition Checker SCC LGC · Setting Detail Injector SDI NAR
+                     Character Presence Validator CPV SOC · Scene Stakes Calculator SSC ENR
+  III— Dialogue:     Voice Consistency Checker VCC NAR · Subtext Layer Generator SLG NAR
+                     Dialogue Tension Monitor DTM BHV · Exposition Control Engine ECE NAR
+  IV — Emergence:    Bloom Effect Detector BED EVT · Surprise Event Classifier SEC EVT
+                     Narrative Entropy Monitor NEM ENR · Serendipity Probability Engine SPE LGC
+
+11 · MEMORY  |  Codex  |  #00c060
+Persistent world knowledge — lore, history, NPC memory, cultural records, and the
+semantic retrieval layer that makes the world feel like it remembers.
+
+  I  — Lore:         Lore Entry Indexer LEI DAT · Canonical Fact Validator CFV LGC
+                     Contradiction Detector CND LGC · Lore Version Tracker LVT TMP
+  II — NPC Memory:   Episodic Memory Recorder EMR DAT · Relationship Impression Store RIS SOC
+                     Event Recall Calculator ERC BHV · Memory Decay Simulator MDS TMP
+  III— Cultural:     Oral Tradition Registry OTR NAR · Sacred Text Repository STR DAT
+                     Propaganda Engine PRP NAR · Myth Mutation Tracker MMT TMP
+  IV — Semantic:     Vector Embedding Generator VEG AST · Similarity Search Engine SSE DAT
+                     Knowledge Graph Builder KGB DAT · Cross-Reference Resolver CRR LGC
+
+12 · SOUND  |  Composer  |  #dc8c1e
+The musical and audio layer — ambient soundscapes, character themes, faction music
+conditioning, and MIDI-driven resonance telemetry.
+
+  I  — Ambient:      Biome Soundscape Generator BSG AUD · Weather Audio Mixer WAM AUD
+                     Time-of-Day Audio Scheduler TAS TMP · Interior Acoustics Simulator IAS AUD
+  II — Character:    Leitmotif Assignment Engine LAE AUD · Emotional State Sonifier ESS AUD
+                     Combat Audio Router CAR AUD · Dialogue Prosody Controller DPC AUD
+  III— Faction:      Faction Theme Registry FTR AUD · Cultural Instrument Selector CIS AUD
+                     Faction Conditioning Mixer FCM AUD · Victory/Defeat Stinger Engine VDE AUD
+  IV — Resonance:    MIDI Resonance Emitter MRE RES · Frequency Signature Tracker FST RES
+                     Holy Hum Calibrator HHC RES · Aethel-Vora Handshake Monitor AHM RES
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 25  ·  Dept IV — Pipeline Systems
+────────────────────────────────────────────────────────────────────────────────
+
+Department IV manages the technical infrastructure that keeps the simulation running —
+business logic, physics computation, artifact delivery, and network coordination.
+
+13 · LOGIC  |  Axiom  |  #20c8d0
+Rule systems, condition evaluation, constraint enforcement, and the formal logic layer.
+
+  I  — Rules:        Rule Registry RRG LGC · Constraint Validator CVL LGC
+                     Implication Chain Engine ICE LGC · Rule Conflict Resolver RCR LGC
+  II — Conditions:   Gate Condition Evaluator GCE LGC · Trigger Threshold Monitor TTM LGC
+                     Precondition Checker PCC LGC · Postcondition Verifier PCV LGC
+  III— Physics Logic:Conservation Law Enforcer CLE LGC · Energy Balance Monitor EBM ENR
+                     Causality Constraint Engine CCE LGC · Paradox Detector PDT LGC
+  IV — Meta:         Schema Validator SCV MET · Type Consistency Checker TCC MET
+                     World Law Auditor WLA LGC · Constraint Relaxation Controller CRC LGC
+
+14 · SIMULATION  |  Continuum  |  #30e060
+The continuous physics and time systems — the substrate on which all world change
+occurs. Manages the tick loop, physics steps, and temporal coherence.
+
+  I  — Temporal:     World Tick Master WTM TMP · Simulation Speed Controller SSC TMP
+                     Time Dilation Engine TDE TMP · Epoch Boundary Manager EBM TMP
+  II — Physics:      Gravity Field Simulator GFS ENR · Fluid Dynamics Approximator FDA SPA
+                     Thermodynamic Balance Engine TBE ENR · Pressure Differential Monitor PDM ENR
+  III— Continuity:   State Snapshot Manager SSM DAT · Rollback Engine RBE TMP
+                     Divergence Detector DVG LGC · Branch Reconciliation Engine BRE LGC
+  IV — Scaling:      Load Distribution Manager LDM ENR · Parallel Simulation Router PSR AGT
+                     Micro/Macro Scale Bridge MMB SPA · Emergence Aggregation Engine EAE EVT
+
+15 · FORGE  |  Forge  |  #ff6400
+Code generation, artifact compilation, asset production, and the creative synthesis
+layer where narrative descriptions become executable artifacts.
+
+  I  — Generation:   Code Template Engine CTE NAR · Artifact Compiler ACM AST
+                     Asset Pipeline Manager APM AST · Output Format Selector OFS MET
+  II — Synthesis:    Narrative-to-Code Translator NCT NAR · Parameter Extractor PRE MET
+                     Schema Inference Engine SIE MET · Template Variable Resolver TVR LGC
+  III— Validation:   Output Integrity Checker OIC LGC · Syntax Validator SVL LGC
+                     Semantic Consistency Verifier SCV NAR · Test Harness Generator THG LGC
+  IV — Distribution: Package Builder PKB AST · Manifest Generator MGN MET
+                     Version Tag Controller VTC DAT · Release Gate Manager RGM CTL
+
+16 · NETWORK  |  Nexus  |  #ffffff
+The coordination layer for distributed simulation — agent-to-agent communication,
+cross-world data exchange, and the mesh that connects all modules.
+
+  I  — Routing:      Packet Router PKR DAT · Channel Multiplexer CMX CTL
+                     Protocol Negotiator PRN MET · Latency Monitor LTM TMP
+  II — Agents:       Agent Discovery Protocol ADP AGT · Capability Registry CPR DAT
+                     Task Dispatch Engine TDE AGT · Result Aggregator RAG DAT
+  III— Cross-World:  World Bridge Controller WBC DAT · Seal Compatibility Checker SCC LGC
+                     Harmonic Ratio Negotiator HRN RES · Cross-Context Event Bus CCB EVT
+  IV — Health:       Network Health Monitor NHM ENR · Packet Loss Detector PLD LGC
+                     Reconnection Handler RCH CTL · Load Balancer LBL ENR
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 26  ·  Module Independence Law
+────────────────────────────────────────────────────────────────────────────────
+
+Every module MUST be able to run with none of the others loaded.
+
+  cargo run -p terrain   # must do something meaningful with no other modules active
+
+If it can't — the module is not independent. Fix it before continuing.
+
+Modules communicate ONLY via WirePackets through the Theater compositor. They never
+import each other's types or call each other's functions. Check after every module
+addition:
+
+  cargo tree -p terrain | grep loom   # must return nothing — they are strangers
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PART VII  ·  HERALDRY & SYMBOLIC TAXONOMY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 27  ·  Overview — 20 Symbolic Types
+────────────────────────────────────────────────────────────────────────────────
+
+The Heraldry System is the symbolic taxonomy of the Quantum Quill. Where B-DNA asks
+"where did this come from?", Heraldry asks "what is this?" There are exactly 20
+symbolic types across 4 levels:
+
+  Level 1  (2 types):    SEAL       Greater | Lesser
+  Level 2  (16 slots):   CREST      11 named + 5 reserved
+  Level 3  (3 types):    Glyph | Device | Emblem
+  Level 4  (4 types):    Trait | Mark | Token | Sigil
+
+Every entity is assigned a heraldic birth position at creation — immutable record
+(heraldic_birth) — plus the position it occupies now (heraldic_current), which can
+change through ascent or descent governed by the Condition Engine.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 28  ·  Level 1: Seals
+────────────────────────────────────────────────────────────────────────────────
+
+GREATER SEAL  —  Root authority of the entire metaverse. Exactly one per metaverse.
+No parent. Grows until resonance can no longer sustain coherent expansion. Cannot
+be nested inside anything. Represented as white-light — all spectra combined.
+
+LESSER SEAL  —  Every other sealed container and authority structure. Has declared
+growth mode, harmonic ratio to parent, optional estimated ceiling. Can nest inside
+other Lesser Seals when resonance is harmonically compatible. A Lesser Seal can
+never contain a Greater Seal.
+
+Known Sovereign Seals:
+  CORE_SEAL_V1    white-light, root-level security, no parent
+  VAULT_SEAL_V1   slate-aether, governs all Vault operations
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 29  ·  Level 2: Crests
+────────────────────────────────────────────────────────────────────────────────
+
+Crests represent dynastic identity — the identity of a major system or persistent
+power. 16 Crest slots total, 11 named:
+
+  Core · Atlas · Vault · Mythos · Codex · Loom · Composer · Forge · Order · Mind · Soul
+  [5 reserved slots]
+
+Crests are assigned to MythosContainers and major systems. A MythosContainer bearing
+the Atlas Crest is definitively a spatial/cartographic domain. A Capsule bearing
+the Forge Crest is a code-generation or synthesis artifact.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 30  ·  Level 3: Glyphs, Devices, Emblems
+────────────────────────────────────────────────────────────────────────────────
+
+GLYPH    A composable capability marker. Represents skills, abilities, tools, or
+         features that can be attached to entities and combined. Multiple Glyphs
+         per entity are permitted.
+
+DEVICE   An individual functional unit — a specific implementation of a capability.
+         A particular tool, weapon, or named system component. More specific than a Glyph.
+
+EMBLEM   A thematic grouping symbol. Organizes Glyphs and Devices into coherent
+         thematic clusters. Marks "everything related to X" or "all artifacts from Era Y."
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 31  ·  Level 4: Traits, Marks, Tokens, Sigils
+────────────────────────────────────────────────────────────────────────────────
+
+TRAIT    A measurable attribute. Carries numerical or scalar values — strength, resonance
+         ratings, corruption levels. Changes over time and is tracked by the Condition Engine.
+
+MARK     A simple boolean tag. Marked/unmarked. No measurement attached. The simplest
+         form of heraldic classification.
+
+TOKEN    A transactional or temporary symbol. Represents resources, permissions, or
+         states that are exchanged, consumed, or expire. Can be transferred.
+
+SIGIL    A unique personal binding. Every actor has exactly one Sigil — derived from
+         their B-DNA signature and unreplicable. When two actors interact, their Sigils
+         generate a unique interaction signature recorded by the Chronicle.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 32  ·  Three-Way Alignment Requirement
+────────────────────────────────────────────────────────────────────────────────
+
+Every entity must satisfy Three-Way Alignment before it is architecturally valid.
+Checked at insertion by assert_capacity and at compile by the Logic module's
+Schema Validator (SCV MET).
+
+  STRUCTURAL POSITION    Genesis (0) / Mythos (1) / Container (2) / Capsule (3)
+  FUNCTIONAL ROLE        Engine / Major System / Addon / Entity
+  SYMBOLIC TYPE          Seal / Crest / Glyph / Device / Emblem / Trait / Mark / Token / Sigil
+
+An entity without valid Three-Way Alignment is not a participant in the ecosystem.
+It is noise.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PART VIII  ·  FACTION SYSTEM
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 33  ·  Five Factions — World-Agnostic Aesthetic Presets
+────────────────────────────────────────────────────────────────────────────────
+
+The Five Factions are the aesthetic conditioning language of the BioSpark Quantum
+Ecosystem. Not lore factions — world-agnostic design presets applied to any project,
+Genesis Container, or creative output to give it a consistent visual, emotional, and
+generative identity. Think of them as the EQ presets of the creative DAW.
+
+LUMINARITE
+  Primary: #EDD878  ·  Accent: #F8EFB0  ·  Glow: rgba(237,216,120,0.4)
+  Energy Tier: +2  ·  Border: 0.25pt glow-etched
+  Emotional Register: transcendent · weightless · dissolved · aetheric · pristine
+  World Feel:  The highest strata. Forms are suggestions. Weight is a memory.
+               The aesthetic is rarefied, luminous, barely material.
+  Use for:     Divine systems, cosmological structures, the Observer layer.
+
+VENTURAN
+  Primary: #00BFFF  ·  Glow: rgba(0,191,255,0.3)
+  Energy Tier: +1  ·  Border: 1.2pt ascending diagonal
+  Emotional Register: adventurous · kinetic · horizon-seeking · optimistic
+  World Feel:  Velocity and direction. Everything moving toward something.
+               The aesthetic is clean, forward-leaning, charged with possibility.
+  Use for:     Exploration systems, agent discovery, frontier modules.
+
+SYLVANID
+  Primary: #2ECC71  ·  Glow: rgba(46,204,113,0.3)
+  Energy Tier: 0 (ground state)  ·  Border: 1.6pt organic, slightly irregular
+  Emotional Register: connective · growing · patient · ancient
+  World Feel:  Everything alive, interwoven, slowly becoming. Organic, layered,
+               deeply rooted.
+  Use for:     Ecosystem modules, social web systems, the memory/codex layer.
+
+HYDRALIS
+  Primary: #1A8FD1  ·  Glow: rgba(26,143,209,0.3)
+  Energy Tier: -1  ·  Border: 1.8pt pressure-gradient, horizontal layering
+  Emotional Register: precise · navigational · deep · composed
+  World Feel:  Controlled descent into depth. Cool, layered, technical,
+               navigational. Precise under constraint.
+  Use for:     Physics systems, fluid simulation, the Continuum module.
+
+SYNTARAN
+  Primary: #D4890A  ·  Accent: #00c8b4  ·  Glow: rgba(212,137,10,0.3)
+  Energy Tier: -2 (heaviest structure)  ·  Border: 2.0pt rigid, industrial
+  Emotional Register: industrial · load-bearing · structural · enduring
+  World Feel:  Weight-bearing, manufactured, built to last. Utilitarian, heavy,
+               reliable, slightly worn. The cyan accent is the craftsperson's pride.
+  Use for:     Infrastructure modules, the Forge, the Vault delivery layer.
+
+Faction Energy Tier spectrum:
+  +2  Luminarite   The realm of observation, divinity, and pure pattern
+  +1  Venturan     The realm of agency, discovery, and forward motion
+   0  Sylvanid     The realm of growth, connection, and patient becoming
+  -1  Hydralis     The realm of precision, depth, and controlled structure
+  -2  Syntaran     The realm of foundation, industry, and load-bearing form
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 34  ·  Faction Conditioning — LLM & Suno Integration
+────────────────────────────────────────────────────────────────────────────────
+
+Faction identity is injected into every AI generation call as part of the system
+prompt. This ensures generated text, code, imagery descriptions, and music prompts
+carry the aesthetic signature of the assigned faction.
+
+34.1  Rust Implementation
+
+NOTE: The engine defines the FactionPreset struct (the concept of a faction). Specific
+faction identities — Luminarite, Venturan, etc. — are Xyrona Prime world-level data
+defined in the world seed file, not hardcoded engine constants. Any world can declare
+its own factions. The Xyrona Prime defaults are shown here as reference data.
+
+  // myth-wire/src/faction.rs  — ENGINE LEVEL (agnostic)
+
+  #[derive(Debug, Clone, Serialize, Deserialize)]
+  pub struct FactionPreset {
+      pub name:               String,
+      pub energy_tier:        i8,             // -2 (heaviest) to +2 (lightest)
+      pub primary_color:      String,         // hex string
+      pub accent_color:       Option<String>,
+      pub glow_color:         String,         // rgba string
+      pub border_weight:      f32,
+      pub emotional_register: Vec<String>,
+      pub prompt_keywords:    Vec<String>,
+  }
+
+  impl FactionPreset {
+      /// Build the LLM system prompt for this faction.
+      pub fn system_prompt(&self) -> String {
+          let tier = if self.energy_tier >= 0 {
+              format!("+{}", self.energy_tier)
+          } else {
+              self.energy_tier.to_string()
+          };
+          format!(
+              "You are operating in the {} faction register.\n\
+               Emotional register: {}.\n\
+               Use language evoking: {}.\n\
+               Visual palette: {}. Energy tier: {}.",
+              self.name,
+              self.emotional_register.join(", "),
+              self.prompt_keywords.join(", "),
+              self.primary_color,
+              tier,
+          )
+      }
+  }
+
+  // WORLD LEVEL — Xyrona Prime defaults (in xyrona-prime.qgcp seed / reference data)
+  // These are NOT engine constants. They are Xyrona Prime's SeedAnswers.
+
+  // Luminarite:  energy +2, #EDD878 / #F8EFB0, border 0.25pt
+  // Venturan:    energy +1, #00BFFF, border 1.20pt
+  // Sylvanid:    energy  0, #2ECC71, border 1.60pt
+  // Hydralis:    energy -1, #1A8FD1, border 1.80pt
+  // Syntaran:    energy -2, #D4890A / #00c8b4, border 2.00pt
+
+34.2  Suno Music Prompt Conditioning
+
+  Luminarite:   "ethereal ambient, choir pads, dissolving reverb, slow breath tempo"
+  Venturan:     "kinetic orchestral, rising strings, driving percussion, optimistic"
+  Sylvanid:     "organic folk, layered acoustic textures, patient melody, earthy"
+  Hydralis:     "minimal jazz, precise rhythm, cool blue palette, navigational flow"
+  Syntaran:     "industrial metal, heavy bass, mechanical rhythm, worn patina"
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 35  ·  Multi-Faction Blending
+────────────────────────────────────────────────────────────────────────────────
+
+A single entity or world can carry a blended faction signature declared as a
+weighted vector:  { Luminarite: 0.6, Venturan: 0.4 }
+
+Blending rules:
+  · Weights must sum to 1.0
+  · No more than 3 factions in a single blend
+  · Adjacent faction blends (±1 energy tier) produce coherent aesthetics
+  · Non-adjacent blends (e.g., Luminarite + Syntaran) produce intentional dissonance —
+    useful for corrupted, fractured, or paradoxical entities
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PART IX  ·  XYRONA PRIME & ORDER OF THE QUANTUM QUILL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 36  ·  Xyrona Prime — The Mythic Universe
+────────────────────────────────────────────────────────────────────────────────
+
+Xyrona Prime is the fictional universe that provides the symbolic and mythic DNA for
+all BioSpark Studios architecture. It is not a separate project — it is the living
+mythology that names and animates the system. The Five Factions of the Quantum Quill
+are the Five Factions of Xyrona Prime. The 16 Quantum Modules are the 16 departments
+of the Order. The wire types carry the same names and semantics in both the fictional
+world and the technical system. The mythology IS the architecture expressed in narrative.
+
+Three frequencies are cosmologically significant:
+
+  440 Hz   Aethel-Vora / WebSocket handshake.  wss://core.quantum.local/weave
+  432 Hz   Forge / soul-weight. Frequency at which things become real and permanent.
+           Sealed artifacts carry 432Hz in their resonance_hz field.
+  88 Hz    Sky-Surface trade / The Holy Hum. Base resonance for the Society/Order
+           module. Bus frequency for EVT packets crossing world boundaries.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 37  ·  The Seven Races & Resonance Frequencies
+────────────────────────────────────────────────────────────────────────────────
+
+  NYXARI        <400 THz    Deep void — the watchers from beneath
+  VENTURAN      450–510     Mid-blue/cyan — the horizon seekers
+  SYNTARAN      510–530     Green-yellow — the builders
+  SYLVANID      540–580     Green — the living network
+  HYDRALIS      630–670     Red-orange — the deep divers
+  LUMINARITE    700–800     Violet/UV threshold — the transcendent
+  DRACONIS      >800 THz    Gamma range — Narrative Collapse tier.
+                             Draconis presence triggers RULE-EQUIL-02 monitoring.
+                             Not a faction — a force.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 38  ·  The Order of the Quantum Quill — 8 Members
+────────────────────────────────────────────────────────────────────────────────
+
+  VERENTHIS   Sylvanid  720THz  Memory, pattern recognition, long-term consequence.
+                                System role: the Codex — world memory and semantic knowledge.
+                                Voice: patient, layered, ecological metaphors.
+
+  NOXVIR      Syntaran  520THz  Security, enforcement, hard boundary definition.
+                                System role: Sentinel — security and covenant enforcement.
+                                Voice: terse, direct, uncomfortable with ambiguity.
+
+  SOLVANE     Venturan  490THz  Discovery, scouting, first-contact protocols.
+                                System role: the Bridge — agent discovery and first connection.
+                                Voice: optimistic, observational, fascinated by novelty.
+
+  ASHVEL      Venturan  465THz  Communication, translation, inter-faction mediation.
+                                System role: the Network — cross-module communication.
+                                Voice: diplomatic, warm, skilled at reframing.
+
+  KOLMARA     Syntaran  515THz  Construction, artifact building, material fabrication.
+                                System role: the Forge — code generation and synthesis.
+                                Voice: methodical, takes pride in the work, allergic to shortcuts.
+
+  THARINDREL  Sylvanid  555THz  Narrative authority, story law, Chronicle maintenance.
+                                System role: the Chronicle — event sequencing.
+                                Voice: formal, precise, keeper of what actually happened.
+
+  VAELITHOS   Nyxari    <400    Void perception, shadow element detection, hidden system states.
+                                System role: the Shadow Layer — void watching, entropy detection.
+                                Voice: oblique, elliptical, addresses what others don't see.
+
+  SORALINDE   Luminarite 740THz Cosmological observation, world balance, the view from above.
+                                System role: the Observer — world health, resonance, Apex_Fall.
+                                Voice: vast, unhurried, uncomfortable with urgency.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 39  ·  RULE-EQUIL-02 & World Resonance Balance
+────────────────────────────────────────────────────────────────────────────────
+
+RULE-EQUIL-02 is the world balance law of Xyrona Prime, implemented as a live
+condition check in the Condition Engine.
+
+  total_world_resonance = SUM(active_voices.resonance_signature)
+    WHERE active_voice = any agent, entity, or Spire currently sustaining a Chronicle
+
+  ratio = (strata[+2].extraction - strata[-2].gain) / total_world_resonance
+
+  IF ratio > 0.15 → TRIGGER Apex_Fall
+
+If Luminarite-tier entities (+2) extract more than 15% more resonance than
+Syntaran-tier entities (-2) generate, the world is imbalanced. Apex_Fall fires.
+
+Apex_Fall is a world-level EVT packet on the cosmic bus. It triggers Chronicle
+recording with full causal attribution, notifies Soralinde, and causes Axiom to
+re-evaluate all active LGC covenants. Whether the world collapses or self-corrects
+is determined by its own LGC covenants — Apex_Fall is notification, not destruction.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 40  ·  The Myralith — 7 Debug Nodes
+────────────────────────────────────────────────────────────────────────────────
+
+The Myralith are 7 conditional debug nodes that exist as diagnostic tools. They are
+NOT part of Xyrona Prime lore. They did not pass through the Gauntlet.
+
+  Lystryx      Network topology visualizer — active WirePacket routing
+  Gravael      Physics constraint auditor — Octave Capacity Law violations
+  Thaless      Resonance frequency monitor — live readout of all node Hz values
+  Veyru        B-DNA lineage inspector — traces lineage chains in the debug view
+  Bramblex     Memory pressure monitor — ChromaDB and SQLite utilization
+  Rauk         Agent state inspector — frozen-time view of all active agent states
+  Cindervox    Covenant enforcement auditor — reports all active bindings
+
+Activated via:  cargo run -p engine -- --debug-myralith=<node-name>
+Each attaches as a read-only Theater adapter, emits MET packets to Instruments UI.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PART X  ·  NARRATIVE ENGINE — LOOM & SEQUENCER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 41  ·  LoomEngine — 5-Stage Pipeline
+────────────────────────────────────────────────────────────────────────────────
+
+The LoomEngine transforms discrete world events (EVT packets from the Chronicle)
+into flowing narrative output (NAR packets ready for export). The five stages are
+named after physical loom components — the tool that weaves threads into cloth
+is the metaphor for weaving events into story.
+
+  STAGE 1  WARP THREADS
+    Input:   Raw EVT packets from the Chronicle module
+    Process: Classify events as PLOT_CRITICAL, CHARACTER_MOMENT, WORLD_DETAIL,
+             or BACKGROUND. Only first two types proceed. WORLD_DETAIL is indexed
+             but not forwarded. BACKGROUND is discarded — simulation noise, not story.
+
+  STAGE 2  PATTERN HARNESSES
+    Input:   Classified narrative events
+    Process: Group events into causal chains. Identify which events caused which
+             others, which characters are affected, which chains are parallel vs
+             intersecting. Output is a structured event graph, not a list.
+
+  STAGE 3  OPERATION SHUTTLE
+    Input:   Event graph
+    Process: Make editorial decisions — pacing, what to show now vs later, when
+             to reveal what. Applies the Story module's beat structure and tension
+             meter to determine output selection.
+
+  STAGE 4  REED MERGER
+    Input:   Selected events
+    Process: Merge parallel event threads into coherent linear (or branching)
+             narrative sequence. Handles simultaneous events, off-screen events,
+             and time-skipped periods.
+
+  STAGE 5  TAKE-UP ROLL
+    Input:   Merged sequence
+    Process: Format as NAR wire output in requested format (screenplay, prose chapter,
+             game event feed, summary digest). Apply faction aesthetic conditioning.
+             Emit as NAR packets to Theater output adapter.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 42  ·  Quantum Director — Screenplay Tool
+────────────────────────────────────────────────────────────────────────────────
+
+The Quantum Director is a local Bun-based tool managing screenplay-format narrative
+output. World-agnostic — doesn't know or care which Genesis Container it pulls from.
+
+42.1  DATA SCHEMA
+
+  project_data.json      Global project metadata: title, author, logline, world
+                         reference (Genesis Container ID), faction, character and
+                         location registries.
+  scenes.json            All scenes: scene_id, act, chapter, location, time,
+                         characters, description, optional Director Metadata Block.
+  chapter_markers.json   Maps chapter numbers to scene ranges and arc positions.
+
+42.2  CHARACTER PROFILE FORMAT
+
+  {
+    "id": "CHAR-001", "name": "Full Name", "faction": "Sylvanid",
+    "resonance_hz": 555,
+    "bdna": [true, false, ...],    // 64 elements exactly
+    "traits": {
+      "surface": ["observable trait 1", "observable trait 2"],
+      "deep":    ["hidden motivation", "core wound"],
+    },
+    "voice_notes": "Ecological metaphors. Slow cadence. Avoids urgency.",
+    "arc":         "Begins believing X. Ends knowing Y.",
+  }
+
+42.3  ARC / CHAPTER STRUCTURE
+
+  ACT I    Ch 1–3      Establishment
+  ACT IIA  Ch 4–7      Rising complication
+  ACT IIB  Ch 8–11     Deepening, point of no return
+  ACT III  Ch 12–14    Resolution and consequence
+
+Each scene must satisfy at least one narrative function — ADVANCE PLOT,
+REVEAL CHARACTER, ESTABLISH WORLD, or RAISE STAKES. A scene satisfying none
+is marked BACKGROUND and may be filtered by LoomEngine Stage 1.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 43  ·  Director Metadata Block
+────────────────────────────────────────────────────────────────────────────────
+
+Scenes can carry an optional Director Metadata Block stripped from final screenplay
+exports but consumed by Theater output adapters:
+
+  EXT. THE FIRST SPIRE - DAWN
+
+  [DIRECTOR]
+  VFX:         "Mist rising through crystalline structures, 440Hz resonance pulse"
+  SOUND:       "Sylvanid ambient theme, 555Hz harmonic undertone, distant wind"
+  LIGHTING:    "Luminarite gold wash, 0.25pt glow, pre-dawn blue horizon"
+  ENVIRONMENT: "Dense forest canopy, ancient stone, living vines on ruins"
+  CAMERA:      "Slow drone ascent revealing the full spire height"
+  [/DIRECTOR]
+
+VFX → theater-bevy  ·  SOUND → theater-audio  ·  LIGHTING → Prism module
+ENVIRONMENT → SPA wire packet to Terrain  ·  CAMERA → advisory for human directors
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 44  ·  Lore Entry Format
+────────────────────────────────────────────────────────────────────────────────
+
+  {
+    "id":          "LORE-001",
+    "title":       "The Founding of the First Spire",
+    "era":         "Age of Silence",
+    "capsule_id":  "CAP-SYLV-001",
+    "tags":        ["founding", "spire", "first age"],
+    "content":     "The full lore text...",
+    "wire_type":   "NAR",
+    "bdna_ref":    "lineage hash of the originating event",
+  }
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PART XI  ·  CONDITION ENGINE & RESONANCE PHYSICS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 45  ·  Harmonic Tensor Graph
+────────────────────────────────────────────────────────────────────────────────
+
+The Harmonic Tensor Graph (HTG) is the resonance physics layer. Every node in the
+system — Genesis Container, Mythos, Container, Capsule, Module, Agent — participates
+in the HTG by declaring a resonance_hz value.
+
+The HTG uses these frequencies to:
+  · Form dynamic edges — nodes with harmonically compatible frequencies (2:1, 3:2,
+    4:3 ratios) form natural edges. Dissonant ratios create resistance.
+  · Evaluate gate conditions — checks whether cumulative resonance at a gate node
+    has reached the threshold required to open it.
+  · Calculate heraldic positions — a node's HTG position partially determines its
+    heraldic ascent/descent trajectory.
+  · Surface shadow elements — when resonance drops below threshold, bound shadow
+    elements become active.
+
+RES wire type carries resonance field values between nodes.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 46  ·  Trinary Validation Gate & Gate Conditions
+────────────────────────────────────────────────────────────────────────────────
+
+The TRINARY VALIDATION GATE (TVG) is the canonical gate evaluation structure.
+All three conditions must be TRUE for a TVG to open:
+
+  CONDITION 1 (Structural):   Correct hierarchy level?
+  CONDITION 2 (Resonance):    RES wire value at gate ≥ declared threshold?
+  CONDITION 3 (Heraldic):     Current heraldic type satisfies gate's requirement?
+
+Five condition source types feed TVG evaluations:
+  MIDI       — Physical MIDI controller input (CTL wire)
+  B-DNA      — Lineage and covenant state (IDN wire)
+  Heraldry   — Current heraldic position (MET wire)
+  Voxel      — Spatial perception field values (SPA wire)
+  Resonance  — HTG resonance field values (RES wire)
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 47  ·  Shadow Elements & Resonance Thresholds
+────────────────────────────────────────────────────────────────────────────────
+
+Every HTG node has a resonance threshold — the minimum RES value below which
+the node enters a degraded state. When a node's resonance drops below threshold:
+
+  1. The node's bound_elements list is checked for shadow elements.
+  2. Active shadow elements surface, modifying node behavior.
+  3. RESONANCE_DROP EVT packet is emitted on the cosmic bus.
+  4. Soralinde (the Observer) is notified via the Chronicle.
+
+Shadow elements are the "dark side" of the Periodic Table of Thaumaturgy. Every
+manifest element has a corresponding shadow element that activates under low-resonance
+conditions — always the inversion or corruption of the manifest element's behavior.
+
+Example: A Sylvanid "Verdant Growth" node that drops below threshold will have its
+shadow element "Consuming Rot" become active. Growth mechanics are replaced with
+decay mechanics until resonance is restored.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 48  ·  Heraldic Ascent / Descent Mechanics
+────────────────────────────────────────────────────────────────────────────────
+
+Entities can ascend to higher heraldic types or descend to lower ones through the
+actions they take and the resonance they accumulate or lose.
+
+Ascent path:   Mark → Trait → Token → Sigil → Emblem → Device → Glyph → Crest → (Lesser Seal)
+Descent path:  (Lesser Seal) → Crest → Glyph → Device → Emblem → Sigil → Token → Trait → Mark
+
+Ascent requires:
+  · Sustained high resonance (above threshold for N consecutive ticks)
+  · Successful TVG evaluation at the ascent gate
+  · A covenant binding that permits ascent
+
+Descent occurs:
+  · When resonance drops below threshold for M consecutive ticks
+  · When a covenant binding is violated (enforceable: true)
+  · When an Apex_Fall event fires and the entity is in strata[+2]
+
+heraldic_birth is immutable. No matter how far an entity descends, the birth record
+remains. This is the B-DNA of the heraldic system — you can change what you are,
+but you cannot change what you were.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PART XII  ·  SECURITY & SOVEREIGN SEALS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 49  ·  Sovereign Seals
+────────────────────────────────────────────────────────────────────────────────
+
+CORE_SEAL_V1
+  Type:    Greater Seal  ·  Color: white-light
+  Domain:  Root-level system access. Governs authentication handshake for all
+           cross-system operations, agent permission grants, and Vault write
+           operations at the Blueprint level.
+  Mandate: No operation crossing a Genesis Container boundary may proceed without
+           a valid CORE_SEAL_V1 authentication token.
+
+VAULT_SEAL_V1
+  Type:    Lesser Seal (child of CORE_SEAL_V1)  ·  Color: slate-aether
+  Domain:  All Vault operations. Read access is open. Write access requires
+           VAULT_SEAL_V1 validation.
+  Mandate: Vault write attempts without a VAULT_SEAL_V1 token are rejected at
+           the API gateway, before any business logic runs.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 50  ·  White-Light Handshake Protocol
+────────────────────────────────────────────────────────────────────────────────
+
+The White-Light Handshake governs how boundary crossings between Genesis Containers
+occur safely (a character from one world appearing in another, a module being imported).
+
+  1. DECLARE    Importing container declares intent — source container ID + entity B-DNA.
+  2. VERIFY     CORE_SEAL_V1 system verifies both containers are authenticated and
+                entity B-DNA is consistent between both records.
+  3. COVENANT   Cross-context covenant bindings transfer intact. Local/inherited bindings
+                remain in the source container.
+  4. FORK       New B-DNA record created: generation = source + 1, parentIds = [source.id],
+                rootId = source.bdna.rootId ?? source.id, forkedFrom = source.id.
+  5. SEAL       Handshake recorded in Chronicle of both containers as CROSS_WORLD_IMPORT
+                EVT packet. Immutable after this step.
+
+The Instruments UI marks handshake completion with a white-light pulse.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 51  ·  WebSocket Protocol
+────────────────────────────────────────────────────────────────────────────────
+
+  Endpoint:   wss://core.quantum.local/weave  (Aethel-Vora frequency, 440Hz base)
+
+  WEAVE_INIT         Client connects.
+                     Payload: { session_id, seal_token, client_type }
+                     Server responds with world state snapshot.
+
+  VAULT_DELTA        Vault state changes (Blueprint submitted, Module registered,
+                     Tome published).
+                     Payload: { delta_type, entity_id, timestamp }
+
+  CREST_SHIFT        Major system changes Crest assignment, or heraldic ascent/descent
+                     occurs at Crest level.
+                     Payload: { entity_id, old_crest, new_crest, trigger }
+
+  SIGIL_INTERACT     Two entities' Sigils generate an interaction signature.
+                     Payload: { actor_a_id, actor_b_id, interaction_signature,
+                                wire_type, resonance_delta }
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PART XIII  ·  DIVINE REGISTRY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 52  ·  The Six Divinities as Shader / SVG Specifications
+────────────────────────────────────────────────────────────────────────────────
+
+The Divine Registry records six cosmological entities that correspond to fundamental
+system states. Each is simultaneously lore entity and technical specification —
+expressed as shader and SVG visual specifications used in the Instruments UI and
+Theater visual adapters.
+
+ASTRION  ·  Light / Perfect Health
+  Shader:   Radial gradient, white core → gold fade → transparent edge
+  SVG:      8-pointed starburst, stroke #EDD878, fill opacity 0.15
+  System:   Activates when overall HTG resonance exceeds 0.9 saturation.
+            All gates open, no shadow elements active.
+
+NIHALOS  ·  Void / Errors
+  Shader:   Fully black, no glow, occasional single-pixel white speck
+  SVG:      Irregular void shape, fill #000000, subtle edge distortion
+  System:   Error states, null entity references, resonance collapse,
+            RESONANCE_DROP events below 0.1 threshold.
+
+SOLARA  ·  Growth / Life
+  Shader:   Warm amber-gold, oscillating glow, organic edge breathing
+  SVG:      Radiant spiral, stroke #f4a010, animated rotation
+  System:   Active Dynamic container expansion, positive resonance delta
+            over multiple ticks.
+
+HYDRIA  ·  Depth / Precision
+  Shader:   Cool layered blue, precise horizontal bands, no blur
+  SVG:      Concentric rings, stroke #1A8FD1, crisp edges
+  System:   Active LGC pipeline evaluation, physics computation cycles.
+
+SIREN STORMWEAVER  ·  Narrative Force
+  Shader:   Purple-cyan lightning, chaotic but structured, 432Hz pulse rhythm
+  SVG:      Branching lightning, stroke #8c50ff with #00c8b4 nodes
+  System:   Bloom Effects firing, high-entropy narrative periods, multiple EVT
+            packets firing in rapid sequence.
+
+CIRRUS HARMONICS  ·  System Harmony
+  Shader:   Translucent white wisps, soft motion, perfect circular arrangement
+  SVG:      Flowing cloud-form, fill white opacity 0.3, gentle curve paths
+  System:   All 16 modules synchronized, faction conditioning coherent, resonance
+            balanced across all strata. RULE-EQUIL-02 ratio < 0.05.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PART XIV  ·  DEPLOYMENT & OPERATIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 53  ·  Local-First Stack
+────────────────────────────────────────────────────────────────────────────────
+
+DATABASE LAYER
+
+  Primary KV/Relational:  SQLite
+    All agent memory, session history, Blueprint/Module/Tome metadata.
+    Schema managed by diesel (Rust).
+    Default path: data/quantum.db
+
+  Vector Store:           ChromaDB  (local)
+    All semantic memory embeddings for agent CORTEX.
+    All lore and knowledge base entries for similarity search.
+    Embedding model: local Ollama (nomic-embed-text).
+    Default path: data/chromadb/
+
+  Genesis Container files: .qgcp format (via qgcp crate)
+    Default path: containers/
+
+INFERENCE LAYER
+
+  Primary:    Ollama (local)
+    Router: LiteLLM (Python) or direct Ollama API (Rust)
+    Default models: llama3.1 (general), nomic-embed-text (embeddings)
+    Endpoint: http://localhost:11434
+
+  Cloud fallback (in order, only if Ollama unavailable):
+    1. Gemini Pro
+    2. Anthropic Claude
+    3. OpenRouter
+
+  MIDI Inference: Ollama (local, always — latency requirements prohibit cloud)
+
+AGENT RUNTIME
+
+  Primary:    Python 3.11+ with FastAPI
+  Rust:       Tokio async (Aetherium Loom)
+  Scripts:    Rust binaries (Quantum Director ported to Rust CLI)
+  Processes:  cargo run (myth-os), uvicorn (FastAPI)
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 54  ·  Pre-Flight Checklist
+────────────────────────────────────────────────────────────────────────────────
+
+Before writing any new myth-os code:
+
+  [ ] Which layer? engine (narrative) / module / adapter / binary
+      Default to library crate. Only promote to binary if there's a main() reason.
+
+  [ ] Zero renderer deps in the engine?
+      cargo tree -p mythos | grep bevy
+      Bevy appears → STOP. Revert. Fix before proceeding.
+
+  [ ] Can this module run standalone?
+      cargo run -p <module-name>
+      Fails alone → coupling present. Fix it.
+
+  [ ] Modules communicating via WirePackets only?
+      Any module crate listed in another module's Cargo.toml → STOP.
+
+  [ ] Renderer dep crept into a library crate?
+      cargo tree -p mythos | grep "bevy\|egui\|cpal"
+
+  [ ] Is the binary under 100 lines?
+      main.rs > 100 lines → logic leaked into binary. Move to library.
+
+  [ ] Three-Way Alignment on every new type?
+      Structural position / Functional role / Symbolic type — all three.
+
+  [ ] Every Capsule has a lineage_hash?
+      No provenance = no insertion.
+
+  [ ] Using EngineTransport, not TcpTransport directly?
+
+  [ ] Every container declares resonance_hz at seeding?
+      Lesser Seals must declare harmonic_ratio to parent.
+
+
+────────────────────────────────────────────────────────────────────────────────
+CHAPTER 55  ·  Anti-Patterns to Avoid
+────────────────────────────────────────────────────────────────────────────────
+
+THE BEVY HOST TRAP
+  Simulation logic in impl Plugin for X { fn build() }. Bevy systems are renderers.
+  Fix: Logic in mythos or module crates. Bevy reads state. Bevy never writes simulation.
+
+THE MONOLITH
+  One binary loads everything.
+  Fix: Each module is standalone. Each binary composes only what it needs.
+
+MODULE COUPLING
+  Module A imports Module B types and calls its functions.
+  Fix: WirePackets only. Modules are strangers to each other.
+
+SHARED MEMORY ACROSS PROCESSES
+  Arc<Mutex<>> spanning what should be separate binaries.
+  Fix: TCP. Always. Even localhost. The boundary is the point.
+
+FAT BINARY
+  All logic in main.rs. Library crate is empty scaffolding.
+  Fix: Library crate holds everything. Binary is wiring only.
+
+PREMATURE PUBLISHING
+  Pushing to crates.io before the API is stable.
+  Fix: Path deps during development. Publish when the API is genuinely stable.
+
+RENDERER DEP CREEP
+  A "small" renderer import sneaks into mythos or a module crate.
+  Fix: cargo tree -p mythos | grep bevy after every change. Bevy appears → revert.
+
+FIXED-NUMBER THINKING
+  Designing containers with a fixed 12-or-16 child limit as a system-wide constant.
+  Fix: All capacity is octave-relative. Default is octave 4 (16). Departure from
+  octave 4 is a deliberate decision, not a violation.
+
+CLOUD-FIRST INFERENCE
+  Routing LLM calls to cloud before checking for local Ollama.
+  Fix: Always check Ollama first. Cloud is a fallback, not the default.
+
+MISSING B-DNA
+  Creating a Capsule without a lineage_hash.
+  Fix: No provenance, no insertion. Enforced at every insertion point.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PART XV  ·  APPENDICES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+────────────────────────────────────────────────────────────────────────────────
+APPENDIX A  ·  Complete Wire Type Table
+────────────────────────────────────────────────────────────────────────────────
+
+  #   Symbol  Name         Description
+  ─────────────────────────────────────────────────────────────────────────────
+  01  DAT     DATA         Universal fallback — typed JSON payloads
+  02  CTL     CONTROL      Boolean, gate, and trigger signals
+  03  AUD     AUDIO        Waveform and sample streams
+  04  NAR     NARRATIVE    Story text, prose, dialogue, lore
+  05  TMP     TEMPORAL     Time signals: ticks, clocks, timestamps
+  06  AGT     AGENT        Agent instruction packets and state streams
+  07  VIS     VISUAL       Image, render, and shader streams
+  08  SPA     SPATIAL      3D coordinates, voxel and hex grid data
+  09  BHV     BEHAVIORAL   Emotion signals, drive values, decision packets
+  10  SOC     SOCIAL       Relationship maps, faction data, reputation
+  11  ENR     ENERGY       Power levels, resource flows, capacity values
+  12  IDN     IDENTITY     B-DNA records, lineage chains, covenant data
+  13  EVT     EVENT        Cosmic bus events — world-level broadcasts
+  14  AST     ASSET        File references, binary blobs, media URIs
+  15  MET     META         Schema definitions, type structures, manifests
+  16  LGC     LOGIC        Boolean expressions, rule payloads, conditions
+  17  RES     RESONANCE    Resonance field values — HTG gravity (new)
+
+DAT = universal fallback. RES = newest. BDna: Vec<bool>, exactly 64 elements.
+Every node participating in the Condition Engine must support at least one RES input.
+
+
+────────────────────────────────────────────────────────────────────────────────
+APPENDIX B  ·  Faction Color & Border Specifications
+────────────────────────────────────────────────────────────────────────────────
+
+  Faction      Primary    Accent     Glow                   Border  Tier
+  ──────────────────────────────────────────────────────────────────────────
+  Luminarite   #EDD878    #F8EFB0    rgba(237,216,120,0.4)  0.25pt  +2
+  Venturan     #00BFFF    —          rgba(0,191,255,0.3)    1.20pt  +1
+  Sylvanid     #2ECC71    —          rgba(46,204,113,0.3)   1.60pt   0
+  Hydralis     #1A8FD1    —          rgba(26,143,209,0.3)   1.80pt  -1
+  Syntaran     #D4890A    #00c8b4    rgba(212,137,10,0.3)   2.00pt  -2
+
+
+────────────────────────────────────────────────────────────────────────────────
+APPENDIX C  ·  Capsule YAML Template
+────────────────────────────────────────────────────────────────────────────────
+
+  id: CAP-SYLV-001
+  title: "The Heart of the Grove"
+  origin: Sylvanid
+  wire_type: NAR
+  resonance_hz: 555
+  metadata:
+    trait: [is_hybrid, buoyancy_debt]
+    seal_requirement: VAULT_SEAL_V1
+    bdna: [true, false, true, ...]   # 64 elements required
+    lineage_hash: "sha256:abc123..."
+  logic:
+    on_hover: trigger_aethel_vora(440Hz)
+    on_merge: white_light_handshake
+  heraldry:
+    birth_type: Glyph
+    birth_crest: Codex
+    current_type: Glyph
+    current_crest: Codex
+  symbolism:
+    crest: "SYLVANID_ORGANIC"
+    sigil: "SIG-ASTRION"
+  content: |
+    [Lore narrative, character description, or component specification]
+
+
+────────────────────────────────────────────────────────────────────────────────
+APPENDIX D  ·  Quantum Module Manifest Format
+────────────────────────────────────────────────────────────────────────────────
+
+  {
+    "module_id":      "GEN-01",
+    "name":           "Terrain",
+    "crest":          "Atlas",
+    "color":          "#1e8cff",
+    "department":     1,
+    "faction":        "Venturan",
+    "resonance_hz":   440,
+    "wire_inputs":    ["SPA", "CTL", "DAT"],
+    "wire_outputs":   ["SPA", "DAT", "ENR"],
+    "standalone_cmd": "cargo run -p terrain",
+    "package_id":     "bsqm-modules-001",
+    "genesis_id":     "BSQM-20240418-001",
+    "format":         ".qgcp"
+  }
+
+
+────────────────────────────────────────────────────────────────────────────────
+APPENDIX E  ·  Constants Reference
+────────────────────────────────────────────────────────────────────────────────
+
+ENGINE-LEVEL CONSTANTS — these are architectural invariants, hardcoded in myth-wire.
+They apply to every world, always, without exception.
+
+  64       BDna length — [bool; 64] exactly 64 elements. Never shorter. Never longer.
+           Architectural. Cannot be overridden.
+
+  4096     Module package capsule count — bsqm-modules-001, Genesis ID: BSQM-20240418-001
+
+  8        Octave 3 (first musical octave) — minimum practical container size
+  16       Octave 4 — canonical default container capacity
+  2^n      Octave capacity always a power of two — never a fixed arbitrary number
+
+WORLD-LEVEL CONSTANTS — declared in WorldConstants inside SeedAnswers.
+Every Genesis Container declares its own. No engine code references these by name.
+The Xyrona Prime defaults are shown as reference only.
+
+  Key                  Xyrona Prime value   Meaning in Xyrona Prime
+  ──────────────────────────────────────────────────────────────────────────────
+  handshake_hz         440.0                Aethel-Vora / WebSocket identity freq
+  forge_hz             432.0                Soul-weight / sealed artifact resonance
+  event_bus_hz         88.0                 Sky-Surface trade / EVT crossing freq
+  balance_threshold    0.15                 RULE-EQUIL-02 Apex_Fall trigger ratio
+  ──────────────────────────────────────────────────────────────────────────────
+
+In Rust, the engine accesses these as:
+  world.constants.get("handshake_hz")    // returns f32, world-defined
+  world.constants.get("balance_threshold") // returns f32, world-defined
+
+A sci-fi world might set handshake_hz to 528.0 and have no balance_threshold at all.
+The engine does not care. The Xyrona Prime world seed (xyrona-prime.qgcp) cares.
+
+RULE-EQUIL-02 is a CovenantBinding declared in the Xyrona Prime Genesis Container,
+not an engine function. The engine provides the CovenantBinding evaluation mechanism.
+Xyrona Prime populates it with its specific ratio and threshold.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  END OF DOCUMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  QQ-Tech-Manual v2.0
+  BioSpark Studios · Internal Reference · June 2026
+
+  Compiled from: myth-os-architecture, genesis-container, quantum-modules,
+  five-factions, biospark-quantum-genesis, quantum-director, order-of-the-quantum-quill
+  skill files; F:\quantum-agent README; H:\00-QUANTUM-CORE-0.0.0 source files;
+  F:\📜 The Compendium of Truth; H:\Master Blueprint Quantum Vault.
+
+  "Genesis is a narrative engine. Rendering is a consequence."
+
+Displaying QQ-Tech-Manual-COMPLETE.txt.

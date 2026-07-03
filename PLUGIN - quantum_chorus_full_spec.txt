@@ -1,0 +1,140 @@
+
+################################################################################
+# QUANTUM CHORUS: MASTER SYSTEM SPECIFICATION & BLUEPRINT                      #
+# Project Code: Xyrona-Prime-001                                               #
+# Documentation Version: 2.0.0 (AI-Project Rebuild Ready)                      #
+################################################################################
+
+OVERVIEW:
+This document contains the functional and structural breakdown of the Quantum Chorus
+application. It is designed to be used as a system prompt or context window for 
+LLM-based project reconstruction.
+
+--------------------------------------------------------------------------------
+
+[ SECTION: 0. System Architecture & Core Logic ]
+
+Quantum Chorus is built on a custom state-orchestration layer using React Context and a centralized 'Shell' model. 
+  * Persistence:All project data (Instruments, Nodes, Lore, Branding) is serialized to a custom JSON schema with built-in Map/Set revivers.
+  * Undo/Redo:Implemented via a snapshot-based command stack that captures the entire project shell state on every destructive action.
+  * AI Integration:Exclusively utilizes the Google Gemini API (model: gemini-2.5-flash) for generative content, code generation, and complex reasoning.
+
+--------------------------------------------------------------------------------
+
+[ SECTION: I. Spatial Canvas: Instruments, Zones & Creation ]
+
+>>> 1. The Instrument Creator
+  * Access:Tab 1 (Chip Icon) in the Canvas Sidebar.
+  * Workflow:Select a template type (City, Character, Dialogue, etc.), enter a label, and click 'Add Instrument'.
+  * Mechanic:Generates a 'PluginNode' on the React Flow canvas. This node acts as a container for its own recursive node graph.
+  * Drill-down:Double-clicking a PluginNode opens the dedicated Graph Editor for that specific instrument.
+
+>>> 2. Symbolic Zone Manager
+  * Access:Tab 3 (Map Pin Icon) in the Canvas Sidebar.
+  * Workflow:Click '+' to drop a new zone. These are resizable bounding boxes.
+  * Environmental Biasing:Instruments dragged into a zone inherit its 'Logic Modifiers' (e.g., constant attribute degradation) and 'Pulse Waves' (rhythmic triggers).
+
+>>> 3. Spatial Linking
+  * Signals:Inter-instrument handles (Pink=Source, Cyan=Target) allow signal propagation between exit/entry nodes of different graphs.
+  * Thematic Handshakes:Square handles on Zones allow for logical world transitions.
+
+--------------------------------------------------------------------------------
+
+[ SECTION: II. Graph Editor: Granular Narrative Logic ]
+
+>>> 1. Node Types
+  * Symbolic:Tarot, Archetypes, and Locations. Semantic anchors for AI reasoning.
+  * Logical/Math:Operator nodes (And, Or, Not, Add, Subtract) that perform real-time calculation on attributes.
+  * Structure:Entry/Exit points for inter-instrument signal hopping.
+  * Specialty:AI Code Generator (creates raw TSX nodes), Trait Generator (parses text into numerical values).
+
+>>> 2. Weaving Mechanics
+  * Inspector Panel:Right-hand side. Used to edit Node Attributes, Conditions (If/Then/Else strings), and Symbolic Tags.
+  * Semantic Diamond Handles:Top/Bottom of nodes. Define conceptual 'Entanglement' that influences the AI Co-Pilot without passing data packets.
+
+--------------------------------------------------------------------------------
+
+[ SECTION: III. Superposition & The Synth Canvas ]
+
+>>> 1. The Concept
+  * Superposition:Prompts exist as a collection of potential 'Infusion Layers' until a synthesis action is triggered.
+
+>>> 2. Synthesis Logic
+  * Base Prompt:The core narrative skeleton.
+  * Infusion Layers:Each layer is tied to a specific Trait (e.g., 'Mystic Explorer') with custom style keywords and symbol biases.
+  * Probability Weights:Each layer has a 0.0-1.0 weight. On 'Synthesis', the engine performs a probabilistic collapse to select one style for final LLM generation.
+
+--------------------------------------------------------------------------------
+
+[ SECTION: IV. Song Weaver: Drag-and-Drop Prompting ]
+
+>>> 1. Functional Blocks
+  * Modules:Genre, Mood, Instrumentation, Lyrics, Culture, and Lore Capsules.
+  * Interaction:DND sorting system (React-DND). Blocks can be reordered to change the context hierarchy passed to the LLM.
+
+>>> 2. Lore Capsules
+  * Integration point for Mythos (Legends) and Codex (Chronicles). Adding a 'Mythos Capsule' allows you to select a legendary artist, whose keywords are automatically injected into the final prompt.
+
+--------------------------------------------------------------------------------
+
+[ SECTION: V. The Loom: Pattern Weaving Engine ]
+
+>>> 1. Analysis
+  * Pattern Detection:Analyzes the simulation chronicle to identify narrative arcs (e.g., Conflict-Resolution, Compassion-Connection).
+  * Visualizer:A resonance timeline charting the intersection of different character arcs.
+
+>>> 2. Narrative Modulation
+  * Emotional Tone:Intensifies word choice.
+  * Descriptiveness:Shifts between lean Hemingway-esque prose and lush, flowery imagery.
+  * Pacing:Modifies sentence structure complexity.
+
+>>> 3. Export Suite
+  * Generates raw text, screenplay-formatted scripts, or dialogue data-blobs (.txt, .md, .fountain).
+
+--------------------------------------------------------------------------------
+
+[ SECTION: VI. Lore Registries: Mythos & Codex ]
+
+>>> 1. Mythos (The Gallery of Legends)
+  * Conjuring:AI generates unique artist profiles (Names, Bio, Style Palettes).
+  * Branding Sync:'Create Bio' button takes an artist's starter configuration and populates the Artist Bio editor.
+
+>>> 2. The Codex (Unearthing History)
+  * Chronicles:Thematic data packets (Excerpt, Race, Resonance Tags).
+  * Remixing:'Remix' button injects a chronicle's core musical blocks (Genre, Mood) directly into the Song Weaver for immediate use.
+
+--------------------------------------------------------------------------------
+
+[ SECTION: VII. Branding Suite: Artist Bio & Album ]
+
+>>> 1. Artist Bio
+  * Block Editor:Header, Text, Image Uploads, and Social Link lists.
+  * Preview:Real-time rendering of the public-facing artist page.
+
+>>> 2. Album Management
+  * Layout:Header (Title/Artist/Cover Art) and Tracklist blocks.
+  * Integrated Player:Supports file uploads for tracks. Includes a full transport bar (Play/Pause/Scrub) and playlist navigation logic.
+
+--------------------------------------------------------------------------------
+
+[ SECTION: VIII. Notebook: Field Intelligence ]
+
+  * Field Notes:Persistent Markdown-ready entries with custom tagging.
+  * Exportability:Toggleable entries. The 'Output Processor' can compile all 'Exportable' notes into a single Technical Review document for the user.
+
+--------------------------------------------------------------------------------
+
+[ SECTION: IX. Intelligence & Simulation Telemetry ]
+
+  * Simulation Tick:Persistent logic loop triggered by HUD. Increments step counts and evaluates node conditions.
+  * Signal Observatory:Entropy tracking via line charts and Trait Distribution via Radar charts.
+  * Singularity Fields:Predictive analysis highlighting zones where narrative density suggests an imminent 'Signal Collapse'.
+  * Dream Mode:Global destabilization toggle. Shimmers UI text and applies random character mutations to node data.
+
+
+
+--------------------------------------------------------------------------------
+# END OF SPECIFICATION                                                         #
+# "The music is already in the nodes; you just have to connect them."          #
+# — Xyronian Archive                                                           #
+################################################################################
