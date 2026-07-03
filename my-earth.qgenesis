@@ -1,0 +1,192 @@
+{
+  "id": "857ff03d-dd24-4856-9edd-a7ec76a9aace",
+  "name": "My Earth",
+  "world_type": "Earth",
+  "domain": "Earth",
+  "seal_type": "Greater",
+  "lifecycle": "Active",
+  "mythos": [
+    {
+      "id": "3db670aa-c8d1-4ac0-8bbc-0fb3a1a8b98e",
+      "name": "Europe",
+      "parent_genesis_id": "857ff03d-dd24-4856-9edd-a7ec76a9aace",
+      "crest": "Atlas",
+      "containers": [
+        {
+          "id": "db023fbd-450b-4962-8370-657524cbef4a",
+          "name": "France",
+          "parent_mythos_id": "3db670aa-c8d1-4ac0-8bbc-0fb3a1a8b98e",
+          "capsules": [
+            {
+              "id": "0x9C7479F19AD910EF",
+              "name": "Paris",
+              "parent_container_id": "db023fbd-450b-4962-8370-657524cbef4a",
+              "heraldic_birth": "Sigil",
+              "heraldic_current": "Sigil",
+              "wire_type": "Narrative",
+              "bdna": {
+                "signature": "62505ea10940ff3cce0d41422b1279b4d4a1e3707cb764a8f20dbf6481b1f2ff",
+                "generation": 0,
+                "parent_ids": [],
+                "root_id": null,
+                "covenant": null,
+                "metadata": {
+                  "forked_from": null,
+                  "created_by": null
+                },
+                "sealed": false
+              },
+              "bdna_bits": [
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false
+              ],
+              "lineage_hash": "0x9D0C0A7BDCDF3CA2",
+              "payload": null,
+              "ports": [],
+              "tags": [
+                "nar"
+              ],
+              "created_at": 1783115931,
+              "resonance_hz": 440.0
+            }
+          ],
+          "heraldry": "Glyph",
+          "lifecycle": "Seeding",
+          "capacity": {
+            "growth_mode": "Fixed",
+            "declared_octave": 4,
+            "estimated_ceiling_octave": 4,
+            "current_octave": 4,
+            "sealed_octave": null,
+            "child_count": 1
+          },
+          "bdna": {
+            "signature": "77da6d462ce428c007ac136104b9eeb7bf9836cac959827414f538f2f20f9533",
+            "generation": 0,
+            "parent_ids": [],
+            "root_id": null,
+            "covenant": null,
+            "metadata": {
+              "forked_from": null,
+              "created_by": null
+            },
+            "sealed": false
+          },
+          "wire_out": null,
+          "resonance_hz": 440.0,
+          "bound_elements": []
+        }
+      ],
+      "lifecycle": "Seeding",
+      "capacity": {
+        "growth_mode": "Fixed",
+        "declared_octave": 4,
+        "estimated_ceiling_octave": 4,
+        "current_octave": 4,
+        "sealed_octave": null,
+        "child_count": 1
+      },
+      "bdna": {
+        "signature": "d2411e2b0b587771dd084f06777e56687dba3de5ca53665906022c964a6a919d",
+        "generation": 0,
+        "parent_ids": [],
+        "root_id": null,
+        "covenant": null,
+        "metadata": {
+          "forked_from": null,
+          "created_by": null
+        },
+        "sealed": false
+      },
+      "resonance_hz": 440.0,
+      "bound_elements": []
+    }
+  ],
+  "capacity": {
+    "growth_mode": "Fixed",
+    "declared_octave": 4,
+    "estimated_ceiling_octave": 4,
+    "current_octave": 4,
+    "sealed_octave": null,
+    "child_count": 1
+  },
+  "sealed_at": null,
+  "bdna": {
+    "signature": "7296924a435c629634fad75058c738f18125fa9b125762a371a2707f8722a676",
+    "generation": 0,
+    "parent_ids": [],
+    "root_id": null,
+    "covenant": null,
+    "metadata": {
+      "forked_from": null,
+      "created_by": null
+    },
+    "sealed": false
+  },
+  "resonance_hz": 440.0,
+  "harmonic_ratio": null,
+  "parent_seal_id": null,
+  "bound_elements": []
+}
