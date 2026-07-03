@@ -548,19 +548,14 @@ impl Control for AbsmCanvas {
                         *current_cursor_position = ui.cursor_position();
                         let rect =
                             Rect::from_points(initial_cursor_position, *current_cursor_position);
-                        let selection = self
-                            .children()
-                            .iter()
-                            .filter(|n| {
-                                let node = ui.node(**n);
-                                if node.is_or_has_field::<Selectable>() {
-                                    rect.intersects(node.screen_bounds())
-                                } else {
-                                    false
+                        let mut selection = Vec::new();
+                        for &child in self.children() {
+                            if ui[child].is_or_has_field::<Selectable>() {
+                                if ui.rect_test(child, rect).next().is_some() {
+                                    selection.push(child);
                                 }
-                            })
-                            .cloned()
-                            .collect::<Vec<_>>();
+                            }
+                        }
                         self.set_selection(&selection, ui);
                         self.invalidate_visual();
                         self.mode = Mode::Normal;
