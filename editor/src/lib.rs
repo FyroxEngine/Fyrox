@@ -155,14 +155,15 @@ use crate::{
     plugins::{
         absm::{AbsmEditor, AbsmEditorPlugin},
         animation::AnimationEditorPlugin,
+        biosphere_help::BiosphereHelpPlugin,
         collider::ColliderPlugin,
         curve_editor::CurveEditorPlugin,
         inspector::editors::make_property_editors_container,
         material::MaterialPlugin,
         probe::ReflectionProbePlugin,
+        quantum_genesis::QuantumGenesisPlugin,
         ragdoll::RagdollPlugin,
         settings::SettingsPlugin,
-        quantum_genesis::QuantumGenesisPlugin,
         stats::EditorStatisticsPlugin,
         tilemap::TileMapEditorPlugin,
     },
@@ -1073,7 +1074,8 @@ impl Editor {
                 .with(CurveEditorPlugin::default())
                 .with(ReflectionProbePlugin::default())
                 .with(inspector_plugin)
-                .with(QuantumGenesisPlugin::default()),
+                .with(QuantumGenesisPlugin::default())
+                .with(BiosphereHelpPlugin::default()),
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread
             // will sleep forever and the window won't come up.

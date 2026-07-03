@@ -1,0 +1,16 @@
+[package]
+name = "fyrox-biosphere-RENAME_ME"
+version = "0.1.0"
+edition = "2021"
+description = "BioSpark Quantum Genesis — DESCRIBE_MODULE_HERE"
+license = "MIT"
+
+# This crate must remain dependency-free from fyrox-impl.
+# It should depend only on fyrox-core (for math/UUID/pooling if needed),
+# serde, and other pure-data libraries.
+# NO dependency on fyrox, fyrox-impl, or fyrox-ui belongs here.
+[dependencies]
+fyrox-biosphere = { version = "0.1.0", path = "../../fyrox-biosphere" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4", "serde"] }
