@@ -548,7 +548,11 @@ impl Control for AbsmCanvas {
                         *current_cursor_position = ui.cursor_position();
                         let rect =
                             Rect::from_points(initial_cursor_position, *current_cursor_position);
-                        let mut selection = Vec::new();
+                        let mut selection = if ui.keyboard_modifiers().control {
+                            self.selection.clone()
+                        } else {
+                            Vec::new()
+                        };
                         for &child in self.children() {
                             if ui[child].is_or_has_field::<Selectable>() {
                                 if ui.rect_test(child, rect).next().is_some() {
