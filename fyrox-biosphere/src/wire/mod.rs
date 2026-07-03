@@ -20,6 +20,7 @@ pub enum WireType {
     Asset = 14,
     Meta = 15,
     Logic = 16,
+    Resonance = 17,
 }
 
 impl WireType {
@@ -41,6 +42,7 @@ impl WireType {
             WireType::Asset => "AST",
             WireType::Meta => "MET",
             WireType::Logic => "LGC",
+            WireType::Resonance => "RES",
         }
     }
 
@@ -62,6 +64,7 @@ impl WireType {
             WireType::Asset => "File / binary / media references",
             WireType::Meta => "Schema / type / structure definitions",
             WireType::Logic => "Boolean expression / rule streams",
+            WireType::Resonance => "Harmonic Tensor Graph field values",
         }
     }
 
@@ -69,7 +72,7 @@ impl WireType {
         matches!(self, WireType::Data)
     }
 
-    pub const ALL: [WireType; 16] = [
+    pub const ALL: [WireType; 17] = [
         WireType::Data,
         WireType::Control,
         WireType::Audio,
@@ -86,6 +89,7 @@ impl WireType {
         WireType::Asset,
         WireType::Meta,
         WireType::Logic,
+        WireType::Resonance,
     ];
 }
 
@@ -190,8 +194,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn all_16_wire_types() {
-        assert_eq!(WireType::ALL.len(), 16);
+    fn all_17_wire_types() {
+        assert_eq!(WireType::ALL.len(), 17);
     }
 
     #[test]

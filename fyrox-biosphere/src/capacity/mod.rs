@@ -1,7 +1,81 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+/// Default octave — 2^4 = 16 children.
+pub const DEFAULT_OCTAVE: u8 = 4;
 pub const MAX_CHILDREN: usize = 16;
+
+/// Capacity is 2^octave. Octave 4 = 16 (the canonical default).
+pub fn octave_capacity(octave: u8) -> usize {
+    1usize << octave
+}
+
+/// Fixed: capacity locked at `declared_octave` forever (VHD-style).
+/// Dynamic: starts at octave 1, expands up to `estimated_ceiling_octave` (VHDX-style).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum GrowthMode {
+    Fixed,
+    Dynamic,
+}
+
+/// Greater = root seal, exactly one per metaverse.
+/// Lesser = all others; must declare a `harmonic_ratio` to parent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SealType {
+    Greater,
+    Lesser,
+}
+
+impl fmt::Display for SealType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SealType::Greater => write!(f, "Greater Seal"),
+            SealType::Lesser => write!(f, "Lesser Seal"),
+        }
+    }
+}
+
+/// Tracks live capacity state for any container level.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CapacityMetadata {
+    pub growth_mode: GrowthMode,
+    pub declared_octave: u8,
+    pub estimated_ceiling_octave: u8,
+    pub current_octave: u8,
+    pub sealed_octave: Option<u8>,
+    pub child_count: usize,
+}
+
+impl CapacityMetadata {
+    pub fn fixed(octave: u8) -> Self {
+        Self {
+            growth_mode: GrowthMode::Fixed,
+            declared_octave: octave,
+            estimated_ceiling_octave: octave,
+            current_octave: octave,
+            sealed_octave: None,
+            child_count: 0,
+        }
+    }
+
+    pub fn default_fixed() -> Self {
+        Self::fixed(DEFAULT_OCTAVE)
+    }
+
+    pub fn max_children_current(&self) -> usize {
+        octave_capacity(self.current_octave)
+    }
+
+    pub fn capacity_utilization(&self) -> f32 {
+        let max = self.max_children_current();
+        if max == 0 { return 1.0; }
+        self.child_count as f32 / max as f32
+    }
+
+    pub fn can_add_child(&self) -> bool {
+        self.child_count < self.max_children_current()
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ContainerLevel {
