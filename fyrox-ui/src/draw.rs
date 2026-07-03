@@ -871,6 +871,44 @@ impl RenderData {
 
         false
     }
+
+    fn screen_space_triangle_edges(
+        &self,
+        triangle: &TriangleDefinition,
+        transform: &Matrix3<f32>,
+    ) -> Option<[(Vector2<f32>, Vector2<f32>); 3]> {
+        if let Some((va, vb, vc)) = self.triangle_points(triangle) {
+            let pa = transform.transform_point(&Point2::from(va.pos)).coords;
+            let pb = transform.transform_point(&Point2::from(vb.pos)).coords;
+            let pc = transform.transform_point(&Point2::from(vc.pos)).coords;
+            Some([(pa, pb), (pb, pc), (pc, pa)])
+        } else {
+            None
+        }
+    }
+
+    /// Checks intersection of the given command's geometry and the specified rectangle. The test
+    /// is performed is screen-space coordinates.
+    pub fn is_command_intersects_rect(
+        &self,
+        command: &Command,
+        screen_space_rect: Rect<f32>,
+    ) -> bool {
+        for i in command.triangles.clone() {
+            if let Some(triangle) = self.triangle_buffer.get(i) {
+                if let Some(edges) = self.screen_space_triangle_edges(triangle, &command.transform)
+                {
+                    for (a, b) in edges {
+                        if math::ray_rect_intersection(screen_space_rect, a, b - a).is_some() {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        false
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]

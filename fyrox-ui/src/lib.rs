@@ -2043,6 +2043,32 @@ impl UserInterface {
         }
     }
 
+    /// Checks intersection of the specified rectangle with each individual triangle emitted by
+    /// the descendant nodes starting from the specified one. Returns an iterator that yields
+    /// pairs of `(handle, widget_ref)` of the intersected nodes. This method can be used for
+    /// precise intersection `rect-widget` test. The test is performed in screen space, this
+    /// means that the specified `rect` must be in screen space as well.
+    pub fn rect_test(
+        &self,
+        from: Handle<impl ObjectOrVariant<UiNode>>,
+        rect: Rect<f32>,
+    ) -> impl Iterator<Item = (Handle<UiNode>, &UiNode)> {
+        self.traverse_iter(from).filter(move |(_, n)| {
+            let render_data_set = n.render_data_set.borrow();
+
+            for command in render_data_set.draw_result.command_buffer.iter() {
+                if render_data_set
+                    .draw_result
+                    .is_command_intersects_rect(command, rect)
+                {
+                    return true;
+                }
+            }
+
+            false
+        })
+    }
+
     /// Checks if specified node is a child of some other node on `root_handle`. This method
     /// is useful to understand if some event came from some node down by tree.
     pub fn is_node_child_of(
