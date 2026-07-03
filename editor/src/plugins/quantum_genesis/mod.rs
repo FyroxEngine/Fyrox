@@ -424,6 +424,7 @@ impl QuantumGenesisPlugin {
                     match genesis.mythos[mi].containers[ci].add_capsule(
                         name.clone(),
                         capsule_heraldry,
+                        fyrox_biosphere::wire::WireType::Data,
                         serde_json::json!({}),
                         None,
                     ) {
@@ -723,10 +724,9 @@ impl EditorPlugin for QuantumGenesisPlugin {
 }
 
 fn build_genesis_tree(genesis: &GenesisContainer, ctx: &mut BuildContext) -> Handle<Tree> {
-    let seal_type = if genesis.is_lesser_seal {
-        "Lesser Seal"
-    } else {
-        "Greater Seal"
+    let seal_type = match genesis.seal_type {
+        fyrox_biosphere::capacity::SealType::Lesser => "Lesser Seal",
+        fyrox_biosphere::capacity::SealType::Greater => "Greater Seal",
     };
     let label = format!(
         "{} [{}] ({}) [{}]",
@@ -820,7 +820,7 @@ fn build_capsule_tree(
     capsule: &fyrox_biosphere::container_format::Capsule,
     ctx: &mut BuildContext,
 ) -> Handle<Tree> {
-    let heraldry_str = match &capsule.heraldry {
+    let heraldry_str = match &capsule.heraldic_current {
         CapsuleHeraldry::Trait => "Trait",
         CapsuleHeraldry::Mark => "Mark",
         CapsuleHeraldry::Token => "Token",
