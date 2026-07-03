@@ -1,0 +1,668 @@
+metadata.json{
+  "name": "BIOSPHERES Universe Generator",
+  "description": "A procedural, node-based application specialized in world-building and character creation for 3D environments. Includes modularity and cross-module integration for seamless workflows.",
+  "requestFramePermissions": []
+}
+
+App.tsx
+import React, { useState, useCallback } from 'react';
+import { Header } from './components/Header';
+import { UniverseGenerator } from './components/UniverseGenerator';
+import { ResultDisplay } from './components/ResultDisplay';
+import { generateUniverseDetails } from './services/geminiService';
+import { OriginStory, UniverseParameters, SimulationResult } from './types';
+
+const App: React.FC = () => {
+  const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSimulate = useCallback(async (originStory: OriginStory, params: UniverseParameters) => {
+    setIsLoading(true);
+    setError(null);
+    setSimulationResult(null);
+
+    try {
+      const result = await generateUniverseDetails(originStory, params);
+      setSimulationResult(result);
+    } catch (err) {
+      console.error("Simulation Error:", err);
+      setError(err instanceof Error ? err.message : "An unknown error occurred during simulation.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-slate-200 bg-grid-slate-700/[0.2]">
+      <Header />
+      <main className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="lg:col-span-4">
+            <UniverseGenerator onSimulate={handleSimulate} isLoading={isLoading} />
+          </div>
+          <div className="lg:col-span-8">
+            <ResultDisplay
+              result={simulationResult}
+              isLoading={isLoading}
+              error={error}
+            />
+          </div>
+        </div>
+      </main>
+      <footer className="text-center py-4 text-slate-500 text-sm">
+        <p>BIOSPHERES Procedural Universe Engine</p>
+      </footer>
+    </div>
+  );
+};
+
+export default App;
+
+
+types.ts
+export enum OriginStory {
+    BIG_BANG = "Big Bang",
+    MAGICAL = "Magical",
+    MECHANICAL_GENESIS = "Mechanical Genesis",
+    CHAOS_BREEDS_ORDER = "Chaos Breeds Order",
+    LIVING_UNIVERSE = "Living Universe",
+    PRIMORDIAL_SOUP = "Primordial Soup",
+    CREATIONISM = "Creationism",
+    PANSPERMIA = "Panspermia",
+}
+
+export interface UniverseParameters {
+    darkMatter: number;
+    agnFeedback: number;
+    lowMassStars: number;
+    mediumMassStars: number;
+    highMassStars: number;
+}
+
+export interface PeriodicElement {
+    name: string;
+    symbol: string;
+    atomicNumber: number;
+    description: string;
+    visualStyle: string;
+}
+
+export interface SimulationResult {
+    description: string;
+    periodicTable: PeriodicElement[];
+}
+
+
+constants.ts
+import { OriginStory } from './types';
+
+export const ORIGIN_STORIES: { value: OriginStory, description: string }[] = [
+    { value: OriginStory.BIG_BANG, description: "Expansive evolution through universal constants." },
+    { value: OriginStory.MAGICAL, description: "Chaotic physics with ley lines and mystical terrains." },
+    { value: OriginStory.MECHANICAL_GENESIS, description: "Algorithmically constructed deterministic worlds." },
+    { value: OriginStory.CHAOS_BREEDS_ORDER, description: "Instability fostering adaptation and survival." },
+    { value: OriginStory.LIVING_UNIVERSE, description: "Organic geography with life symbiotically tied to cosmic forces." },
+    { value: OriginStory.PRIMORDIAL_SOUP, description: "Biologically driven systems rich in biochemical diversity." },
+    { value: OriginStory.CREATIONISM, description: "Perfectly ordered laws; divine artifacts influence life evolution." },
+    { value: OriginStory.PANSPERMIA, description: "Interconnected origins from seeded life across galaxies." },
+];
+
+
+services/geminiService.ts
+import { GoogleGenAI, Type } from "@google/genai";
+import type { OriginStory, UniverseParameters, SimulationResult } from '../types';
+
+if (!process.env.API_KEY) {
+    throw new Error("API_KEY environment variable not set");
+}
+
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+const responseSchema = {
+  type: Type.OBJECT,
+  properties: {
+    description: {
+      type: Type.STRING,
+      description: "A detailed, engaging, and imaginative narrative describing the universe created based on the user's parameters. This should be about 3-4 paragraphs long."
+    },
+    periodicTable: {
+      type: Type.ARRAY,
+      description: "A unique periodic table of 5-7 fictional elements that fit the theme of the origin story.",
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          name: { type: Type.STRING, description: "The full name of the element." },
+          symbol: { type: Type.STRING, description: "A 1-3 letter symbol for the element." },
+          atomicNumber: { type: Type.INTEGER, description: "A unique atomic number for the element." },
+          description: { type: Type.STRING, description: "A brief, imaginative description of the element's properties and role in the universe." },
+          visualStyle: { type: Type.STRING, description: "A short text description of a Tailwind CSS class for a colored glow effect, e.g., 'shadow-cyan-500/50' or 'shadow-fuchsia-500/50'." },
+        },
+        required: ["name", "symbol", "atomicNumber", "description", "visualStyle"],
+      },
+    },
+  },
+  required: ["description", "periodicTable"],
+};
+
+export const generateUniverseDetails = async (
+    originStory: OriginStory,
+    params: UniverseParameters
+): Promise<SimulationResult> => {
+    
+    const prompt = `
+        You are the BIOSPHERES simulation engine. Your task is to generate the details of a new universe based on the specified parameters.
+
+        **Origin Story:** ${originStory}
+        
+        **Universe Parameters:**
+        - Dark Matter: ${params.darkMatter}%
+        - AGN Feedback: Level ${params.agnFeedback}
+        - Low Mass Stars: ${params.lowMassStars}%
+        - Medium Mass Stars: ${params.mediumMassStars}%
+        - High Mass Stars: ${params.highMassStars}%
+
+        **Instructions:**
+        1.  Write a compelling and imaginative narrative (3-4 paragraphs) describing the universe that would result from these parameters. The narrative should reflect the chosen origin story. For example, a 'Magical' universe might describe stars emitting magical energy, while a 'Mechanical Genesis' universe might have geometrically perfect galaxies.
+        2.  Create a unique, fictional periodic table with 5-7 elements that logically fit the universe's theme. The properties and names of these elements should be creative and directly inspired by the origin story.
+        3.  Provide the entire output in a single JSON object matching the provided schema.
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: responseSchema,
+                temperature: 0.8,
+            }
+        });
+
+        const jsonText = response.text.trim();
+        const result = JSON.parse(jsonText);
+
+        // Basic validation
+        if (!result.description || !Array.isArray(result.periodicTable)) {
+            throw new Error("Invalid response format from API.");
+        }
+
+        return result as SimulationResult;
+
+    } catch (error) {
+        console.error("Error calling Gemini API:", error);
+        throw new Error("Failed to generate universe details. Please check your API key and try again.");
+    }
+};
+
+components/Header.tsx
+import React from 'react';
+import { AtomIcon } from './Icons';
+
+export const Header: React.FC = () => {
+  return (
+    <header className="bg-slate-900/50 backdrop-blur-sm border-b border-slate-700/50 sticky top-0 z-10">
+      <div className="container mx-auto px-4 py-4 flex items-center justify-center">
+        <AtomIcon className="w-8 h-8 mr-3 text-cyan-400" />
+        <h1 className="text-2xl font-bold tracking-wider text-slate-100 font-orbitron">
+          BIOSPHERES
+        </h1>
+      </div>
+    </header>
+  );
+};
+components/UniverseGenerator.tsx
+import React, { useState } from 'react';
+import { OriginStory, UniverseParameters } from '../types';
+import { ORIGIN_STORIES } from '../constants';
+import { Slider } from './Slider';
+import { SparklesIcon, ChevronDownIcon } from './Icons';
+
+interface UniverseGeneratorProps {
+  onSimulate: (originStory: OriginStory, params: UniverseParameters) => void;
+  isLoading: boolean;
+}
+
+export const UniverseGenerator: React.FC<UniverseGeneratorProps> = ({ onSimulate, isLoading }) => {
+  const [originStory, setOriginStory] = useState<OriginStory>(OriginStory.BIG_BANG);
+  const [params, setParams] = useState<UniverseParameters>({
+    darkMatter: 84,
+    agnFeedback: 2,
+    lowMassStars: 30,
+    mediumMassStars: 50,
+    highMassStars: 20,
+  });
+
+  const handleParamChange = (name: keyof UniverseParameters, value: number) => {
+    setParams(prev => ({ ...prev, [name]: value }));
+  };
+  
+  const handleOriginChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setOriginStory(e.target.value as OriginStory);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSimulate(originStory, params);
+  };
+
+  const selectedOriginDescription = ORIGIN_STORIES.find(o => o.value === originStory)?.description;
+
+  return (
+    <div className="bg-slate-800/50 p-6 rounded-lg border border-slate-700 shadow-2xl shadow-slate-950">
+      <h2 className="text-xl font-bold mb-4 font-orbitron text-cyan-300">Universe Configuration</h2>
+      <form onSubmit={handleSubmit}>
+        <div className="space-y-6">
+          <div>
+            <label htmlFor="originStory" className="block text-sm font-medium text-slate-300 mb-1">Origin Story</label>
+            <div className="relative">
+              <select
+                id="originStory"
+                value={originStory}
+                onChange={handleOriginChange}
+                className="w-full bg-slate-700 border border-slate-600 rounded-md py-2 px-3 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              >
+                {ORIGIN_STORIES.map(story => (
+                  <option key={story.value} value={story.value}>{story.value}</option>
+                ))}
+              </select>
+              <ChevronDownIcon className="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            </div>
+            {selectedOriginDescription && <p className="text-xs text-slate-400 mt-2">{selectedOriginDescription}</p>}
+          </div>
+          
+          <Slider
+            label="Dark Matter"
+            name="darkMatter"
+            value={params.darkMatter}
+            onChange={v => handleParamChange('darkMatter', v)}
+            min={10} max={95} step={1} unit="%"
+            description="The scaffolding of the cosmos. Higher values lead to more galaxy formation."
+          />
+
+          <Slider
+            label="AGN Feedback"
+            name="agnFeedback"
+            value={params.agnFeedback}
+            onChange={v => handleParamChange('agnFeedback', v)}
+            min={1} max={5} step={1}
+            description="Energy from supermassive black holes. High feedback can blow galaxies apart."
+          />
+          
+          <div className="border-t border-slate-700 pt-6">
+            <h3 className="text-md font-semibold mb-2 text-cyan-400">Stellar Distribution</h3>
+            <Slider
+              label="Low Mass Stars"
+              name="lowMassStars"
+              value={params.lowMassStars}
+              onChange={v => handleParamChange('lowMassStars', v)}
+              min={1} max={100} unit="%"
+              description="Long-lived, stable stars. Provide consistent but low energy."
+            />
+            <Slider
+              label="Medium Mass Stars"
+              name="mediumMassStars"
+              value={params.mediumMassStars}
+              onChange={v => handleParamChange('mediumMassStars', v)}
+              min={1} max={100} unit="%"
+              description="Like our Sun. A balance of lifespan and energy output."
+            />
+            <Slider
+              label="High Mass Stars"
+              name="highMassStars"
+              value={params.highMassStars}
+              onChange={v => handleParamChange('highMassStars', v)}
+              min={1} max={100} unit="%"
+              description="Short-lived, explosive supernovae. Seeds the universe with heavy elements."
+            />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="w-full mt-8 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center transition-all duration-300 shadow-lg shadow-cyan-600/20 hover:shadow-cyan-500/40 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 focus:ring-cyan-400"
+        >
+          {isLoading ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Simulating...
+            </>
+          ) : (
+            <>
+              <SparklesIcon className="w-5 h-5 mr-2" />
+              Simulate Universe
+            </>
+          )}
+        </button>
+      </form>
+    </div>
+  );
+};
+
+
+components/ResultDisplay.tsx
+import React from 'react';
+import type { SimulationResult, PeriodicElement } from '../types';
+import { AtomIcon, BeakerIcon, WarningIcon } from './Icons';
+
+interface ResultDisplayProps {
+  result: SimulationResult | null;
+  isLoading: boolean;
+  error: string | null;
+}
+
+const LoadingSkeleton: React.FC = () => (
+  <div className="animate-pulse space-y-8">
+    <div className="space-y-3">
+      <div className="h-4 bg-slate-700 rounded w-3/4"></div>
+      <div className="h-4 bg-slate-700 rounded"></div>
+      <div className="h-4 bg-slate-700 rounded w-5/6"></div>
+    </div>
+    <div className="h-4 bg-slate-600 rounded w-1/3 mb-4"></div>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {[...Array(6)].map((_, i) => (
+        <div key={i} className="bg-slate-700 rounded-lg p-4 h-32"></div>
+      ))}
+    </div>
+  </div>
+);
+
+const ElementCard: React.FC<{ element: PeriodicElement }> = ({ element }) => (
+    <div className={`bg-slate-800/80 rounded-lg p-4 border border-slate-700 transition-all duration-300 hover:border-cyan-500/50 hover:scale-105 shadow-lg ${element.visualStyle || 'shadow-slate-900/50'}`}>
+        <div className="flex justify-between items-start">
+            <div className="font-orbitron">
+                <div className="text-3xl font-bold text-slate-100">{element.symbol}</div>
+                <div className="text-md text-cyan-400">{element.name}</div>
+            </div>
+            <div className="text-4xl font-black text-slate-700/50">{element.atomicNumber}</div>
+        </div>
+        <p className="text-sm text-slate-300 mt-3">{element.description}</p>
+    </div>
+);
+
+
+export const ResultDisplay: React.FC<ResultDisplayProps> = ({ result, isLoading, error }) => {
+  return (
+    <div className="bg-slate-800/50 p-6 rounded-lg border border-slate-700 min-h-[600px] shadow-2xl shadow-slate-950">
+      <h2 className="text-xl font-bold mb-4 font-orbitron text-cyan-300 flex items-center">
+        <AtomIcon className="w-6 h-6 mr-2" />
+        Simulation Output
+      </h2>
+      <div className="mt-6">
+        {isLoading && <LoadingSkeleton />}
+        {error && (
+            <div className="text-center text-red-400 bg-red-900/30 p-4 rounded-lg border border-red-700">
+                <WarningIcon className="w-12 h-12 mx-auto mb-2"/>
+                <h3 className="font-bold">Simulation Failed</h3>
+                <p className="text-sm">{error}</p>
+            </div>
+        )}
+        {!isLoading && !error && !result && (
+          <div className="text-center text-slate-500 py-20">
+            <p>Your generated universe will appear here.</p>
+            <p className="text-sm">Configure parameters and click "Simulate Universe" to begin.</p>
+          </div>
+        )}
+        {result && (
+          <div className="prose prose-invert prose-p:text-slate-300 prose-headings:text-cyan-400 max-w-none">
+            <p className="whitespace-pre-wrap">{result.description}</p>
+            
+            <h3 className="flex items-center mt-8 pt-6 border-t border-slate-700">
+                <BeakerIcon className="w-6 h-6 mr-2"/>
+                Fictional Periodic Table
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 not-prose">
+                {result.periodicTable.map((el) => <ElementCard key={el.atomicNumber} element={el}/>)}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+components/Slider.tsx
+import React from 'react';
+
+interface SliderProps {
+  label: string;
+  name: string;
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  unit?: string;
+  description?: string;
+}
+
+export const Slider: React.FC<SliderProps> = ({ label, name, value, onChange, min = 0, max = 100, step = 1, unit = '', description }) => {
+  return (
+    <div className="mb-4">
+      <div className="flex justify-between items-baseline">
+        <label htmlFor={name} className="block text-sm font-medium text-slate-300">{label}</label>
+        <span className="text-cyan-400 font-mono text-sm">{value}{unit}</span>
+      </div>
+      <input
+        type="range"
+        id={name}
+        name={name}
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(parseInt(e.target.value, 10))}
+        className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+      />
+      {description && <p className="text-xs text-slate-500 mt-1">{description}</p>}
+    </div>
+  );
+};
+
+
+components/Icons.tsx
+import React from 'react';
+
+// Using a generic props type for simplicity as these are simple icons
+type IconProps = {
+  className?: string;
+};
+
+export const AtomIcon: React.FC<IconProps> = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 4.5A7.5 7.5 0 0118.75 12a7.5 7.5 0 01-7.5 7.5m-5.336-1.032a7.5 7.5 0 01-.76-6.468m3.936-4.968a7.5 7.5 0 018.164 12.432M12 21a9 9 0 100-18 9 9 0 000 18z" />
+  </svg>
+);
+
+export const SparklesIcon: React.FC<IconProps> = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.898 20.562L16.25 21.75l-.648-1.188a2.25 2.25 0 01-1.474-1.474l-1.188-.648 1.188-.648a2.25 2.25 0 011.474-1.474l.648-1.188.648 1.188a2.25 2.25 0 011.474 1.474l1.188.648-1.188.648a2.25 2.25 0 01-1.474 1.474z" />
+  </svg>
+);
+
+export const ChevronDownIcon: React.FC<IconProps> = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+  </svg>
+);
+
+export const BeakerIcon: React.FC<IconProps> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c.252 0 .487.021.727.062a48.428 48.428 0 0011.026 3.03c.532.14.793.702.585 1.205l-2.083 4.165a2.25 2.25 0 01-1.928 1.429H5.501a2.25 2.25 0 01-1.928-1.429L1.49 9.401c-.208-.503.053-1.065.585-1.205A48.427 48.427 0 0012 4.5c0-1.72-.53-3.32-1.45-4.593M14.25 14.5h-4.5" />
+    </svg>
+);
+
+export const WarningIcon: React.FC<IconProps> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+    </svg>
+);
+
+
+package.json{
+  "name": "biospheres-universe-generator",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "@google/genai": "^1.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}
+
+
+index.html
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BIOSPHERES Universe Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Roboto', sans-serif;
+      }
+      h1, h2, h3, .font-orbitron {
+        font-family: 'Orbitron', sans-serif;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.1.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.1.0/",
+    "react/": "https://esm.sh/react@^19.1.0/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.9.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-slate-900 text-slate-200">
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
+
+
+index.tsx
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+
+const rootElement = document.getElementById('root');
+if (!rootElement) {
+  throw new Error("Could not find root element to mount to");
+}
+
+const root = ReactDOM.createRoot(rootElement);
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+tsconfig.json{
+  "compilerOptions": {
+    "target": "ES2022",
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
+    "module": "ESNext",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "skipLibCheck": true,
+    "types": [
+      "node"
+    ],
+    "moduleResolution": "bundler",
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "allowJs": true,
+    "jsx": "react-jsx",
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    },
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  }
+}
+
+vite.config.tsimport path from 'path';
+import { defineConfig, loadEnv } from 'vite';
+
+export default defineConfig(({ mode }) => {
+    const env = loadEnv(mode, '.', '');
+    return {
+      define: {
+        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+      },
+      resolve: {
+        alias: {
+          '@': path.resolve(__dirname, '.'),
+        }
+      }
+    };
+});
+
+
+.gitignore# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+
+
+## Run Locally
+
+**Prerequisites:**  Node.js
+
+
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`
