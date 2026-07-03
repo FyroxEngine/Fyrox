@@ -27,5 +27,6 @@ pub mod material;
 pub mod probe;
 pub mod ragdoll;
 pub mod settings;
+pub mod quantum_genesis;
 pub mod stats;
 pub mod tilemap;

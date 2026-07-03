@@ -162,6 +162,7 @@ use crate::{
         probe::ReflectionProbePlugin,
         ragdoll::RagdollPlugin,
         settings::SettingsPlugin,
+        quantum_genesis::QuantumGenesisPlugin,
         stats::EditorStatisticsPlugin,
         tilemap::TileMapEditorPlugin,
     },
@@ -1071,7 +1072,8 @@ impl Editor {
                 .with(EditorStatisticsPlugin::default())
                 .with(CurveEditorPlugin::default())
                 .with(ReflectionProbePlugin::default())
-                .with(inspector_plugin),
+                .with(inspector_plugin)
+                .with(QuantumGenesisPlugin::default()),
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread
             // will sleep forever and the window won't come up.

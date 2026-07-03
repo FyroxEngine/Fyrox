@@ -15,6 +15,7 @@ include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md", "/resources/**/
 [dependencies]
 fyrox = { version = "2.0.0-rc.1", path = "../fyrox", default-features = false }
 fyrox-build-tools = { version = "2.0.0-rc.1", path = "../fyrox-build-tools" }
+fyrox-biosphere = { version = "0.1.0", path = "../fyrox-biosphere" }
 ron = "0.11"
 serde = { version = "1", features = ["derive"] }
 toml = { version = "0.9", default-features = false, features = ["parse"] }
