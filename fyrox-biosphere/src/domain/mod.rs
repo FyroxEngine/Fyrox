@@ -8,6 +8,9 @@ pub enum Domain {
     Software,
     Agent,
     Visual,
+    /// Real-world geographic scaffold with narrative overlay.
+    /// Genesis=Planet, Mythos=Continent/Region, Container=Country/City, Capsule=Location/Character/Event
+    Earth,
     Custom(String),
 }
 
@@ -19,6 +22,7 @@ impl Domain {
             Domain::Software => "Application / Platform",
             Domain::Agent => "Simulation / World",
             Domain::Visual => "Design system / Brand",
+            Domain::Earth => "Earth / Planet",
             Domain::Custom(_) => "Custom Genesis",
         }
     }
@@ -30,6 +34,7 @@ impl Domain {
             Domain::Software => "Module / Department",
             Domain::Agent => "Guild / Department",
             Domain::Visual => "Style domain",
+            Domain::Earth => "Continent / Major Region",
             Domain::Custom(_) => "Custom Mythos",
         }
     }
@@ -41,6 +46,7 @@ impl Domain {
             Domain::Software => "Feature set / Sub-system",
             Domain::Agent => "Squad / Project",
             Domain::Visual => "Component family",
+            Domain::Earth => "Country / City-State / Province",
             Domain::Custom(_) => "Custom Container",
         }
     }
@@ -52,8 +58,14 @@ impl Domain {
             Domain::Software => "Component / Function / Node",
             Domain::Agent => "Individual Actor / Tool",
             Domain::Visual => "Individual token / Asset",
+            Domain::Earth => "Location / Character / Event / Landmark",
             Domain::Custom(_) => "Custom Capsule",
         }
+    }
+
+    /// Returns true if this domain uses real-world geographic data as its scaffold.
+    pub fn is_geographic(&self) -> bool {
+        matches!(self, Domain::Earth)
     }
 }
 
@@ -65,6 +77,7 @@ impl fmt::Display for Domain {
             Domain::Software => write!(f, "Software"),
             Domain::Agent => write!(f, "Agent"),
             Domain::Visual => write!(f, "Visual"),
+            Domain::Earth => write!(f, "Earth"),
             Domain::Custom(name) => write!(f, "{name}"),
         }
     }
@@ -80,6 +93,7 @@ impl std::str::FromStr for Domain {
             "software" => Domain::Software,
             "agent" => Domain::Agent,
             "visual" => Domain::Visual,
+            "earth" => Domain::Earth,
             _ => Domain::Custom(s.to_string()),
         })
     }

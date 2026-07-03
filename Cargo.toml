@@ -23,7 +23,8 @@ members = [
     "fyrox-autotile",
     "fyrox-material",
     "fyrox-graphics-gl",
-    "fyrox-biosphere"]
+    "fyrox-biosphere",
+    "qgenesis-tool"]
 resolver = "2"
 
 [profile.editor-standalone]

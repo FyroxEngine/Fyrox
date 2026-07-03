@@ -1,0 +1,16 @@
+[package]
+name = "qgenesis-tool"
+version = "0.1.0"
+edition = "2021"
+description = "CLI for creating and managing .qgenesis and .qgcp containers"
+license = "MIT"
+
+[[bin]]
+name = "qgenesis-tool"
+path = "src/main.rs"
+
+[dependencies]
+fyrox-biosphere = { path = "../fyrox-biosphere" }
+serde_json = "1"
+clap = { version = "4", features = ["derive"] }
+anyhow = "1"
