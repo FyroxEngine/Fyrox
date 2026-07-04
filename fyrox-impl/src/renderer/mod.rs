@@ -924,6 +924,7 @@ impl Renderer {
         self.update_texture_cache(resource_manager, dt);
         self.update_shader_cache(dt);
         self.geometry_cache.update(dt);
+        self.dynamic_surface_cache.update(dt);
     }
 
     fn render_scene_observer(
