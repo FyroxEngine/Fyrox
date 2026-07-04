@@ -40,6 +40,9 @@ Common rules for code contributions:
 - **License** — include the content of `LICENSE.md` file at the top of any new source code file. Every line must be
   start from `// ` (two slashes with a space after them). You can add your own copyright line with dates, but you must
   keep the license unchanged (MIT).
+- **No AI-generated slop** - Fyrox is a handcrafted game engine, there's no place for AI-generated code. All pull
+  requests suspected in AI generation won't be accepted. If you want to extend the engine functionality with
+  AI-generated code, then create your own plugin as a separate crate.
 
 When you're writing something for the editor, you can run its standalone version using `fyroxed` package like so:
 
