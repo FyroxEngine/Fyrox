@@ -277,6 +277,10 @@ impl DynamicSurfaceCache {
         }
     }
 
+    pub fn alive_count(&self) -> usize {
+        self.cache.len()
+    }
+
     /// Clears the surfaces in the cache, does **not** clear the cache itself.
     pub fn clear(&mut self) {
         for surface in self.cache.values_mut() {

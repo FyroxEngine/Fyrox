@@ -1447,6 +1447,7 @@ impl Renderer {
         self.statistics.texture_cache_size = self.texture_cache.alive_count();
         self.statistics.shader_cache_size = self.shader_cache.alive_count();
         self.statistics.uniform_buffer_cache_size = self.uniform_buffer_cache.alive_count();
+        self.statistics.dynamic_surface_cache_size = self.dynamic_surface_cache.alive_count();
 
         Ok(())
     }
