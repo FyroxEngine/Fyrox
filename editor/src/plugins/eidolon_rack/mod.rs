@@ -8,11 +8,11 @@ use crate::{
         gui::{
             border::{Border, BorderBuilder},
             menu::{MenuItem, MenuItemMessage},
-            message::UiMessage,
+            message::{MouseButton, UiMessage},
             scroll_viewer::ScrollViewerBuilder,
             stack_panel::StackPanelBuilder,
             text::{Text, TextBuilder},
-            widget::WidgetBuilder,
+            widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode,
             VerticalAlignment,
@@ -25,6 +25,7 @@ use crate::{
 };
 use fyrox::core::uuid::{uuid, Uuid};
 use logic::{AxiomStepSequencer, ResonanceHarmonics};
+use std::time::Instant;
 use theme::*;
 
 pub struct EidolonRackPlugin {
@@ -35,6 +36,7 @@ pub struct EidolonRackPlugin {
     seq_buttons: [[Handle<Border>; 16]; 8],
     harmonic_bars: [Handle<Border>; 8],
     status_text: Handle<Text>,
+    last_tick: Option<Instant>,
 }
 
 impl Default for EidolonRackPlugin {
@@ -47,6 +49,7 @@ impl Default for EidolonRackPlugin {
             seq_buttons: [[Handle::<Border>::NONE; 16]; 8],
             harmonic_bars: [Handle::<Border>::NONE; 8],
             status_text: Handle::NONE,
+            last_tick: None,
         }
     }
 }
@@ -826,6 +829,7 @@ impl EditorPlugin for EidolonRackPlugin {
                 let ui = editor.engine.user_interfaces.first_mut();
                 let ctx = &mut ui.build_ctx();
                 self.window = self.build_window(ctx);
+                self.last_tick = Some(Instant::now());
                 ui.send(
                     self.window,
                     WindowMessage::Open {
@@ -836,12 +840,106 @@ impl EditorPlugin for EidolonRackPlugin {
                 );
             }
         }
+
         if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.window {
                 self.window = Handle::NONE;
+                self.last_tick = None;
+            }
+        }
+
+        // Sequencer button toggle on left-click
+        if let Some(WidgetMessage::MouseDown { button: MouseButton::Left, .. }) = message.data() {
+            'find_btn: for law in 0..8 {
+                for step in 0..16 {
+                    if message.destination() == self.seq_buttons[law][step] {
+                        self.sequencer.toggle_step(law, step);
+                        let active = self.sequencer.steps[law][step];
+                        let step_is_current = step == self.sequencer.current_step;
+                        let ui = editor.engine.user_interfaces.first_mut();
+                        Self::refresh_button(ui, self.seq_buttons[law][step], active, step_is_current, law);
+                        break 'find_btn;
+                    }
+                }
             }
         }
     }
 
-    fn on_update(&mut self, _editor: &mut Editor, _loop_controller: ApplicationLoopController) {}
+    fn on_update(&mut self, editor: &mut Editor, _loop_controller: ApplicationLoopController) {
+        if self.window.is_none() { return; }
+
+        let step_duration = std::time::Duration::from_secs_f32(
+            60.0 / (self.sequencer.bpm * 4.0), // 16th notes
+        );
+
+        let now = Instant::now();
+        let should_tick = self.last_tick
+            .map(|t| now.duration_since(t) >= step_duration)
+            .unwrap_or(false);
+
+        if should_tick {
+            let prev_step = self.sequencer.current_step;
+            let active_laws: Vec<String> = self.sequencer.tick().iter().map(|s| s.to_string()).collect();
+            let curr_step = self.sequencer.current_step;
+            self.last_tick = Some(now);
+
+            let ui = editor.engine.user_interfaces.first_mut();
+
+            // Refresh previous step column (remove playhead glow)
+            for law in 0..8 {
+                let active = self.sequencer.steps[law][prev_step];
+                Self::refresh_button(ui, self.seq_buttons[law][prev_step], active, false, law);
+            }
+
+            // Refresh current step column (add playhead glow)
+            for law in 0..8 {
+                let active = self.sequencer.steps[law][curr_step];
+                Self::refresh_button(ui, self.seq_buttons[law][curr_step], active, true, law);
+            }
+
+            // Update status text with firing laws
+            if !active_laws.is_empty() {
+                let msg = format!(
+                    "STEP {:02}  //  FIRING: {}  //  BPM: {}",
+                    curr_step + 1,
+                    active_laws.join(" · "),
+                    self.sequencer.bpm as u32,
+                );
+                ui.send(self.status_text, crate::fyrox::gui::text::TextMessage::Text(msg));
+            }
+        }
+    }
+}
+
+impl EidolonRackPlugin {
+    fn row_color(law: usize) -> Color {
+        match law {
+            0..=2 => with_alpha(PRIMARY, 0x80),
+            3..=5 => with_alpha(SECONDARY, 0x80),
+            6 => with_alpha(ACCENT, 0x80),
+            _ => with_alpha(PINK, 0x80),
+        }
+    }
+
+    fn refresh_button(
+        ui: &mut crate::fyrox::gui::UserInterface,
+        btn: Handle<Border>,
+        active: bool,
+        playhead: bool,
+        law: usize,
+    ) {
+        let row_col = Self::row_color(law);
+        let bg = if active {
+            brush(with_alpha(row_col, 0xdd))
+        } else {
+            brush(with_alpha(PANEL_DARK, 0xaa))
+        };
+        let fg = if playhead {
+            brush(with_alpha(PRIMARY, 0xff))
+        } else {
+            brush(with_alpha(row_col, 0x88))
+        };
+        ui.send(btn, WidgetMessage::Background(bg));
+        ui.send(btn, WidgetMessage::Foreground(fg));
+    }
 }
