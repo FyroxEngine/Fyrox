@@ -1,0 +1,11 @@
+[package]
+name        = "myth-quill"
+version     = "0.1.0"
+edition     = "2021"
+description = "Quantum Quill — the original narrative engine. Capsules, containers, heraldry, lineage."
+
+[dependencies]
+myth-wire = { path = "../myth-wire" }
+serde     = { workspace = true }
+chrono    = { workspace = true }
+thiserror = { workspace = true }

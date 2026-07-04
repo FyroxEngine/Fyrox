@@ -1,0 +1,32 @@
+[alias]
+# Short-form dev commands: `cargo qlib`, `cargo qgen`, `cargo qcore`, `cargo qforge`
+qlib   = "run -p library"
+qgen   = "run -p genesis"
+qcore  = "run -p core-supervisor"
+qforge = "run -p asset-forge"
+
+[build]
+# Redirect all build artifacts outside the VHDX to avoid filling the 20GB disk.
+# Change this path if C:\ is also tight — any fast drive with 15GB+ free works.
+target-dir = "C:\\cargo-target\\myth-os"
+
+[profile.dev]
+# Line tables only (not full DWARF) — cuts debug artifact size ~40%.
+debug = 1
+# Slight optimization makes Bevy iteration feel less sluggish in dev.
+opt-level = 1
+# Incremental rebuilds — only recompile what changed.
+incremental = true
+
+[profile.dev.package."*"]
+# All dependencies (Bevy, tokio, etc.) compiled fully optimized even in dev.
+# This is the single biggest performance win for Bevy projects.
+opt-level = 3
+# Don't pay for dep debug symbols — saves several GB in target/deps.
+debug = false
+
+[profile.release]
+# LTO shrinks the final binary and catches cross-crate optimizations.
+lto = "thin"
+codegen-units = 1
+strip = "symbols"

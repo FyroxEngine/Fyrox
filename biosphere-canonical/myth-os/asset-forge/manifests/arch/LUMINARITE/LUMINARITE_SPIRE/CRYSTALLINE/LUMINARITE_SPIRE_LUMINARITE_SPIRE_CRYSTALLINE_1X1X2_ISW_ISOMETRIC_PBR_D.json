@@ -1,0 +1,46 @@
+{
+  "id": "de375b89-89cd-4d7f-bfbf-20be2ec3c6e4",
+  "name": "Luminarite Spire Luminarite Spire Crystalline 1x1x2 Isw Isometric Pbr D",
+  "stem": "LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_D",
+  "created_at": "2026-05-26T20:26:55.979498800+00:00",
+  "domain": "arch",
+  "zone": "LUMINARITE",
+  "function": "SPIRE",
+  "variant": "CRYSTALLINE",
+  "scale": "1X1X2",
+  "letter": "D",
+  "sockets": {
+    "north": "OPEN",
+    "south": "OPEN",
+    "east": "OPEN",
+    "west": "OPEN",
+    "up": "VOID_EDGE",
+    "down": "GROUND_STONE"
+  },
+  "render": {
+    "background": "TRANSPARENT",
+    "direction": "ISW",
+    "angle": "ISOMETRIC",
+    "shader": "PBR"
+  },
+  "character": null,
+  "quantum_module": "Prism",
+  "resonance_hz": 963.0,
+  "tags": [
+    "tileable",
+    "spire",
+    "luminous",
+    "cathedral"
+  ],
+  "grid": [
+    1,
+    1
+  ],
+  "prompt": "[LUMINARITE_SPIRE][LUMINARITE][SPIRE][CRYSTALLINE][1X1X2][TRANSPARENT][ISW][ISOMETRIC][PBR][QM:Prism][RES:963Hz][tileable][spire][luminous][cathedral]",
+  "files": {
+    "gltf": "arch/LUMINARITE/LUMINARITE_SPIRE/CRYSTALLINE/LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_D.gltf",
+    "sprite": "arch/LUMINARITE/LUMINARITE_SPIRE/CRYSTALLINE/LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_D.png",
+    "normal": "arch/LUMINARITE/LUMINARITE_SPIRE/CRYSTALLINE/LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_D_NRM.png",
+    "thumbnail": "arch/LUMINARITE/LUMINARITE_SPIRE/CRYSTALLINE/LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_D_THUMB.png"
+  }
+}

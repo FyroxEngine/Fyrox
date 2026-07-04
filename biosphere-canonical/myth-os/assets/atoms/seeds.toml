@@ -1,0 +1,919 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# MYTH-OS  —  CANONICAL ATOM SEED POOL
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# This file is the master definition of every atom available to the ATOMS
+# chemistry engine.  The engine reads this at boot, plants them in the quantum
+# soup, and lets resonance bonding crystallise them into molecules and apps.
+#
+# COVERAGE key (workspace_status field):
+#   "live"        — implemented in a workspace crate right now
+#   "partial"     — concept exists but not fully wired
+#   "planned"     — on the Tier build queue
+#   "conceptual"  — idea is captured; no Rust yet
+#
+# TAG RESONANCE: atoms bond when they share ≥1 tag.  The more shared tags,
+# the stronger the bond weight.  Departments bond more readily within
+# themselves but can cross-bond across departments via shared tags.
+#
+# DEPARTMENTS
+#   SYS  — Core Architecture & OS infrastructure
+#   SEC  — Security, Seals & Lineage Hashing
+#   NAV  — Spatial & Navigation
+#   COG  — AI, Cognition & Memory
+#   NAR  — Narrative Engine & Loom
+#   UI   — Interface, UI/UX & Director Tools
+#   MED  — Media, Audio & Animation
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DEPARTMENT: SYS — Core Architecture
+# ─────────────────────────────────────────────────────────────────────────────
+
+[[atoms]]
+id            = "QUANTUM_CORE_UNIVERSE"
+dept          = "SYS"
+layer         = "Root"
+name          = "Quantum Core Universe"
+function      = "Primary singularity governing the simulation's quantum state and fundamental constants."
+produces      = "Integrated world-state environment"
+failure_mode  = "Systemic fragmentation and reality collapse"
+tags          = ["root", "universe", "simulation", "constants", "singularity"]
+workspace_status = "partial"
+workspace_ref    = "mythos crate — no top-level singleton yet"
+
+[[atoms]]
+id            = "GENESIS_CONTAINER"
+dept          = "SYS"
+layer         = "I"
+name          = "Genesis Container"
+function      = "Root object of a universe; holds the cryptographic Seal and fundamental world laws."
+produces      = "Sealed immutable universe template"
+failure_mode  = "JSON bloat and complete data hierarchy corruption"
+tags          = ["container", "genesis", "seal", "root", "vault", "immutable"]
+workspace_status = "partial"
+workspace_ref    = "mythos::capsule::CapsuleKind::Vault (partial — needs full GenesisContainer wrapper)"
+
+[[atoms]]
+id            = "MYTHOS_CONTAINER"
+dept          = "SYS"
+layer         = "I"
+name          = "Mythos Container"
+function      = "High-level domain grouping (location, era, faction) — max 16 per Genesis."
+produces      = "Domain-specific structural branching"
+failure_mode  = "Hierarchy fragmentation and narrative context loss"
+tags          = ["container", "domain", "hierarchy", "16-law", "mythos"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "BASE_CAPSULE"
+dept          = "SYS"
+layer         = "I"
+name          = "Base Capsule"
+function      = "Atomic narrative data unit (Persona, Logic, Resource, Narrative kinds)."
+produces      = "Discrete narrative elements and resource blocks"
+failure_mode  = "Data corruption and schema invalidation"
+tags          = ["capsule", "data", "container", "schema", "leaf"]
+workspace_status = "live"
+workspace_ref    = "mythos::capsule::Capsule + CapsuleKind"
+
+[[atoms]]
+id            = "VAULT_SYSTEM"
+dept          = "SYS"
+layer         = "I"
+name          = "Vault System"
+function      = "Houses Genesis Containers; manages persistent cross-project Portal connections."
+produces      = "Secure unified project environments"
+failure_mode  = "Project isolation failure and unresolvable portal links"
+tags          = ["vault", "persistence", "portal", "storage", "root"]
+workspace_status = "partial"
+workspace_ref    = "crates/myth-vault (exists but content-addressable store not wired)"
+
+[[atoms]]
+id            = "HIERARCHY_STANDARD_16"
+dept          = "SYS"
+layer         = "I"
+name          = "16-16-16 Hierarchy Standard"
+function      = "Enforces max-16 branching at Genesis→Mythos→Capsule layers."
+produces      = "Computational efficiency and structural elegance"
+failure_mode  = "Overflow errors if child limits are exceeded"
+tags          = ["16-law", "hierarchy", "structure", "limits", "schema"]
+workspace_status = "partial"
+workspace_ref    = "Defined conceptually; no runtime enforcer yet"
+
+[[atoms]]
+id            = "CORE_LOGIC_ENGINE"
+dept          = "SYS"
+layer         = "II"
+name          = "Core Logic Engine"
+function      = "Primary simulation engine resolving symbolic logic and state changes."
+produces      = "System-wide architectural integrity"
+failure_mode  = "Logical inconsistencies leading to runtime errors"
+tags          = ["logic", "engine", "simulation", "state", "core"]
+workspace_status = "partial"
+workspace_ref    = "myth-core crate (stub)"
+
+[[atoms]]
+id            = "MYTHOS_GENERATIVE_LOOM"
+dept          = "SYS"
+layer         = "III"
+name          = "Mythos Generative Loom"
+function      = "Generative engine synthesising narrative threads and symbolic assets."
+produces      = "Complex narrative arcs"
+failure_mode  = "Disjointed plot threads"
+tags          = ["loom", "generative", "narrative", "synthesis", "engine"]
+workspace_status = "partial"
+workspace_ref    = "crates/myth-quill (exists); Aetherium Loom not yet wired"
+
+[[atoms]]
+id            = "DATA_SOVEREIGNTY_PROTOCOL"
+dept          = "SYS"
+layer         = "I"
+name          = "Data Sovereignty Protocol"
+function      = "Defines ownership, encryption, and access rights for all foundational data packets."
+produces      = "Protected narrative assets"
+failure_mode  = "Unauthorised data mutation"
+tags          = ["security", "ownership", "encryption", "access", "protocol"]
+workspace_status = "partial"
+workspace_ref    = "myth-wire WirePacket has headers; full sovereignty protocol not yet codified"
+
+[[atoms]]
+id            = "VAULT_MANAGEMENT_SYSTEM"
+dept          = "SYS"
+layer         = "I"
+name          = "Vault Management System"
+function      = "Active management of cold and hot data vaults across the core architecture."
+produces      = "Organised vault pool with redundancy"
+failure_mode  = "Vault corruption and project isolation failure"
+tags          = ["vault", "management", "storage", "lifecycle", "core"]
+workspace_status = "planned"
+workspace_ref    = "services/myth-fs (Tier 1 planned)"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DEPARTMENT: SEC — Security & Integrity
+# ─────────────────────────────────────────────────────────────────────────────
+
+[[atoms]]
+id            = "SEAL_SYSTEM"
+dept          = "SEC"
+layer         = "I"
+name          = "Seal System"
+function      = "Locks structural templates via waxColor, lineageHash, and ritualRequired parameters."
+produces      = "Cryptographically verifiable narrative frameworks"
+failure_mode  = "Unauthorised mutation of fundamental world laws"
+tags          = ["seal", "immutable", "cryptography", "ritual", "lock"]
+workspace_status = "partial"
+workspace_ref    = "mythos::identity::Blake3Hash exists; Seal struct not yet built"
+
+[[atoms]]
+id            = "LINEAGE_HASH_VALIDATOR"
+dept          = "SEC"
+layer         = "I"
+name          = "Lineage Hash Validator"
+function      = "Validates a Capsule has not been altered since its Seal was applied."
+produces      = "Hash-based immutability assertions"
+failure_mode  = "Seal-breaking errors and lineage corruption"
+tags          = ["seal", "hash", "lineage", "validator", "immutable", "cryptography"]
+workspace_status = "partial"
+workspace_ref    = "mythos::identity::Blake3Hash + Capsule::fingerprint (partial)"
+
+[[atoms]]
+id            = "GHOST_STATE_LAYER"
+dept          = "SEC"
+layer         = "II"
+name          = "Ghost State Layer"
+function      = "Tracks volatile runtime data (HP, Position) without breaking the Genesis Seal."
+produces      = "Real-time state mirroring overlay"
+failure_mode  = "State reconciliation failure and seal corruption"
+tags          = ["ghost", "volatile", "runtime", "state", "decoupled", "seal"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "GHOST_MIRROR_SYNC"
+dept          = "SEC"
+layer         = "II"
+name          = "Ghost-Mirror Synchronisation"
+function      = "Deep-copies GenesisContainer into a GhostMap at simulation start for parallel logic."
+produces      = "Parallel logic/runtime state pair"
+failure_mode  = "Desynchronisation between template and simulation"
+tags          = ["ghost", "mirror", "sync", "state", "runtime", "reconcile"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "DIGITAL_DNA_VERIFICATION"
+dept          = "SEC"
+layer         = "I"
+name          = "Digital DNA Verification"
+function      = "Cryptographic string proving a Capsule hasn't been altered since the Seal ritual."
+produces      = "Lineage Hash strings"
+failure_mode  = "Broken cosmic hash"
+tags          = ["hash", "dna", "verification", "lineage", "cryptography", "bdna"]
+workspace_status = "live"
+workspace_ref    = "mythos::soul::bdna_to_hex + SoulMigration::departure_fingerprint"
+
+[[atoms]]
+id            = "AETHER_LOCK_VISUALIZER"
+dept          = "SEC"
+layer         = "V"
+name          = "Aether-Lock Visualiser"
+function      = "Spiraling lock animation representing the immutability state of the Genesis Seal."
+produces      = "Visual feedback of Vault security status"
+failure_mode  = "Failure to convey sealed status leads to accidental edit attempts"
+tags          = ["ui", "visual", "seal", "animation", "security", "feedback"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DEPARTMENT: NAV — Spatial & Navigation
+# ─────────────────────────────────────────────────────────────────────────────
+
+[[atoms]]
+id            = "VOXEL_WORLD_SYSTEM"
+dept          = "NAV"
+layer         = "II"
+name          = "Voxel World System"
+function      = "Sparse 3D grid supporting spatial reasoning and agent movement."
+produces      = "Physical simulation environments"
+failure_mode  = "Agents clipping or breaking spatial bounds"
+tags          = ["voxel", "spatial", "3d", "grid", "navigation", "world"]
+workspace_status = "partial"
+workspace_ref    = "genesis-collider-mandelbulb + void-sculptor (geometry) but no voxel agent grid"
+
+[[atoms]]
+id            = "SPATIAL_BUFFER"
+dept          = "NAV"
+layer         = "II"
+name          = "Spatial Buffer"
+function      = "Offloads raw voxel coordinate data from root JSON to maintain efficient cycles."
+produces      = "Optimised multi-dimensional spatial maps"
+failure_mode  = "Massive JSON bloat and rendering lag"
+tags          = ["voxel", "buffer", "spatial", "performance", "decoupled"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "ASTAR_PATHFINDING"
+dept          = "NAV"
+layer         = "II"
+name          = "A* Pathfinding Module"
+function      = "Executes A* algorithm queries for Voxel World traversal avoiding obstacles."
+produces      = "Calculated point-to-point vectors"
+failure_mode  = "Endless routing loops and agent gridlock"
+tags          = ["pathfinding", "astar", "navigation", "spatial", "agent"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "VOXEL_WORLD_DECOUPLING"
+dept          = "NAV"
+layer         = "IV"
+name          = "Voxel World Decoupling"
+function      = "Exiles raw voxel data to SpatialBuffer to maintain JSON sanctity in Genesis."
+produces      = "Scalable world maps"
+failure_mode  = "Root JSON collapse from weight"
+tags          = ["voxel", "decoupled", "performance", "buffer", "architecture"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DEPARTMENT: COG — AI & Cognition
+# ─────────────────────────────────────────────────────────────────────────────
+
+[[atoms]]
+id            = "SOCIOMIND_CORE"
+dept          = "COG"
+layer         = "III"
+name          = "SocioMind Core"
+function      = "Aggregates psychological states and episodic memory for LLM reasoning."
+produces      = "Contextualized AI behavior outputs"
+failure_mode  = "Agents displaying amnesia or inconsistent personalities"
+tags          = ["agent", "psychology", "llm", "cognition", "memory", "identity"]
+workspace_status = "live"
+workspace_ref    = "mythos::soul::ActorSoul + ConsciousMind + SubconsciousMind"
+
+[[atoms]]
+id            = "MEMORY_MATRIX"
+dept          = "COG"
+layer         = "III"
+name          = "Memory Matrix"
+function      = "Manages episodic memory storage, associative retrieval, and decay over time."
+produces      = "Long-term and short-term agent memory caches"
+failure_mode  = "Failure of persistence of experience for narrative entities"
+tags          = ["memory", "episodic", "storage", "retrieval", "decay", "agent"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "MEMORY_CAPSULE"
+dept          = "COG"
+layer         = "III"
+name          = "Memory Capsule"
+function      = "Records individual episodic events with significance weight and decayRate."
+produces      = "Weighed cognitive memories for agents"
+failure_mode  = "Memory flattening leading to irrelevant recall"
+tags          = ["memory", "episodic", "capsule", "significance", "decay"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "MEMORY_ASSOCIATION_MODULE"
+dept          = "COG"
+layer         = "III"
+name          = "Memory Association Module"
+function      = "Clusters related memories by vector similarity using autoAssociate logic."
+produces      = "MemoryClusters for cohesive recall"
+failure_mode  = "Cognitive dissonance due to disconnected event recall"
+tags          = ["memory", "association", "vector", "clustering", "cognition"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "MEMORY_DECAY_ENGINE"
+dept          = "COG"
+layer         = "III"
+name          = "Memory Decay Engine"
+function      = "Fades low-significance events over chronological steps via applyMemoryDecay cycles."
+produces      = "Optimised memory retrieval pools"
+failure_mode  = "Database exhaustion and infinite context window errors"
+tags          = ["memory", "decay", "pruning", "significance", "cognition", "lifecycle"]
+workspace_status = "partial"
+workspace_ref    = "mythos::soul::SubconsciousMind::tick_decay (partial — emotional only)"
+
+[[atoms]]
+id            = "MANDELBROT_MEMORY"
+dept          = "COG"
+layer         = "III"
+name          = "Mandelbrot Memory"
+function      = "Fractal-based retrieval surfacing nested granular memories upon deep focus."
+produces      = "High-resolution cognitive flashbacks"
+failure_mode  = "Infinite recursion loops crashing the AI context"
+tags          = ["memory", "fractal", "recursive", "retrieval", "depth", "cognition"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "AGENT_NETWORK_ORCHESTRATOR"
+dept          = "COG"
+layer         = "III"
+name          = "Agent Network Orchestrator"
+function      = "Manages inter-agent message queues and routes runtime tasks to active simulation units."
+produces      = "Synchronised multi-agent behaviors"
+failure_mode  = "Agent desynchronisation and unhandled task drops"
+tags          = ["agent", "orchestrator", "network", "queue", "multi-agent", "routing"]
+workspace_status = "planned"
+workspace_ref    = "services/myth-bus (Tier 1 planned)"
+
+[[atoms]]
+id            = "BASE_AGENT_CLASS"
+dept          = "COG"
+layer         = "III"
+name          = "Base Agent Class"
+function      = "Provides taskQueue, capabilities, and BehaviorTree integration for persona logic."
+produces      = "Instantiated sovereign AI entities"
+failure_mode  = "Frozen agent states without task execution capability"
+tags          = ["agent", "behavior", "task", "persona", "identity", "tree"]
+workspace_status = "live"
+workspace_ref    = "mythos::soul::PersonalEngine trait + ActorSoul::tick"
+
+[[atoms]]
+id            = "COGNITIVE_OPTICS"
+dept          = "COG"
+layer         = "IV"
+name          = "Cognitive Optics"
+function      = "Framework for focus/dispersal using Refraction Logic and Interference Patterns."
+produces      = "Attention-based data filtering"
+failure_mode  = "Information overload for the Director user"
+tags          = ["cognition", "attention", "filter", "focus", "optics", "ui"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "LOREKEEPER_AGENT"
+dept          = "COG"
+layer         = "III"
+name          = "Lorekeeper Agent"
+function      = "Queries the project's lore bible answering contextual questions during composition."
+produces      = "Lore verification and deep retrieval"
+failure_mode  = "Agent hallucination leading to canonical errors"
+tags          = ["agent", "lore", "retrieval", "validation", "quill", "context"]
+workspace_status = "partial"
+workspace_ref    = "crates/myth-quill (exists; lore query not yet wired)"
+
+[[atoms]]
+id            = "CONTINUITY_AGENT"
+dept          = "COG"
+layer         = "III"
+name          = "Continuity Agent"
+function      = "Automated subsystem scanning drafted scripts against Vault parameters for paradoxes."
+produces      = "Lore compliance alerts"
+failure_mode  = "False positive paradox reports interrupting workflow"
+tags          = ["agent", "continuity", "paradox", "validation", "lore", "scan"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "DIALOGUE_COACH_AGENT"
+dept          = "COG"
+layer         = "III"
+name          = "Dialogue Coach Agent"
+function      = "Analyses Persona traits to refine character voice in generated prose."
+produces      = "Dialogue polish suggestions"
+failure_mode  = "Loss of unique character tone via over-standardisation"
+tags          = ["agent", "dialogue", "persona", "voice", "trait", "prose"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "FRACTAL_ARTISAN"
+dept          = "COG"
+layer         = "III"
+name          = "Fractal Artisan"
+function      = "Injects logically consistent sub-details into broad narrative sweeps."
+produces      = "High-granularity scene expansion"
+failure_mode  = "Infinite recursion loops preventing finalization"
+tags          = ["agent", "fractal", "detail", "narrative", "generative", "scene"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "LIGHT_SCULPTOR"
+dept          = "COG"
+layer         = "III"
+name          = "Light Sculptor"
+function      = "Modulates visual and descriptive atmospheric lighting for mood control."
+produces      = "Scene lighting and mood data overlays"
+failure_mode  = "Atmospheric logic mismatches (bright sun in deep cave)"
+tags          = ["agent", "lighting", "atmosphere", "mood", "visual", "scene"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "NEURAL_NARRATIVE_DESIGNER"
+dept          = "COG"
+layer         = "III"
+name          = "Neural Narrative Designer"
+function      = "Uses NLP to map and suggest macro-arc transitions between Mythos Containers."
+produces      = "Story arc blueprints"
+failure_mode  = "Pacing destruction and arc plateaus"
+tags          = ["agent", "narrative", "arc", "nlp", "macro", "design"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "SYMBOLIST_PAINTER"
+dept          = "COG"
+layer         = "III"
+name          = "Symbolist Painter"
+function      = "Interweaves metaphors and Glyphs into scene prose based on Bloom Matrices."
+produces      = "Thematically dense descriptive text"
+failure_mode  = "Pretentious or nonsensical metaphor overuse"
+tags          = ["agent", "symbol", "motif", "prose", "bloom", "metaphor"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DEPARTMENT: NAR — Narrative Engine
+# ─────────────────────────────────────────────────────────────────────────────
+
+[[atoms]]
+id            = "AETHERIUM_LOOM"
+dept          = "NAR"
+layer         = "III"
+name          = "Aetherium Loom"
+function      = "Weaves NarrativeCapsules into coherent arcs via Warp (structure) × Weft (events)."
+produces      = "Continuous threadFulfillment values and story generation"
+failure_mode  = "Narrative disjointedness and plot thread dead-ends"
+tags          = ["loom", "narrative", "warp", "weft", "arc", "weave", "generative"]
+workspace_status = "partial"
+workspace_ref    = "crates/myth-quill (stub); warp/weft intersect not yet implemented"
+
+[[atoms]]
+id            = "PROPHECY_ENGINE"
+dept          = "NAR"
+layer         = "III"
+name          = "Prophecy Engine"
+function      = "Plants Whisper Threads and measures their fulfillment/divergence across timelines."
+produces      = "Dynamic foreshadowing vectors"
+failure_mode  = "Unbound narrative promises with no resolution logic"
+tags          = ["prophecy", "foreshadow", "whisper", "narrative", "fulfillment", "arc"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "WHISPER_THREADS"
+dept          = "NAR"
+layer         = "III"
+name          = "Whisper Threads"
+function      = "Tags injected into earlier narrative beats that the Prophecy Engine resolves."
+produces      = "Narrative foreshadowing hooks"
+failure_mode  = "Dangling plot lines"
+tags          = ["prophecy", "foreshadow", "tag", "hook", "narrative", "seed"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "SYMBOL_BLOOM_MATRIX"
+dept          = "NAR"
+layer         = "III"
+name          = "Symbol Bloom Matrix"
+function      = "Monitors saturation, density, and evolution of recurring motifs across a simulation."
+produces      = "Bloom Saturation percentages"
+failure_mode  = "Stagnant or mechanically repetitive thematic delivery"
+tags          = ["symbol", "motif", "bloom", "saturation", "thematic", "tracking"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "SYNAPTIC_SPLICING"
+dept          = "NAR"
+layer         = "III"
+name          = "Synaptic Splicing"
+function      = "Cross-pollinates Narrative Capsules to generate emergent sub-plots or hybrid lore."
+produces      = "New generated story branches"
+failure_mode  = "Logical contradictions and narrative collapse"
+tags          = ["narrative", "splice", "remix", "generative", "emergent", "lore"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "CULTURAL_PHYLACTERY"
+dept          = "NAR"
+layer         = "I"
+name          = "Cultural Phylactery"
+function      = "Data structure housing generated cultural laws, pantheons, and DNA."
+produces      = "Persistent lore configurations"
+failure_mode  = "Loss of worldbuilding consistency between sessions"
+tags          = ["culture", "lore", "dna", "persistent", "mythos", "world"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "GLYPH_SYSTEM"
+dept          = "NAR"
+layer         = "IV"
+name          = "Glyph System"
+function      = "Attaches visual/symbolic representations (emoji/hex) to Capsules for UI parsing."
+produces      = "Semantic UI overlays"
+failure_mode  = "Visual clutter and unreadable interface mapping"
+tags          = ["glyph", "symbol", "visual", "semantic", "ui", "sigil"]
+workspace_status = "partial"
+workspace_ref    = "mythos::soul::HeraldricPosition::sigil (partial)"
+
+[[atoms]]
+id            = "TRAIT_SYSTEM"
+dept          = "NAR"
+layer         = "III"
+name          = "Trait System"
+function      = "Infects nodes with numeric values and inheritance matrices (Narrative DNA)."
+produces      = "Modulated agent capabilities and biases"
+failure_mode  = "Generic, indistinguishable agent interactions"
+tags          = ["trait", "dna", "inheritance", "bias", "agent", "narrative"]
+workspace_status = "live"
+workspace_ref    = "mythos::soul::TraitAxis + SubconsciousMind::weights"
+
+[[atoms]]
+id            = "NARRATIVE_DNA_PROFILES"
+dept          = "NAR"
+layer         = "II"
+name          = "Narrative DNA Profiles"
+function      = "Emotional Bias, Resonance Tags, and Signature Styles (e.g. Zephyrian Harmonics)."
+produces      = "Inheritable character/world traits"
+failure_mode  = "Incoherent trait inheritance"
+tags          = ["dna", "narrative", "trait", "resonance", "style", "inheritance"]
+workspace_status = "live"
+workspace_ref    = "mythos::soul::BDna + bdna_from_seed + inherit_bdna"
+
+[[atoms]]
+id            = "STUDIO_SCRIBE_ENGINE"
+dept          = "NAR"
+layer         = "IV"
+name          = "Studio Scribe Engine"
+function      = "Historian agent translating raw simulation events into Prose/Beats/Timeline docs."
+produces      = "Human-readable Markdown/Text artifacts"
+failure_mode  = "Loss of narrative record or unreadable log outputs"
+tags          = ["documentation", "historian", "prose", "narrative", "archive", "scribe"]
+workspace_status = "partial"
+workspace_ref    = "crates/myth-quill"
+
+[[atoms]]
+id            = "SCROLLFORGE_PARSER"
+dept          = "NAR"
+layer         = "IV"
+name          = "Scrollforge Parser"
+function      = "Converts Studio Scribe output into stylised publishable lore documents."
+produces      = "Publishable documentation bundles"
+failure_mode  = "Format breakage preventing artifact export"
+tags          = ["documentation", "parser", "lore", "export", "scrollforge", "publish"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "AGENT_PERSONA_ROLES"
+dept          = "NAR"
+layer         = "II"
+name          = "Agent Persona Roles"
+function      = "Categorises agents into Technical (Engineers) and Creative (Artisans/Scribes) suites."
+produces      = "Functional role division"
+failure_mode  = "Role ambiguity"
+tags          = ["agent", "persona", "role", "creative", "technical", "identity"]
+workspace_status = "partial"
+workspace_ref    = "mythos::soul::Faction (partial — faction not same as role)"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DEPARTMENT: UI — Interface & Director Tools
+# ─────────────────────────────────────────────────────────────────────────────
+
+[[atoms]]
+id            = "PROSCENIUM_CORE"
+dept          = "UI"
+layer         = "IV"
+name          = "Proscenium Core"
+function      = "Main interface wrapper providing a stage for actors, sets, and simulation logic."
+produces      = "Integrated Director workspace"
+failure_mode  = "Total UI collapse; inability to interface with Quantum Core"
+tags          = ["ui", "stage", "director", "workspace", "proscenium", "theatre"]
+workspace_status = "partial"
+workspace_ref    = "crates/biospark-theatre (exists; Steps 1-4 not yet built)"
+
+[[atoms]]
+id            = "ORBITAL_COMMAND_RING"
+dept          = "UI"
+layer         = "V"
+name          = "Orbital Command Ring"
+function      = "Reconfigurable context-sensitive circular UI hosting Apertures for module selection."
+produces      = "Module entry points"
+failure_mode  = "Inability to navigate between Quantum Apps"
+tags          = ["ui", "orbital", "ring", "navigation", "menu", "radial"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "QUANTUM_APERTURES"
+dept          = "UI"
+layer         = "V"
+name          = "Quantum Apertures"
+function      = "Interactive symbols on the Orbital Ring linking to major application suites."
+produces      = "UI state transitions"
+failure_mode  = "Broken UI routing"
+tags          = ["ui", "aperture", "navigation", "glyph", "orbital", "module"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "DIRECTORS_CADENCE"
+dept          = "UI"
+layer         = "IV"
+name          = "Director's Cadence"
+function      = "Processes human gestures/inputs into fluid transitions and real-time UI reactions."
+produces      = "Seamless UX interactions"
+failure_mode  = "Clunky UI operation breaking immersion"
+tags          = ["ui", "director", "gesture", "ux", "feedback", "interaction"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "SIMULATION_ANOMALY"
+dept          = "UI"
+layer         = "V"
+name          = "Simulation Anomaly"
+function      = "Central stage display representing the active 3D visualisation or dashboard."
+produces      = "Main stage visual feedback"
+failure_mode  = "Black screen in the primary workspace region"
+tags          = ["ui", "visual", "stage", "display", "3d", "viewport"]
+workspace_status = "partial"
+workspace_ref    = "crates/biospark-theatre-bevy (Bevy renderer stub)"
+
+[[atoms]]
+id            = "UTILITY_GRID_DASHBOARD"
+dept          = "UI"
+layer         = "V"
+name          = "Utility Grid Dashboard"
+function      = "Grid offering access to Profiles, Settings, and reconfigurable project tables."
+produces      = "Administrative data views"
+failure_mode  = "Loss of access to meta-settings"
+tags          = ["ui", "dashboard", "grid", "settings", "admin", "profile"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "QUANTUM_GENESIS_UI"
+dept          = "UI"
+layer         = "IV"
+name          = "Quantum Genesis UI"
+function      = "Module interface for defining world laws and exporting the sealed Genesis Container."
+produces      = "Root project definitions"
+failure_mode  = "Inability to initialise a valid project"
+tags          = ["ui", "genesis", "module", "world", "laws", "seal"]
+workspace_status = "partial"
+workspace_ref    = "bins/opalis (running but missing Genesis flow)"
+
+[[atoms]]
+id            = "QUANTUM_MYTHOS_UI"
+dept          = "UI"
+layer         = "IV"
+name          = "Quantum Mythos UI"
+function      = "Module interface for sculpting node-graphs of pantheons, belief systems, and cultures."
+produces      = "Mythos Containers and Artifacts"
+failure_mode  = "Shallow worldbuilding lacking historical depth"
+tags          = ["ui", "mythos", "node-graph", "culture", "world", "pantheon"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "QUANTUM_LOOM_UI"
+dept          = "UI"
+layer         = "IV"
+name          = "Quantum Loom UI"
+function      = "Advanced timeline interface mapping Warp and Weft for event choreography."
+produces      = "Chronological narrative execution flows"
+failure_mode  = "Event timeline misalignment"
+tags          = ["ui", "loom", "timeline", "warp", "weft", "daw", "sequencer"]
+workspace_status = "partial"
+workspace_ref    = "crates/myth-daw Transport (timing exists; Loom UI not built)"
+
+[[atoms]]
+id            = "QUANTUM_FORGE_UI"
+dept          = "UI"
+layer         = "IV"
+name          = "Quantum Forge UI"
+function      = "Node-based workspace for encapsulating, linking, and tweaking story capsules."
+produces      = "Connected atomic Capsule trees"
+failure_mode  = "Broken capsule dependencies"
+tags          = ["ui", "forge", "node-graph", "capsule", "editor", "design"]
+workspace_status = "partial"
+workspace_ref    = "crates/myth-forge (exists)"
+
+[[atoms]]
+id            = "QUANTUM_ATLAS_UI"
+dept          = "UI"
+layer         = "IV"
+name          = "Quantum Atlas UI"
+function      = "Comprehensive 3D viewer for Voxel World, paths, and active agents."
+produces      = "Rendered spatial context"
+failure_mode  = "3D rendering crash"
+tags          = ["ui", "atlas", "3d", "spatial", "voxel", "viewer"]
+workspace_status = "partial"
+workspace_ref    = "viewer/ crate (exists)"
+
+[[atoms]]
+id            = "NODE_GRAPH_CANVAS"
+dept          = "UI"
+layer         = "V"
+name          = "Node Graph Canvas"
+function      = "Interactive node-connection canvas providing drag-and-drop workspace primitive."
+produces      = "Visual node schematics"
+failure_mode  = "Unresponsive drag-and-drop mechanics"
+tags          = ["ui", "node-graph", "canvas", "drag-drop", "editor", "visual"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "FUSION_ZONE_COMPOSER"
+dept          = "UI"
+layer         = "V"
+name          = "Fusion Zone Composer"
+function      = "Defines cross-over triggers where conflicting/harmonic traits blend via Venn diagrams."
+produces      = "Hybrid trait logic rules"
+failure_mode  = "Trait collision errors"
+tags          = ["ui", "trait", "fusion", "venn", "blend", "design"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "CHRONO_SCRUBBING"
+dept          = "UI"
+layer         = "V"
+name          = "Chrono-Scrubbing"
+function      = "Allows dragging playheads back in time across the UI to view simulation memory echoes."
+produces      = "Historical playback contexts"
+failure_mode  = "State history corruption on reverse seek"
+tags          = ["ui", "timeline", "playback", "time", "history", "scrub", "daw"]
+workspace_status = "partial"
+workspace_ref    = "myth-daw::Transport::seek (exists; no UI playhead yet)"
+
+[[atoms]]
+id            = "LUMINOUS_SPHERES"
+dept          = "UI"
+layer         = "V"
+name          = "Luminous Spheres"
+function      = "Renders highly significant memories as glowing nodes within 3D mapping views."
+produces      = "Clear visual hierarchy of episodic events"
+failure_mode  = "Cluttered memory graphs indistinguishable by weight"
+tags          = ["ui", "visual", "memory", "3d", "nodes", "significance", "glow"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "VISION_WEAVE"
+dept          = "UI"
+layer         = "V"
+name          = "Vision Weave"
+function      = "WebGL background particle system combining data arrays into rotating shape aggregations."
+produces      = "Ambient status visualisation"
+failure_mode  = "Excessive GPU drain affecting core runtime"
+tags          = ["ui", "visual", "particle", "webgl", "ambient", "background"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DEPARTMENT: MED — Media, Audio & Animation
+# ─────────────────────────────────────────────────────────────────────────────
+
+[[atoms]]
+id            = "MOMAT_MOGEN_ENGINE"
+dept          = "MED"
+layer         = "II"
+name          = "MoMat-MoGen Engine"
+function      = "Blends Motion Matching retrieval and Diffusion-based generation for fluid AI actor animation."
+produces      = "Continuous 3D spatial animations"
+failure_mode  = "Animation stuttering and kinematic violations"
+tags          = ["animation", "motion", "diffusion", "kinematic", "actor", "3d"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "DAW_INTERFACE_SEQUENCER"
+dept          = "MED"
+layer         = "IV"
+name          = "DAW Interface Sequencer"
+function      = "60/40 split track/preview view for precision timeline editing and media sync."
+produces      = "Time-synced media and signal outputs"
+failure_mode  = "Audio/visual synchronisation desync"
+tags          = ["daw", "sequencer", "timeline", "audio", "media", "sync"]
+workspace_status = "partial"
+workspace_ref    = "crates/myth-daw (Transport, WirePacket exist; UI not built)"
+
+[[atoms]]
+id            = "WEBSOCKET_TRANSPORT"
+dept          = "MED"
+layer         = "II"
+name          = "WebSocket Transport"
+function      = "Binary-framed network protocol maintaining high-frequency Bloom updates from Engine to UI."
+produces      = "Continuous sequence ID streams and reconnect logic"
+failure_mode  = "Network saturation and UI latency"
+tags          = ["network", "websocket", "transport", "streaming", "delta", "realtime"]
+workspace_status = "live"
+workspace_ref    = "crates/myth-wire WirePacket (gRPC framing, not WS yet)"
+
+[[atoms]]
+id            = "DELTA_ENCODER"
+dept          = "MED"
+layer         = "II"
+name          = "Delta Encoder"
+function      = "Calculates object diffs by sweeping isDirty flags to broadcast only modified state."
+produces      = "IDeltaPacket payloads"
+failure_mode  = "Bloated JSON transmissions crushing the WebSocket channel"
+tags          = ["network", "delta", "diff", "transport", "performance", "streaming"]
+workspace_status = "partial"
+workspace_ref    = "crates/myth-wire WirePacket (has payload; no dirty-flag diff yet)"
+
+[[atoms]]
+id            = "BLOOM_DELTA_PULSE"
+dept          = "MED"
+layer         = "II"
+name          = "Bloom Delta Pulse"
+function      = "Priority batching system (IMMEDIATE vs BATCHED 20Hz) sending narrative shifts to UI."
+produces      = "Latency-free user feedback interpolation"
+failure_mode  = "Visual desynchronisation from the underlying narrative logic"
+tags          = ["network", "delta", "batch", "priority", "realtime", "bloom"]
+workspace_status = "conceptual"
+workspace_ref    = ""
+
+[[atoms]]
+id            = "HARDWARE_INTERFACE_DESIGNER"
+dept          = "MED"
+layer         = "V"
+name          = "Hardware Interface Designer"
+function      = "Stylised physical knobs, sliders, faders, and VU meters bound to simulation floats."
+produces      = "Skeuomorphic control input instances"
+failure_mode  = "Disconnection from underlying numeric state"
+tags          = ["ui", "hardware", "knob", "slider", "midi", "skeuomorphic", "control"]
+workspace_status = "partial"
+workspace_ref    = "crates/myth-stencil (rack UI) + bins/opalis (egui controls)"
+
+[[atoms]]
+id            = "UI_KIT_DESIGNER"
+dept          = "MED"
+layer         = "V"
+name          = "UI Kit Designer"
+function      = "Generates high-tech modals, glowing dropdowns, toggles using the cyan/purple theme."
+produces      = "Consistent application styling"
+failure_mode  = "Visual discordance and layout breaks"
+tags          = ["ui", "design-system", "theme", "cyan", "components", "style"]
+workspace_status = "partial"
+workspace_ref    = "assets/ui/ + Procedural_Rack_Design_System.html (design spec exists)"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# COVERAGE SUMMARY (auto-generated — update as crates are built)
+# ─────────────────────────────────────────────────────────────────────────────
+# live        : 7   (SOCIOMIND_CORE, BASE_AGENT_CLASS, TRAIT_SYSTEM, NARRATIVE_DNA_PROFILES,
+#                    BASE_CAPSULE, DIGITAL_DNA_VERIFICATION, WEBSOCKET_TRANSPORT)
+# partial     : 22  (workspace has scaffolding but not fully wired)
+# planned     : 2   (VAULT_MANAGEMENT_SYSTEM, AGENT_NETWORK_ORCHESTRATOR)
+# conceptual  : 26  (idea captured; no Rust yet — these are the new ones to build)
+#
+# Total atoms in pool: 57
+# ═══════════════════════════════════════════════════════════════════════════════

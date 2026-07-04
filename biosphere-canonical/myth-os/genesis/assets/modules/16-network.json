@@ -1,0 +1,67 @@
+{
+  "id": "MYTH-16",
+  "name": "Network",
+  "crest": "Nexus",
+  "color": "#ffffff",
+  "department": "Dynamics",
+  "description": "Event bus and inter-module signal routing. Nexus broadcasts simulation events to external observers, OSC endpoints, and the Vault persistence layer — the nervous system connecting all things.",
+  "implementation_status": "built",
+  "primary_wire_out": "EVT",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "assets/MYTH-16/_meta/icon.png",
+    "preview_image": "assets/MYTH-16/_meta/cover.png",
+    "banner": "assets/MYTH-16/_meta/banner.webp",
+    "crest_svg": "assets/MYTH-16/_meta/crest.svg",
+    "splash_screen": "assets/MYTH-16/_meta/splash.html",
+    "audio_preview": "assets/MYTH-16/_meta/preview.mp3",
+    "video_preview": "assets/MYTH-16/_meta/preview.mp4"
+  },
+  "containers": [
+    {
+      "id": "MYTH-16-STD-01",
+      "name": "Event Router",
+      "symbol": "EV",
+      "wire_out": "EVT",
+      "description": "Topic-based event bus routing simulation events to registered subscriber atoms.",
+      "assets": { "icon": "assets/MYTH-16/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    },
+    {
+      "id": "MYTH-16-STD-02",
+      "name": "OSC Bridge",
+      "symbol": "OB",
+      "wire_out": "EVT",
+      "description": "Translates internal Bevy events to OSC packets for external tools and hardware.",
+      "assets": { "icon": "assets/MYTH-16/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    }
+  ],
+  "traktor_map": [
+    {
+      "channel": 4,
+      "control_type": "knob",
+      "midi_cc": 22,
+      "parameter": "Broadcast Rate",
+      "scale_min": 1.0,
+      "scale_max": 120.0
+    },
+    {
+      "channel": 4,
+      "control_type": "knob",
+      "midi_cc": 23,
+      "parameter": "Signal Propagation",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    },
+    {
+      "channel": 4,
+      "control_type": "knob",
+      "midi_cc": 13,
+      "parameter": "Network Density",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    }
+  ]
+}

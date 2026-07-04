@@ -1,0 +1,32 @@
+{
+  "id": "GEN-13",
+  "name": "Logic",
+  "crest": "◈",
+  "color": "#20c8d0",
+  "department": "Dynamics",
+  "description": "Boolean gate evaluator and rule engine. Reads LGC wire packets and propagates truth-values through the condition graph.",
+  "implementation_status": "in-progress",
+  "primary_wire_out": "LGC",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "",
+    "preview_image": "",
+    "banner": "",
+    "crest_svg": "",
+    "splash_screen": null,
+    "audio_preview": null,
+    "video_preview": null
+  },
+  "containers": [],
+  "traktor_map": [
+    {
+      "channel": 4,
+      "control_type": "fader",
+      "midi_cc": 54,
+      "parameter": "gate_threshold",
+      "scale_min": 0,
+      "scale_max": 1
+    }
+  ]
+}

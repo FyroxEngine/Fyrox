@@ -1,0 +1,372 @@
+[
+  {
+    "id": "983e9fdc-01f0-4ca8-b25b-e985f8e3fa87",
+    "name": "Cave Entrance Cave Entrance Organic 2x2 Isw Isometric Pbr A",
+    "stem": "CAVE_ENTRANCE_CAVE_ENTRANCE_ORGANIC_2X2_ISW_ISOMETRIC_PBR_A",
+    "created_at": "2026-05-26T20:26:55.257167700+00:00",
+    "domain": "arch",
+    "zone": "CAVE",
+    "function": "ENTRANCE",
+    "variant": "ORGANIC",
+    "scale": "2X2",
+    "letter": "A",
+    "sockets": {
+      "north": "PASSAGE_MD",
+      "south": "CLOSED",
+      "east": "CAVE_WALL",
+      "west": "CAVE_WALL",
+      "up": "CAVE_CEILING",
+      "down": "CAVE_FLOOR"
+    },
+    "render": {
+      "background": "TRANSPARENT",
+      "direction": "ISW",
+      "angle": "ISOMETRIC",
+      "shader": "PBR"
+    },
+    "character": null,
+    "quantum_module": "Forge",
+    "resonance_hz": 174.6,
+    "tags": [
+      "tileable",
+      "entrance",
+      "cave"
+    ],
+    "grid": [
+      2,
+      2
+    ],
+    "prompt": "[CAVE_ENTRANCE][CAVE][ENTRANCE][ORGANIC][2X2][TRANSPARENT][ISW][ISOMETRIC][PBR][QM:Forge][RES:174.6Hz][tileable][entrance][cave]",
+    "files": {
+      "gltf": "arch/CAVE/CAVE_ENTRANCE/ORGANIC/CAVE_ENTRANCE_CAVE_ENTRANCE_ORGANIC_2X2_ISW_ISOMETRIC_PBR_A.gltf",
+      "sprite": "arch/CAVE/CAVE_ENTRANCE/ORGANIC/CAVE_ENTRANCE_CAVE_ENTRANCE_ORGANIC_2X2_ISW_ISOMETRIC_PBR_A.png",
+      "normal": "arch/CAVE/CAVE_ENTRANCE/ORGANIC/CAVE_ENTRANCE_CAVE_ENTRANCE_ORGANIC_2X2_ISW_ISOMETRIC_PBR_A_NRM.png",
+      "thumbnail": "arch/CAVE/CAVE_ENTRANCE/ORGANIC/CAVE_ENTRANCE_CAVE_ENTRANCE_ORGANIC_2X2_ISW_ISOMETRIC_PBR_A_THUMB.png"
+    }
+  },
+  {
+    "id": "bd3e6acc-9cc2-4180-a025-19f2d089fde3",
+    "name": "Cave Entrance Cave Entrance Organic 2x2 Isw Isometric Pbr B",
+    "stem": "CAVE_ENTRANCE_CAVE_ENTRANCE_ORGANIC_2X2_ISW_ISOMETRIC_PBR_B",
+    "created_at": "2026-05-26T20:26:55.972149800+00:00",
+    "domain": "arch",
+    "zone": "CAVE",
+    "function": "ENTRANCE",
+    "variant": "ORGANIC",
+    "scale": "2X2",
+    "letter": "B",
+    "sockets": {
+      "north": "PASSAGE_MD",
+      "south": "CLOSED",
+      "east": "CAVE_WALL",
+      "west": "CAVE_WALL",
+      "up": "CAVE_CEILING",
+      "down": "CAVE_FLOOR"
+    },
+    "render": {
+      "background": "TRANSPARENT",
+      "direction": "ISW",
+      "angle": "ISOMETRIC",
+      "shader": "PBR"
+    },
+    "character": null,
+    "quantum_module": "Forge",
+    "resonance_hz": 174.6,
+    "tags": [
+      "tileable",
+      "entrance",
+      "cave"
+    ],
+    "grid": [
+      2,
+      2
+    ],
+    "prompt": "[CAVE_ENTRANCE][CAVE][ENTRANCE][ORGANIC][2X2][TRANSPARENT][ISW][ISOMETRIC][PBR][QM:Forge][RES:174.6Hz][tileable][entrance][cave]",
+    "files": {
+      "gltf": "arch/CAVE/CAVE_ENTRANCE/ORGANIC/CAVE_ENTRANCE_CAVE_ENTRANCE_ORGANIC_2X2_ISW_ISOMETRIC_PBR_B.gltf",
+      "sprite": "arch/CAVE/CAVE_ENTRANCE/ORGANIC/CAVE_ENTRANCE_CAVE_ENTRANCE_ORGANIC_2X2_ISW_ISOMETRIC_PBR_B.png",
+      "normal": "arch/CAVE/CAVE_ENTRANCE/ORGANIC/CAVE_ENTRANCE_CAVE_ENTRANCE_ORGANIC_2X2_ISW_ISOMETRIC_PBR_B_NRM.png",
+      "thumbnail": "arch/CAVE/CAVE_ENTRANCE/ORGANIC/CAVE_ENTRANCE_CAVE_ENTRANCE_ORGANIC_2X2_ISW_ISOMETRIC_PBR_B_THUMB.png"
+    }
+  },
+  {
+    "id": "8213fe32-1337-4d33-a91e-d4a4c43a7344",
+    "name": "Cave Entrance Cave Entrance Organic 2x2 Isw Isometric Pbr C",
+    "stem": "CAVE_ENTRANCE_CAVE_ENTRANCE_ORGANIC_2X2_ISW_ISOMETRIC_PBR_C",
+    "created_at": "2026-05-26T20:26:55.972704300+00:00",
+    "domain": "arch",
+    "zone": "CAVE",
+    "function": "ENTRANCE",
+    "variant": "ORGANIC",
+    "scale": "2X2",
+    "letter": "C",
+    "sockets": {
+      "north": "PASSAGE_MD",
+      "south": "CLOSED",
+      "east": "CAVE_WALL",
+      "west": "CAVE_WALL",
+      "up": "CAVE_CEILING",
+      "down": "CAVE_FLOOR"
+    },
+    "render": {
+      "background": "TRANSPARENT",
+      "direction": "ISW",
+      "angle": "ISOMETRIC",
+      "shader": "PBR"
+    },
+    "character": null,
+    "quantum_module": "Forge",
+    "resonance_hz": 174.6,
+    "tags": [
+      "tileable",
+      "entrance",
+      "cave"
+    ],
+    "grid": [
+      2,
+      2
+    ],
+    "prompt": "[CAVE_ENTRANCE][CAVE][ENTRANCE][ORGANIC][2X2][TRANSPARENT][ISW][ISOMETRIC][PBR][QM:Forge][RES:174.6Hz][tileable][entrance][cave]",
+    "files": {
+      "gltf": "arch/CAVE/CAVE_ENTRANCE/ORGANIC/CAVE_ENTRANCE_CAVE_ENTRANCE_ORGANIC_2X2_ISW_ISOMETRIC_PBR_C.gltf",
+      "sprite": "arch/CAVE/CAVE_ENTRANCE/ORGANIC/CAVE_ENTRANCE_CAVE_ENTRANCE_ORGANIC_2X2_ISW_ISOMETRIC_PBR_C.png",
+      "normal": "arch/CAVE/CAVE_ENTRANCE/ORGANIC/CAVE_ENTRANCE_CAVE_ENTRANCE_ORGANIC_2X2_ISW_ISOMETRIC_PBR_C_NRM.png",
+      "thumbnail": "arch/CAVE/CAVE_ENTRANCE/ORGANIC/CAVE_ENTRANCE_CAVE_ENTRANCE_ORGANIC_2X2_ISW_ISOMETRIC_PBR_C_THUMB.png"
+    }
+  },
+  {
+    "id": "9def6a2f-7839-4d9e-a9a2-04e71820c0aa",
+    "name": "Luminarite Spire Luminarite Spire Crystalline 1x1x2 Isw Isometric Pbr A",
+    "stem": "LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_A",
+    "created_at": "2026-05-26T20:26:55.973547200+00:00",
+    "domain": "arch",
+    "zone": "LUMINARITE",
+    "function": "SPIRE",
+    "variant": "CRYSTALLINE",
+    "scale": "1X1X2",
+    "letter": "A",
+    "sockets": {
+      "north": "OPEN",
+      "south": "OPEN",
+      "east": "OPEN",
+      "west": "OPEN",
+      "up": "VOID_EDGE",
+      "down": "GROUND_STONE"
+    },
+    "render": {
+      "background": "TRANSPARENT",
+      "direction": "ISW",
+      "angle": "ISOMETRIC",
+      "shader": "PBR"
+    },
+    "character": null,
+    "quantum_module": "Prism",
+    "resonance_hz": 963.0,
+    "tags": [
+      "tileable",
+      "spire",
+      "luminous",
+      "cathedral"
+    ],
+    "grid": [
+      1,
+      1
+    ],
+    "prompt": "[LUMINARITE_SPIRE][LUMINARITE][SPIRE][CRYSTALLINE][1X1X2][TRANSPARENT][ISW][ISOMETRIC][PBR][QM:Prism][RES:963Hz][tileable][spire][luminous][cathedral]",
+    "files": {
+      "gltf": "arch/LUMINARITE/LUMINARITE_SPIRE/CRYSTALLINE/LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_A.gltf",
+      "sprite": "arch/LUMINARITE/LUMINARITE_SPIRE/CRYSTALLINE/LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_A.png",
+      "normal": "arch/LUMINARITE/LUMINARITE_SPIRE/CRYSTALLINE/LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_A_NRM.png",
+      "thumbnail": "arch/LUMINARITE/LUMINARITE_SPIRE/CRYSTALLINE/LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_A_THUMB.png"
+    }
+  },
+  {
+    "id": "ec9ba6e7-12c3-49a0-9c76-9118b3ed2490",
+    "name": "Luminarite Spire Luminarite Spire Crystalline 1x1x2 Isw Isometric Pbr B",
+    "stem": "LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_B",
+    "created_at": "2026-05-26T20:26:55.975310500+00:00",
+    "domain": "arch",
+    "zone": "LUMINARITE",
+    "function": "SPIRE",
+    "variant": "CRYSTALLINE",
+    "scale": "1X1X2",
+    "letter": "B",
+    "sockets": {
+      "north": "OPEN",
+      "south": "OPEN",
+      "east": "OPEN",
+      "west": "OPEN",
+      "up": "VOID_EDGE",
+      "down": "GROUND_STONE"
+    },
+    "render": {
+      "background": "TRANSPARENT",
+      "direction": "ISW",
+      "angle": "ISOMETRIC",
+      "shader": "PBR"
+    },
+    "character": null,
+    "quantum_module": "Prism",
+    "resonance_hz": 963.0,
+    "tags": [
+      "tileable",
+      "spire",
+      "luminous",
+      "cathedral"
+    ],
+    "grid": [
+      1,
+      1
+    ],
+    "prompt": "[LUMINARITE_SPIRE][LUMINARITE][SPIRE][CRYSTALLINE][1X1X2][TRANSPARENT][ISW][ISOMETRIC][PBR][QM:Prism][RES:963Hz][tileable][spire][luminous][cathedral]",
+    "files": {
+      "gltf": "arch/LUMINARITE/LUMINARITE_SPIRE/CRYSTALLINE/LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_B.gltf",
+      "sprite": "arch/LUMINARITE/LUMINARITE_SPIRE/CRYSTALLINE/LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_B.png",
+      "normal": "arch/LUMINARITE/LUMINARITE_SPIRE/CRYSTALLINE/LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_B_NRM.png",
+      "thumbnail": "arch/LUMINARITE/LUMINARITE_SPIRE/CRYSTALLINE/LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_B_THUMB.png"
+    }
+  },
+  {
+    "id": "8569a0ad-6144-4ae8-b36b-be35116254ff",
+    "name": "Luminarite Spire Luminarite Spire Crystalline 1x1x2 Isw Isometric Pbr C",
+    "stem": "LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_C",
+    "created_at": "2026-05-26T20:26:55.975955600+00:00",
+    "domain": "arch",
+    "zone": "LUMINARITE",
+    "function": "SPIRE",
+    "variant": "CRYSTALLINE",
+    "scale": "1X1X2",
+    "letter": "C",
+    "sockets": {
+      "north": "OPEN",
+      "south": "OPEN",
+      "east": "OPEN",
+      "west": "OPEN",
+      "up": "VOID_EDGE",
+      "down": "GROUND_STONE"
+    },
+    "render": {
+      "background": "TRANSPARENT",
+      "direction": "ISW",
+      "angle": "ISOMETRIC",
+      "shader": "PBR"
+    },
+    "character": null,
+    "quantum_module": "Prism",
+    "resonance_hz": 963.0,
+    "tags": [
+      "tileable",
+      "spire",
+      "luminous",
+      "cathedral"
+    ],
+    "grid": [
+      1,
+      1
+    ],
+    "prompt": "[LUMINARITE_SPIRE][LUMINARITE][SPIRE][CRYSTALLINE][1X1X2][TRANSPARENT][ISW][ISOMETRIC][PBR][QM:Prism][RES:963Hz][tileable][spire][luminous][cathedral]",
+    "files": {
+      "gltf": "arch/LUMINARITE/LUMINARITE_SPIRE/CRYSTALLINE/LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_C.gltf",
+      "sprite": "arch/LUMINARITE/LUMINARITE_SPIRE/CRYSTALLINE/LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_C.png",
+      "normal": "arch/LUMINARITE/LUMINARITE_SPIRE/CRYSTALLINE/LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_C_NRM.png",
+      "thumbnail": "arch/LUMINARITE/LUMINARITE_SPIRE/CRYSTALLINE/LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_C_THUMB.png"
+    }
+  },
+  {
+    "id": "de375b89-89cd-4d7f-bfbf-20be2ec3c6e4",
+    "name": "Luminarite Spire Luminarite Spire Crystalline 1x1x2 Isw Isometric Pbr D",
+    "stem": "LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_D",
+    "created_at": "2026-05-26T20:26:55.979498800+00:00",
+    "domain": "arch",
+    "zone": "LUMINARITE",
+    "function": "SPIRE",
+    "variant": "CRYSTALLINE",
+    "scale": "1X1X2",
+    "letter": "D",
+    "sockets": {
+      "north": "OPEN",
+      "south": "OPEN",
+      "east": "OPEN",
+      "west": "OPEN",
+      "up": "VOID_EDGE",
+      "down": "GROUND_STONE"
+    },
+    "render": {
+      "background": "TRANSPARENT",
+      "direction": "ISW",
+      "angle": "ISOMETRIC",
+      "shader": "PBR"
+    },
+    "character": null,
+    "quantum_module": "Prism",
+    "resonance_hz": 963.0,
+    "tags": [
+      "tileable",
+      "spire",
+      "luminous",
+      "cathedral"
+    ],
+    "grid": [
+      1,
+      1
+    ],
+    "prompt": "[LUMINARITE_SPIRE][LUMINARITE][SPIRE][CRYSTALLINE][1X1X2][TRANSPARENT][ISW][ISOMETRIC][PBR][QM:Prism][RES:963Hz][tileable][spire][luminous][cathedral]",
+    "files": {
+      "gltf": "arch/LUMINARITE/LUMINARITE_SPIRE/CRYSTALLINE/LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_D.gltf",
+      "sprite": "arch/LUMINARITE/LUMINARITE_SPIRE/CRYSTALLINE/LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_D.png",
+      "normal": "arch/LUMINARITE/LUMINARITE_SPIRE/CRYSTALLINE/LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_D_NRM.png",
+      "thumbnail": "arch/LUMINARITE/LUMINARITE_SPIRE/CRYSTALLINE/LUMINARITE_SPIRE_LUMINARITE_SPIRE_CRYSTALLINE_1X1X2_ISW_ISOMETRIC_PBR_D_THUMB.png"
+    }
+  },
+  {
+    "id": "8da00c80-fe63-4d02-a5a0-6e2063638ce7",
+    "name": "Xyrona Guardian Xyrona Combat Humanoid Front Perspective Pbr",
+    "stem": "XYRONA_GUARDIAN_XYRONA_COMBAT_HUMANOID_FRONT_PERSPECTIVE_PBR",
+    "created_at": "2026-05-26T20:26:55.985099400+00:00",
+    "domain": "char",
+    "zone": "XYRONA",
+    "function": null,
+    "variant": null,
+    "scale": null,
+    "letter": null,
+    "sockets": {
+      "north": null,
+      "south": null,
+      "east": null,
+      "west": null,
+      "up": null,
+      "down": null
+    },
+    "render": {
+      "background": "TRANSPARENT",
+      "direction": "FRONT",
+      "angle": "PERSPECTIVE",
+      "shader": "PBR"
+    },
+    "character": {
+      "pose": "COMBAT",
+      "rig": "HUMANOID",
+      "faction": "XYRONA",
+      "role": "GUARD",
+      "lod": "HIGH"
+    },
+    "quantum_module": "Animus",
+    "resonance_hz": 528.0,
+    "tags": [
+      "character",
+      "boss",
+      "xyrona"
+    ],
+    "grid": [
+      1,
+      1
+    ],
+    "prompt": "[XYRONA_GUARDIAN][XYRONA][TRANSPARENT][FRONT][PERSPECTIVE][PBR][COMBAT][HUMANOID][XYRONA][GUARD][LOD:HIGH][QM:Animus][RES:528Hz][character][boss][xyrona]",
+    "files": {
+      "gltf": "char/XYRONA/XYRONA_GUARDIAN/BASE/XYRONA_GUARDIAN_XYRONA_COMBAT_HUMANOID_FRONT_PERSPECTIVE_PBR.gltf",
+      "sprite": "char/XYRONA/XYRONA_GUARDIAN/BASE/XYRONA_GUARDIAN_XYRONA_COMBAT_HUMANOID_FRONT_PERSPECTIVE_PBR.png",
+      "normal": "char/XYRONA/XYRONA_GUARDIAN/BASE/XYRONA_GUARDIAN_XYRONA_COMBAT_HUMANOID_FRONT_PERSPECTIVE_PBR_NRM.png",
+      "thumbnail": "char/XYRONA/XYRONA_GUARDIAN/BASE/XYRONA_GUARDIAN_XYRONA_COMBAT_HUMANOID_FRONT_PERSPECTIVE_PBR_THUMB.png"
+    }
+  }
+]

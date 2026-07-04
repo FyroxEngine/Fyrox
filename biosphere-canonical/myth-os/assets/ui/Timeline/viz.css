@@ -1,0 +1,241 @@
+/* =====================================================
+   VISUALIZER + MODULE CSS
+   ===================================================== */
+
+.viz {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.viz canvas { display: block; }
+.viz-label {
+  position: absolute;
+  bottom: 4px; left: 6px;
+  font-family: var(--font-engrave);
+  font-size: 8px;
+  letter-spacing: 0.18em;
+  color: rgba(255,255,255,0.35);
+  pointer-events: none;
+}
+.viz-corner {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  color: var(--signal-cool);
+  text-shadow: 0 0 4px var(--signal-cool);
+  pointer-events: none;
+}
+.viz-corner-tl { top: 4px; left: 6px; }
+.viz-corner-tr { top: 4px; right: 6px; }
+.led-dot {
+  display: inline-block;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--signal-hot);
+  box-shadow: 0 0 4px var(--signal-hot), 0 0 8px var(--signal-hot);
+  animation: pulse-glow 1.4s infinite ease-in-out;
+}
+
+/* VU meter */
+.vu {
+  display: flex; align-items: center; gap: 6px;
+}
+.vu-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-mid);
+  width: 10px;
+}
+.vu-bar {
+  flex: 1;
+  height: 100%;
+  display: flex; gap: 1px;
+  padding: 2px;
+  background: linear-gradient(180deg, #050810, #03050a);
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.6),
+              inset 0 1px 3px rgba(0,0,0,0.9);
+}
+.vu-seg { flex: 1; border-radius: 1px; }
+
+/* curve editor */
+.curve-editor { cursor: crosshair; }
+.curve-editor svg { display: block; }
+
+/* =====================================================
+   MODULE — rack module chassis
+   ===================================================== */
+.module {
+  --module-channel: var(--signal-cool);
+  --module-glow: var(--glow-cool);
+  position: relative;
+  background:
+    linear-gradient(180deg, #1c2028 0%, #14181f 18%, #0f131a 100%);
+  border-radius: 6px;
+  padding: 14px 12px 12px;
+  display: flex; flex-direction: column;
+  gap: 10px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.07),
+    inset 0 -1px 0 rgba(0,0,0,0.6),
+    inset 0 0 0 1px rgba(0,0,0,0.5),
+    0 1px 0 rgba(255,255,255,0.04),
+    0 14px 32px rgba(0,0,0,0.7);
+  flex-shrink: 0;
+}
+
+/* corner screws */
+.module::before, .module::after,
+.module > .screw-tl, .module > .screw-bl, .module > .screw-tr, .module > .screw-br {}
+.module-screws { position: absolute; inset: 0; pointer-events: none; }
+.module-screws .screw {
+  position: absolute;
+}
+.module-screws .screw.tl { top: 4px; left: 4px; }
+.module-screws .screw.tr { top: 4px; right: 4px; }
+.module-screws .screw.bl { bottom: 4px; left: 4px; }
+.module-screws .screw.br { bottom: 4px; right: 4px; }
+
+/* module header — title + channel stripe */
+.module-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 4px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  position: relative;
+}
+.module-head::after {
+  /* the channel-colored accent stripe */
+  content: "";
+  position: absolute;
+  left: 4px; right: 4px; bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent,
+    var(--module-channel),
+    transparent);
+  box-shadow: 0 0 6px var(--module-channel);
+  opacity: 0.7;
+}
+.module-crest {
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--module-channel) 35%, #1a1d24), #0e1117 80%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.1),
+    inset 0 -1px 0 rgba(0,0,0,0.6),
+    0 0 0 1px rgba(0,0,0,0.5),
+    0 0 8px color-mix(in srgb, var(--module-channel) 40%, transparent);
+}
+.module-crest svg { width: 14px; height: 14px; }
+.module-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink);
+  flex: 1;
+  text-shadow: 0 1px 0 rgba(0,0,0,0.5);
+}
+.module-num {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--module-channel);
+  text-shadow: 0 0 4px var(--module-channel);
+  letter-spacing: 0.1em;
+}
+
+.module-body {
+  flex: 1;
+  display: flex; flex-direction: column;
+  gap: 10px;
+}
+
+.module-section {
+  display: flex; flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.2);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.3);
+}
+.module-section-label {
+  font-family: var(--font-engrave);
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+}
+
+.module-row {
+  display: flex; gap: 8px; align-items: center;
+}
+
+/* the "patch panel" footer */
+.module-patch {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  padding: 8px 4px 0;
+  border-top: 1px solid rgba(255,255,255,0.04);
+  margin-top: auto;
+  align-items: flex-end;
+}
+
+/* "IN" / "OUT" group label */
+.patch-group {
+  display: flex; flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.patch-group-label {
+  font-family: var(--font-engrave);
+  font-size: 7px;
+  color: var(--ink-dim);
+  letter-spacing: 0.2em;
+}
+.patch-group-jacks {
+  display: flex; gap: 4px;
+}
+
+/* RACK ----------------------------- */
+.rack {
+  position: relative;
+  background:
+    linear-gradient(180deg, #050810 0%, #08090f 100%);
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,0.7),
+    inset 0 2px 12px rgba(0,0,0,0.95),
+    0 12px 40px rgba(0,0,0,0.7);
+  overflow: hidden;
+}
+.rack::before {
+  /* top rail */
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 8px;
+  background:
+    linear-gradient(180deg, #1a1d24, #0a0c10);
+  border-bottom: 1px solid rgba(0,0,0,0.7);
+}
+.rack::after {
+  /* bottom rail */
+  content: "";
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 8px;
+  background:
+    linear-gradient(0deg, #1a1d24, #0a0c10);
+  border-top: 1px solid rgba(0,0,0,0.7);
+}
+.rack-row {
+  display: flex;
+  gap: 4px;
+  position: relative;
+  z-index: 1;
+}

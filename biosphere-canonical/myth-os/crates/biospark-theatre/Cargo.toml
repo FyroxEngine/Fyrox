@@ -1,0 +1,12 @@
+[package]
+name        = "biospark-theatre"
+version     = "0.1.0"
+edition     = "2021"
+description = "BioSpark Theatre — compositable layer renderer and Channel Mixer model."
+
+[dependencies]
+myth-wire  = { path = "../myth-wire" }
+serde      = { workspace = true }
+thiserror  = { workspace = true }
+tracing    = { workspace = true }
+chrono     = { workspace = true }

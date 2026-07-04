@@ -1,0 +1,67 @@
+{
+  "id": "MYTH-12",
+  "name": "Sound",
+  "crest": "Composer",
+  "color": "#dc8c1e",
+  "department": "Atmosphere",
+  "description": "Procedural audio synthesis and spatial soundscape engine. Composer generates ambient layers, entity vocalizations, and reactive music from simulation state — the voice of the living world.",
+  "implementation_status": "built",
+  "primary_wire_out": "AUD",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "assets/MYTH-12/_meta/icon.png",
+    "preview_image": "assets/MYTH-12/_meta/cover.png",
+    "banner": "assets/MYTH-12/_meta/banner.webp",
+    "crest_svg": "assets/MYTH-12/_meta/crest.svg",
+    "splash_screen": "assets/MYTH-12/_meta/splash.html",
+    "audio_preview": "assets/MYTH-12/_meta/preview.mp3",
+    "video_preview": "assets/MYTH-12/_meta/preview.mp4"
+  },
+  "containers": [
+    {
+      "id": "MYTH-12-STD-01",
+      "name": "Ambient Layer",
+      "symbol": "AL",
+      "wire_out": "AUD",
+      "description": "Procedural ambient bed generated from terrain type, weather, and time-of-day state.",
+      "assets": { "icon": "assets/MYTH-12/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    },
+    {
+      "id": "MYTH-12-STD-02",
+      "name": "Reactive Score",
+      "symbol": "RS",
+      "wire_out": "AUD",
+      "description": "Tension-driven musical layer that responds to narrative arc and entity proximity.",
+      "assets": { "icon": "assets/MYTH-12/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    }
+  ],
+  "traktor_map": [
+    {
+      "channel": 3,
+      "control_type": "knob",
+      "midi_cc": 22,
+      "parameter": "Master Volume",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    },
+    {
+      "channel": 3,
+      "control_type": "knob",
+      "midi_cc": 23,
+      "parameter": "Reverb Mix",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    },
+    {
+      "channel": 3,
+      "control_type": "knob",
+      "midi_cc": 13,
+      "parameter": "Spatialization",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    }
+  ]
+}

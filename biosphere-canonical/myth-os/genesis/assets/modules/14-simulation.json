@@ -1,0 +1,67 @@
+{
+  "id": "MYTH-14",
+  "name": "Simulation",
+  "crest": "Continuum",
+  "color": "#30e060",
+  "department": "Dynamics",
+  "description": "Core physics integration layer and deterministic time-step controller. Continuum manages LOD scheduling, replay seeding, and the fundamental tick that all other modules breathe to.",
+  "implementation_status": "in-progress",
+  "primary_wire_out": "DAT",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "assets/MYTH-14/_meta/icon.png",
+    "preview_image": "assets/MYTH-14/_meta/cover.png",
+    "banner": "assets/MYTH-14/_meta/banner.webp",
+    "crest_svg": "assets/MYTH-14/_meta/crest.svg",
+    "splash_screen": "assets/MYTH-14/_meta/splash.html",
+    "audio_preview": "assets/MYTH-14/_meta/preview.mp3",
+    "video_preview": "assets/MYTH-14/_meta/preview.mp4"
+  },
+  "containers": [
+    {
+      "id": "MYTH-14-STD-01",
+      "name": "Physics Integrator",
+      "symbol": "PI",
+      "wire_out": "DAT",
+      "description": "Fixed-timestep integrator with sub-step interpolation and deterministic replay.",
+      "assets": { "icon": "assets/MYTH-14/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    },
+    {
+      "id": "MYTH-14-STD-02",
+      "name": "LOD Scheduler",
+      "symbol": "LS",
+      "wire_out": "DAT",
+      "description": "Dynamically adjusts simulation fidelity per-region based on entity density and camera proximity.",
+      "assets": { "icon": "assets/MYTH-14/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    }
+  ],
+  "traktor_map": [
+    {
+      "channel": 4,
+      "control_type": "knob",
+      "midi_cc": 18,
+      "parameter": "Time Scale",
+      "scale_min": 0.1,
+      "scale_max": 10.0
+    },
+    {
+      "channel": 4,
+      "control_type": "knob",
+      "midi_cc": 19,
+      "parameter": "LOD Bias",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    },
+    {
+      "channel": 4,
+      "control_type": "knob",
+      "midi_cc": 15,
+      "parameter": "Tick Budget ms",
+      "scale_min": 1.0,
+      "scale_max": 33.0
+    }
+  ]
+}

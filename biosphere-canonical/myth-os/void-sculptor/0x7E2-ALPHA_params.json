@@ -1,0 +1,62 @@
+{
+  "_comment": "Genesis Ceremony Log — World 0x7E2-ALPHA. May 29 2026. Ceremony Seed: 0x432-82.",
+  "_comment2": "ATOM Manifest: [SYS_01, NAR_56, SYS_04, UI_70, NAV_39, SEC_79, NAR_12, NAV_40, COG_41, SEC_03, NAR_50, COG_47, MED_82, UI_81, NAR_90, COG_10]",
+
+  "world_id": "0x7E2-ALPHA",
+  "raw_field_path": "./output/0x7E2-ALPHA/0x7E2-ALPHA.raw",
+  "field_dimensions": [64, 64, 64],
+  "iso_threshold": 0.01,
+  "material_seed": 77239104,
+  "resonance_mod": 1.2,
+
+  "kernel_params": {
+    "formula_chain": [
+      { "formula": "MandelbulbIntegerPower", "iteration_count": 8,  "weight": 1.0 },
+      { "formula": "JuliaSet",              "iteration_count": 4,  "weight": 1.2 },
+      { "formula": "MandelboxAmazingBox",   "iteration_count": 4,  "weight": 0.3 },
+      { "formula": "PseudoKleinian",        "iteration_count": 2,  "weight": 1.2 }
+    ],
+    "mandelbulb": {
+      "power":          9.6,
+      "max_iterations": 18,
+      "bailout":        55.0,
+      "julia_offset": { "x": 0.3, "y": 0.6, "z": 0.6 }
+    },
+    "mandelbox": {
+      "scale":          2.0,
+      "fold_limit":     1.0,
+      "min_radius":     0.5,
+      "fixed_radius":   1.0,
+      "max_iterations": 4
+    },
+    "material_seed":  77239104,
+    "resonance_mod":  1.2,
+    "resonance_hz":   432.0,
+    "scope": {
+      "world_id":     "0x7E2-ALPHA",
+      "resonance_hz": 432.0,
+      "resolution":   64
+    },
+    "atom_manifest": {
+      "void_phase":  ["SYS_01", "NAR_56", "SYS_04", "UI_70"],
+      "spark_phase": ["NAV_39", "SEC_79", "NAR_12", "NAV_40"],
+      "law_phase":   ["COG_41", "SEC_03", "NAR_50", "COG_47"],
+      "bloom_phase": ["MED_82", "UI_81",  "NAR_90", "COG_10"]
+    }
+  },
+
+  "atom_manifest": {
+    "void_phase":  ["SYS_01", "NAR_56", "SYS_04", "UI_70"],
+    "spark_phase": ["NAV_39", "SEC_79", "NAR_12", "NAV_40"],
+    "law_phase":   ["COG_41", "SEC_03", "NAR_50", "COG_47"],
+    "bloom_phase": ["MED_82", "UI_81",  "NAR_90", "COG_10"]
+  },
+
+  "config": {
+    "mode":               "PropagatingContours",
+    "auto_fallback":      true,
+    "min_triangle_count": 8,
+    "smooth_passes":      1,
+    "min_island_size":    4
+  }
+}

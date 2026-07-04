@@ -1,0 +1,16 @@
+[package]
+name        = "myth-plugin-registry"
+version     = "0.1.0"
+edition     = "2021"
+description = "Plugin Registry — certifies, signs, and indexes .wasm plugins. The gatekeeper between Plugin Foundry and the Vault."
+
+[dependencies]
+myth-wire   = { path = "../myth-wire" }
+myth-plugin = { path = "../myth-plugin" }
+serde       = { workspace = true }
+serde_json  = { workspace = true }
+thiserror   = { workspace = true }
+blake3      = { workspace = true }
+hex         = { workspace = true }
+uuid        = { workspace = true }
+chrono      = { workspace = true }

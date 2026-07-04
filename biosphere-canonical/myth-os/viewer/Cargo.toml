@@ -1,0 +1,18 @@
+[package]
+name        = "myth-viewer"
+version     = "0.1.0"
+edition     = "2021"
+description = "Preview tool for mandelbulb .raw scalar fields and void-sculptor .obj meshes"
+
+[[bin]]
+name = "myth-viewer"
+path = "src/main.rs"
+
+[dependencies]
+bevy      = { workspace = true }
+bevy_egui = { workspace = true }
+egui      = { workspace = true }
+rfd       = { workspace = true }
+ndarray       = "0.15"
+mandelbulb    = { path = "../genesis-collider-mandelbulb" }
+void-sculptor = { path = "../void-sculptor" }

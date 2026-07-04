@@ -1,0 +1,30 @@
+# Convention: 'type' is the compound primary token (used in the prompt verbatim).
+# 'zone' and 'function' add classification metadata and appear separately in the
+# stem/directory path. If your type already encodes them (CAVE_ENTRANCE), that's
+# fine — the compound token is the AI-prompt anchor; zone/function drive filing.
+[asset]
+type     = "CAVE_ENTRANCE"
+zone     = "CAVE"
+function = "ENTRANCE"
+variant  = "ORGANIC"
+scale    = "2X2"
+variants = 3          # auto-generate A, B, C
+
+[sockets]
+north = "PASSAGE_MD"
+south = "CLOSED"
+east  = "CAVE_WALL"
+west  = "CAVE_WALL"
+up    = "CAVE_CEILING"
+down  = "CAVE_FLOOR"
+
+[render]
+background = "TRANSPARENT"
+direction  = "ISW"
+angle      = "ISOMETRIC"
+shader     = "PBR"
+
+[meta]
+quantum_module = "Forge"
+resonance_hz   = 174.6
+tags           = ["tileable", "entrance", "cave"]

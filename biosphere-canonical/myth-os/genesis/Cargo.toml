@@ -1,0 +1,28 @@
+[package]
+name    = "genesis"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "genesis"
+path = "src/main.rs"
+
+[dependencies]
+mythos              = { path = "../mythos" }
+vault               = { path = "../vault" }
+bevy                = { workspace = true }
+tokio               = { workspace = true }
+serde               = { workspace = true }
+serde_json          = { workspace = true }
+crossbeam-channel   = { workspace = true }
+uuid                = { workspace = true }
+anyhow              = { workspace = true }
+thiserror           = { workspace = true }
+tracing             = { workspace = true }
+tracing-subscriber  = { workspace = true }
+chrono              = { workspace = true }
+midir               = { workspace = true }
+serialport          = { workspace = true }
+bevy_egui           = { workspace = true }
+egui                = { workspace = true }
+rfd                 = { workspace = true }

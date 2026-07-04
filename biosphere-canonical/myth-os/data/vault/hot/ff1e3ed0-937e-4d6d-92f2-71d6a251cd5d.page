@@ -1,0 +1,25 @@
+{
+  "id": "ff1e3ed0-937e-4d6d-92f2-71d6a251cd5d",
+  "name": "hytgf",
+  "description": "yrfd",
+  "color_rgba": [
+    30,
+    140,
+    255,
+    255
+  ],
+  "status": "Active",
+  "vault_type": "ThreeD",
+  "is_protected": false,
+  "plugins": [
+    "forge.blueprints",
+    "atlas.space",
+    "architect.structure",
+    "chronicle.log"
+  ],
+  "bdna_signature": "31bde4e872453d9f88994940679b59928ffaf073f5df4848c1abb3168bfbdbfa",
+  "active_plugin": null,
+  "resonance_hz": 741.0,
+  "integrity_hash": "04e33587b1b64065a4290061867ab8525d66d59c9e694e0bb265096d695d7236",
+  "layout_blueprint": "Fullscreen"
+}

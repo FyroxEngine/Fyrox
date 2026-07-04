@@ -1,0 +1,40 @@
+{
+  "id": "GEN-12",
+  "name": "Sound",
+  "crest": "◈",
+  "color": "#dc8c1e",
+  "department": "Atmosphere",
+  "description": "Positional audio engine — ambient layers, event triggers, and music state machine keyed to narrative tension.",
+  "implementation_status": "built",
+  "primary_wire_out": "AUD",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "",
+    "preview_image": "",
+    "banner": "",
+    "crest_svg": "",
+    "splash_screen": null,
+    "audio_preview": null,
+    "video_preview": null
+  },
+  "containers": [],
+  "traktor_map": [
+    {
+      "channel": 3,
+      "control_type": "fader",
+      "midi_cc": 52,
+      "parameter": "master_volume",
+      "scale_min": 0,
+      "scale_max": 1
+    },
+    {
+      "channel": 3,
+      "control_type": "fader",
+      "midi_cc": 53,
+      "parameter": "reverb_mix",
+      "scale_min": 0,
+      "scale_max": 1
+    }
+  ]
+}

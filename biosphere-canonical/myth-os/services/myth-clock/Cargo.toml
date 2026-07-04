@@ -1,0 +1,14 @@
+[package]
+name    = "myth-clock"
+version = "0.1.0"
+edition = "2021"
+description = "BioSpheres OS master clock — CPU_Scheduler_ATOM. All simulation ticks slave to this heartbeat."
+
+[dependencies]
+myth-wire   = { path = "../../crates/myth-wire" }
+serde       = { workspace = true }
+tokio       = { workspace = true }
+crossbeam-channel = { workspace = true }
+tracing     = { workspace = true }
+uuid        = { workspace = true }
+mythos      = { path = "../../mythos" }

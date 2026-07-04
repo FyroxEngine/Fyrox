@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cherrytree>
+  <node unique_id="13" master_id="0" name="PSYCHOLOGY" prog_lang="custom-colors" tags="" readonly="0" nosearch_me="0" nosearch_ch="0" custom_icon_id="0" is_bold="1" foreground="" ts_creation="1781567398" ts_lastsave="1781567411">
+    <rich_text>Psych-Behavioral Game Design
+Hexcelerate
+by
+Hexcelerate
+0
+•
+
+Game Development
+Validates game design patterns using behavioral psychology frameworks to ensure ethical engagement and effective learning.
+
+About
+SKILL.md
+FAQ
+This skill integrates behavioral science into the game development lifecycle by applying established frameworks like the Fogg Behavior Model, Hook Model, and Nudge Theory. It provides developers with a structured way to validate game mechanics, ensuring they respect player wellbeing, promote healthy habit formation, and optimize learning paths. It is particularly useful for developers building educational or age-appropriate web games who need to balance engagement with ethical design boundaries.
+
+Key Features
+01
+0 GitHub stars
+02
+Implements ethical Hook Model validation to ensure engagement serves learning goals
+03
+Utilizes Nudge Theory to make educational paths the default player experience
+04
+Applies the Fogg Behavior Model (B=MAT) to analyze motivation, ability, and triggers
+05
+Provides a comprehensive validation checklist for player attention and progress saving
+06
+Analyzes session design for age-appropriate durations and natural pause points
+Use Cases
+01
+Designing ethical retention loops for educational web games
+02
+Validating tutorial flows to ensure players are effectively nudged toward learning
+03
+Auditing game sessions for age-appropriate play durations (ages 6-8)
+
+</rich_text>
+    <rich_text justification="left"></rich_text>
+    <rich_text>
+
+</rich_text>
+    <rich_text scale="h1">Behavioral Design</rich_text>
+    <rich_text>
+
+</rich_text>
+    <rich_text scale="h3" foreground="#808080">Validates that game design creates healthy behavioral patterns and respects player attention and wellbeing.</rich_text>
+    <rich_text>
+
+</rich_text>
+    <rich_text scale="h2">Frameworks</rich_text>
+    <rich_text>
+
+
+</rich_text>
+    <rich_text scale="h3">Fogg Behavior Model (B=MAT)</rich_text>
+    <rich_text>
+
+</rich_text>
+    <rich_text scale="h3" foreground="#808080">Behavior requires all three at the same moment:</rich_text>
+    <rich_text>
+• </rich_text>
+    <rich_text weight="heavy">Motivation</rich_text>
+    <rich_text> — Player wants to do it
+• </rich_text>
+    <rich_text weight="heavy">Ability</rich_text>
+    <rich_text> — Player can do it (it's easy enough)
+• </rich_text>
+    <rich_text weight="heavy">Trigger</rich_text>
+    <rich_text> — Something prompts the action (clear call to action)
+
+
+</rich_text>
+    <rich_text scale="h3">Hook Model (Nir Eyal)</rich_text>
+    <rich_text>
+
+</rich_text>
+    <rich_text scale="h3" foreground="#808080">Ethical application of habit formation:</rich_text>
+    <rich_text>
+◇ </rich_text>
+    <rich_text weight="heavy">Trigger</rich_text>
+    <rich_text> → </rich_text>
+    <rich_text weight="heavy">Action</rich_text>
+    <rich_text> → </rich_text>
+    <rich_text weight="heavy">Variable Reward</rich_text>
+    <rich_text> → </rich_text>
+    <rich_text weight="heavy">Investment</rich_text>
+    <rich_text>
+◇ Investment makes the next trigger more engaging
+◇ ETHICAL BOUNDARY: Hooks must serve the player's learning goals, not extract attention for its own sake
+
+
+</rich_text>
+    <rich_text scale="h3">Nudge Theory (Thaler &amp; Sunstein)</rich_text>
+    <rich_text>
+
+</rich_text>
+    <rich_text scale="h3" foreground="#808080">Design defaults that lead to learning:</rich_text>
+    <rich_text>
+◇ Default paths should be educational (not skip-to-fun)
+◇ Make the learning path the easiest path
+◇ Don't hide educational content behind extra clicks
+
+
+</rich_text>
+    <rich_text scale="h3">Habit Formation</rich_text>
+    <rich_text>
+
+◇ </rich_text>
+    <rich_text weight="heavy">Session rituals:</rich_text>
+    <rich_text> Consistent start/end patterns
+◇ </rich_text>
+    <rich_text weight="heavy">Return motivation:</rich_text>
+    <rich_text> Give players a reason to come back
+◇ </rich_text>
+    <rich_text weight="heavy">Completion hooks:</rich_text>
+    <rich_text> End sessions at a compelling moment
+◇ </rich_text>
+    <rich_text weight="heavy">Progress visibility:</rich_text>
+    <rich_text> Show how far they've come
+
+
+</rich_text>
+    <rich_text scale="h3">Session Design</rich_text>
+    <rich_text>
+
+</rich_text>
+    <rich_text scale="h3" foreground="#808080">Age-appropriate play durations:</rich_text>
+    <rich_text>
+◇ Ages 6-8: ~12-18 minutes per session
+◇ Natural pause points every 3-5 minutes
+◇ Clear session boundaries (start → middle → end)
+◇ Save progress automatically
+
+
+</rich_text>
+    <rich_text scale="h2">Validation Checklist</rich_text>
+    <rich_text>
+
+◇ Next action is always clear and easy (high ability)
+◇ Default paths are educational (nudge)
+◇ Session length respects attention span (~12-18 min for ages 6-8)
+◇ Return motivation exists without dark patterns
+◇ Natural pause points every 3-5 minutes
+◇ Progress is automatically saved
+◇ Trigger → Action → Reward cycle serves learning goals
+◇ No attention-extracting mechanics
+
+</rich_text>
+    <table char_offset="1414" justification="left" col_min="300" col_max="300" col_widths="0,0">
+      <row>
+        <cell>description</cell>
+        <cell>Behavioral design validation for game development. Invoked by game-psychologist agent at validation checkpoints. Applies Fogg Behavior Model, Hook Model (Nir Eyal), Nudge Theory, Habit Formation, and Session Design to validate behavioral patterns.</cell>
+      </row>
+      <row>
+        <cell>name</cell>
+        <cell>psych-behavioral</cell>
+      </row>
+    </table>
+  </node>
+</cherrytree>

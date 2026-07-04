@@ -1,0 +1,15 @@
+[package]
+name        = "myth-controller"
+version     = "0.1.0"
+edition     = "2021"
+description = "The Axiom Controller — quantum-mythic DJ controller interface for myth-os."
+
+[[bin]]
+name = "myth-controller"
+path = "src/main.rs"
+
+[dependencies]
+egui               = { workspace = true }
+eframe             = { workspace = true }
+myth-wire          = { path = "../myth-wire" }
+crossbeam-channel  = { workspace = true }

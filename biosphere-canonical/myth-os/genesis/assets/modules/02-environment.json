@@ -1,0 +1,67 @@
+{
+  "id": "MYTH-02",
+  "name": "Environment",
+  "crest": "Mythos",
+  "color": "#8050e0",
+  "department": "Structure",
+  "description": "Atmospheric systems, weather cycles, and biome distribution. Mythos breathes life into the canvas Atlas carves — sky, cloud, fog, precipitation, and the great rhythms of climate.",
+  "implementation_status": "built",
+  "primary_wire_out": "SPA",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "assets/MYTH-02/_meta/icon.png",
+    "preview_image": "assets/MYTH-02/_meta/cover.png",
+    "banner": "assets/MYTH-02/_meta/banner.webp",
+    "crest_svg": "assets/MYTH-02/_meta/crest.svg",
+    "splash_screen": "assets/MYTH-02/_meta/splash.html",
+    "audio_preview": "assets/MYTH-02/_meta/preview.mp3",
+    "video_preview": "assets/MYTH-02/_meta/preview.mp4"
+  },
+  "containers": [
+    {
+      "id": "MYTH-02-STD-01",
+      "name": "Sky Engine",
+      "symbol": "SK",
+      "wire_out": "SPA",
+      "description": "Procedural sky dome with Rayleigh scattering and dynamic sun arc.",
+      "assets": { "icon": "assets/MYTH-02/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    },
+    {
+      "id": "MYTH-02-STD-02",
+      "name": "Weather System",
+      "symbol": "WX",
+      "wire_out": "SPA",
+      "description": "Probabilistic weather state machine driving precipitation, fog, and wind cycles.",
+      "assets": { "icon": "assets/MYTH-02/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    }
+  ],
+  "traktor_map": [
+    {
+      "channel": 1,
+      "control_type": "knob",
+      "midi_cc": 18,
+      "parameter": "Sky Luminance",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    },
+    {
+      "channel": 1,
+      "control_type": "knob",
+      "midi_cc": 19,
+      "parameter": "Atmosphere Density",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    },
+    {
+      "channel": 1,
+      "control_type": "knob",
+      "midi_cc": 15,
+      "parameter": "Weather Intensity",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    }
+  ]
+}

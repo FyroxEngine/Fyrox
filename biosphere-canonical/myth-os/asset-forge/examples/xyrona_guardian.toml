@@ -1,0 +1,22 @@
+[asset]
+type   = "XYRONA_GUARDIAN"
+zone   = "XYRONA"
+domain = "char"
+
+[render]
+background = "TRANSPARENT"
+direction  = "FRONT"
+angle      = "PERSPECTIVE"
+shader     = "PBR"
+
+[meta]
+quantum_module = "Animus"
+resonance_hz   = 528.0
+tags           = ["character", "boss", "xyrona"]
+
+[character]
+pose    = "COMBAT"
+rig     = "HUMANOID"
+faction = "XYRONA"
+role    = "GUARD"
+lod     = "HIGH"

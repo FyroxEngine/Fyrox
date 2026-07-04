@@ -1,0 +1,48 @@
+{
+  "id": "GEN-01",
+  "name": "Terrain",
+  "crest": "◈",
+  "color": "#1e8cff",
+  "department": "Structure",
+  "description": "Procedural heightmap generation via seeded fractal noise. Controls world elevation, biome boundaries, and surface topology.",
+  "implementation_status": "built",
+  "primary_wire_out": "SPA",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "",
+    "preview_image": "",
+    "banner": "",
+    "crest_svg": "",
+    "splash_screen": null,
+    "audio_preview": null,
+    "video_preview": null
+  },
+  "containers": [],
+  "traktor_map": [
+    {
+      "channel": 1,
+      "control_type": "fader",
+      "midi_cc": 7,
+      "parameter": "height_scale",
+      "scale_min": 2,
+      "scale_max": 20
+    },
+    {
+      "channel": 1,
+      "control_type": "fader",
+      "midi_cc": 16,
+      "parameter": "noise_seed",
+      "scale_min": 0,
+      "scale_max": 255
+    },
+    {
+      "channel": 1,
+      "control_type": "fader",
+      "midi_cc": 17,
+      "parameter": "octaves",
+      "scale_min": 1,
+      "scale_max": 8
+    }
+  ]
+}

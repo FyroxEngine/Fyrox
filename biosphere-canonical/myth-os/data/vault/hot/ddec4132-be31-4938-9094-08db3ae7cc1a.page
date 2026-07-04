@@ -1,0 +1,25 @@
+{
+  "id": "ddec4132-be31-4938-9094-08db3ae7cc1a",
+  "name": "test",
+  "description": "jhg",
+  "color_rgba": [
+    30,
+    140,
+    255,
+    255
+  ],
+  "status": "Active",
+  "vault_type": "ThreeD",
+  "is_protected": false,
+  "plugins": [
+    "forge.blueprints",
+    "atlas.space",
+    "architect.structure",
+    "chronicle.log"
+  ],
+  "bdna_signature": "009d190b7c83c3bd682cb98d2676ebbb6e5e802ff1eb6d4fe3dc02de871863b1",
+  "active_plugin": "atlas.space",
+  "resonance_hz": 432.0,
+  "integrity_hash": "66b8537bfa9b3f9f415161daff4fc1a7464e1c65d895abf3b9ed68abc076cd2c",
+  "layout_blueprint": "Fullscreen"
+}

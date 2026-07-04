@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "library-splash",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "7842", "--directory", "J:\\BioSpark-Studios-Projects\\flex-layouts"],
+      "port": 7842
+    }
+  ]
+}

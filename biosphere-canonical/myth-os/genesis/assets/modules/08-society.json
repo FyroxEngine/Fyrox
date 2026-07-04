@@ -1,0 +1,67 @@
+{
+  "id": "MYTH-08",
+  "name": "Society",
+  "crest": "Order",
+  "color": "#c8a860",
+  "department": "Entities",
+  "description": "Social graph formation, faction allegiance, and cultural transmission. Order models the invisible lattice of trust, reputation, and shared belief that binds populations into civilizations.",
+  "implementation_status": "built",
+  "primary_wire_out": "SOC",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "assets/MYTH-08/_meta/icon.png",
+    "preview_image": "assets/MYTH-08/_meta/cover.png",
+    "banner": "assets/MYTH-08/_meta/banner.webp",
+    "crest_svg": "assets/MYTH-08/_meta/crest.svg",
+    "splash_screen": "assets/MYTH-08/_meta/splash.html",
+    "audio_preview": "assets/MYTH-08/_meta/preview.mp3",
+    "video_preview": "assets/MYTH-08/_meta/preview.mp4"
+  },
+  "containers": [
+    {
+      "id": "MYTH-08-STD-01",
+      "name": "Faction Engine",
+      "symbol": "FN",
+      "wire_out": "SOC",
+      "description": "Creates and manages faction groupings with allegiance scores between entities.",
+      "assets": { "icon": "assets/MYTH-08/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    },
+    {
+      "id": "MYTH-08-STD-02",
+      "name": "Reputation Ledger",
+      "symbol": "RL",
+      "wire_out": "SOC",
+      "description": "Tracks per-actor reputation values and decays them over simulation time.",
+      "assets": { "icon": "assets/MYTH-08/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    }
+  ],
+  "traktor_map": [
+    {
+      "channel": 2,
+      "control_type": "knob",
+      "midi_cc": 22,
+      "parameter": "Social Drive",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    },
+    {
+      "channel": 2,
+      "control_type": "knob",
+      "midi_cc": 23,
+      "parameter": "Trust Decay",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    },
+    {
+      "channel": 2,
+      "control_type": "knob",
+      "midi_cc": 13,
+      "parameter": "Faction Count",
+      "scale_min": 1.0,
+      "scale_max": 16.0
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "id": "GEN-03",
+  "name": "Architect",
+  "crest": "◈",
+  "color": "#64b4ff",
+  "department": "Structure",
+  "description": "Procedural structure placement — roads, ruins, settlements. Uses container manifests to stamp geometry.",
+  "implementation_status": "built",
+  "primary_wire_out": "SPA",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "",
+    "preview_image": "",
+    "banner": "",
+    "crest_svg": "",
+    "splash_screen": null,
+    "audio_preview": null,
+    "video_preview": null
+  },
+  "containers": [],
+  "traktor_map": [
+    {
+      "channel": 1,
+      "control_type": "fader",
+      "midi_cc": 20,
+      "parameter": "density",
+      "scale_min": 0,
+      "scale_max": 1
+    },
+    {
+      "channel": 1,
+      "control_type": "fader",
+      "midi_cc": 21,
+      "parameter": "variance",
+      "scale_min": 0,
+      "scale_max": 1
+    }
+  ]
+}

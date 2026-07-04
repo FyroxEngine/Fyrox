@@ -1,0 +1,67 @@
+{
+  "id": "MYTH-15",
+  "name": "Forge",
+  "crest": "Forge",
+  "color": "#ff6400",
+  "department": "Dynamics",
+  "description": "Asset baking pipeline and runtime resource streaming. Forge is the gateway between authoring tools and the live engine — managing geometry, texture atlases, audio banks, and the fabrication of all material things.",
+  "implementation_status": "built",
+  "primary_wire_out": "AST",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "assets/MYTH-15/_meta/icon.png",
+    "preview_image": "assets/MYTH-15/_meta/cover.png",
+    "banner": "assets/MYTH-15/_meta/banner.webp",
+    "crest_svg": "assets/MYTH-15/_meta/crest.svg",
+    "splash_screen": "assets/MYTH-15/_meta/splash.html",
+    "audio_preview": "assets/MYTH-15/_meta/preview.mp3",
+    "video_preview": "assets/MYTH-15/_meta/preview.mp4"
+  },
+  "containers": [
+    {
+      "id": "MYTH-15-STD-01",
+      "name": "Asset Baker",
+      "symbol": "AB",
+      "wire_out": "AST",
+      "description": "Pre-bakes authored content into engine-native formats for zero-cost runtime loading.",
+      "assets": { "icon": "assets/MYTH-15/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    },
+    {
+      "id": "MYTH-15-STD-02",
+      "name": "Stream Manager",
+      "symbol": "SM",
+      "wire_out": "AST",
+      "description": "Async resource streamer with LRU cache eviction and priority-weighted prefetch.",
+      "assets": { "icon": "assets/MYTH-15/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    }
+  ],
+  "traktor_map": [
+    {
+      "channel": 4,
+      "control_type": "knob",
+      "midi_cc": 20,
+      "parameter": "Stream Budget MB",
+      "scale_min": 0.0,
+      "scale_max": 1024.0
+    },
+    {
+      "channel": 4,
+      "control_type": "knob",
+      "midi_cc": 21,
+      "parameter": "Mip Bias",
+      "scale_min": -2.0,
+      "scale_max": 2.0
+    },
+    {
+      "channel": 4,
+      "control_type": "knob",
+      "midi_cc": 14,
+      "parameter": "Cache Pressure",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    }
+  ]
+}

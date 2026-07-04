@@ -1,0 +1,26 @@
+{
+  "id": "b89248ae-eb7e-4c85-b0a5-c2c15a0721d9",
+  "name": "Master Vault",
+  "description": "The root container. Everything begins here.",
+  "color_rgba": [
+    212,
+    160,
+    48,
+    255
+  ],
+  "status": "Active",
+  "vault_type": "Hybrid",
+  "is_protected": false,
+  "plugins": [
+    "quill.scrolls",
+    "prism.canvas",
+    "forge.blueprints",
+    "atlas.space",
+    "composer.player",
+    "chronicle.log"
+  ],
+  "bdna_signature": "039043b2fd83fda4adfccafb3659e262a26b3ae207b9a0236420fb286b7a4a79",
+  "active_plugin": null,
+  "resonance_hz": 432.0,
+  "integrity_hash": "3dfa491e2dadff45f8ccc19a9b47305959098815dfb0d2e74bf0f8559fd3e29c"
+}

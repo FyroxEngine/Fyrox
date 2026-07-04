@@ -1,0 +1,40 @@
+{
+  "id": "GEN-14",
+  "name": "Simulation",
+  "crest": "◈",
+  "color": "#30e060",
+  "department": "Dynamics",
+  "description": "Physics sub-step manager — rigid body, fluid, and cloth simulation budget allocation per frame.",
+  "implementation_status": "in-progress",
+  "primary_wire_out": "DAT",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "",
+    "preview_image": "",
+    "banner": "",
+    "crest_svg": "",
+    "splash_screen": null,
+    "audio_preview": null,
+    "video_preview": null
+  },
+  "containers": [],
+  "traktor_map": [
+    {
+      "channel": 4,
+      "control_type": "fader",
+      "midi_cc": 55,
+      "parameter": "sim_budget",
+      "scale_min": 0.5,
+      "scale_max": 8
+    },
+    {
+      "channel": 4,
+      "control_type": "fader",
+      "midi_cc": 56,
+      "parameter": "gravity_mul",
+      "scale_min": 0,
+      "scale_max": 2
+    }
+  ]
+}

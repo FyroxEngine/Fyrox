@@ -1,0 +1,9 @@
+{
+  "id": "c3e4fc9c-4d3f-4c7e-b2c7-65ee2db547cf",
+  "name": "GL Nebula Swirl",
+  "layer_type": "Gl",
+  "source": "Inline",
+  "code": "// WGSL — domain-warped FBM nebula (see GlLayerPlugin embedded shader)",
+  "tags": [],
+  "created_at": 1780006016404
+}

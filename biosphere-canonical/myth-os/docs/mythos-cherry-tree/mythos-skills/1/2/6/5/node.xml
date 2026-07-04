@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cherrytree>
+  <node unique_id="5" master_id="0" name="COMMON UI ELEMENTS" prog_lang="custom-colors" tags="" readonly="0" nosearch_me="0" nosearch_ch="0" custom_icon_id="0" is_bold="1" foreground="" ts_creation="1781460896" ts_lastsave="1781461345">
+    <rich_text>• </rich_text>
+    <rich_text weight="heavy">Buttons</rich_text>
+    <rich_text> (Primary, Secondary, Tertiary)
+
+• </rich_text>
+    <rich_text weight="heavy">Panels</rich_text>
+    <rich_text> (Floating, Grid-based, Interactive)
+
+• </rich_text>
+    <rich_text weight="heavy">Sliders &amp; Switches</rich_text>
+    <rich_text> (Adjustable bars, toggles)
+
+• </rich_text>
+    <rich_text weight="heavy">HUD Elements</rich_text>
+    <rich_text> (Status displays, overlays)
+
+• </rich_text>
+    <rich_text weight="heavy">Icon Sheets</rich_text>
+    <rich_text> (Structured collections)
+
+• </rich_text>
+    <rich_text weight="heavy">Interactive UI Components</rich_text>
+    <rich_text> (Forms, dropdowns)
+
+
+You can use this table to mix and match elements with any theme from our previous table.
+
+### **XXXX-UI.Table.Elements**
+Each row includes:
+- **Full Code** (Type-Code Prefix-Code Identifier-Element Code)
+- **Type** (UI)
+- **Code Prefix** (Theme prefix from previous table)
+- **Code Identifier** (Same identifier from the theme table)
+- **Element Code** (Suffix defining the UI element type, e.g., `BUTT1`, `PANE1`, `SWCH1` for buttons, panels, switches)
+- **Description** (Functionality of the UI element)
+
+---
+
+| **Full Code** | **Type** | **Code Prefix** | **Code Identifier** | **Element Code** | **Description** |
+|--------------|----------|--------------|----------------|--------------|-------------|
+| UI-XXX-XXXX-BUTT1 | UI | XXX | XXXX | **BUTT1** | Primary button used for standard interactions and commands. |
+| UI-XXX-XXXX-BUTT2 | UI | XXX | XXXX | **BUTT2** | Secondary button for alternate actions or toggles. |
+| UI-XXX-XXXX-PANE1 | UI | XXX | XXXX | **PANE1** | Standard floating panel for content or UI organization. |
+| UI-XXX-XXXX-PANE2 | UI | XXX | XXXX | **PANE2** | Alternate panel variation with an integrated overlay effect. |
+| UI-XXX-XXXX-SWCH1 | UI | XXX | XXXX | **SWCH1** | Toggle switch for settings, enabling or disabling features. |
+| UI-XXX-XXXX-SWCH2 | UI | XXX | XXXX | **SWCH2** | Alternative switch variation with animated transitions. |
+| UI-XXX-XXXX-SLDR1 | UI | XXX | XXXX | **SLDR1** | Slider for adjusting values (e.g., volume, opacity). |
+| UI-XXX-XXXX-SLDR2 | UI | XXX | XXXX | **SLDR2** | Alternate slider design with glowing effects. |
+| UI-XXX-XXXX-TEXT1 | UI | XXX | XXXX | **TEXT1** | Standard text display for labels, descriptions, and stats. |
+| UI-XXX-XXXX-TEXT2 | UI | XXX | XXXX | **TEXT2** | Dynamic text with animated glowing effects. |
+| UI-XXX-XXXX-ICON1 | UI | XXX | XXXX | **ICON1** | Basic graphical icon for menus, tools, and navigation. |
+| UI-XXX-XXXX-ICON2 | UI | XXX | XXXX | **ICON2** | Detailed, animated icon set for interactive components. |
+| UI-XXX-XXXX-WNDW1 | UI | XXX | XXXX | **WNDW1** | Primary window element for expanded UI interactions. |
+| UI-XXX-XXXX-WNDW2 | UI | XXX | XXXX | **WNDW2** | Popup window for notifications or dialogue. |
+| UI-XXX-XXXX-TABB1 | UI | XXX | XXXX | **TABB1** | Tabbed interface allowing navigation between sections. |
+| UI-XXX-XXXX-TABB2 | UI | XXX | XXXX | **TABB2** | Alternate tabbed layout with animated highlights. |
+| UI-XXX-XXXX-MENU1 | UI | XXX | XXXX | **MENU1** | Standard menu dropdown for accessing UI options. |
+| UI-XXX-XXXX-MENU2 | UI | XXX | XXXX | **MENU2** | Sidebar menu for structured navigation. |
+| UI-XXX-XXXX-HUDD1 | UI | XXX | XXXX | **HUDD1** | Heads-up display for status, health, and resource tracking. |
+| UI-XXX-XXXX-HUDD2 | UI | XXX | XXXX | **HUDD2** | Advanced HUD overlay with interactive indicators. |
+| UI-XXX-XXXX-GRID1 | UI | XXX | XXXX | **GRID1** | Grid-based layout for structured content like inventory. |
+| UI-XXX-XXXX-GRID2 | UI | XXX | XXXX | **GRID2** | Interactive grid system with layered tooltips. |
+| UI-XXX-XXXX-FORM1 | UI | XXX | XXXX | **FORM1** | Input fields for user interactions (e.g., text entries). |
+| UI-XXX-XXXX-FORM2 | UI | XXX | XXXX | **FORM2** | Enhanced form system with animated UI elements. |
+| UI-XXX-XXXX-LOAD1 | UI | XXX | XXXX | **LOAD1** | Loading animation for progress indicators. |
+| UI-XXX-XXXX-LOAD2 | UI | XXX | XXXX | **LOAD2** | Circular loading indicator with pulse effects. |
+| UI-XXX-XXXX-STAT1 | UI | XXX | XXXX | **STAT1** | Status display panel showing player stats or metrics. |
+| UI-XXX-XXXX-STAT2 | UI | XXX | XXXX | **STAT2** | Alternate stats visualization with graphical overlays. |
+| UI-XXX-XXXX-TOOL1 | UI | XXX | XXXX | **TOOL1** | Toolbox for quick-access functionality and shortcuts. |
+| UI-XXX-XXXX-TOOL2 | UI | XXX | XXXX | **TOOL2** | Specialized toolset for inventory management. |
+| UI-XXX-XXXX-DASH1 | UI | XXX | XXXX | **DASH1** | Dashboard with summary information at a glance. |
+| UI-XXX-XXXX-DASH2 | UI | XXX | XXXX | **DASH2** | Live dashboard with interactive components. |
+| UI-XXX-XXXX-MAPL1 | UI | XXX | XXXX | **MAPL1** | Interactive map layout with waypoints and zoom options. |
+| UI-XXX-XXXX-MAPL2 | UI | XXX | XXXX | **MAPL2** | Advanced map panel with dynamic terrain adaptation. |
+| UI-XXX-XXXX-PROF1 | UI | XXX | XXXX | **PROF1** | Profile UI section for character customization. |
+| UI-XXX-XXXX-PROF2 | UI | XXX | XXXX | **PROF2** | Detailed profile interface with layered overlays. |
+| UI-XXX-XXXX-CHRT1 | UI | XXX | XXXX | **CHRT1** | Graphs, charts, and numerical data visualization. |
+| UI-XXX-XXXX-CHRT2 | UI | XXX | XXXX | **CHRT2** | Animated statistical graphs with interactive transitions. |
+| UI-XXX-XXXX-DIAG1 | UI | XXX | XXXX | **DIAG1** | Diagnostic display for debugging and UI testing. |
+| UI-XXX-XXXX-DIAG2 | UI | XXX | XXXX | **DIAG2** | Developer overlay for error logs and status tracking. |
+| UI-XXX-XXXX-FILT1 | UI | XXX | XXXX | **FILT1** | UI filtering system for sorting and refining selections. |
+| UI-XXX-XXXX-FILT2 | UI | XXX | XXXX | **FILT2** | Advanced filter UI for structured searches. |
+| UI-XXX-XXXX-SCRO1 | UI | XXX | XXXX | **SCRO1** | Scrollable content panel for extended UI sections. |
+| UI-XXX-XXXX-SCRO2 | UI | XXX | XXXX | **SCRO2** | Enhanced scroll interface with animated transitions. |
+| UI-XXX-XXXX-CMBO1 | UI | XXX | XXXX | **CMBO1** | Combo dropdown box for selecting options. |
+| UI-XXX-XXXX-CMBO2 | UI | XXX | XXXX | **CMBO2** | Multi-option combo interface with expanded selections. |
+| UI-XXX-XXXX-BAR1 | UI | XXX | XXXX | **BAR1** | Basic progress bar for visual updates. |
+| UI-XXX-XXXX-BAR2 | UI | XXX | XXXX | **BAR2** | Advanced progress bar with animated pulse effects. |
+</rich_text>
+  </node>
+</cherrytree>

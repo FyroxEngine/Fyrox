@@ -1,0 +1,200 @@
+{
+  "main": {
+    "id": "f57dc15e44e75786",
+    "type": "split",
+    "children": [
+      {
+        "id": "8488fa31fd47ed71",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "fd1048349efd9394",
+            "type": "leaf",
+            "state": {
+              "type": "image",
+              "state": {
+                "file": "assets/ui/The Axiom Signal Chain Rack/uploads/pasted-1780658360761-0.png"
+              },
+              "icon": "lucide-image",
+              "title": "pasted-1780658360761-0"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "428391b7dcafc008",
+    "type": "split",
+    "children": [
+      {
+        "id": "7b971daef5a56ff1",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "d6d2393234fc2476",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "9541d0d8b40d09b1",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "235e25820dab337c",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "0ef2aa4be1818959",
+    "type": "split",
+    "children": [
+      {
+        "id": "3650322fc827d5d3",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "5b176021b4e7237e",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "assets/ui/The Axiom Signal Chain Rack/uploads/pasted-1780658360761-0.png",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for pasted-1780658360761-0"
+            }
+          },
+          {
+            "id": "a992a975ca84e32e",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "assets/ui/The Axiom Signal Chain Rack/uploads/pasted-1780658360761-0.png",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from pasted-1780658360761-0"
+            }
+          },
+          {
+            "id": "4dac2bdb8f84d2d1",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "369c2c7538f7dadc",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "e2fc341ca65926d3",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "assets/ui/The Axiom Signal Chain Rack/uploads/pasted-1780658360761-0.png",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of pasted-1780658360761-0"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "fd1048349efd9394",
+  "lastOpenFiles": [
+    "modules/forge/src/lib.rs.tmp.12972.31628ea4e389",
+    "modules/forge/src/tick.rs.tmp.12972.8cb1cb293776",
+    "assets/ui/The Axiom Signal Chain Rack/uploads/the_axiom_signal_chain_rack.jpg",
+    "assets/ui/The Axiom Signal Chain Rack/uploads/the_axiom_signal_chain_rack.svg",
+    "assets/ui/The Axiom Signal Chain Rack/uploads/the_axiom_signal_chain_rack_spec.md",
+    "bins/opalis/assets/nodes/mythic-nodes-009.png",
+    "bins/opalis/assets/nodes/mythic-nodes-008.png",
+    "bins/opalis/assets/nodes/mythic-nodes-006.png",
+    "bins/opalis/assets/nodes/mythic-nodes-002.png",
+    "bins/opalis/assets/nodes/mythic-nodes-001.png",
+    "bins/opalis/assets/nodes/mythic-nodes-000.png",
+    "assets/ui/Timeline/uploads/BioSpark (121).jpg",
+    "assets/ui/Timeline/uploads/BioSpark (107) 1.jpg"
+  ]
+}

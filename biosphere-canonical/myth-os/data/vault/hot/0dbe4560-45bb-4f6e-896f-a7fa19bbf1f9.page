@@ -1,0 +1,27 @@
+{
+  "id": "0dbe4560-45bb-4f6e-896f-a7fa19bbf1f9",
+  "name": "jhgf",
+  "description": "jguy",
+  "color_rgba": [
+    0,
+    192,
+    96,
+    255
+  ],
+  "status": "Active",
+  "vault_type": "Hybrid",
+  "is_protected": false,
+  "plugins": [
+    "quill.scrolls",
+    "prism.canvas",
+    "forge.blueprints",
+    "atlas.space",
+    "composer.player",
+    "chronicle.log"
+  ],
+  "bdna_signature": "1ceb4ec2369ab4c8b871a7c0f1860c166e3fe8e5abc6368c0af85259183fddf3",
+  "active_plugin": null,
+  "resonance_hz": 285.0,
+  "integrity_hash": "45f886967f914b56f24598f1c1d19f28915854788fb0e0f9a276fa176a9c5ce5",
+  "layout_blueprint": "PancakeStack"
+}

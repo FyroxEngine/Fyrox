@@ -1,0 +1,25 @@
+[package]
+name    = "opalis"
+version = "0.1.0"
+edition = "2021"
+description = "Opalis — Vault card UI, plugin system, node graph sequencer. Runs egui 0.33 independently of the workspace egui version."
+
+[[bin]]
+name = "opalis"
+path = "src/main.rs"
+
+# These deps are intentionally NOT from workspace — opalis runs egui 0.33
+# while the rest of myth-os is on egui 0.28 (pinned by bevy_egui).
+# Consolidate versions when Bevy is bumped to 0.15+.
+[dependencies]
+eframe       = { version = "0.33", features = ["wgpu"] }
+egui         = "0.33"
+egui-wgpu    = "0.33"
+egui_extras  = { version = "0.33", features = ["all_loaders", "image"] }
+egui-snarl   = { version = "0.9",  features = ["serde"] }
+image        = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+bytemuck     = { version = "1.0",  features = ["derive"] }
+wgpu         = "27.0"
+serde        = { version = "1",    features = ["derive"] }
+serde_json   = "1"
+uuid         = { version = "1",    features = ["v4"] }

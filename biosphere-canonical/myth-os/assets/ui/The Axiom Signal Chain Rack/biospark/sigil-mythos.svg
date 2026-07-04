@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 140" width="140" height="140">
+  <defs>
+    <radialGradient id="my-field" cx="50%" cy="50%" r="55%"><stop offset="0%" stop-color="#1a0a32"></stop><stop offset="65%" stop-color="#0a0416"></stop><stop offset="100%" stop-color="#03050a"></stop></radialGradient>
+    <linearGradient id="my-metal" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f0d4ff"></stop><stop offset="30%" stop-color="#c084fc"></stop><stop offset="65%" stop-color="#4a2a7a"></stop><stop offset="100%" stop-color="#140828"></stop>
+    </linearGradient>
+    <radialGradient id="my-core"><stop offset="0%" stop-color="#f4e4ff"></stop><stop offset="45%" stop-color="#c084fc"></stop><stop offset="100%" stop-color="#03050a" stop-opacity="0"></stop></radialGradient>
+    <filter id="my-g"><feGaussianBlur stdDeviation="1.3" result="b"></feGaussianBlur><feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge></filter>
+    <filter id="my-d"><feGaussianBlur stdDeviation="3.4" result="b"></feGaussianBlur><feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge></filter>
+  </defs>
+  <g transform="translate(70,70)">
+    <circle r="66" fill="url(#my-field)"></circle>
+    <circle r="62" fill="none" stroke="url(#my-metal)" stroke-width="1"></circle>
+    
+    <g filter="url(#my-g)">
+      <circle r="50" fill="none" stroke="url(#my-metal)" stroke-width="0.7" opacity="0.8"></circle>
+      <polygon points="0,-50 29.4,40.5 -47.6,-15.5 47.6,-15.5 -29.4,40.5" fill="none" stroke="url(#my-metal)" stroke-width="1"></polygon>
+    </g>
+    
+    <g filter="url(#my-g)">
+      <ellipse cx="0" cy="-4" rx="18" ry="9" fill="none" stroke="url(#my-metal)" stroke-width="0.9"></ellipse>
+      <circle cx="0" cy="-4" r="5" fill="url(#my-core)" filter="url(#my-d)"></circle>
+      <circle cx="0" cy="-4" r="5" fill="none" stroke="url(#my-metal)" stroke-width="0.8"></circle>
+      <circle cx="0" cy="-4" r="2" fill="#c084fc"></circle>
+    </g>
+    
+    <polygon points="0,-26 24,16 -24,16" fill="none" stroke="url(#my-metal)" stroke-width="0.7" opacity="0.7"></polygon>
+    
+    <g filter="url(#my-g)" stroke="url(#my-metal)" stroke-width="0.8" fill="none">
+      <path d="M0 18 L-8 42 M0 18 L0 42 M0 18 L8 42"></path>
+      <path d="M-8 42 L8 42"></path>
+    </g>
+    
+    <circle cy="48" r="3" fill="#c084fc"></circle>
+    <circle cy="48" r="1.2" fill="#f4e4ff"></circle>
+    
+    <g fill="url(#my-metal)"><circle cx="0" cy="-56" r="1.6"></circle><circle cx="56" r="1.6"></circle><circle cy="56" r="1.6"></circle><circle cx="-56" r="1.6"></circle></g>
+    <defs><path id="my-arc" d="M-48 0 A 48 48 0 1 1 48 0"></path></defs>
+    <text font-family="Cinzel, serif" font-size="5.6" fill="#c084fc" letter-spacing="2.6" text-anchor="middle" opacity="0.85"><textPath href="#my-arc">TELL · THREAD · REMEMBER</textPath></text>
+  </g>
+</svg>

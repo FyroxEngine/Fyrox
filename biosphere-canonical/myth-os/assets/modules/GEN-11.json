@@ -1,0 +1,40 @@
+{
+  "id": "GEN-11",
+  "name": "Memory",
+  "crest": "◈",
+  "color": "#00c060",
+  "department": "Atmosphere",
+  "description": "Entity episodic memory store — experience capsules, recall decay, and emotional tagging of past events.",
+  "implementation_status": "built",
+  "primary_wire_out": "NAR",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "",
+    "preview_image": "",
+    "banner": "",
+    "crest_svg": "",
+    "splash_screen": null,
+    "audio_preview": null,
+    "video_preview": null
+  },
+  "containers": [],
+  "traktor_map": [
+    {
+      "channel": 3,
+      "control_type": "fader",
+      "midi_cc": 50,
+      "parameter": "recall_decay",
+      "scale_min": 0,
+      "scale_max": 1
+    },
+    {
+      "channel": 3,
+      "control_type": "fader",
+      "midi_cc": 51,
+      "parameter": "vividness_bias",
+      "scale_min": 0,
+      "scale_max": 2
+    }
+  ]
+}

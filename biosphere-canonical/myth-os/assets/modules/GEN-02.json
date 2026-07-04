@@ -1,0 +1,40 @@
+{
+  "id": "GEN-02",
+  "name": "Environment",
+  "crest": "◈",
+  "color": "#8050e0",
+  "department": "Structure",
+  "description": "Atmosphere, weather, sky colour and fog density. Driven by time-of-day and biome state.",
+  "implementation_status": "built",
+  "primary_wire_out": "SPA",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "",
+    "preview_image": "",
+    "banner": "",
+    "crest_svg": "",
+    "splash_screen": null,
+    "audio_preview": null,
+    "video_preview": null
+  },
+  "containers": [],
+  "traktor_map": [
+    {
+      "channel": 1,
+      "control_type": "fader",
+      "midi_cc": 18,
+      "parameter": "fog_density",
+      "scale_min": 0,
+      "scale_max": 1
+    },
+    {
+      "channel": 1,
+      "control_type": "fader",
+      "midi_cc": 19,
+      "parameter": "sky_luminance",
+      "scale_min": 0.2,
+      "scale_max": 2
+    }
+  ]
+}

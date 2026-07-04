@@ -1,0 +1,16 @@
+[package]
+name        = "myth-qgcp"
+version     = "0.1.0"
+edition     = "2021"
+description = "Quantum Genesis Container Protocol — sealed, typed, content-addressed world containers."
+
+[dependencies]
+myth-wire  = { path = "../myth-wire" }
+serde      = { workspace = true }
+serde_json = { workspace = true }
+bincode    = { workspace = true }
+blake3     = { workspace = true }
+hex        = { workspace = true }
+chrono     = { workspace = true }
+thiserror  = { workspace = true }
+uuid       = { workspace = true }

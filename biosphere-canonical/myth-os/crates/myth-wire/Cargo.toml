@@ -1,0 +1,12 @@
+[package]
+name        = "myth-wire"
+version     = "0.1.0"
+edition     = "2021"
+description = "Wire type protocol for the BioSpark / myth-os ecosystem. Zero renderer deps."
+
+[dependencies]
+serde   = { workspace = true }
+bincode = { workspace = true }
+uuid    = { workspace = true }
+blake3  = { workspace = true }
+thiserror = { workspace = true }

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>QUANTUM ATLAS · BioSpark Studios</title>
+
+  <!-- BioSpark design system -->
+  <link rel="stylesheet" href="quill-os.css"/>
+
+  <!-- React + Babel -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
+    body {
+      background: #03050a;
+      color: #e2e8f0;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+    #root { width: 100%; height: 100%; }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: rgba(3,5,10,0.8); }
+    ::-webkit-scrollbar-thumb { background: rgba(120,180,255,0.15); border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(0,229,255,0.3); }
+
+    /* Input reset */
+    input { box-sizing: border-box; }
+    button { font-family: inherit; }
+
+    /* Animations re-declared for canvas children */
+    @keyframes spin-slow  { to { transform: rotate(360deg); } }
+    @keyframes pulse-ring {
+      0%,100% { opacity:0.4; transform:scale(1); }
+      50%      { opacity:0.08; transform:scale(1.18); }
+    }
+    @keyframes led-blink  { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    @keyframes drift      { 0%,100%{transform:translate(0,0)} 50%{transform:translate(3px,-3px)} }
+
+    /* Tweaks panel positioning */
+    #tweaks-root { position: fixed; bottom: 40px; right: 280px; z-index: 1000; }
+  </style>
+
+  <template id="__bundler_thumbnail">
+    <svg viewBox="0 0 120 84" xmlns="http://www.w3.org/2000/svg">
+      <rect width="120" height="84" fill="#03050a"/>
+      <ellipse cx="60" cy="42" rx="30" ry="22" fill="none" stroke="#00e5ff" stroke-width="1.2" opacity="0.7"/>
+      <circle cx="60" cy="42" r="4" fill="#fbbf24" opacity="0.9"/>
+      <circle cx="35" cy="28" r="3" fill="#c084fc" opacity="0.7"/>
+      <circle cx="82" cy="52" r="3" fill="#39ff14" opacity="0.7"/>
+      <line x1="60" y1="42" x2="35" y2="28" stroke="#c084fc" stroke-width="0.6" stroke-dasharray="2 2" opacity="0.5"/>
+      <line x1="60" y1="42" x2="82" y2="52" stroke="#39ff14" stroke-width="0.6" stroke-dasharray="2 2" opacity="0.5"/>
+      <text x="60" y="74" text-anchor="middle" font-family="serif" font-size="7" fill="#fbbf24" letter-spacing="1" opacity="0.7">QUANTUM ATLAS</text>
+    </svg>
+  </template>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Load components in dependency order -->
+  <script type="text/babel" src="components.jsx"></script>
+  <script type="text/babel" src="atlas-world.jsx"></script>
+  <script type="text/babel" src="atlas-map.jsx"></script>
+  <script type="text/babel" src="atlas-panels.jsx"></script>
+  <script type="text/babel" src="atlas-forge.jsx"></script>
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+  <script type="text/babel" src="atlas-tweaks.jsx"></script>
+  <script type="text/babel" src="atlas-app.jsx"></script>
+</body>
+</html>

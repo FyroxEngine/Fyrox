@@ -1,0 +1,40 @@
+{
+  "id": "GEN-05",
+  "name": "Modeling",
+  "crest": "◈",
+  "color": "#f4c025",
+  "department": "Entities",
+  "description": "Mesh generation and LOD management for Quill Actors. Resolves B-DNA phenotype to visual form.",
+  "implementation_status": "built",
+  "primary_wire_out": "VIS",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "",
+    "preview_image": "",
+    "banner": "",
+    "crest_svg": "",
+    "splash_screen": null,
+    "audio_preview": null,
+    "video_preview": null
+  },
+  "containers": [],
+  "traktor_map": [
+    {
+      "channel": 2,
+      "control_type": "fader",
+      "midi_cc": 24,
+      "parameter": "lod_bias",
+      "scale_min": 0.5,
+      "scale_max": 2
+    },
+    {
+      "channel": 2,
+      "control_type": "fader",
+      "midi_cc": 25,
+      "parameter": "poly_budget",
+      "scale_min": 512,
+      "scale_max": 8192
+    }
+  ]
+}

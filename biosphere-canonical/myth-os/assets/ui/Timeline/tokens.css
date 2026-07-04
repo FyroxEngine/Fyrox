@@ -1,0 +1,296 @@
+/* ============================================================
+   TIMELINE / BIOSPARK — PROCEDURAL RACK DESIGN SYSTEM
+   Tokens: color, type, scale, materials, glows, motion
+   ============================================================ */
+
+:root {
+  /* --- CHASSIS / SUBSTRATE -------------------------------- */
+  --void:        #05060a;   /* deepest black, behind everything */
+  --abyss:       #0a0c12;   /* page bg */
+  --pitch:       #0e1117;   /* rack rail bg */
+  --chassis:     #14181f;   /* module panel face */
+  --chassis-hi:  #1a1f28;   /* raised face */
+  --chassis-lo:  #0a0d12;   /* recessed cavity */
+  --bezel:       #2a2f3a;   /* metal bezel ring */
+  --bezel-hi:    #404654;   /* bezel highlight */
+  --bezel-lo:    #1a1d24;   /* bezel shadow */
+  --screw:       #1c2028;
+  --screw-rim:   #353a45;
+  --screen-bg:   #050810;   /* glass display interior */
+  --screen-grid: #0e1828;
+
+  /* --- INK / TYPE ---------------------------------------- */
+  --ink:         #e6ebf2;   /* primary text */
+  --ink-mid:     #8e96a8;   /* secondary */
+  --ink-dim:     #4f5566;   /* tertiary / dividers */
+  --ink-faint:   #2a2e38;   /* engraved labels */
+  --etch:        #6b7388;   /* engraved label color, slight glow */
+
+  /* --- 16 DEPARTMENT CHANNELS ---------------------------- */
+  /* Each channel has: -hue (the neon), -glow (rgba for halos), -dim */
+  --ch01-atlas:       #1e8cff;   /* I  · TERRAIN */
+  --ch02-mythos:      #8050e0;   /* I  · ENVIRONMENT */
+  --ch03-architect:   #64b4ff;   /* I  · ARCHITECT */
+  --ch04-prism:       #e0d8ff;   /* I  · LIGHTING */
+  --ch05-animus:      #f4c025;   /* II · MODELING */
+  --ch06-loom:        #dc3c78;   /* II · CHOREOGRAPHY */
+  --ch07-instinct:    #9030d0;   /* II · BEHAVIOR */
+  --ch08-order:       #c8a860;   /* II · SOCIETY */
+  --ch09-chronicle:   #b08030;   /* III· SEQUENCER */
+  --ch10-quill:       #8c50ff;   /* III· STORY */
+  --ch11-codex:       #00c060;   /* III· MEMORY */
+  --ch12-composer:    #dc8c1e;   /* III· SOUND */
+  --ch13-axiom:       #20c8d0;   /* IV · LOGIC */
+  --ch14-continuum:   #30e060;   /* IV · SIMULATION */
+  --ch15-forge:       #ff6400;   /* IV · FORGE */
+  --ch16-nexus:       #f4f6ff;   /* IV · NETWORK */
+
+  /* --- PRIMARY UI SIGNAL COLORS --------------------------- */
+  --signal-hot:     #ff5a3c;   /* red — alert / clip */
+  --signal-warm:    #ff9028;   /* orange — heat */
+  --signal-amber:   #ffb83a;   /* yellow — caution */
+  --signal-cool:    #2cd1ff;   /* cyan — primary control */
+  --signal-cold:    #5cf;      /* alias */
+  --signal-life:    #00e070;   /* green — alive / armed */
+  --signal-myth:    #b070ff;   /* violet — narrative */
+  --signal-bone:    #f4f6ff;   /* white — neutral output */
+  --signal-rose:    #ff4488;   /* magenta — resonance */
+
+  /* --- GLOW HALOS (rgba versions, for box-shadow) --------- */
+  --glow-cool:    34, 209, 255;
+  --glow-life:    0, 224, 112;
+  --glow-myth:    176, 112, 255;
+  --glow-warm:    255, 144, 40;
+  --glow-hot:     255, 90, 60;
+  --glow-rose:    255, 68, 136;
+  --glow-amber:   255, 184, 58;
+  --glow-bone:    244, 246, 255;
+  --glow-forge:   255, 100, 0;
+
+  /* --- CONNECTOR / WIRE COLORS --------------------------- */
+  --wire-audio:   var(--ch12-composer);
+  --wire-cv:      var(--ch13-axiom);
+  --wire-gate:    var(--ch11-codex);
+  --wire-clock:   var(--ch09-chronicle);
+  --wire-data:    var(--ch01-atlas);
+  --wire-narr:    var(--ch10-quill);
+
+  /* --- TYPOGRAPHY --------------------------------------- */
+  --font-display: "Orbitron", "Eurostile", "Space Grotesk", system-ui, sans-serif;
+  --font-mono:    "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+  --font-text:    "Inter", "Space Grotesk", system-ui, sans-serif;
+  --font-engrave: "Eurostile", "Orbitron", system-ui, sans-serif;
+
+  /* type scale */
+  --t-micro:   9px;   /* engraved chassis labels */
+  --t-tick:    8px;   /* tick mark numerals */
+  --t-readout: 11px;  /* digital readouts */
+  --t-label:   12px;  /* control labels */
+  --t-body:    13px;
+  --t-meta:    14px;
+  --t-h6:      16px;
+  --t-h5:      18px;
+  --t-h4:      22px;
+  --t-h3:      28px;
+  --t-h2:      40px;
+  --t-h1:      56px;
+  --t-display: 88px;
+
+  /* --- SPACING / GRID ------------------------------------ */
+  --u: 4px;
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px;
+  --s5: 20px; --s6: 24px; --s8: 32px; --s10: 40px;
+  --s12: 48px; --s16: 64px; --s20: 80px;
+
+  /* rack — VCV-style "HP" units, 1HP = 5.08mm ≈ 16px here */
+  --hp: 16px;
+
+  /* --- RADII --------------------------------------------- */
+  --r-1: 2px;
+  --r-2: 4px;
+  --r-3: 6px;
+  --r-4: 8px;
+  --r-5: 12px;
+  --r-6: 16px;
+  --r-pill: 999px;
+
+  /* --- BORDERS / HAIRLINES ------------------------------- */
+  --hair: 1px solid rgba(255,255,255,0.04);
+  --hair-bright: 1px solid rgba(255,255,255,0.08);
+  --hair-glow:   1px solid rgba(var(--glow-cool), 0.35);
+  --rule:        1px solid rgba(255,255,255,0.06);
+
+  /* --- SHADOWS (depth layering) ------------------------- */
+  --sh-recess:
+      inset 0 2px 4px rgba(0,0,0,0.85),
+      inset 0 -1px 0 rgba(255,255,255,0.04);
+  --sh-deep:
+      inset 0 4px 12px rgba(0,0,0,0.9),
+      inset 0 1px 0 rgba(255,255,255,0.03);
+  --sh-raise:
+      0 1px 0 rgba(255,255,255,0.06),
+      0 2px 4px rgba(0,0,0,0.6),
+      0 8px 24px rgba(0,0,0,0.5);
+  --sh-float:
+      0 2px 0 rgba(255,255,255,0.04),
+      0 8px 24px rgba(0,0,0,0.7),
+      0 24px 60px rgba(0,0,0,0.5);
+  --sh-screen:
+      inset 0 0 0 1px rgba(0,0,0,0.6),
+      inset 0 2px 8px rgba(0,0,0,0.95),
+      inset 0 0 24px rgba(var(--glow-cool), 0.04);
+
+  /* --- MOTION ------------------------------------------- */
+  --ease-mech:  cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-snap:  cubic-bezier(0.6, 0, 0.4, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --d-fast: 120ms;
+  --d-mid:  240ms;
+  --d-slow: 480ms;
+}
+
+/* ============================================================
+   GLOBAL — page substrate, type defaults
+   ============================================================ */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  background: var(--abyss);
+  color: var(--ink);
+  font-family: var(--font-text);
+  font-size: var(--t-body);
+  line-height: 1.45;
+  font-feature-settings: "ss01", "tnum";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* base substrate — subtle starfield grain + radial vignette */
+body {
+  background:
+    radial-gradient(ellipse at 50% -10%, rgba(var(--glow-myth), 0.08), transparent 60%),
+    radial-gradient(ellipse at 80% 100%, rgba(var(--glow-cool), 0.06), transparent 50%),
+    radial-gradient(ellipse at 10% 60%, rgba(var(--glow-forge), 0.04), transparent 40%),
+    var(--abyss);
+  min-height: 100vh;
+}
+
+/* ============================================================
+   MATERIAL — reusable surface primitives
+   ============================================================ */
+
+/* recessed chassis cavity (where screens live) */
+.mat-cavity {
+  background:
+    linear-gradient(180deg, var(--chassis-lo) 0%, #060810 100%);
+  box-shadow: var(--sh-deep);
+  border: 1px solid rgba(0,0,0,0.6);
+  border-top-color: rgba(0,0,0,0.85);
+  border-bottom-color: rgba(255,255,255,0.05);
+  border-radius: var(--r-3);
+}
+
+/* raised module panel — the brushed-metal face */
+.mat-panel {
+  background:
+    linear-gradient(180deg, #1f242e 0%, #14181f 50%, #0f131a 100%);
+  border-radius: var(--r-4);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.07),
+    inset 0 -1px 0 rgba(0,0,0,0.6),
+    inset 0 0 0 1px rgba(0,0,0,0.4),
+    0 1px 0 rgba(255,255,255,0.04),
+    0 12px 32px rgba(0,0,0,0.6);
+  position: relative;
+}
+
+/* glass display screen — for visualizers */
+.mat-screen {
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(var(--glow-cool), 0.04), transparent 70%),
+    linear-gradient(180deg, #060a14 0%, #030509 100%);
+  border-radius: var(--r-3);
+  box-shadow: var(--sh-screen);
+  position: relative;
+  overflow: hidden;
+}
+.mat-screen::after {
+  content: "";
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg,
+      transparent 0px, transparent 2px,
+      rgba(255,255,255,0.012) 2px, rgba(255,255,255,0.012) 3px);
+  border-radius: inherit;
+}
+
+/* knurled metal ring (for knob bezels) */
+.mat-knurl {
+  background:
+    repeating-conic-gradient(from 0deg,
+      #2a2f3a 0deg, #1a1d24 1.5deg, #2a2f3a 3deg);
+}
+
+/* ============================================================
+   SCREW — small mechanical detail used on every panel
+   ============================================================ */
+.screw {
+  width: 8px; height: 8px; border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 35%, #4a5060 0%, #2a2f3a 40%, #15181f 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,0.5),
+    inset 0 1px 0 rgba(255,255,255,0.1),
+    0 1px 1px rgba(0,0,0,0.4);
+  position: relative;
+}
+.screw::before {
+  content: "";
+  position: absolute; inset: 2px;
+  background: linear-gradient(135deg, transparent 45%, #0a0c10 45%, #0a0c10 55%, transparent 55%);
+  border-radius: 50%;
+}
+
+/* ============================================================
+   ENGRAVED LABEL — small etched text on chassis
+   ============================================================ */
+.engrave {
+  font-family: var(--font-engrave);
+  font-size: var(--t-micro);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--etch);
+  text-shadow:
+    0 1px 0 rgba(0,0,0,0.6),
+    0 -1px 0 rgba(255,255,255,0.04);
+}
+.readout {
+  font-family: var(--font-mono);
+  font-size: var(--t-readout);
+  letter-spacing: 0.06em;
+  color: var(--signal-cool);
+  text-shadow: 0 0 6px rgba(var(--glow-cool), 0.6);
+}
+
+/* ============================================================
+   UTILITY
+   ============================================================ */
+.tick-row { display: flex; gap: 1px; align-items: end; }
+.row { display: flex; gap: var(--s4); }
+.col { display: flex; flex-direction: column; gap: var(--s4); }
+.center { display: flex; align-items: center; justify-content: center; }
+
+/* shared keyframes */
+@keyframes spin-slow  { to { transform: rotate(360deg); } }
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.7; }
+  50%      { opacity: 1; }
+}
+@keyframes scope-scan {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+@keyframes vu-jit {
+  0%,100% { transform: scaleY(0.6); }
+  50%     { transform: scaleY(1); }
+}

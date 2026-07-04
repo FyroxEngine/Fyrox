@@ -1,0 +1,40 @@
+{
+  "id": "GEN-10",
+  "name": "Story",
+  "crest": "◈",
+  "color": "#8c50ff",
+  "department": "Atmosphere",
+  "description": "Narrative arc manager — chapter state, branch selection, and dramatic tension tracking across the Genesis container.",
+  "implementation_status": "built",
+  "primary_wire_out": "NAR",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "",
+    "preview_image": "",
+    "banner": "",
+    "crest_svg": "",
+    "splash_screen": null,
+    "audio_preview": null,
+    "video_preview": null
+  },
+  "containers": [],
+  "traktor_map": [
+    {
+      "channel": 3,
+      "control_type": "fader",
+      "midi_cc": 48,
+      "parameter": "tension",
+      "scale_min": 0,
+      "scale_max": 1
+    },
+    {
+      "channel": 3,
+      "control_type": "fader",
+      "midi_cc": 49,
+      "parameter": "pacing",
+      "scale_min": 0.2,
+      "scale_max": 2
+    }
+  ]
+}

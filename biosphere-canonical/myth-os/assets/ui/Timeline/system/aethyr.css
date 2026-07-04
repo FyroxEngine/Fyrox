@@ -1,0 +1,387 @@
+/* ═══════════════════════════════════════════════════════════════════
+   AETHYR — Procedural Rack OS extension to BioSpark foundation.
+   Imports the canonical color/type tokens, then adds rack-specific
+   surfaces, signal-type colors, glow utilities, and panel chrome.
+═══════════════════════════════════════════════════════════════════ */
+@import url('./colors_and_type.css');
+
+:root {
+  /* ── Rack signal types — borrowed from VCV/Eurorack convention ── */
+  --sig-audio:   #00e5ff;  /* quantum cyan */
+  --sig-cv:      #c084fc;  /* mythos violet */
+  --sig-gate:    #fbbf24;  /* gold */
+  --sig-trig:    #f97316;  /* ember */
+  --sig-clock:   #fb7185;  /* rose */
+  --sig-poly:    #39ff14;  /* bio */
+  --sig-midi:    #6e8cff;  /* venturan */
+  --sig-stream:  #2ad4c8;  /* hydralis */
+
+  /* ── Panel chassis surfaces (procedural metal) ── */
+  --panel-base:  linear-gradient(180deg, #1a1f2a 0%, #0f1218 100%);
+  --panel-rail:  linear-gradient(180deg, #2a3142 0%, #161a24 50%, #0a0c12 100%);
+  --panel-inset: linear-gradient(180deg, #06080d 0%, #0d1117 50%, #06080d 100%);
+  --panel-brushed:
+    repeating-linear-gradient(90deg,
+      rgba(255,255,255,0.015) 0 1px,
+      transparent 1px 3px),
+    linear-gradient(180deg, #1a1f2a 0%, #0f1218 100%);
+
+  /* ── Knob faces ── */
+  --knob-cap:
+    radial-gradient(circle at 35% 25%,
+      rgba(255,255,255,0.18) 0%,
+      rgba(255,255,255,0.04) 25%,
+      rgba(0,0,0,0.4) 70%),
+    linear-gradient(180deg, #2a313f 0%, #0e1118 100%);
+  --knob-rim:
+    conic-gradient(from 220deg,
+      #2a313f 0deg, #0a0c12 90deg, #2a313f 180deg, #0a0c12 270deg, #2a313f 360deg);
+  --knob-inset:
+    radial-gradient(circle at 50% 50%,
+      #050709 0%, #0e1218 60%, #1a1f2a 100%);
+
+  /* ── Display glass ── */
+  --glass-screen:
+    radial-gradient(ellipse at 50% 0%,
+      rgba(0,229,255,0.04) 0%, transparent 70%),
+    linear-gradient(180deg, #04060a 0%, #080b12 100%);
+  --glass-scanlines:
+    repeating-linear-gradient(0deg,
+      rgba(0,0,0,0.0) 0 2px,
+      rgba(0,0,0,0.18) 2px 3px);
+  --glass-grid:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px) 0 0 / 12px 12px,
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px) 0 0 / 12px 12px;
+
+  /* ── Jacks / ports ── */
+  --jack-ring:
+    radial-gradient(circle at 50% 40%,
+      #1a1f2a 0%, #0a0c12 80%);
+  --jack-hole:
+    radial-gradient(circle at 50% 50%,
+      #000 0%, #050709 70%);
+
+  /* ── LED ── */
+  --led-off:     radial-gradient(circle at 35% 30%, #2a313f 0%, #0a0c12 100%);
+
+  /* ── Density ── */
+  --hu: 32px;             /* rack unit (panel height multiplier) */
+  --hp: 8px;              /* horizontal pitch (panel width unit) */
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   GLOBAL — page chrome
+═══════════════════════════════════════════════════════════════════ */
+html, body {
+  margin: 0; padding: 0;
+  background: var(--void);
+  background-image: var(--cosmos);
+  background-attachment: fixed;
+  color: var(--fg-1);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+* { box-sizing: border-box; }
+::selection { background: rgba(0,229,255,0.3); color: #fff; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--void); }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #1a2030, #0a0c12);
+  border-radius: 6px;
+  border: 1px solid rgba(120,180,255,0.08);
+}
+::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, #2a3140, #0e1118); }
+
+/* ═══════════════════════════════════════════════════════════════════
+   APP SHELL
+═══════════════════════════════════════════════════════════════════ */
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.topbar {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; align-items: center; gap: 24px;
+  padding: 12px 28px;
+  background: rgba(8,12,20,0.86);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 0 rgba(120,180,255,0.04), 0 16px 40px rgba(0,0,0,0.4);
+}
+.topbar-mark {
+  display: flex; align-items: center; gap: 12px;
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 0.12em;
+  color: var(--fg-1);
+}
+.topbar-mark .m {
+  width: 28px; height: 28px;
+  background: radial-gradient(circle at 35% 30%,
+    #00e5ff 0%, #0066aa 40%, #03050a 80%);
+  border-radius: 50%;
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,0.4),
+    0 0 12px var(--quantum-glow);
+  position: relative;
+}
+.topbar-mark .m::before {
+  content: ''; position: absolute; inset: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, #03050a 30%, transparent 60%);
+}
+.topbar-mark .sub {
+  font-family: var(--font-header);
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  color: var(--fg-3);
+  margin-left: 4px;
+  border-left: 1px solid var(--border);
+  padding-left: 12px;
+}
+.topbar-tabs {
+  display: flex; gap: 2px;
+  margin-left: auto;
+}
+.topbar-tab {
+  padding: 8px 16px;
+  font-family: var(--font-header);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 200ms var(--ease-out);
+  position: relative;
+}
+.topbar-tab:hover { color: var(--fg-1); border-color: var(--border); }
+.topbar-tab.active {
+  color: var(--quantum);
+  border-color: rgba(0,229,255,0.3);
+  background: rgba(0,229,255,0.04);
+  box-shadow: inset 0 0 0 1px rgba(0,229,255,0.1), 0 0 12px rgba(0,229,255,0.1);
+}
+.topbar-tab.active::after {
+  content: ''; position: absolute; left: 50%; bottom: -1px;
+  width: 24px; height: 2px;
+  transform: translateX(-50%);
+  background: var(--quantum);
+  box-shadow: 0 0 8px var(--quantum-glow);
+}
+
+.topbar-status {
+  display: flex; align-items: center; gap: 16px;
+  font-family: var(--font-code);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: var(--fg-3);
+}
+.topbar-status .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--bio);
+  box-shadow: 0 0 8px var(--bio-glow);
+  animation: pulse-led 2s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PAGE / SECTIONS
+═══════════════════════════════════════════════════════════════════ */
+.page {
+  padding: 32px 28px 80px;
+  max-width: 1600px;
+  margin: 0 auto;
+  width: 100%;
+}
+.page-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 24px; margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.page-head::after {
+  content: ''; position: absolute; left: 0; bottom: -1px;
+  width: 80px; height: 1px;
+  background: linear-gradient(90deg, var(--quantum) 0%, transparent 100%);
+  box-shadow: 0 0 8px var(--quantum-glow);
+}
+.page-title {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--fg-1);
+  margin: 0;
+}
+.page-eyebrow {
+  font-family: var(--font-code);
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  color: var(--gold);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+.page-motto {
+  font-family: var(--font-script);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--fg-2);
+  max-width: 480px;
+  text-align: right;
+  line-height: 1.4;
+}
+
+.section {
+  margin-bottom: 56px;
+}
+.section-head {
+  display: flex; align-items: baseline; gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed rgba(120,180,255,0.08);
+}
+.section-num {
+  font-family: var(--font-code);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--gold);
+}
+.section-title {
+  font-family: var(--font-header);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fg-1);
+  margin: 0;
+}
+.section-sub {
+  font-family: var(--font-script);
+  font-style: italic;
+  font-size: 13px;
+  color: var(--fg-3);
+  margin-left: auto;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PANEL — base elevated surface w/ corner circuit-marks
+═══════════════════════════════════════════════════════════════════ */
+.panel {
+  position: relative;
+  background: var(--panel-base);
+  border: 1px solid var(--border);
+  border-radius: var(--r-m);
+  box-shadow: var(--shadow-card);
+  padding: 16px;
+}
+.panel::before, .panel::after {
+  content: ''; position: absolute;
+  width: 12px; height: 12px;
+  border: 1px solid rgba(120,180,255,0.18);
+  pointer-events: none;
+}
+.panel::before { top: 6px; left: 6px; border-right: none; border-bottom: none; }
+.panel::after  { bottom: 6px; right: 6px; border-left: none; border-top: none; }
+.panel.flat {
+  background: var(--surface);
+  box-shadow: none;
+}
+.panel-head {
+  display: flex; align-items: center; gap: 10px;
+  margin: -16px -16px 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,0.015);
+}
+.panel-title {
+  font-family: var(--font-header);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--fg-2);
+}
+.panel-tag {
+  margin-left: auto;
+  font-family: var(--font-code);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--fg-3);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   COMMON UTILITIES
+═══════════════════════════════════════════════════════════════════ */
+.row { display: flex; gap: 12px; align-items: center; }
+.col { display: flex; flex-direction: column; gap: 12px; }
+.grid { display: grid; gap: 16px; }
+.spread { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.cap-label {
+  font-family: var(--font-code);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.value-readout {
+  font-family: var(--font-code);
+  font-size: 11px;
+  color: var(--quantum);
+  letter-spacing: 0.05em;
+  background: var(--panel-inset);
+  padding: 2px 8px;
+  border-radius: 2px;
+  border: 1px solid var(--border);
+  min-width: 56px;
+  text-align: center;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ANIMATIONS
+═══════════════════════════════════════════════════════════════════ */
+@keyframes pulse-led {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.55; transform: scale(0.9); }
+}
+@keyframes pulse-ring {
+  0%, 100% { box-shadow: 0 0 8px var(--d-glow, var(--quantum-glow)); }
+  50% { box-shadow: 0 0 18px var(--d-glow, var(--quantum-glow)), 0 0 32px var(--d-glow, var(--quantum-glow)); }
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes spin-rev {
+  from { transform: rotate(360deg); }
+  to   { transform: rotate(0deg); }
+}
+@keyframes drift {
+  0%,100% { transform: translateY(0); opacity: 0.5; }
+  50% { transform: translateY(-3px); opacity: 0.85; }
+}
+@keyframes scan {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(100%); }
+}
+@keyframes meter-flicker {
+  0%, 100% { opacity: 0.95; }
+  47% { opacity: 0.95; }
+  48% { opacity: 0.7; }
+  49% { opacity: 0.98; }
+}
+@keyframes wire-pulse {
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: -12; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

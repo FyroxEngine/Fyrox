@@ -1,0 +1,139 @@
+[workspace]
+resolver = "2"
+members = [
+    # Core crates
+    "crates/myth-plugin-registry",
+    "crates/myth-wasm-host",
+    "crates/myth-wire",
+    "crates/myth-qgcp",
+    "crates/myth-vault",
+    "crates/myth-plugin",
+    "crates/myth-controls",
+
+    # Templates
+    "templates/plugin-template",
+    "templates/addon-template",
+
+    # Examples
+    "examples/plugin-foundry",
+
+    # Module crates — 16 instruments (WorldConstruction)
+    "modules/myth-atlas",
+    "modules/myth-mythos",
+    "modules/myth-architect",
+    "modules/myth-prism",
+
+    # Module crates — 16 instruments (EntitySystems)
+    "modules/myth-animus",
+    "modules/myth-loom",
+    "modules/myth-instinct",
+    "modules/myth-order",
+
+    # Module crates — 16 instruments (NarrativeSystems)
+    "modules/myth-chronicle",
+    "modules/myth-quill",
+    "modules/myth-codex",
+    "modules/myth-composer",
+
+    # Module crates — 16 instruments (PipelineSystems)
+    "modules/myth-axiom",
+    "modules/myth-continuum",
+    "modules/myth-forge",
+    "modules/myth-nexus",
+
+    # Molecules — pre-wired ATOM sub-graphs (reusable presets)
+    "molecules/inference-router",
+
+    # Adapters — Bevy rendering bridges
+    "adapters/myth-atlas-bevy",
+
+    "bins/myth-vault-mcp",
+
+    # BioSpark Agent Workforce
+    "crates/mythos",
+    "modules/forge",
+    "bins/agent-engine",
+    "adapters/theater-fyrox",
+
+    # Legacy / in-progress (review before removing)
+    "services/myth-clock",
+    "vault",
+    "core",
+    "genesis",
+    "library",
+    "crates/myth-daw",
+    "crates/myth-stencil",
+    "bins/opalis",
+    # NOTE: crates/myth-forge removed — modules/myth-forge is canonical
+    "crates/myth-controller",
+    "crates/myth-core",
+    "crates/biospark-theatre",
+    "crates/biospark-theatre-bevy",
+    "asset-forge",
+    "genesis-collider-mandelbulb",
+    "void-sculptor",
+    "viewer",
+]
+
+[workspace.dependencies]
+# Async runtime
+tokio       = { version = "1", features = ["full"] }
+# Serialization
+serde       = { version = "1", features = ["derive"] }
+serde_json  = "1"
+bincode     = "1"
+# Cryptography
+blake3      = "1"
+hex         = "0.4"
+# Memory-mapped files
+memmap2     = "0.9"
+# gRPC
+tonic       = "0.12"
+prost       = "0.13"
+# In-process channels
+crossbeam-channel = "0.5"
+# Bevy game engine
+bevy        = { version = "0.14", default-features = false, features = [
+    "bevy_asset",
+    "bevy_scene",
+    "bevy_state",
+    "bevy_winit",
+    "bevy_render",
+    "bevy_core_pipeline",
+    "bevy_pbr",
+    "bevy_gltf",
+    "bevy_animation",
+    "bevy_ui",
+    "bevy_text",
+    "multi_threaded",
+    "x11",
+] }
+# Logging
+tracing             = "0.1"
+tracing-subscriber  = { version = "0.3", features = ["env-filter"] }
+# Error handling
+anyhow      = "1"
+thiserror   = "1"
+# Audio output
+cpal        = "0.15"
+# MIDI
+midir       = "0.10"
+# Serial port (Arduino/CNC/DMX)
+serialport  = "4"
+# UUID generation
+uuid        = { version = "1", features = ["v4", "serde"] }
+# Time
+chrono      = { version = "0.4", features = ["serde"] }
+# egui integration for Bevy (rack UI)
+bevy_egui   = "0.28"
+egui        = "0.28"
+# Native egui app host
+eframe      = { version = "0.28", default-features = false, features = ["default_fonts", "glow"] }
+# Native file dialog
+rfd         = "0.14"
+# CLI
+clap        = { version = "4", features = ["derive"] }
+# Directory walking
+walkdir     = "2"
+# TOML parsing
+toml        = "0.8"

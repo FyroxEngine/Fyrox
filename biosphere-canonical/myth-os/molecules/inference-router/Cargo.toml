@@ -1,0 +1,12 @@
+[package]
+name        = "myth-molecule-inference-router"
+version     = "0.1.0"
+edition     = "2021"
+description = "MOLECULE: Routes Capsule inference requests to the best available LLM backend. Local-first."
+
+[dependencies]
+myth-plugin = { path = "../../crates/myth-plugin" }
+myth-vault  = { path = "../../crates/myth-vault" }
+myth-wire   = { path = "../../crates/myth-wire" }
+serde       = { workspace = true }
+serde_json  = { workspace = true }

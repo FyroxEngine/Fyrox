@@ -1,0 +1,40 @@
+{
+  "id": "GEN-06",
+  "name": "Choreography",
+  "crest": "◈",
+  "color": "#dc3c78",
+  "department": "Entities",
+  "description": "Animation state machine and IK solver for entity movement. Blend trees driven by Instinct outputs.",
+  "implementation_status": "built",
+  "primary_wire_out": "BHV",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "",
+    "preview_image": "",
+    "banner": "",
+    "crest_svg": "",
+    "splash_screen": null,
+    "audio_preview": null,
+    "video_preview": null
+  },
+  "containers": [],
+  "traktor_map": [
+    {
+      "channel": 2,
+      "control_type": "fader",
+      "midi_cc": 26,
+      "parameter": "blend_speed",
+      "scale_min": 0.5,
+      "scale_max": 4
+    },
+    {
+      "channel": 2,
+      "control_type": "fader",
+      "midi_cc": 27,
+      "parameter": "ik_weight",
+      "scale_min": 0,
+      "scale_max": 1
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 140" width="140" height="140">
+  <defs>
+    <radialGradient id="lm-field" cx="50%" cy="50%" r="55%"><stop offset="0%" stop-color="#051832"></stop><stop offset="65%" stop-color="#021020"></stop><stop offset="100%" stop-color="#03050a"></stop></radialGradient>
+    <linearGradient id="lm-metal" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#d0eeff"></stop><stop offset="30%" stop-color="#00e5ff"></stop><stop offset="65%" stop-color="#0a6a88"></stop><stop offset="100%" stop-color="#031018"></stop>
+    </linearGradient>
+    <radialGradient id="lm-core"><stop offset="0%" stop-color="#e0f4ff"></stop><stop offset="45%" stop-color="#00e5ff"></stop><stop offset="100%" stop-color="#03050a" stop-opacity="0"></stop></radialGradient>
+    <filter id="lm-g" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.3" result="b"></feGaussianBlur><feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge></filter>
+    <filter id="lm-d" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="3.5" result="b"></feGaussianBlur><feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge></filter>
+  </defs>
+  <g transform="translate(70,70)">
+    <circle r="66" fill="url(#lm-field)"></circle>
+    <circle r="62" fill="none" stroke="url(#lm-metal)" stroke-width="1"></circle>
+    <circle r="57" fill="none" stroke="#0a6a88" stroke-width="0.4" stroke-dasharray="0.4 3"></circle>
+    
+    <g fill="none" stroke="url(#lm-metal)" stroke-width="0.9" filter="url(#lm-g)" opacity="0.95">
+      <circle cx="0" cy="-12" r="30"></circle>
+      <circle cx="-26" cy="14" r="30"></circle>
+      <circle cx="26" cy="14" r="30"></circle>
+    </g>
+    
+    <g fill="none" stroke="#c084fc" stroke-width="0.5" opacity="0.7" filter="url(#lm-g)">
+      <ellipse cx="0" cy="0" rx="38" ry="16" transform="rotate(30)"></ellipse>
+      <ellipse cx="0" cy="0" rx="38" ry="16" transform="rotate(90)"></ellipse>
+      <ellipse cx="0" cy="0" rx="38" ry="16" transform="rotate(150)"></ellipse>
+    </g>
+    
+    <g filter="url(#lm-g)">
+      <polygon points="0,-44 38.1,-22 38.1,22 0,44 -38.1,22 -38.1,-22" fill="none" stroke="url(#lm-metal)" stroke-width="0.7" opacity="0.85"></polygon>
+    </g>
+    
+    <circle r="12" fill="url(#lm-core)" filter="url(#lm-d)"></circle>
+    <circle r="12" fill="none" stroke="url(#lm-metal)" stroke-width="1"></circle>
+    <circle r="3" fill="#ffffff"></circle>
+    <circle r="1.6" fill="#00e5ff"></circle>
+    
+    <g stroke="url(#lm-metal)" stroke-width="0.8" fill="none">
+      <path d="M0 -60 L-2 -50 L2 -46 L0 -38"></path>
+      <path d="M60 0 L50 -2 L46 2 L38 0"></path>
+      <path d="M0 60 L-2 50 L2 46 L0 38"></path>
+      <path d="M-60 0 L-50 -2 L-46 2 L-38 0"></path>
+    </g>
+    <defs><path id="lm-arc" d="M-48 0 A 48 48 0 1 1 48 0"></path></defs>
+    <text font-family="Cinzel, serif" font-size="5.6" fill="#00e5ff" letter-spacing="2.4" text-anchor="middle" opacity="0.85"><textPath href="#lm-arc">LOOM · WEAVE · THREAD</textPath></text>
+  </g>
+</svg>

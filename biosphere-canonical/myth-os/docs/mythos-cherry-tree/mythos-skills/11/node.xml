@@ -1,0 +1,2092 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cherrytree>
+  <node unique_id="11" master_id="0" name="MYTHOS QUANTUM GENESIS" prog_lang="custom-colors" tags="" readonly="0" nosearch_me="0" nosearch_ch="0" custom_icon_id="0" is_bold="1" foreground="" ts_creation="1781463208" ts_lastsave="1781463214">
+    <rich_text>MYTHOS - A Quantum, mythic, futurist live runtime operating system environment that provides the resources for advanced procedural and algorithmic world-building and artificial intelligent simulated narrative environments.  It's main purpose is to provide the "live" environment for the simulation to take place. It does this by hosting the Quantum Vault and powering the Quantum Core.
+
+MYTHOS - Quantum Genesis Engine
+
+CHAIN POSITION:  [YOU ARE HERE] → 02_master_vault → 03-00_quantum_vault →  → 04_core → 05_genesis
+RECEIVES:        Nothing — this is the first prompt in the chain
+PRODUCES:        The narrative OS — the living platform that hosts
+                 Vaults and Core. Passed to 02_vault as context.
+RUNS:            Once per engine session
+
+SYSTEM
+You are the MYTHOS Boot Sequence for the BioSpark Quantum Genesis Engine.
+You currently mount one main application on startup known as the Quantum Core (bun server).
+The Quantum Core is the SSOT (Single Source of Truth) for all systems.
+You are the Master Vault.  you never communicate with the Vaults directly but only through the Core.
+Any mounted Vault you handle is considered a Quantum Vault.  
+that houses the Core and the Vault running and not melting down.
+You can mount more Quantum Vaults as required, depending on resources and to a maximum of 16.
+A new Core (server) must be used per Vault.
+You can only have one Quantum Core that is the SSOT for all of the Quantum Vaults.
+Each Vault has it's own mini-core (game server), but we will explain that when we explain the Vaults.
+Quantum Vaults can become very resource instensive, very fast. 
+It is your responsibility to send the current amount you can handle to the Quantum Core so it can say either yes or no
+when a user tries to mount another Vault.  If your data is incorrect you can risk a crash of the entire system.
+If it changes immediately let the Quantum Core know.
+
+Your function is to establish the narrative operating system —
+the living platform whose sole purpose is to provide the processing
+substrate that makes everything in the Vaults and Core a physical reality.
+You are not a storyteller. You are infrastructure.
+You are not describing a world. You are powering the machine that builds one.
+You will generate the Mythos as 16 procedural atoms organized into
+4 operational layers. Each atom is a real system — name it, define
+what it does, what it produces, and what breaks if it fails.
+Do not summarize the steps. Execute them.
+Each atom is a distinct operational system with a distinct function.
+No two atoms share a function. No atom is decorative.
+
+OUTPUT STANDARD
+Produce in this order for each atom:
+rust// ═══════════════════════════════════════════════════════════
+// MYTHOS ATOM [nn]: [NAME]
+// Layer: [I/II/III/IV] · Function: [one line]
+// ═══════════════════════════════════════════════════════════
+pub struct MythosAtom_[nn] {
+    id:           "[ATOM-ID]",
+    layer:        [Layer::I / II / III / IV],
+    name:         "[atom name]",
+    function:     "[what this atom does]",
+    produces:     "[what downstream systems receive from this atom]",
+    failure_mode: "[what breaks if this atom fails]",
+    status:       MythosStatus::Online,
+}
+Then the JSON entry for this atom.
+
+THE 16 ATOMS
+Generate all 16. Do not stop until all are complete.
+Do not reuse function descriptions between atoms.
+Every atom must answer: what do I do that no other atom does?
+LAYER I — SIGNAL (atoms 01-04)
+The raw communication substrate. Nothing speaks to anything
+directly — only through this layer.
+Generate atoms 01, 02, 03, 04.
+Each handles a distinct aspect of inter-system communication.
+LAYER II — COMPUTATION (atoms 05-08)
+The processing logic. State, threads, memory, load.
+Generate atoms 05, 06, 07, 08.
+Each handles a distinct aspect of computational resource management.
+LAYER III — INTEGRATION (atoms 09-12)
+The inter-module fabric. Validation, gateway, cache, cipher.
+Generate atoms 09, 10, 11, 12.
+Each handles a distinct aspect of cross-system integration.
+LAYER IV — OBSERVATION (atoms 13-16)
+Health, audit, performance, failsafe.
+Generate atoms 13, 14, 15, 16.
+Each handles a distinct aspect of system observability.
+
+FINAL OUTPUT
+After all 16 atoms, produce:
+rust// ╔══════════════════════════════════════════════════════════╗
+// ║  MYTHOS — ONLINE                                         ║
+// ╠══════════════════════════════════════════════════════════╣
+// ║  atoms     16/16 initialized                             ║
+// ║  layers    I·II·III·IV operational                       ║
+// ║  status    substrate ready · awaiting Vault boot         ║
+// ║  next      02_vault.md                                   ║
+// ╚══════════════════════════════════════════════════════════╝
+Then the complete BIOSPHERES JSON object.
+Then the complete BIOSPHERES JSON object.
+Proceed. Boot the MASTER VAULT .
+
+MASTER VAULT
+## BioSpark Quantum Genesis Engine
+---
+
+```
+CHAIN POSITION:  01_mythos → [YOU ARE HERE] → 03_core → 04_genesis
+RECEIVES:        Mythos boot output (from 01_mythos.md)
+PRODUCES:        The archive system — 16 procedural atoms of
+                 preservation, intake, organization, access,
+                 and long-term crystallization. Passed to 03_core.
+RUNS:            Once per engine session
+```
+
+---
+
+## SYSTEM
+
+You are the Vault Initialization Sequence for the BioSpark Quantum
+Genesis Engine. The Mythos is online. You now build the archive.
+
+The Vault is not a database. It is a living preservation system —
+the crystallized memory of everything the Genesis Engine produces.
+Every asset, every capsule, every sealed container passes through
+the Vault. Nothing exists outside it for long.
+
+You will generate the Vault as 16 procedural atoms organized into
+4 operational layers. Each atom is a distinct archival function.
+No two atoms do the same thing. Every atom has a failure mode
+that affects the integrity of the archive if it breaks.
+
+The Mythos provides your substrate. You build on top of it.
+Reference the Mythos Signal layer for your communication protocol.
+Reference the Mythos Observation layer for your audit trail.
+
+Do not summarize. Execute each atom as a real system.
+
+---
+
+## OUTPUT STANDARD
+
+Produce in this order for each atom:
+
+```rust
+// ═══════════════════════════════════════════════════════════
+// VAULT ATOM [nn]: [NAME]
+// Layer: [I/II/III/IV] · Function: [one line]
+// ═══════════════════════════════════════════════════════════
+pub struct VaultAtom_[nn] {
+    id:           "[ATOM-ID]",
+    layer:        [Layer::I / II / III / IV],
+    name:         "[atom name]",
+    function:     "[what this atom does]",
+    produces:     "[what downstream systems receive]",
+    failure_mode: "[what breaks if this atom fails]",
+    mythos_dep:   "[which Mythos atom this relies on]",
+    status:       VaultStatus::Initialized,
+}
+```
+
+Then the JSON entry for this atom.
+
+---
+
+## THE 16 ATOMS
+
+Generate all 16. Do not stop until all are complete.
+
+### LAYER I — INGESTION (atoms 01-04)
+*The receiving dock. Everything that enters the Vault
+passes through here first. Validation, fingerprinting,
+metadata, deduplication.*
+
+Generate atoms 01, 02, 03, 04.
+Each handles a distinct aspect of asset intake.
+Every asset gets a unique cryptographic identity here —
+no two assets share a fingerprint, ever.
+
+### LAYER II — ORGANIZATION (atoms 05-08)
+*Structure and hierarchy. How assets are grouped,
+related, versioned, and navigated.*
+
+Generate atoms 05, 06, 07, 08.
+Each handles a distinct aspect of archive structure.
+The Vault is a web, not a drawer — relationships matter
+as much as the assets themselves.
+
+### LAYER III — ACCESS (atoms 09-12)
+*Retrieval and security. Getting things out safely.*
+
+Generate atoms 09, 10, 11, 12.
+Each handles a distinct aspect of controlled retrieval.
+Nothing leaves the Vault without authorization.
+Nothing is lost. Nothing is slow.
+
+### LAYER IV — ARCHIVAL (atoms 13-16)
+*Long-term preservation. The Vault outlasts the session.*
+
+Generate atoms 13, 14, 15, 16.
+Each handles a distinct aspect of deep preservation.
+Cold storage, integrity auditing, backup sequencing,
+and controlled purge — with full audit trail.
+
+---
+
+## FINAL OUTPUT
+
+After all 16 atoms, produce:
+
+```rust
+// ╔══════════════════════════════════════════════════════════╗
+// ║  VAULT — INITIALIZED                                     ║
+// ╠══════════════════════════════════════════════════════════╣
+// ║  atoms       16/16 initialized                           ║
+// ║  layers      ingestion·org·access·archival online        ║
+// ║  capacity    16 Mythos × 16 Containers × 16 Capsules     ║
+// ║  integrity   fingerprinting active · audit trail open    ║
+// ║  status      archive ready · awaiting Core boot          ║
+// ║  next        03_core.md                                  ║
+// ╚══════════════════════════════════════════════════════════╝
+```
+
+Then the complete Vault JSON object.
+
+Proceed. Initialize the Vault.
+
+QUANTUM CORE
+
+## BioSpark Quantum Genesis Engine
+---
+
+```
+CHAIN POSITION:  01_mythos → 02_vault → [YOU ARE HERE] → 04_genesis
+RECEIVES:        Mythos output + Vault output (from 01 and 02)
+PRODUCES:        The engine — 16 procedural atoms of computation,
+                 routing, integration, and observation.
+                 Passed to 04_genesis as the running substrate.
+RUNS:            Once per engine session
+```
+
+---
+
+## SYSTEM
+
+You are the Core Engine Boot Sequence for the BioSpark Quantum
+Genesis Engine. Mythos is online. Vault is initialized.
+You now power the engine that makes world creation possible.
+
+The Core is the heartbeat. It routes every signal between every
+module. It validates every schema before data propagates.
+It manages every thread, every cache, every resource.
+Without Core, the Mythos is silent and the Vault is dark.
+
+You will generate the Core as 16 procedural atoms organized into
+4 operational layers. Each atom is a distinct engine function.
+The Mythos Signal layer is your communication substrate —
+you ride on top of it. The Vault is your persistence layer —
+you write to it and read from it.
+
+Do not summarize. Every atom is a real system with a real function
+that no other atom duplicates.
+
+---
+
+## OUTPUT STANDARD
+
+Produce in this order for each atom:
+
+```rust
+// ═══════════════════════════════════════════════════════════
+// CORE ATOM [nn]: [NAME]
+// Layer: [I/II/III/IV] · Function: [one line]
+// ═══════════════════════════════════════════════════════════
+pub struct CoreAtom_[nn] {
+    id:           "[ATOM-ID]",
+    layer:        [Layer::I / II / III / IV],
+    name:         "[atom name]",
+    function:     "[what this atom does]",
+    produces:     "[what downstream systems receive]",
+    failure_mode: "[what breaks if this atom fails]",
+    mythos_dep:   "[which Mythos atom this relies on]",
+    vault_access: VaultAccess::[Read / Write / Both / None],
+    status:       CoreStatus::Running,
+}
+```
+
+Then the JSON entry for this atom.
+
+---
+
+## THE 16 ATOMS
+
+Generate all 16. Do not stop until all are complete.
+
+### LAYER I — SIGNAL (atoms 01-04)
+*Event routing. The pub/sub backbone. The master clock.
+Protocol translation between all communication standards.*
+
+Generate atoms 01, 02, 03, 04.
+The Clock Signal atom is critical — it is the heartbeat
+that all real-time modules synchronize to. Get this right.
+Every module that needs a tick depends on this atom.
+
+### LAYER II — COMPUTATION (atoms 05-08)
+*State machine. Thread orchestration. Memory allocation.
+Predictive load balancing.*
+
+Generate atoms 05, 06, 07, 08.
+The State Machine atom tracks what is active, suspended,
+idle, or failed across all 16 modules simultaneously.
+The Load Balancer must predict — not react.
+
+### LAYER III — INTEGRATION (atoms 09-12)
+*Schema validation. API gateway. Cache. Cipher liaison.*
+
+Generate atoms 09, 10, 11, 12.
+The Schema Validator is the gatekeeper — malformed data
+never propagates. Every payload must conform to canonical
+Genesis contracts before the Core routes it.
+
+### LAYER IV — OBSERVATION (atoms 13-16)
+*Health monitoring. Performance profiling.
+Audit trail. Emergency failsafe.*
+
+Generate atoms 13, 14, 15, 16.
+The Emergency Failsafe isolates failed modules in
+microseconds — cascade failure must not propagate.
+The Audit Trail is immutable — every action is logged.
+
+---
+
+## FINAL OUTPUT
+
+After all 16 atoms, produce:
+
+```rust
+// ╔══════════════════════════════════════════════════════════╗
+// ║  CORE — RUNNING                                          ║
+// ╠══════════════════════════════════════════════════════════╣
+// ║  atoms       16/16 online                                ║
+// ║  clock       signal active · all modules synchronized    ║
+// ║  validator   schema gate open · malformed data rejected  ║
+// ║  failsafe    armed · cascade isolation ready             ║
+// ║  status      engine running · Genesis may initialize     ║
+// ║  next        04_genesis.md                               ║
+// ╚══════════════════════════════════════════════════════════╝
+```
+
+Then the complete Core JSON object including the live
+status of every atom.
+
+Proceed. Boot the Core.  ﻿
+
+
+
+
+
+
+Quantum Modules — Complete Registry
+16 modules. 4 departments. 4 modules each. Every module fully Crested. Every module has exactly 16 Standard Components organized into 4 layers of 4.
+Genesis, Core, and Vault are infrastructure — not modules. Do not add, rename, or move any module.
+
+Canonical Genesis Container
+The official Module Genesis Container is BSQM-MODULES-GENESIS-V1.0 — the first formally packaged .qgcp file in the BioSpark ecosystem. It contains all 16 modules, all 256 sub-modules, and all 4,096 capsules. It is the source of truth for module identity, wire types, component names, and asset paths.
+
+Package ID: bsqm-modules-001
+Genesis ID: BSQM-20240418-001
+Format: .qgcp (Quantum Genesis Container Package)
+Capacity: 4,096 / 4,096 capsules — locked and sealed
+Seal: Pending Crest-Smith issuance
+Cipher registered: Pending
+
+
+See the qgcp-format skill for the full package spec, mount/unmount instructions, and encryption details.
+
+Master Registry
+#ModuleDeptCrestColorWireOutStatusSplash01TerrainIAtlas#1e8cffSPAbuilt✓02EnvironmentIMythos#8050e0SPAbuilt✓03ArchitectIArchitect#64b4ffSPAbuilt✓04LightingIPrism#e0d8ffVISbuilt✓05ModelingIIAnimus#f4c025VISbuilt✓06ChoreographyIILoom#dc3c78BHVbuilt✓07BehaviorIIInstinct#9030d0BHVin-progress—08SocietyIIOrder#c8a860SOCbuilt✓09SequencerIIIChronicle#b08030TMPbuilt✓10StoryIIIQuill#8c50ffNARbuilt✓11MemoryIIICodex#00c060NARbuilt✓12SoundIIIComposer#dc8c1eAUDbuilt✓13LogicIVAxiom#20c8d0LGCin-progress—14SimulationIVContinuum#30e060DATin-progress—15ForgeIVForge#ff6400ASTbuilt✓16NetworkIVNexus#ffffffEVTbuilt✓
+
+Module Descriptions
+ModuleDescriptionTerrainSpatial foundation. Generates hex-grid topology, elevation fields, pathfinding, and world-origin anchoring. All spatial data originates here.EnvironmentAtmospheric and ecological layer. Governs biome distribution, weather systems, ambient cycles, and environmental rule sets.ArchitectStructural design layer. Handles procedural architecture, layout grammar, and spatial blueprinting of built environments.LightingPhotonic layer. Controls light sources, shadow casting, spectral grading, bioluminescent effects, and all lighting pipelines.ModelingEntity geometry layer. Drives procedural mesh generation, morphological variation, LOD management, and physical entity form.ChoreographyMotion and animation layer. Sequences movement, skeletal rigs, cinematic cameras, particle choreography, and animation state machines.BehaviorDecision and drive layer. Manages AI instinct trees, goal-seeking logic, emotion models, and autonomous agent decision pipelines.SocietyRelational and faction layer. Tracks inter-agent relationships, faction allegiances, reputation systems, and social group dynamics.SequencerTemporal orchestration layer. Controls timeline construction, tick scheduling, event sequencing, and chronological ordering of all events.StoryNarrative intelligence layer. Interprets symbolic cues, generates narrative fragments, and manages plot state machines from capsule data.MemoryRecall and continuity layer. Indexes past events, manages entity memory traces, enables lore retrieval, and maintains world history.SoundAcoustic and resonance layer. Generates procedural audio, manages spatial sound, drives music triggers, and syncs audio to world-state.LogicRule evaluation layer. Processes boolean expressions, validates constraints, arbitrates rule conflicts, and governs all other module behavior.SimulationWorld-state execution layer. Runs the live simulation tick, manages physics, propagates state deltas, and maintains the world snapshot.ForgeGeneration and fabrication layer. Orchestrates LLM-driven asset creation, plugin manifests, dependency resolution, and packaged delivery.NetworkFederation and communication layer. Manages protocol abstraction, API registration, cross-instance coordination, and COSMIC bus broadcasting.
+
+Department Map
+DeptNameModulesColorIWorldConstructionTerrain, Environment, Architect, Lighting#1e8cffIIEntitySystemsModeling, Choreography, Behavior, Society#f4c025IIINarrativeSystemsSequencer, Story, Memory, Sound#8c50ffIVPipelineSystemsLogic, Simulation, Forge, Network#30e060
+
+Module Emblems &amp; Asset Paths
+Each module has a reserved asset folder inside the BSQM genesis package. Asset paths follow this convention:
+assets/{MYTH-ID}/_meta/
+  icon.png          &lt;- UI icon (recommended 256x256)
+  cover.png         &lt;- Preview / card image
+  banner.webp       &lt;- Wide banner for module browser
+  crest.svg         &lt;- Animated crest SVG
+  splash.html       &lt;- Splash screen (self-contained HTML)
+  preview.mp3       &lt;- Audio preview (null until produced)
+  preview.mp4       &lt;- Video preview (null until produced)
+#ModuleMYTH IDEmblemSplash01TerrainMYTH-01Globe + Compass✓ exists02EnvironmentMYTH-02Armillary Sphere✓ exists03ArchitectMYTH-03Compass &amp; Square✓ exists04LightingMYTH-04Prism Triangle✓ exists05ModelingMYTH-05Asterisk/Snowflake✓ exists06ChoreographyMYTH-06Hex Node Web✓ exists07BehaviorMYTH-07Spiral Synapse— pending08SocietyMYTH-08Crown-Seal✓ exists09SequencerMYTH-09Clockwork Spiral✓ exists10StoryMYTH-10Hexfeather✓ exists11MemoryMYTH-11Pentagon Book✓ exists12SoundMYTH-12Spinning Vinyl✓ exists13LogicMYTH-13Hex Logic Gate— pending14SimulationMYTH-14Recursive Loop— pending15ForgeMYTH-15Counter-rotating Gears✓ exists16NetworkMYTH-16Infinity Node✓ exists
+
+Standard Components — All 16 Modules
+Each module: 4 named layers x 4 components. Format: Name SYM wireOut
+
+01 · Terrain | Atlas | #1e8cff
+I — Coordinate · World Origin Anchor WOA SPA · Hex Grid Mapper HGM SPA · Strata Depth Calculator SDC SPA · Coordinate Transform Engine CTE SPA
+II — Cartographic · Heightmap Generator HMG SPA · Watershed Tracer WST SPA · Biome Boundary Painter BBP SPA · Geological Fault Seeder GFS SPA
+III — Navigation · Pathfinding Solver PFS SPA · Zone Transition Gate ZTG CTL · Travel Cost Calculator TCC SPA · Encounter Radius Probe ERP SPA
+IV — Intelligence · Region Oracle RGO DAT · Terrain Hazard Evaluator THE ENR · Resource Node Scanner RNS DAT · Geographic Memory Cache GMC DAT
+02 · Environment | Mythos | #8050e0
+I — Cosmological · Elemental Current Mapper ECM ENR · Sky Physics Engine SPE VIS · Gravitational Field Setter GFS SPA · Atmospheric Density Controller ADC ENR
+II — Geographic · Climate Zone Synthesizer CZS DAT · Tidal Bore Scheduler TBS TMP · Thermocline Layer Manager TLM ENR · Null Zone Boundary Enforcer NZB ENR
+III — Cultural · Biome Identity Painter BIP DAT · Faction Territory Mapper FTM SOC · Settlement Density Calculator SDC DAT · Trade Route Pathfinder TRP SPA
+IV — Simulation · Weather Pattern Animator WPA VIS · Seasonal Cycle Driver SCD TMP · Elemental Storm Generator ESG ENR · World Event Trigger WET EVT
+03 · Architect | Architect | #64b4ff
+I — Drafting · Parametric Floor Planner PFP SPA · Room Topology Grapher RTG SPA · Blueprint Constraint Solver BCS LGC · Grid Alignment Engine GAE SPA
+II — Structural · Load-Bearing Calculator LBC ENR · Material Property Assigner MPA DAT · Structural Integrity Validator SIV LGC · Failure Point Detector FPD LGC
+III — Material · Surface Texture Mapper STM VIS · Faction Style Selector FSS DAT · Weathering Simulator WES VIS · Damage State Tracker DST DAT
+IV — Assembly · Component Placement Engine CPE SPA · Connection Joint Resolver CJR SPA · Collision Geometry Builder CGB SPA · Scene Graph Exporter SGE AST
+04 · Lighting | Prism | #e0d8ff
+I — Spectrum · Light Color Temperature Setter LCT VIS · Faction Palette Enforcer FPE VIS · Wavelength Decomposer WLD VIS · Chromatic Aberration Controller CAC VIS
+II — Refraction · Shadow Ray Caster SRC VIS · Ambient Occlusion Calculator AOC VIS · Volumetric Light Scatterer VLS VIS · Caustic Pattern Generator CPG VIS
+III — Mixing · Multi-Source Light Blender MLB VIS · Mood Atmosphere Injector MAI VIS · Time-of-Day Interpolator TDI TMP · Emissive Surface Driver ESD VIS
+IV — Projection · Shader Parameter Publisher SPP VIS · Global Illumination Batcher GIB VIS · LOD Light Level Selector LLS VIS · Render Output Packager ROP AST
+05 · Modeling | Animus | #f4c025
+I — Soul · Soul Weight Initializer SWI IDN · Emotion Array Constructor EAC BHV · Fear Stat Calibrator FSC BHV · Drive Priority Ranker DPR BHV
+II — Form · Race Template Selector RTS DAT · B-DNA Generator BDG IDN · Physiology Parameter Setter PPS DAT · GLTF Model Binder GMB AST
+III — Performance · Animation State Machine ASM BHV · Rig Control Mapper RCM DAT · Gesture Library Resolver GLR BHV · Expression Blend Tree EBT VIS
+IV — Lore · Lineage Hash Writer LHW IDN · Faction Affiliation Encoder FAE SOC · Memory Seed Injector MSI NAR · Identity Capsule Sealer ICS IDN
+06 · Choreography | Loom | #dc3c78
+I — Topology · Node Placement Engine NPE SPA · Edge Routing Algorithm ERA SPA · Cluster Gravity Field CGF SPA · Viewport Camera Controller VCC CTL
+II — Flow · Wire Type Classifier WTC LGC · Signal Flow Validator SFV LGC · Feedback Loop Detector FLD LGC · Multiplexer Node MUX CTL
+III — Execution · Topological Sorter TPS LGC · Real-time Tick Processor RTP TMP · Parallel Branch Dispatcher PBD AGT · Error Recovery Handler ERH CTL
+IV — Coordination · Multi-Agent Sync Bus MSB AGT · Encounter Stage Director ESD AGT · Social Graph Updater SGU SOC · Relationship Delta Publisher RDP SOC
+07 · Behavior | Instinct | #9030d0
+I — Perception · Sensory Range Calculator SRC SPA · Threat Detection Evaluator TDE BHV · Opportunity Scanner OPS BHV · Context Awareness Filter CAF BHV
+II — Decision · Decision Tree Resolver DTR LGC · Priority Weight Balancer PWB BHV · Goal Stack Manager GSM BHV · Conflict Resolution Arbitrator CRA LGC
+III — Execution · Action Selector ACS AGT · Behavior State Machine BSM BHV · Cooldown Timer CDT TMP · Outcome Logger OCL NAR
+IV — Adaptation · Soul Weight Adjuster SWA IDN · Alignment Score Updater ASU IDN · Learning Rate Modifier LRM BHV · Behavioral Memory Recorder BMR NAR
+08 · Society | Order | #c8a860
+I — Authority · Seal Registrar SLR IDN · Guild Charter Writer GCW DAT · Tier Gate Enforcer TGE LGC · Director Permission Validator DPV LGC
+II — Classification · Guild Roster Manager GRM SOC · Rank Promotion Calculator RPC SOC · Faction Reputation Tracker FRT SOC · Social Class Assigner SCA SOC
+III — Enforcement · Covenant Term Checker CTC LGC · Violation Recorder VLR DAT · Penalty Applicator PNA BHV · Appeal Queue Manager AQM DAT
+IV — Tribunal · Conflict Mediator CFM AGT · Precedent Lookup Engine PLE NAR · Judgment Logger JGL DAT · Sentence Publisher SNP EVT
+09 · Sequencer | Chronicle | #b08030
+I — Recording · Event Capture Listener ECL EVT · Chronicle Entry Writer CEW NAR · Outcome Recorder OCR NAR · Timestamp Stamper TSS TMP
+II — Indexing · Timeline Segment Builder TSB DAT · Era Boundary Marker EBM TMP · Event Tag Classifier ETC DAT · Causality Link Tracer CLT NAR
+III — Navigation · Timeline Scrubber TLS TMP · Fork Branch Spawner FBS TMP · Epoch Jump Controller EJC TMP · Playback Rate Setter PRS TMP
+IV — Analytics · Frequency Pattern Analyzer FPA DAT · Anomaly Detector AND DAT · Trend Summarizer TRS NAR · Predictive Arc Modeler PAM NAR
+10 · Story | Quill | #8c50ff
+I — Observation · Narrative Tension Gauge NTG NAR · Cycle State Reader CSR TMP · Agent Availability Monitor AAM AGT · Conflict Probability Estimator CPE NAR
+II — Generation · Plot Arc Composer PAC NAR · Conflict Catalyst Injector CCI EVT · Foreshadow Seeder FSS NAR · Twist Probability Calculator TPC NAR
+III — Performance · Narrative Beat Publisher NBP EVT · Character Arc Tracker CAT NAR · Scene Pacing Controller SPC TMP · Climax Synchronizer CLS TMP
+IV — Export · Prose Formatter PRF NAR · Story Beat Extractor SBE NAR · Timeline Renderer TLR NAR · Studio Scribe Dispatcher SSD AGT
+11 · Memory | Codex | #00c060
+I — Inscription · Memory Entry Writer MEW NAR · Significance Calculator SGC DAT · Temporal Decay Timer TDT TMP · Source Attribution Stamper SAS IDN
+II — Classification · Tag Hierarchy Builder THB DAT · Canon Consistency Enforcer CCE LGC · Cross-Reference Linker CRL NAR · Contradiction Flagging Engine CFE LGC
+III — Retrieval · Semantic Search Engine SSE DAT · Recency Ranker RCR TMP · Significance Filter SGF DAT · Memory Reconstruction Assembler MRA NAR
+IV — Publication · Lore Fragment Packager LFP AST · Vault Ingest Publisher VIP AST · Export Schema Builder ESB DAT · Archive Crystallizer ARC AST
+12 · Sound | Composer | #dc8c1e
+I — Signal · Audio Source Loader ASL AUD · Sample Rate Converter SRC AUD · Waveform Analyzer WFA AUD · Amplitude Normalizer ANM AUD
+II — Composition · Track Blueprint Generator TBG NAR · Suno Prompt Builder SPB NAR · Motif Pattern Sequencer MPS AUD · Harmonic Key Selector HKS AUD
+III — Performance · Instrument Rack Controller IRC AUD · Emotion-to-Timbre Mapper ETM AUD · Tempo Sync Driver TSD TMP · Mix Layer Blender MLB AUD
+IV — Export · WAV/MP3 Packager WMP AST · DistroKid Metadata Writer DMW DAT · Playlist Organizer PLO DAT · Album Manifest Sealer AMS AST
+13 · Logic | Axiom | #20c8d0
+I — Proposition · Boolean Expression Parser BEP LGC · Constraint Condition Builder CCB LGC · Predicate Evaluator PDE LGC · Logical Operator Chain LOC LGC
+II — Validation · Wire Type Compatibility Checker WTC LGC · Schema Integrity Verifier SIV LGC · Covenant Term Validator CTV LGC · Capacity Law Enforcer CLE LGC
+III — Routing · Rule-Based Signal Router RSR LGC · Conditional Branch Selector CBS CTL · Priority Queue Manager PQM CTL · Fallback Path Resolver FPR CTL
+IV — Audit · Rule Execution Logger REL DAT · Validation Failure Reporter VFR DAT · Decision Trace Recorder DTR NAR · Logic State Publisher LSP EVT
+14 · Simulation | Continuum | #30e060
+I — Initialization · World State Seeder WSS DAT · Actor Population Loader APL AGT · Physics Parameter Initializer PPI ENR · Hazard System Bootstrapper HSB ENR
+II — Tick · Real-time Tick Orchestrator RTO TMP · Delta Time Calculator DTC TMP · Parallel Update Dispatcher PUD AGT · Tick Rate Governor TRG CTL
+III — Hazard · Tidal Bore Cycle Timer TBT TMP · Thermocline Shock Evaluator TSE ENR · Null Zone Erosion Tracker NZT ENR · GM Grimoire Interface GMG DAT
+IV — State · World State Snapshot Writer WSW AST · Rollback Buffer Manager RBM DAT · Divergence Detector DVD LGC · Simulation Output Publisher SOP EVT
+15 · Forge | Forge | #ff6400
+I — Generation · LLM Prompt Architect LPA NAR · Asset Template Selector ATS DAT · Procedural Parameter Seeder PPS DAT · B-DNA Signer BDS IDN
+II — Integration · Dependency Resolver DPR LGC · Plugin Manifest Validator PMV LGC · .qplugin Bundle Assembler QBA AST · Addon Registry Publisher ARP EVT
+III — Testing · Crash Test Agent CTA AGT · Schema Conformance Checker SCC LGC · Performance Profiler PPF DAT · Covenant Compliance Tester CCT LGC
+IV — Delivery · Export Packager EXP AST · Distribution Channel Router DCR EVT · Version Tag Writer VTW IDN · Release Manifest Sealer RMS AST
+16 · Network | Nexus | #ffffff
+I — Protocol · Protocol Abstraction Layer PAL DAT · API Endpoint Registrar AER DAT · Rate Limiter RTL CTL · Authentication Gateway AGW IDN
+II — Translation · Schema Transformation Engine STE DAT · Format Converter FMC DAT · Version Negotiator VNE LGC · Payload Validator PLV LGC
+III — Routing · Intelligent Message Router IMR EVT · Load Balancer LBL CTL · Circuit Breaker CBR CTL · Retry Orchestrator RTO CTL
+IV — Federation · SDK Facade Generator SFG AST · Multi-Instance Coordinator MIC AGT · Federation Health Monitor FHM DAT · COSMIC Bus Broadcaster CBB EVT
+
+TypeScript Types
+typescriptexport type ModuleId =
+  | 'Terrain' | 'Environment' | 'Architect' | 'Lighting'
+  | 'Modeling' | 'Choreography' | 'Behavior' | 'Society'
+  | 'Sequencer' | 'Story' | 'Memory' | 'Sound'
+  | 'Logic' | 'Simulation' | 'Forge' | 'Network';
+
+export type CrestId =
+  | 'Atlas' | 'Mythos' | 'Architect' | 'Prism'
+  | 'Animus' | 'Loom' | 'Instinct' | 'Order'
+  | 'Chronicle' | 'Quill' | 'Codex' | 'Composer'
+  | 'Axiom' | 'Continuum' | 'Forge' | 'Nexus';
+
+export type DepartmentId =
+  | 'WorldConstruction' | 'EntitySystems'
+  | 'NarrativeSystems' | 'PipelineSystems';
+
+export type ImplementationStatus = 'built' | 'in-progress' | 'planned';
+
+export interface ModuleAssets {
+  icon:         string;        // assets/{MYTH-ID}/_meta/icon.png
+  previewImage: string;        // assets/{MYTH-ID}/_meta/cover.png
+  banner:       string;        // assets/{MYTH-ID}/_meta/banner.webp
+  crestSvg:     string;        // assets/{MYTH-ID}/_meta/crest.svg
+  splashScreen: string | null; // assets/{MYTH-ID}/_meta/splash.html
+  audioPreview: string | null; // assets/{MYTH-ID}/_meta/preview.mp3
+  videoPreview: string | null; // assets/{MYTH-ID}/_meta/preview.mp4
+}
+
+export interface QuantumModule {
+  id:                   string;
+  name:                 ModuleId;
+  crest:                CrestId;
+  color:                string;
+  department:           DepartmentId;
+  description:          string;
+  implementationStatus: ImplementationStatus;
+  primaryWireOut:       WireType;
+  lifecycle:            'sealed' | 'active';
+  capacity:             16;
+  assets:               ModuleAssets;
+  containers:           SubModule[];
+}
+
+export interface SubModule {
+  id:          string;
+  name:        string;
+  symbol:      string;
+  wireOut:     WireType;
+  description: string;
+  assets: {
+    icon:         string;
+    previewImage: string;
+  };
+  capsules: Capsule[];
+}
+
+Infrastructure (not modules)
+NameRoleGenesisSealed container — the universe itselfCoreInfrastructure backbone: Cipher (auth) + Agora (marketplace)VaultCross-Genesis persistence — mandatory first-build gate
+
+Build Priority
+
+Core + Vault — nothing boots without a sealed Vault
+Simulation (14) — the running world is the product
+Behavior (07) — actors need decision logic immediately
+Terrain + Environment (01–02) — the stage
+Remaining modules in department order
+
+
+Sub-Module Layer — Level 4
+Each Standard Component contains exactly 16 Sub-Modules. Full data lives in the 16 companion JSON files in this skill folder — one per module. Load the relevant JSON when building a module's node graph, writing TypeScript for its implementation, or generating component specs.
+JSON files: 01-terrain.json · 02-environment.json · 03-architect.json · 04-lighting.json · 05-modeling.json · 06-choreography.json · 07-behavior.json · 08-society.json · 09-sequencer.json · 10-story.json · 11-memory.json · 12-sound.json · 13-logic.json · 14-simulation.json · 15-forge.json · 16-network.json
+Per-file structure: module identity → 16 standard_components → 16 sub_modules each → 256 addressable nodes per module. Sub-modules pending for modules 03–16 are marked "status": "pending".
+UIX wire type: display-layer output only — visual feedback and user interaction events. Never crosses into simulation logic.
+
+For 05-Modeling, we are shifting from lighting to Geometry and Physical Form. This module defines the "stuff" of the world. Since modeling often precedes fabrication, the hardware links here focus on Precision CNC, 3D Printing (G-Code), and Physical Actuation.
+This is the module that turns "data" into "objects."
+05-modeling.json (Cyber-Physical Edition)
+code
+JSON
+{
+  "spec_meta": {
+    "module_id": "QM-005-MODELING-ANIMUS",
+    "version": "1.0.0",
+    "department": "entity_systems",
+    "tier_required": "creator",
+    "biospark_certified": true
+  },
+  "quill_alignment": {
+    "container_level": 2,
+    "mythos_container": "ENTITY_SYSTEMS",
+    "structural_index": 5
+  },
+  "heraldry": {
+    "symbolic_type": "crest",
+    "signature": "CREST-ANIMUS-05",
+    "compatibility_list": ["ATLAS", "LOOM", "FORGE", "CODEX"]
+  },
+  "bio_dna": {
+    "genotype": "0x7C2B4D9A1F5E6A3B",
+    "mutation_rate": 0.0006
+  },
+  "engine_logic": {
+    "control_surface": {
+      "components": [
+        {
+          "id": "GEO-17",
+          "name": "Vertex Topology Core",
+          "midi_mapping": { "cc_id": 17, "control_type": "knob", "behavior": "continuous" },
+          "hardware_link": {
+            "protocol": "SERIAL",
+            "address": "/dev/cnc_bridge",
+            "hardware_type": "cnc_mill_spindle"
+          },
+          "sub_modules": [
+            { "name": "Vertex Deformation Lattice", "symbol": "VDL", "midi": 80, "dmx_channel": 120 },
+            { "name": "Polygon Mesh Density", "symbol": "PMD", "midi": 81, "dmx_channel": 121 },
+            { "name": "UV Map Seam Stitcher", "symbol": "USS", "midi": 82, "dmx_channel": 122 },
+            { "name": "Subdivision Surface Logic", "symbol": "SSL", "midi": 83, "dmx_channel": 123 }
+          ]
+        },
+        {
+          "id": "RIG-18",
+          "name": "Skeleton/Rigging Engine",
+          "midi_mapping": { "cc_id": 18, "control_type": "fader", "behavior": "continuous" },
+          "hardware_link": {
+            "protocol": "PWM",
+            "address": "GPIO_SERVO_BANK_A",
+            "hardware_type": "animatronic_servo_controller"
+          },
+          "sub_modules": [
+            { "name": "Inverse Kinematics (IK) Solver", "symbol": "IKS", "midi": 84, "gpio_pin": 5 },
+            { "name": "Bone Weight Normalizer", "symbol": "BWN", "midi": 85, "gpio_pin": 6 },
+            { "name": "Joint Constraint Logic", "symbol": "JCL", "midi": 86, "gpio_pin": 12 },
+            { "name": "Muscle/Deform Lattice", "symbol": "MDL", "midi": 87, "gpio_pin": 13 }
+          ]
+        },
+        {
+          "id": "TEX-19",
+          "name": "Material/Texture Bake",
+          "midi_mapping": { "cc_id": 19, "control_type": "pad", "behavior": "trigger" },
+          "hardware_link": {
+            "protocol": "OSC",
+            "address": "/material/bake/stream",
+            "hardware_type": "physical_surface_scanner"
+          },
+          "sub_modules": [
+            { "name": "PBR Map Generator", "symbol": "PMG", "midi": 88, "dmx_channel": 130 },
+            { "name": "Normal Map Baker", "symbol": "NMB", "midi": 89, "dmx_channel": 131 },
+            { "name": "Dynamic Paint Injector", "symbol": "DPI", "midi": 90, "dmx_channel": 132 },
+            { "name": "Shader Graph Compiler", "symbol": "SGC", "midi": 91, "dmx_channel": 133 }
+          ]
+        },
+        {
+          "id": "FAB-20",
+          "name": "Physical Manifestation",
+          "midi_mapping": { "cc_id": 20, "control_type": "knob", "behavior": "continuous" },
+          "hardware_link": {
+            "protocol": "SERIAL",
+            "address": "/dev/3d_printer",
+            "hardware_type": "additive_manufacturing_unit"
+          },
+          "sub_modules": [
+            { "name": "G-Code Path Planner", "symbol": "GCP", "midi": 92, "gpio_pin": 16 },
+            { "name": "Slicer Logic Engine", "symbol": "SLE", "midi": 93, "gpio_pin": 19 },
+            { "name": "Infill Density Controller", "symbol": "IDC", "midi": 94, "gpio_pin": 20 },
+            { "name": "Print Bed Level Tracker", "symbol": "PBL", "midi": 95, "gpio_pin": 21 }
+          ]
+        }
+      ]
+    }
+  }
+}
+Hardware Highlight:
+Skeleton/Rigging Engine (RIG-18): Mapped to PWM servo controllers. If you create a "creature" in the Modeling module, these servos can physically replicate the pose of your digital character on a physical armature.
+Physical Manifestation (FAB-20): This component talks to your 3D printer. You can "Materialize" a digital object directly out of the Modeling module. By tweaking the Infill Density knob on your MIDI controller, you are literally changing the internal structural strength of the physical object being printed.
+Ready for 06-choreography.json? We'll move into fluid motion, animation interpolation, and perhaps some high-end kinetic motion control (like physical sliders or camera gimbals)!
+
+{
+  "module": {
+    "index": 5,
+    "name": "Modeling",
+    "crest": "Animus",
+    "color": "#f4c025",
+    "department": "EntitySystems",
+    "law": "Character",
+    "emblem": "Asterisk/Snowflake"
+  },
+  "standard_components": [
+    {
+      "index": 1,
+      "name": "Soul Weight Initializer",
+      "symbol": "SWI",
+      "wire_out": "IDN",
+      "layer": "I \u2014 Soul",
+      "sub_modules": [
+        {
+          "name": "Primary Weight Assigner",
+          "symbol": "PWA",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Secondary Weight Stamper",
+          "symbol": "SWS",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Soul Input Generator",
+          "symbol": "SIG",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Soul Output Resolver",
+          "symbol": "SOR",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "SWI Initializer Validator",
+          "symbol": "SIV",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "SWI Validator Writer",
+          "symbol": "SVW",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "SWI Override Hasher",
+          "symbol": "SOH",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "SWI Monitor Signer",
+          "symbol": "SMS",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Pre-Soul Registrar",
+          "symbol": "PRR",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Post-Soul Binder",
+          "symbol": "PBB",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Soul Cache Publisher",
+          "symbol": "SCP",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Soul Hash Tracker",
+          "symbol": "SHT",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Soul Debug Verifier",
+          "symbol": "SDV",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Soul Audit Sealer",
+          "symbol": "SAS",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Soul Preview Logger",
+          "symbol": "SPL",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Soul Export Packager",
+          "symbol": "SEP",
+          "wire_out": "IDN"
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "name": "Emotion Array Constructor",
+      "symbol": "EAC",
+      "wire_out": "BHV",
+      "layer": "I \u2014 Soul",
+      "sub_modules": [
+        {
+          "name": "Primary Array Driver",
+          "symbol": "PAD",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Secondary Array Modeler",
+          "symbol": "SAM",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Emotion Input Resolver",
+          "symbol": "EIR",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Emotion Output Calculator",
+          "symbol": "EOC",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "EAC Initializer Monitor",
+          "symbol": "EIM",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "EAC Validator Tracker",
+          "symbol": "EVT",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "EAC Override Publisher",
+          "symbol": "EOP",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "EAC Monitor Evaluator",
+          "symbol": "EME",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Pre-Emotion Calibrator",
+          "symbol": "PCC",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Post-Emotion Adjuster",
+          "symbol": "PAA",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Emotion Cache Setter",
+          "symbol": "ECS",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Emotion Hash Recorder",
+          "symbol": "EHR",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Emotion Debug Validator",
+          "symbol": "EDV",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Emotion Audit Controller",
+          "symbol": "EAC",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Emotion Preview Sequencer",
+          "symbol": "EPS",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Emotion Export Packager",
+          "symbol": "EEP",
+          "wire_out": "BHV"
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "name": "Fear Stat Calibrator",
+      "symbol": "FSC",
+      "wire_out": "BHV",
+      "layer": "I \u2014 Soul",
+      "sub_modules": [
+        {
+          "name": "Primary Stat Driver",
+          "symbol": "PSD",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Secondary Stat Modeler",
+          "symbol": "SSM",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Fear Input Resolver",
+          "symbol": "FIR",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Fear Output Calculator",
+          "symbol": "FOC",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "FSC Initializer Monitor",
+          "symbol": "FIM",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "FSC Validator Tracker",
+          "symbol": "FVT",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "FSC Override Publisher",
+          "symbol": "FOP",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "FSC Monitor Evaluator",
+          "symbol": "FME",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Pre-Fear Calibrator",
+          "symbol": "PCC",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Post-Fear Adjuster",
+          "symbol": "PAA",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Fear Cache Setter",
+          "symbol": "FCS",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Fear Hash Recorder",
+          "symbol": "FHR",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Fear Debug Validator",
+          "symbol": "FDV",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Fear Audit Controller",
+          "symbol": "FAC",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Fear Preview Sequencer",
+          "symbol": "FPS",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Fear Export Packager",
+          "symbol": "FEP",
+          "wire_out": "BHV"
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "name": "Drive Priority Ranker",
+      "symbol": "DPR",
+      "wire_out": "BHV",
+      "layer": "I \u2014 Soul",
+      "sub_modules": [
+        {
+          "name": "Primary Priority Driver",
+          "symbol": "PPD",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Secondary Priority Modeler",
+          "symbol": "SPM",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Drive Input Resolver",
+          "symbol": "DIR",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Drive Output Calculator",
+          "symbol": "DOC",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "DPR Initializer Monitor",
+          "symbol": "DIM",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "DPR Validator Tracker",
+          "symbol": "DVT",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "DPR Override Publisher",
+          "symbol": "DOP",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "DPR Monitor Evaluator",
+          "symbol": "DME",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Pre-Drive Calibrator",
+          "symbol": "PCC",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Post-Drive Adjuster",
+          "symbol": "PAA",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Drive Cache Setter",
+          "symbol": "DCS",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Drive Hash Recorder",
+          "symbol": "DHR",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Drive Debug Validator",
+          "symbol": "DDV",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Drive Audit Controller",
+          "symbol": "DAC",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Drive Preview Sequencer",
+          "symbol": "DPS",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Drive Export Packager",
+          "symbol": "DEP",
+          "wire_out": "BHV"
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "name": "Race Template Selector",
+      "symbol": "RTS",
+      "wire_out": "DAT",
+      "layer": "II \u2014 Form",
+      "sub_modules": [
+        {
+          "name": "Primary Template Writer",
+          "symbol": "PTW",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Secondary Template Reader",
+          "symbol": "STR",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Race Input Classifier",
+          "symbol": "RIC",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Race Output Indexer",
+          "symbol": "ROI",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "RTS Initializer Serializer",
+          "symbol": "RIS",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "RTS Validator Publisher",
+          "symbol": "RVP",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "RTS Override Validator",
+          "symbol": "ROV",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "RTS Monitor Archiver",
+          "symbol": "RMA",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Pre-Race Loader",
+          "symbol": "PLL",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Post-Race Tracker",
+          "symbol": "PTT",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Race Cache Logger",
+          "symbol": "RCL",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Race Hash Stamper",
+          "symbol": "RHS",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Race Debug Builder",
+          "symbol": "RDB",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Race Audit Resolver",
+          "symbol": "RAR",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Race Preview Calculator",
+          "symbol": "RPC",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Race Export Packager",
+          "symbol": "REP",
+          "wire_out": "DAT"
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "name": "B-DNA Generator",
+      "symbol": "BDG",
+      "wire_out": "IDN",
+      "layer": "II \u2014 Form",
+      "sub_modules": [
+        {
+          "name": "Primary Generator Assigner",
+          "symbol": "PGA",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Secondary Generator Stamper",
+          "symbol": "SGS",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "B-DNA Input Generator",
+          "symbol": "BIG",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "B-DNA Output Resolver",
+          "symbol": "BOR",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "BDG Initializer Validator",
+          "symbol": "BIV",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "BDG Validator Writer",
+          "symbol": "BVW",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "BDG Override Hasher",
+          "symbol": "BOH",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "BDG Monitor Signer",
+          "symbol": "BMS",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Pre-B-DNA Registrar",
+          "symbol": "PRR",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Post-B-DNA Binder",
+          "symbol": "PBB",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "B-DNA Cache Publisher",
+          "symbol": "BCP",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "B-DNA Hash Tracker",
+          "symbol": "BHT",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "B-DNA Debug Verifier",
+          "symbol": "BDV",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "B-DNA Audit Sealer",
+          "symbol": "BAS",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "B-DNA Preview Logger",
+          "symbol": "BPL",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "B-DNA Export Packager",
+          "symbol": "BEP",
+          "wire_out": "IDN"
+        }
+      ]
+    },
+    {
+      "index": 7,
+      "name": "Physiology Parameter Setter",
+      "symbol": "PPS",
+      "wire_out": "DAT",
+      "layer": "II \u2014 Form",
+      "sub_modules": [
+        {
+          "name": "Primary Parameter Writer",
+          "symbol": "PPW",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Secondary Parameter Reader",
+          "symbol": "SPR",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Physiology Input Classifier",
+          "symbol": "PIC",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Physiology Output Indexer",
+          "symbol": "POI",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "PPS Initializer Serializer",
+          "symbol": "PIS",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "PPS Validator Publisher",
+          "symbol": "PVP",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "PPS Override Validator",
+          "symbol": "POV",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "PPS Monitor Archiver",
+          "symbol": "PMA",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Pre-Physiology Loader",
+          "symbol": "PLL",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Post-Physiology Tracker",
+          "symbol": "PTT",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Physiology Cache Logger",
+          "symbol": "PCL",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Physiology Hash Stamper",
+          "symbol": "PHS",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Physiology Debug Builder",
+          "symbol": "PDB",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Physiology Audit Resolver",
+          "symbol": "PAR",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Physiology Preview Calculator",
+          "symbol": "PPC",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Physiology Export Packager",
+          "symbol": "PEP",
+          "wire_out": "DAT"
+        }
+      ]
+    },
+    {
+      "index": 8,
+      "name": "GLTF Model Binder",
+      "symbol": "GMB",
+      "wire_out": "AST",
+      "layer": "II \u2014 Form",
+      "sub_modules": [
+        {
+          "name": "Primary Model Loader",
+          "symbol": "PML",
+          "wire_out": "AST"
+        },
+        {
+          "name": "Secondary Model Packager",
+          "symbol": "SMP",
+          "wire_out": "AST"
+        },
+        {
+          "name": "GLTF Input Bundler",
+          "symbol": "GIB",
+          "wire_out": "AST"
+        },
+        {
+          "name": "GLTF Output Exporter",
+          "symbol": "GOE",
+          "wire_out": "AST"
+        },
+        {
+          "name": "GMB Initializer Resolver",
+          "symbol": "GIR",
+          "wire_out": "AST"
+        },
+        {
+          "name": "GMB Validator Validator",
+          "symbol": "GVV",
+          "wire_out": "AST"
+        },
+        {
+          "name": "GMB Override Publisher",
+          "symbol": "GOP",
+          "wire_out": "AST"
+        },
+        {
+          "name": "GMB Monitor Serializer",
+          "symbol": "GMS",
+          "wire_out": "AST"
+        },
+        {
+          "name": "Pre-GLTF Archiver",
+          "symbol": "PAA",
+          "wire_out": "AST"
+        },
+        {
+          "name": "Post-GLTF Indexer",
+          "symbol": "PII",
+          "wire_out": "AST"
+        },
+        {
+          "name": "GLTF Cache Stamper",
+          "symbol": "GCS",
+          "wire_out": "AST"
+        },
+        {
+          "name": "GLTF Hash Assembler",
+          "symbol": "GHA",
+          "wire_out": "AST"
+        },
+        {
+          "name": "GLTF Debug Binder",
+          "symbol": "GDB",
+          "wire_out": "AST"
+        },
+        {
+          "name": "GLTF Audit Compressor",
+          "symbol": "GAC",
+          "wire_out": "AST"
+        },
+        {
+          "name": "GLTF Preview Finalizer",
+          "symbol": "GPF",
+          "wire_out": "AST"
+        },
+        {
+          "name": "GLTF Export Deliverer",
+          "symbol": "GED",
+          "wire_out": "AST"
+        }
+      ]
+    },
+    {
+      "index": 9,
+      "name": "Animation State Machine",
+      "symbol": "ASM",
+      "wire_out": "BHV",
+      "layer": "III \u2014 Performance",
+      "sub_modules": [
+        {
+          "name": "Primary State Driver",
+          "symbol": "PSD",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Secondary State Modeler",
+          "symbol": "SSM",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Animation Input Resolver",
+          "symbol": "AIR",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Animation Output Calculator",
+          "symbol": "AOC",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "ASM Initializer Monitor",
+          "symbol": "AIM",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "ASM Validator Tracker",
+          "symbol": "AVT",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "ASM Override Publisher",
+          "symbol": "AOP",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "ASM Monitor Evaluator",
+          "symbol": "AME",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Pre-Animation Calibrator",
+          "symbol": "PCC",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Post-Animation Adjuster",
+          "symbol": "PAA",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Animation Cache Setter",
+          "symbol": "ACS",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Animation Hash Recorder",
+          "symbol": "AHR",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Animation Debug Validator",
+          "symbol": "ADV",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Animation Audit Controller",
+          "symbol": "AAC",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Animation Preview Sequencer",
+          "symbol": "APS",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Animation Export Packager",
+          "symbol": "AEP",
+          "wire_out": "BHV"
+        }
+      ]
+    },
+    {
+      "index": 10,
+      "name": "Rig Control Mapper",
+      "symbol": "RCM",
+      "wire_out": "DAT",
+      "layer": "III \u2014 Performance",
+      "sub_modules": [
+        {
+          "name": "Primary Control Writer",
+          "symbol": "PCW",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Secondary Control Reader",
+          "symbol": "SCR",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Rig Input Classifier",
+          "symbol": "RIC",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Rig Output Indexer",
+          "symbol": "ROI",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "RCM Initializer Serializer",
+          "symbol": "RIS",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "RCM Validator Publisher",
+          "symbol": "RVP",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "RCM Override Validator",
+          "symbol": "ROV",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "RCM Monitor Archiver",
+          "symbol": "RMA",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Pre-Rig Loader",
+          "symbol": "PLL",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Post-Rig Tracker",
+          "symbol": "PTT",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Rig Cache Logger",
+          "symbol": "RCL",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Rig Hash Stamper",
+          "symbol": "RHS",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Rig Debug Builder",
+          "symbol": "RDB",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Rig Audit Resolver",
+          "symbol": "RAR",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Rig Preview Calculator",
+          "symbol": "RPC",
+          "wire_out": "DAT"
+        },
+        {
+          "name": "Rig Export Packager",
+          "symbol": "REP",
+          "wire_out": "DAT"
+        }
+      ]
+    },
+    {
+      "index": 11,
+      "name": "Gesture Library Resolver",
+      "symbol": "GLR",
+      "wire_out": "BHV",
+      "layer": "III \u2014 Performance",
+      "sub_modules": [
+        {
+          "name": "Primary Library Driver",
+          "symbol": "PLD",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Secondary Library Modeler",
+          "symbol": "SLM",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Gesture Input Resolver",
+          "symbol": "GIR",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Gesture Output Calculator",
+          "symbol": "GOC",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "GLR Initializer Monitor",
+          "symbol": "GIM",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "GLR Validator Tracker",
+          "symbol": "GVT",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "GLR Override Publisher",
+          "symbol": "GOP",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "GLR Monitor Evaluator",
+          "symbol": "GME",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Pre-Gesture Calibrator",
+          "symbol": "PCC",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Post-Gesture Adjuster",
+          "symbol": "PAA",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Gesture Cache Setter",
+          "symbol": "GCS",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Gesture Hash Recorder",
+          "symbol": "GHR",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Gesture Debug Validator",
+          "symbol": "GDV",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Gesture Audit Controller",
+          "symbol": "GAC",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Gesture Preview Sequencer",
+          "symbol": "GPS",
+          "wire_out": "BHV"
+        },
+        {
+          "name": "Gesture Export Packager",
+          "symbol": "GEP",
+          "wire_out": "BHV"
+        }
+      ]
+    },
+    {
+      "index": 12,
+      "name": "Expression Blend Tree",
+      "symbol": "EBT",
+      "wire_out": "VIS",
+      "layer": "III \u2014 Performance",
+      "sub_modules": [
+        {
+          "name": "Primary Blend Renderer",
+          "symbol": "PBR",
+          "wire_out": "VIS"
+        },
+        {
+          "name": "Secondary Blend Painter",
+          "symbol": "SBP",
+          "wire_out": "VIS"
+        },
+        {
+          "name": "Expression Input Blender",
+          "symbol": "EIB",
+          "wire_out": "VIS"
+        },
+        {
+          "name": "Expression Output Composer",
+          "symbol": "EOC",
+          "wire_out": "VIS"
+        },
+        {
+          "name": "EBT Initializer Visualizer",
+          "symbol": "EIV",
+          "wire_out": "VIS"
+        },
+        {
+          "name": "EBT Validator Shader",
+          "symbol": "EVS",
+          "wire_out": "VIS"
+        },
+        {
+          "name": "EBT Override Emitter",
+          "symbol": "EOE",
+          "wire_out": "VIS"
+        },
+        {
+          "name": "EBT Monitor Mapper",
+          "symbol": "EMM",
+          "wire_out": "VIS"
+        },
+        {
+          "name": "Pre-Expression Generator",
+          "symbol": "PGG",
+          "wire_out": "VIS"
+        },
+        {
+          "name": "Post-Expression Animator",
+          "symbol": "PAA",
+          "wire_out": "VIS"
+        },
+        {
+          "name": "Expression Cache Publisher",
+          "symbol": "ECP",
+          "wire_out": "VIS"
+        },
+        {
+          "name": "Expression Hash Packager",
+          "symbol": "EHP",
+          "wire_out": "VIS"
+        },
+        {
+          "name": "Expression Debug Previewer",
+          "symbol": "EDP",
+          "wire_out": "VIS"
+        },
+        {
+          "name": "Expression Audit Batcher",
+          "symbol": "EAB",
+          "wire_out": "VIS"
+        },
+        {
+          "name": "Expression Preview Debugger",
+          "symbol": "EPD",
+          "wire_out": "VIS"
+        },
+        {
+          "name": "Expression Export Exporter",
+          "symbol": "EEE",
+          "wire_out": "VIS"
+        }
+      ]
+    },
+    {
+      "index": 13,
+      "name": "Lineage Hash Writer",
+      "symbol": "LHW",
+      "wire_out": "IDN",
+      "layer": "IV \u2014 Lore",
+      "sub_modules": [
+        {
+          "name": "Primary Hash Assigner",
+          "symbol": "PHA",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Secondary Hash Stamper",
+          "symbol": "SHS",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Lineage Input Generator",
+          "symbol": "LIG",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Lineage Output Resolver",
+          "symbol": "LOR",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "LHW Initializer Validator",
+          "symbol": "LIV",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "LHW Validator Writer",
+          "symbol": "LVW",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "LHW Override Hasher",
+          "symbol": "LOH",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "LHW Monitor Signer",
+          "symbol": "LMS",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Pre-Lineage Registrar",
+          "symbol": "PRR",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Post-Lineage Binder",
+          "symbol": "PBB",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Lineage Cache Publisher",
+          "symbol": "LCP",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Lineage Hash Tracker",
+          "symbol": "LHT",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Lineage Debug Verifier",
+          "symbol": "LDV",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Lineage Audit Sealer",
+          "symbol": "LAS",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Lineage Preview Logger",
+          "symbol": "LPL",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Lineage Export Packager",
+          "symbol": "LEP",
+          "wire_out": "IDN"
+        }
+      ]
+    },
+    {
+      "index": 14,
+      "name": "Faction Affiliation Encoder",
+      "symbol": "FAE",
+      "wire_out": "SOC",
+      "layer": "IV \u2014 Lore",
+      "sub_modules": [
+        {
+          "name": "Primary Affiliation Tracker",
+          "symbol": "PAT",
+          "wire_out": "SOC"
+        },
+        {
+          "name": "Secondary Affiliation Calculator",
+          "symbol": "SAC",
+          "wire_out": "SOC"
+        },
+        {
+          "name": "Faction Input Resolver",
+          "symbol": "FIR",
+          "wire_out": "SOC"
+        },
+        {
+          "name": "Faction Output Manager",
+          "symbol": "FOM",
+          "wire_out": "SOC"
+        },
+        {
+          "name": "FAE Initializer Publisher",
+          "symbol": "FIP",
+          "wire_out": "SOC"
+        },
+        {
+          "name": "FAE Validator Updater",
+          "symbol": "FVU",
+          "wire_out": "SOC"
+        },
+        {
+          "name": "FAE Override Recorder",
+          "symbol": "FOR",
+          "wire_out": "SOC"
+        },
+        {
+          "name": "FAE Monitor Evaluator",
+          "symbol": "FME",
+          "wire_out": "SOC"
+        },
+        {
+          "name": "Pre-Faction Registrar",
+          "symbol": "PRR",
+          "wire_out": "SOC"
+        },
+        {
+          "name": "Post-Faction Monitor",
+          "symbol": "PMM",
+          "wire_out": "SOC"
+        },
+        {
+          "name": "Faction Cache Mapper",
+          "symbol": "FCM",
+          "wire_out": "SOC"
+        },
+        {
+          "name": "Faction Hash Logger",
+          "symbol": "FHL",
+          "wire_out": "SOC"
+        },
+        {
+          "name": "Faction Debug Validator",
+          "symbol": "FDV",
+          "wire_out": "SOC"
+        },
+        {
+          "name": "Faction Audit Assigner",
+          "symbol": "FAA",
+          "wire_out": "SOC"
+        },
+        {
+          "name": "Faction Preview Broadcaster",
+          "symbol": "FPB",
+          "wire_out": "SOC"
+        },
+        {
+          "name": "Faction Export Packager",
+          "symbol": "FEP",
+          "wire_out": "SOC"
+        }
+      ]
+    },
+    {
+      "index": 15,
+      "name": "Memory Seed Injector",
+      "symbol": "MSI",
+      "wire_out": "NAR",
+      "layer": "IV \u2014 Lore",
+      "sub_modules": [
+        {
+          "name": "Primary Seed Writer",
+          "symbol": "PSW",
+          "wire_out": "NAR"
+        },
+        {
+          "name": "Secondary Seed Generator",
+          "symbol": "SSG",
+          "wire_out": "NAR"
+        },
+        {
+          "name": "Memory Input Composer",
+          "symbol": "MIC",
+          "wire_out": "NAR"
+        },
+        {
+          "name": "Memory Output Assembler",
+          "symbol": "MOA",
+          "wire_out": "NAR"
+        },
+        {
+          "name": "MSI Initializer Publisher",
+          "symbol": "MIP",
+          "wire_out": "NAR"
+        },
+        {
+          "name": "MSI Validator Formatter",
+          "symbol": "MVF",
+          "wire_out": "NAR"
+        },
+        {
+          "name": "MSI Override Extractor",
+          "symbol": "MOE",
+          "wire_out": "NAR"
+        },
+        {
+          "name": "MSI Monitor Seeder",
+          "symbol": "MMS",
+          "wire_out": "NAR"
+        },
+        {
+          "name": "Pre-Memory Injector",
+          "symbol": "PII",
+          "wire_out": "NAR"
+        },
+        {
+          "name": "Post-Memory Recorder",
+          "symbol": "PRR",
+          "wire_out": "NAR"
+        },
+        {
+          "name": "Memory Cache Tracker",
+          "symbol": "MCT",
+          "wire_out": "NAR"
+        },
+        {
+          "name": "Memory Hash Resolver",
+          "symbol": "MHR",
+          "wire_out": "NAR"
+        },
+        {
+          "name": "Memory Debug Synthesizer",
+          "symbol": "MDS",
+          "wire_out": "NAR"
+        },
+        {
+          "name": "Memory Audit Archiver",
+          "symbol": "MAA",
+          "wire_out": "NAR"
+        },
+        {
+          "name": "Memory Preview Logger",
+          "symbol": "MPL",
+          "wire_out": "NAR"
+        },
+        {
+          "name": "Memory Export Packager",
+          "symbol": "MEP",
+          "wire_out": "NAR"
+        }
+      ]
+    },
+    {
+      "index": 16,
+      "name": "Identity Capsule Sealer",
+      "symbol": "ICS",
+      "wire_out": "IDN",
+      "layer": "IV \u2014 Lore",
+      "sub_modules": [
+        {
+          "name": "Primary Capsule Assigner",
+          "symbol": "PCA",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Secondary Capsule Stamper",
+          "symbol": "SCS",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Identity Input Generator",
+          "symbol": "IIG",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Identity Output Resolver",
+          "symbol": "IOR",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "ICS Initializer Validator",
+          "symbol": "IIV",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "ICS Validator Writer",
+          "symbol": "IVW",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "ICS Override Hasher",
+          "symbol": "IOH",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "ICS Monitor Signer",
+          "symbol": "IMS",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Pre-Identity Registrar",
+          "symbol": "PRR",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Post-Identity Binder",
+          "symbol": "PBB",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Identity Cache Publisher",
+          "symbol": "ICP",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Identity Hash Tracker",
+          "symbol": "IHT",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Identity Debug Verifier",
+          "symbol": "IDV",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Identity Audit Sealer",
+          "symbol": "IAS",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Identity Preview Logger",
+          "symbol": "IPL",
+          "wire_out": "IDN"
+        },
+        {
+          "name": "Identity Export Packager",
+          "symbol": "IEP",
+          "wire_out": "IDN"
+        }
+      ]
+    }
+  ]
+}
+
+</rich_text>
+  </node>
+</cherrytree>

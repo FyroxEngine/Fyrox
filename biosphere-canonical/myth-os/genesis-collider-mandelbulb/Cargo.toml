@@ -1,0 +1,32 @@
+[package]
+name        = "mandelbulb"
+version     = "0.1.0"
+edition     = "2021"
+description = "Genesis Collider — ATOM-driven fractal world mesh generator"
+
+# Layer 2 module crate.
+# Zero renderer deps. Runs headless. Communicates via WirePackets only.
+
+[[bin]]
+name = "mandelbulb"
+path = "main.rs"
+
+[lib]
+name = "mandelbulb"
+path = "src/lib.rs"
+
+[dependencies]
+myth-wire  = { path = "../crates/myth-wire" }
+serde      = { version = "1", features = ["derive"] }
+serde_json = "1"
+glam       = { version = "0.27", features = ["serde"] }
+rayon      = "1"
+ndarray    = "0.15"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+tempfile  = "3"
+
+# PROHIBITED: bevy, egui, wgpu, any GPU API, any async runtime.
+# Run after every change: cargo tree -p mandelbulb | grep bevy
+# If bevy appears — revert immediately.

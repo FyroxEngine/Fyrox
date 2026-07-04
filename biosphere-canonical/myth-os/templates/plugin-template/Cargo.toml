@@ -1,0 +1,10 @@
+[package]
+name    = "plugin-template"
+version = "0.1.0"
+edition = "2021"
+description = "Copy this to start a new myth-os plugin. Rename the package, rename TemplatePlugin, implement the trait methods."
+
+[dependencies]
+myth-plugin = { path = "../../crates/myth-plugin" }
+myth-vault  = { path = "../../crates/myth-vault" }
+myth-wire   = { path = "../../crates/myth-wire" }

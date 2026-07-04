@@ -1,0 +1,10 @@
+[package]
+name        = "myth-daw"
+version     = "0.1.0"
+edition     = "2021"
+description = "Quantum Quill DAW — headless transport, session, arrangement, mixer, and automation data model. Zero renderer deps."
+
+[dependencies]
+myth-wire = { path = "../myth-wire" }
+serde     = { workspace = true }
+uuid      = { workspace = true }

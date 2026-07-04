@@ -1,0 +1,11 @@
+{
+  "world_id": "test-world",
+  "vertex_count": 35441,
+  "triangle_count": 125149,
+  "material_zones": 7,
+  "smooth_passes": 3,
+  "islands_removed": true,
+  "extraction_mode": "PropagatingContours",
+  "iso_threshold": 0.01,
+  "field_resolution": 170
+}

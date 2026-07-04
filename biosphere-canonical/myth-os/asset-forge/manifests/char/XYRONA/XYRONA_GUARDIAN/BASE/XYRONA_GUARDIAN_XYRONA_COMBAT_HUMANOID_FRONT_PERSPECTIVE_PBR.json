@@ -1,0 +1,51 @@
+{
+  "id": "8da00c80-fe63-4d02-a5a0-6e2063638ce7",
+  "name": "Xyrona Guardian Xyrona Combat Humanoid Front Perspective Pbr",
+  "stem": "XYRONA_GUARDIAN_XYRONA_COMBAT_HUMANOID_FRONT_PERSPECTIVE_PBR",
+  "created_at": "2026-05-26T20:26:55.985099400+00:00",
+  "domain": "char",
+  "zone": "XYRONA",
+  "function": null,
+  "variant": null,
+  "scale": null,
+  "letter": null,
+  "sockets": {
+    "north": null,
+    "south": null,
+    "east": null,
+    "west": null,
+    "up": null,
+    "down": null
+  },
+  "render": {
+    "background": "TRANSPARENT",
+    "direction": "FRONT",
+    "angle": "PERSPECTIVE",
+    "shader": "PBR"
+  },
+  "character": {
+    "pose": "COMBAT",
+    "rig": "HUMANOID",
+    "faction": "XYRONA",
+    "role": "GUARD",
+    "lod": "HIGH"
+  },
+  "quantum_module": "Animus",
+  "resonance_hz": 528.0,
+  "tags": [
+    "character",
+    "boss",
+    "xyrona"
+  ],
+  "grid": [
+    1,
+    1
+  ],
+  "prompt": "[XYRONA_GUARDIAN][XYRONA][TRANSPARENT][FRONT][PERSPECTIVE][PBR][COMBAT][HUMANOID][XYRONA][GUARD][LOD:HIGH][QM:Animus][RES:528Hz][character][boss][xyrona]",
+  "files": {
+    "gltf": "char/XYRONA/XYRONA_GUARDIAN/BASE/XYRONA_GUARDIAN_XYRONA_COMBAT_HUMANOID_FRONT_PERSPECTIVE_PBR.gltf",
+    "sprite": "char/XYRONA/XYRONA_GUARDIAN/BASE/XYRONA_GUARDIAN_XYRONA_COMBAT_HUMANOID_FRONT_PERSPECTIVE_PBR.png",
+    "normal": "char/XYRONA/XYRONA_GUARDIAN/BASE/XYRONA_GUARDIAN_XYRONA_COMBAT_HUMANOID_FRONT_PERSPECTIVE_PBR_NRM.png",
+    "thumbnail": "char/XYRONA/XYRONA_GUARDIAN/BASE/XYRONA_GUARDIAN_XYRONA_COMBAT_HUMANOID_FRONT_PERSPECTIVE_PBR_THUMB.png"
+  }
+}

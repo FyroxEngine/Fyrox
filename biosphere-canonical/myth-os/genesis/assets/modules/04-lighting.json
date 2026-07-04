@@ -1,0 +1,67 @@
+{
+  "id": "MYTH-04",
+  "name": "Lighting",
+  "crest": "Prism",
+  "color": "#e0d8ff",
+  "department": "Structure",
+  "description": "Dynamic illumination architecture bridging Bevy's light entities to physical DMX fixtures. Prism governs the quality of light in every scene — the angle of the sun, the warmth of a lantern, the cold flash of a storm.",
+  "implementation_status": "built",
+  "primary_wire_out": "VIS",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "assets/MYTH-04/_meta/icon.png",
+    "preview_image": "assets/MYTH-04/_meta/cover.png",
+    "banner": "assets/MYTH-04/_meta/banner.webp",
+    "crest_svg": "assets/MYTH-04/_meta/crest.svg",
+    "splash_screen": "assets/MYTH-04/_meta/splash.html",
+    "audio_preview": "assets/MYTH-04/_meta/preview.mp3",
+    "video_preview": "assets/MYTH-04/_meta/preview.mp4"
+  },
+  "containers": [
+    {
+      "id": "MYTH-04-STD-01",
+      "name": "Sun Director",
+      "symbol": "SD",
+      "wire_out": "VIS",
+      "description": "Directional sun light with time-of-day arc and shadow cascade management.",
+      "assets": { "icon": "assets/MYTH-04/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    },
+    {
+      "id": "MYTH-04-STD-02",
+      "name": "DMX Bridge",
+      "symbol": "DX",
+      "wire_out": "VIS",
+      "description": "Converts simulation lighting state to DMX512 channel frames for physical fixtures.",
+      "assets": { "icon": "assets/MYTH-04/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    }
+  ],
+  "traktor_map": [
+    {
+      "channel": 1,
+      "control_type": "knob",
+      "midi_cc": 22,
+      "parameter": "Illuminance",
+      "scale_min": 0.0,
+      "scale_max": 100000.0
+    },
+    {
+      "channel": 1,
+      "control_type": "knob",
+      "midi_cc": 23,
+      "parameter": "Color Temperature",
+      "scale_min": 2700.0,
+      "scale_max": 10000.0
+    },
+    {
+      "channel": 1,
+      "control_type": "knob",
+      "midi_cc": 13,
+      "parameter": "Shadow Softness",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    }
+  ]
+}

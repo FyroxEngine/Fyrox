@@ -1,0 +1,154 @@
+/* Quill OS UI kit specifics */
+@import url('./colors_and_type.css');
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; min-height: 100vh; }
+body {
+  background: var(--void);
+  background-image: var(--cosmos);
+  background-attachment: fixed;
+  color: var(--fg-1);
+  font-family: var(--font-body);
+  overflow-x: hidden;
+}
+
+/* Corner circuit-marks — BioSpark signature */
+.corner-marks { position: relative; }
+.corner-marks::before, .corner-marks::after {
+  content: ''; position: absolute; width: 12px; height: 12px; pointer-events: none;
+}
+.corner-marks::before { top: 4px; left: 4px;
+  border-top: 1.5px solid rgba(251,191,36,0.55);
+  border-left: 1.5px solid rgba(251,191,36,0.55); }
+.corner-marks::after  { bottom: 4px; right: 4px;
+  border-bottom: 1.5px solid rgba(251,191,36,0.55);
+  border-right: 1.5px solid rgba(251,191,36,0.55); }
+
+.corner-marks-q::before, .corner-marks-q::after { border-color: rgba(0,229,255,0.55) !important; }
+
+/* Nav */
+.kit-nav {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(8,14,30,0.94);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(251,191,36,0.18);
+  padding: 14px 32px;
+  display: flex; align-items: center; gap: 24px;
+}
+.kit-nav .brand { display: flex; align-items: center; gap: 12px; }
+.kit-nav .wordmark {
+  font-family: var(--font-display); font-weight: 700;
+  font-size: 14px; letter-spacing: 0.22em; color: var(--fg-1);
+}
+.kit-nav .sub {
+  font-family: var(--font-code); font-size: 9px;
+  letter-spacing: 0.3em; color: var(--gold); opacity: 0.7;
+}
+.kit-nav .tabs { display: flex; gap: 2px; margin-left: 32px; flex: 1; }
+.kit-nav .tab {
+  font-family: var(--font-header); font-size: 11px;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  padding: 8px 16px; color: var(--fg-3); cursor: pointer;
+  border: 1px solid transparent; border-radius: 2px;
+  transition: all 200ms var(--ease-out);
+  background: transparent;
+}
+.kit-nav .tab:hover { color: var(--quantum); }
+.kit-nav .tab.active {
+  color: var(--gold); border-color: rgba(251,191,36,0.4);
+  background: rgba(251,191,36,0.05);
+  box-shadow: 0 0 12px rgba(251,191,36,0.15), inset 0 0 10px rgba(251,191,36,0.04);
+}
+.kit-nav .meta { display: flex; gap: 12px; align-items: center; }
+.kit-nav .chip {
+  font-family: var(--font-code); font-size: 9px; letter-spacing: 0.18em;
+  padding: 4px 10px; border-radius: 2px; border: 1px solid;
+}
+
+/* Page wrap */
+.page { max-width: 1440px; margin: 0 auto; padding: 36px 32px 80px; }
+
+/* Section header */
+.section-eyebrow {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 8px;
+}
+.section-eyebrow .line { flex: 1; height: 1px; background: linear-gradient(90deg, rgba(251,191,36,0.3), transparent); }
+.section-eyebrow .tag {
+  font-family: var(--font-code); font-size: 10px; letter-spacing: 0.3em;
+  color: var(--gold); text-transform: uppercase;
+}
+.section-title {
+  font-family: var(--font-display); font-weight: 700;
+  font-size: 32px; letter-spacing: 0.08em; margin: 0 0 6px;
+  color: var(--fg-1);
+  text-shadow: 0 0 28px rgba(251,191,36,0.15);
+}
+.section-motto {
+  font-family: var(--font-script); font-style: italic;
+  font-size: 15px; color: var(--fg-3); margin: 0 0 32px;
+}
+
+/* Cards */
+.card {
+  background: linear-gradient(135deg, rgba(8,20,60,0.55), rgba(4,10,30,0.7));
+  border: 1px solid var(--border);
+  border-top-color: rgba(200,220,255,0.1);
+  border-radius: 8px;
+  box-shadow: var(--shadow-card);
+  padding: 24px;
+  position: relative;
+  transition: all 260ms var(--ease-out);
+}
+.card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-gold);
+  box-shadow: var(--shadow-deep), var(--shadow-glow-g);
+}
+
+/* Grid helpers */
+.g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.g4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.g2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+
+/* Checker asset bg */
+.checker {
+  background-image: var(--checker);
+  background-size: var(--checker-size);
+  background-position: var(--checker-pos);
+}
+
+/* Animations */
+@keyframes spin-slow { to { transform: rotate(360deg); } }
+@keyframes pulse-ring {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.08; transform: scale(1.18); }
+}
+@keyframes drift {
+  0%, 100% { transform: translate(0,0); }
+  50% { transform: translate(3px, -3px); }
+}
+@keyframes scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(300%); }
+}
+@keyframes led-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.spin-slow { animation: spin-slow 18s linear infinite; transform-origin: center; }
+.pulse-ring { animation: pulse-ring 3s ease-in-out infinite; transform-origin: center; }
+.drift { animation: drift 10s ease-in-out infinite; }
+
+/* Lit border-bottom for tab/panel dividers */
+.hairline { height: 1px; background: linear-gradient(90deg, transparent, rgba(251,191,36,0.25), transparent); }
+
+/* Scribe log tone */
+.scribe {
+  font-family: var(--font-code); font-size: 11px;
+  color: var(--fg-2); line-height: 1.7;
+}
+.scribe .ts { color: var(--fg-3); }
+.scribe .q  { color: var(--quantum); }
+.scribe .b  { color: var(--bio); }
+.scribe .m  { color: var(--mythos); }
+.scribe .g  { color: var(--gold); }

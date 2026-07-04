@@ -1,0 +1,15 @@
+[package]
+name        = "myth-vault"
+version     = "0.1.0"
+edition     = "2021"
+description = "Quantum Vault — deterministic content-addressable storage for the BioSpark ecosystem."
+
+[dependencies]
+myth-wire  = { path = "../myth-wire" }
+blake3     = { workspace = true }
+memmap2    = { workspace = true }
+serde      = { workspace = true }
+serde_json = { workspace = true }
+chrono     = { workspace = true }
+thiserror  = { workspace = true }
+tracing    = { workspace = true }

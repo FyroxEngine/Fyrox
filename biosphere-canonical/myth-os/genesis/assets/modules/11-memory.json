@@ -1,0 +1,67 @@
+{
+  "id": "MYTH-11",
+  "name": "Memory",
+  "crest": "Codex",
+  "color": "#00c060",
+  "department": "Atmosphere",
+  "description": "Persistent narrative memory store for Quill actors. Codex records significant events, relationship shifts, and trauma imprints — feeding back into behavior, dialogue, and the living history of the world.",
+  "implementation_status": "built",
+  "primary_wire_out": "NAR",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "assets/MYTH-11/_meta/icon.png",
+    "preview_image": "assets/MYTH-11/_meta/cover.png",
+    "banner": "assets/MYTH-11/_meta/banner.webp",
+    "crest_svg": "assets/MYTH-11/_meta/crest.svg",
+    "splash_screen": "assets/MYTH-11/_meta/splash.html",
+    "audio_preview": "assets/MYTH-11/_meta/preview.mp3",
+    "video_preview": "assets/MYTH-11/_meta/preview.mp4"
+  },
+  "containers": [
+    {
+      "id": "MYTH-11-STD-01",
+      "name": "Event Recorder",
+      "symbol": "ER",
+      "wire_out": "NAR",
+      "description": "Captures simulation events above a significance threshold and writes them to actor memory banks.",
+      "assets": { "icon": "assets/MYTH-11/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    },
+    {
+      "id": "MYTH-11-STD-02",
+      "name": "Recall Engine",
+      "symbol": "RE",
+      "wire_out": "NAR",
+      "description": "Retrieves relevant memories by context hash and applies decay curves over simulation time.",
+      "assets": { "icon": "assets/MYTH-11/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    }
+  ],
+  "traktor_map": [
+    {
+      "channel": 3,
+      "control_type": "knob",
+      "midi_cc": 20,
+      "parameter": "Retention",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    },
+    {
+      "channel": 3,
+      "control_type": "knob",
+      "midi_cc": 21,
+      "parameter": "Trauma Weight",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    },
+    {
+      "channel": 3,
+      "control_type": "knob",
+      "midi_cc": 14,
+      "parameter": "Recall Depth",
+      "scale_min": 1.0,
+      "scale_max": 100.0
+    }
+  ]
+}

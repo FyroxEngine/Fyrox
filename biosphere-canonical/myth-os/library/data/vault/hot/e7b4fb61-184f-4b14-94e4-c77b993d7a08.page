@@ -1,0 +1,24 @@
+{
+  "id": "e7b4fb61-184f-4b14-94e4-c77b993d7a08",
+  "name": "Master Stage",
+  "description": "The Theatre. All layers composited. All channels live.",
+  "color_rgba": [
+    224,
+    216,
+    255,
+    255
+  ],
+  "status": "Active",
+  "vault_type": "Stage",
+  "is_protected": false,
+  "plugins": [
+    "theatre.stage",
+    "theatre.mixer",
+    "genesis.forge",
+    "loom.board"
+  ],
+  "bdna_signature": "bbd75bf70888ffbeb7af3c55a1373a8fc5ee2c5d286c128ae13a01faaaaee647",
+  "active_plugin": "theatre.mixer",
+  "resonance_hz": 528.0,
+  "integrity_hash": "ed4cd19cc6c0e68d0081444fe6d525e2dff69283cef1ca98c25a31508e5c4ee1"
+}

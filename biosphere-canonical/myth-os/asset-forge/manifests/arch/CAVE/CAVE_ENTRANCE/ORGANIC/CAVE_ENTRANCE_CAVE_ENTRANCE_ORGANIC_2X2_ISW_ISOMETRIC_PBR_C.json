@@ -1,0 +1,45 @@
+{
+  "id": "8213fe32-1337-4d33-a91e-d4a4c43a7344",
+  "name": "Cave Entrance Cave Entrance Organic 2x2 Isw Isometric Pbr C",
+  "stem": "CAVE_ENTRANCE_CAVE_ENTRANCE_ORGANIC_2X2_ISW_ISOMETRIC_PBR_C",
+  "created_at": "2026-05-26T20:26:55.972704300+00:00",
+  "domain": "arch",
+  "zone": "CAVE",
+  "function": "ENTRANCE",
+  "variant": "ORGANIC",
+  "scale": "2X2",
+  "letter": "C",
+  "sockets": {
+    "north": "PASSAGE_MD",
+    "south": "CLOSED",
+    "east": "CAVE_WALL",
+    "west": "CAVE_WALL",
+    "up": "CAVE_CEILING",
+    "down": "CAVE_FLOOR"
+  },
+  "render": {
+    "background": "TRANSPARENT",
+    "direction": "ISW",
+    "angle": "ISOMETRIC",
+    "shader": "PBR"
+  },
+  "character": null,
+  "quantum_module": "Forge",
+  "resonance_hz": 174.6,
+  "tags": [
+    "tileable",
+    "entrance",
+    "cave"
+  ],
+  "grid": [
+    2,
+    2
+  ],
+  "prompt": "[CAVE_ENTRANCE][CAVE][ENTRANCE][ORGANIC][2X2][TRANSPARENT][ISW][ISOMETRIC][PBR][QM:Forge][RES:174.6Hz][tileable][entrance][cave]",
+  "files": {
+    "gltf": "arch/CAVE/CAVE_ENTRANCE/ORGANIC/CAVE_ENTRANCE_CAVE_ENTRANCE_ORGANIC_2X2_ISW_ISOMETRIC_PBR_C.gltf",
+    "sprite": "arch/CAVE/CAVE_ENTRANCE/ORGANIC/CAVE_ENTRANCE_CAVE_ENTRANCE_ORGANIC_2X2_ISW_ISOMETRIC_PBR_C.png",
+    "normal": "arch/CAVE/CAVE_ENTRANCE/ORGANIC/CAVE_ENTRANCE_CAVE_ENTRANCE_ORGANIC_2X2_ISW_ISOMETRIC_PBR_C_NRM.png",
+    "thumbnail": "arch/CAVE/CAVE_ENTRANCE/ORGANIC/CAVE_ENTRANCE_CAVE_ENTRANCE_ORGANIC_2X2_ISW_ISOMETRIC_PBR_C_THUMB.png"
+  }
+}

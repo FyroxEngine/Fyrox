@@ -1,0 +1,9 @@
+{
+  "id": "d36a7c0f-d70f-4ec9-a388-2186d5c9b388",
+  "name": "P5 Wave Gradient",
+  "layer_type": "P5",
+  "source": "Inline",
+  "code": "function setup() { createCanvas(640, 360); }\nfunction draw() {\n  background(5, 8, 20, 20);\n  noFill();\n  for (let i = 0; i < 8; i++) {\n    let r = map(sin(frameCount * 0.02 + i), -1, 1, 40, 180);\n    stroke(60 + i * 20, 20, 200 - i * 20, 160);\n    strokeWeight(1.5);\n    beginShape();\n    for (let x = 0; x <= width; x += 8) {\n      let y = height / 2 + sin((x * 0.015) + frameCount * 0.03 + i * 0.8) * r;\n      vertex(x, y);\n    }\n    endShape();\n  }\n}",
+  "tags": [],
+  "created_at": 1780006016404
+}

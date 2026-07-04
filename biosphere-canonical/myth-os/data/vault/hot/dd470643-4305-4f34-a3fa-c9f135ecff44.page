@@ -1,0 +1,25 @@
+{
+  "id": "dd470643-4305-4f34-a3fa-c9f135ecff44",
+  "name": "Quantum Core",
+  "description": "Pure coherence engine. Energy seeking escape.",
+  "color_rgba": [
+    0,
+    200,
+    180,
+    255
+  ],
+  "status": "Active",
+  "vault_type": "ThreeD",
+  "is_protected": false,
+  "plugins": [
+    "forge.blueprints",
+    "atlas.space",
+    "architect.structure",
+    "chronicle.log"
+  ],
+  "bdna_signature": "5b9b708a1f3f45494c5c734ca90076c14953eb9ba71105f0b0d83c35b6f48d24",
+  "active_plugin": null,
+  "resonance_hz": 432.0,
+  "integrity_hash": "b6625a0118e9df377810a6c44b18c1257c061c28c476f3fb4517084092d2db94",
+  "layout_blueprint": "Fullscreen"
+}

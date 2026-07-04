@@ -1,0 +1,40 @@
+{
+  "id": "GEN-07",
+  "name": "Behavior",
+  "crest": "◈",
+  "color": "#9030d0",
+  "department": "Entities",
+  "description": "High-level behaviour tree evaluator — goals, plans, reactive layers. Reads from Instinct drives and Social bond graph.",
+  "implementation_status": "in-progress",
+  "primary_wire_out": "BHV",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "",
+    "preview_image": "",
+    "banner": "",
+    "crest_svg": "",
+    "splash_screen": null,
+    "audio_preview": null,
+    "video_preview": null
+  },
+  "containers": [],
+  "traktor_map": [
+    {
+      "channel": 2,
+      "control_type": "fader",
+      "midi_cc": 28,
+      "parameter": "aggression_bias",
+      "scale_min": 0,
+      "scale_max": 1
+    },
+    {
+      "channel": 2,
+      "control_type": "fader",
+      "midi_cc": 29,
+      "parameter": "curiosity_bias",
+      "scale_min": 0,
+      "scale_max": 1
+    }
+  ]
+}

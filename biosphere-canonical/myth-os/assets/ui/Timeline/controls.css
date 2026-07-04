@@ -1,0 +1,485 @@
+/* =====================================================
+   CONTROLS — CSS for knobs, faders, jacks, switches, pads
+   ===================================================== */
+
+/* ---------- KNOB ---------- */
+.kb-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.kb {
+  position: relative;
+  border-radius: 50%;
+  cursor: ns-resize;
+  user-select: none;
+  display: flex; align-items: center; justify-content: center;
+  --kb-accent: var(--signal-cool);
+  --kb-glow: var(--glow-cool);
+}
+
+.kb-cap {
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, #2a2f3a 0%, #1a1d24 40%, #0e1117 80%, #060810 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 -2px 4px rgba(0,0,0,0.6),
+    0 1px 2px rgba(0,0,0,0.6),
+    0 4px 8px rgba(0,0,0,0.5);
+  transition: transform 60ms linear;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding-top: 4px;
+}
+.kb-cap::before {
+  /* subtle highlight reflection */
+  content: "";
+  position: absolute;
+  top: 8%; left: 18%;
+  width: 50%; height: 30%;
+  background: radial-gradient(ellipse, rgba(255,255,255,0.10), transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.kb-indicator {
+  width: 2px;
+  height: 28%;
+  margin-top: 6%;
+  background: var(--kb-accent);
+  border-radius: 2px;
+  box-shadow: 0 0 6px var(--kb-accent), 0 0 12px var(--kb-accent);
+}
+.kb-pip {
+  width: 6px; height: 6px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: var(--kb-accent);
+  box-shadow: 0 0 6px var(--kb-accent), 0 0 14px var(--kb-accent);
+}
+
+/* arc ring (SVG) */
+.kb-arc {
+  position: absolute; inset: 0;
+  pointer-events: none;
+}
+
+/* dotted ring outside */
+.kb-dotted-ring {
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: 
+    repeating-conic-gradient(from -135deg,
+      var(--kb-accent) 0deg, var(--kb-accent) 1.5deg,
+      transparent 1.5deg, transparent 7deg);
+  -webkit-mask: radial-gradient(circle, transparent 60%, black 62%, black 70%, transparent 72%);
+          mask: radial-gradient(circle, transparent 60%, black 62%, black 70%, transparent 72%);
+  opacity: 0.85;
+  filter: drop-shadow(0 0 3px var(--kb-accent));
+}
+
+/* tick row */
+.kb-ticks {
+  position: absolute; inset: 0;
+  pointer-events: none;
+}
+.kb-tick {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 1.5px; height: 6px;
+  margin-left: -0.75px;
+  transform-origin: 0 0;
+  border-radius: 1px;
+  background: rgba(255,255,255,0.08);
+}
+
+/* center dot */
+.kb-center-dot {
+  position: absolute;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--kb-accent);
+  box-shadow: 0 0 8px var(--kb-accent);
+  pointer-events: none;
+}
+
+/* knurled ring (forge) */
+.kb-knurl-ring {
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background:
+    repeating-conic-gradient(from 0deg,
+      #3a4050 0deg, #1a1d24 1.5deg, #3a4050 3deg);
+  -webkit-mask: radial-gradient(circle, transparent 78%, black 80%, black 96%, transparent 98%);
+          mask: radial-gradient(circle, transparent 78%, black 80%, black 96%, transparent 98%);
+}
+
+.kb-label {
+  margin-top: 4px;
+  text-align: center;
+}
+.kb-value {
+  font-size: 10px;
+  text-align: center;
+  opacity: 0.85;
+}
+
+/* ---------- FADER ---------- */
+.fader {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  --fader-accent: var(--signal-cool);
+}
+.fader-label { text-align: center; }
+.fader-body {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+.fader-scale {
+  position: absolute;
+  height: 100%;
+  width: 4px;
+  right: -10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.fader-tick {
+  width: 4px; height: 1px;
+  background: rgba(255,255,255,0.15);
+}
+.fader-tick-major { width: 6px; background: rgba(255,255,255,0.3); }
+
+.fader-track {
+  width: 8px;
+  height: 100%;
+  background:
+    linear-gradient(180deg, #050810 0%, #0a0d14 100%);
+  border-radius: 4px;
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,0.6),
+    inset 0 1px 4px rgba(0,0,0,0.9);
+  position: relative;
+  cursor: ns-resize;
+}
+.fader-fill {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: linear-gradient(0deg,
+    var(--fader-accent),
+    color-mix(in srgb, var(--fader-accent) 60%, transparent));
+  border-radius: 4px;
+  box-shadow:
+    0 0 8px var(--fader-accent),
+    inset 0 0 4px rgba(255,255,255,0.2);
+}
+.fader-cap {
+  position: absolute;
+  left: -7px;
+  width: 22px;
+  height: 16px;
+  background:
+    linear-gradient(180deg, #2a2f3a 0%, #14181f 50%, #0a0c12 100%);
+  border-radius: 3px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.15),
+    inset 0 -1px 0 rgba(0,0,0,0.6),
+    0 2px 4px rgba(0,0,0,0.7),
+    0 0 0 1px rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+}
+.fader-cap-line {
+  width: 14px; height: 2px;
+  background: var(--fader-accent);
+  box-shadow: 0 0 4px var(--fader-accent);
+  border-radius: 1px;
+}
+
+/* horizontal variant */
+.fader-horizontal .fader-body { transform: rotate(-90deg); transform-origin: center; }
+
+/* ---------- JACK ---------- */
+.jack-wrap { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; }
+.jack {
+  position: relative;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  cursor: pointer;
+  --jack-accent: var(--signal-cool);
+}
+.jack-rim {
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, #3a4050 0%, #1a1d24 60%, #0a0c10 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.1),
+    inset 0 -1px 1px rgba(0,0,0,0.6),
+    0 1px 2px rgba(0,0,0,0.6);
+}
+.jack-hole {
+  position: absolute; inset: 5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, #000 0%, #050810 60%, #0a0c12 100%);
+  box-shadow:
+    inset 0 2px 3px rgba(0,0,0,0.95),
+    inset 0 0 0 1px rgba(0,0,0,0.8);
+}
+.jack-active .jack-hole {
+  background: radial-gradient(circle at 50% 50%, var(--jack-accent) 0%, color-mix(in srgb, var(--jack-accent) 40%, #000) 50%, #050810 100%);
+}
+.jack-glow {
+  position: absolute; inset: -4px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--jack-accent) 0%, transparent 70%);
+  opacity: 0.5;
+  pointer-events: none;
+  animation: pulse-glow 1.6s ease-in-out infinite;
+}
+
+/* ---------- SWITCH ---------- */
+.sw {
+  position: relative;
+  width: 24px; height: 56px;
+  --sw-accent: var(--signal-cool);
+}
+.sw-track {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(180deg, #050810 0%, #0a0d14 100%);
+  border-radius: 4px;
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,0.6),
+    inset 0 1px 4px rgba(0,0,0,0.9);
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 6px 0;
+  align-items: center;
+}
+.sw-pos {
+  width: 4px; height: 4px; border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+}
+.sw-pos.active {
+  background: var(--sw-accent);
+  box-shadow: 0 0 4px var(--sw-accent);
+}
+.sw-thumb {
+  position: absolute;
+  left: 1px; top: 1px;
+  width: 22px; height: 22px;
+  background:
+    linear-gradient(180deg, #3a4050 0%, #1a1d24 50%, #0e1117 100%);
+  border-radius: 3px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.15),
+    inset 0 -1px 0 rgba(0,0,0,0.6),
+    0 2px 4px rgba(0,0,0,0.7);
+  transition: transform 200ms var(--ease-snap);
+}
+
+/* ---------- PAD / BUTTON ---------- */
+.pad {
+  position: relative;
+  background:
+    linear-gradient(180deg, #1a1d24 0%, #0e1117 100%);
+  border: none;
+  border-radius: 6px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    inset 0 -1px 0 rgba(0,0,0,0.6),
+    inset 0 0 0 1px rgba(0,0,0,0.4),
+    0 2px 4px rgba(0,0,0,0.5);
+  cursor: pointer;
+  --pad-accent: var(--signal-cool);
+  color: var(--ink-mid);
+  font-family: var(--font-engrave);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  transition: all 80ms var(--ease-snap);
+}
+.pad:hover { background: linear-gradient(180deg, #1f242e 0%, #14181f 100%); }
+.pad-lit {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--pad-accent) 40%, #1a1d24) 0%, color-mix(in srgb, var(--pad-accent) 20%, #0e1117) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.15),
+    inset 0 0 12px var(--pad-accent),
+    0 0 12px var(--pad-accent),
+    0 2px 4px rgba(0,0,0,0.5);
+  color: white;
+}
+
+/* GATE BUTTON */
+.gatebtn {
+  position: relative;
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px;
+  background: linear-gradient(180deg, #1a1d24 0%, #0e1117 100%);
+  border: 1px solid rgba(0,0,0,0.6);
+  border-radius: 4px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 2px 4px rgba(0,0,0,0.5);
+  cursor: pointer;
+  --gate-accent: var(--signal-life);
+  color: var(--ink-mid);
+}
+.gatebtn-led {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.6);
+}
+.gatebtn.lit .gatebtn-led {
+  background: var(--gate-accent);
+  box-shadow: 0 0 6px var(--gate-accent), 0 0 12px var(--gate-accent);
+}
+
+/* ---------- READOUT ---------- */
+.ro-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  --ro-accent: var(--signal-cool);
+}
+.ro-label { color: var(--ink-dim); }
+.ro-screen {
+  position: relative;
+  height: 22px;
+  background:
+    linear-gradient(180deg, #050810 0%, #03050a 100%);
+  border-radius: 3px;
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,0.7),
+    inset 0 2px 4px rgba(0,0,0,0.95);
+  padding: 0 6px;
+  display: flex;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  overflow: hidden;
+}
+.ro-bg-segments {
+  position: absolute; inset: 0;
+  display: flex; align-items: center;
+  padding: 0 6px;
+  color: rgba(255,255,255,0.04);
+  font-family: var(--font-mono);
+  letter-spacing: 0.1em;
+  pointer-events: none;
+}
+.ro-value {
+  position: relative; z-index: 1;
+  width: 100%;
+  color: var(--ro-accent);
+  text-shadow: 0 0 6px var(--ro-accent);
+  letter-spacing: 0.1em;
+}
+
+/* ---------- LED ---------- */
+.led {
+  display: inline-block;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.6);
+  --led-accent: var(--signal-life);
+}
+.led.on {
+  background: var(--led-accent);
+  box-shadow:
+    0 0 4px var(--led-accent),
+    0 0 8px var(--led-accent),
+    inset 0 0 2px rgba(255,255,255,0.6);
+}
+
+/* ---------- STEP ROW ---------- */
+.step-row {
+  display: flex; gap: 3px;
+  --step-accent: var(--signal-cool);
+}
+.step {
+  width: 22px; height: 22px;
+  background: linear-gradient(180deg, #14181f 0%, #0a0c10 100%);
+  border: 1px solid rgba(0,0,0,0.6);
+  border-radius: 3px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    inset 0 -1px 0 rgba(0,0,0,0.4);
+  cursor: pointer;
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+.step-led {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.04);
+}
+.step.on .step-led {
+  background: var(--step-accent);
+  box-shadow: 0 0 6px var(--step-accent), 0 0 12px var(--step-accent);
+}
+.step.current {
+  border-color: var(--step-accent);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    0 0 6px color-mix(in srgb, var(--step-accent) 40%, transparent);
+}
+
+/* ---------- XY PAD ---------- */
+.xy-wrap { display: inline-flex; flex-direction: column; gap: 6px; }
+.xy-label { text-align: center; }
+.xy-pad {
+  position: relative;
+  cursor: crosshair;
+  --xy-accent: var(--signal-myth);
+}
+.xy-grid {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(0deg, transparent 24%, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.04) 26%, transparent 27%) 0 0 / 100% 25%,
+    linear-gradient(90deg, transparent 24%, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.04) 26%, transparent 27%) 0 0 / 25% 100%;
+  pointer-events: none;
+}
+.xy-trace {
+  position: absolute; top: 0; bottom: 0;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, var(--xy-accent), transparent);
+  opacity: 0.4;
+  pointer-events: none;
+}
+.xy-trace-h {
+  width: 100%; height: 1px;
+  top: 50%; left: 0;
+  background: linear-gradient(90deg, transparent, var(--xy-accent), transparent);
+}
+.xy-crosshair {
+  position: absolute;
+  width: 16px; height: 16px;
+  margin-left: -8px; margin-top: -8px;
+  pointer-events: none;
+}
+.xy-dot {
+  position: absolute; inset: 4px;
+  border-radius: 50%;
+  background: var(--xy-accent);
+  box-shadow:
+    0 0 6px var(--xy-accent),
+    0 0 14px var(--xy-accent),
+    0 0 24px var(--xy-accent);
+}
+.xy-crosshair::before, .xy-crosshair::after {
+  content: ""; position: absolute;
+  background: var(--xy-accent);
+  opacity: 0.6;
+}
+.xy-crosshair::before {
+  left: 50%; top: 0; bottom: 0; width: 1px; margin-left: -0.5px;
+}
+.xy-crosshair::after {
+  top: 50%; left: 0; right: 0; height: 1px; margin-top: -0.5px;
+}

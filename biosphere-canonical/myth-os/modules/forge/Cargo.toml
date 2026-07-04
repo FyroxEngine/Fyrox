@@ -1,0 +1,13 @@
+[package]
+name    = "forge"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "forge"
+path = "src/main.rs"
+
+[dependencies]
+myth-wire = { path = "../../crates/myth-wire" }
+myth-agents = { path = "../../crates/mythos" }
+bincode   = { workspace = true }

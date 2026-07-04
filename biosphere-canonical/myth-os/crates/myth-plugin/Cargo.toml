@@ -1,0 +1,12 @@
+[package]
+name        = "myth-plugin"
+version     = "0.1.0"
+edition     = "2021"
+description = "Plugin and Addon trait system for the myth-os / BioSpark ecosystem"
+
+[dependencies]
+myth-wire  = { path = "../myth-wire" }
+myth-vault = { path = "../myth-vault" }
+thiserror  = { workspace = true }
+tracing    = { workspace = true }
+uuid       = { workspace = true }

@@ -1,0 +1,18 @@
+[package]
+name        = "myth-forge"
+version     = "0.1.0"
+edition     = "2021"
+description = "The Forge — visual instrument & UI builder for myth-os."
+
+[[bin]]
+name = "myth-forge"
+path = "src/main.rs"
+
+[dependencies]
+myth-stencil       = { path = "../myth-stencil" }
+egui               = { workspace = true }
+eframe             = { workspace = true }
+serde              = { workspace = true }
+serde_json         = { workspace = true }
+rfd                = { workspace = true }
+opener             = "0.7"

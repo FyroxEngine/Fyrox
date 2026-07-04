@@ -1,0 +1,39 @@
+[package]
+name        = "void-sculptor"
+version     = "0.1.0"
+edition     = "2021"
+description = "Void Sculptor — iso-surface extraction and mesh generation from scalar fields"
+
+# Layer 2 module crate.
+# Receives SPA WirePacket from mandelbulb kernel.
+# Extracts triangle mesh via Propagating Contours (primary) or Marching Cubes (fallback).
+# Emits SPA WirePacket with .obj mesh path to Theater.
+# Zero renderer dependencies. Runs fully headless.
+
+[[bin]]
+name = "void-sculptor"
+path = "main.rs"
+
+[lib]
+name = "void_sculptor"
+path = "src/lib.rs"
+
+[dependencies]
+myth-wire  = { path = "../crates/myth-wire" }
+mandelbulb = { path = "../genesis-collider-mandelbulb" }
+serde      = { version = "1", features = ["derive"] }
+serde_json = "1"
+glam       = { version = "0.27", features = ["serde"] }
+ndarray    = "0.15"
+rayon      = "1"
+hashbrown  = "0.14"
+
+[dev-dependencies]
+tempfile  = "3"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+# PROHIBITED: bevy, egui, wgpu, any GPU API, any async runtime.
+# After every change:
+#   cargo tree -p void-sculptor | grep bevy   (must be empty)
+#   cargo tree -p void-sculptor | grep egui   (must be empty)
+#   cargo test -p void-sculptor

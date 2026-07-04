@@ -1,0 +1,100 @@
+[
+  {
+    "id": "b89248ae-eb7e-4c85-b0a5-c2c15a0721d9",
+    "name": "Master Vault",
+    "description": "The root container. Everything begins here.",
+    "color_rgba": [
+      212,
+      160,
+      48,
+      255
+    ],
+    "status": "Active",
+    "vault_type": "Hybrid",
+    "is_protected": false,
+    "plugins": [
+      "quill.scrolls",
+      "prism.canvas",
+      "forge.blueprints",
+      "atlas.space",
+      "composer.player",
+      "chronicle.log"
+    ],
+    "bdna_signature": "039043b2fd83fda4adfccafb3659e262a26b3ae207b9a0236420fb286b7a4a79",
+    "active_plugin": null,
+    "resonance_hz": 432.0,
+    "integrity_hash": "3dfa491e2dadff45f8ccc19a9b47305959098815dfb0d2e74bf0f8559fd3e29c"
+  },
+  {
+    "id": "52b892a2-a5f3-4631-8c52-12477fe53342",
+    "name": "Archive of Echoes",
+    "description": "Sealed knowledge. Resonance from prior seals.",
+    "color_rgba": [
+      140,
+      80,
+      255,
+      255
+    ],
+    "status": "Active",
+    "vault_type": "TwoD",
+    "is_protected": false,
+    "plugins": [
+      "quill.scrolls",
+      "prism.canvas",
+      "loom.board",
+      "chronicle.log"
+    ],
+    "bdna_signature": "69b3808a912903afb28c592dd99e132e77cbdf9caf5fb3f2b24982a70fc36794",
+    "active_plugin": null,
+    "resonance_hz": 528.0,
+    "integrity_hash": "baea53ee97f4a4840a4cca110968701337e2202902fbd6877305ddea8013e3fe"
+  },
+  {
+    "id": "66224179-03a5-4c98-8c7e-5ea4a02de37e",
+    "name": "Quantum Core",
+    "description": "Pure coherence engine. Energy seeking escape.",
+    "color_rgba": [
+      0,
+      200,
+      180,
+      255
+    ],
+    "status": "Active",
+    "vault_type": "ThreeD",
+    "is_protected": false,
+    "plugins": [
+      "forge.blueprints",
+      "atlas.space",
+      "architect.structure",
+      "chronicle.log"
+    ],
+    "bdna_signature": "b1861e7a1eef4c038d74d84f2930ed47173330b24693bf494c704d00723453ab",
+    "active_plugin": null,
+    "resonance_hz": 396.0,
+    "integrity_hash": "be2a8c83d2f72b9d3278b407dbc0e728f23043b3657bbffff515cf5f7896be06"
+  },
+  {
+    "id": "e7b4fb61-184f-4b14-94e4-c77b993d7a08",
+    "name": "Master Stage",
+    "description": "The Theatre. All layers composited. All channels live.",
+    "color_rgba": [
+      224,
+      216,
+      255,
+      255
+    ],
+    "status": "Active",
+    "vault_type": "Stage",
+    "is_protected": false,
+    "plugins": [
+      "theatre.stage",
+      "theatre.mixer",
+      "genesis.forge",
+      "loom.board"
+    ],
+    "bdna_signature": "bbd75bf70888ffbeb7af3c55a1373a8fc5ee2c5d286c128ae13a01faaaaee647",
+    "active_plugin": "theatre.mixer",
+    "resonance_hz": 528.0,
+    "integrity_hash": "ed4cd19cc6c0e68d0081444fe6d525e2dff69283cef1ca98c25a31508e5c4ee1"
+  }
+]

@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 140" width="140" height="140">
+  <defs>
+    <radialGradient id="sf-field" cx="50%" cy="50%" r="55%"><stop offset="0%" stop-color="#2a1004"></stop><stop offset="65%" stop-color="#100802"></stop><stop offset="100%" stop-color="#03050a"></stop></radialGradient>
+    <linearGradient id="sf-metal" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fff2c0"></stop><stop offset="30%" stop-color="#fbbf24"></stop><stop offset="60%" stop-color="#c8920a"></stop><stop offset="100%" stop-color="#2a1c02"></stop>
+    </linearGradient>
+    <radialGradient id="sf-core"><stop offset="0%" stop-color="#fff2c0"></stop><stop offset="50%" stop-color="#f97316"></stop><stop offset="100%" stop-color="#2a1004" stop-opacity="0"></stop></radialGradient>
+    <filter id="sf-glow"><feGaussianBlur stdDeviation="1.6"></feGaussianBlur></filter>
+    <filter id="sf-g2" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.2" result="b"></feGaussianBlur><feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge></filter>
+  </defs>
+  <g transform="translate(70,70)">
+    <circle r="66" fill="url(#sf-field)"></circle>
+    
+    <circle r="62" fill="none" stroke="url(#sf-metal)" stroke-width="1"></circle>
+    <circle r="56" fill="none" stroke="#6e4a05" stroke-width="0.4" stroke-dasharray="0.6 2.5"></circle>
+    
+    <g filter="url(#sf-g2)">
+      <polygon points="-42,0 0,-42 42,0 0,42" fill="none" stroke="url(#sf-metal)" stroke-width="0.9"></polygon>
+      <polygon points="-30,-30 30,-30 30,30 -30,30" fill="none" stroke="url(#sf-metal)" stroke-width="0.9"></polygon>
+    </g>
+    
+    <g filter="url(#sf-g2)">
+      <polygon points="0,-30 26,18 -26,18" fill="url(#sf-core)" opacity="0.75"></polygon>
+      <polygon points="0,-30 26,18 -26,18" fill="none" stroke="url(#sf-metal)" stroke-width="1"></polygon>
+      <line x1="-18" y1="8" x2="18" y2="8" stroke="url(#sf-metal)" stroke-width="0.9"></line>
+    </g>
+    
+    <g filter="url(#sf-g2)">
+      <rect x="-5" y="-22" width="10" height="32" rx="1" fill="url(#sf-metal)"></rect>
+      <rect x="-12" y="-26" width="24" height="10" rx="1" fill="url(#sf-metal)"></rect>
+      <path d="M-22 14 L22 14 L18 22 L-18 22 Z" fill="url(#sf-metal)"></path>
+    </g>
+    
+    <circle cy="32" r="4" fill="#fff2c0"></circle>
+    <circle cy="32" r="2" fill="#f97316"></circle>
+    <circle cy="32" r="10" fill="none" stroke="#f97316" stroke-width="0.4" opacity="0.7"></circle>
+    
+    <g fill="url(#sf-metal)"><circle cx="0" cy="-56" r="1.6"></circle><circle cx="56" r="1.6"></circle><circle cy="56" r="1.6"></circle><circle cx="-56" r="1.6"></circle></g>
+    
+    <defs><path id="sf-arc" d="M-48 0 A 48 48 0 1 1 48 0"></path></defs>
+    <text font-family="Cinzel, serif" font-size="5.6" fill="#c8920a" letter-spacing="2.4" text-anchor="middle" opacity="0.9"><textPath href="#sf-arc">FORGE · SEAL · BIND</textPath></text>
+  </g>
+</svg>

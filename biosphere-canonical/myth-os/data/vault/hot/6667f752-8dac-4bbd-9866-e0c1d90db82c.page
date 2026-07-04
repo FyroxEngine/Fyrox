@@ -1,0 +1,25 @@
+{
+  "id": "6667f752-8dac-4bbd-9866-e0c1d90db82c",
+  "name": "Archive of Echoes",
+  "description": "Sealed knowledge. Resonance from prior seals.",
+  "color_rgba": [
+    140,
+    80,
+    255,
+    255
+  ],
+  "status": "Active",
+  "vault_type": "TwoD",
+  "is_protected": false,
+  "plugins": [
+    "quill.scrolls",
+    "prism.canvas",
+    "loom.board",
+    "chronicle.log"
+  ],
+  "bdna_signature": "43f1e31f3dc5a2bdfc46bd7b7766d7d4b8eb57e10b74fe89137b310a43adee6e",
+  "active_plugin": "quill.scrolls",
+  "resonance_hz": 432.0,
+  "integrity_hash": "1f2819c731f662bbf77131d3f9c8b19b74ec12a020115a6a937e0840ac1d9524",
+  "layout_blueprint": "Fullscreen"
+}

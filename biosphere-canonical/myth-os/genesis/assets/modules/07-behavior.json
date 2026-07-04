@@ -1,0 +1,67 @@
+{
+  "id": "MYTH-07",
+  "name": "Behavior",
+  "crest": "Instinct",
+  "color": "#9030d0",
+  "department": "Entities",
+  "description": "Finite-state machine and behavior tree executor for individual Quill actors. Instinct resolves competing drives — hunger, fear, curiosity, social pull — into moment-to-moment decisions.",
+  "implementation_status": "in-progress",
+  "primary_wire_out": "BHV",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "assets/MYTH-07/_meta/icon.png",
+    "preview_image": "assets/MYTH-07/_meta/cover.png",
+    "banner": "assets/MYTH-07/_meta/banner.webp",
+    "crest_svg": "assets/MYTH-07/_meta/crest.svg",
+    "splash_screen": "assets/MYTH-07/_meta/splash.html",
+    "audio_preview": "assets/MYTH-07/_meta/preview.mp3",
+    "video_preview": "assets/MYTH-07/_meta/preview.mp4"
+  },
+  "containers": [
+    {
+      "id": "MYTH-07-STD-01",
+      "name": "Instinct Resolver",
+      "symbol": "IR",
+      "wire_out": "BHV",
+      "description": "Evaluates the instinct priority tree per actor per frame and emits an action token.",
+      "assets": { "icon": "assets/MYTH-07/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    },
+    {
+      "id": "MYTH-07-STD-02",
+      "name": "State Machine",
+      "symbol": "SM",
+      "wire_out": "BHV",
+      "description": "Hierarchical FSM transitions driven by instinct resolver output.",
+      "assets": { "icon": "assets/MYTH-07/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    }
+  ],
+  "traktor_map": [
+    {
+      "channel": 2,
+      "control_type": "knob",
+      "midi_cc": 20,
+      "parameter": "Aggression",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    },
+    {
+      "channel": 2,
+      "control_type": "knob",
+      "midi_cc": 21,
+      "parameter": "Fear Threshold",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    },
+    {
+      "channel": 2,
+      "control_type": "knob",
+      "midi_cc": 14,
+      "parameter": "Decision Frequency",
+      "scale_min": 0.1,
+      "scale_max": 10.0
+    }
+  ]
+}

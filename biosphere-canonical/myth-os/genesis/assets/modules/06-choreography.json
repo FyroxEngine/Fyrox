@@ -1,0 +1,67 @@
+{
+  "id": "MYTH-06",
+  "name": "Choreography",
+  "crest": "Loom",
+  "color": "#dc3c78",
+  "department": "Entities",
+  "description": "Group movement, flocking, and formation orchestration. Loom weaves individual trajectories into collective patterns — crowd dynamics, ritual formations, migration flows.",
+  "implementation_status": "built",
+  "primary_wire_out": "BHV",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "assets/MYTH-06/_meta/icon.png",
+    "preview_image": "assets/MYTH-06/_meta/cover.png",
+    "banner": "assets/MYTH-06/_meta/banner.webp",
+    "crest_svg": "assets/MYTH-06/_meta/crest.svg",
+    "splash_screen": "assets/MYTH-06/_meta/splash.html",
+    "audio_preview": "assets/MYTH-06/_meta/preview.mp3",
+    "video_preview": "assets/MYTH-06/_meta/preview.mp4"
+  },
+  "containers": [
+    {
+      "id": "MYTH-06-STD-01",
+      "name": "Flock Controller",
+      "symbol": "FC",
+      "wire_out": "BHV",
+      "description": "Reynolds boid algorithm with cohesion, separation, and alignment forces.",
+      "assets": { "icon": "assets/MYTH-06/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    },
+    {
+      "id": "MYTH-06-STD-02",
+      "name": "Formation Engine",
+      "symbol": "FE",
+      "wire_out": "BHV",
+      "description": "Slots entities into authored formation templates with dynamic reformation.",
+      "assets": { "icon": "assets/MYTH-06/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    }
+  ],
+  "traktor_map": [
+    {
+      "channel": 2,
+      "control_type": "knob",
+      "midi_cc": 18,
+      "parameter": "Cohesion",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    },
+    {
+      "channel": 2,
+      "control_type": "knob",
+      "midi_cc": 19,
+      "parameter": "Separation",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    },
+    {
+      "channel": 2,
+      "control_type": "knob",
+      "midi_cc": 15,
+      "parameter": "Speed Limit",
+      "scale_min": 0.0,
+      "scale_max": 20.0
+    }
+  ]
+}

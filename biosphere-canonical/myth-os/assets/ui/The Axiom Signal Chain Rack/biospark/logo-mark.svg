@@ -1,0 +1,109 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <radialGradient id="mk-field" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#0a1030"></stop>
+      <stop offset="100%" stop-color="#03050a"></stop>
+    </radialGradient>
+    <linearGradient id="mk-metal" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fff2c0"></stop>
+      <stop offset="30%" stop-color="#fbbf24"></stop>
+      <stop offset="55%" stop-color="#c8920a"></stop>
+      <stop offset="80%" stop-color="#6e4a05"></stop>
+      <stop offset="100%" stop-color="#2a1c02"></stop>
+    </linearGradient>
+    <radialGradient id="mk-metal-r" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#fff2c0"></stop>
+      <stop offset="45%" stop-color="#e0a420"></stop>
+      <stop offset="100%" stop-color="#3a2404"></stop>
+    </radialGradient>
+    <radialGradient id="mk-aether" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#e0f4ff"></stop>
+      <stop offset="35%" stop-color="#00e5ff" stop-opacity="0.85"></stop>
+      <stop offset="75%" stop-color="#1a3660" stop-opacity="0.5"></stop>
+      <stop offset="100%" stop-color="#03050a" stop-opacity="0"></stop>
+    </radialGradient>
+    <filter id="mk-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="1.6" result="b"></feGaussianBlur>
+      <feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
+    </filter>
+    <filter id="mk-deep" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="4" result="b"></feGaussianBlur>
+      <feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
+    </filter>
+  </defs>
+
+  <g transform="translate(60,60)">
+    <circle r="58" fill="url(#mk-field)"></circle>
+
+    
+    <circle r="55" fill="none" stroke="url(#mk-metal)" stroke-width="1.2"></circle>
+    <circle r="50" fill="none" stroke="#6e4a05" stroke-width="0.5" opacity="0.7"></circle>
+    <g stroke="#fbbf24" stroke-width="0.5" opacity="0.7">
+      <g transform="rotate(0)">  <line x1="0" y1="-55" x2="0" y2="-50"></line></g>
+      <g transform="rotate(15)"> <line x1="0" y1="-55" x2="0" y2="-52"></line></g>
+      <g transform="rotate(30)"> <line x1="0" y1="-55" x2="0" y2="-50"></line></g>
+      <g transform="rotate(45)"> <line x1="0" y1="-55" x2="0" y2="-52"></line></g>
+      <g transform="rotate(60)"> <line x1="0" y1="-55" x2="0" y2="-50"></line></g>
+      <g transform="rotate(75)"> <line x1="0" y1="-55" x2="0" y2="-52"></line></g>
+      <g transform="rotate(90)"> <line x1="0" y1="-55" x2="0" y2="-50"></line></g>
+      <g transform="rotate(105)"><line x1="0" y1="-55" x2="0" y2="-52"></line></g>
+      <g transform="rotate(120)"><line x1="0" y1="-55" x2="0" y2="-50"></line></g>
+      <g transform="rotate(135)"><line x1="0" y1="-55" x2="0" y2="-52"></line></g>
+      <g transform="rotate(150)"><line x1="0" y1="-55" x2="0" y2="-50"></line></g>
+      <g transform="rotate(165)"><line x1="0" y1="-55" x2="0" y2="-52"></line></g>
+      <g transform="rotate(180)"><line x1="0" y1="-55" x2="0" y2="-50"></line></g>
+      <g transform="rotate(195)"><line x1="0" y1="-55" x2="0" y2="-52"></line></g>
+      <g transform="rotate(210)"><line x1="0" y1="-55" x2="0" y2="-50"></line></g>
+      <g transform="rotate(225)"><line x1="0" y1="-55" x2="0" y2="-52"></line></g>
+      <g transform="rotate(240)"><line x1="0" y1="-55" x2="0" y2="-50"></line></g>
+      <g transform="rotate(255)"><line x1="0" y1="-55" x2="0" y2="-52"></line></g>
+      <g transform="rotate(270)"><line x1="0" y1="-55" x2="0" y2="-50"></line></g>
+      <g transform="rotate(285)"><line x1="0" y1="-55" x2="0" y2="-52"></line></g>
+      <g transform="rotate(300)"><line x1="0" y1="-55" x2="0" y2="-50"></line></g>
+      <g transform="rotate(315)"><line x1="0" y1="-55" x2="0" y2="-52"></line></g>
+      <g transform="rotate(330)"><line x1="0" y1="-55" x2="0" y2="-50"></line></g>
+      <g transform="rotate(345)"><line x1="0" y1="-55" x2="0" y2="-52"></line></g>
+    </g>
+
+    
+    <g filter="url(#mk-glow)">
+      <polygon points="0,-44 38.1,22 -38.1,22" fill="none" stroke="url(#mk-metal)" stroke-width="1"></polygon>
+      <polygon points="0,44 38.1,-22 -38.1,-22" fill="none" stroke="url(#mk-metal)" stroke-width="1"></polygon>
+      <g transform="rotate(30)">
+        <polygon points="0,-44 38.1,22 -38.1,22" fill="none" stroke="#c8920a" stroke-width="0.7" opacity="0.75"></polygon>
+        <polygon points="0,44 38.1,-22 -38.1,-22" fill="none" stroke="#c8920a" stroke-width="0.7" opacity="0.75"></polygon>
+      </g>
+    </g>
+
+    
+    <circle r="22" fill="url(#mk-aether)" filter="url(#mk-deep)"></circle>
+    <circle r="22" fill="none" stroke="url(#mk-metal-r)" stroke-width="1.2"></circle>
+
+    
+    <g stroke="#00e5ff" stroke-width="0.5" fill="none" opacity="0.65">
+      <circle cx="0" cy="0" r="8"></circle>
+      <circle cx="0" cy="-8" r="8"></circle>
+      <circle cx="6.9" cy="-4" r="8"></circle>
+      <circle cx="6.9" cy="4" r="8"></circle>
+      <circle cx="0" cy="8" r="8"></circle>
+      <circle cx="-6.9" cy="4" r="8"></circle>
+      <circle cx="-6.9" cy="-4" r="8"></circle>
+    </g>
+
+    
+    <g filter="url(#mk-glow)">
+      <line x1="-16" y1="0" x2="16" y2="0" stroke="url(#mk-metal)" stroke-width="0.9"></line>
+      <line x1="0" y1="-16" x2="0" y2="16" stroke="url(#mk-metal)" stroke-width="0.9"></line>
+      <circle r="4" fill="#fff2c0"></circle>
+      <circle r="2" fill="#00e5ff"></circle>
+    </g>
+
+    
+    <g fill="url(#mk-metal-r)" stroke="#2a1c02" stroke-width="0.3">
+      <circle cx="0" cy="-48" r="2"></circle>
+      <circle cx="48" cy="0" r="2"></circle>
+      <circle cx="0" cy="48" r="2"></circle>
+      <circle cx="-48" cy="0" r="2"></circle>
+    </g>
+  </g>
+</svg>

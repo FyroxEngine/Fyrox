@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Axiom Signal Chain Rack · BioSpark Studios · Print</title>
+<meta name="viewport" content="width=1440, initial-scale=1">
+<link rel="stylesheet" href="biospark/colors_and_type.css">
+<link rel="stylesheet" href="rack.css">
+<style>
+  /* ─── PRINT-ONLY OVERRIDES ─────────────────────────────────────── */
+  @page {
+    size: 1440px 1900px;
+    margin: 0;
+  }
+  html, body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    background: var(--void) !important;
+    background-image:
+      radial-gradient(ellipse 1400px 800px at 50% 8%, rgba(148, 0, 211, 0.18) 0%, transparent 60%),
+      radial-gradient(ellipse 1000px 800px at 50% 80%, rgba(0, 191, 255, 0.10) 0%, transparent 65%),
+      radial-gradient(ellipse 900px 500px at 12% 30%, rgba(40, 70, 160, 0.5) 0%, transparent 70%),
+      radial-gradient(ellipse 700px 400px at 88% 70%, rgba(80, 20, 120, 0.45) 0%, transparent 70%) !important;
+    background-attachment: scroll !important;
+  }
+  @media print {
+    /* Hide interactive chrome */
+    [data-tweaks-panel],
+    .tweaks-panel,
+    .twk-panel,
+    .twk-fab,
+    .lore-card { display: none !important; }
+
+    /* Don't let modules break across pages */
+    .module { break-inside: avoid; page-break-inside: avoid; }
+    .genesis-map { break-inside: avoid; page-break-inside: avoid; }
+    .brandbar { break-inside: avoid; page-break-inside: avoid; }
+
+    /* Disable animations, hovers, transforms */
+    *, *::before, *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+
+    /* Force exact-print of all colors */
+    body, .module, .channel-strip, .rail, .rack, .scope, .aurora, .crystal,
+    .seq-step, .knob, .fader-track, .jack, .std-cmp-cell, .cs-meter, .gm-mod,
+    .cs-pad, .resonance-meter, .resonance-bar, .lattice-cell {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    /* Keep the rack reasonable width on a printed page */
+    .page { padding: 16px 16px 40px !important; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  window.__RACK_TWEAKS = {
+    "moduleIdentity": "per-module",
+    "cableStyle": "fiber",
+    "background": "cosmos",
+    "density": "packed",
+    "colorIntensity": "standard",
+    "showInstrumentBank": true,
+    "__printMode": true
+  };
+</script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="rack-primitives.jsx"></script>
+<script type="text/babel" src="rack-modules.jsx"></script>
+<script type="text/babel" src="rack-app.jsx"></script>
+<script type="text/babel">
+  // Wait for: fonts loaded + Babel scripts transpiled (this script itself runs
+  // through Babel, so by the time it executes the others are parsed) + React
+  // mount + one settling tick for animation frames inside Lissajous/Aurora.
+  (async () => {
+    try { await document.fonts.ready; } catch {}
+    // Give React + RAF-driven visuals a generous moment to settle
+    await new Promise(r => setTimeout(r, 1800));
+    window.print();
+  })();
+</script>
+</body>
+</html>

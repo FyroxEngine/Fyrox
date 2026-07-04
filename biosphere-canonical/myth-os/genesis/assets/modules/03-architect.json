@@ -1,0 +1,67 @@
+{
+  "id": "MYTH-03",
+  "name": "Architect",
+  "crest": "Architect",
+  "color": "#64b4ff",
+  "department": "Structure",
+  "description": "Procedural settlement, road, and megastructure placement. Architect reads the bones Atlas laid and the climate Mythos painted, then decides where civilization takes root.",
+  "implementation_status": "built",
+  "primary_wire_out": "SPA",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "assets/MYTH-03/_meta/icon.png",
+    "preview_image": "assets/MYTH-03/_meta/cover.png",
+    "banner": "assets/MYTH-03/_meta/banner.webp",
+    "crest_svg": "assets/MYTH-03/_meta/crest.svg",
+    "splash_screen": "assets/MYTH-03/_meta/splash.html",
+    "audio_preview": "assets/MYTH-03/_meta/preview.mp3",
+    "video_preview": "assets/MYTH-03/_meta/preview.mp4"
+  },
+  "containers": [
+    {
+      "id": "MYTH-03-STD-01",
+      "name": "Settlement Placer",
+      "symbol": "SP",
+      "wire_out": "SPA",
+      "description": "Sites villages, towns, and cities using slope, proximity, and resource scoring.",
+      "assets": { "icon": "assets/MYTH-03/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    },
+    {
+      "id": "MYTH-03-STD-02",
+      "name": "Road Network",
+      "symbol": "RN",
+      "wire_out": "SPA",
+      "description": "Least-cost pathfinding lattice connecting settlements across terrain.",
+      "assets": { "icon": "assets/MYTH-03/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    }
+  ],
+  "traktor_map": [
+    {
+      "channel": 1,
+      "control_type": "knob",
+      "midi_cc": 20,
+      "parameter": "Settlement Density",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    },
+    {
+      "channel": 1,
+      "control_type": "knob",
+      "midi_cc": 21,
+      "parameter": "Urban Scale",
+      "scale_min": 0.1,
+      "scale_max": 10.0
+    },
+    {
+      "channel": 1,
+      "control_type": "knob",
+      "midi_cc": 14,
+      "parameter": "Road Complexity",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    }
+  ]
+}

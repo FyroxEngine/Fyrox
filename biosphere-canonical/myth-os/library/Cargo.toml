@@ -1,0 +1,25 @@
+[package]
+name    = "quantum-vault"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "quantum-vault"
+path = "src/main.rs"
+
+[dependencies]
+bevy            = { workspace = true }
+bevy_egui       = { workspace = true }
+egui            = { workspace = true }
+serde           = { workspace = true }
+serde_json      = { workspace = true }
+uuid            = { workspace = true }
+anyhow          = { workspace = true }
+tracing         = { workspace = true }
+tracing-subscriber = { workspace = true }
+chrono          = { workspace = true }
+blake3          = { workspace = true }
+rfd             = { workspace = true }
+mythos              = { path = "../mythos" }
+vault               = { path = "../vault" }
+biospark-theatre    = { path = "../crates/biospark-theatre" }

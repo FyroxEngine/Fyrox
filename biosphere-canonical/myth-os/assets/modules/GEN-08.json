@@ -1,0 +1,40 @@
+{
+  "id": "GEN-08",
+  "name": "Society",
+  "crest": "◈",
+  "color": "#c8a860",
+  "department": "Entities",
+  "description": "Reputation graph, faction alignment, and social contract enforcement. Wire type SOC carries bond delta packets.",
+  "implementation_status": "built",
+  "primary_wire_out": "SOC",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "",
+    "preview_image": "",
+    "banner": "",
+    "crest_svg": "",
+    "splash_screen": null,
+    "audio_preview": null,
+    "video_preview": null
+  },
+  "containers": [],
+  "traktor_map": [
+    {
+      "channel": 2,
+      "control_type": "fader",
+      "midi_cc": 30,
+      "parameter": "cohesion",
+      "scale_min": 0,
+      "scale_max": 1
+    },
+    {
+      "channel": 2,
+      "control_type": "fader",
+      "midi_cc": 31,
+      "parameter": "reputation",
+      "scale_min": -1,
+      "scale_max": 1
+    }
+  ]
+}

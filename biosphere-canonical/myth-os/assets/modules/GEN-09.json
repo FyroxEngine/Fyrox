@@ -1,0 +1,40 @@
+{
+  "id": "GEN-09",
+  "name": "Sequencer",
+  "crest": "◈",
+  "color": "#b08030",
+  "department": "Atmosphere",
+  "description": "Timeline sequencer for scripted narrative events and scene beats. Emits TMP ticks to downstream modules.",
+  "implementation_status": "built",
+  "primary_wire_out": "TMP",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "",
+    "preview_image": "",
+    "banner": "",
+    "crest_svg": "",
+    "splash_screen": null,
+    "audio_preview": null,
+    "video_preview": null
+  },
+  "containers": [],
+  "traktor_map": [
+    {
+      "channel": 3,
+      "control_type": "fader",
+      "midi_cc": 46,
+      "parameter": "tempo",
+      "scale_min": 60,
+      "scale_max": 240
+    },
+    {
+      "channel": 3,
+      "control_type": "fader",
+      "midi_cc": 47,
+      "parameter": "swing",
+      "scale_min": 0,
+      "scale_max": 1
+    }
+  ]
+}

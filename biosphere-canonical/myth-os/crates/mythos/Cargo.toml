@@ -1,0 +1,9 @@
+[package]
+name    = "myth-agents"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+myth-wire = { path = "../myth-wire" }
+serde     = { workspace = true }
+bincode   = { workspace = true }

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cherrytree>
+  <node unique_id="6" master_id="0" name="TABLE UI THEMES" prog_lang="custom-colors" tags="" readonly="0" nosearch_me="0" nosearch_ch="0" custom_icon_id="0" is_bold="1" foreground="" ts_creation="1781461130" ts_lastsave="1781461474">
+    <rich_text>Table.UI.Themes
+
+I’ll refine the coding system to be more structured and meaningful by assigning numbers based on thematic categories and keyword relevance.
+
+Here’s the improved system:
+- **First Letter(s):** Abbreviation of the theme name.
+- **First Digit:** Thematic category (e.g., Sci-Fi = 1, Fantasy = 2, Hybrid = 3, Nature = 4).
+- **Second Digit:** Design style (e.g., Ornate = 1, Minimalist = 2, Cybernetic = 3, Arcane = 4).
+- **Third &amp; Fourth Digits:** Derived from keyword significance (e.g., generated from weighted importance of core keywords).
+
+
+| Full Code | Type | Code Prefix | Name | Code Identifier | Keywords |
+| UI-CAF-1327 | UI | CAF | Cyber-Arcane Fusion | 1327 | neon, mystical glyphs, holographic, runes, glowing circuits |
+| UI-CEL-2438 | UI | CEL | Celestial Interface | 2438 | stardust, cosmic, planetary, orbit, ethereal glow |
+| UI-BIO-3516 | UI | BIO | Bio-Mechanical UI | 3516 | organic tech, metallic veins, biotech, pulsating energy |
+| UI-ARI-4319 | UI | ARI | Ancient Relic Interface | 4319 | weathered artifacts, enchanted runes, mystical engravings |
+| UI-HOS-1542 | UI | HOS | Holographic Spectrum | 1542 | transparent panels, prism reflections, interactive light |
+| UI-SPM-5441 | UI | SPM | Shadow-Punk Mysticism | 5441 | occult engravings, supernatural glow, dark tech |
+| UI-VTI-1618 | UI | VTI | Void-Tech Interface | 1618 | gravity distortion, dark matter, deep space aesthetics |
+| UI-EXE-3625 | UI | EXE | Exotic Ethereal | 3625 | liquid energy, celestial patterns, flowing UI |
+| UI-SPU-4728 | UI | SPU | Solar-Powered UI | 4728 | radiant panels, golden glow, energy cores |
+| UI-NEC-1829 | UI | NEC | Nebula Circuitry | 1829 | nebula swirls, galactic wiring, vibrant energy hubs |
+| UI-FAU-3146 | UI | FAU | Fractal Architecture UI | 3146 | recursive patterns, infinite scaling, dynamic hierarchy |
+| UI-EPI-5234 | UI | EPI | Echo-Pulse Interface | 5234 | soundwave visuals, rhythmic UI motion, energy vibrations |
+| UI-CTD-2527 | UI | CTD | Chrono-Tech Design | 2527 | time-loop aesthetics, glowing hourglass panels, ancient circuits |
+| UI-PMU-3418 | UI | PMU | Psionic Matrix UI | 3418 | psychic waves, mental energy flow, neon psionics |
+| UI-GCU-4523 | UI | GCU | Glass-Crystal UI | 4523 | sharp crystalline panels, refracted light effects, smooth transparency |
+| UI-QRI-1617 | UI | QRI | Quantum Rift Interface | 1617 | warped spacetime visuals, quantum pulses, multiverse integration |
+| UI-MGU-4412 | UI | MGU | Mystic Glyph UI | 4412 | arcane symbols, forgotten magic, glowing inscriptions |
+| UI-LNI-2639 | UI | LNI | Lunar Nexus Interface | 2639 | moonlit design, soft luminescence, celestial layering |
+| UI-OCU-5841 | UI | OCU | Oceanic Cyber UI | 5841 | deep-sea holograms, underwater currents, bioluminescent buttons |
+| UI-ESI-4726 | UI | ESI | Eclipse Shadow UI | 4726 | solar eclipse contrast, dark gradient layering, mystic obscurity |
+| UI-IMU-5317 | UI | IMU | Infernal Mechanism UI | 5317 | molten metal, fiery engravings, obsidian control panels |
+| UI-FTI-2514 | UI | FTI | Frost-Tech Interface | 2514 | frozen circuitry, crystalline frost panels, chilling blue glow |
+| UI-AGI-1628 | UI | AGI | Astral Gateway UI | 1628 | portal-like elements, cosmic doorways, infinite depth visuals |
+| UI-TMU-3149 | UI | TMU | Tesseract Matrix UI | 3149 | multi-dimensional layering, geometric depth, seamless perspective shifts |
+| UI-PCU-1637 | UI | PCU | Plasma Core UI | 1637 | energy conduits, charged nodes, pulse-driven components |
+| UI-ESU-4325 | UI | ESU | Elemental Spectrum UI | 4325 | fire, water, air, earth themes, dynamic transformations |
+| UI-ECU-5318 | UI | ECU | Etherial Cyber UI | 5318 | futuristic spiritual essence, translucent waves, mystic overlays |
+| UI-RDU-2734 | UI | RDU | Rift-Dimensional UI | 2734 | portal interfaces, interdimensional energy fluctuations |
+| UI-OOU-1639 | UI | OOU | Omniscient Observatory UI | 1639 | cosmic observatory-inspired controls, deep space scans |
+| UI-RTU-4723 | UI | RTU | Radiant Tapestry UI | 4723 | energy weaves, cosmic threads, luminous waves |
+| UI-TVI-3628 | UI | TVI | Techno-Vine Interface | 3628 | digital flora, creeping circuit vines, organic digital evolution |
+| UI-AFU-4417 | UI | AFU | Arcane Forge UI | 4417 | enchanted workshop, mystical machinery, glowing alchemy nodes |
+| UI-SMU-5719 | UI | SMU | Synthetic Mirage UI | 5719 | dream-like reflections, digital illusions, shifting textures |
+| UI-AFU-2613 | UI | AFU | Aurora Flow UI | 2613 | aurora borealis waves, northern light transitions, smooth gradient shifts |
+| UI-GFI-3627 | UI | GFI | Gravity Flux Interface | 3627 | distortion fields, pressure variations, anti-gravity panels |
+| UI-CHU-4518 | UI | CHU | Chimeric Hybrid UI | 4518 | fusion of biological and mechanical, evolving modular design |
+| UI-SSU-5312 | UI | SSU | Sonic Spectrum UI | 5312 | audio-driven visuals, soundwave buttons, rhythmic transitions |
+| UI-LEU-4729 | UI | LEU | Lunar Eclipse Interface | 4729 | contrasting shadow glow, celestial movement elements |
+| UI-NCU-2537 | UI | NCU | Neon Cathedral UI | 2537 | futuristic stained glass, divine neon reflections, ethereal temple-like layering |
+| UI-VAU-1635 | UI | VAU | Virtual Archive UI | 1635 | data libraries, holographic scrolls, glowing information nodes |
+| UI-CPU-2736 | UI | CPU | Cosmic Pulse UI | 2736 | planetary rings, energy pulsations, celestial breathing motion |
+| UI-EQU-5418 | UI | EQU | Eldritch Quantum UI | 5418 | forbidden tech, deep-space horror elements, mind-bending complexity |
+| UI-AIU-3629 | UI | AIU | Aether Infusion UI | 3629 | floating energy spheres, pure elemental essences, translucent overlays |
+| UI-RTU-4316 | UI | RTU | Rune-Tech UI | 4316 | ancient glyph-based technology, mystic holograms, woven inscriptions |
+| UI-IEU-5727 | UI | IEU | Inferno Eclipse UI | 5727 | ember glow, lava-motion panels, contrasting shadow flames |
+| UI-SVU-2634 | UI | SVU | Starlit Vortex UI | 2634 | spiraling galaxy motions, gravitational UI elements |
+| UI-PCC-1528 | UI | PCC | Prismatic Cyber-Core | 1528 | multi-light reflections, electric neon waves, refracted dimensions |
+| UI-ARU-2735 | UI | ARU | Adaptive Reality UI | 2735 | real-time environmental shifting panels, interactive dynamic redesign |
+| UI-CCU-4319 | UI | CCU | Crystal Cavern UI | 4319 | glowing crystal formations, refracted energy grids, luminous pathfinding |
+| UI-DRU-1627 | UI | DRU | Dimensional Rift UI | 1627 | portal integration, space-time fractals, layered energy waves |
+
+
+This keeps Column A easy for copying while retaining the separated components for flexible reference or data usage.</rich_text>
+  </node>
+</cherrytree>

@@ -1,0 +1,9 @@
+[package]
+name    = "addon-template"
+version = "0.1.0"
+edition = "2021"
+description = "Copy this to start a new myth-os addon. Rename the package, rename TemplateAddon, set target_plugin() to your host plugin's id."
+
+[dependencies]
+myth-plugin = { path = "../../crates/myth-plugin" }
+myth-wire   = { path = "../../crates/myth-wire" }

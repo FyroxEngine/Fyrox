@@ -1,0 +1,20 @@
+[package]
+name        = "myth-core"
+version     = "0.1.0"
+edition     = "2021"
+description = "BioSpark runtime core — SSoT clock, bus, health, and system signals. Zero renderer deps."
+
+[[bin]]
+name = "myth-core"
+path = "src/bin/myth-core.rs"
+
+[dependencies]
+myth-wire          = { path = "../myth-wire" }
+tokio              = { workspace = true }
+tracing            = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow             = { workspace = true }
+thiserror          = { workspace = true }
+serde              = { workspace = true }
+serde_json         = { workspace = true }
+chrono             = { workspace = true }

@@ -1,0 +1,293 @@
+/* ═══════════════════════════════════════════════════════════════════
+   BIOSPARK STUDIOS · QUANTUM-MYTHIC-FUTURIST DESIGN SYSTEM
+   Colors + Type foundation
+═══════════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&display=swap');
+
+:root {
+  /* ─── VOID STACK — deep backgrounds (darkest → lightest surface) ─── */
+  --void:         #03050a;  /* absolute void */
+  --abyss:        #07090f;  /* deepest surface */
+  --deep:         #0d1117;  /* page canvas */
+  --surface:      #111827;  /* base card */
+  --raised:       #161d2e;  /* elevated card */
+  --elevated:     #1e293b;  /* hover / active surface */
+  --inlay:        #243044;  /* inner inlays / pressed */
+
+  /* ─── FOREGROUND / INK ─── */
+  --fg-1:         #e2e8f0;  /* primary text */
+  --fg-2:         #94a3b8;  /* secondary */
+  --fg-3:         #64748b;  /* tertiary */
+  --fg-muted:     #475569;
+  --fg-ghost:     rgba(180,220,255,0.25);
+
+  /* ─── BIOLUMINESCENT ACCENTS — the lit middleground ─── */
+  --quantum:      #00e5ff;  /* cyan — quantum / data */
+  --quantum-glow: rgba(0,229,255,0.40);
+  --bio:          #39ff14;  /* lab-green — bio / organic */
+  --bio-glow:     rgba(57,255,20,0.40);
+  --mythos:       #c084fc;  /* amethyst — mythic / narrative */
+  --mythos-glow:  rgba(192,132,252,0.40);
+  --gold:         #fbbf24;  /* heraldic gold — authority */
+  --gold-glow:    rgba(251,191,36,0.40);
+  --ember:        #f97316;  /* plasma orange — warning / heat */
+  --ember-glow:   rgba(249,115,22,0.40);
+  --rose:         #fb7185;  /* rose — tension / life */
+  --rose-glow:    rgba(251,113,133,0.40);
+
+  /* ─── BIOLUMINESCENT SECONDARIES (nebula washes) ─── */
+  --aqua:         #5DCAA5;
+  --indigo:       #6366f1;
+  --teal:         #14b8a6;
+  --violet:       #8b5cf6;
+
+  /* ─── RACE PALETTES — five bloodlines of the Ordo Quill ─── */
+  /* Sylvanid — verdant forest-folk; chlorophyll, loam, sap */
+  --syl-deep:     #0b1d12;
+  --syl-base:     #2f5a37;
+  --syl-primary:  #7bc96f;
+  --syl-accent:   #d4f062;
+  --syl-bark:     #8b5a2b;
+
+  /* Luminarite — solar radiants; gilded light, dawn plasma */
+  --lum-deep:     #2a1a04;
+  --lum-base:     #d4a017;
+  --lum-primary:  #ffd86b;
+  --lum-accent:   #fff4c0;
+  --lum-ember:    #f97316;
+
+  /* Venturan — void-sailors; deep space, starlight, comet-ice */
+  --ven-deep:     #0a0820;
+  --ven-base:     #3a2e8a;
+  --ven-primary:  #6e8cff;
+  --ven-accent:   #b8c8ff;
+  --ven-spark:    #00e5ff;
+
+  /* Hydralis — abyssal deep-sea; bioluminescent tide */
+  --hyd-deep:     #031820;
+  --hyd-base:     #0e4a5a;
+  --hyd-primary:  #2ad4c8;
+  --hyd-accent:   #7effe0;
+  --hyd-ink:      #0a3a66;
+
+  /* Syntaran — synthetic forged-kin; obsidian alloy, arc-weld */
+  --syn-deep:     #0a0a14;
+  --syn-base:     #3a3f52;
+  --syn-primary:  #a0a8c0;
+  --syn-accent:   #ff3b6b;
+  --syn-arc:      #c084fc;
+
+  /* ─── SEMANTIC ─── */
+  --bg:           var(--void);
+  --bg-elev:      var(--raised);
+  --fg:           var(--fg-1);
+  --border:       rgba(120,180,255,0.08);
+  --border-lit:   rgba(100,200,255,0.28);
+  --border-gold:  rgba(251,191,36,0.35);
+  --success:      var(--bio);
+  --info:         var(--quantum);
+  --warning:      var(--gold);
+  --danger:       var(--ember);
+
+  /* ─── CHECKER (transparent-asset bg) ─── */
+  --checker:
+    linear-gradient(45deg, #0a0a0a 25%, transparent 25%),
+    linear-gradient(-45deg, #0a0a0a 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #0a0a0a 75%),
+    linear-gradient(-45deg, transparent 75%, #0a0a0a 75%);
+  --checker-size: 10px 10px;
+  --checker-pos:  0 0, 0 5px, 5px -5px, -5px 0;
+
+  /* ─── COSMIC BACKGROUND (full-bleed page) ─── */
+  --cosmos:
+    radial-gradient(ellipse 900px 500px at 10% 20%, rgba(20,40,100,0.5) 0%, transparent 70%),
+    radial-gradient(ellipse 700px 400px at 85% 60%, rgba(10,30,80,0.4) 0%, transparent 70%),
+    radial-gradient(ellipse 400px 600px at 50% 80%, rgba(5,20,60,0.35) 0%, transparent 70%),
+    radial-gradient(1px 1px at 12% 18%, rgba(255,255,255,0.5) 0%, transparent 100%),
+    radial-gradient(1px 1px at 45% 32%, rgba(255,255,255,0.3) 0%, transparent 100%),
+    radial-gradient(1px 1px at 78% 14%, rgba(255,255,255,0.4) 0%, transparent 100%),
+    radial-gradient(1px 1px at 62% 76%, rgba(255,255,255,0.3) 0%, transparent 100%),
+    radial-gradient(1px 1px at 25% 88%, rgba(255,255,255,0.25) 0%, transparent 100%);
+
+  /* ─── TYPOGRAPHY — 4 locked families ─── */
+  --font-display:  'Cinzel Decorative', 'Cinzel', serif;       /* hero / sigil */
+  --font-header:   'Cinzel', serif;                             /* headers / nav / labels */
+  --font-body:     'Space Grotesk', 'Inter', sans-serif;        /* UI body */
+  --font-script:   'Cormorant Garamond', Georgia, serif;        /* mottos / lore */
+  --font-code:     'JetBrains Mono', monospace;                 /* code / tokens / ids */
+
+  /* ─── TYPE SCALE ─── */
+  --ts-3xs: 8px;
+  --ts-2xs: 9px;
+  --ts-xs:  10px;
+  --ts-s:   12px;
+  --ts-m:   14px;
+  --ts-l:   16px;
+  --ts-xl:  20px;
+  --ts-2xl: 26px;
+  --ts-3xl: 36px;
+  --ts-4xl: 48px;
+  --ts-hero:72px;
+
+  /* ─── SPACING — 4px base ─── */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px; --sp-4: 16px;
+  --sp-5: 20px; --sp-6: 24px; --sp-7: 32px; --sp-8: 48px;
+  --sp-9: 64px; --sp-10: 96px;
+
+  /* ─── DOUBLING LED SCALE — every size derives from a 3px LED seed ─── */
+  /* Use for: dot/LED, pip, gem, knob, dial, panel-module, panel, console */
+  --u-led:    3px;     /* tier 0 — pinpoint LED, status pip */
+  --u-pip:    6px;     /* tier 1 — chip indicator, rivet */
+  --u-gem:    12px;    /* tier 2 — switch cap, small button */
+  --u-knob:   24px;    /* tier 3 — small knob, jack, fader handle */
+  --u-dial:   48px;    /* tier 4 — main knob, large jack, badge */
+  --u-mod:    96px;    /* tier 5 — a single module slot */
+  --u-rack:   192px;   /* tier 6 — rack section / card */
+  --u-bay:    384px;   /* tier 7 — full panel */
+  --u-console: 768px;  /* tier 8 — full console */
+
+  /* ─── SYNTH PANEL FINISHES — brushed alloy, anodized, fiber ─── */
+  --panel-alloy:
+    linear-gradient(180deg, #2a2f38 0%, #1a1d24 50%, #14171c 100%),
+    repeating-linear-gradient(90deg, rgba(255,255,255,.015) 0 1px, transparent 1px 2px);
+  --panel-anodized-q:
+    linear-gradient(180deg, #0e2a35 0%, #06141b 100%);
+  --panel-anodized-b:
+    linear-gradient(180deg, #0f2a14 0%, #061308 100%);
+  --panel-anodized-m:
+    linear-gradient(180deg, #2a1238 0%, #14061b 100%);
+  --panel-fiber:
+    radial-gradient(circle at 20% 20%, rgba(255,255,255,.04), transparent 50%),
+    repeating-linear-gradient(45deg, #0a0c12 0 2px, #12151c 2px 4px);
+  --panel-screen:
+    radial-gradient(ellipse 140% 80% at 50% 0%, rgba(120,180,255,.04), transparent 60%),
+    linear-gradient(180deg, #02060c, #010308);
+
+  /* ─── BEZEL SHADOWS — for milled-aluminum module edges ─── */
+  --bezel-up:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    inset 0 -1px 0 rgba(0,0,0,.65),
+    0 1px 2px rgba(0,0,0,.5);
+  --bezel-down:
+    inset 0 1px 2px rgba(0,0,0,.7),
+    inset 0 -1px 0 rgba(255,255,255,.04);
+  --bezel-screw: radial-gradient(circle at 30% 30%, #d8dde8, #6b7383 50%, #2a2e38 90%);
+
+  /* ─── ORGANIC / FLUID — quantum-mythic forms ─── */
+  --curve-fluid:    cubic-bezier(0.65, 0, 0.35, 1);
+  --curve-pulse:    cubic-bezier(0.45, 1.6, 0.55, 1);
+  --form-blob:      48% 52% 40% 60% / 55% 45% 55% 45%;  /* organic radius */
+  --form-cell:      62% 38% 58% 42% / 50% 60% 40% 50%;
+  --form-droplet:   50% 50% 50% 50% / 60% 60% 40% 40%;
+
+  /* ─── RADII ─── */
+  --r-none: 0;
+  --r-xs:   2px;   /* capsules, chips, codes */
+  --r-s:    4px;   /* buttons, inputs */
+  --r-m:    6px;   /* cards */
+  --r-l:    8px;   /* elevated cards */
+  --r-xl:   12px;  /* dialogs */
+  --r-full: 999px;
+
+  /* ─── SHADOWS — multi-layer 3D depth ─── */
+  --shadow-card:
+    0 4px 8px rgba(0,0,0,0.5),
+    0 8px 20px rgba(0,0,0,0.4),
+    0 16px 40px rgba(0,0,0,0.3),
+    inset 0 1px 0 rgba(200,220,255,0.06);
+  --shadow-deep:
+    0 8px 16px rgba(0,0,0,0.6),
+    0 20px 50px rgba(0,0,0,0.4),
+    0 40px 80px rgba(0,0,0,0.25);
+  --shadow-inset:
+    inset 0 2px 4px rgba(0,0,0,0.4),
+    inset 0 -1px 2px rgba(0,0,0,0.3);
+  --shadow-glow-q: 0 0 12px rgba(0,229,255,0.35), 0 0 32px rgba(0,229,255,0.15);
+  --shadow-glow-b: 0 0 12px rgba(57,255,20,0.35),  0 0 32px rgba(57,255,20,0.15);
+  --shadow-glow-m: 0 0 12px rgba(192,132,252,0.35),0 0 32px rgba(192,132,252,0.15);
+  --shadow-glow-g: 0 0 12px rgba(251,191,36,0.35), 0 0 32px rgba(251,191,36,0.15);
+
+  /* ─── MOTION ─── */
+  --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-bio:    cubic-bezier(0.34, 1.56, 0.64, 1);   /* subtle bounce */
+  --dur-fast:   120ms;
+  --dur-mid:    260ms;
+  --dur-slow:   600ms;
+  --dur-drift:  12s;   /* for idle spin/drift */
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SEMANTIC TYPE CLASSES
+═══════════════════════════════════════════════════════════════════ */
+body, .p {
+  font-family: var(--font-body);
+  font-size: var(--ts-m);
+  line-height: 1.6;
+  color: var(--fg-1);
+  letter-spacing: 0.01em;
+}
+
+.h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--ts-4xl);
+  letter-spacing: 0.06em;
+  line-height: 1.1;
+  color: var(--fg-1);
+  text-shadow: 0 2px 12px rgba(0,0,0,0.6), 0 0 28px var(--gold-glow);
+}
+.h2 {
+  font-family: var(--font-header);
+  font-weight: 600;
+  font-size: var(--ts-3xl);
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  color: var(--fg-1);
+}
+.h3 {
+  font-family: var(--font-header);
+  font-weight: 500;
+  font-size: var(--ts-2xl);
+  letter-spacing: 0.1em;
+  color: var(--fg-1);
+}
+.h4, .eyebrow {
+  font-family: var(--font-header);
+  font-weight: 500;
+  font-size: var(--ts-s);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--fg-2);
+}
+.motto, .lore {
+  font-family: var(--font-script);
+  font-style: italic;
+  font-weight: 400;
+  font-size: var(--ts-l);
+  line-height: 1.5;
+  color: var(--fg-2);
+  letter-spacing: 0.01em;
+}
+.label {
+  font-family: var(--font-code);
+  font-size: var(--ts-xs);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.code, code, pre {
+  font-family: var(--font-code);
+  font-size: var(--ts-s);
+  color: var(--quantum);
+  letter-spacing: 0.02em;
+}
+.hz {
+  font-family: var(--font-code);
+  font-size: var(--ts-xs);
+  color: var(--bio);
+  letter-spacing: 0.1em;
+}
+a { color: var(--quantum); text-decoration: none; }
+a:hover { color: var(--bio); text-shadow: 0 0 8px var(--bio-glow); }

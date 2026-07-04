@@ -1,0 +1,465 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cherrytree>
+  <node unique_id="1" master_id="0" name="BIOSPARK AGENT SKILLS" prog_lang="custom-colors" tags="" readonly="0" nosearch_me="0" nosearch_ch="0" custom_icon_id="0" is_bold="1" foreground="" ts_creation="1781460554" ts_lastsave="1781464080">
+    <rich_text>biospark-skill-registryAdded byYouLast updatedMay 25, 2026TriggerSlash command + autoDescriptionMaster registry of all BioSpark Studios skill files. Use this skill when you need to know which skill to load for a given task, how skills relate to each other, what the correct build order is, or whether a skill needs updating. This is the table of contents for the entire ecosystem. Read this first when starting any new session, when a task spans multiple systems, or when unsure which skill owns a given domain.BioSpark Studios — Skill Registry
+20 active user skills as of May 2026. Organized by layer — read bottom-up for
+dependency order, top-down for feature/product order.
+
+Skill Load Order — The Dependency Stack
+When multiple skills are needed, load in this order. Each layer depends on the ones
+below it being understood first.
+Layer 5 — Products &amp; Output
+  biospark-interstellar-tour
+  biospark-splash-creator
+  quill-asset-page
+  create-artists
+  content-research-writer
+  file-organizer
+
+Layer 4 — World &amp; Narrative Systems
+  quantum-genesis-engine
+  quantum-modules
+  biospark-voxel
+  order-of-the-quantum-quill
+
+Layer 3 — Identity &amp; Symbolic Systems
+  quill-heraldry            ← reads quantum-condition-engine
+  five-factions
+  biospark-quantum-genesis
+  periodic-table-of-thaumaturgy
+
+Layer 2 — Physics &amp; Activation
+  quantum-condition-engine  ← the engine everything activates through
+  qgcp-format               ← packaging and encryption layer
+
+Layer 1 — Foundation
+  genesis-container         ← container law, octave model, growth modes
+  local-first-stack         ← SQLite, Ollama, FastAPI, LiteLLM
+  quantum-generator-spec    ← spec authoring, schema generation
+  frontend-design           ← UI token system, design constraints
+
+Full Skill Directory
+
+biospark-interstellar-tour
+Layer: 5 — Products
+
+Size: 44KB
+
+What it owns: Complete BioSpark InterStellar Tour pipeline — act onboarding,
+world eligibility triage, EPK production, DistroKid prep, merch generation, press
+cadence, contract framework, Order of the Quantum Quill curatorial role (secret).
+
+Does NOT own: Artist identity cards (biospark-splash-creator handles module
+screens; a separate artist identity skill handles tour acts), world physics,
+Genesis Container generation.
+
+References: biospark-splash-creator, create-artists, quantum-genesis-engine
+
+Status: Current
+
+Trigger phrases: "add act to tour", "build EPK", "is world tour-ready",
+"DistroKid setup", "tour onboarding"
+
+biospark-quantum-genesis
+Layer: 3 — Identity &amp; Symbolic
+
+Size: 28KB
+
+What it owns: The authoritative BioSpark Quantum Genesis architecture — Seals,
+Crests, Genesis Containers, Artist/Character creation, B-DNA lineage, symbolic
+taxonomy, capacity rules, emergent generation, ecosystem design. The top-level
+reference for anything Quantum ecosystem that doesn't fit a more specific skill.
+
+Does NOT own: Condition engine mechanics (quantum-condition-engine), world
+generation prompt chain (quantum-genesis-engine), module specs (quantum-modules).
+
+References: genesis-container, quill-heraldry, quantum-condition-engine
+
+Status: May need review — predates octave model and dynamic heraldry updates.
+Cross-check capacity rules and heraldry sections against newer skills.
+
+Trigger phrases: "quantum ecosystem", "biospark architecture", "covenant binding",
+"emergence generation"
+
+biospark-splash-creator
+Layer: 5 — Products
+
+Size: 20KB
+
+What it owns: Animated HTML module splash screens in BioSpark visual style.
+Self-contained HTML + CSS animation. No JS frameworks. For Quantum Engine modules
+only — NOT for tour artists.
+
+Does NOT own: Artist identity cards, tour assets, world generation.
+
+References: five-factions (color themes), quantum-modules (module names)
+
+Status: Current
+
+Trigger phrases: "splash screen", "module intro", "animated title", "loading
+screen", "boot screen"
+
+biospark-voxel
+Layer: 4 — World &amp; Narrative
+
+Size: 72KB (6 files)
+
+What it owns: World voxel data containers, Actor perception grid density, voxel
+blindness zones, contamination, predictive projection, two-level Memory Matrix,
+fingerprint vs coordinate portability, memory inheritance, sleep consolidation,
+co-presence signals, collective voxel fields, location scarring, cross-world memory
+dissonance, inherited blind spots, .qthumb format, Actor state snapshots, capacity
+modifiers, addiction emergence, world health sensing.
+
+Reference files: world-voxel-system.md, actor-perception-grid.md,
+memory-matrix.md, qthumb-format.md, collective-voxel-mechanics.md
+
+Does NOT own: Actor behavior (order-of-the-quantum-quill), world generation
+physics (quantum-genesis-engine), terrain instrument logic.
+
+References: quantum-condition-engine (voxel as condition source),
+genesis-container (container format)
+
+Status: Current
+
+Trigger phrases: "Actor perceive", "memory matrix", "voxel grid", "qthumb",
+"blind spot", "collective field", "location scarring"
+
+content-research-writer
+Layer: 5 — Products
+
+Size: 20KB
+
+What it owns: High-quality content writing workflow — research, citations,
+hooks, outline iteration, real-time section feedback.
+
+Does NOT own: BioSpark-specific content — this is a general writing skill.
+
+Status: Current (general purpose, not BioSpark-specific)
+
+Trigger phrases: "write content", "research article", "add citations",
+"improve hook"
+
+create-artists
+Layer: 5 — Products
+
+Size: 32KB
+
+What it owns: Modular Artist Genesis Container creation — source universe
+selection, life phase customization, batch generation of Mythos Containers.
+Each Artist is a complete instrument with nested node graphs ready to remix.
+
+Does NOT own: World physics generation (quantum-genesis-engine), tour
+onboarding (biospark-interstellar-tour), identity card visuals.
+
+References: genesis-container, biospark-quantum-genesis, five-factions
+
+Status: May need review — predates octave model. Artist container growth mode
+should now be dynamic by default.
+
+Trigger phrases: "create artist", "generate character", "NPC", "actor genesis",
+"design character"
+
+file-organizer
+Layer: 5 — Products
+
+Size: 16KB
+
+What it owns: Intelligent file and folder organization — finding duplicates,
+suggesting structures, automating cleanup.
+
+Does NOT own: BioSpark-specific systems.
+
+Status: Current (general purpose)
+
+Trigger phrases: "organize files", "find duplicates", "clean up folder"
+
+five-factions
+Layer: 3 — Identity &amp; Symbolic
+
+Size: 28KB
+
+What it owns: The Five Factions of Xyrona Prime as high-level generator controls
+— design systems, agent behavior, UI themes, generation parameters, music production,
+world-building, code architecture. Primary declarative conditioning language for all
+generators. Color, tone, element, and aesthetic assignment.
+
+Does NOT own: Heraldic mechanics (quill-heraldry), world generation (quantum-
+genesis-engine).
+
+References: quill-heraldry (faction Crests), quantum-condition-engine
+(faction as heraldic condition source)
+
+Status: Current
+
+Trigger phrases: "make it feel more [faction]", "use Venturan as base",
+"Sylvanid aesthetic", "faction conditioning", "Syntaran theme"
+
+frontend-design
+Layer: 1 — Foundation
+
+Size: 12KB (user copy)
+
+What it owns: Design tokens, CSS variables, typography, color, layout rules,
+component patterns for BioSpark/Quill OS aesthetic. Dark mythic futurist. Bioluminescent
+palette. Cinzel Decorative + Share Tech Mono. Glass morphism. Sacred geometry.
+
+Status: Current
+
+Trigger phrases: "build UI", "web component", "design system", "React component",
+"HTML layout", "style this"
+
+genesis-container
+Layer: 1 — Foundation
+
+Size: 28KB
+
+What it owns: The Octave Capacity Law — all container architecture, growth modes
+(fixed/dynamic), estimated ceiling, Greater/Lesser Seal distinction, resonance-based
+containment rules, 17 wire types (including new RES type), TypeScript interfaces,
+domain mappings for narrative/music/software/agent/visual.
+
+Key change from previous version: Hard 16 wall replaced with octave model.
+16 is now the canonical default (octave 4) not an absolute limit. Dynamic growth
+mode added. Greater/Lesser Seal formally defined.
+
+References: quantum-condition-engine (resonance layer, Seal hierarchy physics)
+
+Status: Updated today — current
+
+Trigger phrases: "container architecture", "octave depth", "growth mode",
+"fixed vs dynamic", "estimated ceiling", "genesis container"
+
+local-first-stack
+Layer: 1 — Foundation
+
+Size: 44KB
+
+What it owns: BioSpark local-first architecture decisions — SQLite + Drizzle,
+LanceDB/ChromaDB, ProviderBus LLM router with capability-based routing and budget
+kill switch, Ollama setup, LiteLLM configuration. The authority that overrides
+Firebase/Firestore as default — local-first always.
+
+Rule: Firebase/Firestore ONLY when explicit target is Google AI Studio or
+Firebase-hosted web app. Everything else: fully local.
+
+Status: Current
+
+Trigger phrases: "what database", "wire the LLM", "set up router", "local
+inference", "ollama", "model routing", "budget kill switch", "ChromaDB", "LanceDB"
+
+order-of-the-quantum-quill
+Layer: 4 — World &amp; Narrative
+
+Size: 76KB (multiple reference files)
+
+What it owns: The Order of the Quantum Quill — BioSpark's agentic secret
+society and complete agent architecture. Members (Verenthis, Noxvir, Solvane,
+Ashvel, Kolmara, Tharindrel, Vaelithos, Soralinde), MythosContainer schema, agent
+neural nets, Observatory/Society Layer, Vault territory and conflict, Resonance
+economy, soul-weight physics, six Xyrona Prime races as agent types, Animus
+Choreographer, Agent Genesis Instrument, PromptDJ layer system, Chronicle/Scribe
+pipeline, Void travel, RULE-EQUIL-02, Unplayable Instrument, Astrion Pantheon,
+Myralith.
+
+References: quantum-condition-engine (agent heraldic states, gate activations),
+quill-heraldry (agent heraldry rules, Gauntlet), biospark-voxel (agent
+perception), genesis-container (MythosContainer schema)
+
+Status: Current — but heraldry sections predate dynamic heraldic position
+model. Agent heraldic birth/current/peak/nadir fields should be added when
+agent work resumes.
+
+Trigger phrases: "summon agent", "seal a member", "Order member", "Chronicle
+entry", "88Hz", "The Song", "Void travel", "Verenthis", "Noxvir"
+
+periodic-table-of-thaumaturgy
+Layer: 3 — Identity &amp; Symbolic
+
+Size: 24KB
+
+What it owns: Element generation and validation framework — 16 manifest elements,
+16 shadow elements (auto-generated phase inversions), element-to-node binding during
+Genesis generation, Life Bias Law, MIDI mappings, shadow element surfacing mechanics,
+manifest-to-shadow flip events, Harmonic Noise injection for stasis prevention,
+pre-flight seal check (12 items), crafting/magic/technology emergence, shard
+inheritance, TypeScript interfaces including BoundNode and FlipEvent.
+
+Key change from previous version: Shadow table added (16+16 octave model).
+Element-to-node binding added. Harmonic Noise injection formalized.
+
+References: quantum-condition-engine (element binding as condition source,
+stasis prevention), genesis-container (world container that receives elements)
+
+Status: Updated today — current
+
+Trigger phrases: "generate elements", "world cohesion", "shadow element",
+"element binding", "life bias", "MIDI mapping", "pre-flight check"
+
+qgcp-format
+Layer: 2 — Physics &amp; Activation
+
+Size: 44KB
+
+What it owns: The .qgcp file format — ZIP-based archive, HEADER.json,
+MANIFEST.json (encrypted when sealed), SEAL.sig, CHECKSUM, DEPS.json, asset
+folder structure. Mount registry (SQLite), mount/unmount API, Cipher module
+integration, Crest-Smith embedding requirements, asset size policy, security model.
+
+References: genesis-container (the schema MANIFEST.json holds),
+local-first-stack (SQLite mount registry)
+
+Status: Current — capacity law references in HEADER.json should be updated
+to reflect octave model (capsuleCapacity field is now octave-relative).
+
+Trigger phrases: "package container", "mount genesis", "seal and encrypt",
+"qgcp", "store genesis container as file"
+
+quantum-condition-engine
+Layer: 2 — Physics &amp; Activation
+
+Size: 28KB (new today)
+
+What it owns: Harmonic Tensor Graph, Greater/Lesser Seal physics, five condition
+sources (MIDI/B-DNA/Heraldry/Voxel/Resonance), Trinary Validation Gate (TVG),
+dynamic edge instantiation via cosine similarity + Phi multiplier, gate expression
+language, all seven gate types, emergent gate generation via Ollama, heraldic position
+mechanics (birth/current/peak/nadir), harmonic scale thresholds, ascent/descent
+consequences, heraldic stability mechanic, Condition Registry SQLite schema,
+FastAPI endpoints.
+
+This is the physics engine underneath everything. Every activation, unlock,
+and state change passes through here.
+
+References: genesis-container, periodic-table-of-thaumaturgy,
+quill-heraldry, biospark-voxel, local-first-stack, order-of-the-quantum-quill,
+quantum-modules
+
+Status: New today — current
+
+Trigger phrases: "open a gate", "unlock a branch", "resonance threshold",
+"coherence lock", "heraldic shift", "TVG", "condition registry", "dynamic edge",
+"node activation"
+
+quantum-generator-spec
+Layer: 1 — Foundation
+
+Size: 96KB (multiple reference files)
+
+What it owns: TypeScript interfaces, JSON schemas, and modular specs for the
+Quantum Genesis Generator — the spec-authoring tool. Module specs, Genesis Container
+schemas, registry structures, agent system definitions, guild configurations, I/O
+contracts, tier permission matrices, addon manifests, validation rules. All locked
+architectural decisions live here.
+
+Status: May need review — some schemas predate octave model and condition engine.
+Cross-check capacity fields and heraldic fields in any generated specs.
+
+Trigger phrases: "build spec for X", "schema for Y", "scaffold module",
+"define addon manifest", "I/O contract", "tier permissions"
+
+quantum-genesis-engine
+Layer: 4 — World &amp; Narrative
+
+Size: 164KB (prompts + schemas + references)
+
+What it owns: Complete world creation prompt chain — generates sealed Genesis
+Containers from raw lore input. Prime Seal MIDI sequence, world language derivation,
+elemental table generation, physics constant sealing, constitutional document.
+Purely world-physics and lore — no knowledge of tours, artists, or distribution.
+
+Does NOT own: Artists, tours, distribution, production pipelines.
+
+References: genesis-container, periodic-table-of-thaumaturgy,
+quantum-condition-engine (TVG validation during generation)
+
+Status: Current — prompt chain may predate shadow element table and element
+binding. Prompt 05 (element generation) should be checked for shadow table output.
+
+Trigger phrases: "generate a world", "run genesis engine", "build genesis
+container", "seal a world", "create physics for [world]"
+
+quantum-modules
+Layer: 4 — World &amp; Narrative
+
+Size: 604KB (16 JSON module files + SKILL.md)
+
+What it owns: The 16 Quantum Engine Modules organized in 4 departments.
+Authoritative registry — do not invent new modules or rename existing ones.
+Each module has a complete JSON spec. Module-to-Crest mapping, module color
+assignments, department ownership, TypeScript I/O contracts.
+The 16 modules by department:
+Dept#ModuleCrestWorld01TerrainSyntaranWorld02EnvironmentHydralisWorld03ArchitectSylvanidWorld04LightingLuminariteLife05ModelingSylvanidLife06ChoreographyVenturanLife07BehaviorVenturanLife08SocietyHydralisMind09SequencerLuminariteMind10StorySylvanidMind11MemorySyntaranMind12SoundVenturanSystem13LogicLuminariteSystem14SimulationSyntaranSystem15ForgeSyntaranSystem16NetworkHydralis
+References: quantum-condition-engine (modules as Crest-weight graph nodes),
+genesis-container (module I/O uses wire types), five-factions (Crest assignments)
+
+Status: JSON files current. SKILL.md may predate condition engine — module
+participation in the Harmonic Tensor Graph should be noted.
+
+Trigger phrases: "what module handles X", "which department owns Y",
+"module I/O", "build [ModuleName] system"
+
+quill-asset-page
+Layer: 5 — Products
+
+Size: 16KB
+
+What it owns: Prime Constellation design system layout — multi-tab interactive
+HTML artifact with animated SVG crests, nodes, sigils, glyph sets, design tokens,
+hierarchy diagrams, TypeScript code references. Reference pages for any Quill
+ecosystem entity.
+
+References: frontend-design, quill-heraldry, five-factions
+
+Status: Current
+
+Trigger phrases: "asset page", "reference sheet", "design system view",
+"document visual assets", "registry UI"
+
+quill-heraldry
+Layer: 3 — Identity &amp; Symbolic
+
+Size: 28KB
+
+What it owns: Symbolic vocabulary and classification taxonomy — all 20 heraldic
+symbol types, birth assignment rules, three-way alignment (structural/functional/
+symbolic), the four heraldic state fields (birth/current/peak/nadir), skill tree
+mechanics overview, 16 canonical module Crests, 5 canonical race Crests, AddonSpec
+integration, decision workflow for birth assignment.
+
+Does NOT own: Heraldic position mechanics, weight formula, ascent/descent
+calculations — those live in quantum-condition-engine.
+
+Key change from previous version: Heraldry is now a dynamic resonance position,
+not a caste. Birth is permanent but current position is live. Four heraldic state
+fields formalized. Skill tree cross-branch unlock described.
+
+References: quantum-condition-engine (position mechanics),
+genesis-container (structural levels), periodic-table-of-thaumaturgy
+(faction affinity → Crest), biospark-voxel (location scarring at peak positions),
+five-factions (race Crest definitions)
+
+Status: Updated today — current
+
+Trigger phrases: "what type should this be", "where does X live", "can this
+ascend", "heraldic shift", "assign heraldry", "birth position", "classify this"
+
+Skills That Need Attention
+SkillIssuePrioritybiospark-quantum-genesisPredates octave model + dynamic heraldryMediumcreate-artistsArtist containers should default to dynamic growth modeMediumqgcp-formatHEADER.json capacity fields are octave-relative nowLowquantum-generator-specSome schemas predate condition engine + octave modelMediumquantum-genesis-enginePrompt 05 may not output shadow element tableMediumorder-of-the-quantum-quillAgent heraldry predates birth/current/peak/nadir modelLow
+
+Skills Currently Missing (Identified Gaps)
+Skill NeededWhybiospark-bdnaB-DNA is a full system (64 positions, 7 trait tables, MIDI derivation, social/relational DNA, artifact DNA) — referenced everywhere but no dedicated skill file yetbiospark-artist-identityTour artist identity cards are distinct from module splash screens — skill was being built but may not be installedquantum-loomThe DAW/timeline sequencer is a major system with no dedicated skillquantum-agentThe local-first agentic OS (FastAPI + LiteLLM + React, 31 tools, 12 skills) has no skill file — it's the runtime environment
+
+Quick Reference — Skill by Domain
+Starting a new world → quantum-genesis-engine → periodic-table-of-thaumaturgy → genesis-container
+Designing an actor/character → create-artists → biospark-quantum-genesis → quill-heraldry → biospark-voxel
+Building a gate or unlock condition → quantum-condition-engine → quill-heraldry → periodic-table-of-thaumaturgy
+Packaging and deploying a container → qgcp-format → local-first-stack
+Designing UI or splash screens → frontend-design → biospark-splash-creator → quill-asset-page
+Onboarding a tour act → biospark-interstellar-tour → create-artists → quantum-genesis-engine
+Setting up local infrastructure → local-first-stack → quantum-agent (missing skill)
+Working with Order agents → order-of-the-quantum-quill → quantum-condition-engine → quill-heraldry
+Assigning faction identity → five-factions → quill-heraldry → quantum-condition-engine
+Generating module specs → quantum-modules → quantum-generator-spec</rich_text>
+  </node>
+</cherrytree>

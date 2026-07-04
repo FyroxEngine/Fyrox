@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Astral Gateway UI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-image: url('https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?q=80&w=2071&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            font-family: 'Rajdhani', sans-serif;
+        }
+        .text-glow-primary {
+            text-shadow: 0 0 8px theme('colors.primary'), 0 0 10px theme('colors.primary');
+        }
+        .text-glow-accent {
+            text-shadow: 0 0 8px theme('colors.accent'), 0 0 10px theme('colors.accent');
+        }
+        .box-glow-primary {
+            box-shadow: 0 0 15px 2px theme('colors.primary / 0.7'), 0 0 5px 1px theme('colors.primary / 0.8') inset;
+        }
+        .box-glow-secondary {
+            box-shadow: 0 0 15px 2px theme('colors.secondary / 0.7'), 0 0 5px 1px theme('colors.secondary / 0.8') inset;
+        }
+        .box-glow-accent {
+            box-shadow: 0 0 15px 2px theme('colors.accent / 0.7'), 0 0 5px 1px theme('colors.accent / 0.8') inset;
+        }
+        .rack-bg {
+            background: linear-gradient(145deg, hsl(240, 10%, 22%), hsl(240, 10%, 15%));
+        }
+        .module-bg {
+            background-color: #121220c0;
+            backdrop-filter: blur(4px);
+            border: 1px solid hsl(240, 10%, 30%);
+        }
+        .knob-indicator {
+            transform: rotate(140deg);
+        }
+        /* Custom styles for faders if needed, though divs are used here for static replication */
+        .fader-track {
+            background: #2a2a3a;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
+        }
+        .fader-thumb {
+            background: linear-gradient(to top, #00bfff, #00dfff);
+            box-shadow: 0 0 5px #00bfff;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bg: '#0f0f20',
+                        primary: '#00bfff',
+                        secondary: '#9400d3',
+                        accent: '#ff1493',
+                    },
+                    boxShadow: {
+                        'glow-primary': '0 0 15px 5px #00bfff99',
+                        'glow-secondary': '0 0 15px 5px #9400d399',
+                        'glow-accent': '0 0 15px 5px #ff149399',
+                    },
+                    fontFamily: {
+                        sans: ['Rajdhani', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-bg text-gray-300">
+
+    <!-- Container: Full Page Wrapper -->
+    <div class="flex justify-center items-start min-h-screen py-10 px-4">
+
+        <!-- Container: Synthesizer Rack -->
+        <div class="w-full max-w-4xl rack-bg rounded-lg border-2 border-slate-600 shadow-2xl shadow-black/50 p-2 flex">
+            <!-- Component: Rack Side Rail (Left) -->
+            <div class="flex flex-col justify-between items-center w-6 bg-slate-800/50 rounded-l-md py-8">
+                <div class="w-2 h-2 bg-slate-900 rounded-full border border-slate-600"></div>
+                <div class="w-2 h-2 bg-slate-900 rounded-full border border-slate-600"></div>
+                <div class="w-2 h-2 bg-slate-900 rounded-full border border-slate-600"></div>
+                <div class="w-2 h-2 bg-slate-900 rounded-full border border-slate-600"></div>
+                <div class="w-2 h-2 bg-slate-900 rounded-full border border-slate-600"></div>
+                <div class="w-2 h-2 bg-slate-900 rounded-full border border-slate-600"></div>
+            </div>
+            
+            <!-- Container: Main Modules Area -->
+            <div class="flex-grow flex flex-col space-y-2">
+
+                <!-- Module: Concordance -->
+                <div class="module-bg rounded-t-md p-4">
+                    <!-- Component: Module Header -->
+                    <div class="flex justify-between items-center mb-4 px-2">
+                        <h2 class="text-sm font-bold tracking-[0.2em] text-primary/80">CONCORDANCE</h2>
+                        <div class="flex space-x-2">
+                            <div class="w-2 h-2 bg-slate-900 rounded-full border border-slate-600"></div>
+                            <div class="w-2 h-2 bg-slate-900 rounded-full border border-slate-600"></div>
+                        </div>
+                    </div>
+                    <!-- Component: Module Content -->
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                        <!-- Sub-Component: Left Visualizer -->
+                        <div class="md:col-span-3 flex justify-center items-center">
+                            <div class="relative w-36 h-36 rounded-full flex items-center justify-center p-2 bg-black/30 border border-primary/20">
+                                <div class="absolute inset-0 rounded-full border-2 border-primary/50 animate-pulse"></div>
+                                <div class="absolute inset-2 rounded-full border border-dashed border-primary/30"></div>
+                                <div class="absolute inset-4 rounded-full border border-primary/20"></div>
+                                <div class="w-12 h-12 rounded-full bg-accent/80 box-glow-accent blur-sm"></div>
+                                <div class="absolute w-8 h-8 rounded-full bg-accent/90 box-glow-accent"></div>
+                            </div>
+                        </div>
+                        <!-- Sub-Component: Center Vortex Display -->
+                        <div class="md:col-span-4 flex justify-center items-center">
+                            <div class="w-48 h-48 rounded-full p-2 bg-gradient-to-br from-slate-900 to-slate-800 shadow-inner-2xl shadow-black">
+                                <div class="w-full h-full rounded-full bg-cover bg-center border-4 border-primary/80 box-glow-primary" style="background-image: url('https://images.unsplash.com/photo-1506443432602-ac2dcd7e20de?q=80&w=1974&auto=format&fit=crop');"></div>
+                            </div>
+                        </div>
+                        <!-- Sub-Component: Right Controls -->
+                        <div class="md:col-span-5 flex flex-col space-y-4">
+                            <div class="flex justify-between items-center">
+                                <h3 class="text-xs font-semibold tracking-widest">RESONANCE</h3>
+                                <h3 class="text-xs font-semibold tracking-widest">HARMONICS</h3>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <!-- Knobs -->
+                                <div class="flex flex-col items-center space-y-2">
+                                    <div class="flex space-x-2">
+                                        <div class="w-10 h-10 bg-slate-700 rounded-full border-2 border-slate-500 shadow-md flex items-center justify-center"><div class="w-1 h-3 bg-primary rounded-sm knob-indicator" style="transform: rotate(45deg);"></div></div>
+                                        <div class="w-10 h-10 bg-slate-700 rounded-full border-2 border-slate-500 shadow-md flex items-center justify-center"><div class="w-1 h-3 bg-primary rounded-sm knob-indicator" style="transform: rotate(-30deg);"></div></div>
+                                    </div>
+                                    <div class="flex space-x-2">
+                                        <div class="w-10 h-10 bg-slate-700 rounded-full border-2 border-slate-500 shadow-md flex items-center justify-center"><div class="w-1 h-3 bg-primary rounded-sm knob-indicator" style="transform: rotate(90deg);"></div></div>
+                                        <div class="w-10 h-10 bg-slate-700 rounded-full border-2 border-slate-500 shadow-md flex items-center justify-center"><div class="w-1 h-3 bg-primary rounded-sm knob-indicator" style="transform: rotate(180deg);"></div></div>
+                                    </div>
+                                </div>
+                                <!-- Switches & Indicators -->
+                                <div class="flex flex-col items-start space-y-2">
+                                    <div class="w-full h-2 bg-primary/70 rounded-full box-glow-primary"></div>
+                                    <span class="text-[10px] tracking-wider text-primary">ILLUMINATE</span>
+                                    <div class="w-full h-2 bg-accent/70 rounded-full box-glow-accent"></div>
+                                    <span class="text-[10px] tracking-wider text-accent">DETACHMENT</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Module: Axiom Carver -->
+                <div class="module-bg p-4">
+                    <!-- Component: Module Header -->
+                    <h2 class="text-sm font-bold tracking-[0.2em] text-primary/80 mb-2 px-2">AXIOM CARVER</h2>
+                    <!-- Component: Module Content -->
+                    <div class="flex flex-col space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <!-- Knob: ANCHOR -->
+                            <div class="flex flex-col items-center space-y-2">
+                                <h3 class="text-xs font-semibold tracking-widest">ANCHOR</h3>
+                                <div class="w-16 h-16 bg-slate-800 rounded-full border-2 border-slate-600 flex items-center justify-center shadow-lg"><div class="w-1.5 h-5 bg-primary rounded-sm knob-indicator"></div></div>
+                                <span class="text-[10px] text-gray-400">TEMPORAL FOCUS</span>
+                            </div>
+                             <!-- Knob: DIMENSION -->
+                            <div class="flex flex-col items-center space-y-2">
+                                <h3 class="text-xs font-semibold tracking-widest">DIMENSION</h3>
+                                <div class="w-16 h-16 bg-slate-800 rounded-full border-2 border-slate-600 flex items-center justify-center shadow-lg"><div class="w-1.5 h-5 bg-primary rounded-sm knob-indicator" style="transform: rotate(20deg);"></div></div>
+                                <span class="text-[10px] text-gray-400">CAUSAL DENSITY</span>
+                            </div>
+                             <!-- Knob: HEIGHT -->
+                            <div class="flex flex-col items-center space-y-2">
+                                <h3 class="text-xs font-semibold tracking-widest">HEIGHT</h3>
+                                <div class="w-16 h-16 bg-slate-800 rounded-full border-2 border-slate-600 flex items-center justify-center shadow-lg"><div class="w-1.5 h-5 bg-primary rounded-sm knob-indicator" style="transform: rotate(-90deg);"></div></div>
+                                <span class="text-[10px] text-gray-400">PHASIC SHIFT</span>
+                            </div>
+                             <!-- Display: DECAY -->
+                            <div class="flex flex-col items-center space-y-2">
+                                <h3 class="text-xs font-semibold tracking-widest">DECAY</h3>
+                                <div class="relative w-16 h-16 rounded-full flex items-center justify-center bg-black/30 border border-primary/20">
+                                    <div class="absolute inset-0 rounded-full border border-dashed border-primary/50 animate-ping opacity-50"></div>
+                                    <svg class="w-12 h-12 text-primary" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M50 10 V 20 M50 90 V 80 M10 50 H 20 M90 50 H 80 M25 25 L 35 35 M75 75 L 65 65 M25 75 L 35 65 M75 25 L 65 35" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><circle cx="50" cy="50" r="30" stroke="currentColor" stroke-width="4"/></svg>
+                                </div>
+                                <span class="text-[10px] text-gray-400">ENTROPIC FADE</span>
+                            </div>
+                        </div>
+                        <div class="relative h-24 bg-black/20 rounded flex items-center justify-center p-4 border border-slate-700">
+                             <div class="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent"></div>
+                             <div class="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent top-1/4"></div>
+                             <div class="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent bottom-1/4"></div>
+                            <div class="w-16 h-16 rounded-full bg-secondary/20 box-glow-secondary flex items-center justify-center">
+                               <svg class="w-12 h-12 text-accent/80 filter drop-shadow-[0_0_5px_theme(colors.accent)]" viewBox="-5 -5 110 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                   <path d="M50 0 C77.6142 0 100 22.3858 100 50 C100 77.6142 77.6142 100 50 100 C22.3858 100 0 77.6142 0 50 C0 22.3858 22.3858 0 50 0 Z M50 10 C72.0914 10 90 27.9086 90 50 C90 72.0914 72.0914 90 50 90 C27.9086 90 10 72.0914 10 50 C10 33.4315 23.4315 20 40 20" stroke="currentColor" stroke-width="4"/>
+                               </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Module: Persona Forger -->
+                <div class="module-bg p-4">
+                    <!-- Component: Module Header -->
+                    <div class="flex justify-between items-center mb-4 px-2">
+                        <h2 class="text-sm font-bold tracking-[0.2em] text-primary/80">PERSONA FORGER</h2>
+                        <h3 class="text-sm font-bold tracking-widest text-gray-400">ANIMUS</h3>
+                    </div>
+                    <!-- Component: Module Content -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Sub-Component: Faders -->
+                        <div class="grid grid-cols-5 gap-3">
+                            <!-- Fader Capsule -->
+                            <div class="flex flex-col items-center space-y-2" v-for="i in 5">
+                                <div class="w-8 h-40 relative fader-track rounded-full flex justify-center py-2">
+                                    <div class="absolute w-6 h-4 bg-primary rounded-md fader-thumb" style="top: 30%;"></div>
+                                </div>
+                                <div class="w-2 h-2 rounded-full bg-primary/50 box-glow-primary"></div>
+                            </div>
+                        </div>
+                        <!-- Sub-Component: Waveform Displays -->
+                        <div class="flex flex-col space-y-2">
+                            <div class="h-24 bg-black/30 border border-slate-700 rounded p-2 flex items-end">
+                                <svg width="100%" height="100%" viewBox="0 0 300 80" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <defs>
+                                        <linearGradient id="waveGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                            <stop offset="0%" stop-color="#ff1493" />
+                                            <stop offset="50%" stop-color="#9400d3" />
+                                            <stop offset="100%" stop-color="#00bfff" />
+                                        </linearGradient>
+                                    </defs>
+                                    <path d="M0 40 C 20 10, 40 70, 60 40 S 100 10, 120 40 S 160 70, 180 40 S 220 10, 240 40 S 280 70, 300 40" stroke="url(#waveGrad)" stroke-width="2.5" />
+                                </svg>
+                            </div>
+                            <div class="h-24 bg-black/30 border border-slate-700 rounded p-2 flex items-center relative">
+                                <svg width="100%" height="100%" viewBox="0 0 300 80" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M0 50 C 50 70, 100 30, 150 50 S 250 70, 300 50" stroke="#00bfff" stroke-width="2" stroke-opacity="0.8" />
+                                    <path d="M0 30 C 50 10, 100 50, 150 30 S 250 10, 300 30" stroke="#ff1493" stroke-width="2" stroke-opacity="0.8" />
+                                </svg>
+                                <div class="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-primary/70 box-glow-primary blur-sm"></div>
+                                <div class="absolute bottom-2 right-2 w-6 h-6 rounded-full bg-primary/90 border-2 border-white/50"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Module: ChronoFlow Sequencer -->
+                <div class="module-bg p-4">
+                    <!-- Component: Module Header -->
+                    <h2 class="text-sm font-bold tracking-[0.2em] text-primary/80 mb-4 px-2">CHRONOFLOW SEQUENCER</h2>
+                    <!-- Component: Module Content -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Sub-Component: Scrubber Wheel -->
+                        <div class="flex justify-center items-center md:col-span-1">
+                            <div class="w-40 h-40 rounded-full flex items-center justify-center p-2 bg-slate-900 shadow-inner-lg">
+                                <div class="relative w-full h-full rounded-full border-4 border-slate-700 flex items-center justify-center">
+                                    <div class="absolute inset-0 rounded-full border-4 border-transparent border-l-accent border-t-accent" style="transform: rotate(45deg);"></div>
+                                    <div class="w-24 h-24 bg-slate-800 rounded-full flex items-center justify-center shadow-inner">
+                                        <div class="w-16 h-16 bg-slate-900/50 rounded-full border border-slate-600"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Sub-Component: Sequencer Steps -->
+                        <div class="md:col-span-2 flex flex-col justify-between">
+                            <div class="grid grid-cols-8 gap-3">
+                                <!-- Step Capsule -->
+                                <div class="flex flex-col items-center space-y-2" v-for="i in 8">
+                                    <div class="w-6 h-6 bg-slate-700 rounded-full border border-slate-500 shadow-sm flex items-center justify-center"><div class="w-0.5 h-2 bg-primary knob-indicator" style="transform: rotate(-45deg);"></div></div>
+                                    <div class="w-10 h-10 bg-gradient-to-br from-slate-400 to-slate-600 rounded-full shadow-md border-2 border-slate-500/50 flex items-center justify-center">
+                                        <div class="w-8 h-8 rounded-full bg-slate-800/50 shadow-inner"></div>
+                                    </div>
+                                    <span class="text-[9px] text-gray-400 tracking-wider">EVENT-0{{i}}</span>
+                                </div>
+                            </div>
+                            <div class="h-12 mt-4 bg-black/20 rounded border border-slate-700 flex items-center justify-center">
+                                 <svg width="90%" height="90%" viewBox="0 0 400 50" preserveAspectRatio="xMidYMid meet" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M10 25 L 50 25 L 70 10 L 90 40 L 120 25 L 180 25 L 200 15 L 220 35 L 250 25 L 300 25 L 320 45 L 340 5 L 360 25 L 390 25" stroke="#00bfff" stroke-width="1.5" />
+                                    <circle cx="10" cy="25" r="3" fill="#00bfff" class="box-glow-primary" />
+                                    <circle cx="50" cy="25" r="3" fill="#00bfff" class="box-glow-primary" />
+                                    <circle cx="70" cy="10" r="3" fill="#00bfff" class="box-glow-primary" />
+                                    <circle cx="90" cy="40" r="3" fill="#00bfff" class="box-glow-primary" />
+                                    <circle cx="120" cy="25" r="3" fill="#00bfff" class="box-glow-primary" />
+                                    <circle cx="180" cy="25" r="3" fill="#00bfff" class="box-glow-primary" />
+                                    <circle cx="200" cy="15" r="3" fill="#00bfff" class="box-glow-primary" />
+                                    <circle cx="220" cy="35" r="3" fill="#00bfff" class="box-glow-primary" />
+                                    <circle cx="390" cy="25" r="3" fill="#00bfff" class="box-glow-primary" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Module: Nebula Systems Monitor -->
+                <div class="module-bg p-4">
+                    <!-- Component: Module Header -->
+                    <h2 class="text-sm font-bold tracking-[0.2em] text-primary/80 mb-2 px-2">NEBULA SYSTEMS MONITOR</h2>
+                    <!-- Component: Display -->
+                    <div class="h-40 bg-black/50 rounded border border-slate-700 flex items-center justify-center overflow-hidden relative">
+                        <div class="absolute w-64 h-32 bg-accent/30 rounded-full blur-3xl -left-10 -top-5"></div>
+                        <div class="absolute w-56 h-24 bg-accent/20 rounded-full blur-3xl -right-5 bottom-0"></div>
+                        <svg width="100%" height="100%" viewBox="0 0 600 160" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M50 80 L 100 50 L 150 90 L 120 120 L 70 130 Z M200 40 L 250 60 L 280 30 L 320 70 L 290 100 Z M400 110 L 450 130 L 480 90 L 520 120 L 550 80 L 500 60 Z" stroke="#00bfff" stroke-width="1.5" stroke-opacity="0.7"/>
+                            <circle cx="50" cy="80" r="4" fill="#fff" class="box-glow-primary" /><circle cx="100" cy="50" r="5" fill="#fff" class="box-glow-primary" /><circle cx="150" cy="90" r="3" fill="#fff" class="box-glow-primary" /><circle cx="120" cy="120" r="4" fill="#fff" class="box-glow-primary" /><circle cx="70" cy="130" r="4" fill="#fff" class="box-glow-primary" /><circle cx="200" cy="40" r="5" fill="#fff" class="box-glow-primary" /><circle cx="250" cy="60" r="3" fill="#fff" class="box-glow-primary" /><circle cx="280" cy="30" r="6" fill="#fff" class="box-glow-primary" /><circle cx="320" cy="70" r="4" fill="#fff" class="box-glow-primary" /><circle cx="290" cy="100" r="3" fill="#fff" class="box-glow-primary" /><circle cx="400" cy="110" r="4" fill="#fff" class="box-glow-primary" /><circle cx="450" cy="130" r="5" fill="#fff" class="box-glow-primary" /><circle cx="480" cy="90" r="3" fill="#fff" class="box-glow-primary" /><circle cx="520" cy="120" r="4" fill="#fff" class="box-glow-primary" /><circle cx="550" cy="80" r="6" fill="#fff" class="box-glow-primary" /><circle cx="500" cy="60" r="3" fill="#fff" class="box-glow-primary" />
+                        </svg>
+                    </div>
+                </div>
+                
+                <!-- Module: Nexus Patch Bay -->
+                <div class="module-bg rounded-b-md p-4">
+                    <!-- Component: Module Header -->
+                    <h2 class="text-sm font-bold tracking-[0.2em] text-primary/80 mb-4 px-2">NEXUS PATCH BAY</h2>
+                    <!-- Component: Patch Grid -->
+                    <div class="grid grid-cols-16 gap-2 px-4">
+                        <!-- Patch Point Capsule (repeated) -->
+                        <div v-for="i in 64" class="w-6 h-6 rounded-full border-2 border-slate-600 bg-slate-900 flex items-center justify-center">
+                            <div class="w-3 h-3 bg-black rounded-full"></div>
+                        </div>
+                    </div>
+                    <!-- Component: Cables -->
+                    <div class="h-24 relative mt-2">
+                        <svg class="absolute inset-0 w-full h-full" viewBox="0 0 800 100" preserveAspectRatio="none">
+                             <defs>
+                                <linearGradient id="cableGrad1" gradientTransform="rotate(90)">
+                                    <stop offset="0%" stop-color="#00bfff" />
+                                    <stop offset="100%" stop-color="#9400d3" />
+                                </linearGradient>
+                                <linearGradient id="cableGrad2" gradientTransform="rotate(90)">
+                                    <stop offset="0%" stop-color="#ff1493" />
+                                    <stop offset="100%" stop-color="#9400d3" />
+                                </linearGradient>
+                                <filter id="glow">
+                                    <feGaussianBlur stdDeviation="3.5" result="coloredBlur"></feGaussianBlur>
+                                    <feMerge>
+                                        <feMergeNode in="coloredBlur"></feMergeNode>
+                                        <feMergeNode in="SourceGraphic"></feMergeNode>
+                                    </feMerge>
+                                </filter>
+                            </defs>
+                            <g filter="url(#glow)">
+                                <path d="M120 0 C 150 80, 250 80, 400 95" stroke="url(#cableGrad1)" stroke-width="4" fill="none" />
+                                <path d="M160 0 C 180 70, 270 70, 400 95" stroke="url(#cableGrad2)" stroke-width="4" fill="none" />
+                                <path d="M200 0 C 210 60, 290 60, 400 95" stroke="url(#cableGrad1)" stroke-width="4" fill="none" />
+                                <path d="M240 0 C 250 50, 310 50, 400 95" stroke="url(#cableGrad2)" stroke-width="4" fill="none" />
+                                <path d="M280 0 C 290 40, 330 40, 400 95" stroke="url(#cableGrad1)" stroke-width="4" fill="none" />
+                                <path d="M320 0 C 325 30, 345 30, 400 95" stroke="url(#cableGrad2)" stroke-width="4" fill="none" />
+                                <path d="M360 0 C 360 20, 360 20, 400 95" stroke="url(#cableGrad1)" stroke-width="4" fill="none" />
+                                <path d="M680 0 C 650 80, 550 80, 400 95" stroke="url(#cableGrad2)" stroke-width="4" fill="none" />
+                                <path d="M640 0 C 620 70, 530 70, 400 95" stroke="url(#cableGrad1)" stroke-width="4" fill="none" />
+                                <path d="M600 0 C 590 60, 510 60, 400 95" stroke="url(#cableGrad2)" stroke-width="4" fill="none" />
+                                <path d="M560 0 C 550 50, 490 50, 400 95" stroke="url(#cableGrad1)" stroke-width="4" fill="none" />
+                                <path d="M520 0 C 510 40, 470 40, 400 95" stroke="url(#cableGrad2)" stroke-width="4" fill="none" />
+                                <path d="M480 0 C 475 30, 455 30, 400 95" stroke="url(#cableGrad1)" stroke-width="4" fill="none" />
+                                <path d="M440 0 C 440 20, 440 20, 400 95" stroke="url(#cableGrad2)" stroke-width="4" fill="none" />
+                            </g>
+                        </svg>
+                    </div>
+                </div>
+
+            </div>
+            
+            <!-- Component: Rack Side Rail (Right) -->
+             <div class="flex flex-col justify-between items-center w-6 bg-slate-800/50 rounded-r-md py-8">
+                <div class="w-2 h-2 bg-slate-900 rounded-full border border-slate-600"></div>
+                <div class="w-2 h-2 bg-slate-900 rounded-full border border-slate-600"></div>
+                <div class="w-2 h-2 bg-slate-900 rounded-full border border-slate-600"></div>
+                <div class="w-2 h-2 bg-slate-900 rounded-full border border-slate-600"></div>
+                <div class="w-2 h-2 bg-slate-900 rounded-full border border-slate-600"></div>
+                <div class="w-2 h-2 bg-slate-900 rounded-full border border-slate-600"></div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

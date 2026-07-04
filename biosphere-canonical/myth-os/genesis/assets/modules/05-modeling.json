@@ -1,0 +1,67 @@
+{
+  "id": "MYTH-05",
+  "name": "Modeling",
+  "crest": "Animus",
+  "color": "#f4c025",
+  "department": "Entities",
+  "description": "Entity morphology and population controller. Animus reads B-DNA genotype capsules and breathes form into living agents — their shape, scale, and visual signature in the world.",
+  "implementation_status": "built",
+  "primary_wire_out": "VIS",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "assets/MYTH-05/_meta/icon.png",
+    "preview_image": "assets/MYTH-05/_meta/cover.png",
+    "banner": "assets/MYTH-05/_meta/banner.webp",
+    "crest_svg": "assets/MYTH-05/_meta/crest.svg",
+    "splash_screen": "assets/MYTH-05/_meta/splash.html",
+    "audio_preview": "assets/MYTH-05/_meta/preview.mp3",
+    "video_preview": "assets/MYTH-05/_meta/preview.mp4"
+  },
+  "containers": [
+    {
+      "id": "MYTH-05-STD-01",
+      "name": "Entity Spawner",
+      "symbol": "ES",
+      "wire_out": "VIS",
+      "description": "Reads genotype capsules and spawns Bevy ECS entities with mesh and material components.",
+      "assets": { "icon": "assets/MYTH-05/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    },
+    {
+      "id": "MYTH-05-STD-02",
+      "name": "Morphology Editor",
+      "symbol": "ME",
+      "wire_out": "VIS",
+      "description": "Runtime mesh deformation driven by genotype trait values.",
+      "assets": { "icon": "assets/MYTH-05/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    }
+  ],
+  "traktor_map": [
+    {
+      "channel": 2,
+      "control_type": "knob",
+      "midi_cc": 16,
+      "parameter": "Mesh Density",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    },
+    {
+      "channel": 2,
+      "control_type": "knob",
+      "midi_cc": 17,
+      "parameter": "Model Scale",
+      "scale_min": 0.01,
+      "scale_max": 10.0
+    },
+    {
+      "channel": 2,
+      "control_type": "fader",
+      "midi_cc": 7,
+      "parameter": "Population Density",
+      "scale_min": 0.0,
+      "scale_max": 64.0
+    }
+  ]
+}

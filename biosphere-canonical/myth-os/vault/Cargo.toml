@@ -1,0 +1,17 @@
+[package]
+name    = "vault"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+mythos              = { path = "../mythos" }
+tokio               = { workspace = true }
+serde               = { workspace = true }
+serde_json          = { workspace = true }
+blake3              = { workspace = true }
+memmap2             = { workspace = true }
+uuid                = { workspace = true }
+chrono              = { workspace = true }
+anyhow              = { workspace = true }
+thiserror           = { workspace = true }
+tracing             = { workspace = true }

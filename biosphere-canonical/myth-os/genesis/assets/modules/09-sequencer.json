@@ -1,0 +1,67 @@
+{
+  "id": "MYTH-09",
+  "name": "Sequencer",
+  "crest": "Chronicle",
+  "color": "#b08030",
+  "department": "Atmosphere",
+  "description": "Temporal event scheduler and narrative pacing engine. Chronicle fires story beats, scene transitions, and world events at authored or emergent intervals — the metronome of the living world.",
+  "implementation_status": "built",
+  "primary_wire_out": "TMP",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "assets/MYTH-09/_meta/icon.png",
+    "preview_image": "assets/MYTH-09/_meta/cover.png",
+    "banner": "assets/MYTH-09/_meta/banner.webp",
+    "crest_svg": "assets/MYTH-09/_meta/crest.svg",
+    "splash_screen": "assets/MYTH-09/_meta/splash.html",
+    "audio_preview": "assets/MYTH-09/_meta/preview.mp3",
+    "video_preview": "assets/MYTH-09/_meta/preview.mp4"
+  },
+  "containers": [
+    {
+      "id": "MYTH-09-STD-01",
+      "name": "Beat Clock",
+      "symbol": "BC",
+      "wire_out": "TMP",
+      "description": "BPM-locked event clock with swing quantization and time-signature support.",
+      "assets": { "icon": "assets/MYTH-09/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    },
+    {
+      "id": "MYTH-09-STD-02",
+      "name": "Scene Conductor",
+      "symbol": "SC",
+      "wire_out": "TMP",
+      "description": "Schedules authored story beats and world-state transitions against the beat clock.",
+      "assets": { "icon": "assets/MYTH-09/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    }
+  ],
+  "traktor_map": [
+    {
+      "channel": 3,
+      "control_type": "knob",
+      "midi_cc": 16,
+      "parameter": "BPM",
+      "scale_min": 20.0,
+      "scale_max": 200.0
+    },
+    {
+      "channel": 3,
+      "control_type": "knob",
+      "midi_cc": 17,
+      "parameter": "Swing",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    },
+    {
+      "channel": 3,
+      "control_type": "fader",
+      "midi_cc": 7,
+      "parameter": "Event Density",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    }
+  ]
+}

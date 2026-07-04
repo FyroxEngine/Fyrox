@@ -1,0 +1,22 @@
+[package]
+name    = "core-supervisor"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "core"
+path = "src/main.rs"
+
+[dependencies]
+mythos              = { path = "../mythos" }
+vault               = { path = "../vault" }
+tokio               = { workspace = true }
+serde               = { workspace = true }
+serde_json          = { workspace = true }
+crossbeam-channel   = { workspace = true }
+uuid                = { workspace = true }
+anyhow              = { workspace = true }
+thiserror           = { workspace = true }
+tracing             = { workspace = true }
+tracing-subscriber  = { workspace = true }
+chrono              = { workspace = true }

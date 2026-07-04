@@ -1,0 +1,18 @@
+[package]
+name        = "myth-stencil"
+version     = "0.1.0"
+edition     = "2021"
+description = "Recursive panel-split layout engine with MIDI binding — the spatial contract for myth-os instruments"
+
+[dependencies]
+serde    = { workspace = true }
+bincode  = { workspace = true }
+uuid     = { workspace = true }
+
+# egui Rect/Pos2/Vec2 are used for layout math.
+# Keep behind a feature flag so headless users don't pull in the renderer.
+egui = { workspace = true, optional = true }
+
+[features]
+default = ["egui-layout"]
+egui-layout = ["dep:egui"]

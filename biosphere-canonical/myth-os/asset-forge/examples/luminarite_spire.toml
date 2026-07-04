@@ -1,0 +1,26 @@
+[asset]
+type     = "LUMINARITE_SPIRE"
+zone     = "LUMINARITE"
+function = "SPIRE"
+variant  = "CRYSTALLINE"
+scale    = "1X1X2"
+variants = 4          # A, B, C, D
+
+[sockets]
+north = "OPEN"
+south = "OPEN"
+east  = "OPEN"
+west  = "OPEN"
+up    = "VOID_EDGE"
+down  = "GROUND_STONE"
+
+[render]
+background = "TRANSPARENT"
+direction  = "ISW"
+angle      = "ISOMETRIC"
+shader     = "PBR"
+
+[meta]
+quantum_module = "Prism"
+resonance_hz   = 963.0
+tags           = ["tileable", "spire", "luminous", "cathedral"]

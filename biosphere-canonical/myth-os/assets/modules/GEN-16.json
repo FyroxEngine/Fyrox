@@ -1,0 +1,40 @@
+{
+  "id": "GEN-16",
+  "name": "Network",
+  "crest": "◈",
+  "color": "#c8d8ff",
+  "department": "Dynamics",
+  "description": "Event bus and inter-process communication layer. Routes EVT packets between Genesis, Library, and external services.",
+  "implementation_status": "built",
+  "primary_wire_out": "EVT",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "",
+    "preview_image": "",
+    "banner": "",
+    "crest_svg": "",
+    "splash_screen": null,
+    "audio_preview": null,
+    "video_preview": null
+  },
+  "containers": [],
+  "traktor_map": [
+    {
+      "channel": 4,
+      "control_type": "fader",
+      "midi_cc": 59,
+      "parameter": "tick_rate",
+      "scale_min": 20,
+      "scale_max": 128
+    },
+    {
+      "channel": 4,
+      "control_type": "fader",
+      "midi_cc": 60,
+      "parameter": "jitter_ms",
+      "scale_min": 0,
+      "scale_max": 50
+    }
+  ]
+}

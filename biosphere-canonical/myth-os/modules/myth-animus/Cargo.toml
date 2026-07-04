@@ -1,0 +1,14 @@
+[package]
+name = "myth-animus"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+myth-wire   = { path = "../../crates/myth-wire" }
+myth-qgcp   = { path = "../../crates/myth-qgcp" }
+myth-plugin   = { path = "../../crates/myth-plugin" }
+myth-controls = { path = "../../crates/myth-controls" }
+
+myth-vault  = { path = "../../crates/myth-vault" }
+serde       = { workspace = true }
+serde_json  = { workspace = true }

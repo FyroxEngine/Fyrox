@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 140" width="140" height="140">
+  <defs>
+    <radialGradient id="bi-field" cx="50%" cy="50%" r="55%"><stop offset="0%" stop-color="#041a10"></stop><stop offset="60%" stop-color="#020c08"></stop><stop offset="100%" stop-color="#03050a"></stop></radialGradient>
+    <linearGradient id="bi-metal" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#d4ffc0"></stop><stop offset="30%" stop-color="#39ff14"></stop><stop offset="65%" stop-color="#0a5a14"></stop><stop offset="100%" stop-color="#021008"></stop>
+    </linearGradient>
+    <radialGradient id="bi-core"><stop offset="0%" stop-color="#e4ffd8"></stop><stop offset="45%" stop-color="#39ff14"></stop><stop offset="100%" stop-color="#03050a" stop-opacity="0"></stop></radialGradient>
+    <filter id="bi-g"><feGaussianBlur stdDeviation="1.3" result="b"></feGaussianBlur><feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge></filter>
+    <filter id="bi-d"><feGaussianBlur stdDeviation="3.2" result="b"></feGaussianBlur><feMerge><feMergeNode in="b"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge></filter>
+  </defs>
+  <g transform="translate(70,70)">
+    <circle r="66" fill="url(#bi-field)"></circle>
+    <circle r="62" fill="none" stroke="url(#bi-metal)" stroke-width="1"></circle>
+    
+    <g filter="url(#bi-g)" fill="none" stroke="url(#bi-metal)" stroke-width="0.9">
+      <circle r="54"></circle>
+    </g>
+    
+    <g filter="url(#bi-g)" fill="none" stroke="url(#bi-metal)" stroke-width="1">
+      <path d="M0 -46 C -24 -28 -24 -12 0 0 C 24 12 24 28 0 46"></path>
+      <path d="M0 -46 C 24 -28 24 -12 0 0 C -24 12 -24 28 0 46"></path>
+    </g>
+    
+    <g fill="none" stroke="#5DCAA5" stroke-width="0.6" opacity="0.8">
+      <path d="M0 -32 C -16 -24 -16 -8 0 0 C 16 -8 16 -24 0 -32 Z"></path>
+      <path d="M0 32 C -16 24 -16 8 0 0 C 16 8 16 24 0 32 Z"></path>
+    </g>
+    
+    <line x1="0" y1="-46" x2="0" y2="46" stroke="url(#bi-metal)" stroke-width="0.8" opacity="0.65"></line>
+    
+    <circle r="9" fill="url(#bi-core)" filter="url(#bi-d)"></circle>
+    <circle r="9" fill="none" stroke="url(#bi-metal)" stroke-width="0.9"></circle>
+    <circle r="2.5" fill="#e4ffd8"></circle>
+    
+    <g fill="#39ff14" filter="url(#bi-g)">
+      <circle cx="0" cy="-18" r="1.3"></circle><circle cx="0" cy="18" r="1.3"></circle>
+      <circle cx="15.6" cy="-9" r="1.3"></circle><circle cx="-15.6" cy="-9" r="1.3"></circle>
+      <circle cx="15.6" cy="9" r="1.3"></circle><circle cx="-15.6" cy="9" r="1.3"></circle>
+    </g>
+    <defs><path id="bi-arc" d="M-48 0 A 48 48 0 1 1 48 0"></path></defs>
+    <text font-family="Cinzel, serif" font-size="5.6" fill="#39ff14" letter-spacing="2.6" text-anchor="middle" opacity="0.85"><textPath href="#bi-arc">BLOOM · PULSE · BIND</textPath></text>
+  </g>
+</svg>

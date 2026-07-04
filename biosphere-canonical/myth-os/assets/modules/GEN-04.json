@@ -1,0 +1,40 @@
+{
+  "id": "GEN-04",
+  "name": "Lighting",
+  "crest": "◈",
+  "color": "#e0d8ff",
+  "department": "Structure",
+  "description": "Dynamic directional light, ambient colour, and shadow parameters. Responds to environment state for day/night cycles.",
+  "implementation_status": "built",
+  "primary_wire_out": "VIS",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "",
+    "preview_image": "",
+    "banner": "",
+    "crest_svg": "",
+    "splash_screen": null,
+    "audio_preview": null,
+    "video_preview": null
+  },
+  "containers": [],
+  "traktor_map": [
+    {
+      "channel": 1,
+      "control_type": "fader",
+      "midi_cc": 22,
+      "parameter": "illuminance",
+      "scale_min": 1000,
+      "scale_max": 100000
+    },
+    {
+      "channel": 1,
+      "control_type": "fader",
+      "midi_cc": 23,
+      "parameter": "sun_angle",
+      "scale_min": -1.57,
+      "scale_max": 1.57
+    }
+  ]
+}

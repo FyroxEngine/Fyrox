@@ -1,0 +1,67 @@
+{
+  "id": "MYTH-01",
+  "name": "Terrain",
+  "crest": "Atlas",
+  "color": "#1e8cff",
+  "department": "Structure",
+  "description": "Procedural heightmap and voxel topology generator. Atlas shapes the bones of every world — from continental shelves to mountain ridgelines. All spatial data originates here.",
+  "implementation_status": "built",
+  "primary_wire_out": "SPA",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "assets/MYTH-01/_meta/icon.png",
+    "preview_image": "assets/MYTH-01/_meta/cover.png",
+    "banner": "assets/MYTH-01/_meta/banner.webp",
+    "crest_svg": "assets/MYTH-01/_meta/crest.svg",
+    "splash_screen": "assets/MYTH-01/_meta/splash.html",
+    "audio_preview": "assets/MYTH-01/_meta/preview.mp3",
+    "video_preview": "assets/MYTH-01/_meta/preview.mp4"
+  },
+  "containers": [
+    {
+      "id": "MYTH-01-STD-01",
+      "name": "Heightmap Generator",
+      "symbol": "HM",
+      "wire_out": "SPA",
+      "description": "Noise-based height field generation with multi-octave fractal detail.",
+      "assets": { "icon": "assets/MYTH-01/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    },
+    {
+      "id": "MYTH-01-STD-02",
+      "name": "Voxel Topology",
+      "symbol": "VX",
+      "wire_out": "SPA",
+      "description": "Discrete voxel grid carved from the heightfield for cave and underworld layers.",
+      "assets": { "icon": "assets/MYTH-01/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    }
+  ],
+  "traktor_map": [
+    {
+      "channel": 1,
+      "control_type": "knob",
+      "midi_cc": 16,
+      "parameter": "Height Scale",
+      "scale_min": 0.0,
+      "scale_max": 32.0
+    },
+    {
+      "channel": 1,
+      "control_type": "knob",
+      "midi_cc": 17,
+      "parameter": "Noise Frequency",
+      "scale_min": 0.001,
+      "scale_max": 0.2
+    },
+    {
+      "channel": 1,
+      "control_type": "fader",
+      "midi_cc": 7,
+      "parameter": "Terrain Density",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    }
+  ]
+}

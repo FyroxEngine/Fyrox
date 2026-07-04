@@ -1,0 +1,67 @@
+{
+  "id": "MYTH-13",
+  "name": "Logic",
+  "crest": "Axiom",
+  "color": "#20c8d0",
+  "department": "Dynamics",
+  "description": "Rule evaluation engine and constraint solver. Axiom executes authored logic graphs that govern world laws, physics overrides, and game-rule enforcement — the immutable substrate of what is possible.",
+  "implementation_status": "in-progress",
+  "primary_wire_out": "LGC",
+  "lifecycle": "active",
+  "capacity": 16,
+  "assets": {
+    "icon": "assets/MYTH-13/_meta/icon.png",
+    "preview_image": "assets/MYTH-13/_meta/cover.png",
+    "banner": "assets/MYTH-13/_meta/banner.webp",
+    "crest_svg": "assets/MYTH-13/_meta/crest.svg",
+    "splash_screen": "assets/MYTH-13/_meta/splash.html",
+    "audio_preview": "assets/MYTH-13/_meta/preview.mp3",
+    "video_preview": "assets/MYTH-13/_meta/preview.mp4"
+  },
+  "containers": [
+    {
+      "id": "MYTH-13-STD-01",
+      "name": "Rule Graph",
+      "symbol": "RG",
+      "wire_out": "LGC",
+      "description": "DAG-based rule evaluator resolving authored constraints and world-law predicates.",
+      "assets": { "icon": "assets/MYTH-13/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    },
+    {
+      "id": "MYTH-13-STD-02",
+      "name": "Constraint Solver",
+      "symbol": "CS",
+      "wire_out": "LGC",
+      "description": "Satisfies hard physical and logical constraints before committing simulation state.",
+      "assets": { "icon": "assets/MYTH-13/_meta/icon.png", "preview_image": "" },
+      "capsules": []
+    }
+  ],
+  "traktor_map": [
+    {
+      "channel": 4,
+      "control_type": "knob",
+      "midi_cc": 16,
+      "parameter": "Rule Strictness",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    },
+    {
+      "channel": 4,
+      "control_type": "knob",
+      "midi_cc": 17,
+      "parameter": "Exception Rate",
+      "scale_min": 0.0,
+      "scale_max": 0.5
+    },
+    {
+      "channel": 4,
+      "control_type": "fader",
+      "midi_cc": 7,
+      "parameter": "Logic Strength",
+      "scale_min": 0.0,
+      "scale_max": 1.0
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+[package]
+name        = "myth-vault-mcp"
+version     = "0.1.0"
+edition     = "2021"
+description = "MCP server for the Master Vault — exposes shared assets, plugins, and molecules to any MCP client."
+
+[[bin]]
+name = "myth-vault-mcp"
+path = "src/main.rs"
+
+[dependencies]
+myth-vault  = { path = "../../crates/myth-vault" }
+myth-wire   = { path = "../../crates/myth-wire" }
+serde       = { workspace = true }
+serde_json  = { workspace = true }
+uuid        = { workspace = true }
+chrono      = { workspace = true }
+clap        = { version = "4", features = ["derive", "env"] }
+anyhow      = { workspace = true }
+tracing             = { workspace = true }
+tracing-subscriber  = { workspace = true }

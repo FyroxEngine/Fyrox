@@ -1,0 +1,6 @@
+[package]
+name    = "theater-fyrox"
+version = "0.1.0"
+edition = "2021"
+
+# Zero deps — stub only. Fyrox added here when the port is ready.

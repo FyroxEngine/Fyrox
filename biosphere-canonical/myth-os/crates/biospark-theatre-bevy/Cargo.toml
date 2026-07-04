@@ -1,0 +1,19 @@
+[package]
+name        = "biospark-theatre-bevy"
+version     = "0.4.0"
+edition     = "2021"
+description = "BioSpark Theatre — Bevy adapter. Phase 6: BV + P5 + GL + HT + AU + Glyph Vault."
+
+[[bin]]
+name = "theatre"
+path = "src/bin/theatre.rs"
+
+[dependencies]
+biospark-theatre = { path = "../biospark-theatre" }
+myth-wire        = { path = "../myth-wire" }
+bevy             = { workspace = true }
+bevy_egui        = { workspace = true }
+egui             = { workspace = true }
+cpal             = { workspace = true }
+serde_json       = { workspace = true }
+tracing          = { workspace = true }

@@ -1,0 +1,14 @@
+[package]
+name        = "myth-wasm-host"
+version     = "0.1.0"
+edition     = "2021"
+description = "Wasmtime host — loads signed .wasm plugins, bridges MythPlugin trait across the WASM ABI boundary."
+
+[dependencies]
+myth-wire           = { path = "../myth-wire" }
+myth-plugin         = { path = "../myth-plugin" }
+myth-plugin-registry = { path = "../myth-plugin-registry" }
+serde               = { workspace = true }
+serde_json          = { workspace = true }
+thiserror           = { workspace = true }
+wasmtime            = "25"

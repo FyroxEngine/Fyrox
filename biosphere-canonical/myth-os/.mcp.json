@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "myth-vault": {
+      "type": "stdio",
+      "command": "C:\\cargo-target\\myth-os\\debug\\myth-vault-mcp.exe",
+      "args": ["--vault", "J:\\myth-os\\master-vault"],
+      "env": {
+        "MYTH_LOG": "warn"
+      }
+    }
+  }
+}

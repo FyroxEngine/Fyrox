@@ -1,0 +1,13 @@
+[package]
+name    = "agent-engine"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "agent-engine"
+path = "src/main.rs"
+
+[dependencies]
+myth-wire = { path = "../../crates/myth-wire" }
+myth-agents = { path = "../../crates/mythos" }
+forge     = { path = "../../modules/forge" }

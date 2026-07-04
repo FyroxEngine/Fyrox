@@ -1,0 +1,54 @@
+{
+  "formula_chain": [
+    {
+      "formula": "MandelbulbIntegerPower",
+      "iteration_count": 8,
+      "weight": 1.0
+    }
+  ],
+  "mandelbulb": {
+    "power": 8.0,
+    "max_iterations": 14,
+    "bailout": 10.0,
+    "julia_offset": [
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "mandelbox": null,
+  "material_seed": 523124044,
+  "resonance_mod": 0.0,
+  "resonance_hz": 440.0,
+  "scope": {
+    "world_id": "test-world",
+    "resonance_hz": 440.0,
+    "resolution": 145
+  },
+  "atom_manifest": {
+    "void_phase": [
+      "SYS_01",
+      "SYS_02",
+      "SYS_03",
+      "SYS_04"
+    ],
+    "spark_phase": [
+      "NAV_01",
+      "NAV_02",
+      "NAV_03",
+      "NAV_04"
+    ],
+    "law_phase": [
+      "COG_01",
+      "COG_02",
+      "COG_03",
+      "COG_04"
+    ],
+    "bloom_phase": [
+      "MED_01",
+      "MED_02",
+      "MED_03",
+      "MED_04"
+    ]
+  }
+}

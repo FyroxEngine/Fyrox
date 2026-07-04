@@ -1,0 +1,9 @@
+{
+  "id": "5223c5ac-bdfd-429a-b621-568ed646606c",
+  "name": "AU Ambient Drone",
+  "layer_type": "Au",
+  "source": "Inline",
+  "code": "// cpal — A2 + E3 + A3 additive sine drone, beat-sync'd swell (see DroneGen)",
+  "tags": [],
+  "created_at": 1780006016404
+}
