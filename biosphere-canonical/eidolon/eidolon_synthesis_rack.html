@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eidolon Synthesis Rack</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .text-shadow-primary {
+                text-shadow: 0 0 5px config('theme.colors.primary'), 0 0 10px config('theme.colors.primary');
+            }
+            .text-shadow-secondary {
+                text-shadow: 0 0 5px config('theme.colors.secondary'), 0 0 10px config('theme.colors.secondary');
+            }
+            .text-shadow-accent {
+                text-shadow: 0 0 5px config('theme.colors.accent'), 0 0 10px config('theme.colors.accent');
+            }
+            .box-shadow-primary {
+                box-shadow: 0 0 2px #fff, 0 0 5px config('theme.colors.primary'), 0 0 10px config('theme.colors.primary');
+            }
+            .box-shadow-secondary {
+                box-shadow: 0 0 2px #fff, 0 0 8px config('theme.colors.secondary'), 0 0 15px config('theme.colors.secondary');
+            }
+            .box-shadow-accent {
+                box-shadow: 0 0 2px #fff, 0 0 8px config('theme.colors.accent'), 0 0 15px config('theme.colors.accent');
+            }
+            .bg-panel {
+                background-color: #1a1f2b;
+                background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MCIgaGVpZ2h0PSI1MCI+DQo8ZmlsdGVyIGlkPSJub2lzZSI+DQo8ZmVUdXJidWxlbmNlIGJhc2VGcmVxdWVuY3k9IjAuMiIgZmlsdGVyUmVzPSJub2lzZSIgbnVtT2N0YXZlcz0iMyIgc3RpdGNoVGlsZXM9InN0aXRjaCIgdHlwZT0iZnJhY3RhbE5vaXNlIj48L2ZlVHVyYnVsZW5jZT4NCjwvZmlsdGVyPg0KPHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsdGVyPSJ1cmwoI25vaXNlKSIgb3BhY2l0eT0iMC4xIj48L3JlY3Q+DQo8L3N2Zz4=');
+            }
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bg: '#0b0f19',
+                        primary: '#ffd700',
+                        secondary: '#3b82f6',
+                        accent: '#a855f7', // Using purple from the image instead of indigo
+                        'panel-dark': '#11151f',
+                        'panel-light': '#1a1f2b',
+                        'panel-border': '#333c4f',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-bg antialiased text-gray-300 font-sans overflow-hidden">
+    <!-- Container: Background -->
+    <div class="absolute inset-0 bg-gradient-to-br from-[#1e293b] via-[#0b0f19] to-[#0b0f19] z-0" style="background-image: radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.1), transparent 40%), radial-gradient(circle at 80% 70%, rgba(168, 85, 247, 0.1), transparent 40%);"></div>
+
+    <div class="relative min-h-screen w-full flex items-center justify-center p-4 z-10">
+        <!-- Container: Main Rack with 3D Perspective -->
+        <div style="perspective: 2000px;">
+            <div class="relative flex" style="transform: rotateY(-10deg) rotateX(2deg);">
+
+                <!-- Component: Left Rack Frame -->
+                <div class="w-8 bg-panel-dark border border-panel-border border-r-0 rounded-l-md flex flex-col items-center py-4 space-y-12">
+                    <div class="w-2.5 h-2.5 bg-panel-border rounded-full"></div>
+                    <div class="w-2.5 h-2.5 bg-panel-border rounded-full"></div>
+                    <div class="w-2.5 h-2.5 bg-panel-border rounded-full"></div>
+                    <div class="w-2.5 h-2.5 bg-panel-border rounded-full"></div>
+                    <div class="w-2.5 h-2.5 bg-panel-border rounded-full"></div>
+                    <div class="w-2.5 h-2.5 bg-panel-border rounded-full"></div>
+                    <div class="w-2.5 h-2.5 bg-panel-border rounded-full"></div>
+                    <div class="w-2.5 h-2.5 bg-panel-border rounded-full"></div>
+                    <div class="w-2.5 h-2.5 bg-panel-border rounded-full"></div>
+                    <div class="w-2.5 h-2.5 bg-panel-border rounded-full"></div>
+                    <div class="w-2.5 h-2.5 bg-panel-border rounded-full"></div>
+                    <div class="w-2.5 h-2.5 bg-panel-border rounded-full"></div>
+                    <div class="w-2.5 h-2.5 bg-panel-border rounded-full"></div>
+                    <div class="w-2.5 h-2.5 bg-panel-border rounded-full"></div>
+                    <div class="w-2.5 h-2.5 bg-panel-border rounded-full"></div>
+                </div>
+                
+                <!-- Container: Instrument Stack -->
+                <div class="w-[600px] bg-panel-dark flex flex-col space-y-2 p-2 border-y border-panel-border">
+
+                    <!-- Instrument Module 1: Mythos Cartographer -->
+                    <div class="bg-panel-dark border border-panel-border rounded-sm p-2 flex items-center gap-3 h-[110px]">
+                        <!-- Component: Left Indicator -->
+                        <div class="w-16 h-full bg-panel-dark border border-panel-border rounded-sm flex items-center justify-center">
+                            <div class="w-10 h-10 border-2 border-secondary/50 rounded-full flex items-center justify-center">
+                                 <div class="w-3 h-3 bg-secondary rounded-full box-shadow-secondary"></div>
+                            </div>
+                        </div>
+                        <!-- Component: Main Display Screen -->
+                        <div class="flex-1 h-full bg-panel border-2 border-primary/50 p-2 rounded-sm relative">
+                             <p class="text-[8px] text-primary/70 tracking-widest">MYTHOS CARTOGRAPHER // 7.34.1</p>
+                        </div>
+                        <!-- Component: Right Info Panel -->
+                        <div class="w-32 h-full bg-panel-dark border border-panel-border rounded-sm p-1.5 flex flex-col justify-between">
+                            <p class="text-[8px] text-primary/70 tracking-widest">SYSTEM STATUS</p>
+                            <div class="w-full h-px bg-primary/20"></div>
+                            <p class="text-[8px] text-secondary/70 tracking-widest">NARRATIVE FLOW: STABLE</p>
+                            <p class="text-[8px] text-secondary/70 tracking-widest">CAUSALITY: COHERENT</p>
+                            <div class="w-full h-px bg-primary/20"></div>
+                            <div class="w-full h-4 bg-primary/10 border border-primary/20"></div>
+                        </div>
+                    </div>
+
+                    <!-- Instrument Module 2: Quantum Simulation Director -->
+                    <div class="bg-panel-dark border border-panel-border rounded-sm p-2 flex items-center gap-3 h-[110px]">
+                        <!-- Component: Patch Bay -->
+                        <div class="w-24 h-full bg-panel-dark border border-panel-border rounded-sm p-2 flex flex-col justify-around">
+                            <p class="text-[8px] text-primary/70 tracking-widest">ENTANGLEMENT I/O</p>
+                            <div class="flex justify-around">
+                                <div class="w-5 h-5 bg-black rounded-full border-2 border-gray-500"></div>
+                                <div class="w-5 h-5 bg-black rounded-full border-2 border-gray-500"></div>
+                            </div>
+                            <div class="flex justify-around">
+                                <div class="w-5 h-5 bg-black rounded-full border-2 border-gray-500"></div>
+                                <div class="w-5 h-5 bg-black rounded-full border-2 border-gray-500"></div>
+                            </div>
+                        </div>
+                        <!-- Component: Entanglement Orrery Display -->
+                        <div class="flex-1 h-full bg-black border-2 border-primary/80 rounded-sm flex items-center justify-center p-1">
+                            <img src="https://i.imgur.com/uR1R5Jq.png" alt="Planet" class="object-contain h-full opacity-90" />
+                        </div>
+                        <!-- Component: Director Controls -->
+                         <div class="w-32 h-full bg-panel-dark border border-panel-border rounded-sm p-1.5 flex flex-col justify-between">
+                            <p class="text-[8px] text-primary/70 tracking-widest">SIM DIRECTOR</p>
+                            <div class="w-full h-px bg-primary/20"></div>
+                            <div class="flex items-center space-x-2">
+                                <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                                <p class="text-[8px] text-secondary/70">STATE: ACTIVE</p>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <div class="w-2 h-2 rounded-full bg-gray-500"></div>
+                                <p class="text-[8px] text-secondary/70">OVERRIDE: OFF</p>
+                            </div>
+                            <div class="w-full h-px bg-primary/20"></div>
+                            <div class="w-full h-4 bg-primary/10 border border-primary/20"></div>
+                        </div>
+                    </div>
+
+                    <!-- Instrument Module 3: Flux Spectrogram -->
+                    <div class="bg-panel-dark border border-panel-border rounded-sm p-2 flex items-center gap-3 h-[110px]">
+                        <!-- Component: Spectrogram Display -->
+                        <div class="flex-1 h-full bg-black border border-secondary/30 rounded-sm p-2 flex items-center justify-center">
+                            <svg viewBox="0 0 200 50" class="w-full h-full" preserveAspectRatio="none">
+                                <defs>
+                                    <linearGradient id="waveGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" style="stop-color:#3b82f6; stop-opacity:1" />
+                                        <stop offset="100%" style="stop-color:#ffd700; stop-opacity:1" />
+                                    </linearGradient>
+                                    <filter id="glow">
+                                        <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+                                        <feMerge>
+                                            <feMergeNode in="coloredBlur"/>
+                                            <feMergeNode in="SourceGraphic"/>
+                                        </feMerge>
+                                    </filter>
+                                </defs>
+                                <polyline points="0,25 10,15 20,35 30,20 40,30 50,10 60,40 70,25 80,28 90,22 100,25 110,18 120,32 130,25 140,45 150,5 160,25 170,35 180,15 190,25 200,20" fill="none" stroke="url(#waveGradient)" stroke-width="1.5" filter="url(#glow)"/>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- Instrument Module 4: Axiom Sequencer & Resonance Engine -->
+                    <div class="bg-panel-dark border border-panel-border rounded-sm p-2 flex items-center gap-3 h-[150px]">
+                        <!-- Component: Axiom Step Sequencer -->
+                        <div class="flex-1 h-full bg-panel-dark border border-panel-border rounded-sm p-2 flex flex-col justify-between">
+                            <div class="grid grid-cols-8 gap-2">
+                                <!-- Sequencer Lights -->
+                                <div class="w-full h-6 rounded-full border-2 border-primary/50 flex items-center justify-center"><div class="w-3 h-3 rounded-full bg-primary box-shadow-primary"></div></div>
+                                <div class="w-full h-6 rounded-full border-2 border-primary/50"></div>
+                                <div class="w-full h-6 rounded-full border-2 border-primary/50 flex items-center justify-center"><div class="w-3 h-3 rounded-full bg-primary box-shadow-primary"></div></div>
+                                <div class="w-full h-6 rounded-full border-2 border-primary/50"></div>
+                                <div class="w-full h-6 rounded-full border-2 border-primary/50"></div>
+                                <div class="w-full h-6 rounded-full border-2 border-primary/50"></div>
+                                <div class="w-full h-6 rounded-full border-2 border-primary/50 flex items-center justify-center"><div class="w-3 h-3 rounded-full bg-primary box-shadow-primary"></div></div>
+                                <div class="w-full h-6 rounded-full border-2 border-primary/50"></div>
+                            </div>
+                            <div class="grid grid-cols-8 gap-2">
+                                <div class="w-full h-6 rounded-full border-2 border-primary/50"></div>
+                                <div class="w-full h-6 rounded-full border-2 border-primary/50 flex items-center justify-center"><div class="w-3 h-3 rounded-full bg-primary box-shadow-primary"></div></div>
+                                <div class="w-full h-6 rounded-full border-2 border-primary/50"></div>
+                                <div class="w-full h-6 rounded-full border-2 border-primary/50"></div>
+                                <div class="w-full h-6 rounded-full border-2 border-primary/50 flex items-center justify-center"><div class="w-3 h-3 rounded-full bg-primary box-shadow-primary"></div></div>
+                                <div class="w-full h-6 rounded-full border-2 border-primary/50"></div>
+                                <div class="w-full h-6 rounded-full border-2 border-primary/50"></div>
+                                <div class="w-full h-6 rounded-full border-2 border-primary/50"></div>
+                            </div>
+                            <div class="grid grid-cols-8 gap-2">
+                                <div class="w-full h-6 rounded-full border-2 border-accent/50 flex items-center justify-center"><div class="w-3 h-3 rounded-full bg-accent box-shadow-accent"></div></div>
+                                <div class="w-full h-6 rounded-full border-2 border-accent/50"></div>
+                                <div class="w-full h-6 rounded-full border-2 border-accent/50"></div>
+                                <div class="w-full h-6 rounded-full border-2 border-accent/50 flex items-center justify-center"><div class="w-3 h-3 rounded-full bg-accent box-shadow-accent"></div></div>
+                                <div class="w-full h-6 rounded-full border-2 border-accent/50"></div>
+                                <div class="w-full h-6 rounded-full border-2 border-accent/50"></div>
+                                <div class="w-full h-6 rounded-full border-2 border-accent/50 flex items-center justify-center"><div class="w-3 h-3 rounded-full bg-accent box-shadow-accent"></div></div>
+                                <div class="w-full h-6 rounded-full border-2 border-accent/50"></div>
+                            </div>
+                        </div>
+                        <!-- Component: Resonance Harmonics Engine -->
+                        <div class="w-48 h-full bg-panel-dark border border-panel-border rounded-sm p-2 flex justify-around items-end">
+                            <!-- Sliders -->
+                            <div class="w-3 h-full bg-black/50 rounded-full flex flex-col-reverse p-0.5"><div class="w-full h-[60%] bg-secondary rounded-full box-shadow-secondary"></div></div>
+                            <div class="w-3 h-full bg-black/50 rounded-full flex flex-col-reverse p-0.5"><div class="w-full h-[80%] bg-secondary rounded-full box-shadow-secondary"></div></div>
+                            <div class="w-3 h-full bg-black/50 rounded-full flex flex-col-reverse p-0.5"><div class="w-full h-[40%] bg-secondary rounded-full box-shadow-secondary"></div></div>
+                            <div class="w-3 h-full bg-black/50 rounded-full flex flex-col-reverse p-0.5"><div class="w-full h-[75%] bg-accent rounded-full box-shadow-accent"></div></div>
+                            <div class="w-3 h-full bg-black/50 rounded-full flex flex-col-reverse p-0.5"><div class="w-full h-[55%] bg-accent rounded-full box-shadow-accent"></div></div>
+                            <div class="w-3 h-full bg-black/50 rounded-full flex flex-col-reverse p-0.5"><div class="w-full h-[30%] bg-pink-500 rounded-full" style="box-shadow: 0 0 2px #fff, 0 0 8px #ec4899, 0 0 15px #ec4899;"></div></div>
+                            <div class="w-3 h-full bg-black/50 rounded-full flex flex-col-reverse p-0.5"><div class="w-full h-[90%] bg-pink-500 rounded-full" style="box-shadow: 0 0 2px #fff, 0 0 8px #ec4899, 0 0 15px #ec4899;"></div></div>
+                            <div class="w-3 h-full bg-black/50 rounded-full flex flex-col-reverse p-0.5"><div class="w-full h-[50%] bg-pink-500 rounded-full" style="box-shadow: 0 0 2px #fff, 0 0 8px #ec4899, 0 0 15px #ec4899;"></div></div>
+                        </div>
+                    </div>
+
+                    <!-- Instrument Module 5: Causality Sequencer -->
+                    <div class="bg-panel-dark border border-panel-border rounded-sm p-2 flex items-center gap-3 h-[150px]">
+                        <!-- Component: Left I/O -->
+                         <div class="w-24 h-full bg-panel-dark border border-panel-border rounded-sm p-2 flex flex-col justify-around">
+                            <p class="text-[8px] text-primary/70 tracking-widest">EVENT HORIZON I/O</p>
+                            <div class="flex justify-around">
+                                <div class="w-5 h-5 bg-black rounded-full border-2 border-gray-500"></div>
+                                <div class="w-5 h-5 bg-black rounded-full border-2 border-gray-500"></div>
+                            </div>
+                            <div class="flex justify-around">
+                                <div class="w-5 h-5 bg-black rounded-full border-2 border-gray-500"></div>
+                                <div class="w-5 h-5 bg-black rounded-full border-2 border-gray-500"></div>
+                            </div>
+                        </div>
+                        <!-- Component: Symbolic Grid -->
+                        <div class="flex-1 h-full bg-black border border-secondary/30 rounded-sm p-2 grid grid-cols-10 gap-1 font-mono text-xs text-secondary text-shadow-secondary">
+                            <span>⏃</span><span>⎍</span><span>⎎</span><span>⏁</span><span>⎏</span><span>⎑</span><span>⎓</span><span>⎙</span><span>⎛</span><span>⎝</span>
+                            <span>⎟</span><span>⎡</span><span>⎣</span><span>⎥</span><span>⎧</span><span>⎩</span><span>⎫</span><span>⎭</span><span>⎯</span><span>⎱</span>
+                            <span>⎳</span><span>⎵</span><span>⎷</span><span>⎹</span><span>⎻</span><span>⎽</span><span>⎾</span><span>⏄</span><span>⏆</span><span>⏈</span>
+                            <span>⏊</span><span>⏌</span><span>⏎</span><span>⏐</span><span>⏒</span><span>⏔</span><span>⏖</span><span>⏘</span><span>⏚</span><span>⏛</span>
+                            <span>⏝</span><span>⏟</span><span>⏡</span><span>⏣</span><span>⏥</span><span>⏧</span><span>⏩</span><span>⏫</span><span>⏭</span><span>⏯</span>
+                        </div>
+                        <!-- Component: Right I/O -->
+                         <div class="w-24 h-full bg-panel-dark border border-panel-border rounded-sm p-2 flex flex-col justify-around">
+                             <p class="text-[8px] text-primary/70 tracking-widest">CHRONON I/O</p>
+                            <div class="flex justify-around">
+                                <div class="w-5 h-5 bg-black rounded-full border-2 border-gray-500"></div>
+                                <div class="w-5 h-5 bg-black rounded-full border-2 border-gray-500"></div>
+                            </div>
+                            <div class="flex justify-around">
+                                <div class="w-5 h-5 bg-black rounded-full border-2 border-gray-500"></div>
+                                <div class="w-5 h-5 bg-black rounded-full border-2 border-gray-500"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Instrument Module 6: Isotropic Resonance Tuner -->
+                    <div class="bg-panel-dark border border-panel-border rounded-sm p-2 flex items-center gap-3 h-[150px]">
+                        <!-- Component: Topographical Modulator -->
+                        <div class="w-40 h-full bg-panel-dark border border-panel-border rounded-sm p-2 flex flex-col justify-between">
+                            <p class="text-[8px] text-primary/70 tracking-widest">TOPOLOGICAL INVERSION</p>
+                            <svg viewBox="0 0 100 80">
+                                <path d="M 10 70 L 30 20 L 50 70" stroke-width="1" stroke="#3b82f6" fill="none" opacity="0.5" />
+                                <path d="M 50 70 L 70 20 L 90 70" stroke-width="1" stroke="#3b82f6" fill="none" opacity="0.5" />
+                                <circle cx="30" cy="20" r="3" fill="#ffd700" class="box-shadow-primary" />
+                                <circle cx="70" cy="20" r="3" fill="#ffd700" class="box-shadow-primary" />
+                            </svg>
+                        </div>
+                        <!-- Component: Harmonic Resonance Knobs -->
+                        <div class="flex-1 h-full bg-panel-dark border border-panel-border rounded-sm p-2 flex flex-col justify-between items-center">
+                            <div class="flex justify-around w-full">
+                                <div class="w-12 h-12 bg-panel-light border-2 border-panel-border rounded-full flex items-center justify-center"><div class="w-1.5 h-6 bg-primary rounded-full"></div></div>
+                                <div class="w-12 h-12 bg-panel-light border-2 border-panel-border rounded-full flex items-center justify-center" style="transform: rotate(120deg);"><div class="w-1.5 h-6 bg-primary rounded-full"></div></div>
+                                <div class="w-12 h-12 bg-panel-light border-2 border-panel-border rounded-full flex items-center justify-center" style="transform: rotate(-60deg);"><div class="w-1.5 h-6 bg-primary rounded-full"></div></div>
+                            </div>
+                             <div class="w-24 h-24 flex items-center justify-center">
+                                <svg viewBox="0 0 100 100">
+                                    <defs>
+                                        <linearGradient id="diamondGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                            <stop offset="0%" style="stop-color:#a855f7" />
+                                            <stop offset="100%" style="stop-color:#3b82f6" />
+                                        </linearGradient>
+                                        <filter id="prismGlow">
+                                            <feGaussianBlur stdDeviation="3.5" result="coloredBlur"/>
+                                            <feMerge>
+                                                <feMergeNode in="coloredBlur"/>
+                                                <feMergeNode in="SourceGraphic"/>
+                                            </feMerge>
+                                        </filter>
+                                    </defs>
+                                    <path d="M 50 0 L 100 50 L 50 100 L 0 50 Z" stroke="url(#diamondGradient)" stroke-width="3" fill="none" filter="url(#prismGlow)" />
+                                    <path d="M 50 10 L 90 50 L 50 90 L 10 50 Z" stroke-width="1" fill="rgba(59, 130, 246, 0.2)" stroke="#fff" />
+                                </svg>
+                            </div>
+                        </div>
+                        <!-- Component: Right Readout -->
+                        <div class="w-20 h-full bg-panel-dark border border-panel-border rounded-sm p-2 flex flex-col items-center justify-center">
+                            <p class="font-mono text-2xl text-accent text-shadow-accent tracking-widest -rotate-90">E:8.03</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Component: Right Rack Frame -->
+                <div class="w-8 bg-panel-dark border border-panel-border border-l-0 rounded-r-md flex flex-col items-center py-4 space-y-12">
+                     <!-- This side panel contains intricate designs in the image, mimicked here with simple SVGs -->
+                     <svg viewBox="0 0 20 100" class="w-full h-full">
+                        <path d="M 10 10 L 10 90" stroke="#333c4f" stroke-width="2" />
+                        <path d="M 5 20 L 15 20" stroke="#333c4f" stroke-width="1.5" />
+                        <path d="M 5 30 L 15 30" stroke="#333c4f" stroke-width="1.5" />
+                        <path d="M 5 70 L 15 70" stroke="#333c4f" stroke-width="1.5" />
+                        <path d="M 5 80 L 15 80" stroke="#333c4f" stroke-width="1.5" />
+                        <circle cx="10" cy="50" r="4" stroke="#333c4f" stroke-width="1.5" fill="none" />
+                    </svg>
+                </div>
+
+                <!-- Container: Somatic Signal Patching Cables (SVG Overlay) -->
+                <div class="absolute inset-0 z-20 pointer-events-none">
+                    <svg width="100%" height="100%" viewBox="0 0 650 780" preserveAspectRatio="none">
+                        <defs>
+                            <linearGradient id="cableGradientYellow" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#ffd700; stop-opacity:0.8" />
+                                <stop offset="50%" style="stop-color:#fef08a; stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#ffd700; stop-opacity:0.8" />
+                            </linearGradient>
+                             <linearGradient id="cableGradientBlue" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#3b82f6; stop-opacity:0.8" />
+                                <stop offset="50%" style="stop-color:#93c5fd; stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#3b82f6; stop-opacity:0.8" />
+                            </linearGradient>
+                            <filter id="cableGlow">
+                                <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+                                <feMerge>
+                                    <feMergeNode in="coloredBlur"/>
+                                    <feMergeNode in="SourceGraphic"/>
+                                </feMerge>
+                            </filter>
+                        </defs>
+                        <!-- Top Yellow Cable -->
+                        <path d="M 115 175 C 200 120, 450 120, 500 175" stroke="url(#cableGradientYellow)" stroke-width="6" fill="none" filter="url(#cableGlow)" stroke-linecap="round" />
+                        <!-- Middle Yellow Cable -->
+                        <path d="M 35 300 C -50 350, -50 450, 40 500 C 130 550, 200 500, 250 505" stroke="url(#cableGradientYellow)" stroke-width="6" fill="none" filter="url(#cableGlow)" stroke-linecap="round" />
+                        <!-- Bottom Yellow Cable -->
+                        <path d="M 35 315 C -80 370, -80 550, 40 600 C 160 650, 250 600, 300 605" stroke="url(#cableGradientYellow)" stroke-width="6" fill="none" filter="url(#cableGlow)" stroke-linecap="round" />
+
+                        <!-- Top Blue Cable -->
+                        <path d="M 605 170 C 680 150, 720 250, 650 300 C 600 340, 600 280, 605 270" stroke="url(#cableGradientBlue)" stroke-width="6" fill="none" filter="url(#cableGlow)" stroke-linecap="round" />
+                        <!-- Bottom Blue Cable -->
+                        <path d="M 605 285 C 700 250, 750 400, 650 450 C 550 500, 550 400, 605 385" stroke="url(#cableGradientBlue)" stroke-width="6" fill="none" filter="url(#cableGlow)" stroke-linecap="round" />
+                    </svg>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</body>
+</html>

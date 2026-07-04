@@ -29,5 +29,6 @@ pub mod probe;
 pub mod quantum_genesis;
 pub mod ragdoll;
 pub mod settings;
+pub mod eidolon_rack;
 pub mod stats;
 pub mod tilemap;
