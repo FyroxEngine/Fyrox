@@ -901,7 +901,7 @@ impl EditorPlugin for EidolonRackPlugin {
             if !active_laws.is_empty() {
                 let msg = format!(
                     "STEP {:02}  //  FIRING: {}  //  BPM: {}",
-                    curr_step + 1,
+                    curr_step,
                     active_laws.join(" · "),
                     self.sequencer.bpm as u32,
                 );

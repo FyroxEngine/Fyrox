@@ -65,7 +65,7 @@ impl Default for AxiomStepSequencer {
                 "Entropy", "Emergence", "Resonance", "Probability",
             ],
             steps,
-            current_step: 0,
+            current_step: 15,
             bpm: 120.0,
         }
     }
