@@ -740,6 +740,8 @@ impl EidolonRackPlugin {
 
         let status = TextBuilder::new(
             WidgetBuilder::new()
+                .on_row(1)
+                .on_column(0)
                 .with_height(22.0)
                 .with_margin(Thickness { left: 8.0, right: 8.0, top: 2.0, bottom: 2.0 })
                 .with_foreground(brush(with_alpha(PRIMARY, 0xaa))),
@@ -772,6 +774,8 @@ impl EidolonRackPlugin {
 
         let rack_grid = GridBuilder::new(
             WidgetBuilder::new()
+                .on_row(0)
+                .on_column(0)
                 .with_background(brush(BG))
                 .with_child(left_rail)
                 .with_child(scroll)
@@ -787,12 +791,15 @@ impl EidolonRackPlugin {
         ctx[scroll].set_column(1);     ctx[scroll].set_row(0);
         ctx[right_rail].set_column(2); ctx[right_rail].set_row(0);
 
-        let outer = StackPanelBuilder::new(
+        let outer = GridBuilder::new(
             WidgetBuilder::new()
                 .with_background(brush(BG))
                 .with_child(rack_grid)
                 .with_child(status),
         )
+        .add_column(Column::stretch())
+        .add_row(Row::stretch())
+        .add_row(Row::strict(26.0))
         .build(ctx);
 
         WindowBuilder::new(
