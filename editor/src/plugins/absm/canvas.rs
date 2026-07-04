@@ -554,10 +554,10 @@ impl Control for AbsmCanvas {
                             Vec::new()
                         };
                         for &child in self.children() {
-                            if ui[child].is_or_has_field::<Selectable>() {
-                                if ui.rect_test(child, rect).next().is_some() {
-                                    selection.push(child);
-                                }
+                            if ui[child].is_or_has_field::<Selectable>()
+                                && ui.rect_test(child, rect).next().is_some()
+                            {
+                                selection.push(child);
                             }
                         }
                         self.set_selection(&selection, ui);

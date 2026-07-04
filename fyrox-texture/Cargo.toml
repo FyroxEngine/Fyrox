@@ -10,7 +10,7 @@ include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
 homepage = "https://fyrox.rs"
 documentation = "https://docs.rs/fyrox-texture"
 repository = "https://github.com/FyroxEngine/Fyrox"
-rust-version = "1.87"
+rust-version = "1.94"
 
 [dependencies]
 fyrox-core = { path = "../fyrox-core", version = "2.0.0-rc.1" }
