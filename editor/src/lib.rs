@@ -161,6 +161,7 @@ use crate::{
         inspector::editors::make_property_editors_container,
         material::MaterialPlugin,
         probe::ReflectionProbePlugin,
+        eidolon_rack::EidolonRackPlugin,
         quantum_genesis::QuantumGenesisPlugin,
         ragdoll::RagdollPlugin,
         settings::SettingsPlugin,
@@ -1075,7 +1076,8 @@ impl Editor {
                 .with(ReflectionProbePlugin::default())
                 .with(inspector_plugin)
                 .with(QuantumGenesisPlugin::default())
-                .with(BiosphereHelpPlugin::default()),
+                .with(BiosphereHelpPlugin::default())
+                .with(EidolonRackPlugin::default()),
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread
             // will sleep forever and the window won't come up.
