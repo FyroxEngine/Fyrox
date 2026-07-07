@@ -20,7 +20,6 @@ fyrox-math = { path = "../fyrox-math", version = "2.0.0-rc.1" }
 base64 = "0.22.1"
 byteorder = "1.4.3"
 rand = "0.8"
-memoffset = "0.9.0"
 nalgebra = { version = "0.35", features = ["bytemuck", "convert-glam030"] }
 arrayvec = "0.7.2"
 futures = { version = "0.3.17", features = ["thread-pool"] }
