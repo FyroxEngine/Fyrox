@@ -29,7 +29,6 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
-use fyrox_resource::entry::TimedEntry;
 use fyrox_resource::untyped::ResourceKind;
 use std::{
     ops::{Deref, DerefMut},
@@ -224,12 +223,10 @@ impl<T> TemporaryCache<T> {
 /// as 2D sprites, tile maps, etc.
 #[derive(Default)]
 pub struct DynamicSurfaceCache {
-    cache: FxHashMap<u64, TimedEntry<SurfaceResource>>,
+    cache: FxHashMap<u64, SurfaceResource>,
 }
 
 impl DynamicSurfaceCache {
-    const TTL: f32 = 1.0;
-
     /// Creates a new empty cache.
     pub fn new() -> Self {
         Self::default()
@@ -243,8 +240,7 @@ impl DynamicSurfaceCache {
         layout: &[VertexAttributeDescriptor],
     ) -> SurfaceResource {
         if let Some(surface) = self.cache.get_mut(&unique_id) {
-            surface.time_to_live = Self::TTL;
-            surface.value.clone()
+            surface.clone()
         } else {
             let default_capacity = 4096;
 
@@ -265,13 +261,7 @@ impl DynamicSurfaceCache {
                 SurfaceData::new(vertex_buffer, triangle_buffer),
             );
 
-            self.cache.insert(
-                unique_id,
-                TimedEntry {
-                    value: surface.clone(),
-                    time_to_live: Self::TTL,
-                },
-            );
+            self.cache.insert(unique_id, surface.clone());
 
             surface
         }
@@ -288,13 +278,5 @@ impl DynamicSurfaceCache {
             surface_data.vertex_buffer.modify().clear();
             surface_data.geometry_buffer.modify().clear();
         }
-    }
-
-    /// Updates the cache entries and removes ones that wasn't used for some time.
-    pub fn update(&mut self, dt: f32) {
-        self.cache.retain(|_, entry| {
-            entry.time_to_live -= dt;
-            entry.time_to_live > 0.0
-        })
     }
 }
