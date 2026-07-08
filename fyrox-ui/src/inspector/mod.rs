@@ -461,7 +461,7 @@ impl Deref for InspectorEnvironmentContainer {
 /// # use strum_macros::{AsRefStr, EnumString, VariantNames};
 /// # use fyrox_ui::inspector::{Inspector, InspectorContextArgs};
 ///
-/// #[derive(Reflect, Debug, Clone)]
+/// #[derive(Reflect, Debug, PartialEq, Clone)]
 /// #[reflect(type_uuid = "391b9424-8fe2-4525-a98e-3c930487fcf1")]
 /// struct MyObject {
 ///     foo: String,
@@ -471,7 +471,7 @@ impl Deref for InspectorEnvironmentContainer {
 ///
 /// // Enumeration requires a bit more traits to be implemented. It must provide a way to turn
 /// // enum into a string.
-/// #[derive(Reflect, Debug, Clone, AsRefStr, EnumString, VariantNames)]
+/// #[derive(Reflect, Debug, Clone, PartialEq, AsRefStr, EnumString, VariantNames)]
 /// #[reflect(type_uuid = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd")]
 /// enum MyEnum {
 ///     SomeVariant,

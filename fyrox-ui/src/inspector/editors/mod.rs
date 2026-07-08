@@ -215,7 +215,7 @@ pub struct PropertyEditorMessageContext<'a, 'b, 'c> {
     /// Optional untyped information about the broader application in which
     /// this property is being translated. This allows the created message to
     /// adapt to the situation if we can successfully cast the given
-    /// [InspectorEnvironment] into a specific type.
+    /// content of [InspectorEnvironmentContainer] into a specific type.
     pub environment: Option<InspectorEnvironmentContainer>,
     /// When true, this indicates that an Inspector should generate strings from `format!("{:?}", field)`, for each field.
     /// Having this in the property editor build context indicates how any Inspectors that are update due to the created message
@@ -241,7 +241,7 @@ pub struct PropertyEditorTranslationContext<'b, 'c> {
     /// Optional untyped information about the broader application in which
     /// this property is being translated. This allows the translation to
     /// adapt to the situation if we can successfully cast the given
-    /// [InspectorEnvironment] into a specific type.
+    /// content of the [InspectorEnvironmentContainer] into a specific type.
     ///
     /// When the environment is not None, it is often a
     /// [fyroxed_base::inspector::EditorEnvironment](https://docs.rs/fyroxed_base/latest/fyroxed_base/inspector/struct.EditorEnvironment.html)

@@ -244,7 +244,7 @@ impl<'a, 'b> PluginContext<'a, 'b> {
     /// # };
     /// # use std::str::FromStr;
     ///
-    /// #[derive(Default, Visit, Reflect, Debug)]
+    /// #[derive(Default, Visit, PartialEq, Reflect, Debug)]
     /// #[reflect(non_cloneable, type_uuid = "ce9c7ff9-f490-4274-89c9-0b53b9f80532")]
     /// struct MyGame {}
     ///
@@ -315,7 +315,7 @@ impl<'a, 'b> PluginContext<'a, 'b> {
     /// # };
     /// # use std::str::FromStr;
     /// #
-    /// #[derive(Default, Visit, Reflect, Debug)]
+    /// #[derive(Default, Visit, PartialEq, Reflect, Debug)]
     /// #[reflect(non_cloneable, type_uuid = "65b2da10-3926-48e4-93b4-01193cdc11ca")]
     /// struct MyGame {}
     ///
@@ -493,7 +493,7 @@ impl dyn Plugin {
 /// # };
 /// # use std::str::FromStr;
 ///
-/// #[derive(Default, Visit, Reflect, Debug)]
+/// #[derive(Default, Visit, PartialEq, Reflect, Debug)]
 /// #[reflect(non_cloneable, type_uuid = "342b2ef7-210d-465f-bcae-f59aa3a96420")]
 /// struct MyPlugin {}
 ///
@@ -535,7 +535,7 @@ impl dyn Plugin {
 /// #     scene::{node::Node, Scene},
 /// # };
 /// # use std::str::FromStr;
-/// #[derive(Default, Visit, Reflect, Debug)]
+/// #[derive(Default, Visit, PartialEq, Reflect, Debug)]
 /// #[reflect(non_cloneable, type_uuid = "94801cca-3f50-4bef-9b6f-ee2edd9dcb2b")]
 /// struct MyPlugin {
 ///     scene: Handle<Scene>,

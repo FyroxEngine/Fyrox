@@ -169,7 +169,7 @@ impl UiNode {
     /// # };
     /// #
     /// #
-    /// #[derive(Clone, Visit, Reflect, Debug)]
+    /// #[derive(Clone, Visit, PartialEq, Reflect, Debug)]
     /// #[reflect(derived_type = "UiNode", type_uuid = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd")]
     /// struct MyWidget {
     ///     widget: Widget,
