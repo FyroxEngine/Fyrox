@@ -840,6 +840,7 @@ pub struct RenderDataBundleStorage {
     pub bundles: Vec<RenderDataBundle>,
     pub light_sources: Vec<LightSource>,
     pub environment_map: Option<TextureResource>,
+    last_bundle_id: u64,
 }
 
 pub struct RenderDataBundleStorageOptions {
@@ -862,6 +863,7 @@ impl RenderDataBundleStorage {
             bundles: Default::default(),
             light_sources: Default::default(),
             environment_map: None,
+            last_bundle_id: 0,
         }
     }
 
@@ -885,6 +887,7 @@ impl RenderDataBundleStorage {
             bundles: Vec::with_capacity(capacity),
             light_sources: Default::default(),
             environment_map: None,
+            last_bundle_id: 0,
         };
 
         let frustum = Frustum::from_view_projection_matrix(
@@ -1216,16 +1219,27 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
 
         func(vertex_buffer, triangle_buffer);
 
-        let instance = SurfaceInstanceData {
-            node_handle,
-            element_range: ElementRange::Specific {
-                offset,
-                count: data.geometry_buffer.len() - offset,
-            },
-            ..Default::default()
-        };
-
-        bundle.instances.push(instance);
+        let emitted_triangles_count = data.geometry_buffer.len() - offset;
+        if self.last_bundle_id != bundle_id {
+            let instance = SurfaceInstanceData {
+                node_handle,
+                element_range: ElementRange::Specific {
+                    offset,
+                    count: emitted_triangles_count,
+                },
+                ..Default::default()
+            };
+            bundle.instances.push(instance);
+            self.last_bundle_id = bundle_id;
+        } else {
+            let instance = bundle
+                .instances
+                .last_mut()
+                .expect("bundle must contain at least one instance!");
+            if let ElementRange::Specific { ref mut count, .. } = instance.element_range {
+                *count += emitted_triangles_count;
+            }
+        }
     }
 
     /// Adds a new surface instance to the storage. The method will automatically put the instance in the appropriate
