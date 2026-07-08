@@ -55,6 +55,7 @@ use crate::{
     },
     utils::raw_mesh::{RawMeshBuilder, RawVertex},
 };
+use fyrox_core::err;
 use fyrox_graph::{NodeWrapper, SceneGraph};
 pub use rapier3d::geometry;
 use rapier3d::{
@@ -72,6 +73,7 @@ use rapier3d::{
     pipeline::{DebugRenderPipeline, EventHandler, PhysicsPipeline, QueryPipeline},
     prelude::{FrictionModel, HeightFieldCellStatus, JointAxis, MassProperties},
 };
+use std::panic::AssertUnwindSafe;
 use std::{
     cell::Cell,
     cmp::Ordering,
@@ -1183,20 +1185,28 @@ impl PhysicsWorld {
                 friction_model: FrictionModel::default(),
             };
 
-            self.pipeline.step(
-                (*self.gravity).into(),
-                &integration_parameters,
-                &mut self.islands,
-                &mut self.broad_phase,
-                &mut self.narrow_phase,
-                &mut self.bodies,
-                &mut self.colliders,
-                &mut self.joints.set,
-                &mut self.multibody_joints.set,
-                &mut self.ccd_solver,
-                &(),
-                &*self.event_handler,
-            );
+            if let Err(message) = std::panic::catch_unwind(AssertUnwindSafe(|| {
+                self.pipeline.step(
+                    (*self.gravity).into(),
+                    &integration_parameters,
+                    &mut self.islands,
+                    &mut self.broad_phase,
+                    &mut self.narrow_phase,
+                    &mut self.bodies,
+                    &mut self.colliders,
+                    &mut self.joints.set,
+                    &mut self.multibody_joints.set,
+                    &mut self.ccd_solver,
+                    &(),
+                    &*self.event_handler,
+                );
+            })) {
+                if let Some(message) = message.downcast_ref::<&str>() {
+                    err!("A critical error occurred during physics step. Reason: {message}");
+                } else {
+                    err!("A critical error occurred during physics step. The reason is unknown.");
+                }
+            }
         }
 
         self.performance_statistics.step_time += instant::Instant::now() - time;
