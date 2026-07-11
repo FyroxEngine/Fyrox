@@ -66,7 +66,7 @@ use crate::{
         },
         mesh::Mesh,
         navmesh,
-        node::{container::NodeContainer, Node, NodeAsAny, SyncContext, UpdateContext},
+        node::{container::NodeContainer, Node, SyncContext, UpdateContext},
         pivot::Pivot,
         sound::context::SoundContext,
         transform::TransformBuilder,
@@ -80,7 +80,7 @@ use fyrox_material::MaterialResourceExtension;
 use std::{
     any::TypeId,
     fmt::{Debug, Display, Formatter, Write},
-    ops::{Deref, Index, IndexMut},
+    ops::{Index, IndexMut},
     sync::mpsc::{channel, Receiver, Sender},
     time::Duration,
 };
@@ -2026,13 +2026,6 @@ impl SceneGraph for Graph {
     }
 
     #[inline]
-    fn actual_type_id(&self, handle: Handle<Self::NodeWrapper>) -> Result<TypeId, PoolError> {
-        self.pool
-            .try_borrow(handle)
-            .map(|n| NodeAsAny::as_any(n.0.deref()).type_id())
-    }
-
-    #[inline]
     fn root(&self) -> Handle<Self::NodeWrapper> {
         self.root
     }
@@ -2178,24 +2171,6 @@ impl SceneGraph for Graph {
         handle: Handle<Self::NodeWrapper>,
     ) -> Result<&mut Self::NodeWrapper, PoolError> {
         self.pool.try_borrow_mut(handle)
-    }
-
-    fn derived_type_ids(
-        &self,
-        handle: Handle<Self::NodeWrapper>,
-    ) -> Result<Vec<TypeId>, PoolError> {
-        self.pool
-            .try_borrow(handle)
-            .map(|n| Box::deref(&n.0).type_info_ref().derived_types.to_vec())
-    }
-
-    fn actual_type_name(
-        &self,
-        handle: Handle<Self::NodeWrapper>,
-    ) -> Result<&'static str, PoolError> {
-        self.pool
-            .try_borrow(handle)
-            .map(|n| n.0.deref().type_info_ref().type_name)
     }
 
     #[inline]

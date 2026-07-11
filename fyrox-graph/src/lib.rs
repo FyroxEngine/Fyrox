@@ -662,19 +662,6 @@ pub trait SceneGraph: 'static {
     /// Generate a string that briefly summarizes the content of the graph for debugging.
     fn summary(&self) -> String;
 
-    /// Returns actual type id of the node.
-    fn actual_type_id(&self, handle: Handle<Self::NodeWrapper>) -> Result<TypeId, PoolError>;
-
-    /// Returns actual type name of the node.
-    fn actual_type_name(
-        &self,
-        handle: Handle<Self::NodeWrapper>,
-    ) -> Result<&'static str, PoolError>;
-
-    /// Returns a list of derived type ids of the node.
-    fn derived_type_ids(&self, handle: Handle<Self::NodeWrapper>)
-        -> Result<Vec<TypeId>, PoolError>;
-
     /// Returns a handle of the root node of the graph.
     fn root(&self) -> Handle<Self::NodeWrapper>;
 
@@ -2034,30 +2021,6 @@ mod test {
             handle: Handle<Self::NodeWrapper>,
         ) -> Result<&mut Self::NodeWrapper, PoolError> {
             self.nodes.try_borrow_mut(handle)
-        }
-
-        fn actual_type_id(&self, handle: Handle<Self::NodeWrapper>) -> Result<TypeId, PoolError> {
-            self.nodes
-                .try_borrow(handle)
-                .map(|n| NodeAsAny::as_any(n.0.deref()).type_id())
-        }
-
-        fn derived_type_ids(
-            &self,
-            handle: Handle<Self::NodeWrapper>,
-        ) -> Result<Vec<TypeId>, PoolError> {
-            self.nodes
-                .try_borrow(handle)
-                .map(|n| n.0.deref().type_info_ref().derived_types.to_vec())
-        }
-
-        fn actual_type_name(
-            &self,
-            handle: Handle<Self::NodeWrapper>,
-        ) -> Result<&'static str, PoolError> {
-            self.nodes
-                .try_borrow(handle)
-                .map(|n| n.0.deref().type_info_ref().type_name)
         }
 
         fn pair_iter(

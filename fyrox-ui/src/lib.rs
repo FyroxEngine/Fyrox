@@ -3626,31 +3626,6 @@ impl SceneGraph for UserInterface {
     }
 
     #[inline]
-    fn actual_type_id(&self, handle: Handle<Self::NodeWrapper>) -> Result<TypeId, PoolError> {
-        self.nodes
-            .try_borrow(handle)
-            .map(|n| ControlAsAny::as_any(n.0.deref()).type_id())
-    }
-
-    fn actual_type_name(
-        &self,
-        handle: Handle<Self::NodeWrapper>,
-    ) -> Result<&'static str, PoolError> {
-        self.nodes
-            .try_borrow(handle)
-            .map(|n| n.0.deref().type_info_ref().type_name)
-    }
-
-    fn derived_type_ids(
-        &self,
-        handle: Handle<Self::NodeWrapper>,
-    ) -> Result<Vec<TypeId>, PoolError> {
-        self.nodes
-            .try_borrow(handle)
-            .map(|n| n.0.deref().type_info_ref().derived_types.to_vec())
-    }
-
-    #[inline]
     fn root(&self) -> Handle<Self::NodeWrapper> {
         self.root_canvas
     }

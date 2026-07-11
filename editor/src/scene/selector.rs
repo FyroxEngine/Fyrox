@@ -77,13 +77,10 @@ impl HierarchyNode {
         N: NodeWrapper<SceneGraph = G>,
     {
         let node = graph.node(node_handle);
-
+        let node_data_ref = node.inner_ref();
         Self {
             name: node.name().to_string(),
-            inner_type_name: graph
-                .actual_type_name(node_handle)
-                .unwrap_or_default()
-                .to_string(),
+            inner_type_name: node_data_ref.type_info_ref().type_name.to_string(),
             handle: node_handle.into(),
             children: node
                 .children()
@@ -96,8 +93,8 @@ impl HierarchyNode {
                     }
                 })
                 .collect(),
-            inner_type_id: graph.actual_type_id(node_handle).unwrap(),
-            derived_type_ids: graph.derived_type_ids(node_handle).unwrap(),
+            inner_type_id: node_data_ref.type_id(),
+            derived_type_ids: node_data_ref.type_info_ref().derived_types.to_vec(),
         }
     }
 
