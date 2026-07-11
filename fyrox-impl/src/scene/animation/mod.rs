@@ -24,7 +24,6 @@
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
-        log::{Log, MessageKind},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
@@ -39,6 +38,7 @@ use crate::{
         node::{Node, NodeTrait, UpdateContext},
     },
 };
+use fyrox_core::err;
 use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::SceneGraph;
 use std::ops::{Deref, DerefMut};
@@ -105,21 +105,21 @@ pub trait AnimationPoseExt {
 
 impl AnimationPoseExt for AnimationPose {
     fn apply_internal(&self, nodes: &mut NodePool) {
-        for (node, local_pose) in self.poses() {
-            if node.is_none() {
-                Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
-            } else if let Ok(node) = nodes.try_borrow_mut(*node) {
+        for (node_handle, local_pose) in self.poses() {
+            if let Ok(node) = nodes.try_borrow_mut(*node_handle) {
                 local_pose.values.apply(node);
+            } else {
+                err!("Invalid node handle {node_handle} found for animation pose!");
             }
         }
     }
 
     fn apply(&self, graph: &mut Graph) {
-        for (node, local_pose) in self.poses() {
-            if node.is_none() {
-                Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
-            } else if let Ok(node) = graph.try_get_node_mut(*node) {
+        for (node_handle, local_pose) in self.poses() {
+            if let Ok(node) = graph.try_get_node_mut(*node_handle) {
                 local_pose.values.apply(node);
+            } else {
+                err!("Invalid node handle {node_handle} found for animation pose!");
             }
         }
     }
@@ -128,11 +128,11 @@ impl AnimationPoseExt for AnimationPose {
     where
         C: FnMut(&mut Node, Handle<Node>, &NodePose),
     {
-        for (node, local_pose) in self.poses() {
-            if node.is_none() {
-                Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
-            } else if let Ok(node_ref) = graph.try_get_node_mut(*node) {
-                callback(node_ref, *node, local_pose);
+        for (node_handle, local_pose) in self.poses() {
+            if let Ok(node_ref) = graph.try_get_node_mut(*node_handle) {
+                callback(node_ref, *node_handle, local_pose);
+            } else {
+                err!("Invalid node handle {node_handle} found for animation pose!");
             }
         }
     }
@@ -152,23 +152,21 @@ impl BoundValueCollectionExt for BoundValueCollection {
                     if let TrackValue::Vector3(v) = bound_value.value {
                         node_ref.local_transform_mut().set_position(v);
                     } else {
-                        Log::err(
-                            "Unable to apply position, because underlying type is not Vector3!",
-                        )
+                        err!("Unable to apply position, because underlying type is not Vector3!")
                     }
                 }
                 ValueBinding::Scale => {
                     if let TrackValue::Vector3(v) = bound_value.value {
                         node_ref.local_transform_mut().set_scale(v);
                     } else {
-                        Log::err("Unable to apply scaling, because underlying type is not Vector3!")
+                        err!("Unable to apply scaling, because underlying type is not Vector3!")
                     }
                 }
                 ValueBinding::Rotation => {
                     if let TrackValue::UnitQuaternion(v) = bound_value.value {
                         node_ref.local_transform_mut().set_rotation(v);
                     } else {
-                        Log::err("Unable to apply rotation, because underlying type is not UnitQuaternion!")
+                        err!("Unable to apply rotation, because underlying type is not UnitQuaternion!")
                     }
                 }
                 ValueBinding::Property {
