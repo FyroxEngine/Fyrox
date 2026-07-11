@@ -627,6 +627,7 @@ impl BlendSpaceFieldPointBuilder {
                             .with_margin(Thickness::left(10.0))
                             .with_clip_to_bounds(false),
                     )
+                    .with_trim_text(false)
                     .with_text(format!("{:?}", self.index))
                     .build(ctx),
                 )
