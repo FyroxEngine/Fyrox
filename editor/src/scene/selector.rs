@@ -314,7 +314,8 @@ impl NodeSelector {
                 if self.selected.iter().any(|selected| {
                     let tree_data = tree.user_data_cloned::<TreeData>().unwrap();
                     tree_data.handle == selected.handle
-                        && tree_data.inner_type_id == selected.inner_type_id
+                        && (tree_data.inner_type_id == selected.inner_type_id
+                            || tree_data.derived_type_ids.contains(&selected.inner_type_id))
                 }) {
                     selected_trees.push(node_handle.to_variant());
                 }
