@@ -29,21 +29,19 @@ pub mod prelude {
 }
 
 use fxhash::FxHashMap;
-use fyrox_core::pool::{ObjectOrVariant, PoolError};
-use fyrox_core::reflect::ReflectHandle;
-use fyrox_core::uuid::Uuid;
 use fyrox_core::{
     log::{Log, MessageKind},
-    pool::Handle,
-    reflect::prelude::*,
+    pool::{Handle, ObjectOrVariant, PoolError},
+    reflect::{prelude::*, ReflectHandle},
+    uuid::Uuid,
     variable::{self, InheritableVariable},
     NameProvider,
 };
 use fyrox_resource::{untyped::UntypedResource, Resource, TypedResourceData};
-use std::cmp::Ordering;
-use std::fmt::{Debug, Formatter};
 use std::{
     any::TypeId,
+    cmp::Ordering,
+    fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
 
@@ -1170,10 +1168,12 @@ pub trait SceneGraph: 'static {
         &self,
         from: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
     ) -> impl Iterator<Item = (Handle<Self::NodeWrapper>, &Self::NodeWrapper)> {
+        let from = from.to_base();
         GraphTraverseIteratorRef {
             graph: self,
-            start_node_handle: from.to_base(),
-            current_node_handle: from.to_base(),
+            start_node_parent_handle: self.try_get(from).map(|n| n.parent()).unwrap_or_default(),
+            start_node_handle: from,
+            current_node_handle: from,
             index: None,
         }
     }
@@ -1185,10 +1185,12 @@ pub trait SceneGraph: 'static {
         &mut self,
         from: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
     ) -> impl Iterator<Item = (Handle<Self::NodeWrapper>, &mut Self::NodeWrapper)> {
+        let from = from.to_base();
         GraphTraverseIteratorMut {
+            start_node_parent_handle: self.try_get(from).map(|n| n.parent()).unwrap_or_default(),
             graph: self,
-            start_node_handle: from.to_base(),
-            current_node_handle: from.to_base(),
+            start_node_handle: from,
+            current_node_handle: from,
             index: None,
         }
     }
@@ -1509,6 +1511,7 @@ pub trait SceneGraph: 'static {
 pub struct GraphTraverseIteratorRef<'a, G: ?Sized, N> {
     graph: &'a G,
     start_node_handle: Handle<N>,
+    start_node_parent_handle: Handle<N>,
     current_node_handle: Handle<N>,
     index: Option<usize>,
 }
@@ -1528,27 +1531,30 @@ where
                 match current_node.children().first() {
                     Some(first) => {
                         self.current_node_handle = *first;
+                        self.index = None;
                     }
                     None => {
                         let mut parent_handle = current_node.parent();
-                        while let Ok(parent) = self.graph.try_get(parent_handle) {
-                            let parent_children = parent.children();
-                            let index = self.index.get_or_insert_with(|| {
-                                parent_children
-                                    .iter()
-                                    .position(|h| *h == self.current_node_handle)
-                                    .expect("must be in parent's list")
-                            });
-                            *index += 1;
-                            if let Some(next_child_handle) = parent_children.get(*index) {
-                                self.current_node_handle = *next_child_handle;
-                                return Some((current_node_handle, current_node));
-                            } else {
-                                self.current_node_handle = parent_handle;
-                                self.index = None;
-                                parent_handle = parent.parent();
-                                if self.current_node_handle == self.start_node_handle {
-                                    break;
+                        if parent_handle != self.start_node_parent_handle {
+                            while let Ok(parent) = self.graph.try_get(parent_handle) {
+                                let parent_children = parent.children();
+                                let index = self.index.get_or_insert_with(|| {
+                                    parent_children
+                                        .iter()
+                                        .position(|h| *h == self.current_node_handle)
+                                        .expect("must be in parent's list")
+                                });
+                                *index += 1;
+                                if let Some(next_child_handle) = parent_children.get(*index) {
+                                    self.current_node_handle = *next_child_handle;
+                                    return Some((current_node_handle, current_node));
+                                } else {
+                                    self.current_node_handle = parent_handle;
+                                    self.index = None;
+                                    parent_handle = parent.parent();
+                                    if self.current_node_handle == self.start_node_handle {
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -1566,6 +1572,7 @@ where
 /// Iterator that traverses tree in depth and returns shared references to nodes.
 pub struct GraphTraverseIteratorMut<'a, G: ?Sized, N> {
     graph: &'a mut G,
+    start_node_parent_handle: Handle<N>,
     start_node_handle: Handle<N>,
     current_node_handle: Handle<N>,
     index: Option<usize>,
@@ -1592,32 +1599,35 @@ where
                 match current_node.children().first() {
                     Some(first) => {
                         self.current_node_handle = *first;
+                        self.index = None;
                     }
                     None => {
                         let mut parent_handle = current_node.parent();
-                        while let Ok(parent) = graph.try_get(parent_handle) {
-                            let parent_children = parent.children();
-                            let index = self.index.get_or_insert_with(|| {
-                                parent_children
-                                    .iter()
-                                    .position(|h| *h == self.current_node_handle)
-                                    .expect("must be in parent's list")
-                            });
-                            *index += 1;
-                            if let Some(next_child_handle) = parent_children.get(*index) {
-                                self.current_node_handle = *next_child_handle;
-                                return Some((
-                                    current_node_handle,
-                                    graph
-                                        .try_get_mut(current_node_handle)
-                                        .expect("must be valid"),
-                                ));
-                            } else {
-                                self.current_node_handle = parent_handle;
-                                self.index = None;
-                                parent_handle = parent.parent();
-                                if self.current_node_handle == self.start_node_handle {
-                                    break;
+                        if parent_handle != self.start_node_parent_handle {
+                            while let Ok(parent) = graph.try_get(parent_handle) {
+                                let parent_children = parent.children();
+                                let index = self.index.get_or_insert_with(|| {
+                                    parent_children
+                                        .iter()
+                                        .position(|h| *h == self.current_node_handle)
+                                        .expect("must be in parent's list")
+                                });
+                                *index += 1;
+                                if let Some(next_child_handle) = parent_children.get(*index) {
+                                    self.current_node_handle = *next_child_handle;
+                                    return Some((
+                                        current_node_handle,
+                                        graph
+                                            .try_get_mut(current_node_handle)
+                                            .expect("must be valid"),
+                                    ));
+                                } else {
+                                    self.current_node_handle = parent_handle;
+                                    self.index = None;
+                                    parent_handle = parent.parent();
+                                    if self.current_node_handle == self.start_node_handle {
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -2370,9 +2380,10 @@ mod test {
         //      |_A_
         //      |   |_B
         //      |   |_C_
-        //      |      |_D_
-        //      |         |_E
-        //      |_F
+        //      |   |  |_D_
+        //      |   |     |_E
+        //      |   |_F
+        //      |_X
         let root = graph.add_node(Node::new(Pivot::default()));
         let e = graph.add_node(Node::new(Pivot::default()));
         let d = graph.add_node(Node::new(Pivot {
@@ -2395,8 +2406,10 @@ mod test {
             },
         }));
         let f = graph.add_node(Node::new(Pivot::default()));
+        let x = graph.add_node(Node::new(Pivot::default()));
         graph.link_nodes(a, root);
-        graph.link_nodes(f, root);
+        graph.link_nodes(f, a);
+        graph.link_nodes(x, root);
 
         // test full depth traversal (immutable)
         let mut iter = graph.traverse_handle_iter(root);
@@ -2407,13 +2420,22 @@ mod test {
         assert_eq!(iter.next(), Some(d));
         assert_eq!(iter.next(), Some(e));
         assert_eq!(iter.next(), Some(f));
+        assert_eq!(iter.next(), Some(x));
         assert_eq!(iter.next(), None);
 
         drop(iter);
 
         // test sub-graph traversal (immutable)
-        let mut iter = graph.traverse_handle_iter(d);
+        let mut iter = graph.traverse_handle_iter(c);
+        assert_eq!(iter.next(), Some(c));
         assert_eq!(iter.next(), Some(d));
+        assert_eq!(iter.next(), Some(e));
+        assert_eq!(iter.next(), None);
+
+        drop(iter);
+
+        // test single node "traversal"
+        let mut iter = graph.traverse_handle_iter(e);
         assert_eq!(iter.next(), Some(e));
         assert_eq!(iter.next(), None);
 
@@ -2428,6 +2450,7 @@ mod test {
         assert_eq!(iter_mut.next(), Some(d));
         assert_eq!(iter_mut.next(), Some(e));
         assert_eq!(iter_mut.next(), Some(f));
+        assert_eq!(iter_mut.next(), Some(x));
         assert_eq!(iter_mut.next(), None);
 
         drop(iter_mut);
@@ -2437,5 +2460,14 @@ mod test {
         assert_eq!(iter_mut.next(), Some(d));
         assert_eq!(iter_mut.next(), Some(e));
         assert_eq!(iter_mut.next(), None);
+
+        drop(iter_mut);
+
+        // test single node "traversal"
+        let mut iter_mut = graph.traverse_iter_mut(e).map(|(h, _)| h);
+        assert_eq!(iter_mut.next(), Some(e));
+        assert_eq!(iter_mut.next(), None);
+
+        drop(iter_mut);
     }
 }
