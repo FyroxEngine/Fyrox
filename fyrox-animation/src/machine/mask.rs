@@ -27,22 +27,122 @@ use crate::EntityId;
 /// Layer mask is a sort of blacklist that prevents layer from animating certain nodes. Its main use case is to
 /// disable animation on animation layers for specific body parts of humanoid (but not only) characters. The
 /// mask holds handles of nodes that **will not** be animated.
-#[derive(Default, Debug, Visit, Reflect, Clone, PartialEq, Eq)]
-#[reflect(type_uuid = "fde99dd1-444f-4c38-a4be-7716933c3115")]
+#[derive(Default, Debug, Visit, Clone, PartialEq, Eq)]
 pub struct LayerMask<T: EntityId> {
     excluded_bones: Vec<T>,
+    #[visit(skip)]
+    sorted: bool,
+}
+
+static EXCLUDED_BONES_METADATA: FieldMetadata = FieldMetadata {
+    name: "ExcludedBones",
+    display_name: "ExcludedBones",
+    tag: "",
+    read_only: false,
+    immutable_collection: false,
+    min_value: None,
+    max_value: None,
+    step: None,
+    precision: None,
+    doc: "",
+};
+
+impl<T: EntityId> Reflect for LayerMask<T> {
+    fn type_info() -> TypeInfo
+    where
+        Self: Sized,
+    {
+        TypeInfo {
+            source_path: file!(),
+            type_name: std::any::type_name::<Self>(),
+            assembly_name: env!("CARGO_PKG_NAME"),
+            doc_comment: "",
+            derived_types: &[],
+            type_uuid: uuid!("fde99dd1-444f-4c38-a4be-7716933c3115"),
+        }
+    }
+
+    fn type_info_ref(&self) -> TypeInfo {
+        Self::type_info()
+    }
+
+    fn try_clone_box(&self) -> Option<Box<dyn Reflect>> {
+        Some(Box::new(self.clone()))
+    }
+
+    fn try_compare(&self, other: &dyn Reflect) -> Option<bool> {
+        (other as &dyn std::any::Any)
+            .downcast_ref::<Self>()
+            .map(|other| other == self)
+    }
+
+    fn fields_ref(&self, func: &mut dyn FnMut(&[FieldRef])) {
+        func(&[{
+            FieldRef {
+                metadata: &EXCLUDED_BONES_METADATA,
+                value: &self.excluded_bones,
+            }
+        }])
+    }
+
+    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [FieldMut])) {
+        self.sorted = false;
+        func(&mut [{
+            FieldMut {
+                metadata: &EXCLUDED_BONES_METADATA,
+                value: &mut self.excluded_bones,
+            }
+        }])
+    }
+
+    fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+        let this = std::mem::replace(self, value.take()?);
+        Ok(Box::new(this))
+    }
+
+    fn field_direct_ref(&self, index: usize) -> Option<FieldRef> {
+        if index == 0 {
+            Some(FieldRef {
+                metadata: &EXCLUDED_BONES_METADATA,
+                value: &self.excluded_bones,
+            })
+        } else {
+            None
+        }
+    }
+
+    fn field_direct_mut(&mut self, index: usize) -> Option<FieldMut> {
+        if index == 0 {
+            self.sorted = false;
+            Some(FieldMut {
+                metadata: &EXCLUDED_BONES_METADATA,
+                value: &mut self.excluded_bones,
+            })
+        } else {
+            None
+        }
+    }
 }
 
 impl<T: EntityId> From<Vec<T>> for LayerMask<T> {
     fn from(mut excluded_bones: Vec<T>) -> Self {
         excluded_bones.sort();
-        Self { excluded_bones }
+        Self {
+            excluded_bones,
+            sorted: true,
+        }
     }
 }
 
 impl<T: EntityId> LayerMask<T> {
+    fn ensure_sorted(&mut self) {
+        self.excluded_bones.sort();
+        self.sorted = true;
+    }
+
     /// Merges a given layer mask in the current mask, handles will be automatically de-duplicated.
     pub fn merge(&mut self, other: LayerMask<T>) {
+        self.ensure_sorted();
         for handle in other.into_inner() {
             if !self.contains(handle) {
                 self.add(handle);
@@ -59,6 +159,8 @@ impl<T: EntityId> LayerMask<T> {
     /// The method has O(log(n)) complexity, which means it is very fast for most use cases.
     #[inline]
     pub fn add(&mut self, node: T) {
+        self.ensure_sorted();
+
         let index = self.excluded_bones.partition_point(|h| h < &node);
 
         self.excluded_bones.insert(index, node);
@@ -70,6 +172,8 @@ impl<T: EntityId> LayerMask<T> {
     ///
     /// The method has O(log(n)) complexity, which means it is very fast for most use cases.
     pub fn remove(&mut self, node: T) {
+        self.ensure_sorted();
+
         if let Some(index) = self.index_of(node) {
             self.excluded_bones.remove(index);
         }
@@ -85,7 +189,8 @@ impl<T: EntityId> LayerMask<T> {
     ///
     /// The method has O(log(n)) complexity, which means it is very fast for most use cases.
     #[inline]
-    pub fn contains(&self, node: T) -> bool {
+    pub fn contains(&mut self, node: T) -> bool {
+        self.ensure_sorted();
         self.index_of(node).is_some()
     }
 
@@ -95,7 +200,8 @@ impl<T: EntityId> LayerMask<T> {
     ///
     /// The method has O(log(n)) complexity, which means it is very fast for most use cases.
     #[inline]
-    pub fn should_animate(&self, node: T) -> bool {
+    pub fn should_animate(&mut self, node: T) -> bool {
+        self.ensure_sorted();
         !self.contains(node)
     }
 
