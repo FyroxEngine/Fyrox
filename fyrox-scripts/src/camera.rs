@@ -260,7 +260,9 @@ impl ScriptTrait for FlyingCameraController {
             .min(1.0);
             *self.target_velocity = new_normalized_velocity.scale(
                 *self.speed
-                    * self.acceleration_curve.value_at(self.acceleration_coeff)
+                    * self
+                        .acceleration_curve
+                        .value_at(self.acceleration_coeff, &mut 0)
                     * context.dt,
             );
         } else {
@@ -270,7 +272,9 @@ impl ScriptTrait for FlyingCameraController {
             if let Some(normalized_velocity) = self.target_velocity.try_normalize(f32::EPSILON) {
                 *self.target_velocity = normalized_velocity.scale(
                     *self.speed
-                        * self.deceleration_curve.value_at(self.acceleration_coeff)
+                        * self
+                            .deceleration_curve
+                            .value_at(self.acceleration_coeff, &mut 0)
                         * context.dt,
                 );
             } else {

@@ -25,7 +25,7 @@
 #![allow(clippy::doc_lazy_continuation)]
 #![allow(mismatched_lifetime_syntaxes)]
 
-use crate::track::TrackBinding;
+use crate::track::{HintContainer, TrackBinding};
 use crate::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -504,7 +504,7 @@ impl<T: EntityId> Animation<T> {
             tracks
                 .iter()
                 .find(|track| track.value_binding() == &ValueBinding::Position)
-                .and_then(|track| track.fetch(time))
+                .and_then(|track| track.fetch(time, &mut HintContainer::default()))
                 .and_then(|value| {
                     if let TrackValue::Vector3(position) = value.value {
                         Some(position)
@@ -519,7 +519,7 @@ impl<T: EntityId> Animation<T> {
             tracks
                 .iter()
                 .find(|track| track.value_binding() == &ValueBinding::Rotation)
-                .and_then(|track| track.fetch(time))
+                .and_then(|track| track.fetch(time, &mut HintContainer::default()))
                 .and_then(|value| {
                     if let TrackValue::UnitQuaternion(rotation) = value.value {
                         Some(rotation)
@@ -898,12 +898,13 @@ impl<T: EntityId> Animation<T> {
 
         self.pose.reset();
         for track in tracks_data.tracks.iter() {
-            let Some(binding) = self.track_bindings.get(&track.id()) else {
+            let Some(binding) = self.track_bindings.get_mut(&track.id()) else {
                 continue;
             };
 
             if binding.is_enabled() {
-                if let Some(bound_value) = track.fetch(self.time_position) {
+                if let Some(bound_value) = track.fetch(self.time_position, &mut binding.fetch_hints)
+                {
                     self.pose.add_to_node_pose(binding.target(), bound_value);
                 }
             }

@@ -21,6 +21,7 @@
 //! Track data container is a flexible source of data for numeric parameters, it is built using a set
 //! of parametric curves. See [`TrackDataContainer`] docs for more info.
 
+use crate::track::HintContainer;
 use crate::{
     core::{
         algebra::{Vector2, Vector3, Vector4},
@@ -159,7 +160,7 @@ impl TrackDataContainer {
     }
 
     #[inline(always)]
-    fn fetch_vector2(&self, time: f32) -> Option<TrackValue> {
+    fn fetch_vector2(&self, time: f32, fetch_hints: &mut HintContainer) -> Option<TrackValue> {
         if self.curves.len() < 2 {
             return None;
         }
@@ -167,29 +168,39 @@ impl TrackDataContainer {
         // SAFETY: The indices are guaranteed to be correct by the above check.
         unsafe {
             Some(TrackValue::Vector2(Vector2::new(
-                self.curves.get_unchecked(0).value_at(time),
-                self.curves.get_unchecked(1).value_at(time),
+                self.curves
+                    .get_unchecked(0)
+                    .value_at(time, &mut fetch_hints[0]),
+                self.curves
+                    .get_unchecked(1)
+                    .value_at(time, &mut fetch_hints[1]),
             )))
         }
     }
 
     #[inline(always)]
-    fn fetch_vector3(&self, time: f32) -> Option<TrackValue> {
+    fn fetch_vector3(&self, time: f32, fetch_hints: &mut HintContainer) -> Option<TrackValue> {
         if self.curves.len() < 3 {
             return None;
         }
 
         unsafe {
             Some(TrackValue::Vector3(Vector3::new(
-                self.curves.get_unchecked(0).value_at(time),
-                self.curves.get_unchecked(1).value_at(time),
-                self.curves.get_unchecked(2).value_at(time),
+                self.curves
+                    .get_unchecked(0)
+                    .value_at(time, &mut fetch_hints[0]),
+                self.curves
+                    .get_unchecked(1)
+                    .value_at(time, &mut fetch_hints[1]),
+                self.curves
+                    .get_unchecked(2)
+                    .value_at(time, &mut fetch_hints[2]),
             )))
         }
     }
 
     #[inline(always)]
-    fn fetch_vector4(&self, time: f32) -> Option<TrackValue> {
+    fn fetch_vector4(&self, time: f32, fetch_hints: &mut HintContainer) -> Option<TrackValue> {
         if self.curves.len() < 4 {
             return None;
         }
@@ -197,16 +208,28 @@ impl TrackDataContainer {
         // SAFETY: The indices are guaranteed to be correct by the above check.
         unsafe {
             Some(TrackValue::Vector4(Vector4::new(
-                self.curves.get_unchecked(0).value_at(time),
-                self.curves.get_unchecked(1).value_at(time),
-                self.curves.get_unchecked(2).value_at(time),
-                self.curves.get_unchecked(3).value_at(time),
+                self.curves
+                    .get_unchecked(0)
+                    .value_at(time, &mut fetch_hints[0]),
+                self.curves
+                    .get_unchecked(1)
+                    .value_at(time, &mut fetch_hints[1]),
+                self.curves
+                    .get_unchecked(2)
+                    .value_at(time, &mut fetch_hints[2]),
+                self.curves
+                    .get_unchecked(3)
+                    .value_at(time, &mut fetch_hints[3]),
             )))
         }
     }
 
     #[inline(always)]
-    fn fetch_quaternion_euler(&self, time: f32) -> Option<TrackValue> {
+    fn fetch_quaternion_euler(
+        &self,
+        time: f32,
+        fetch_hints: &mut HintContainer,
+    ) -> Option<TrackValue> {
         if self.curves.len() < 3 {
             return None;
         }
@@ -219,9 +242,9 @@ impl TrackDataContainer {
 
             // Convert Euler angles to quaternion
             let (x, y, z) = (
-                x_curve.value_at(time),
-                y_curve.value_at(time),
-                z_curve.value_at(time),
+                x_curve.value_at(time, &mut fetch_hints[0]),
+                y_curve.value_at(time, &mut fetch_hints[1]),
+                z_curve.value_at(time, &mut fetch_hints[1]),
             );
 
             Some(TrackValue::UnitQuaternion(quat_from_euler(
@@ -232,7 +255,7 @@ impl TrackDataContainer {
     }
 
     #[inline(always)]
-    fn fetch_quaternion(&self, time: f32) -> Option<TrackValue> {
+    fn fetch_quaternion(&self, time: f32, fetch_hints: &mut HintContainer) -> Option<TrackValue> {
         if self.curves.len() < 4 {
             return None;
         }
@@ -246,10 +269,10 @@ impl TrackDataContainer {
 
             // Convert Euler angles to quaternion
             let (x, y, z, w) = (
-                x_curve.value_at(time),
-                y_curve.value_at(time),
-                z_curve.value_at(time),
-                w_curve.value_at(time),
+                x_curve.value_at(time, &mut fetch_hints[0]),
+                y_curve.value_at(time, &mut fetch_hints[1]),
+                z_curve.value_at(time, &mut fetch_hints[2]),
+                w_curve.value_at(time, &mut fetch_hints[3]),
             );
 
             Some(TrackValue::UnitQuaternion(UnitQuaternion::from_quaternion(
@@ -261,14 +284,16 @@ impl TrackDataContainer {
     /// Tries to get a value at a given time. The method could fail if the internal set of curves is malformed
     /// and cannot produce a desired value (for example, [`Vector3`] can be fetched only if the amount of curves
     /// is 3).
-    pub fn fetch(&self, time: f32) -> Option<TrackValue> {
+    pub fn fetch(&self, time: f32, fetch_hints: &mut HintContainer) -> Option<TrackValue> {
         match self.kind {
-            TrackValueKind::Real => Some(TrackValue::Real(self.curves.first()?.value_at(time))),
-            TrackValueKind::Vector2 => self.fetch_vector2(time),
-            TrackValueKind::Vector3 => self.fetch_vector3(time),
-            TrackValueKind::Vector4 => self.fetch_vector4(time),
-            TrackValueKind::UnitQuaternionEuler => self.fetch_quaternion_euler(time),
-            TrackValueKind::UnitQuaternion => self.fetch_quaternion(time),
+            TrackValueKind::Real => Some(TrackValue::Real(
+                self.curves.first()?.value_at(time, &mut fetch_hints[0]),
+            )),
+            TrackValueKind::Vector2 => self.fetch_vector2(time, fetch_hints),
+            TrackValueKind::Vector3 => self.fetch_vector3(time, fetch_hints),
+            TrackValueKind::Vector4 => self.fetch_vector4(time, fetch_hints),
+            TrackValueKind::UnitQuaternionEuler => self.fetch_quaternion_euler(time, fetch_hints),
+            TrackValueKind::UnitQuaternion => self.fetch_quaternion(time, fetch_hints),
         }
     }
 
