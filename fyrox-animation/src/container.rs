@@ -244,7 +244,7 @@ impl TrackDataContainer {
             let (x, y, z) = (
                 x_curve.value_at(time, &mut fetch_hints[0]),
                 y_curve.value_at(time, &mut fetch_hints[1]),
-                z_curve.value_at(time, &mut fetch_hints[1]),
+                z_curve.value_at(time, &mut fetch_hints[2]),
             );
 
             Some(TrackValue::UnitQuaternion(quat_from_euler(
