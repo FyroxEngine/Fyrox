@@ -98,47 +98,6 @@ struct PreviewModeData<N: Reflect> {
     nodes: Vec<(Handle<N>, N)>,
 }
 
-fn fetch_selection<N>(editor_selection: &Selection) -> AbsmSelection<N>
-where
-    N: Reflect,
-{
-    if let Some(selection) = editor_selection.as_absm() {
-        // Some selection in an animation.
-        AbsmSelection {
-            absm_node_handle: selection.absm_node_handle,
-            layer: selection.layer,
-            entities: selection.entities.clone(),
-        }
-    } else if let Some(selection) = editor_selection.as_graph() {
-        // Only some AnimationPlayer in a graph is selected.
-        AbsmSelection {
-            absm_node_handle: ErasedHandle::from(
-                selection.nodes.first().cloned().unwrap_or_default(),
-            )
-            .into(),
-            layer: None,
-            entities: vec![],
-        }
-    } else if let Some(selection) = editor_selection.as_ui() {
-        // Only some AnimationPlayer in a UI is selected.
-        AbsmSelection {
-            absm_node_handle: ErasedHandle::from(
-                selection.widgets.first().cloned().unwrap_or_default(),
-            )
-            .into(),
-            layer: None,
-            entities: vec![],
-        }
-    } else {
-        // Stub in other cases.
-        AbsmSelection {
-            absm_node_handle: Default::default(),
-            layer: None,
-            entities: vec![],
-        }
-    }
-}
-
 fn machine_container<G, N>(graph: &mut G, absm_handle: Handle<N>) -> Option<&mut Machine<Handle<N>>>
 where
     G: SceneGraph<NodeWrapper = N>,
@@ -217,6 +176,12 @@ where
     Some((animation_player_handle, &**container))
 }
 
+#[derive(Default)]
+struct AbsmEditorSelectionState {
+    absm: ErasedHandle,
+    layer: Option<usize>,
+}
+
 pub struct AbsmEditor {
     pub window: Handle<Window>,
     state_graph_viewer: StateGraphViewer,
@@ -226,6 +191,7 @@ pub struct AbsmEditor {
     toolbar: Toolbar,
     preview_mode_data: Option<Box<dyn Any>>,
     blend_space_editor: BlendSpaceEditor,
+    selection_state: AbsmEditorSelectionState,
 }
 
 impl AbsmEditor {
@@ -308,6 +274,54 @@ impl AbsmEditor {
             toolbar,
             preview_mode_data: None,
             blend_space_editor,
+            selection_state: Default::default(),
+        }
+    }
+
+    fn fetch_selection<G, N>(&mut self, graph: &G, editor_selection: &Selection) -> AbsmSelection<N>
+    where
+        N: NodeWrapper<SceneGraph = G>,
+        G: SceneGraph<NodeWrapper = N>,
+    {
+        if let Some(absm_selection) = editor_selection.as_absm() {
+            self.selection_state.layer = absm_selection.layer;
+            self.selection_state.absm = absm_selection.absm_node_handle.into();
+            AbsmSelection {
+                absm_node_handle: absm_selection.absm_node_handle,
+                layer: absm_selection.layer,
+                entities: absm_selection.entities.clone(),
+            }
+        } else if let Some(graph_selection) = editor_selection.as_graph() {
+            let new_absm =
+                ErasedHandle::from(graph_selection.nodes.first().cloned().unwrap_or_default());
+            if machine_container_ref(graph, new_absm.into()).is_some() {
+                self.selection_state.layer = None;
+                self.selection_state.absm = new_absm;
+            }
+            AbsmSelection {
+                absm_node_handle: self.selection_state.absm.into(),
+                layer: None,
+                entities: vec![],
+            }
+        } else if let Some(ui_selection) = editor_selection.as_ui() {
+            let new_absm =
+                ErasedHandle::from(ui_selection.widgets.first().cloned().unwrap_or_default());
+            if machine_container_ref(graph, new_absm.into()).is_some() {
+                self.selection_state.layer = None;
+                self.selection_state.absm = new_absm;
+            }
+            AbsmSelection {
+                absm_node_handle: self.selection_state.absm.into(),
+                layer: None,
+                entities: vec![],
+            }
+        } else {
+            // Stub in other cases.
+            AbsmSelection {
+                absm_node_handle: self.selection_state.absm.into(),
+                layer: self.selection_state.layer,
+                entities: vec![],
+            }
         }
     }
 
@@ -389,7 +403,7 @@ impl AbsmEditor {
         PhantomData<AnimationPlayer>: ObjectOrVariantHelper<N, AnimationPlayer>,
     {
         if self.preview_mode_data.is_some() {
-            let selection = fetch_selection(editor_selection);
+            let selection = self.fetch_selection(graph, editor_selection);
 
             assert!(node_overrides.remove(&selection.absm_node_handle));
             if let Some((animation_player, _)) =
@@ -452,7 +466,7 @@ impl AbsmEditor {
     {
         let prev_absm = self.prev_absm;
 
-        let selection = fetch_selection(editor_selection);
+        let selection = self.fetch_selection(graph, editor_selection);
 
         let machine = machine_container_ref(graph, selection.absm_node_handle);
 
@@ -467,12 +481,11 @@ impl AbsmEditor {
             self.toolbar.sync_to_model(machine, ui, &selection);
             if let Some(layer_index) = selection.layer {
                 if let Some(layer) = machine.layers().get(layer_index) {
-                    self.state_graph_viewer
-                        .sync_to_model(layer, ui, editor_selection);
+                    self.state_graph_viewer.sync_to_model(layer, ui, &selection);
                     self.state_viewer.sync_to_model(
                         ui,
                         layer,
-                        editor_selection,
+                        &selection,
                         animation_container_ref::<G, N, AnimationPlayer>(
                             graph,
                             selection.absm_node_handle,
@@ -539,7 +552,7 @@ impl AbsmEditor {
     }
 
     pub fn handle_machine_events<P, G, N>(
-        &self,
+        &mut self,
         editor_selection: &Selection,
         graph: &mut G,
         ui: &mut UserInterface,
@@ -548,7 +561,7 @@ impl AbsmEditor {
         G: SceneGraph<NodeWrapper = N, Prefab = P>,
         N: NodeWrapper<SceneGraph = G, ResourceData = P>,
     {
-        let selection = fetch_selection(editor_selection);
+        let selection = self.fetch_selection(graph, editor_selection);
 
         if let Some(machine) = machine_container(graph, selection.absm_node_handle) {
             if let Some(layer_index) = selection.layer {
@@ -584,7 +597,7 @@ impl AbsmEditor {
         AnimationPlayer: Reflect,
         PhantomData<AnimationPlayer>: ObjectOrVariantHelper<N, AnimationPlayer>,
     {
-        let selection = fetch_selection(editor_selection);
+        let selection = self.fetch_selection(graph, editor_selection);
 
         if let Some(machine) = machine_container(graph, selection.absm_node_handle) {
             if let Some(layer_index) = selection.layer {
@@ -623,9 +636,9 @@ impl AbsmEditor {
                 self.preview_mode_data.is_some(),
             );
 
-            let action =
-                self.toolbar
-                    .handle_ui_message(message, editor_selection, sender, graph, ui);
+            let action = self
+                .toolbar
+                .handle_ui_message(message, &selection, sender, graph, ui);
 
             let machine = machine_container(graph, selection.absm_node_handle).unwrap();
 

@@ -43,7 +43,7 @@ use crate::{
     plugins::absm::{
         animation_container_ref,
         command::{AddLayerCommand, RemoveLayerCommand, SetLayerMaskCommand, SetLayerNameCommand},
-        fetch_selection, machine_container_ref,
+        machine_container_ref,
         selection::AbsmSelection,
     },
     scene::{
@@ -160,7 +160,7 @@ impl Toolbar {
     pub fn handle_ui_message<P, G, N, AnimationPlayer>(
         &mut self,
         message: &UiMessage,
-        editor_selection: &Selection,
+        selection: &AbsmSelection<N>,
         sender: &MessageSender,
         graph: &G,
         ui: &mut UserInterface,
@@ -172,8 +172,6 @@ impl Toolbar {
         AnimationPlayer: Reflect,
         PhantomData<AnimationPlayer>: ObjectOrVariantHelper<N, AnimationPlayer>,
     {
-        let selection = fetch_selection(editor_selection);
-
         if let Some(ToggleButtonMessage::Toggled(value)) = message.data_from(self.preview) {
             return if *value {
                 ToolbarAction::EnterPreviewMode
@@ -183,7 +181,7 @@ impl Toolbar {
         } else if let Some(DropdownListMessage::Selection(Some(index))) =
             message.data_from(self.layers)
         {
-            let mut new_selection = selection;
+            let mut new_selection = selection.clone();
             new_selection.layer = Some(*index);
             new_selection.entities.clear();
             sender.do_command(ChangeSelectionCommand::new(Selection::new(new_selection)));

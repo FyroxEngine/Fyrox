@@ -48,7 +48,6 @@ use crate::plugins::absm::{
         MovePoseNodeCommand,
     },
     connection::{Connection, ConnectionBuilder},
-    fetch_selection,
     node::{AbsmNode, AbsmNodeBuilder, AbsmNodeMessage},
     selection::{AbsmSelection, SelectedEntity},
     socket::{Socket, SocketBuilder, SocketDirection},
@@ -412,7 +411,7 @@ impl StateViewer {
         &mut self,
         ui: &mut UserInterface,
         machine_layer: &MachineLayer<Handle<N>>,
-        editor_selection: &Selection,
+        current_selection: &AbsmSelection<N>,
         animation_container: Option<&AnimationContainer<Handle<N>>>,
     ) where
         P: PrefabData<Graph = G>,
@@ -420,8 +419,6 @@ impl StateViewer {
         N: NodeWrapper<SceneGraph = G, ResourceData = P>,
     {
         if let Ok(parent_state_ref) = machine_layer.states().try_borrow(self.state.into()) {
-            let current_selection = fetch_selection(editor_selection);
-
             let mut views = Vec::new();
             if self.prev_layer != current_selection.layer
                 || current_selection.absm_node_handle != Handle::<N>::from(self.prev_absm)

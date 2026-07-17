@@ -34,7 +34,6 @@ use crate::fyrox::{
 use crate::plugins::absm::{
     canvas::{AbsmCanvas, AbsmCanvasBuilder, AbsmCanvasMessage},
     command::{AddTransitionCommand, MoveStateNodeCommand},
-    fetch_selection,
     node::{AbsmNode, AbsmNodeBuilder, AbsmNodeMessage},
     selection::{AbsmSelection, SelectedEntity},
     state_graph::context::{CanvasContextMenu, NodeContextMenu, TransitionContextMenu},
@@ -296,14 +295,13 @@ impl StateGraphViewer {
         &mut self,
         machine_layer: &MachineLayer<Handle<N>>,
         ui: &mut UserInterface,
-        editor_selection: &Selection,
+        current_selection: &AbsmSelection<N>,
     ) where
         P: PrefabData<Graph = G>,
         G: SceneGraph<NodeWrapper = N, Prefab = P>,
         N: NodeWrapper<SceneGraph = G, ResourceData = P>,
     {
         let canvas = &ui[self.canvas];
-        let current_selection = fetch_selection(editor_selection);
 
         let mut states = Vec::new();
         let mut transitions = Vec::new();
