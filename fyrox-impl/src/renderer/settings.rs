@@ -19,11 +19,12 @@
 // SOFTWARE.
 
 use crate::core::reflect::prelude::*;
+use crate::core::visitor::prelude::*;
 use serde::{Deserialize, Serialize};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// Bloom effect settings.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Copy, Clone, PartialEq, Visit, Serialize, Deserialize, Reflect)]
 #[reflect(type_uuid = "6862fea7-10a9-4a8a-8701-c003415aa3b3")]
 pub struct BloomSettings {
     /// Whether to use bloom effect.
@@ -51,6 +52,7 @@ impl Default for BloomSettings {
     Clone,
     PartialEq,
     Default,
+    Visit,
     Serialize,
     Deserialize,
     Reflect,
@@ -70,7 +72,7 @@ pub enum LuminanceCalculationMethod {
 }
 
 /// Settings of high dynamic range rendering pipeline.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Copy, Clone, PartialEq, Visit, Serialize, Deserialize, Reflect)]
 #[reflect(type_uuid = "15a2975b-0f2d-4839-ba20-951e4625ee75")]
 pub struct HdrSettings {
     /// Whether the HDR pipeline enabled or not.
@@ -96,7 +98,7 @@ impl Default for HdrSettings {
 
 /// Quality settings allows you to find optimal balance between performance and
 /// graphics quality.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Copy, Clone, PartialEq, Visit, Serialize, Deserialize, Reflect)]
 #[reflect(type_uuid = "ef3c1b91-dd8a-49b9-9249-1ba4c03f7176")]
 pub struct QualitySettings {
     /// Point shadows
@@ -340,7 +342,7 @@ impl QualitySettings {
 }
 
 /// Cascaded-shadow maps settings.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Visit, Serialize, Deserialize, Reflect, Eq)]
 #[reflect(type_uuid = "f3dc86da-f1d4-499a-89bb-7d784eebc32d")]
 pub struct CsmSettings {
     /// Whether cascaded shadow maps enabled or not.
@@ -378,6 +380,7 @@ impl Default for CsmSettings {
     Eq,
     Ord,
     Debug,
+    Visit,
     Serialize,
     Deserialize,
     Reflect,
