@@ -137,6 +137,7 @@ pub mod collection;
 pub mod color;
 pub mod curve;
 pub mod enumeration;
+pub mod hashmap;
 pub mod immutable_string;
 pub mod inherit;
 pub mod inspectable;

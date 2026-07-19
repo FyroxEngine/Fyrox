@@ -337,6 +337,25 @@ pub trait Reflect: Any + Debug {
     }
 }
 
+pub fn make_hash_map_key(key: &dyn Reflect) -> String {
+    // TODO: Here we just using `Debug` impl to obtain string representation for keys. This is
+    // fine for most cases in the engine.
+    let mut key_str = format!("{key:?}");
+
+    let is_key_string =
+        key.downcast_ref::<String>().is_some() || key.downcast_ref::<ImmutableString>().is_some();
+
+    if is_key_string {
+        // Strip quotes at the beginning and the end, because Debug impl for String adds
+        // quotes at the beginning and the end, but we want raw value.
+        // TODO: This is unreliable mechanism.
+        key_str.remove(0);
+        key_str.pop();
+    }
+
+    key_str
+}
+
 /// Type-erased API
 impl dyn Reflect {
     pub fn downcast<T: Reflect>(self: Box<dyn Reflect>) -> Result<Box<T>, Box<dyn Reflect>> {
@@ -525,20 +544,7 @@ impl dyn Reflect {
         if let Some(hash_map) = self.as_hash_map() {
             for i in 0..hash_map.reflect_len() {
                 if let Some((key, value)) = hash_map.reflect_get_at(i) {
-                    // TODO: Here we just using `Debug` impl to obtain string representation for keys. This is
-                    // fine for most cases in the engine.
-                    let mut key_str = format!("{key:?}");
-
-                    let is_key_string = key.downcast_ref::<String>().is_some()
-                        || key.downcast_ref::<ImmutableString>().is_some();
-
-                    if is_key_string {
-                        // Strip quotes at the beginning and the end, because Debug impl for String adds
-                        // quotes at the beginning and the end, but we want raw value.
-                        // TODO: This is unreliable mechanism.
-                        key_str.remove(0);
-                        key_str.pop();
-                    }
+                    let key_str = make_hash_map_key(key);
 
                     let item_path = format!("{path}[{key_str}]");
 
