@@ -677,16 +677,25 @@ fn test_hash_map() {
     {
         let hash_map = hash_map.as_hash_map().unwrap();
         assert_eq!(hash_map.reflect_len(), 2);
-        hash_map.reflect_get(&foo_key, &mut |result| {
-            assert_eq!(result.unwrap().downcast_ref::<Struct>().unwrap().field, 123)
-        });
+        assert_eq!(
+            hash_map
+                .reflect_get(&foo_key)
+                .unwrap()
+                .downcast_ref::<Struct>()
+                .unwrap()
+                .field,
+            123
+        );
     }
 
     {
         let hash_map = hash_map.as_hash_map_mut().unwrap();
-        hash_map.reflect_get_mut(&bar_key, &mut |result| {
-            result.unwrap().downcast_mut::<Struct>().unwrap().field = 555
-        });
+        hash_map
+            .reflect_get_mut(&bar_key)
+            .unwrap()
+            .downcast_mut::<Struct>()
+            .unwrap()
+            .field = 555;
     }
 
     // Check path resolution.
@@ -696,6 +705,7 @@ fn test_hash_map() {
         hash_map: HashMap<String, Struct>,
     }
 
+    let mut hash_map2 = hash_map.clone();
     let something = Something { hash_map };
 
     something.get_resolve_path::<usize>("hash_map[foo].field", &mut |result| {
@@ -704,4 +714,24 @@ fn test_hash_map() {
     something.get_resolve_path::<usize>("hash_map[bar].field", &mut |result| {
         assert_eq!(*result.unwrap(), 555)
     });
+
+    // Check key replacement.
+    let baz_key = "baz".to_string();
+    hash_map2
+        .reflect_replace_key(&bar_key, Box::new(baz_key.clone()))
+        .unwrap();
+
+    {
+        assert_eq!(hash_map2.reflect_len(), 2);
+        assert!(hash_map2.reflect_get(&bar_key).is_none());
+        assert_eq!(
+            hash_map2
+                .reflect_get(&baz_key)
+                .unwrap()
+                .downcast_ref::<Struct>()
+                .unwrap()
+                .field,
+            555
+        );
+    }
 }

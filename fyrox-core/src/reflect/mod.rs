@@ -828,39 +828,33 @@ unsafe fn make_fake_string_from_slice(string: &str) -> ManuallyDrop<String> {
     )))
 }
 
-fn try_fetch_by_str_path_ref(
-    hash_map: &dyn ReflectHashMap,
+fn try_fetch_by_str_path_ref<'a>(
+    hash_map: &'a dyn ReflectHashMap,
     path: &str,
-    func: &mut dyn FnMut(Option<&dyn Reflect>),
-) {
-    // Create fake string here first, this is needed to avoid memory allocations..
+) -> Option<&'a dyn Reflect> {
+    // Create fake string here first, this is needed to avoid memory allocations.
     // SAFETY: We won't drop the fake string or mutate it.
     let fake_string_key = unsafe { make_fake_string_from_slice(path) };
 
-    hash_map.reflect_get(&*fake_string_key, &mut |result| match result {
-        Some(value) => func(Some(value)),
-        None => hash_map.reflect_get(&ImmutableString::new(path) as &dyn Reflect, func),
-    });
+    match hash_map.reflect_get(&*fake_string_key) {
+        Some(value) => Some(value),
+        None => hash_map.reflect_get(&ImmutableString::new(path) as &dyn Reflect),
+    }
 }
 
-fn try_fetch_by_str_path_mut(
-    hash_map: &mut dyn ReflectHashMap,
+fn try_fetch_by_str_path_mut<'a>(
+    hash_map: &'a mut dyn ReflectHashMap,
     path: &str,
-    func: &mut dyn FnMut(Option<&mut dyn Reflect>),
-) {
+) -> Option<&'a mut dyn Reflect> {
     // Create fake string here first, this is needed to avoid memory allocations..
     // SAFETY: We won't drop the fake string or mutate it.
     let fake_string_key = unsafe { make_fake_string_from_slice(path) };
 
-    let mut succeeded = true;
+    let hash_map2 = unsafe { &mut *(hash_map as *mut dyn ReflectHashMap) };
 
-    hash_map.reflect_get_mut(&*fake_string_key, &mut |result| match result {
-        Some(value) => func(Some(value)),
-        None => succeeded = false,
-    });
-
-    if !succeeded {
-        hash_map.reflect_get_mut(&ImmutableString::new(path) as &dyn Reflect, func)
+    match hash_map.reflect_get_mut(&*fake_string_key) {
+        Some(value) => Some(value),
+        None => hash_map2.reflect_get_mut(&ImmutableString::new(path) as &dyn Reflect),
     }
 }
 
@@ -924,9 +918,10 @@ impl<'p> Component<'p> {
                     Err(_) => func(Err(ReflectPathError::InvalidIndexSyntax { s: path })),
                 },
                 None => match reflect.as_hash_map() {
-                    Some(hash_map) => try_fetch_by_str_path_ref(hash_map, path, &mut |result| {
-                        func(result.ok_or(ReflectPathError::NoItemForIndex { s: path }))
-                    }),
+                    Some(hash_map) => func(
+                        try_fetch_by_str_path_ref(hash_map, path)
+                            .ok_or(ReflectPathError::NoItemForIndex { s: path }),
+                    ),
                     None => func(Err(ReflectPathError::NotAnArray)),
                 },
             },
@@ -957,11 +952,10 @@ impl<'p> Component<'p> {
 
                 if !succeeded {
                     match reflect.as_hash_map_mut() {
-                        Some(hash_map) => {
-                            try_fetch_by_str_path_mut(hash_map, path, &mut |result| {
-                                func(result.ok_or(ReflectPathError::NoItemForIndex { s: path }))
-                            })
-                        }
+                        Some(hash_map) => func(
+                            try_fetch_by_str_path_mut(hash_map, path)
+                                .ok_or(ReflectPathError::NoItemForIndex { s: path }),
+                        ),
                         None => func(Err(ReflectPathError::NotAnArray)),
                     }
                 }

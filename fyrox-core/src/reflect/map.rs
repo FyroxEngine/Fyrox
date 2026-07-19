@@ -30,17 +30,18 @@ pub trait ReflectHashMap: Reflect {
         value: Box<dyn Reflect>,
     ) -> Option<Box<dyn Reflect>>;
     fn reflect_len(&self) -> usize;
-    fn reflect_get(&self, key: &dyn Reflect, func: &mut dyn FnMut(Option<&dyn Reflect>));
-    fn reflect_get_mut(
-        &mut self,
-        key: &dyn Reflect,
-        func: &mut dyn FnMut(Option<&mut dyn Reflect>),
-    );
+    fn reflect_get(&self, key: &dyn Reflect) -> Option<&dyn Reflect>;
+    fn reflect_get_mut(&mut self, key: &dyn Reflect) -> Option<&mut dyn Reflect>;
     fn reflect_get_nth_value_ref(&self, index: usize) -> Option<&dyn Reflect>;
     fn reflect_get_nth_value_mut(&mut self, index: usize) -> Option<&mut dyn Reflect>;
     fn reflect_get_at(&self, index: usize) -> Option<(&dyn Reflect, &dyn Reflect)>;
     fn reflect_get_at_mut(&mut self, index: usize) -> Option<(&dyn Reflect, &mut dyn Reflect)>;
-    fn reflect_remove(&mut self, key: &dyn Reflect, func: &mut dyn FnMut(Option<Box<dyn Reflect>>));
+    fn reflect_remove(&mut self, key: &dyn Reflect) -> Option<Box<dyn Reflect>>;
+    fn reflect_replace_key(
+        &mut self,
+        old_key: &dyn Reflect,
+        new_key: Box<dyn Reflect>,
+    ) -> Result<(), Box<dyn Reflect>>;
 }
 
 impl<K, V, S> Reflect for HashMap<K, V, S>
@@ -87,27 +88,23 @@ where
         self.len()
     }
 
-    fn reflect_get(&self, key: &dyn Reflect, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+    fn reflect_get(&self, key: &dyn Reflect) -> Option<&dyn Reflect> {
         match key.downcast_ref::<K>() {
             Some(key) => match self.get(key) {
-                Some(value) => func(Some(value)),
-                None => func(None),
+                Some(value) => Some(value),
+                None => None,
             },
-            None => func(None),
+            None => None,
         }
     }
 
-    fn reflect_get_mut(
-        &mut self,
-        key: &dyn Reflect,
-        func: &mut dyn FnMut(Option<&mut dyn Reflect>),
-    ) {
+    fn reflect_get_mut(&mut self, key: &dyn Reflect) -> Option<&mut dyn Reflect> {
         match key.downcast_ref::<K>() {
             Some(key) => match self.get_mut(key) {
-                Some(value) => func(Some(value)),
-                None => func(None),
+                Some(value) => Some(value),
+                None => None,
             },
-            None => func(None),
+            None => None,
         }
     }
 
@@ -131,17 +128,28 @@ where
             .map(|(k, v)| (k as &dyn Reflect, v as &mut dyn Reflect))
     }
 
-    fn reflect_remove(
-        &mut self,
-        key: &dyn Reflect,
-        func: &mut dyn FnMut(Option<Box<dyn Reflect>>),
-    ) {
+    fn reflect_remove(&mut self, key: &dyn Reflect) -> Option<Box<dyn Reflect>> {
         match key.downcast_ref::<K>() {
-            Some(key) => func(
-                self.remove(key)
-                    .map(|value| Box::new(value) as Box<dyn Reflect>),
-            ),
-            None => func(None),
+            Some(key) => self
+                .remove(key)
+                .map(|value| Box::new(value) as Box<dyn Reflect>),
+            None => None,
+        }
+    }
+
+    fn reflect_replace_key(
+        &mut self,
+        old_key: &dyn Reflect,
+        new_key: Box<dyn Reflect>,
+    ) -> Result<(), Box<dyn Reflect>> {
+        if self.reflect_get(&*new_key).is_some() {
+            return Err(new_key);
+        }
+        if let Some(value) = self.reflect_remove(old_key) {
+            self.reflect_insert(new_key, value);
+            Ok(())
+        } else {
+            Err(new_key)
         }
     }
 }
