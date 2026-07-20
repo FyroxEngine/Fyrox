@@ -30,7 +30,7 @@ use crate::{
         err,
         log::Log,
         pool::{Handle, ObjectOrVariant},
-        reflect::{prelude::*, CastError, Reflect},
+        reflect::{self, prelude::*, CastError, Reflect, ReflectPathError},
         visitor::prelude::*,
     },
     expander::ExpanderBuilder,
@@ -54,14 +54,37 @@ use fyrox_graph::{
     constructor::{ConstructorProvider, GraphNodeConstructor},
     SceneGraph,
 };
-use std::ops::Deref;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Display, Formatter},
+    ops::Deref,
     sync::Arc,
 };
 
 pub mod editors;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum HashMapAction {
+    Insert {
+        key: ObjectValue,
+        value: ObjectValue,
+    },
+    Remove {
+        key: ObjectValue,
+    },
+    KeyChanged {
+        /// Old value of the key.
+        key: ObjectValue,
+        /// The action applied to the key, that changes it.
+        action: FieldAction,
+    },
+    ValueChanged {
+        /// Key of the value.
+        key: ObjectValue,
+        /// The action applied to the value at the key.
+        action: FieldAction,
+    },
+}
 
 /// Messages representing a change in a collection:
 /// either adding an item, removing an item, or updating an existing item.
@@ -100,6 +123,7 @@ pub enum FieldAction {
     /// The state of an inheritable property is changing, such as being reverted
     /// to match the value in the original.
     InheritableAction(InheritableAction),
+    HashMapAction(Box<HashMapAction>),
 }
 
 /// An action for some property.
@@ -115,13 +139,24 @@ pub enum PropertyAction {
         /// New collection item.
         value: Box<dyn Reflect>,
     },
+    InsertItemByKey {
+        key: Box<dyn Reflect>,
+        value: Box<dyn Reflect>,
+    },
     /// An item needs to be removed from a collection property.
     RemoveItem {
         /// Index of an item.
         index: usize,
     },
+    RemoveItemByKey {
+        key: Box<dyn Reflect>,
+    },
     /// Revert value to parent.
     Revert,
+    KeyChanged {
+        old_key: Box<dyn Reflect>,
+        new_key: Box<dyn Reflect>,
+    },
 }
 
 impl Display for PropertyAction {
@@ -140,6 +175,24 @@ impl Display for PropertyAction {
                 "An item needs to be removed from a collection property. Index: {index}"
             ),
             PropertyAction::Revert => f.write_str("Revert value to parent"),
+            PropertyAction::InsertItemByKey { key, value } => {
+                write!(
+                    f,
+                    "A value {value:?} needs to be inserted in a hash map by {key:?}"
+                )
+            }
+            PropertyAction::RemoveItemByKey { key } => {
+                write!(
+                    f,
+                    "A value at the key {key:?} needs to be removed from a hash map."
+                )
+            }
+            PropertyAction::KeyChanged { old_key, new_key } => {
+                write!(
+                    f,
+                    "An old key {old_key:?} needs to be changed to the new key {new_key:?}."
+                )
+            }
         }
     }
 }
@@ -167,57 +220,77 @@ impl PropertyAction {
                 Self::from_field_action(&inspectable.action)
             }
             FieldAction::InheritableAction { .. } => Self::Revert,
+            FieldAction::HashMapAction(ref action) => match **action {
+                HashMapAction::Insert { ref key, ref value } => Self::InsertItemByKey {
+                    key: key.clone().value,
+                    value: value.clone().value,
+                },
+                HashMapAction::Remove { ref key } => Self::RemoveItemByKey {
+                    key: key.clone().value,
+                },
+                HashMapAction::KeyChanged {
+                    ref key,
+                    ref action,
+                } => {
+                    let mut new_key = key
+                        .value
+                        .try_clone_box()
+                        .expect("the key must be cloneable!");
+                    let key_action = PropertyAction::from_field_action(&action);
+                    key_action.apply_on_result(Ok(&mut *new_key), &mut |result| {
+                        Log::verify(result);
+                    });
+                    Self::KeyChanged {
+                        old_key: key.clone().value,
+                        new_key,
+                    }
+                }
+                HashMapAction::ValueChanged { ref action, .. } => Self::from_field_action(action),
+            },
         }
     }
 
-    /// Tries to apply the action to a given target.
-    #[allow(clippy::type_complexity)]
-    pub fn apply(
+    fn apply_on_result(
         self,
-        path: &str,
-        target: &mut dyn Reflect,
+        result: Result<&mut dyn Reflect, ReflectPathError>,
         result_callback: &mut dyn FnMut(Result<Option<Box<dyn Reflect>>, Self>),
     ) {
         match self {
-            PropertyAction::Modify { value } => {
+            Self::Modify { value } => {
                 let mut value = Some(value);
-                target.resolve_path_mut(path, &mut |result| {
-                    if let Ok(field) = result {
-                        if let Err(value) = field.set(value.take().unwrap()) {
-                            result_callback(Err(Self::Modify { value }))
+                if let Ok(field) = result {
+                    if let Err(value) = field.set(value.take().unwrap()) {
+                        result_callback(Err(Self::Modify { value }))
+                    } else {
+                        result_callback(Ok(None))
+                    }
+                } else {
+                    result_callback(Err(Self::Modify {
+                        value: value.take().unwrap(),
+                    }))
+                }
+            }
+            Self::AddItem { value } => {
+                let mut value = Some(value);
+                if let Ok(field) = result {
+                    if let Some(list) = field.as_list_mut() {
+                        if let Err(value) = list.reflect_push(value.take().unwrap()) {
+                            result_callback(Err(Self::AddItem { value }))
                         } else {
                             result_callback(Ok(None))
-                        }
-                    } else {
-                        result_callback(Err(Self::Modify {
-                            value: value.take().unwrap(),
-                        }))
-                    }
-                });
-            }
-            PropertyAction::AddItem { value } => {
-                let mut value = Some(value);
-                target.resolve_path_mut(path, &mut |result| {
-                    if let Ok(field) = result {
-                        if let Some(list) = field.as_list_mut() {
-                            if let Err(value) = list.reflect_push(value.take().unwrap()) {
-                                result_callback(Err(Self::AddItem { value }))
-                            } else {
-                                result_callback(Ok(None))
-                            }
-                        } else {
-                            result_callback(Err(Self::AddItem {
-                                value: value.take().unwrap(),
-                            }))
                         }
                     } else {
                         result_callback(Err(Self::AddItem {
                             value: value.take().unwrap(),
                         }))
                     }
-                })
+                } else {
+                    result_callback(Err(Self::AddItem {
+                        value: value.take().unwrap(),
+                    }))
+                }
             }
-            PropertyAction::RemoveItem { index } => target.resolve_path_mut(path, &mut |result| {
+            Self::RemoveItem { index } => {
                 if let Ok(field) = result {
                     if let Some(list) = field.as_list_mut() {
                         if let Some(value) = list.reflect_remove(index) {
@@ -231,12 +304,75 @@ impl PropertyAction {
                 } else {
                     result_callback(Err(Self::RemoveItem { index }))
                 }
-            }),
-            PropertyAction::Revert => {
+            }
+            Self::Revert => {
                 // Unsupported due to lack of context (a reference to parent entity).
                 result_callback(Err(Self::Revert))
             }
+            Self::InsertItemByKey { key, value } => {
+                if let Ok(field) = result {
+                    if let Some(hash_map) = field.as_hash_map_mut() {
+                        match hash_map.reflect_insert(key, value) {
+                            Ok(old_value) => result_callback(Ok(old_value)),
+                            Err((key, value)) => {
+                                result_callback(Err(Self::InsertItemByKey { key, value }))
+                            }
+                        }
+                    } else {
+                        result_callback(Err(Self::InsertItemByKey { key, value }))
+                    }
+                } else {
+                    result_callback(Err(Self::InsertItemByKey { key, value }))
+                }
+            }
+            Self::RemoveItemByKey { key } => {
+                if let Ok(field) = result {
+                    if let Some(hash_map) = field.as_hash_map_mut() {
+                        if let Some(value) = hash_map.reflect_remove(&*key) {
+                            result_callback(Ok(Some(value)))
+                        } else {
+                            result_callback(Err(Self::RemoveItemByKey { key }))
+                        }
+                    } else {
+                        result_callback(Err(Self::RemoveItemByKey { key }))
+                    }
+                } else {
+                    result_callback(Err(Self::RemoveItemByKey { key }))
+                }
+            }
+            Self::KeyChanged { old_key, new_key } => {
+                if let Ok(field) = result {
+                    if let Some(hash_map) = field.as_hash_map_mut() {
+                        if let Err(new_key) = hash_map.reflect_replace_key(&*old_key, new_key) {
+                            result_callback(Err(Self::KeyChanged { old_key, new_key }))
+                        } else {
+                            result_callback(Ok(None))
+                        }
+                    } else {
+                        result_callback(Err(Self::KeyChanged { old_key, new_key }))
+                    }
+                } else {
+                    result_callback(Err(Self::KeyChanged { old_key, new_key }))
+                }
+            }
         }
+    }
+
+    /// Tries to apply the action to a given target.
+    #[allow(clippy::type_complexity)]
+    pub fn apply(
+        self,
+        path: &str,
+        target: &mut dyn Reflect,
+        result_callback: &mut dyn FnMut(Result<Option<Box<dyn Reflect>>, Self>),
+    ) {
+        let mut opt_self = Some(self);
+        target.resolve_path_mut(path, &mut move |result| {
+            opt_self
+                .take()
+                .unwrap()
+                .apply_on_result(result, result_callback)
+        });
     }
 }
 
@@ -348,6 +484,14 @@ impl PropertyChanged {
                 path += format!(".{}", inspectable.path()).as_ref();
             }
             FieldAction::ObjectAction(_) | FieldAction::InheritableAction { .. } => {}
+            FieldAction::HashMapAction(ref action) => match **action {
+                HashMapAction::Insert { ref key, .. }
+                | HashMapAction::Remove { ref key }
+                | HashMapAction::KeyChanged { ref key, .. }
+                | HashMapAction::ValueChanged { ref key, .. } => {
+                    path += format!("[{}]", reflect::make_hash_map_key(&*key.value)).as_ref();
+                }
+            },
         }
         path
     }
@@ -357,10 +501,7 @@ impl PropertyChanged {
             FieldAction::CollectionAction(ref collection_changed) => match **collection_changed {
                 CollectionAction::Add(_) => false,
                 CollectionAction::Remove(_) => false,
-                CollectionAction::ItemChanged {
-                    action: ref property,
-                    ..
-                } => match property {
+                CollectionAction::ItemChanged { ref action, .. } => match action {
                     FieldAction::InspectableAction(inspectable) => inspectable.is_inheritable(),
                     FieldAction::InheritableAction(_) => true,
                     _ => false,
@@ -369,6 +510,15 @@ impl PropertyChanged {
             FieldAction::InspectableAction(ref inspectable) => inspectable.is_inheritable(),
             FieldAction::ObjectAction(_) => false,
             FieldAction::InheritableAction(_) => true,
+            FieldAction::HashMapAction(ref hash_map_action) => match **hash_map_action {
+                HashMapAction::KeyChanged { ref action, .. }
+                | HashMapAction::ValueChanged { ref action, .. } => match action {
+                    FieldAction::InspectableAction(inspectable) => inspectable.is_inheritable(),
+                    FieldAction::InheritableAction(_) => true,
+                    _ => false,
+                },
+                _ => false,
+            },
         }
     }
 }

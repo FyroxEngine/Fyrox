@@ -18,37 +18,88 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::grid::{Column, GridBuilder, Row};
-use crate::inspector::editors::hashmap::Entry;
-use crate::message::UiMessage;
-use crate::widget::{Widget, WidgetBuilder};
-use crate::{define_widget_deref, BuildContext, Control, UserInterface};
-use fyrox_core::pool::Handle;
-use fyrox_core::reflect::prelude::*;
-use fyrox_core::visitor::prelude::*;
+use crate::inspector::editors::hashmap::HashMapKey;
+use crate::inspector::ObjectValue;
+use crate::message::MessageData;
+use crate::{
+    core::pool::Handle,
+    core::reflect::prelude::*,
+    core::visitor::prelude::*,
+    grid::{Column, GridBuilder, Row},
+    inspector::editors::PropertyEditorInstance,
+    message::UiMessage,
+    widget::{Widget, WidgetBuilder},
+    BuildContext, Control, UserInterface,
+};
+use std::ops::{Deref, DerefMut};
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum HashMapPropertyEditorMessage {
+    ValueChanged {
+        key: ObjectValue,
+        message: UiMessage,
+    },
+}
+impl MessageData for HashMapPropertyEditorMessage {}
+
+#[derive(Debug, Reflect, Visit, Clone, PartialEq)]
+#[reflect(type_uuid = "1440dacb-19ae-425b-a1f4-9d73a1009e6a")]
+pub struct Entry<K: HashMapKey> {
+    pub key_hash: u64,
+    #[visit(skip)]
+    pub key: K,
+    pub key_editor: PropertyEditorInstance,
+    pub value_editor: PropertyEditorInstance,
+}
 
 #[derive(Debug, Reflect, Visit, Clone)]
 #[reflect(type_uuid = "a36ed236-e6f6-4d98-a22e-73e6af38c29d", non_comparable)]
-pub struct HashMapPropertyEditor {
+pub struct HashMapPropertyEditor<K: HashMapKey> {
     widget: Widget,
     #[visit(skip)]
-    entries: Vec<Entry>,
+    entries: Vec<Entry<K>>,
 }
 
-define_widget_deref!(HashMapPropertyEditor);
+impl<K: HashMapKey> Deref for HashMapPropertyEditor<K> {
+    type Target = Widget;
 
-impl Control for HashMapPropertyEditor {
+    fn deref(&self) -> &Self::Target {
+        &self.widget
+    }
+}
+
+impl<K: HashMapKey> DerefMut for HashMapPropertyEditor<K> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.widget
+    }
+}
+
+impl<K: HashMapKey> Control for HashMapPropertyEditor<K> {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
+        if let Some(_key_editor) = self
+            .entries
+            .iter()
+            .find(|e| message.destination() == e.key_editor.editor())
+        {
+            // TODO.
+        } else if let Some(_value_editor) = self
+            .entries
+            .iter()
+            .find(|e| message.destination() == e.value_editor.editor())
+        {
+            // TODO.
+        }
+
         self.widget.handle_routed_message(ui, message)
     }
 }
 
-pub struct HashMapPropertyEditorBuilder {
+pub struct HashMapPropertyEditorBuilder<K: HashMapKey> {
     widget_builder: WidgetBuilder,
-    entries: Vec<Entry>,
+    entries: Vec<Entry<K>>,
 }
 
-impl HashMapPropertyEditorBuilder {
+impl<K: HashMapKey> HashMapPropertyEditorBuilder<K> {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -56,12 +107,12 @@ impl HashMapPropertyEditorBuilder {
         }
     }
 
-    pub fn with_entries(mut self, entries: Vec<Entry>) -> Self {
+    pub fn with_entries(mut self, entries: Vec<Entry<K>>) -> Self {
         self.entries = entries;
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<HashMapPropertyEditor> {
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<HashMapPropertyEditor<K>> {
         let children = self
             .entries
             .iter()

@@ -28,7 +28,7 @@ pub trait ReflectHashMap: Reflect {
         &mut self,
         key: Box<dyn Reflect>,
         value: Box<dyn Reflect>,
-    ) -> Option<Box<dyn Reflect>>;
+    ) -> Result<Option<Box<dyn Reflect>>, (Box<dyn Reflect>, Box<dyn Reflect>)>;
     fn reflect_len(&self) -> usize;
     fn reflect_get(&self, key: &dyn Reflect) -> Option<&dyn Reflect>;
     fn reflect_get_mut(&mut self, key: &dyn Reflect) -> Option<&mut dyn Reflect>;
@@ -72,16 +72,20 @@ where
         &mut self,
         key: Box<dyn Reflect>,
         value: Box<dyn Reflect>,
-    ) -> Option<Box<dyn Reflect>> {
-        if let Ok(key) = key.downcast::<K>() {
-            if let Ok(value) = value.downcast::<V>() {
-                if let Some(previous) = self.insert(*key, *value) {
-                    return Some(Box::new(previous));
+    ) -> Result<Option<Box<dyn Reflect>>, (Box<dyn Reflect>, Box<dyn Reflect>)> {
+        match key.downcast::<K>() {
+            Ok(key) => match value.downcast::<V>() {
+                Ok(value) => {
+                    if let Some(previous) = self.insert(*key, *value) {
+                        Ok(Some(Box::new(previous)))
+                    } else {
+                        Ok(None)
+                    }
                 }
-            }
+                Err(value) => Err((key, value)),
+            },
+            Err(key) => Err((key, value)),
         }
-
-        None
     }
 
     fn reflect_len(&self) -> usize {
@@ -146,8 +150,11 @@ where
             return Err(new_key);
         }
         if let Some(value) = self.reflect_remove(old_key) {
-            self.reflect_insert(new_key, value);
-            Ok(())
+            if let Err((k, _)) = self.reflect_insert(new_key, value) {
+                Err(k)
+            } else {
+                Ok(())
+            }
         } else {
             Err(new_key)
         }

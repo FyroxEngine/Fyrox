@@ -371,6 +371,15 @@ pub fn make_command(
         // Must be handled outside, there is not enough context and it near to impossible to create universal reversion
         // for InheritableVariable<T>.
         PropertyAction::Revert => None,
+        PropertyAction::InsertItemByKey { .. } => {
+            todo!()
+        }
+        PropertyAction::RemoveItemByKey { .. } => {
+            todo!()
+        }
+        PropertyAction::KeyChanged { .. } => {
+            todo!()
+        }
     }
 }
 

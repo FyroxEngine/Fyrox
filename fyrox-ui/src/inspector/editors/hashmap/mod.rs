@@ -20,12 +20,15 @@
 
 pub mod editor;
 
-use crate::inspector::editors::hashmap::editor::HashMapPropertyEditorBuilder;
+use crate::inspector::editors::hashmap::editor::{
+    Entry, HashMapPropertyEditorBuilder, HashMapPropertyEditorMessage,
+};
+use crate::inspector::{FieldAction, HashMapAction};
+use crate::message::MessageDirection;
 use crate::widget::WidgetBuilder;
 use crate::{
     core::{
         reflect::{self, prelude::*, FieldMetadata, FieldRef},
-        visitor::prelude::*,
         PhantomDataSendSync,
     },
     inspector::{
@@ -37,6 +40,7 @@ use crate::{
     },
     message::UiMessage,
 };
+use std::hash::Hasher;
 use std::{
     any::TypeId,
     collections::HashMap,
@@ -44,8 +48,8 @@ use std::{
     hash::{BuildHasher, Hash},
 };
 
-pub trait HashMapKey: Reflect + Eq + Hash + Clone + PartialEq {}
-impl<T: Reflect + Eq + Hash + Clone + PartialEq> HashMapKey for T {}
+pub trait HashMapKey: Reflect + Send + Eq + Hash + Clone + PartialEq {}
+impl<T: Reflect + Send + Eq + Hash + Clone + PartialEq> HashMapKey for T {}
 
 pub trait HashMapValue: Reflect + Clone + PartialEq {}
 impl<T: Reflect + Clone + PartialEq> HashMapValue for T {}
@@ -53,21 +57,17 @@ impl<T: Reflect + Clone + PartialEq> HashMapValue for T {}
 pub trait HashMapState: BuildHasher + Clone + Debug + 'static {}
 impl<T: BuildHasher + Clone + Debug + 'static> HashMapState for T {}
 
-#[derive(Debug, Reflect, Visit, Clone, PartialEq)]
-#[reflect(type_uuid = "1440dacb-19ae-425b-a1f4-9d73a1009e6a")]
-pub struct Entry {
-    key_editor: PropertyEditorInstance,
-    value_editor: PropertyEditorInstance,
-}
-
 pub struct HashMapPropertyEditorDefinition<K, V, S>
 where
     K: HashMapKey,
     V: HashMapValue,
     S: HashMapState,
 {
+    #[allow(unused)]
     key_placeholder: PhantomDataSendSync<K>,
+    #[allow(unused)]
     value_placeholder: PhantomDataSendSync<V>,
+    #[allow(unused)]
     state_placeholder: PhantomDataSendSync<S>,
 }
 
@@ -210,7 +210,12 @@ where
         let entries = hash_map
             .iter()
             .filter_map(|(key, value)| {
+                let mut hasher = hash_map.hasher().build_hasher();
+                key.hash(&mut hasher);
+                let key_hash = hasher.finish();
                 Some(Entry {
+                    key_hash,
+                    key: key.clone(),
                     key_editor: create_key_editor(key, &mut ctx)?,
                     value_editor: create_value_editor(value, &mut ctx)?,
                 })
@@ -233,8 +238,36 @@ where
         Ok(None)
     }
 
-    fn translate_message(&self, _ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        // TODO
+    fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
+        if ctx.message.direction() == MessageDirection::FromWidget {
+            if let Some(HashMapPropertyEditorMessage::ValueChanged { key, message }) =
+                ctx.message.data()
+            {
+                if let Some(definition) = ctx
+                    .definition_container
+                    .definitions()
+                    .get(&TypeId::of::<K>())
+                {
+                    return Some(PropertyChanged {
+                        name: ctx.name.to_string(),
+
+                        action: FieldAction::HashMapAction(Box::new(HashMapAction::ValueChanged {
+                            key: key.clone(),
+                            action: definition
+                                .property_editor
+                                .translate_message(PropertyEditorTranslationContext {
+                                    environment: ctx.environment.clone(),
+                                    name: "",
+                                    message,
+                                    definition_container: ctx.definition_container.clone(),
+                                })?
+                                .action,
+                        })),
+                    });
+                }
+            }
+        }
+
         None
     }
 }
