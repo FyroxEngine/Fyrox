@@ -412,6 +412,12 @@ impl PartialEq for ObjectValue {
 }
 
 impl ObjectValue {
+    pub fn new<T: Value>(value: T) -> Self {
+        Self {
+            value: Box::new(value),
+        }
+    }
+
     pub fn cast_value<T: Reflect>(&self) -> Option<&T> {
         (&*self.value as &dyn Reflect).downcast_ref::<T>()
     }
@@ -1713,11 +1719,61 @@ impl InspectorBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::inspector::InspectorBuilder;
-    use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+    use crate::{
+        core::reflect::prelude::*,
+        inspector::{FieldAction, HashMapAction, InspectorBuilder, ObjectValue, PropertyAction},
+        test::test_widget_deletion,
+        widget::WidgetBuilder,
+    };
+    use fxhash::FxHashMap;
 
     #[test]
     fn test_deletion() {
         test_widget_deletion(|ctx| InspectorBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+
+    #[test]
+    fn test_hash_map_property_action() {
+        #[derive(Reflect, Debug, Clone, PartialEq)]
+        #[reflect(type_uuid = "4bc11ac7-a87c-4c86-80fe-93660d50ea33")]
+        struct MyStruct {
+            hash_map: FxHashMap<String, u32>,
+        }
+
+        let mut my_struct = MyStruct {
+            hash_map: Default::default(),
+        };
+
+        // Insert value.
+        let key = String::from("stuff");
+        let value = 123u32;
+        let field_action = FieldAction::HashMapAction(Box::new(HashMapAction::Insert {
+            key: ObjectValue::new(key.clone()),
+            value: ObjectValue::new(value),
+        }));
+        PropertyAction::from_field_action(&field_action).apply(
+            "hash_map",
+            &mut my_struct,
+            &mut |result| {
+                assert!(result.is_ok());
+            },
+        );
+        assert_eq!(my_struct.hash_map.get(&key), Some(&value));
+
+        // Change key.
+        let new_key = String::from("foobar");
+        let field_action = FieldAction::HashMapAction(Box::new(HashMapAction::KeyChanged {
+            key: ObjectValue::new(key.clone()),
+            action: FieldAction::ObjectAction(ObjectValue::new(new_key.clone())),
+        }));
+        PropertyAction::from_field_action(&field_action).apply(
+            "hash_map",
+            &mut my_struct,
+            &mut |result| {
+                assert!(result.is_ok());
+            },
+        );
+        assert_eq!(my_struct.hash_map.get(&key), None);
+        assert_eq!(my_struct.hash_map.get(&new_key), Some(&value));
     }
 }
