@@ -39,13 +39,16 @@ pub enum HashMapPropertyEditorMessage {
         key: ObjectValue,
         message: UiMessage,
     },
+    KeyChanged {
+        key: ObjectValue,
+        message: UiMessage,
+    },
 }
 impl MessageData for HashMapPropertyEditorMessage {}
 
 #[derive(Debug, Reflect, Visit, Clone, PartialEq)]
 #[reflect(type_uuid = "1440dacb-19ae-425b-a1f4-9d73a1009e6a")]
 pub struct Entry<K: HashMapKey> {
-    pub key_hash: u64,
     #[visit(skip)]
     pub key: K,
     pub key_editor: PropertyEditorInstance,
@@ -76,12 +79,18 @@ impl<K: HashMapKey> DerefMut for HashMapPropertyEditor<K> {
 
 impl<K: HashMapKey> Control for HashMapPropertyEditor<K> {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
-        if let Some(_key_editor) = self
+        if let Some(key_editor_entry) = self
             .entries
             .iter()
             .find(|e| message.destination() == e.key_editor.editor())
         {
-            // TODO.
+            ui.post(
+                self.handle(),
+                HashMapPropertyEditorMessage::KeyChanged {
+                    key: ObjectValue::new(key_editor_entry.key.clone()),
+                    message: message.clone(),
+                },
+            )
         } else if let Some(value_editor_entry) = self
             .entries
             .iter()

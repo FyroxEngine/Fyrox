@@ -377,9 +377,77 @@ pub fn make_command(
         PropertyAction::RemoveItemByKey { .. } => {
             todo!()
         }
-        PropertyAction::KeyChanged { .. } => {
-            todo!()
+        PropertyAction::KeyChanged { old_key, new_key } => {
+            Some(Command::new(ChangeHashMapKeyCommand {
+                old_key,
+                new_key,
+                path: property_changed.path(),
+                entity_getter,
+            }))
         }
+    }
+}
+
+struct ChangeHashMapKeyCommand<F: EntityGetter> {
+    old_key: Box<dyn Reflect>,
+    new_key: Box<dyn Reflect>,
+    path: String,
+    entity_getter: F,
+}
+
+impl<F: EntityGetter> ChangeHashMapKeyCommand<F> {
+    fn swap(&mut self, ctx: &mut dyn CommandContext) {
+        let entity = some_or_return!((self.entity_getter)(ctx));
+        entity.resolve_path_mut(&self.path, &mut |result| match result {
+            Ok(entity) => match entity.as_hash_map_mut() {
+                Some(hash_map) => {
+                    match hash_map.reflect_replace_key(
+                        &*self.old_key,
+                        self.new_key
+                            .try_clone_box()
+                            .expect("the key must be cloneable"),
+                    ) {
+                        Ok(_) => {
+                            std::mem::swap(&mut self.new_key, &mut self.old_key);
+                        }
+                        Err(new_key) => {
+                            self.new_key = new_key;
+                            err!("cannot insert a key because it is occupied!")
+                        }
+                    }
+                }
+                None => {
+                    err!("not a hash map")
+                }
+            },
+            Err(reason) => {
+                err!(
+                    "Failed to set property {}! Invalid path {:?}!",
+                    self.path,
+                    reason
+                );
+            }
+        });
+    }
+}
+
+impl<F: EntityGetter> Debug for ChangeHashMapKeyCommand<F> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ChangeHashMapKeyCommand")
+    }
+}
+
+impl<F: EntityGetter> CommandTrait for ChangeHashMapKeyCommand<F> {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        format!("Change {} Hash Map Key", self.path)
+    }
+
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        self.swap(context)
     }
 }
 

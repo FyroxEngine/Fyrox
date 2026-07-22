@@ -40,7 +40,6 @@ use crate::{
     },
     message::UiMessage,
 };
-use std::hash::Hasher;
 use std::{
     any::TypeId,
     collections::HashMap,
@@ -210,11 +209,7 @@ where
         let entries = hash_map
             .iter()
             .filter_map(|(key, value)| {
-                let mut hasher = hash_map.hasher().build_hasher();
-                key.hash(&mut hasher);
-                let key_hash = hasher.finish();
                 Some(Entry {
-                    key_hash,
                     key: key.clone(),
                     key_editor: create_key_editor(key, &mut ctx)?,
                     value_editor: create_value_editor(value, &mut ctx)?,
@@ -240,29 +235,62 @@ where
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
         if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(HashMapPropertyEditorMessage::ValueChanged { key, message }) =
-                ctx.message.data()
-            {
-                if let Some(definition) = ctx
-                    .definition_container
-                    .definitions()
-                    .get(&TypeId::of::<V>())
-                {
-                    return Some(PropertyChanged {
-                        name: ctx.name.to_string(),
-                        action: FieldAction::HashMapAction(Box::new(HashMapAction::ValueChanged {
-                            key: key.clone(),
-                            action: definition
-                                .property_editor
-                                .translate_message(PropertyEditorTranslationContext {
-                                    environment: ctx.environment.clone(),
-                                    name: "",
-                                    message,
-                                    definition_container: ctx.definition_container.clone(),
-                                })?
-                                .action,
-                        })),
-                    });
+            if let Some(msg) = ctx.message.data::<HashMapPropertyEditorMessage>() {
+                match msg {
+                    HashMapPropertyEditorMessage::ValueChanged { key, message } => {
+                        if let Some(definition) = ctx
+                            .definition_container
+                            .definitions()
+                            .get(&TypeId::of::<V>())
+                        {
+                            return Some(PropertyChanged {
+                                name: ctx.name.to_string(),
+                                action: FieldAction::HashMapAction(Box::new(
+                                    HashMapAction::ValueChanged {
+                                        key: key.clone(),
+                                        action: definition
+                                            .property_editor
+                                            .translate_message(PropertyEditorTranslationContext {
+                                                environment: ctx.environment.clone(),
+                                                name: "",
+                                                message,
+                                                definition_container: ctx
+                                                    .definition_container
+                                                    .clone(),
+                                            })?
+                                            .action,
+                                    },
+                                )),
+                            });
+                        }
+                    }
+                    HashMapPropertyEditorMessage::KeyChanged { key, message } => {
+                        if let Some(definition) = ctx
+                            .definition_container
+                            .definitions()
+                            .get(&TypeId::of::<K>())
+                        {
+                            return Some(PropertyChanged {
+                                name: ctx.name.to_string(),
+                                action: FieldAction::HashMapAction(Box::new(
+                                    HashMapAction::KeyChanged {
+                                        key: key.clone(),
+                                        action: definition
+                                            .property_editor
+                                            .translate_message(PropertyEditorTranslationContext {
+                                                environment: ctx.environment.clone(),
+                                                name: "",
+                                                message,
+                                                definition_container: ctx
+                                                    .definition_container
+                                                    .clone(),
+                                            })?
+                                            .action,
+                                    },
+                                )),
+                            });
+                        }
+                    }
                 }
             }
         }

@@ -236,7 +236,7 @@ impl PropertyAction {
                         .value
                         .try_clone_box()
                         .expect("the key must be cloneable!");
-                    let key_action = PropertyAction::from_field_action(&action);
+                    let key_action = PropertyAction::from_field_action(action);
                     key_action.apply_on_result(Ok(&mut *new_key), &mut |result| {
                         Log::verify(result);
                     });
@@ -491,9 +491,9 @@ impl PropertyChanged {
             }
             FieldAction::ObjectAction(_) | FieldAction::InheritableAction { .. } => {}
             FieldAction::HashMapAction(ref action) => match **action {
+                HashMapAction::KeyChanged { .. } => {}
                 HashMapAction::Insert { ref key, .. }
                 | HashMapAction::Remove { ref key }
-                | HashMapAction::KeyChanged { ref key, .. }
                 | HashMapAction::ValueChanged { ref key, .. } => {
                     path += format!("[{}]", reflect::make_hash_map_key(&*key.value)).as_ref();
                 }
