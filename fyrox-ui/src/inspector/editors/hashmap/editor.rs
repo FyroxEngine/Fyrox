@@ -82,12 +82,18 @@ impl<K: HashMapKey> Control for HashMapPropertyEditor<K> {
             .find(|e| message.destination() == e.key_editor.editor())
         {
             // TODO.
-        } else if let Some(_value_editor) = self
+        } else if let Some(value_editor_entry) = self
             .entries
             .iter()
             .find(|e| message.destination() == e.value_editor.editor())
         {
-            // TODO.
+            ui.post(
+                self.handle(),
+                HashMapPropertyEditorMessage::ValueChanged {
+                    key: ObjectValue::new(value_editor_entry.key.clone()),
+                    message: message.clone(),
+                },
+            )
         }
 
         self.widget.handle_routed_message(ui, message)

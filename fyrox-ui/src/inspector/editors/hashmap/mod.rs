@@ -246,11 +246,10 @@ where
                 if let Some(definition) = ctx
                     .definition_container
                     .definitions()
-                    .get(&TypeId::of::<K>())
+                    .get(&TypeId::of::<V>())
                 {
                     return Some(PropertyChanged {
                         name: ctx.name.to_string(),
-
                         action: FieldAction::HashMapAction(Box::new(HashMapAction::ValueChanged {
                             key: key.clone(),
                             action: definition
