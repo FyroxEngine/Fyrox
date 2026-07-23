@@ -28,6 +28,7 @@ use crate::fyrox::{
     },
     gui::inspector::{PropertyAction, PropertyChanged},
 };
+use fyrox::core::reflect::ReflectPathError;
 use std::{
     any::type_name,
     fmt::{Debug, Formatter},
@@ -374,9 +375,9 @@ pub fn make_command(
         PropertyAction::InsertItemByKey { .. } => {
             todo!()
         }
-        PropertyAction::RemoveItemByKey { .. } => {
-            todo!()
-        }
+        PropertyAction::RemoveItemByKey { key } => Some(Command::new(
+            RemoveHashMapEntryCommand::new(property_changed.path(), key, entity_getter),
+        )),
         PropertyAction::KeyChanged { old_key, new_key } => {
             Some(Command::new(ChangeHashMapKeyCommand {
                 old_key,
@@ -385,6 +386,95 @@ pub fn make_command(
                 entity_getter,
             }))
         }
+    }
+}
+
+struct RemoveHashMapEntryCommand<F: EntityGetter> {
+    key: Box<dyn Reflect>,
+    path: String,
+    entity_getter: F,
+    value: Option<Box<dyn Reflect>>,
+}
+
+impl<F: EntityGetter> Debug for RemoveHashMapEntryCommand<F> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "RemoveHashMapEntryCommand")
+    }
+}
+
+impl<F: EntityGetter> RemoveHashMapEntryCommand<F> {
+    fn new(path: String, key: Box<dyn Reflect>, entity_getter: F) -> Self {
+        Self {
+            key,
+            path,
+            entity_getter,
+            value: None,
+        }
+    }
+
+    fn remove(&mut self, ctx: &mut dyn CommandContext) {
+        let entity = some_or_return!((self.entity_getter)(ctx));
+        entity.resolve_path_mut(&self.path, &mut |result| match result {
+            Ok(entity) => match entity.as_hash_map_mut() {
+                Some(hash_map) => match hash_map.reflect_remove(&*self.key) {
+                    Some(value) => {
+                        self.value = Some(value);
+                    }
+                    None => {
+                        err!("cannot remove non-existent value!")
+                    }
+                },
+                None => {
+                    err!("not a hash map")
+                }
+            },
+            Err(reason) => {
+                err!(
+                    "Failed to set property {}! Invalid path {:?}!",
+                    self.path,
+                    reason
+                );
+            }
+        })
+    }
+
+    fn add(&mut self, ctx: &mut dyn CommandContext) {
+        let entity = some_or_return!((self.entity_getter)(ctx));
+        entity.resolve_path_mut(&self.path, &mut |result| match result {
+            Ok(entity) => match entity.as_hash_map_mut() {
+                Some(hash_map) => match hash_map.reflect_insert(
+                    self.key.try_clone_box().expect("the key must be cloneable"),
+                    self.value.take().unwrap(),
+                ) {
+                    Ok(_) => {}
+                    Err(_) => {}
+                },
+                None => {
+                    err!("not a hash map")
+                }
+            },
+            Err(reason) => {
+                err!(
+                    "Failed to set property {}! Invalid path {:?}!",
+                    self.path,
+                    reason
+                );
+            }
+        })
+    }
+}
+
+impl<F: EntityGetter> CommandTrait for RemoveHashMapEntryCommand<F> {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        format!("Remove {} Hash Map Entry", self.path)
+    }
+
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        self.remove(context)
+    }
+
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        self.add(context)
     }
 }
 

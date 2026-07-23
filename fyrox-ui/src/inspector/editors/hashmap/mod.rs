@@ -20,25 +20,23 @@
 
 pub mod editor;
 
-use crate::inspector::editors::hashmap::editor::{
-    Entry, HashMapPropertyEditorBuilder, HashMapPropertyEditorMessage,
-};
-use crate::inspector::{FieldAction, HashMapAction};
-use crate::message::MessageDirection;
-use crate::widget::WidgetBuilder;
 use crate::{
+    button::ButtonBuilder,
     core::{
         reflect::{self, prelude::*, FieldMetadata, FieldRef},
         PhantomDataSendSync,
     },
     inspector::{
         editors::{
+            hashmap::editor::{Entry, HashMapPropertyEditorBuilder, HashMapPropertyEditorMessage},
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        InspectorError, PropertyChanged,
+        FieldAction, HashMapAction, InspectorError, PropertyChanged,
     },
-    message::UiMessage,
+    message::{MessageDirection, UiMessage},
+    widget::WidgetBuilder,
+    VerticalAlignment,
 };
 use std::{
     any::TypeId,
@@ -213,6 +211,14 @@ where
                     key: key.clone(),
                     key_editor: create_key_editor(key, &mut ctx)?,
                     value_editor: create_value_editor(value, &mut ctx)?,
+                    remove: ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .with_width(24.0)
+                            .with_height(24.0)
+                            .with_vertical_alignment(VerticalAlignment::Center),
+                    )
+                    .with_text("-")
+                    .build(ctx.build_context),
                 })
             })
             .collect::<Vec<_>>();
@@ -290,6 +296,14 @@ where
                                 )),
                             });
                         }
+                    }
+                    HashMapPropertyEditorMessage::Remove { key } => {
+                        return Some(PropertyChanged {
+                            name: ctx.name.to_string(),
+                            action: FieldAction::HashMapAction(Box::new(HashMapAction::Remove {
+                                key: key.clone(),
+                            })),
+                        });
                     }
                 }
             }

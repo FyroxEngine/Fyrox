@@ -18,16 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::inspector::editors::hashmap::HashMapKey;
-use crate::inspector::ObjectValue;
-use crate::message::MessageData;
 use crate::{
-    core::pool::Handle,
-    core::reflect::prelude::*,
-    core::visitor::prelude::*,
+    button::{Button, ButtonMessage},
+    core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     grid::{Column, GridBuilder, Row},
-    inspector::editors::PropertyEditorInstance,
-    message::UiMessage,
+    inspector::{editors::hashmap::HashMapKey, editors::PropertyEditorInstance, ObjectValue},
+    message::{MessageData, UiMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UserInterface,
 };
@@ -43,6 +39,9 @@ pub enum HashMapPropertyEditorMessage {
         key: ObjectValue,
         message: UiMessage,
     },
+    Remove {
+        key: ObjectValue,
+    },
 }
 impl MessageData for HashMapPropertyEditorMessage {}
 
@@ -53,6 +52,7 @@ pub struct Entry<K: HashMapKey> {
     pub key: K,
     pub key_editor: PropertyEditorInstance,
     pub value_editor: PropertyEditorInstance,
+    pub remove: Handle<Button>,
 }
 
 #[derive(Debug, Reflect, Visit, Clone)]
@@ -79,30 +79,31 @@ impl<K: HashMapKey> DerefMut for HashMapPropertyEditor<K> {
 
 impl<K: HashMapKey> Control for HashMapPropertyEditor<K> {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
-        if let Some(key_editor_entry) = self
-            .entries
-            .iter()
-            .find(|e| message.destination() == e.key_editor.editor())
-        {
-            ui.post(
-                self.handle(),
-                HashMapPropertyEditorMessage::KeyChanged {
-                    key: ObjectValue::new(key_editor_entry.key.clone()),
-                    message: message.clone(),
-                },
-            )
-        } else if let Some(value_editor_entry) = self
-            .entries
-            .iter()
-            .find(|e| message.destination() == e.value_editor.editor())
-        {
-            ui.post(
-                self.handle(),
-                HashMapPropertyEditorMessage::ValueChanged {
-                    key: ObjectValue::new(value_editor_entry.key.clone()),
-                    message: message.clone(),
-                },
-            )
+        for entry in self.entries.iter() {
+            if message.destination() == entry.key_editor.editor() {
+                ui.post(
+                    self.handle(),
+                    HashMapPropertyEditorMessage::KeyChanged {
+                        key: ObjectValue::new(entry.key.clone()),
+                        message: message.clone(),
+                    },
+                )
+            } else if message.destination() == entry.value_editor.editor() {
+                ui.post(
+                    self.handle(),
+                    HashMapPropertyEditorMessage::ValueChanged {
+                        key: ObjectValue::new(entry.key.clone()),
+                        message: message.clone(),
+                    },
+                )
+            } else if let Some(ButtonMessage::Click) = message.data_from(entry.remove) {
+                ui.post(
+                    self.handle(),
+                    HashMapPropertyEditorMessage::Remove {
+                        key: ObjectValue::new(entry.key.clone()),
+                    },
+                )
+            }
         }
 
         self.widget.handle_routed_message(ui, message)
@@ -141,13 +142,16 @@ impl<K: HashMapKey> HashMapPropertyEditorBuilder<K> {
                 let value_editor_ref = &mut ctx[value_editor];
                 value_editor_ref.set_row(i);
                 value_editor_ref.set_column(1);
-                [key_editor, value_editor]
+                let remove_ref = &mut ctx[e.remove];
+                remove_ref.set_row(i);
+                remove_ref.set_column(2);
+                [key_editor, value_editor, e.remove.to_base()]
             })
             .collect::<Vec<_>>();
 
         let grid = GridBuilder::new(WidgetBuilder::new().with_children(children))
             .add_rows(self.entries.iter().map(|_| Row::auto()).collect::<Vec<_>>())
-            .add_columns(vec![Column::auto(), Column::stretch()])
+            .add_columns(vec![Column::auto(), Column::stretch(), Column::auto()])
             .build(ctx);
 
         ctx.add(HashMapPropertyEditor {
