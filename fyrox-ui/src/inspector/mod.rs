@@ -491,9 +491,10 @@ impl PropertyChanged {
             }
             FieldAction::ObjectAction(_) | FieldAction::InheritableAction { .. } => {}
             FieldAction::HashMapAction(ref action) => match **action {
-                HashMapAction::KeyChanged { .. } | HashMapAction::Remove { .. } => {}
-                HashMapAction::Insert { ref key, .. }
-                | HashMapAction::ValueChanged { ref key, .. } => {
+                HashMapAction::KeyChanged { .. }
+                | HashMapAction::Remove { .. }
+                | HashMapAction::Insert { .. } => {}
+                HashMapAction::ValueChanged { ref key, .. } => {
                     path += format!("[{}]", reflect::make_hash_map_key(&*key.value)).as_ref();
                 }
             },

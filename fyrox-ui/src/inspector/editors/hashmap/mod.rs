@@ -21,6 +21,7 @@
 mod dialog;
 pub mod editor;
 
+use crate::inspector::ObjectValue;
 use crate::{
     button::ButtonBuilder,
     core::{
@@ -49,8 +50,8 @@ use std::{
 pub trait HashMapKey: Reflect + Send + Eq + Hash + Clone + PartialEq + Default {}
 impl<T: Reflect + Send + Eq + Hash + Clone + PartialEq + Default> HashMapKey for T {}
 
-pub trait HashMapValue: Reflect + Clone + PartialEq {}
-impl<T: Reflect + Clone + PartialEq> HashMapValue for T {}
+pub trait HashMapValue: Reflect + Clone + PartialEq + Default + Send {}
+impl<T: Reflect + Clone + PartialEq + Default + Send> HashMapValue for T {}
 
 pub trait HashMapState: BuildHasher + Clone + Debug + 'static {}
 impl<T: BuildHasher + Clone + Debug + 'static> HashMapState for T {}
@@ -310,8 +311,14 @@ where
                             })),
                         });
                     }
-                    HashMapPropertyEditorMessage::Insert { .. } => {
-                        todo!();
+                    HashMapPropertyEditorMessage::InsertDefault { key } => {
+                        return Some(PropertyChanged {
+                            name: ctx.name.to_string(),
+                            action: FieldAction::HashMapAction(Box::new(HashMapAction::Insert {
+                                key: key.clone(),
+                                value: ObjectValue::new(V::default()),
+                            })),
+                        });
                     }
                 }
             }

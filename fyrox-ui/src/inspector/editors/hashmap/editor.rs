@@ -18,14 +18,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::UiNode;
 use crate::{
     button::{Button, ButtonBuilder, ButtonMessage},
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     grid::{Column, GridBuilder, Row},
     inspector::{
         editors::{
-            hashmap::{dialog::SelectHashMapKeyDialogWindowBuilder, HashMapKey},
+            hashmap::{
+                dialog::{
+                    SelectHashMapKeyDialogWindow, SelectHashMapKeyDialogWindowBuilder,
+                    SelectHashMapKeyDialogWindowMessage,
+                },
+                HashMapKey,
+            },
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
         },
         InspectorEnvironmentContainer, ObjectValue,
@@ -33,7 +38,7 @@ use crate::{
     message::{MessageData, UiMessage},
     widget::{Widget, WidgetBuilder},
     window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, Control, UserInterface,
+    BuildContext, Control, UiNode, UserInterface,
 };
 use fxhash::FxHashSet;
 use std::{
@@ -54,9 +59,8 @@ pub enum HashMapPropertyEditorMessage {
     Remove {
         key: ObjectValue,
     },
-    Insert {
+    InsertDefault {
         key: ObjectValue,
-        value: ObjectValue,
     },
 }
 impl MessageData for HashMapPropertyEditorMessage {}
@@ -88,6 +92,7 @@ pub struct HashMapPropertyEditor<K: HashMapKey> {
     #[visit(skip)]
     #[reflect(hidden)]
     environment: Option<InspectorEnvironmentContainer>,
+    dialog: Handle<SelectHashMapKeyDialogWindow<K>>,
 }
 
 impl<K: HashMapKey> Deref for HashMapPropertyEditor<K> {
@@ -134,8 +139,9 @@ impl<K: HashMapKey> Control for HashMapPropertyEditor<K> {
         }
 
         if let Some(ButtonMessage::Click) = message.data_from(self.add) {
-            let dialog = SelectHashMapKeyDialogWindowBuilder::new(
+            self.dialog = SelectHashMapKeyDialogWindowBuilder::new(
                 WindowBuilder::new(WidgetBuilder::new())
+                    .with_remove_on_close(true)
                     .open(false)
                     .with_title(WindowTitle::text("Select Key Value")),
                 self.property_editors.clone(),
@@ -151,7 +157,7 @@ impl<K: HashMapKey> Control for HashMapPropertyEditor<K> {
             .build(&mut ui.build_ctx());
 
             ui.send(
-                dialog,
+                self.dialog,
                 WindowMessage::Open {
                     alignment: WindowAlignment::Center,
                     modal: true,
@@ -161,6 +167,19 @@ impl<K: HashMapKey> Control for HashMapPropertyEditor<K> {
         }
 
         self.widget.handle_routed_message(ui, message)
+    }
+
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
+        if let Some(SelectHashMapKeyDialogWindowMessage::Key(key)) =
+            message.data_from::<SelectHashMapKeyDialogWindowMessage<K>>(self.dialog)
+        {
+            ui.post(
+                self.handle(),
+                HashMapPropertyEditorMessage::InsertDefault {
+                    key: ObjectValue::new(key.clone()),
+                },
+            )
+        }
     }
 }
 
@@ -227,11 +246,16 @@ impl<K: HashMapKey> HashMapPropertyEditorBuilder<K> {
             .build(ctx);
 
         ctx.add(HashMapPropertyEditor {
-            widget: self.widget_builder.with_child(grid).build(ctx),
+            widget: self
+                .widget_builder
+                .with_child(grid)
+                .with_preview_messages(true)
+                .build(ctx),
             entries: self.entries,
             add,
             property_editors: self.property_editors,
             environment: self.environment,
+            dialog: Default::default(),
         })
     }
 }

@@ -18,9 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::message::MessageData;
 use crate::{
+    button::{Button, ButtonBuilder, ButtonMessage},
     control_trait_proxy_impls,
     core::{log::Log, pool::Handle, reflect::prelude::*, visitor::prelude::*},
+    grid::{Column, GridBuilder, Row},
     inspector::{
         editors::{
             hashmap::HashMapKey, PropertyEditorBuildContext, PropertyEditorDefinitionContainer,
@@ -29,9 +32,10 @@ use crate::{
         InspectorEnvironmentContainer, PropertyAction,
     },
     message::UiMessage,
-    widget::Widget,
-    window::{Window, WindowBuilder},
-    BuildContext, Control, UiNode, UserInterface,
+    stack_panel::StackPanelBuilder,
+    widget::{Widget, WidgetBuilder},
+    window::{Window, WindowBuilder, WindowMessage},
+    BuildContext, Control, Orientation, Thickness, UiNode, UserInterface,
 };
 use fxhash::FxHashSet;
 use std::{
@@ -39,6 +43,12 @@ use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
 };
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum SelectHashMapKeyDialogWindowMessage<K: HashMapKey> {
+    Key(K),
+}
+impl<K: HashMapKey> MessageData for SelectHashMapKeyDialogWindowMessage<K> {}
 
 #[derive(Default, Clone, Debug, Visit, PartialEq, Reflect)]
 #[reflect(
@@ -60,6 +70,8 @@ pub struct SelectHashMapKeyDialogWindow<K: HashMapKey> {
     #[visit(skip)]
     #[reflect(hidden)]
     key: K,
+    ok: Handle<Button>,
+    cancel: Handle<Button>,
 }
 
 impl<K: HashMapKey> Deref for SelectHashMapKeyDialogWindow<K> {
@@ -102,6 +114,16 @@ impl<K: HashMapKey> Control for SelectHashMapKeyDialogWindow<K> {
                     );
                 }
             }
+        }
+
+        if let Some(ButtonMessage::Click) = message.data_from(self.ok) {
+            ui.post(
+                self.handle(),
+                SelectHashMapKeyDialogWindowMessage::Key(self.key.clone()),
+            );
+            ui.send(self.handle(), WindowMessage::Close);
+        } else if let Some(ButtonMessage::Click) = message.data_from(self.cancel) {
+            ui.send(self.handle(), WindowMessage::Close);
         }
     }
 }
@@ -183,16 +205,40 @@ impl<K: HashMapKey> SelectHashMapKeyDialogWindowBuilder<K> {
             })
             .unwrap_or_default();
 
+        let ok = ButtonBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+            .with_text("OK")
+            .build(ctx);
+        let cancel = ButtonBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+            .with_text("Cancel")
+            .build(ctx);
+        let buttons = StackPanelBuilder::new(
+            WidgetBuilder::new()
+                .on_row(1)
+                .with_child(ok)
+                .with_child(cancel),
+        )
+        .with_orientation(Orientation::Horizontal)
+        .build(ctx);
+
+        let grid = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(key_editor)
+                .with_child(buttons),
+        )
+        .add_row(Row::stretch())
+        .add_row(Row::auto())
+        .add_column(Column::stretch())
+        .build(ctx);
+
         let window = SelectHashMapKeyDialogWindow {
             existing_keys: self.existing_keys,
-            window: self
-                .window_builder
-                .with_content(key_editor)
-                .build_window(ctx),
+            window: self.window_builder.with_content(grid).build_window(ctx),
             property_editors: self.property_editors,
             key_editor,
             environment: self.environment,
             key: self.initial_value,
+            ok,
+            cancel,
         };
 
         ctx.add(window)
