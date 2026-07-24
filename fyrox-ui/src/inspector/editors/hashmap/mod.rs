@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+mod dialog;
 pub mod editor;
 
 use crate::{
@@ -45,8 +46,8 @@ use std::{
     hash::{BuildHasher, Hash},
 };
 
-pub trait HashMapKey: Reflect + Send + Eq + Hash + Clone + PartialEq {}
-impl<T: Reflect + Send + Eq + Hash + Clone + PartialEq> HashMapKey for T {}
+pub trait HashMapKey: Reflect + Send + Eq + Hash + Clone + PartialEq + Default {}
+impl<T: Reflect + Send + Eq + Hash + Clone + PartialEq + Default> HashMapKey for T {}
 
 pub trait HashMapValue: Reflect + Clone + PartialEq {}
 impl<T: Reflect + Clone + PartialEq> HashMapValue for T {}
@@ -209,6 +210,7 @@ where
             .filter_map(|(key, value)| {
                 Some(Entry {
                     key: key.clone(),
+                    key_hash: hash_map.hasher().hash_one(key),
                     key_editor: create_key_editor(key, &mut ctx)?,
                     value_editor: create_value_editor(value, &mut ctx)?,
                     remove: ButtonBuilder::new(
@@ -223,10 +225,13 @@ where
             })
             .collect::<Vec<_>>();
 
-        let editor = HashMapPropertyEditorBuilder::new(WidgetBuilder::new())
-            .with_entries(entries)
-            .build(ctx.build_context)
-            .to_base();
+        let editor = HashMapPropertyEditorBuilder::new(
+            WidgetBuilder::new(),
+            ctx.definition_container.clone(),
+        )
+        .with_entries(entries)
+        .build(ctx.build_context)
+        .to_base();
 
         Ok(PropertyEditorInstance::Simple { editor })
     }
@@ -304,6 +309,9 @@ where
                                 key: key.clone(),
                             })),
                         });
+                    }
+                    HashMapPropertyEditorMessage::Insert { .. } => {
+                        todo!();
                     }
                 }
             }

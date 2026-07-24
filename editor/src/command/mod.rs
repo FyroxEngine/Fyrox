@@ -28,7 +28,6 @@ use crate::fyrox::{
     },
     gui::inspector::{PropertyAction, PropertyChanged},
 };
-use fyrox::core::reflect::ReflectPathError;
 use std::{
     any::type_name,
     fmt::{Debug, Formatter},

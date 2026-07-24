@@ -18,16 +18,28 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::UiNode;
 use crate::{
-    button::{Button, ButtonMessage},
+    button::{Button, ButtonBuilder, ButtonMessage},
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     grid::{Column, GridBuilder, Row},
-    inspector::{editors::hashmap::HashMapKey, editors::PropertyEditorInstance, ObjectValue},
+    inspector::{
+        editors::{
+            hashmap::{dialog::SelectHashMapKeyDialogWindowBuilder, HashMapKey},
+            PropertyEditorDefinitionContainer, PropertyEditorInstance,
+        },
+        InspectorEnvironmentContainer, ObjectValue,
+    },
     message::{MessageData, UiMessage},
     widget::{Widget, WidgetBuilder},
+    window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
     BuildContext, Control, UserInterface,
 };
-use std::ops::{Deref, DerefMut};
+use fxhash::FxHashSet;
+use std::{
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum HashMapPropertyEditorMessage {
@@ -42,14 +54,22 @@ pub enum HashMapPropertyEditorMessage {
     Remove {
         key: ObjectValue,
     },
+    Insert {
+        key: ObjectValue,
+        value: ObjectValue,
+    },
 }
 impl MessageData for HashMapPropertyEditorMessage {}
 
 #[derive(Debug, Reflect, Visit, Clone, PartialEq)]
-#[reflect(type_uuid = "1440dacb-19ae-425b-a1f4-9d73a1009e6a")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "1440dacb-19ae-425b-a1f4-9d73a1009e6a"
+)]
 pub struct Entry<K: HashMapKey> {
     #[visit(skip)]
     pub key: K,
+    pub key_hash: u64,
     pub key_editor: PropertyEditorInstance,
     pub value_editor: PropertyEditorInstance,
     pub remove: Handle<Button>,
@@ -61,6 +81,13 @@ pub struct HashMapPropertyEditor<K: HashMapKey> {
     widget: Widget,
     #[visit(skip)]
     entries: Vec<Entry<K>>,
+    add: Handle<Button>,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    property_editors: Arc<PropertyEditorDefinitionContainer>,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    environment: Option<InspectorEnvironmentContainer>,
 }
 
 impl<K: HashMapKey> Deref for HashMapPropertyEditor<K> {
@@ -106,6 +133,33 @@ impl<K: HashMapKey> Control for HashMapPropertyEditor<K> {
             }
         }
 
+        if let Some(ButtonMessage::Click) = message.data_from(self.add) {
+            let dialog = SelectHashMapKeyDialogWindowBuilder::new(
+                WindowBuilder::new(WidgetBuilder::new())
+                    .open(false)
+                    .with_title(WindowTitle::text("Select Key Value")),
+                self.property_editors.clone(),
+                K::default(),
+            )
+            .with_existing_keys(
+                self.entries
+                    .iter()
+                    .map(|e| e.key_hash)
+                    .collect::<FxHashSet<_>>(),
+            )
+            .with_environment(self.environment.clone())
+            .build(&mut ui.build_ctx());
+
+            ui.send(
+                dialog,
+                WindowMessage::Open {
+                    alignment: WindowAlignment::Center,
+                    modal: true,
+                    focus_content: true,
+                },
+            );
+        }
+
         self.widget.handle_routed_message(ui, message)
     }
 }
@@ -113,13 +167,20 @@ impl<K: HashMapKey> Control for HashMapPropertyEditor<K> {
 pub struct HashMapPropertyEditorBuilder<K: HashMapKey> {
     widget_builder: WidgetBuilder,
     entries: Vec<Entry<K>>,
+    property_editors: Arc<PropertyEditorDefinitionContainer>,
+    environment: Option<InspectorEnvironmentContainer>,
 }
 
 impl<K: HashMapKey> HashMapPropertyEditorBuilder<K> {
-    pub fn new(widget_builder: WidgetBuilder) -> Self {
+    pub fn new(
+        widget_builder: WidgetBuilder,
+        property_editors: Arc<PropertyEditorDefinitionContainer>,
+    ) -> Self {
         Self {
             widget_builder,
             entries: Default::default(),
+            property_editors,
+            environment: None,
         }
     }
 
@@ -128,28 +189,39 @@ impl<K: HashMapKey> HashMapPropertyEditorBuilder<K> {
         self
     }
 
+    pub fn with_environment(mut self, environment: InspectorEnvironmentContainer) -> Self {
+        self.environment = Some(environment);
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext) -> Handle<HashMapPropertyEditor<K>> {
+        let add = ButtonBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
+            .with_text("Add...")
+            .build(ctx);
+
         let children = self
             .entries
             .iter()
             .enumerate()
             .flat_map(|(i, e)| {
+                let row = i + 1; // "add" button occupies the first row
                 let key_editor = e.key_editor.editor();
                 let key_editor_ref = &mut ctx[key_editor];
-                key_editor_ref.set_row(i);
+                key_editor_ref.set_row(row);
                 key_editor_ref.set_column(0);
                 let value_editor = e.value_editor.editor();
                 let value_editor_ref = &mut ctx[value_editor];
-                value_editor_ref.set_row(i);
+                value_editor_ref.set_row(row);
                 value_editor_ref.set_column(1);
                 let remove_ref = &mut ctx[e.remove];
-                remove_ref.set_row(i);
+                remove_ref.set_row(row);
                 remove_ref.set_column(2);
                 [key_editor, value_editor, e.remove.to_base()]
             })
             .collect::<Vec<_>>();
 
-        let grid = GridBuilder::new(WidgetBuilder::new().with_children(children))
+        let grid = GridBuilder::new(WidgetBuilder::new().with_child(add).with_children(children))
+            .add_row(Row::auto())
             .add_rows(self.entries.iter().map(|_| Row::auto()).collect::<Vec<_>>())
             .add_columns(vec![Column::auto(), Column::stretch(), Column::auto()])
             .build(ctx);
@@ -157,6 +229,9 @@ impl<K: HashMapKey> HashMapPropertyEditorBuilder<K> {
         ctx.add(HashMapPropertyEditor {
             widget: self.widget_builder.with_child(grid).build(ctx),
             entries: self.entries,
+            add,
+            property_editors: self.property_editors,
+            environment: self.environment,
         })
     }
 }

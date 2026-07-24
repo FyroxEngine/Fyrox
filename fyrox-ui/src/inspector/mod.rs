@@ -577,6 +577,12 @@ pub trait InspectorEnvironment: Send + Sync + Reflect {
 #[derive(Clone)]
 pub struct InspectorEnvironmentContainer(pub Arc<dyn InspectorEnvironment>);
 
+impl Debug for InspectorEnvironmentContainer {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "InspectorEnvironmentContainer")
+    }
+}
+
 impl PartialEq for InspectorEnvironmentContainer {
     fn eq(&self, other: &Self) -> bool {
         self.0.try_compare(&*other.0).unwrap_or_default()
