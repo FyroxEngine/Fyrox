@@ -103,8 +103,7 @@ fn create_key_editor<K>(
 where
     K: HashMapKey,
 {
-    let definitions = ctx.definition_container.definitions();
-    let key_property_editor = definitions.get(&TypeId::of::<K>())?;
+    let key_property_editor = ctx.definition_container.get::<K>()?;
 
     let property_info = ctx.property_info;
 
@@ -151,8 +150,7 @@ fn create_value_editor<V>(
 where
     V: HashMapValue,
 {
-    let definitions = ctx.definition_container.definitions();
-    let value_property_editor = definitions.get(&TypeId::of::<V>())?;
+    let value_property_editor = ctx.definition_container.get::<V>()?;
 
     let property_info = ctx.property_info;
 
@@ -250,11 +248,7 @@ where
             if let Some(msg) = ctx.message.data::<HashMapPropertyEditorMessage>() {
                 match msg {
                     HashMapPropertyEditorMessage::ValueChanged { key, message } => {
-                        if let Some(definition) = ctx
-                            .definition_container
-                            .definitions()
-                            .get(&TypeId::of::<V>())
-                        {
+                        if let Some(definition) = ctx.definition_container.get::<V>() {
                             return Some(PropertyChanged {
                                 name: ctx.name.to_string(),
                                 action: FieldAction::HashMapAction(Box::new(
@@ -277,11 +271,7 @@ where
                         }
                     }
                     HashMapPropertyEditorMessage::KeyChanged { key, message } => {
-                        if let Some(definition) = ctx
-                            .definition_container
-                            .definitions()
-                            .get(&TypeId::of::<K>())
-                        {
+                        if let Some(definition) = ctx.definition_container.get::<K>() {
                             return Some(PropertyChanged {
                                 name: ctx.name.to_string(),
                                 action: FieldAction::HashMapAction(Box::new(

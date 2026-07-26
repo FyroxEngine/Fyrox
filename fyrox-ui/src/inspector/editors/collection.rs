@@ -230,7 +230,7 @@ where
     let mut items = Vec::new();
 
     for (index, item) in iter.into_iter().enumerate() {
-        if let Some(definition) = definition_container.definitions().get(&TypeId::of::<T>()) {
+        if let Some(definition) = definition_container.get::<T>() {
             let name = format!("{}[{index}]", property_info.name);
             let display_name = format!("{}[{index}]", property_info.display_name);
 
@@ -570,7 +570,7 @@ where
                 CollectionEditorMessage::Items(items),
             )))
         } else {
-            if let Some(definition) = definition_container.definitions().get(&TypeId::of::<T>()) {
+            if let Some(definition) = definition_container.get::<T>() {
                 for (index, (item, obj)) in instance_ref
                     .items
                     .clone()
@@ -636,11 +636,7 @@ where
             } else if let Some(CollectionEditorMessage::ItemChanged { index, message }) =
                 ctx.message.data()
             {
-                if let Some(definition) = ctx
-                    .definition_container
-                    .definitions()
-                    .get(&TypeId::of::<T>())
-                {
+                if let Some(definition) = ctx.definition_container.get::<T>() {
                     return Some(PropertyChanged {
                         name: ctx.name.to_string(),
 

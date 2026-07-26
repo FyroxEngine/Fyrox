@@ -76,11 +76,7 @@ where
         &self,
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
-        if let Some(definition) = ctx
-            .definition_container
-            .definitions()
-            .get(&TypeId::of::<T>())
-        {
+        if let Some(definition) = ctx.definition_container.get::<T>() {
             let property_info = ctx.property_info;
 
             let value = property_info.cast_value::<Cell<T>>()?.get();
@@ -125,11 +121,7 @@ where
         &self,
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
-        if let Some(definition) = ctx
-            .definition_container
-            .definitions()
-            .get(&TypeId::of::<T>())
-        {
+        if let Some(definition) = ctx.definition_container.get::<T>() {
             let property_info = ctx.property_info;
 
             let value = ctx.property_info.cast_value::<Cell<T>>()?.get();
@@ -173,11 +165,7 @@ where
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
         // Try translate other messages using inner property editor.
-        if let Some(definition) = ctx
-            .definition_container
-            .definitions()
-            .get(&TypeId::of::<T>())
-        {
+        if let Some(definition) = ctx.definition_container.get::<T>() {
             return definition.property_editor.translate_message(
                 PropertyEditorTranslationContext {
                     environment: ctx.environment.clone(),

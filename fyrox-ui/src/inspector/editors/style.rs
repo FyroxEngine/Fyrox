@@ -513,11 +513,7 @@ where
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<StyledProperty<T>>()?;
-        if let Some(definition) = ctx
-            .definition_container
-            .definitions()
-            .get(&TypeId::of::<T>())
-        {
+        if let Some(definition) = ctx.definition_container.get::<T>() {
             let property_info = ctx.property_info;
 
             let proxy_property_info = FieldRef {
@@ -591,11 +587,7 @@ where
         &self,
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
-        if let Some(definition) = ctx
-            .definition_container
-            .definitions()
-            .get(&TypeId::of::<T>())
-        {
+        if let Some(definition) = ctx.definition_container.get::<T>() {
             let instance = ctx
                 .ui
                 .node(ctx.instance)
@@ -652,11 +644,7 @@ where
         }
 
         // Try to translate other messages using inner property editor.
-        if let Some(definition) = ctx
-            .definition_container
-            .definitions()
-            .get(&TypeId::of::<T>())
-        {
+        if let Some(definition) = ctx.definition_container.get::<T>() {
             let mut property_change =
                 definition
                     .property_editor
