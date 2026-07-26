@@ -944,7 +944,7 @@ impl std::fmt::Debug for ChunkData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ChunkData")
             .field("grid_position", &self.grid_position)
-            .field("content", &format!("[..](len: {})", &self.content.len()))
+            .field("content", &format!("[..](len: {})", self.content.len()))
             .finish()
     }
 }

@@ -1526,16 +1526,14 @@ where
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            match self.pool.records.get(self.current) {
-                Some(record) => {
-                    if let Some(payload) = record.payload.as_ref() {
-                        let handle = Handle::new(self.current as u32, record.generation);
-                        self.current += 1;
-                        return Some((handle, payload));
-                    }
+            {
+                let record = self.pool.records.get(self.current)?;
+                if let Some(payload) = record.payload.as_ref() {
+                    let handle = Handle::new(self.current as u32, record.generation);
                     self.current += 1;
+                    return Some((handle, payload));
                 }
-                None => return None,
+                self.current += 1;
             }
         }
     }

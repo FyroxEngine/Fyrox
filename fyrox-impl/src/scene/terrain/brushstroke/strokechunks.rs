@@ -89,7 +89,7 @@ impl StrokeChunks {
         textures: &FxHashMap<Vector2<i32>, TextureResource>,
         saved_chunk_data: &mut Vec<ChunkData>,
     ) {
-        for (c, _) in self.written_pixels.iter() {
+        for c in self.written_pixels.keys() {
             if saved_chunk_data.iter().any(|x| x.grid_position == *c) {
                 continue;
             }

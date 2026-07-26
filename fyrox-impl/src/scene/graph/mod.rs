@@ -258,7 +258,7 @@ pub struct SubGraph {
 /// that is part of the data of each node.
 fn remap_handles(old_new_mapping: &NodeHandleMap<Node>, dest_graph: &mut Graph) {
     // Iterate over instantiated nodes and remap handles.
-    for (_, &new_node_handle) in old_new_mapping.inner().iter() {
+    for &new_node_handle in old_new_mapping.inner().values() {
         old_new_mapping.remap_handles(
             &mut dest_graph.pool[new_node_handle],
             &[TypeId::of::<UntypedResource>()],

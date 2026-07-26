@@ -188,20 +188,20 @@ pub struct TileData {
 
 impl OrthoTransform for TileData {
     fn x_flipped(mut self) -> Self {
-        for (_, value) in self.properties.iter_mut() {
+        for value in self.properties.values_mut() {
             *value = value.clone().x_flipped();
         }
-        for (_, value) in self.colliders.iter_mut() {
+        for value in self.colliders.values_mut() {
             *value = value.clone().x_flipped();
         }
         self
     }
 
     fn rotated(mut self, amount: i8) -> Self {
-        for (_, value) in self.properties.iter_mut() {
+        for value in self.properties.values_mut() {
             *value = value.clone().rotated(amount);
         }
-        for (_, value) in self.colliders.iter_mut() {
+        for value in self.colliders.values_mut() {
             *value = value.clone().rotated(amount);
         }
         self
