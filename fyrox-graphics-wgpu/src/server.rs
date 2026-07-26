@@ -27,6 +27,8 @@ use crate::read_buffer::WgpuAsyncReadBuffer;
 use crate::sampler::WgpuSampler;
 use crate::texture::WgpuTexture;
 use fyrox_core::futures::executor::block_on;
+use fyrox_core::log::Log;
+use fyrox_core::math::Rect;
 use fyrox_graphics::buffer::{GpuBuffer, GpuBufferDescriptor};
 use fyrox_graphics::error::FrameworkError;
 use fyrox_graphics::framebuffer::{Attachment, GpuFrameBuffer};
@@ -47,7 +49,6 @@ use std::rc::{Rc, Weak};
 use std::sync::{Arc, RwLock};
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowAttributes};
-use fyrox_core::math::Rect;
 
 pub struct DrawCommand {
     pub pipeline: wgpu::RenderPipeline,
@@ -419,7 +420,7 @@ impl GraphicsServer for WgpuGraphicsServer {
                         *cache = Some((w, h, tex));
                     }
                     Err(e) => {
-                        log::warn!("Failed to create backbuffer depth-stencil: {e}");
+                        Log::warn("Failed to create backbuffer depth-stencil: {e}");
                         *cache = None;
                     }
                 }
@@ -565,10 +566,10 @@ impl GraphicsServer for WgpuGraphicsServer {
         }
     }
     fn set_polygon_fill_mode(&self, _face: PolygonFace, _mode: PolygonFillMode) {
-        log::warn!("set_polygon_fill_mode: wgpu requires pipeline recreation");
+        Log::warn("set_polygon_fill_mode: wgpu requires pipeline recreation");
     }
     fn generate_mipmap(&self, _texture: &GpuTexture) {
-        log::warn!("generate_mipmap: not yet fully implemented");
+        Log::warn("generate_mipmap: not yet fully implemented");
     }
     fn memory_usage(&self) -> ServerMemoryUsage {
         self.memory_usage.borrow().clone()

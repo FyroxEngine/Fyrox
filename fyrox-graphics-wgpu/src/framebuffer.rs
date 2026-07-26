@@ -650,7 +650,7 @@ impl GpuFrameBufferTrait for WgpuFrameBuffer {
         _d: bool,
         _s: bool,
     ) {
-        log::warn!("blit_to not yet implemented for wgpu");
+        Log::warn("blit_to not yet implemented for wgpu");
     }
     fn read_pixels(&self, read_target: ReadTarget) -> Option<Vec<u8>> {
         let server = self.server.upgrade()?;

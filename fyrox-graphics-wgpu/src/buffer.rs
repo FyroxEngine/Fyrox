@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::server::WgpuGraphicsServer;
+use fyrox_core::log::Log;
 use fyrox_graphics::{
     buffer::{BufferKind, BufferUsage, GpuBufferDescriptor, GpuBufferTrait},
     error::FrameworkError,
@@ -123,11 +124,11 @@ impl GpuBufferTrait for WgpuBuffer {
         if data.len() <= self.size.get() {
             server.state.queue.write_buffer(&self.buffer, 0, data);
         } else {
-            log::warn!(
+            Log::warn(format!(
                 "WgpuBuffer::write_data: data ({} bytes) exceeds buffer ({} bytes)",
                 data.len(),
                 self.size.get()
-            );
+            ));
             server
                 .state
                 .queue
