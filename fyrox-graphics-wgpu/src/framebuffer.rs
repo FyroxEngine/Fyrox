@@ -629,6 +629,52 @@ impl WgpuFrameBuffer {
     }
 }
 
+fn copy_attachment_texture(
+    encoder: &mut wgpu::CommandEncoder,
+    src: &Attachment,
+    dst: &Attachment,
+    src_x: u32,
+    src_y: u32,
+    dst_x: u32,
+    dst_y: u32,
+    width: u32,
+    height: u32,
+) {
+    let Some(src_tex) = src.texture.as_any().downcast_ref::<WgpuTexture>() else {
+        return;
+    };
+    let Some(dst_tex) = dst.texture.as_any().downcast_ref::<WgpuTexture>() else {
+        return;
+    };
+    encoder.copy_texture_to_texture(
+        wgpu::TexelCopyTextureInfo {
+            texture: src_tex.wgpu_texture(),
+            mip_level: src.level() as u32,
+            origin: wgpu::Origin3d {
+                x: src_x,
+                y: src_y,
+                z: 0,
+            },
+            aspect: wgpu::TextureAspect::All,
+        },
+        wgpu::TexelCopyTextureInfo {
+            texture: dst_tex.wgpu_texture(),
+            mip_level: dst.level() as u32,
+            origin: wgpu::Origin3d {
+                x: dst_x,
+                y: dst_y,
+                z: 0,
+            },
+            aspect: wgpu::TextureAspect::All,
+        },
+        wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
+    );
+}
+
 impl GpuFrameBufferTrait for WgpuFrameBuffer {
     fn color_attachments(&self) -> &[Attachment] {
         &self.color_attachments
@@ -644,20 +690,86 @@ impl GpuFrameBufferTrait for WgpuFrameBuffer {
     }
     fn blit_to(
         &self,
-        _dest: &GpuFrameBuffer,
-        _sx0: i32,
-        _sy0: i32,
-        _sx1: i32,
-        _sy1: i32,
-        _dx0: i32,
-        _dy0: i32,
-        _dx1: i32,
-        _dy1: i32,
-        _c: bool,
-        _d: bool,
-        _s: bool,
+        dest: &GpuFrameBuffer,
+        src_x0: i32,
+        src_y0: i32,
+        src_x1: i32,
+        src_y1: i32,
+        dst_x0: i32,
+        dst_y0: i32,
+        dst_x1: i32,
+        dst_y1: i32,
+        copy_color: bool,
+        copy_depth: bool,
+        copy_stencil: bool,
     ) {
-        Log::warn("blit_to not yet implemented for wgpu");
+        let Some(server) = self.server.upgrade() else {
+            return;
+        };
+        let Some(dest) = dest.as_any().downcast_ref::<WgpuFrameBuffer>() else {
+            return;
+        };
+
+        let src_w = (src_x1 - src_x0) as u32;
+        let src_h = (src_y1 - src_y0) as u32;
+        let dst_w = (dst_x1 - dst_x0) as u32;
+        let dst_h = (dst_y1 - dst_y0) as u32;
+
+        if src_w != dst_w || src_h != dst_h {
+            Log::warn("blit_to: scaling not supported in wgpu backend, skipping");
+            return;
+        }
+
+        server.flush_active_pass();
+
+        let mut encoder = server
+            .frame_encoder
+            .borrow_mut()
+            .take()
+            .unwrap_or_else(|| {
+                server
+                    .state
+                    .device
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None })
+            });
+
+        if copy_color {
+            for (src_att, dst_att) in
+                self.color_attachments.iter().zip(&dest.color_attachments)
+            {
+                copy_attachment_texture(
+                    &mut encoder,
+                    src_att,
+                    dst_att,
+                    src_x0 as u32,
+                    src_y0 as u32,
+                    dst_x0 as u32,
+                    dst_y0 as u32,
+                    src_w,
+                    src_h,
+                );
+            }
+        }
+
+        if copy_depth || copy_stencil {
+            if let (Some(src_att), Some(dst_att)) =
+                (&self.depth_attachment, &dest.depth_attachment)
+            {
+                copy_attachment_texture(
+                    &mut encoder,
+                    src_att,
+                    dst_att,
+                    src_x0 as u32,
+                    src_y0 as u32,
+                    dst_x0 as u32,
+                    dst_y0 as u32,
+                    src_w,
+                    src_h,
+                );
+            }
+        }
+
+        *server.frame_encoder.borrow_mut() = Some(encoder);
     }
     fn read_pixels(&self, read_target: ReadTarget) -> Option<Vec<u8>> {
         let server = self.server.upgrade()?;

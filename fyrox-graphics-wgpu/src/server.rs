@@ -19,13 +19,14 @@
 // SOFTWARE.
 
 use crate::buffer::WgpuBuffer;
+use crate::format_helpers::is_filterable_format;
 use crate::framebuffer::WgpuFrameBuffer;
 use crate::geometry_buffer::WgpuGeometryBuffer;
 use crate::program::{WgpuProgram, WgpuShader};
 use crate::query::WgpuQuery;
 use crate::read_buffer::WgpuAsyncReadBuffer;
 use crate::sampler::WgpuSampler;
-use crate::texture::WgpuTexture;
+use crate::texture::{texture_size, WgpuTexture};
 use fyrox_core::futures::executor::block_on;
 use fyrox_core::log::Log;
 use fyrox_core::math::Rect;
@@ -50,6 +51,26 @@ use std::sync::{Arc, RwLock};
 use wgpu::hal::DynQueue;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowAttributes};
+
+const MIPMAP_SHADER_SRC: &str = r#"
+@vertex
+fn vs_main(@builtin(vertex_index) idx: u32) -> @builtin(position) vec4<f32> {
+    var pos = array<vec2<f32>, 3>(
+        vec2<f32>(-1.0, -1.0),
+        vec2<f32>( 3.0, -1.0),
+        vec2<f32>(-1.0,  3.0)
+    );
+    return vec4<f32>(pos[idx], 0.0, 1.0);
+}
+
+@group(0) @binding(0) var src_tex: texture_2d<f32>;
+@group(0) @binding(1) var src_sampler: sampler;
+
+@fragment
+fn fs_main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
+    return textureLoad(src_tex, vec2<i32>(pos.xy), 0);
+}
+"#;
 
 pub struct DrawCommand {
     pub pipeline: wgpu::RenderPipeline,
@@ -147,6 +168,12 @@ pub struct WgpuGraphicsServer {
     /// (G-Buffer, HDR, backbuffer) share the same frame and benefit from a single submit.
     pub frame_encoder: RefCell<Option<wgpu::CommandEncoder>>,
     pub active_pass: RefCell<Option<ActivePass>>,
+    /// Sampler used for mipmap generation (linear filtering).
+    mipmap_sampler: wgpu::Sampler,
+    /// Bind group layout for the mipmap generation shader.
+    mipmap_bind_group_layout: wgpu::BindGroupLayout,
+    /// Cached mipmap render pipelines, keyed by texture format.
+    mipmap_pipeline_cache: RefCell<HashMap<wgpu::TextureFormat, wgpu::RenderPipeline>>,
 }
 
 impl WgpuGraphicsServer {
@@ -277,6 +304,37 @@ impl WgpuGraphicsServer {
             ..Default::default()
         });
 
+        let mipmap_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            label: Some("MipmapSampler"),
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::MipmapFilterMode::Nearest,
+            ..Default::default()
+        });
+
+        let mipmap_bind_group_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("MipmapBGL"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+            });
+
         let dummy_vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("DummyVB"),
             size: 16, // enough for vec4f
@@ -307,6 +365,9 @@ impl WgpuGraphicsServer {
             backbuffer_depth_stencil: RefCell::new(None),
             frame_encoder: RefCell::new(None),
             active_pass: RefCell::new(None),
+            mipmap_sampler,
+            mipmap_bind_group_layout,
+            mipmap_pipeline_cache: RefCell::new(HashMap::new()),
         });
 
         *server.weak_self.borrow_mut() = Some(Rc::downgrade(&server));
@@ -576,8 +637,155 @@ impl GraphicsServer for WgpuGraphicsServer {
     fn set_polygon_fill_mode(&self, _face: PolygonFace, _mode: PolygonFillMode) {
         Log::warn("set_polygon_fill_mode: wgpu requires pipeline recreation");
     }
-    fn generate_mipmap(&self, _texture: &GpuTexture) {
-        Log::warn("generate_mipmap: not yet fully implemented");
+    fn generate_mipmap(&self, texture: &GpuTexture) {
+        let Some(wtex) = texture.as_any().downcast_ref::<WgpuTexture>() else {
+            return;
+        };
+        let format = wtex.format();
+        if !is_filterable_format(format) {
+            Log::warn("generate_mipmap: format is not filterable, skipping");
+            return;
+        }
+
+        let (width, height, _depth) = texture_size(texture.kind());
+        let mip_count = wtex.wgpu_texture().mip_level_count();
+        if mip_count <= 1 || width <= 1 || height <= 1 {
+            return;
+        }
+
+        self.flush_active_pass();
+
+        let has_pipeline = self.mipmap_pipeline_cache.borrow().contains_key(&format);
+        if !has_pipeline {
+            let shader =
+                self.state
+                    .device
+                    .create_shader_module(wgpu::ShaderModuleDescriptor {
+                        label: Some("MipmapShader"),
+                        source: wgpu::ShaderSource::Wgsl(MIPMAP_SHADER_SRC.into()),
+                    });
+            let layout =
+                self.state
+                    .device
+                    .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                        label: Some("MipmapPL"),
+                        bind_group_layouts: &[Some(&self.mipmap_bind_group_layout)],
+                        ..Default::default()
+                    });
+            let pipeline =
+                self.state
+                    .device
+                    .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                        label: Some("MipmapPipeline"),
+                        layout: Some(&layout),
+                        vertex: wgpu::VertexState {
+                            module: &shader,
+                            entry_point: Some("vs_main"),
+                            buffers: &[],
+                            compilation_options: Default::default(),
+                        },
+                        fragment: Some(wgpu::FragmentState {
+                            module: &shader,
+                            entry_point: Some("fs_main"),
+                            targets: &[Some(wgpu::ColorTargetState {
+                                format,
+                                blend: None,
+                                write_mask: wgpu::ColorWrites::ALL,
+                            })],
+                            compilation_options: Default::default(),
+                        }),
+                        primitive: wgpu::PrimitiveState {
+                            topology: wgpu::PrimitiveTopology::TriangleList,
+                            ..Default::default()
+                        },
+                        depth_stencil: None,
+                        multisample: wgpu::MultisampleState {
+                            count: 1,
+                            mask: !0,
+                            alpha_to_coverage_enabled: false,
+                        },
+                        multiview_mask: None,
+                        cache: None,
+                    });
+            self.mipmap_pipeline_cache
+                .borrow_mut()
+                .insert(format, pipeline);
+        }
+
+        let pipeline_cache = self.mipmap_pipeline_cache.borrow();
+        let pipeline = pipeline_cache.get(&format).unwrap();
+
+        let mut encoder = self
+            .frame_encoder
+            .borrow_mut()
+            .take()
+            .unwrap_or_else(|| {
+                self.state
+                    .device
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None })
+            });
+
+        let mut mip_w = width;
+        let mut mip_h = height;
+
+        for level in 1..mip_count {
+            mip_w = (mip_w / 2).max(1);
+            mip_h = (mip_h / 2).max(1);
+
+            let src_view =
+                wtex.wgpu_texture().create_view(&wgpu::TextureViewDescriptor {
+                    dimension: Some(wgpu::TextureViewDimension::D2),
+                    base_mip_level: level - 1,
+                    mip_level_count: Some(1),
+                    ..Default::default()
+                });
+
+            let dst_view =
+                wtex.wgpu_texture().create_view(&wgpu::TextureViewDescriptor {
+                    dimension: Some(wgpu::TextureViewDimension::D2),
+                    base_mip_level: level,
+                    mip_level_count: Some(1),
+                    ..Default::default()
+                });
+
+            let bind_group = self.state.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: None,
+                layout: &self.mipmap_bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(&src_view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::Sampler(&self.mipmap_sampler),
+                    },
+                ],
+            });
+
+            let mut rp = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: None,
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &dst_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                        store: wgpu::StoreOp::Store,
+                    },
+                    depth_slice: None,
+                })],
+                depth_stencil_attachment: None,
+                ..Default::default()
+            });
+
+            rp.set_viewport(0.0, 0.0, mip_w as f32, mip_h as f32, 0.0, 1.0);
+            rp.set_pipeline(&pipeline);
+            rp.set_bind_group(0, &bind_group, &[]);
+            rp.draw(0..3, 0..1);
+            drop(rp);
+        }
+
+        *self.frame_encoder.borrow_mut() = Some(encoder);
     }
     fn memory_usage(&self) -> ServerMemoryUsage {
         self.memory_usage.borrow().clone()

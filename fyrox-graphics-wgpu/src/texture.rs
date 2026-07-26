@@ -118,7 +118,7 @@ fn texture_dimension(kind: GpuTextureKind) -> wgpu::TextureDimension {
     }
 }
 
-fn texture_size(kind: GpuTextureKind) -> (u32, u32, u32) {
+pub(crate) fn texture_size(kind: GpuTextureKind) -> (u32, u32, u32) {
     match kind {
         GpuTextureKind::Line { length } => (length as u32, 1, 1),
         GpuTextureKind::Rectangle { width, height } => (width as u32, height as u32, 1),
