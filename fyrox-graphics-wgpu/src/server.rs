@@ -43,7 +43,7 @@ use fyrox_graphics::server::{
     GraphicsServer, ServerCapabilities, ServerMemoryUsage, SharedGraphicsServer,
 };
 use fyrox_graphics::stats::PipelineStatistics;
-use fyrox_graphics::{PolygonFace, PolygonFillMode};
+use fyrox_graphics::{PolygonFace, PolygonFillMode, ScissorBox};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
@@ -80,6 +80,7 @@ pub struct DrawCommand {
     pub index_buffer: wgpu::Buffer,
     pub viewport: Rect<i32>,
     pub stencil_ref: Option<u32>,
+    pub scissor_box: Option<ScissorBox>,
     pub start_idx: u32,
     pub end_idx: u32,
     pub instances: u32,
@@ -443,6 +444,28 @@ impl WgpuGraphicsServer {
             }
             if let Some(st) = cmd.stencil_ref {
                 rp.set_stencil_reference(st);
+            }
+            match cmd.scissor_box {
+                Some(sb) => {
+                    // The ScissorBox Y is computed for OpenGL (origin at bottom-left):
+                    //   y_gl = viewport_h - (pos_y + size_h)
+                    // wgpu uses top-left origin (same as UI coords), so convert:
+                    //   y_wgpu = viewport_h - y_gl - height = pos_y
+                    let rt_h = cmd.viewport.h();
+                    let wgpu_y = (rt_h - sb.y - sb.height).max(0);
+                    rp.set_scissor_rect(
+                        sb.x.max(0) as u32,
+                        wgpu_y as u32,
+                        sb.width.max(0) as u32,
+                        sb.height.max(0) as u32,
+                    );
+                }
+                None => rp.set_scissor_rect(
+                    cmd.viewport.x().max(0) as u32,
+                    cmd.viewport.y().max(0) as u32,
+                    cmd.viewport.w().max(0) as u32,
+                    cmd.viewport.h().max(0) as u32,
+                ),
             }
             for (i, vb) in cmd.vertex_buffers.iter().enumerate() {
                 rp.set_vertex_buffer(i as u32, vb.slice(..));

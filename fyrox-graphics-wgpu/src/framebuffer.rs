@@ -192,6 +192,7 @@ pub struct WgpuFrameBuffer {
     needs_clear: Cell<bool>,
     pending_clear_color: RefCell<wgpu::Color>,
     pending_clear_depth: RefCell<f32>,
+    pending_clear_stencil: RefCell<u32>,
     backbuffer_depth_cache: RefCell<Option<(u32, u32, wgpu::Texture)>>,
 }
 
@@ -210,6 +211,7 @@ impl WgpuFrameBuffer {
             needs_clear: Cell::new(false),
             pending_clear_color: RefCell::new(wgpu::Color::BLACK),
             pending_clear_depth: RefCell::new(1.0),
+            pending_clear_stencil: RefCell::new(0),
             backbuffer_depth_cache: RefCell::new(None),
         })
     }
@@ -227,6 +229,7 @@ impl WgpuFrameBuffer {
             needs_clear: Cell::new(false),
             pending_clear_color: RefCell::new(wgpu::Color::BLACK),
             pending_clear_depth: RefCell::new(1.0),
+            pending_clear_stencil: RefCell::new(0),
             backbuffer_depth_cache: RefCell::new(None),
         }
     }
@@ -610,7 +613,7 @@ impl WgpuFrameBuffer {
             let (color_load, depth_load, stencil_load) = if self.is_backbuffer && server.backbuffer_needs_clear.replace(false) {
                 (wgpu::LoadOp::Clear(wgpu::Color::BLACK), wgpu::LoadOp::Clear(1.0), if has_stencil { Some(wgpu::LoadOp::Clear(0)) } else { None })
             } else if !self.is_backbuffer && self.needs_clear.replace(false) {
-                (wgpu::LoadOp::Clear(*self.pending_clear_color.borrow()), wgpu::LoadOp::Clear(*self.pending_clear_depth.borrow()), if has_stencil { Some(wgpu::LoadOp::Clear(0)) } else { None })
+                (wgpu::LoadOp::Clear(*self.pending_clear_color.borrow()), wgpu::LoadOp::Clear(*self.pending_clear_depth.borrow()), if has_stencil { Some(wgpu::LoadOp::Clear(*self.pending_clear_stencil.borrow())) } else { None })
             } else {
                 (wgpu::LoadOp::Load, wgpu::LoadOp::Load, if has_stencil { Some(wgpu::LoadOp::Load) } else { None })
             };
@@ -636,6 +639,7 @@ impl WgpuFrameBuffer {
             index_buffer: geo.element_buffer().clone(),
             viewport,
             stencil_ref: params.stencil_test.as_ref().map(|s| s.ref_value),
+            scissor_box: params.scissor_box,
             start_idx: (offset * ipe) as u32,
             end_idx: ((offset + count) * ipe) as u32,
             instances: instance_count,
@@ -880,7 +884,7 @@ impl GpuFrameBufferTrait for WgpuFrameBuffer {
         _viewport: Rect<i32>,
         color: Option<Color>,
         depth: Option<f32>,
-        _stencil: Option<i32>,
+        stencil: Option<i32>,
     ) {
         if let Some(c) = color {
             *self.pending_clear_color.borrow_mut() = wgpu::Color {
@@ -892,6 +896,9 @@ impl GpuFrameBufferTrait for WgpuFrameBuffer {
         }
         if let Some(d) = depth {
             *self.pending_clear_depth.borrow_mut() = d;
+        }
+        if let Some(s) = stencil {
+            *self.pending_clear_stencil.borrow_mut() = s as u32;
         }
         self.needs_clear.set(true);
     }
