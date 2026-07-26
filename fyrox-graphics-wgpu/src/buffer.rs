@@ -141,11 +141,14 @@ impl GpuBufferTrait for WgpuBuffer {
         let Some(server) = self.server.upgrade() else {
             return Err(FrameworkError::GraphicsServerUnavailable);
         };
+
         let buffer_slice = self.buffer.slice(..data.len() as u64);
         let (tx, rx) = std::sync::mpsc::channel();
+
         buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
             tx.send(result).ok();
         });
+
         server
             .state
             .device
@@ -154,13 +157,19 @@ impl GpuBufferTrait for WgpuBuffer {
                 timeout: None,
             })
             .ok();
+
         rx.recv()
             .map_err(|_| FrameworkError::Custom("Channel closed".into()))?
             .map_err(|e| FrameworkError::Custom(format!("Buffer map failed: {e}")))?;
-        let mapped = buffer_slice.get_mapped_range();
+
+        let mapped = buffer_slice
+            .get_mapped_range()
+            .map_err(|e| FrameworkError::Custom(format!("Failed to get mapped range: {e}")))?;
+
         data.copy_from_slice(&mapped);
         drop(mapped);
         self.buffer.unmap();
+
         Ok(())
     }
 }

@@ -411,6 +411,13 @@ impl WgpuFrameBuffer {
         } else {
             None
         };
+
+        let optional_layouts: Vec<Option<wgpu::VertexBufferLayout<'static>>> = all_layouts
+            .iter()
+            .cloned()
+            .map(Some)
+            .collect();
+
         let pipeline =
             server
                 .state
@@ -421,7 +428,7 @@ impl WgpuFrameBuffer {
                     vertex: wgpu::VertexState {
                         module: program.vertex_module(),
                         entry_point: Some("vs_main"),
-                        buffers: all_layouts,
+                        buffers: &optional_layouts,
                         compilation_options: Default::default(),
                     },
                     fragment: fragment_state,
@@ -583,11 +590,11 @@ impl WgpuFrameBuffer {
 
             let has_stencil = df.map(format_has_stencil).unwrap_or(false);
             let (color_load, depth_load, stencil_load) = if self.is_backbuffer && server.backbuffer_needs_clear.replace(false) {
-                (wgpu::LoadOp::Clear(wgpu::Color::BLACK), wgpu::LoadOp::Clear(1.0), if has_stencil { wgpu::LoadOp::Clear(0) } else { wgpu::LoadOp::Load })
+                (wgpu::LoadOp::Clear(wgpu::Color::BLACK), wgpu::LoadOp::Clear(1.0), if has_stencil { Some(wgpu::LoadOp::Clear(0)) } else { None })
             } else if !self.is_backbuffer && self.needs_clear.replace(false) {
-                (wgpu::LoadOp::Clear(*self.pending_clear_color.borrow()), wgpu::LoadOp::Clear(*self.pending_clear_depth.borrow()), if has_stencil { wgpu::LoadOp::Clear(0) } else { wgpu::LoadOp::Load })
+                (wgpu::LoadOp::Clear(*self.pending_clear_color.borrow()), wgpu::LoadOp::Clear(*self.pending_clear_depth.borrow()), if has_stencil { Some(wgpu::LoadOp::Clear(0)) } else { None })
             } else {
-                (wgpu::LoadOp::Load, wgpu::LoadOp::Load, wgpu::LoadOp::Load)
+                (wgpu::LoadOp::Load, wgpu::LoadOp::Load, if has_stencil { Some(wgpu::LoadOp::Load) } else { None })
             };
 
             *server.active_pass.borrow_mut() = Some(crate::server::ActivePass {
@@ -718,7 +725,7 @@ impl GpuFrameBufferTrait for WgpuFrameBuffer {
                 })
                 .ok();
             rx.recv().ok()?.ok()?;
-            let mapped = slice.get_mapped_range();
+            let mapped = slice.get_mapped_range().ok()?;
             let unpadded_row = width * bps;
             let mut result = vec![0u8; unpadded_row * height];
             if bytes_per_row == unpadded_row {

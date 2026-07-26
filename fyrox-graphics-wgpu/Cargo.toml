@@ -16,7 +16,7 @@ rust-version = "1.87"
 winit = { version = "0.30" }
 fyrox-graphics = { version = "2.0.0-rc.1", path = "../fyrox-graphics" }
 fyrox-core = { version = "2.0.0-rc.1", path = "../fyrox-core" }
-wgpu = { version = "29.0.3" }
+wgpu = { version = "30.0.0" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 raw-window-handle = "0.6"

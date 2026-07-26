@@ -47,6 +47,7 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 use std::sync::{Arc, RwLock};
+use wgpu::hal::DynQueue;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowAttributes};
 
@@ -69,7 +70,7 @@ pub struct ActivePass {
     pub depth_view: Option<wgpu::TextureView>,
     pub color_load: wgpu::LoadOp<wgpu::Color>,
     pub depth_load: wgpu::LoadOp<f32>,
-    pub stencil_load: wgpu::LoadOp<u32>,
+    pub stencil_load: Option<wgpu::LoadOp<u32>>,
     pub commands: Vec<DrawCommand>,
 }
 
@@ -218,6 +219,7 @@ impl WgpuGraphicsServer {
             power_preference: wgpu::PowerPreference::HighPerformance,
             compatible_surface: Some(&surface),
             force_fallback_adapter: false,
+            apply_limit_buckets: false,
         }))
         .map_err(|e| FrameworkError::Custom(format!("No suitable WGPU adapter found: {e}")))?;
 
@@ -254,6 +256,7 @@ impl WgpuGraphicsServer {
         let surface_config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: surface_format,
+            color_space: Default::default(),
             width: size.width,
             height: size.height,
             present_mode,
@@ -348,7 +351,10 @@ impl WgpuGraphicsServer {
                 wgpu::RenderPassDepthStencilAttachment {
                     view: v,
                     depth_ops: Some(wgpu::Operations { load: pass.depth_load, store: wgpu::StoreOp::Store }),
-                    stencil_ops: Some(wgpu::Operations { load: pass.stencil_load, store: wgpu::StoreOp::Store }),
+                    stencil_ops: pass.stencil_load.map(|load| wgpu::Operations {
+                        load,
+                        store: wgpu::StoreOp::Store,
+                    }),
                 }
             }),
             ..Default::default()
@@ -530,9 +536,11 @@ impl GraphicsServer for WgpuGraphicsServer {
         if let Some(encoder) = self.frame_encoder.borrow_mut().take() {
             self.state.queue.submit(std::iter::once(encoder.finish()));
         }
+
         if let Some(frame) = self.current_frame.borrow_mut().take() {
-            frame.present();
+            self.state.queue.present(frame);
         }
+
         self.backbuffer_needs_clear.replace(true);
         Ok(())
     }

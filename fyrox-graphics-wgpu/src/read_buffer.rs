@@ -162,13 +162,17 @@ impl GpuAsyncReadBufferTrait for WgpuAsyncReadBuffer {
             .ok();
         match rx.recv() {
             Ok(Ok(())) => {
-                let mapped = slice.get_mapped_range();
-                let mut result = vec![0u8; self.size_bytes];
-                result.copy_from_slice(&mapped);
-                drop(mapped);
-                self.buffer.unmap();
-                self.request_pending.set(false);
-                Some(result)
+                if let Ok(mapped) = slice.get_mapped_range() {
+                    let mut result = vec![0u8; self.size_bytes];
+                    result.copy_from_slice(&mapped);
+                    drop(mapped);
+                    self.buffer.unmap();
+                    self.request_pending.set(false);
+                    Some(result)
+                } else {
+                    self.request_pending.set(false);
+                    None
+                }
             }
             _ => {
                 self.request_pending.set(false);

@@ -65,7 +65,7 @@
 
                     struct VertexOutput {
                         @builtin(position) position: vec4f,
-                        @location(0) objectIndex: u32,
+                        @location(0) @interpolate(flat) objectIndex: u32,
                     };
 
                     @vertex
@@ -80,7 +80,7 @@
             fragment_shader:
                 r#"
                     @fragment
-                    fn fs_main(@location(0) objectIndex: u32, @builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
+                    fn fs_main(@location(0) @interpolate(flat) objectIndex: u32, @builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
                         var x = i32(fragCoord.x) / properties.tileSize;
                         var y = i32(properties.frameBufferHeight - fragCoord.y) / properties.tileSize;
 
