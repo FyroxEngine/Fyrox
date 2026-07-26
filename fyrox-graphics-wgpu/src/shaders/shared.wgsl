@@ -40,7 +40,7 @@ fn inverse_mat4(m: mat4x4f) -> mat4x4f {
     inv[3][2] = m31 * b01 - m30 * b03 - m32 * b00;
     inv[3][3] = m20 * b03 - m21 * b01 + m22 * b00;
 
-    let det = m00 * b00 + m01 * b08 + m02 * b06 + m03 * b09;
+    let det = m00 * b00 - m01 * b01 + m02 * b02 - m03 * b03;
     let invDet = 1.0 / det;
     return inv * invDet;
 }

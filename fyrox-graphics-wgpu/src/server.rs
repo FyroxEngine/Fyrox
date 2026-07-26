@@ -20,7 +20,7 @@
 
 use crate::buffer::WgpuBuffer;
 use crate::format_helpers::is_filterable_format;
-use crate::framebuffer::WgpuFrameBuffer;
+use crate::framebuffer::{PipelineKey, WgpuFrameBuffer};
 use crate::geometry_buffer::WgpuGeometryBuffer;
 use crate::program::{WgpuProgram, WgpuShader};
 use crate::query::WgpuQuery;
@@ -44,11 +44,10 @@ use fyrox_graphics::server::{
 };
 use fyrox_graphics::stats::PipelineStatistics;
 use fyrox_graphics::{PolygonFace, PolygonFillMode, ScissorBox};
-use std::cell::{Cell, RefCell};
+use std::cell::{Cell, OnceCell, RefCell};
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 use std::sync::{Arc, RwLock};
-use wgpu::hal::DynQueue;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowAttributes};
 
@@ -72,27 +71,51 @@ fn fs_main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 }
 "#;
 
+/// A single draw call recorded into an [`ActivePass`]. Captures all GPU state
+/// needed to replay the call when the pass is flushed.
 pub struct DrawCommand {
+    /// The compiled render pipeline for this draw.
     pub pipeline: wgpu::RenderPipeline,
+    /// Resource bind group (textures, samplers, uniforms).
     pub bind_group: Option<wgpu::BindGroup>,
+    /// Vertex buffers bound for this draw.
     pub vertex_buffers: Vec<wgpu::Buffer>,
+    /// Number of extra vertex buffer slots filled with the dummy buffer.
     pub extra_verts: u32,
+    /// Index buffer for indexed drawing.
     pub index_buffer: wgpu::Buffer,
+    /// Viewport rectangle.
     pub viewport: Rect<i32>,
+    /// Stencil reference value, if stencil testing is enabled.
     pub stencil_ref: Option<u32>,
+    /// Optional scissor clipping rectangle.
     pub scissor_box: Option<ScissorBox>,
+    /// Start index in the index buffer.
     pub start_idx: u32,
+    /// End index in the index buffer.
     pub end_idx: u32,
+    /// Number of instances to draw.
     pub instances: u32,
 }
 
+/// A batched render pass that accumulates draw commands for a single framebuffer.
+///
+/// Created when the first draw call targets a framebuffer, and flushed
+/// (encoded into a `wgpu::RenderPass`) when the target changes or the frame ends.
 pub struct ActivePass {
+    /// Identity of the target framebuffer (pointer-based).
     pub framebuffer_id: usize,
+    /// Color attachment views for the render pass.
     pub color_views: Vec<wgpu::TextureView>,
+    /// Depth-stencil attachment view, if present.
     pub depth_view: Option<wgpu::TextureView>,
+    /// Load operation for color attachments.
     pub color_load: wgpu::LoadOp<wgpu::Color>,
+    /// Load operation for the depth attachment.
     pub depth_load: wgpu::LoadOp<f32>,
+    /// Load operation for the stencil attachment, if present.
     pub stencil_load: Option<wgpu::LoadOp<u32>>,
+    /// Accumulated draw commands to replay when the pass is flushed.
     pub commands: Vec<DrawCommand>,
 }
 
@@ -147,7 +170,7 @@ pub struct WgpuGraphicsServer {
     /// MSAA sample count (currently forced to 1).
     pub msaa_sample_count: u32,
     /// Hash-based cache of render pipelines, keyed by [`PipelineKey`].
-    pub pipeline_cache: RefCell<HashMap<u64, wgpu::RenderPipeline>>,
+    pub pipeline_cache: RefCell<HashMap<PipelineKey, wgpu::RenderPipeline>>,
     /// Hash-based cache of bind groups, keyed by resource pointers and texture formats.
     pub bind_group_cache: RefCell<HashMap<u64, wgpu::BindGroup>>,
     weak_self: RefCell<Option<Weak<WgpuGraphicsServer>>>,
@@ -168,6 +191,8 @@ pub struct WgpuGraphicsServer {
     /// Storing it on the server (not per-framebuffer) because multiple framebuffers
     /// (G-Buffer, HDR, backbuffer) share the same frame and benefit from a single submit.
     pub frame_encoder: RefCell<Option<wgpu::CommandEncoder>>,
+    /// Currently accumulating render pass. Draw commands are batched here and
+    /// flushed when the target changes or the frame ends.
     pub active_pass: RefCell<Option<ActivePass>>,
     /// Sampler used for mipmap generation (linear filtering).
     mipmap_sampler: wgpu::Sampler,
@@ -175,6 +200,10 @@ pub struct WgpuGraphicsServer {
     mipmap_bind_group_layout: wgpu::BindGroupLayout,
     /// Cached mipmap render pipelines, keyed by texture format.
     mipmap_pipeline_cache: RefCell<HashMap<wgpu::TextureFormat, wgpu::RenderPipeline>>,
+    /// Shared shader module for mipmap generation (created once).
+    mipmap_shader: OnceCell<wgpu::ShaderModule>,
+    /// Shared pipeline layout for mipmap generation (created once).
+    mipmap_pipeline_layout: OnceCell<wgpu::PipelineLayout>,
     /// Current polygon fill mode (Fill, Line, or Point). Baked into new pipelines.
     polygon_fill_mode: Cell<PolygonFillMode>,
 }
@@ -378,6 +407,8 @@ impl WgpuGraphicsServer {
             mipmap_sampler,
             mipmap_bind_group_layout,
             mipmap_pipeline_cache: RefCell::new(HashMap::new()),
+            mipmap_shader: OnceCell::new(),
+            mipmap_pipeline_layout: OnceCell::new(),
             polygon_fill_mode: Cell::new(PolygonFillMode::Fill),
         });
 
@@ -404,6 +435,11 @@ impl WgpuGraphicsServer {
         self.polygon_fill_mode.get()
     }
 
+    /// Encodes the current [`ActivePass`] into the frame command encoder and clears it.
+    ///
+    /// All buffered draw commands are replayed into a `wgpu::RenderPass`, which is
+    /// then dropped (ending the pass). The encoder is stored back for subsequent
+    /// operations. Does nothing if there is no active pass.
     pub fn flush_active_pass(&self) {
         let Some(pass) = self.active_pass.borrow_mut().take() else { return; };
 
@@ -524,7 +560,7 @@ impl GraphicsServer for WgpuGraphicsServer {
                         *cache = Some((w, h, tex));
                     }
                     Err(e) => {
-                        Log::warn("Failed to create backbuffer depth-stencil: {e}");
+                        Log::warn(format!("Failed to create backbuffer depth-stencil: {e}"));
                         *cache = None;
                     }
                 }
@@ -692,37 +728,39 @@ impl GraphicsServer for WgpuGraphicsServer {
 
         self.flush_active_pass();
 
-        let has_pipeline = self.mipmap_pipeline_cache.borrow().contains_key(&format);
-        if !has_pipeline {
-            let shader =
-                self.state
-                    .device
-                    .create_shader_module(wgpu::ShaderModuleDescriptor {
-                        label: Some("MipmapShader"),
-                        source: wgpu::ShaderSource::Wgsl(MIPMAP_SHADER_SRC.into()),
-                    });
-            let layout =
-                self.state
-                    .device
-                    .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                        label: Some("MipmapPL"),
-                        bind_group_layouts: &[Some(&self.mipmap_bind_group_layout)],
-                        ..Default::default()
-                    });
+        let shader = self.mipmap_shader.get_or_init(|| {
+            self.state
+                .device
+                .create_shader_module(wgpu::ShaderModuleDescriptor {
+                    label: Some("MipmapShader"),
+                    source: wgpu::ShaderSource::Wgsl(MIPMAP_SHADER_SRC.into()),
+                })
+        });
+        let layout = self.mipmap_pipeline_layout.get_or_init(|| {
+            self.state
+                .device
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("MipmapPL"),
+                    bind_group_layouts: &[Some(&self.mipmap_bind_group_layout)],
+                    ..Default::default()
+                })
+        });
+
+        if !self.mipmap_pipeline_cache.borrow().contains_key(&format) {
             let pipeline =
                 self.state
                     .device
                     .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                         label: Some("MipmapPipeline"),
-                        layout: Some(&layout),
+                        layout: Some(layout),
                         vertex: wgpu::VertexState {
-                            module: &shader,
+                            module: shader,
                             entry_point: Some("vs_main"),
                             buffers: &[],
                             compilation_options: Default::default(),
                         },
                         fragment: Some(wgpu::FragmentState {
-                            module: &shader,
+                            module: shader,
                             entry_point: Some("fs_main"),
                             targets: &[Some(wgpu::ColorTargetState {
                                 format,

@@ -195,7 +195,7 @@
                     var depth = computeDepth(fragPos3D);
 
                     var output: FragOutput;
-                    output.depth = (depth + 1.0) / 2.0;
+                    output.depth = depth;
 
                     output.color = grid(fragPos3D);
                     if (properties.isPerspective != 0u) {

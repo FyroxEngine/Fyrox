@@ -156,17 +156,29 @@ fn texture_format_for_attachment(tex: &GpuTexture) -> Option<wgpu::TextureFormat
 /// slots. Two draw calls with identical keys can share a pipeline.
 #[derive(Hash, PartialEq, Eq, Clone)]
 pub struct PipelineKey {
+    /// Identity of the shader program (pointer-based).
     program_ptr: usize,
+    /// Color attachment formats for the render pass.
     color_formats: Vec<wgpu::TextureFormat>,
+    /// Depth-stencil attachment format, if present.
     depth_format: Option<wgpu::TextureFormat>,
+    /// MSAA sample count.
     sample_count: u32,
+    /// Whether alpha blending is enabled.
     blend: bool,
+    /// Whether depth testing is enabled.
     depth_test: bool,
+    /// Whether depth writes are enabled.
     depth_write: bool,
+    /// Whether stencil operations are configured.
     stencil: bool,
+    /// Whether the pipeline has at least one color target.
     has_color: bool,
+    /// Cull mode encoded as u8 (0=None, 1=Front, 2=Back).
     cull: u8,
+    /// Number of extra vertex buffer slots (filled with dummy buffer).
     extra_vert_count: u8,
+    /// Polygon fill mode encoded as u8 (0=Point, 1=Line, 2=Fill).
     polygon_fill_mode: u8,
     /// Resource texture formats that determine the bind group layout.
     /// Ensures pipeline is recreated when texture formats change (e.g., R32Float is non-filterable).
@@ -293,14 +305,9 @@ impl WgpuFrameBuffer {
             },
             texture_resource_sample_types: sample_types,
         };
-        let key_hash = {
-            let mut h = DefaultHasher::new();
-            key.hash(&mut h);
-            h.finish()
-        };
         {
             let cache = server.pipeline_cache.borrow();
-            if let Some(p) = cache.get(&key_hash) {
+            if let Some(p) = cache.get(&key) {
                 return p.clone();
             }
         }
@@ -473,7 +480,7 @@ impl WgpuFrameBuffer {
         server
             .pipeline_cache
             .borrow_mut()
-            .insert(key_hash, pipeline.clone());
+            .insert(key, pipeline.clone());
         pipeline
     }
 
