@@ -738,7 +738,7 @@ impl Editor {
     pub fn new_with_settings(startup_data: Option<StartupData>, settings: Settings) -> Self {
         // Useful for debugging purposes when users don't bother to mention editor version
         // they're using.
-        Log::info(format!("Editor version: {}", &*EDITOR_VERSION));
+        Log::info(format!("Editor version: {}", *EDITOR_VERSION));
 
         let (log_message_sender, log_message_receiver) = channel();
 

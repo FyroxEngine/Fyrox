@@ -140,12 +140,11 @@ fn find_distinct_ancestor_names<'a>(
     graph: &'a Graph,
 ) -> Option<Vec<&'a str>> {
     for i in 1.. {
-        if let Some(names) = get_ancestor_names(node_names, i, graph) {
+        {
+            let names = get_ancestor_names(node_names, i, graph)?;
             if !contains_duplicate_name(names.as_slice()) {
                 return Some(names);
             }
-        } else {
-            return None;
         }
     }
     None
@@ -158,10 +157,9 @@ fn get_ancestor_names<'a>(
 ) -> Option<Vec<&'a str>> {
     let mut result: Vec<&'a str> = Vec::with_capacity(node_names.len());
     for n in node_names {
-        if let Some(n) = get_ancestor_name(n.handle, depth, graph) {
+        {
+            let n = get_ancestor_name(n.handle, depth, graph)?;
             result.push(n);
-        } else {
-            return None;
         }
     }
     Some(result)

@@ -1484,7 +1484,7 @@ pub trait SceneGraph: 'static {
 
             // Lastly, remap handles. We can't do this in single pass because there could
             // be cross references.
-            for (_, handle) in old_new_mapping.inner().iter() {
+            for handle in old_new_mapping.inner().values() {
                 old_new_mapping.remap_inheritable_handles(
                     self.node_mut(*handle),
                     &[TypeId::of::<UntypedResource>()],

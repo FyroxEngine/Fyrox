@@ -114,6 +114,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_animation::machine::Parameter;
+use fyrox_core::parking_lot::MappedRwLockReadGuard;
 use fyrox_core::pool::ObjectOrVariant;
 use fyrox_texture::TextureResource;
 use std::{
@@ -960,5 +961,14 @@ impl PropertyEditorDefinitionContainer {
         &self,
     ) -> RwLockWriteGuard<FxHashMap<TypeId, PropertyEditorDefinitionContainerEntry>> {
         self.definitions.write()
+    }
+
+    pub fn get<T: Any>(
+        &self,
+    ) -> Option<MappedRwLockReadGuard<PropertyEditorDefinitionContainerEntry>> {
+        RwLockReadGuard::try_map(self.definitions.read(), |guard| {
+            guard.get(&TypeId::of::<T>())
+        })
+        .ok()
     }
 }

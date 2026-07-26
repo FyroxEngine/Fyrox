@@ -69,6 +69,9 @@ pub struct TypeArgs {
     #[darling(default)]
     pub clone_fn: Option<Path>,
 
+    #[darling(default)]
+    pub ignore_generics_type_uuid: bool,
+
     pub type_uuid: String,
 }
 

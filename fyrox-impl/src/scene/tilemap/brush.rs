@@ -218,7 +218,7 @@ impl TileMapBrushPage {
         world_transform: &Matrix4<f32>,
         color: Color,
     ) {
-        for (pos, _) in self.tiles.iter() {
+        for pos in self.tiles.keys() {
             draw_tile_outline(ctx, position + pos, world_transform, color);
         }
     }

@@ -453,13 +453,17 @@ impl<F: EntityGetter> AddOrRemoveHashMapEntryCommand<F> {
         let entity = some_or_return!((self.entity_getter)(ctx));
         entity.resolve_path_mut(&self.path, &mut |result| match result {
             Ok(entity) => match entity.as_hash_map_mut() {
-                Some(hash_map) => match hash_map.reflect_insert(
-                    self.key.try_clone_box().expect("the key must be cloneable"),
-                    self.value.take().unwrap(),
-                ) {
-                    Ok(_) => {}
-                    Err(_) => {}
-                },
+                Some(hash_map) => {
+                    if hash_map
+                        .reflect_insert(
+                            self.key.try_clone_box().expect("the key must be cloneable"),
+                            self.value.take().unwrap(),
+                        )
+                        .is_err()
+                    {
+                        err!("cannot insert in the hash map")
+                    }
+                }
                 None => {
                     err!("not a hash map")
                 }

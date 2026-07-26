@@ -114,7 +114,7 @@ impl UniformBufferCache {
     /// Returns the total amount of allocated uniforms buffers.
     pub fn alive_count(&self) -> usize {
         let mut count = 0;
-        for (_, set) in self.cache.borrow().iter() {
+        for set in self.cache.borrow().values() {
             count += set.buffers.len();
         }
         count

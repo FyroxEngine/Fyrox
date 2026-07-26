@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#![allow(clippy::type_complexity)]
+
 use crate::reflect::blank_reflect;
 use crate::reflect::Reflect;
 use std::collections::HashMap;

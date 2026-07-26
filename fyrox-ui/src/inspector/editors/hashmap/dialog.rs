@@ -95,7 +95,7 @@ impl<K: HashMapKey> Control for SelectHashMapKeyDialogWindow<K> {
         self.window.handle_routed_message(ui, message);
 
         if message.destination() == self.key_editor {
-            if let Some(definition) = self.property_editors.definitions().get(&TypeId::of::<K>()) {
+            if let Some(definition) = self.property_editors.get::<K>() {
                 if let Some(change) =
                     definition
                         .property_editor

@@ -1207,7 +1207,7 @@ pub struct SubGraph {
 
 fn remap_handles(old_new_mapping: &NodeHandleMap<UiNode>, ui: &mut UserInterface) {
     // Iterate over instantiated nodes and remap handles.
-    for (_, &new_node_handle) in old_new_mapping.inner().iter() {
+    for &new_node_handle in old_new_mapping.inner().values() {
         old_new_mapping.remap_handles(
             &mut ui.nodes[new_node_handle],
             &[TypeId::of::<UntypedResource>()],
