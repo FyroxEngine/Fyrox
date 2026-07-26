@@ -167,6 +167,7 @@ pub struct PipelineKey {
     has_color: bool,
     cull: u8,
     extra_vert_count: u8,
+    polygon_fill_mode: u8,
     /// Resource texture formats that determine the bind group layout.
     /// Ensures pipeline is recreated when texture formats change (e.g., R32Float is non-filterable).
     texture_resource_sample_types: Vec<(usize, wgpu::TextureSampleType)>,
@@ -256,6 +257,16 @@ impl WgpuFrameBuffer {
             .map(|(loc, fmt)| (*loc, sample_type_for_format(*fmt)))
             .collect();
 
+        let device_features = server.state.device.features();
+        let supports_line = device_features.contains(wgpu::Features::POLYGON_MODE_LINE);
+        let supports_point = device_features.contains(wgpu::Features::POLYGON_MODE_POINT);
+
+        let actual_polygon_mode = match server.polygon_fill_mode() {
+            fyrox_graphics::PolygonFillMode::Line if supports_line => wgpu::PolygonMode::Line,
+            fyrox_graphics::PolygonFillMode::Point if supports_point => wgpu::PolygonMode::Point,
+            _ => wgpu::PolygonMode::Fill,
+        };
+
         let key = PipelineKey {
             program_ptr: program as *const WgpuProgram as usize,
             color_formats: color_formats.to_vec(),
@@ -272,6 +283,11 @@ impl WgpuFrameBuffer {
                 None => 0,
             },
             extra_vert_count: all_layouts.len() as u8,
+            polygon_fill_mode: match actual_polygon_mode {
+                wgpu::PolygonMode::Point => 0,
+                wgpu::PolygonMode::Line => 1,
+                wgpu::PolygonMode::Fill => 2,
+            },
             texture_resource_sample_types: sample_types,
         };
         let key_hash = {
@@ -437,7 +453,9 @@ impl WgpuFrameBuffer {
                         strip_index_format: None,
                         front_face: wgpu::FrontFace::Ccw,
                         cull_mode: cull,
-                        ..Default::default()
+                        polygon_mode: actual_polygon_mode,
+                        unclipped_depth: false,
+                        conservative: false,
                     },
                     depth_stencil,
                     multisample: wgpu::MultisampleState {

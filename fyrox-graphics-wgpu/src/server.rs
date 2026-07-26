@@ -174,6 +174,8 @@ pub struct WgpuGraphicsServer {
     mipmap_bind_group_layout: wgpu::BindGroupLayout,
     /// Cached mipmap render pipelines, keyed by texture format.
     mipmap_pipeline_cache: RefCell<HashMap<wgpu::TextureFormat, wgpu::RenderPipeline>>,
+    /// Current polygon fill mode (Fill, Line, or Point). Baked into new pipelines.
+    polygon_fill_mode: Cell<PolygonFillMode>,
 }
 
 impl WgpuGraphicsServer {
@@ -250,9 +252,16 @@ impl WgpuGraphicsServer {
         }))
         .map_err(|e| FrameworkError::Custom(format!("No suitable WGPU adapter found: {e}")))?;
 
+        let adapter_features = adapter.features();
+        let mut required_features = wgpu::Features::empty();
+
+        if adapter_features.contains(wgpu::Features::POLYGON_MODE_LINE) {
+            required_features |= wgpu::Features::POLYGON_MODE_LINE;
+        }
+
         let (device, queue) = block_on(adapter.request_device(&wgpu::DeviceDescriptor {
             label: None,
-            required_features: wgpu::Features::empty(),
+            required_features,
             required_limits: if cfg!(target_arch = "wasm32") {
                 wgpu::Limits::downlevel_webgl2_defaults()
             } else {
@@ -368,6 +377,7 @@ impl WgpuGraphicsServer {
             mipmap_sampler,
             mipmap_bind_group_layout,
             mipmap_pipeline_cache: RefCell::new(HashMap::new()),
+            polygon_fill_mode: Cell::new(PolygonFillMode::Fill),
         });
 
         *server.weak_self.borrow_mut() = Some(Rc::downgrade(&server));
@@ -387,6 +397,10 @@ impl WgpuGraphicsServer {
     /// [`SamplerBindingType::NonFiltering`](wgpu::SamplerBindingType::NonFiltering).
     pub fn non_filtering_sampler(&self) -> &wgpu::Sampler {
         &self.non_filtering_sampler
+    }
+    /// Returns the current polygon fill mode. Baked into new render pipelines.
+    pub fn polygon_fill_mode(&self) -> PolygonFillMode {
+        self.polygon_fill_mode.get()
     }
 
     pub fn flush_active_pass(&self) {
@@ -634,8 +648,8 @@ impl GraphicsServer for WgpuGraphicsServer {
             max_lod_bias: 16.0,
         }
     }
-    fn set_polygon_fill_mode(&self, _face: PolygonFace, _mode: PolygonFillMode) {
-        Log::warn("set_polygon_fill_mode: wgpu requires pipeline recreation");
+    fn set_polygon_fill_mode(&self, _face: PolygonFace, mode: PolygonFillMode) {
+        self.polygon_fill_mode.set(mode);
     }
     fn generate_mipmap(&self, texture: &GpuTexture) {
         let Some(wtex) = texture.as_any().downcast_ref::<WgpuTexture>() else {
