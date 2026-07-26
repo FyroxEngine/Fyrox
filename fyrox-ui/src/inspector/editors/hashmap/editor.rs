@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::inspector::editors::PropertyEditorBuildContext;
 use crate::{
     button::{Button, ButtonBuilder, ButtonMessage},
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
@@ -29,62 +30,70 @@ use crate::{
                     SelectHashMapKeyDialogWindow, SelectHashMapKeyDialogWindowBuilder,
                     SelectHashMapKeyDialogWindowMessage,
                 },
-                HashMapKey,
+                HashMapKey, HashMapState, HashMapValue,
             },
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
         },
-        InspectorEnvironmentContainer, ObjectValue,
+        InspectorEnvironmentContainer,
     },
     message::{MessageData, UiMessage},
     widget::{Widget, WidgetBuilder},
     window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, Control, UiNode, UserInterface,
+    Control, UiNode, UserInterface, VerticalAlignment,
 };
 use fxhash::FxHashSet;
+use fyrox_core::reflect;
 use std::{
+    collections::HashMap,
     ops::{Deref, DerefMut},
     sync::Arc,
 };
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum HashMapPropertyEditorMessage {
-    ValueChanged {
-        key: ObjectValue,
-        message: UiMessage,
-    },
-    KeyChanged {
-        key: ObjectValue,
-        message: UiMessage,
-    },
-    Remove {
-        key: ObjectValue,
-    },
-    InsertDefault {
-        key: ObjectValue,
-    },
+pub enum HashMapPropertyEditorMessage<K, V, S>
+where
+    K: HashMapKey,
+    V: HashMapValue,
+    S: HashMapState,
+{
+    Update { hash_map: HashMap<K, V, S> },
+    ValueChanged { key: K, message: UiMessage },
+    KeyChanged { key: K, message: UiMessage },
+    Remove { key: K },
+    InsertDefault { key: K },
 }
-impl MessageData for HashMapPropertyEditorMessage {}
+impl<K, V, S> MessageData for HashMapPropertyEditorMessage<K, V, S>
+where
+    K: HashMapKey,
+    V: HashMapValue,
+    S: HashMapState,
+{
+}
 
 #[derive(Debug, Reflect, Visit, Clone, PartialEq)]
-#[reflect(
-    derived_type = "UiNode",
-    type_uuid = "1440dacb-19ae-425b-a1f4-9d73a1009e6a"
-)]
-pub struct Entry<K: HashMapKey> {
-    #[visit(skip)]
-    pub key: K,
-    pub key_hash: u64,
+#[reflect(type_uuid = "1440dacb-19ae-425b-a1f4-9d73a1009e6a")]
+pub struct Entry<V: HashMapValue> {
     pub key_editor: PropertyEditorInstance,
     pub value_editor: PropertyEditorInstance,
     pub remove: Handle<Button>,
+    #[visit(skip)]
+    pub value: V,
 }
 
 #[derive(Debug, Reflect, Visit, Clone)]
-#[reflect(type_uuid = "a36ed236-e6f6-4d98-a22e-73e6af38c29d", non_comparable)]
-pub struct HashMapPropertyEditor<K: HashMapKey> {
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "a36ed236-e6f6-4d98-a22e-73e6af38c29d",
+    non_comparable,
+    ignore_generics_type_uuid
+)]
+pub struct HashMapPropertyEditor<K, V, S>
+where
+    K: HashMapKey,
+    V: HashMapValue,
+    S: HashMapState,
+{
     widget: Widget,
-    #[visit(skip)]
-    entries: Vec<Entry<K>>,
     add: Handle<Button>,
     #[visit(skip)]
     #[reflect(hidden)]
@@ -93,9 +102,17 @@ pub struct HashMapPropertyEditor<K: HashMapKey> {
     #[reflect(hidden)]
     environment: Option<InspectorEnvironmentContainer>,
     dialog: Handle<SelectHashMapKeyDialogWindow<K>>,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    hash_map: HashMap<K, Entry<V>, S>,
 }
 
-impl<K: HashMapKey> Deref for HashMapPropertyEditor<K> {
+impl<K, V, S> Deref for HashMapPropertyEditor<K, V, S>
+where
+    K: HashMapKey,
+    V: HashMapValue,
+    S: HashMapState,
+{
     type Target = Widget;
 
     fn deref(&self) -> &Self::Target {
@@ -103,37 +120,45 @@ impl<K: HashMapKey> Deref for HashMapPropertyEditor<K> {
     }
 }
 
-impl<K: HashMapKey> DerefMut for HashMapPropertyEditor<K> {
+impl<K, V, S> DerefMut for HashMapPropertyEditor<K, V, S>
+where
+    K: HashMapKey,
+    V: HashMapValue,
+    S: HashMapState,
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<K: HashMapKey> Control for HashMapPropertyEditor<K> {
+impl<K, V, S> Control for HashMapPropertyEditor<K, V, S>
+where
+    K: HashMapKey,
+    V: HashMapValue,
+    S: HashMapState,
+{
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
-        for entry in self.entries.iter() {
+        for (key, entry) in self.hash_map.iter() {
             if message.destination() == entry.key_editor.editor() {
                 ui.post(
                     self.handle(),
-                    HashMapPropertyEditorMessage::KeyChanged {
-                        key: ObjectValue::new(entry.key.clone()),
+                    HashMapPropertyEditorMessage::<K, V, S>::KeyChanged {
+                        key: key.clone(),
                         message: message.clone(),
                     },
                 )
             } else if message.destination() == entry.value_editor.editor() {
                 ui.post(
                     self.handle(),
-                    HashMapPropertyEditorMessage::ValueChanged {
-                        key: ObjectValue::new(entry.key.clone()),
+                    HashMapPropertyEditorMessage::<K, V, S>::ValueChanged {
+                        key: key.clone(),
                         message: message.clone(),
                     },
                 )
             } else if let Some(ButtonMessage::Click) = message.data_from(entry.remove) {
                 ui.post(
                     self.handle(),
-                    HashMapPropertyEditorMessage::Remove {
-                        key: ObjectValue::new(entry.key.clone()),
-                    },
+                    HashMapPropertyEditorMessage::<K, V, S>::Remove { key: key.clone() },
                 )
             }
         }
@@ -147,12 +172,12 @@ impl<K: HashMapKey> Control for HashMapPropertyEditor<K> {
                 self.property_editors.clone(),
                 K::default(),
             )
-            .with_existing_keys(
-                self.entries
-                    .iter()
-                    .map(|e| e.key_hash)
-                    .collect::<FxHashSet<_>>(),
-            )
+            .with_existing_keys({
+                self.hash_map
+                    .keys()
+                    .map(|e| self.hash_map.hasher().hash_one(e))
+                    .collect::<FxHashSet<_>>()
+            })
             .with_environment(self.environment.clone())
             .build(&mut ui.build_ctx());
 
@@ -164,6 +189,11 @@ impl<K: HashMapKey> Control for HashMapPropertyEditor<K> {
                     focus_content: true,
                 },
             );
+        } else if let Some(HashMapPropertyEditorMessage::<K, V, S>::Update { hash_map: _ }) =
+            message.data_for(self.handle)
+        {
+            // TODO. Sync entries.
+            // self.hash_map = hash_map.clone();
         }
 
         self.widget.handle_routed_message(ui, message)
@@ -175,87 +205,209 @@ impl<K: HashMapKey> Control for HashMapPropertyEditor<K> {
         {
             ui.post(
                 self.handle(),
-                HashMapPropertyEditorMessage::InsertDefault {
-                    key: ObjectValue::new(key.clone()),
-                },
+                HashMapPropertyEditorMessage::<K, V, S>::InsertDefault { key: key.clone() },
             )
         }
     }
 }
 
-pub struct HashMapPropertyEditorBuilder<K: HashMapKey> {
+pub struct HashMapPropertyEditorBuilder<K, V, S>
+where
+    K: HashMapKey,
+    V: HashMapValue,
+    S: HashMapState,
+{
     widget_builder: WidgetBuilder,
-    entries: Vec<Entry<K>>,
-    property_editors: Arc<PropertyEditorDefinitionContainer>,
-    environment: Option<InspectorEnvironmentContainer>,
+    hash_map: HashMap<K, V, S>,
 }
 
-impl<K: HashMapKey> HashMapPropertyEditorBuilder<K> {
-    pub fn new(
-        widget_builder: WidgetBuilder,
-        property_editors: Arc<PropertyEditorDefinitionContainer>,
-    ) -> Self {
+fn create_key_editor<K>(
+    key: &K,
+    ctx: &mut PropertyEditorBuildContext,
+) -> Option<PropertyEditorInstance>
+where
+    K: HashMapKey,
+{
+    let key_property_editor = ctx.definition_container.get::<K>()?;
+
+    let property_info = ctx.property_info;
+
+    let key_name = reflect::make_hash_map_key(key);
+
+    let key_property_info = FieldRef {
+        metadata: &FieldMetadata {
+            name: &key_name,
+            display_name: &key_name,
+            read_only: property_info.read_only,
+            immutable_collection: property_info.immutable_collection,
+            min_value: property_info.min_value,
+            max_value: property_info.max_value,
+            step: property_info.step,
+            precision: property_info.precision,
+            tag: property_info.tag,
+            doc: property_info.doc,
+        },
+        value: key,
+    };
+
+    key_property_editor
+        .property_editor
+        .create_instance(PropertyEditorBuildContext {
+            build_context: ctx.build_context,
+            property_info: &key_property_info,
+            environment: ctx.environment.clone(),
+            definition_container: ctx.definition_container.clone(),
+            layer_index: ctx.layer_index,
+            generate_property_string_values: ctx.generate_property_string_values,
+            filter: ctx.filter.clone(),
+            name_column_width: ctx.name_column_width,
+            hide_name_column: ctx.hide_name_column,
+            base_path: ctx.base_path.clone(),
+            has_parent_object: ctx.has_parent_object,
+        })
+        .ok()
+}
+
+fn create_value_editor<V>(
+    key: &V,
+    ctx: &mut PropertyEditorBuildContext,
+) -> Option<PropertyEditorInstance>
+where
+    V: HashMapValue,
+{
+    let value_property_editor = ctx.definition_container.get::<V>()?;
+
+    let property_info = ctx.property_info;
+
+    let value_property_info = FieldRef {
+        metadata: &FieldMetadata {
+            name: property_info.name,
+            display_name: property_info.display_name,
+            read_only: property_info.read_only,
+            immutable_collection: property_info.immutable_collection,
+            min_value: property_info.min_value,
+            max_value: property_info.max_value,
+            step: property_info.step,
+            precision: property_info.precision,
+            tag: property_info.tag,
+            doc: property_info.doc,
+        },
+        value: key,
+    };
+
+    value_property_editor
+        .property_editor
+        .create_instance(PropertyEditorBuildContext {
+            build_context: ctx.build_context,
+            property_info: &value_property_info,
+            environment: ctx.environment.clone(),
+            definition_container: ctx.definition_container.clone(),
+            layer_index: ctx.layer_index,
+            generate_property_string_values: ctx.generate_property_string_values,
+            filter: ctx.filter.clone(),
+            name_column_width: ctx.name_column_width,
+            hide_name_column: ctx.hide_name_column,
+            base_path: ctx.base_path.clone(),
+            has_parent_object: ctx.has_parent_object,
+        })
+        .ok()
+}
+
+impl<K, V, S> HashMapPropertyEditorBuilder<K, V, S>
+where
+    K: HashMapKey,
+    V: HashMapValue,
+    S: HashMapState,
+{
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
-            entries: Default::default(),
-            property_editors,
-            environment: None,
+            hash_map: Default::default(),
         }
     }
 
-    pub fn with_entries(mut self, entries: Vec<Entry<K>>) -> Self {
-        self.entries = entries;
+    pub fn with_hash_map(mut self, hash_map: HashMap<K, V, S>) -> Self {
+        self.hash_map = hash_map;
         self
     }
 
-    pub fn with_environment(mut self, environment: InspectorEnvironmentContainer) -> Self {
-        self.environment = Some(environment);
-        self
-    }
-
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<HashMapPropertyEditor<K>> {
+    pub fn build(
+        self,
+        ctx: &mut PropertyEditorBuildContext,
+    ) -> Handle<HashMapPropertyEditor<K, V, S>> {
         let add = ButtonBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
             .with_text("Add...")
-            .build(ctx);
+            .build(ctx.build_context);
 
-        let children = self
-            .entries
-            .iter()
+        let hash_map = self
+            .hash_map
+            .into_iter()
             .enumerate()
-            .flat_map(|(i, e)| {
+            .filter_map(|(i, (key, value))| {
+                let key_editor_instance = create_key_editor(&key, ctx)?;
+                let value_editor_instance = create_value_editor(&value, ctx)?;
+                let remove = ButtonBuilder::new(
+                    WidgetBuilder::new()
+                        .with_width(24.0)
+                        .with_height(24.0)
+                        .with_vertical_alignment(VerticalAlignment::Center),
+                )
+                .with_text("-")
+                .build(ctx.build_context);
+
                 let row = i + 1; // "add" button occupies the first row
-                let key_editor = e.key_editor.editor();
-                let key_editor_ref = &mut ctx[key_editor];
+                let key_editor = key_editor_instance.editor();
+                let key_editor_ref = &mut ctx.build_context[key_editor];
                 key_editor_ref.set_row(row);
                 key_editor_ref.set_column(0);
-                let value_editor = e.value_editor.editor();
-                let value_editor_ref = &mut ctx[value_editor];
+                let value_editor = value_editor_instance.editor();
+                let value_editor_ref = &mut ctx.build_context[value_editor];
                 value_editor_ref.set_row(row);
                 value_editor_ref.set_column(1);
-                let remove_ref = &mut ctx[e.remove];
+                let remove_ref = &mut ctx.build_context[remove];
                 remove_ref.set_row(row);
                 remove_ref.set_column(2);
-                [key_editor, value_editor, e.remove.to_base()]
+                Some((
+                    key,
+                    Entry {
+                        key_editor: key_editor_instance,
+                        value_editor: value_editor_instance,
+                        remove,
+                        value,
+                    },
+                ))
             })
+            .collect::<HashMap<K, Entry<V>, S>>();
+
+        let children = hash_map
+            .values()
+            .flat_map(|entry| {
+                Some([
+                    entry.key_editor.editor(),
+                    entry.value_editor.editor(),
+                    entry.remove.to_base(),
+                ])
+            })
+            .flatten()
             .collect::<Vec<_>>();
 
         let grid = GridBuilder::new(WidgetBuilder::new().with_child(add).with_children(children))
             .add_row(Row::auto())
-            .add_rows(self.entries.iter().map(|_| Row::auto()).collect::<Vec<_>>())
+            .add_rows(hash_map.iter().map(|_| Row::auto()).collect::<Vec<_>>())
             .add_columns(vec![Column::auto(), Column::stretch(), Column::auto()])
-            .build(ctx);
+            .build(ctx.build_context);
 
-        ctx.add(HashMapPropertyEditor {
+        ctx.build_context.add(HashMapPropertyEditor {
             widget: self
                 .widget_builder
                 .with_child(grid)
                 .with_preview_messages(true)
-                .build(ctx),
-            entries: self.entries,
+                .build(ctx.build_context),
             add,
-            property_editors: self.property_editors,
-            environment: self.environment,
+            property_editors: ctx.definition_container.clone(),
+            environment: ctx.environment.clone(),
             dialog: Default::default(),
+            hash_map,
         })
     }
 }

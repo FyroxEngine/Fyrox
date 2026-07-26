@@ -21,24 +21,18 @@
 mod dialog;
 pub mod editor;
 
-use crate::inspector::ObjectValue;
 use crate::{
-    button::ButtonBuilder,
-    core::{
-        reflect::{self, prelude::*, FieldMetadata, FieldRef},
-        PhantomDataSendSync,
-    },
+    core::{reflect::prelude::*, PhantomDataSendSync},
     inspector::{
         editors::{
-            hashmap::editor::{Entry, HashMapPropertyEditorBuilder, HashMapPropertyEditorMessage},
+            hashmap::editor::{HashMapPropertyEditorBuilder, HashMapPropertyEditorMessage},
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldAction, HashMapAction, InspectorError, PropertyChanged,
+        FieldAction, HashMapAction, InspectorError, ObjectValue, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
     widget::WidgetBuilder,
-    VerticalAlignment,
 };
 use std::{
     any::TypeId,
@@ -53,8 +47,8 @@ impl<T: Reflect + Send + Eq + Hash + Clone + PartialEq + Default> HashMapKey for
 pub trait HashMapValue: Reflect + Clone + PartialEq + Default + Send {}
 impl<T: Reflect + Clone + PartialEq + Default + Send> HashMapValue for T {}
 
-pub trait HashMapState: BuildHasher + Clone + Debug + 'static {}
-impl<T: BuildHasher + Clone + Debug + 'static> HashMapState for T {}
+pub trait HashMapState: BuildHasher + Clone + Debug + PartialEq + Default + Send + 'static {}
+impl<T: BuildHasher + Clone + Debug + Send + PartialEq + Default + 'static> HashMapState for T {}
 
 pub struct HashMapPropertyEditorDefinition<K, V, S>
 where
@@ -96,98 +90,6 @@ where
     }
 }
 
-fn create_key_editor<K>(
-    key: &K,
-    ctx: &mut PropertyEditorBuildContext,
-) -> Option<PropertyEditorInstance>
-where
-    K: HashMapKey,
-{
-    let key_property_editor = ctx.definition_container.get::<K>()?;
-
-    let property_info = ctx.property_info;
-
-    let key_name = reflect::make_hash_map_key(key);
-
-    let key_property_info = FieldRef {
-        metadata: &FieldMetadata {
-            name: &key_name,
-            display_name: &key_name,
-            read_only: property_info.read_only,
-            immutable_collection: property_info.immutable_collection,
-            min_value: property_info.min_value,
-            max_value: property_info.max_value,
-            step: property_info.step,
-            precision: property_info.precision,
-            tag: property_info.tag,
-            doc: property_info.doc,
-        },
-        value: key,
-    };
-
-    key_property_editor
-        .property_editor
-        .create_instance(PropertyEditorBuildContext {
-            build_context: ctx.build_context,
-            property_info: &key_property_info,
-            environment: ctx.environment.clone(),
-            definition_container: ctx.definition_container.clone(),
-            layer_index: ctx.layer_index,
-            generate_property_string_values: ctx.generate_property_string_values,
-            filter: ctx.filter.clone(),
-            name_column_width: ctx.name_column_width,
-            hide_name_column: ctx.hide_name_column,
-            base_path: ctx.base_path.clone(),
-            has_parent_object: ctx.has_parent_object,
-        })
-        .ok()
-}
-
-fn create_value_editor<V>(
-    key: &V,
-    ctx: &mut PropertyEditorBuildContext,
-) -> Option<PropertyEditorInstance>
-where
-    V: HashMapValue,
-{
-    let value_property_editor = ctx.definition_container.get::<V>()?;
-
-    let property_info = ctx.property_info;
-
-    let value_property_info = FieldRef {
-        metadata: &FieldMetadata {
-            name: property_info.name,
-            display_name: property_info.display_name,
-            read_only: property_info.read_only,
-            immutable_collection: property_info.immutable_collection,
-            min_value: property_info.min_value,
-            max_value: property_info.max_value,
-            step: property_info.step,
-            precision: property_info.precision,
-            tag: property_info.tag,
-            doc: property_info.doc,
-        },
-        value: key,
-    };
-
-    value_property_editor
-        .property_editor
-        .create_instance(PropertyEditorBuildContext {
-            build_context: ctx.build_context,
-            property_info: &value_property_info,
-            environment: ctx.environment.clone(),
-            definition_container: ctx.definition_container.clone(),
-            layer_index: ctx.layer_index,
-            generate_property_string_values: ctx.generate_property_string_values,
-            filter: ctx.filter.clone(),
-            name_column_width: ctx.name_column_width,
-            hide_name_column: ctx.hide_name_column,
-            base_path: ctx.base_path.clone(),
-            has_parent_object: ctx.has_parent_object,
-        })
-        .ok()
-}
-
 impl<K, V, S> PropertyEditorDefinition for HashMapPropertyEditorDefinition<K, V, S>
 where
     K: HashMapKey,
@@ -204,48 +106,33 @@ where
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let hash_map = ctx.property_info.cast_value::<HashMap<K, V, S>>()?;
 
-        let entries = hash_map
-            .iter()
-            .filter_map(|(key, value)| {
-                Some(Entry {
-                    key: key.clone(),
-                    key_hash: hash_map.hasher().hash_one(key),
-                    key_editor: create_key_editor(key, &mut ctx)?,
-                    value_editor: create_value_editor(value, &mut ctx)?,
-                    remove: ButtonBuilder::new(
-                        WidgetBuilder::new()
-                            .with_width(24.0)
-                            .with_height(24.0)
-                            .with_vertical_alignment(VerticalAlignment::Center),
-                    )
-                    .with_text("-")
-                    .build(ctx.build_context),
-                })
-            })
-            .collect::<Vec<_>>();
-
-        let editor = HashMapPropertyEditorBuilder::new(
-            WidgetBuilder::new(),
-            ctx.definition_container.clone(),
-        )
-        .with_entries(entries)
-        .build(ctx.build_context)
-        .to_base();
+        let editor = HashMapPropertyEditorBuilder::<K, V, S>::new(WidgetBuilder::new())
+            .with_hash_map(hash_map.clone())
+            .build(&mut ctx)
+            .to_base();
 
         Ok(PropertyEditorInstance::Simple { editor })
     }
 
     fn create_message(
         &self,
-        _ctx: PropertyEditorMessageContext,
+        ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
-        // TODO
-        Ok(None)
+        let hash_map = ctx.property_info.cast_value::<HashMap<K, V, S>>()?;
+
+        // TODO: Very unoptimal solution. It is probably better to access the editor instance and
+        //       see which entries it has and update/remove/add respective.
+        Ok(Some(UiMessage::for_widget(
+            ctx.instance,
+            HashMapPropertyEditorMessage::Update {
+                hash_map: hash_map.clone(),
+            },
+        )))
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
         if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(msg) = ctx.message.data::<HashMapPropertyEditorMessage>() {
+            if let Some(msg) = ctx.message.data::<HashMapPropertyEditorMessage<K, V, S>>() {
                 match msg {
                     HashMapPropertyEditorMessage::ValueChanged { key, message } => {
                         if let Some(definition) = ctx.definition_container.get::<V>() {
@@ -253,7 +140,7 @@ where
                                 name: ctx.name.to_string(),
                                 action: FieldAction::HashMapAction(Box::new(
                                     HashMapAction::ValueChanged {
-                                        key: key.clone(),
+                                        key: ObjectValue::new(key.clone()),
                                         action: definition
                                             .property_editor
                                             .translate_message(PropertyEditorTranslationContext {
@@ -276,7 +163,7 @@ where
                                 name: ctx.name.to_string(),
                                 action: FieldAction::HashMapAction(Box::new(
                                     HashMapAction::KeyChanged {
-                                        key: key.clone(),
+                                        key: ObjectValue::new(key.clone()),
                                         action: definition
                                             .property_editor
                                             .translate_message(PropertyEditorTranslationContext {
@@ -297,7 +184,7 @@ where
                         return Some(PropertyChanged {
                             name: ctx.name.to_string(),
                             action: FieldAction::HashMapAction(Box::new(HashMapAction::Remove {
-                                key: key.clone(),
+                                key: ObjectValue::new(key.clone()),
                             })),
                         });
                     }
@@ -305,10 +192,13 @@ where
                         return Some(PropertyChanged {
                             name: ctx.name.to_string(),
                             action: FieldAction::HashMapAction(Box::new(HashMapAction::Insert {
-                                key: key.clone(),
+                                key: ObjectValue::new(key.clone()),
                                 value: ObjectValue::new(V::default()),
                             })),
                         });
+                    }
+                    HashMapPropertyEditorMessage::Update { .. } => {
+                        // Sync only.
                     }
                 }
             }
