@@ -60,6 +60,7 @@ use crate::{
         tilemap::TileMap,
     },
 };
+use fyrox_core::err;
 pub use rapier2d::geometry;
 use rapier2d::math::{Pose2, Vec2};
 use rapier2d::parry::query::DefaultQueryDispatcher;
@@ -78,6 +79,7 @@ use rapier2d::{
     parry::query::ShapeCastOptions,
     pipeline::{DebugRenderPipeline, EventHandler, PhysicsPipeline},
 };
+use std::panic::AssertUnwindSafe;
 use std::{
     cmp::Ordering,
     fmt::{Debug, Formatter},
@@ -740,20 +742,28 @@ impl PhysicsWorld {
                 max_ccd_substeps: self.integration_parameters.max_ccd_substeps as usize,
             };
 
-            self.pipeline.step(
-                (*self.gravity).into(),
-                &integration_parameters,
-                &mut self.islands,
-                &mut self.broad_phase,
-                &mut self.narrow_phase,
-                &mut self.bodies,
-                &mut self.colliders,
-                &mut self.joints.set,
-                &mut self.multibody_joints.set,
-                &mut self.ccd_solver,
-                &(),
-                &*self.event_handler,
-            );
+            if let Err(message) = std::panic::catch_unwind(AssertUnwindSafe(|| {
+                self.pipeline.step(
+                    (*self.gravity).into(),
+                    &integration_parameters,
+                    &mut self.islands,
+                    &mut self.broad_phase,
+                    &mut self.narrow_phase,
+                    &mut self.bodies,
+                    &mut self.colliders,
+                    &mut self.joints.set,
+                    &mut self.multibody_joints.set,
+                    &mut self.ccd_solver,
+                    &(),
+                    &*self.event_handler,
+                );
+            })) {
+                if let Some(message) = message.downcast_ref::<&str>() {
+                    err!("A critical error occurred during physics step. Reason: {message}");
+                } else {
+                    err!("A critical error occurred during physics step. The reason is unknown.");
+                }
+            }
         }
 
         self.performance_statistics.step_time += instant::Instant::now() - time;

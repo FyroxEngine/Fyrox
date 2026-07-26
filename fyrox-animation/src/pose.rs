@@ -39,7 +39,11 @@ impl<T: EntityId> NodePose<T> {
     /// Performs a blending of the current with some other pose. See [`super::value::TrackValue::blend_with`] docs for more
     /// info.
     pub fn blend_with(&mut self, other: &NodePose<T>, weight: f32) {
-        self.values.blend_with(&other.values, weight)
+        if self.values.values.is_empty() {
+            other.values.values.clone_into(&mut self.values.values)
+        } else {
+            self.values.blend_with(&other.values, weight)
+        }
     }
 }
 
@@ -55,7 +59,16 @@ impl<T: EntityId> AnimationPose<T> {
     pub fn clone_into(&self, dest: &mut AnimationPose<T>) {
         dest.reset();
         for (handle, local_pose) in self.poses.iter() {
-            dest.poses.insert(*handle, local_pose.clone());
+            match dest.poses.entry(*handle) {
+                Entry::Occupied(mut entry) => {
+                    let values = &mut entry.get_mut().values.values;
+                    values.clear();
+                    values.extend_from_slice(&local_pose.values.values);
+                }
+                Entry::Vacant(entry) => {
+                    entry.insert(local_pose.clone());
+                }
+            }
         }
         dest.root_motion.clone_from(&self.root_motion);
     }
@@ -107,9 +120,12 @@ impl<T: EntityId> AnimationPose<T> {
         }
     }
 
-    /// Clears the pose.
+    /// Clears the pose by dropping the calculated values for each node pose. Does **NOT** clear the
+    /// poses container itself.
     pub fn reset(&mut self) {
-        self.poses.clear();
+        for pose in self.poses.values_mut() {
+            pose.values.values.clear();
+        }
     }
 
     /// Returns a reference to inner node pose map.

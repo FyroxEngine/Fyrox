@@ -228,7 +228,7 @@ pub trait BaseScript: Visit + Reflect + Send + Debug + 'static {
     ///     core::uuid::uuid,
     /// };
     ///
-    /// #[derive(Reflect, Visit, Debug, Clone)]
+    /// #[derive(Reflect, Visit, PartialEq, Debug, Clone)]
     /// // Use https://www.uuidgenerator.net/ to generate new UUID or an extension for your IDE.
     /// #[reflect(type_uuid = "4cfbe65e-a2c1-474f-b123-57516d80b1f8")]
     /// struct MyScript { }
@@ -335,7 +335,7 @@ pub struct ScriptContext<'a, 'b, 'c> {
     /// #     script::{ScriptContext, ScriptTrait},
     /// # };
     /// #
-    /// #[derive(Visit, Reflect, Default, Debug)]
+    /// #[derive(Visit, Reflect, PartialEq, Default, Debug)]
     /// #[reflect(non_cloneable, type_uuid = "bf06a1f4-5e76-4560-a260-e64187a9484b")]
     /// struct Game {
     ///     player_name: String,
@@ -343,7 +343,7 @@ pub struct ScriptContext<'a, 'b, 'c> {
     ///
     /// impl Plugin for Game {}
     ///
-    /// #[derive(Visit, Reflect, Clone, Default, Debug)]
+    /// #[derive(Visit, Reflect, PartialEq, Clone, Default, Debug)]
     /// #[reflect(type_uuid = "f732654e-5e3c-4b52-9a3d-44c0cfb14e18")]
     /// struct MyScript {}
     ///
@@ -660,7 +660,7 @@ pub trait ScriptTrait: BaseScript {
     ///
     /// struct Message;
     ///
-    /// #[derive(Reflect, Visit, Debug, Clone)]
+    /// #[derive(Reflect, Visit, PartialEq, Debug, Clone)]
     /// #[reflect(type_uuid = "2649187c-46c2-485f-bf62-c9d3aef0c432")]
     /// struct MyScript {}
     ///

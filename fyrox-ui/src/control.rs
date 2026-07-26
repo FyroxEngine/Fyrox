@@ -195,7 +195,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// #
     /// # use fyrox_graph::SceneGraph;
     /// #
-    /// #[derive(Clone, Visit, Reflect, Debug)]
+    /// #[derive(Clone, Visit, Reflect, PartialEq, Debug)]
     /// #[reflect(derived_type = "UiNode", type_uuid = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd")]
     /// struct MyWidget {
     ///     widget: Widget,
@@ -265,7 +265,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// # };
     /// #
     /// #
-    /// #[derive(Clone, Visit, Reflect, Debug)]
+    /// #[derive(Clone, Visit, PartialEq, Reflect, Debug)]
     /// #[reflect(derived_type = "UiNode", type_uuid = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd")]
     /// struct MyWidget {
     ///     widget: Widget,
@@ -322,7 +322,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// # };
     /// #
     /// #
-    /// #[derive(Clone, Visit, Reflect, Debug)]
+    /// #[derive(Clone, Visit, PartialEq, Reflect, Debug)]
     /// #[reflect(derived_type = "UiNode", type_uuid = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd")]
     /// struct MyWidget {
     ///     widget: Widget,

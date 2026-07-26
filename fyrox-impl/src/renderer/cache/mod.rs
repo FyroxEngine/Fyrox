@@ -239,7 +239,7 @@ impl DynamicSurfaceCache {
         unique_id: u64,
         layout: &[VertexAttributeDescriptor],
     ) -> SurfaceResource {
-        if let Some(surface) = self.cache.get(&unique_id) {
+        if let Some(surface) = self.cache.get_mut(&unique_id) {
             surface.clone()
         } else {
             let default_capacity = 4096;
@@ -265,6 +265,10 @@ impl DynamicSurfaceCache {
 
             surface
         }
+    }
+
+    pub fn alive_count(&self) -> usize {
+        self.cache.len()
     }
 
     /// Clears the surfaces in the cache, does **not** clear the cache itself.

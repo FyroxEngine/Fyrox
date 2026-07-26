@@ -27,9 +27,6 @@
 #![allow(clippy::doc_lazy_continuation)]
 #![allow(mismatched_lifetime_syntaxes)]
 
-#[macro_use]
-extern crate memoffset;
-
 pub use arrayvec;
 pub use byteorder;
 pub use nalgebra as algebra;

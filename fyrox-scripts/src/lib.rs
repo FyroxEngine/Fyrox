@@ -35,7 +35,7 @@ pub mod camera;
 /// #     scene::Scene,
 /// # };
 /// #
-/// # #[derive(Visit, Reflect, Debug)]
+/// # #[derive(Visit, Reflect, PartialEq, Debug)]
 /// # #[reflect(non_cloneable, type_uuid = "38a3d4cf-65e1-4e86-a730-365804c51cff")]
 /// # struct Game;
 /// #

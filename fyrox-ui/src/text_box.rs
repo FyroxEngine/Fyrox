@@ -400,10 +400,12 @@ impl Deref for TextBoxFilter {
 /// # };
 /// # use std::sync::Arc;
 /// # use fyrox_core::parking_lot::Mutex;
+/// # use fyrox_ui::text_box::TextBoxFilter;
+///
 /// fn create_text_box(ui: &mut UserInterface) -> Handle<TextBox> {
 ///     TextBoxBuilder::new(WidgetBuilder::new())
 ///         // Specify a filter that will pass only digits.
-///         .with_filter(Arc::new(Mutex::new(|c: char| c.is_ascii_digit())))
+///         .with_filter(TextBoxFilter(Arc::new(Mutex::new(|c: char| c.is_ascii_digit()))))
 ///         .build(&mut ui.build_ctx())
 /// }
 /// ```

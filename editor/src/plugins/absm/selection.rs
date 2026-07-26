@@ -240,7 +240,7 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
             if !args.is_inheritable() {
                 Log::err(format!("Failed to handle a property {}", args.path()))
             }
-        } else if group.len() == 1 {
+        } else {
             sender.do_command_group(group);
         }
     }
@@ -305,9 +305,7 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
             vec![]
         };
 
-        if group.len() == 1 {
-            sender.do_command_group(group);
-        }
+        sender.do_command_group(group);
     }
 
     fn provide_docs(&self, _controller: &dyn SceneController, _engine: &Engine) -> Option<String> {

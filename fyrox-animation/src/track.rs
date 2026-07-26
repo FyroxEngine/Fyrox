@@ -28,6 +28,11 @@ use crate::{
 };
 use std::fmt::Debug;
 
+/// A set of indices of keys, where each index points on the right side of a curve span. Each index
+/// corresponds in the array to a curve in the curve set. It is used to remember last curve fetching
+/// position to eliminate searching of a span for most cases.
+pub type HintContainer = [usize; 4];
+
 /// Track binding contains a handle to a target object that will be animated by an animation track.
 /// Additionally, the binding could be disabled to temporarily prevent animation from affecting the
 /// target.
@@ -39,6 +44,9 @@ pub struct TrackBinding<T: EntityId> {
     /// A target bound to a track. The actual track id is stored as a key in hash map of bindings in
     /// the animation.
     pub target: T,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    pub(super) fetch_hints: HintContainer,
 }
 
 impl<T: EntityId> Default for TrackBinding<T> {
@@ -46,6 +54,7 @@ impl<T: EntityId> Default for TrackBinding<T> {
         Self {
             enabled: true,
             target: Default::default(),
+            fetch_hints: Default::default(),
         }
     }
 }
@@ -56,6 +65,7 @@ impl<T: EntityId> TrackBinding<T> {
         Self {
             enabled: true,
             target,
+            fetch_hints: Default::default(),
         }
     }
 
@@ -171,8 +181,8 @@ impl Track {
     }
 
     /// Tries to get a new property value at a given time position.
-    pub fn fetch(&self, time: f32) -> Option<BoundValue> {
-        self.frames.fetch(time).map(|v| BoundValue {
+    pub fn fetch(&self, time: f32, fetch_hints: &mut HintContainer) -> Option<BoundValue> {
+        self.frames.fetch(time, fetch_hints).map(|v| BoundValue {
             binding: self.binding.clone(),
             value: v,
         })

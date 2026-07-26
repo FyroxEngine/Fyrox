@@ -144,6 +144,8 @@ pub struct Statistics {
     pub texture_cache_size: usize,
     /// The total number of vertex+index buffers pairs in the geometry cache.
     pub geometry_cache_size: usize,
+    /// The total number of cached dynamic buffers.
+    pub dynamic_surface_cache_size: usize,
     /// The total number of shaders in the shaders cache.
     pub shader_cache_size: usize,
     /// The total number of uniform buffers in the cache.
@@ -171,6 +173,7 @@ impl Display for Statistics {
         let pipeline_stats = &self.pipeline;
         let texture_cache_size = self.texture_cache_size;
         let geometry_cache_size = self.geometry_cache_size;
+        let dynamic_surface_cache_size = self.dynamic_surface_cache_size;
         let shader_cache_size = self.shader_cache_size;
         let uniform_buffer_cache_size = self.uniform_buffer_cache_size;
         write!(
@@ -183,6 +186,7 @@ impl Display for Statistics {
             {pipeline_stats}\n\
             Texture Cache Size: {texture_cache_size}\n\
             Geometry Cache Size: {geometry_cache_size}\n\
+            Dynamic Surface Cache Size: {dynamic_surface_cache_size}\n\
             Shader Cache Size: {shader_cache_size}\n
             Uniform Buffer Cache Size: {uniform_buffer_cache_size}\n",
         )
@@ -206,6 +210,7 @@ impl Default for Statistics {
             frames_per_second: 0,
             texture_cache_size: 0,
             geometry_cache_size: 0,
+            dynamic_surface_cache_size: 0,
             shader_cache_size: 0,
             uniform_buffer_cache_size: 0,
             frame_counter: 0,

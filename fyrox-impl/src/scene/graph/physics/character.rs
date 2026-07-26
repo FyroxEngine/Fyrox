@@ -36,9 +36,10 @@ use rapier3d::{
     math::Pose,
     na::Isometry3,
 };
+use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// A length measure used for various options of a character controller.
-#[derive(Visit, Reflect, Copy, Clone, Debug, PartialEq)]
+#[derive(Visit, Reflect, Copy, Clone, Debug, PartialEq, AsRefStr, EnumString, VariantNames)]
 #[reflect(type_uuid = "9b0843a3-dea4-46ed-91fa-7c4831302340")]
 pub enum CharacterLength {
     /// The length is specified relative to some of the character shape’s size.
@@ -128,7 +129,7 @@ impl Into<rapier2d::control::CharacterAutostep> for CharacterAutostep {
 /// you control movement directly rather than applying forces.
 ///
 /// TODO: Example
-#[derive(Visit, Reflect, Debug, Clone)]
+#[derive(Visit, Reflect, PartialEq, Debug, Clone)]
 #[reflect(type_uuid = "42995595-7e06-41b5-b8fc-8aa9b7feaf36", non_comparable)]
 pub struct KinematicCharacterController {
     /// The direction that goes "up". Used to determine where the floor is, and the floor’s angle.

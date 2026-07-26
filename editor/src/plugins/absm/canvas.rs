@@ -68,6 +68,10 @@ pub(crate) struct DragContext {
 #[reflect(type_uuid = "488b0b46-11ed-4eef-b58b-a52f3a71dd84")]
 pub(crate) enum Mode {
     Normal,
+    BoxSelection {
+        initial_cursor_position: Vector2<f32>,
+        current_cursor_position: Vector2<f32>,
+    },
     Drag {
         drag_context: DragContext,
     },
@@ -102,7 +106,6 @@ pub(crate) enum AbsmCanvasMessage {
         source_node: Handle<UiNode>,
         dest_nodes: Vec<Handle<UiNode>>,
     },
-
     SelectionChanged(Vec<Handle<UiNode>>),
     ForceSyncDependentObjects,
 }
@@ -364,7 +367,21 @@ impl Control for AbsmCanvas {
                     &self.material,
                 );
             }
-
+            Mode::BoxSelection {
+                initial_cursor_position,
+                current_cursor_position,
+            } => {
+                let pt_a = self.point_to_local_space(*initial_cursor_position);
+                let pt_b = self.point_to_local_space(*current_cursor_position);
+                ctx.push_rect(&Rect::from_points(pt_a, pt_b), 1.0);
+                ctx.commit(
+                    self.clip_bounds(),
+                    Brush::Solid(Color::WHITE),
+                    CommandTexture::None,
+                    &self.material,
+                    None,
+                );
+            }
             _ => {}
         }
     }
@@ -401,14 +418,14 @@ impl Control for AbsmCanvas {
 
         if let Some(SelectableMessage::Select(true)) = message.data() {
             if message.direction() == MessageDirection::FromWidget && !message.handled() {
-                let selected_node = message.destination();
+                let selected_entity = message.destination();
 
                 let new_selection = if ui.keyboard_modifiers().control {
                     let mut selection = self.selection.clone();
-                    selection.push(selected_node);
+                    selection.push(selected_entity);
                     selection
                 } else {
-                    vec![selected_node]
+                    vec![selected_entity]
                 };
 
                 self.set_selection(&new_selection, ui);
@@ -445,7 +462,21 @@ impl Control for AbsmCanvas {
                                 drag_context: self.make_drag_context(ui),
                             }
                         } else {
-                            self.set_selection(&[], ui);
+                            let transition_clicked = self
+                                .fetch_dest_node_component::<TransitionView>(
+                                    message.destination(),
+                                    ui,
+                                )
+                                .is_some();
+
+                            if !transition_clicked {
+                                self.mode = Mode::BoxSelection {
+                                    initial_cursor_position: ui.cursor_position(),
+                                    current_cursor_position: ui.cursor_position(),
+                                };
+                                ui.capture_mouse(self.handle());
+                                self.invalidate_visual();
+                            }
                         }
                     }
 
@@ -509,7 +540,30 @@ impl Control for AbsmCanvas {
 
                         self.mode = Mode::Normal;
                     }
-
+                    Mode::BoxSelection {
+                        initial_cursor_position,
+                        ref mut current_cursor_position,
+                    } => {
+                        ui.release_mouse_capture();
+                        *current_cursor_position = ui.cursor_position();
+                        let rect =
+                            Rect::from_points(initial_cursor_position, *current_cursor_position);
+                        let mut selection = if ui.keyboard_modifiers().control {
+                            self.selection.clone()
+                        } else {
+                            Vec::new()
+                        };
+                        for &child in self.children() {
+                            if ui[child].is_or_has_field::<Selectable>()
+                                && ui.rect_test(child, rect).next().is_some()
+                            {
+                                selection.push(child);
+                            }
+                        }
+                        self.set_selection(&selection, ui);
+                        self.invalidate_visual();
+                        self.mode = Mode::Normal;
+                    }
                     _ => {}
                 }
             }
@@ -541,6 +595,13 @@ impl Control for AbsmCanvas {
                     ref mut dest_pos, ..
                 } => {
                     *dest_pos = local_cursor_position;
+                }
+                Mode::BoxSelection {
+                    ref mut current_cursor_position,
+                    ..
+                } => {
+                    *current_cursor_position = ui.cursor_position();
+                    self.invalidate_visual();
                 }
                 _ => (),
             }

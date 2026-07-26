@@ -840,6 +840,7 @@ pub struct RenderDataBundleStorage {
     pub bundles: Vec<RenderDataBundle>,
     pub light_sources: Vec<LightSource>,
     pub environment_map: Option<TextureResource>,
+    last_bundle_id: u64,
 }
 
 pub struct RenderDataBundleStorageOptions {
@@ -862,6 +863,7 @@ impl RenderDataBundleStorage {
             bundles: Default::default(),
             light_sources: Default::default(),
             environment_map: None,
+            last_bundle_id: 0,
         }
     }
 
@@ -885,6 +887,7 @@ impl RenderDataBundleStorage {
             bundles: Vec::with_capacity(capacity),
             light_sources: Default::default(),
             environment_map: None,
+            last_bundle_id: 0,
         };
 
         let frustum = Frustum::from_view_projection_matrix(
@@ -1181,27 +1184,24 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
         node_handle: Handle<Node>,
         func: &mut dyn FnMut(VertexBufferRefMut, TriangleBufferRefMut),
     ) {
+        let mut layout_hasher = FxHasher::default();
+        layout.hash(&mut layout_hasher);
+        let layout_id = layout_hasher.finish();
+
         let mut hasher = FxHasher::default();
         hasher.write_u64(material.key());
-        layout.hash(&mut hasher);
         hasher.write_u64(sort_index);
         hasher.write_u32(render_path as u32);
-        let key = hasher.finish();
+        let bundle_id = hasher.finish();
 
-        let bundle = if let Some(&bundle_index) = self.bundle_map.get(&key) {
+        let bundle = if let Some(&bundle_index) = self.bundle_map.get(&bundle_id) {
             self.bundles.get_mut(bundle_index).unwrap()
         } else {
-            self.bundle_map.insert(key, self.bundles.len());
+            self.bundle_map.insert(bundle_id, self.bundles.len());
             self.bundles.push(RenderDataBundle {
-                data: dynamic_surface_cache.get_or_create(key, layout),
+                data: dynamic_surface_cache.get_or_create(layout_id, layout),
                 sort_index,
-                instances: vec![
-                    // Each bundle must have at least one instance to be rendered.
-                    SurfaceInstanceData {
-                        node_handle,
-                        ..Default::default()
-                    },
-                ],
+                instances: Vec::default(),
                 material: material.clone(),
                 render_path,
                 time_to_live: Default::default(),
@@ -1215,7 +1215,31 @@ impl RenderDataBundleStorageTrait for RenderDataBundleStorage {
         let vertex_buffer = data.vertex_buffer.modify();
         let triangle_buffer = data.geometry_buffer.modify();
 
+        let offset = triangle_buffer.len();
+
         func(vertex_buffer, triangle_buffer);
+
+        let emitted_triangles_count = data.geometry_buffer.len() - offset;
+        if self.last_bundle_id != bundle_id {
+            let instance = SurfaceInstanceData {
+                node_handle,
+                element_range: ElementRange::Specific {
+                    offset,
+                    count: emitted_triangles_count,
+                },
+                ..Default::default()
+            };
+            bundle.instances.push(instance);
+            self.last_bundle_id = bundle_id;
+        } else {
+            let instance = bundle
+                .instances
+                .last_mut()
+                .expect("bundle must contain at least one instance!");
+            if let ElementRange::Specific { ref mut count, .. } = instance.element_range {
+                *count += emitted_triangles_count;
+            }
+        }
     }
 
     /// Adds a new surface instance to the storage. The method will automatically put the instance in the appropriate

@@ -251,22 +251,57 @@ impl Curve {
     }
 
     #[inline]
-    fn fetch_at<I>(&self, location: f32, interpolator: I) -> f32
+    fn fetch_at<I>(&self, location: f32, hint: &mut usize, interpolator: I) -> f32
     where
         I: FnOnce(&CurveKey, &CurveKey, f32) -> f32,
     {
+        #[inline(always)]
+        fn interpolate_keys<I>(
+            left: &CurveKey,
+            right: &CurveKey,
+            location: f32,
+            interpolator: I,
+        ) -> f32
+        where
+            I: FnOnce(&CurveKey, &CurveKey, f32) -> f32,
+        {
+            let t = (location - left.location) / (right.location - left.location);
+            interpolator(left, right, t)
+        }
+
         if let (Some(first), Some(last)) = (self.keys.first(), self.keys.last()) {
             if location <= first.location {
+                *hint = 0;
                 first.value
             } else if location >= last.location {
+                *hint = self.keys().len().saturating_sub(1);
                 last.value
             } else {
+                // Try to predict the span using the given hint.
+                if let (Some(predicted_left), Some(predicted_right)) = (
+                    self.keys.get((*hint).saturating_sub(1)),
+                    self.keys.get(*hint),
+                ) {
+                    if location >= predicted_left.location && location < predicted_right.location {
+                        return interpolate_keys(
+                            predicted_left,
+                            predicted_right,
+                            location,
+                            interpolator,
+                        );
+                    } else {
+                        // TODO: Usually curve fetching is continuous, so we should also check the
+                        // next or previous span here, this will completely eliminate binary search
+                        // below on case when playback time step is lower than mid-key time distance.
+                    }
+                }
+
                 // Use binary search for multiple spans.
-                let pos = self.keys.partition_point(|k| k.location < location);
-                let left = self.keys.get(pos.saturating_sub(1)).unwrap();
-                let right = self.keys.get(pos).unwrap();
-                let t = (location - left.location) / (right.location - left.location);
-                interpolator(left, right, t)
+                *hint = self.keys.partition_point(|k| k.location < location);
+                let span_end = *hint;
+                let left = self.keys.get(span_end.saturating_sub(1)).unwrap();
+                let right = self.keys.get(span_end).unwrap();
+                interpolate_keys(left, right, location, interpolator)
             }
         } else {
             0.0
@@ -274,13 +309,13 @@ impl Curve {
     }
 
     #[inline]
-    pub fn value_at(&self, location: f32) -> f32 {
-        self.fetch_at(location, |a, b, t| a.interpolate(b, t))
+    pub fn value_at(&self, location: f32, hint: &mut usize) -> f32 {
+        self.fetch_at(location, hint, |a, b, t| a.interpolate(b, t))
     }
 
     #[inline]
-    pub fn angle_at(&self, location: f32) -> f32 {
-        self.fetch_at(location, |a, b, t| a.interpolate_angles(b, t))
+    pub fn angle_at(&self, location: f32, hint: &mut usize) -> f32 {
+        self.fetch_at(location, hint, |a, b, t| a.interpolate_angles(b, t))
     }
 
     pub fn bounds(&self) -> Rect<f32> {
@@ -396,21 +431,21 @@ mod test {
         let mut curve = Curve::default();
 
         // Test fetching from empty curve.
-        assert_eq!(curve.value_at(0.0), 0.0);
+        assert_eq!(curve.value_at(0.0, &mut 0), 0.0);
 
         curve.add_key(CurveKey::new(0.0, 1.0, CurveKeyKind::Linear));
 
         // One-key curves must always return its single key value.
-        assert_eq!(curve.value_at(-1.0), 1.0);
-        assert_eq!(curve.value_at(1.0), 1.0);
-        assert_eq!(curve.value_at(0.0), 1.0);
+        assert_eq!(curve.value_at(-1.0, &mut 0), 1.0);
+        assert_eq!(curve.value_at(1.0, &mut 0), 1.0);
+        assert_eq!(curve.value_at(0.0, &mut 0), 1.0);
 
         curve.add_key(CurveKey::new(1.0, 0.0, CurveKeyKind::Linear));
 
         // Two-key curves must always use interpolation.
-        assert_eq!(curve.value_at(-1.0), 1.0);
-        assert_eq!(curve.value_at(2.0), 0.0);
-        assert_eq!(curve.value_at(0.5), 0.5);
+        assert_eq!(curve.value_at(-1.0, &mut 0), 1.0);
+        assert_eq!(curve.value_at(2.0, &mut 0), 0.0);
+        assert_eq!(curve.value_at(0.5, &mut 0), 0.5);
 
         // Add one more key and do more checks.
         curve.add_key(CurveKey::new(2.0, 1.0, CurveKeyKind::Linear));
@@ -420,15 +455,15 @@ mod test {
         assert!(curve.keys[1].location <= curve.keys[2].location);
 
         // Check generic out-of-bounds fetching.
-        assert_eq!(curve.value_at(-1.0), 1.0); // Left side oob
-        assert_eq!(curve.value_at(3.0), 1.0); // Right side oob.
+        assert_eq!(curve.value_at(-1.0, &mut 0), 1.0); // Left side oob
+        assert_eq!(curve.value_at(3.0, &mut 0), 1.0); // Right side oob.
 
         // Check edge cases.
-        assert_eq!(curve.value_at(0.0), 1.0); // Left edge.
-        assert_eq!(curve.value_at(2.0), 1.0); // Right edge.
+        assert_eq!(curve.value_at(0.0, &mut 0), 1.0); // Left edge.
+        assert_eq!(curve.value_at(2.0, &mut 0), 1.0); // Right edge.
 
         // Check interpolation.
-        assert_eq!(curve.value_at(0.5), 0.5);
+        assert_eq!(curve.value_at(0.5, &mut 0), 0.5);
 
         // Check id.
         let id = Uuid::new_v4();

@@ -371,6 +371,196 @@ pub fn make_command(
         // Must be handled outside, there is not enough context and it near to impossible to create universal reversion
         // for InheritableVariable<T>.
         PropertyAction::Revert => None,
+        PropertyAction::InsertItemByKey { key, value } => {
+            Some(Command::new(AddOrRemoveHashMapEntryCommand::new(
+                property_changed.path(),
+                key,
+                entity_getter,
+                Some(value),
+            )))
+        }
+        PropertyAction::RemoveItemByKey { key } => Some(Command::new(
+            AddOrRemoveHashMapEntryCommand::new(property_changed.path(), key, entity_getter, None),
+        )),
+        PropertyAction::KeyChanged { old_key, new_key } => {
+            Some(Command::new(ChangeHashMapKeyCommand {
+                old_key,
+                new_key,
+                path: property_changed.path(),
+                entity_getter,
+            }))
+        }
+    }
+}
+
+struct AddOrRemoveHashMapEntryCommand<F: EntityGetter> {
+    key: Box<dyn Reflect>,
+    path: String,
+    entity_getter: F,
+    value: Option<Box<dyn Reflect>>,
+    add: bool,
+}
+
+impl<F: EntityGetter> Debug for AddOrRemoveHashMapEntryCommand<F> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "RemoveHashMapEntryCommand")
+    }
+}
+
+impl<F: EntityGetter> AddOrRemoveHashMapEntryCommand<F> {
+    fn new(
+        path: String,
+        key: Box<dyn Reflect>,
+        entity_getter: F,
+        value: Option<Box<dyn Reflect>>,
+    ) -> Self {
+        Self {
+            key,
+            path,
+            entity_getter,
+            add: value.is_some(),
+            value,
+        }
+    }
+
+    fn remove(&mut self, ctx: &mut dyn CommandContext) {
+        let entity = some_or_return!((self.entity_getter)(ctx));
+        entity.resolve_path_mut(&self.path, &mut |result| match result {
+            Ok(entity) => match entity.as_hash_map_mut() {
+                Some(hash_map) => match hash_map.reflect_remove(&*self.key) {
+                    Some(value) => {
+                        self.value = Some(value);
+                    }
+                    None => {
+                        err!("cannot remove non-existent value!")
+                    }
+                },
+                None => {
+                    err!("not a hash map")
+                }
+            },
+            Err(reason) => {
+                err!(
+                    "Failed to set property {}! Invalid path {:?}!",
+                    self.path,
+                    reason
+                );
+            }
+        })
+    }
+
+    fn add(&mut self, ctx: &mut dyn CommandContext) {
+        let entity = some_or_return!((self.entity_getter)(ctx));
+        entity.resolve_path_mut(&self.path, &mut |result| match result {
+            Ok(entity) => match entity.as_hash_map_mut() {
+                Some(hash_map) => match hash_map.reflect_insert(
+                    self.key.try_clone_box().expect("the key must be cloneable"),
+                    self.value.take().unwrap(),
+                ) {
+                    Ok(_) => {}
+                    Err(_) => {}
+                },
+                None => {
+                    err!("not a hash map")
+                }
+            },
+            Err(reason) => {
+                err!(
+                    "Failed to set property {}! Invalid path {:?}!",
+                    self.path,
+                    reason
+                );
+            }
+        })
+    }
+}
+
+impl<F: EntityGetter> CommandTrait for AddOrRemoveHashMapEntryCommand<F> {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        if self.add {
+            format!("Add {} Hash Map Entry", self.path)
+        } else {
+            format!("Remove {} Hash Map Entry", self.path)
+        }
+    }
+
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        if self.add {
+            self.add(context);
+        } else {
+            self.remove(context)
+        }
+    }
+
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        if self.add {
+            self.remove(context)
+        } else {
+            self.add(context)
+        }
+    }
+}
+
+struct ChangeHashMapKeyCommand<F: EntityGetter> {
+    old_key: Box<dyn Reflect>,
+    new_key: Box<dyn Reflect>,
+    path: String,
+    entity_getter: F,
+}
+
+impl<F: EntityGetter> ChangeHashMapKeyCommand<F> {
+    fn swap(&mut self, ctx: &mut dyn CommandContext) {
+        let entity = some_or_return!((self.entity_getter)(ctx));
+        entity.resolve_path_mut(&self.path, &mut |result| match result {
+            Ok(entity) => match entity.as_hash_map_mut() {
+                Some(hash_map) => {
+                    match hash_map.reflect_replace_key(
+                        &*self.old_key,
+                        self.new_key
+                            .try_clone_box()
+                            .expect("the key must be cloneable"),
+                    ) {
+                        Ok(_) => {
+                            std::mem::swap(&mut self.new_key, &mut self.old_key);
+                        }
+                        Err(new_key) => {
+                            self.new_key = new_key;
+                            err!("cannot insert a key because it is occupied!")
+                        }
+                    }
+                }
+                None => {
+                    err!("not a hash map")
+                }
+            },
+            Err(reason) => {
+                err!(
+                    "Failed to set property {}! Invalid path {:?}!",
+                    self.path,
+                    reason
+                );
+            }
+        });
+    }
+}
+
+impl<F: EntityGetter> Debug for ChangeHashMapKeyCommand<F> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ChangeHashMapKeyCommand")
+    }
+}
+
+impl<F: EntityGetter> CommandTrait for ChangeHashMapKeyCommand<F> {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        format!("Change {} Hash Map Key", self.path)
+    }
+
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        self.swap(context)
     }
 }
 

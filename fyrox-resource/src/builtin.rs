@@ -96,7 +96,7 @@ pub struct UntypedBuiltInResource {
 /// };
 /// use std::{error::Error, path::Path};
 ///
-/// #[derive(Default, Debug, Clone, Visit, Reflect)]
+/// #[derive(Default, Debug, PartialEq, Clone, Visit, Reflect)]
 /// #[reflect(type_uuid = "00d036bb-fbed-47f7-94e3-b3fce93dee17")]
 /// struct MyResource {
 ///     some_data: String,
