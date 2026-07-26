@@ -119,6 +119,9 @@ pub struct TypeInfo {
 /// subtype for the `Type`.
 /// - `#[reflect(type_uuid = "5989667c-ca43-46ca-b906-ae4319f659a5")]` - assigns a unique identifier
 /// for the type. See the respective section below for more info.
+/// - `#[reflect(ignore_generics_type_uuid)]` - prevents the proc-macro from combining the UUIDs of
+/// generic arguments with the `type_uuid` of the type itself. Off by default (combines uuids by
+/// default).
 ///
 /// ### Direct vs Indirect Access
 ///
@@ -179,6 +182,10 @@ pub struct TypeInfo {
 /// project, otherwise the engine can be confused by two or more types with the same UUID. It is
 /// especially important in case of trait object serialization, where the UUID is used to link the
 /// actual type with its representation in a serialized form.
+///
+/// By default, the proc-macro tries to combine the given UUID with the uuids of each generic type.
+/// Which in its turn applies `Reflect` trait bound to each generic argument. If it is not desired
+/// behavior, use `#[reflect(ignore_generics_type_uuid)]` option.
 ///
 /// ## Additional Trait Bounds
 ///

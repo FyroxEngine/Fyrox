@@ -456,7 +456,7 @@ fn gen_impl(
     };
 
     let type_uuid_str = ty_args.type_uuid.as_str();
-    let type_uuid = if ty_args.generics.params.is_empty() {
+    let type_uuid = if ty_args.generics.params.is_empty() || ty_args.ignore_generics_type_uuid {
         quote! { uuid!(#type_uuid_str) }
     } else {
         // Try to combine uuids from types and consts.
