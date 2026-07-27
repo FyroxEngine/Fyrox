@@ -22,18 +22,28 @@ mod dialog;
 pub mod editor;
 
 use crate::{
+    button::ButtonBuilder,
     core::{reflect::prelude::*, PhantomDataSendSync},
     inspector::{
         editors::{
-            hashmap::editor::{HashMapPropertyEditorBuilder, HashMapPropertyEditorMessage},
-            PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
+            hashmap::editor::{
+                Entry, HashMapPropertyEditor, HashMapPropertyEditorBuilder,
+                HashMapPropertyEditorMessage,
+            },
+            PropertyEditorBuildContext, PropertyEditorDefinition,
+            PropertyEditorDefinitionContainer, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldAction, HashMapAction, InspectorError, ObjectValue, PropertyChanged,
+        FieldAction, HashMapAction, InspectorEnvironmentContainer, InspectorError, ObjectValue,
+        PropertyChanged, PropertyFilter,
     },
-    message::{MessageDirection, UiMessage},
+    message::{DeliveryMode, MessageDirection, UiMessage},
     widget::WidgetBuilder,
+    BuildContext, VerticalAlignment,
 };
+use fyrox_core::reflect;
+use fyrox_graph::SceneGraph;
+use std::sync::Arc;
 use std::{
     any::TypeId,
     collections::HashMap,
@@ -90,6 +100,199 @@ where
     }
 }
 
+fn create_key_editor<'a, 'b, K>(
+    key: &K,
+    environment: Option<InspectorEnvironmentContainer>,
+    definition_container: Arc<PropertyEditorDefinitionContainer>,
+    property_info: &FieldRef<'a, 'b>,
+    ctx: &mut BuildContext,
+    layer_index: usize,
+    generate_property_string_values: bool,
+    filter: PropertyFilter,
+    name_column_width: f32,
+    hide_name_column: bool,
+    base_path: String,
+    has_parent_object: bool,
+) -> Option<PropertyEditorInstance>
+where
+    K: HashMapKey,
+{
+    let key_property_editor = definition_container.get::<K>()?;
+
+    let key_name = reflect::make_hash_map_key(key);
+
+    let key_property_info = FieldRef {
+        metadata: &FieldMetadata {
+            name: &key_name,
+            display_name: &key_name,
+            read_only: property_info.read_only,
+            immutable_collection: property_info.immutable_collection,
+            min_value: property_info.min_value,
+            max_value: property_info.max_value,
+            step: property_info.step,
+            precision: property_info.precision,
+            tag: property_info.tag,
+            doc: property_info.doc,
+        },
+        value: key,
+    };
+
+    key_property_editor
+        .property_editor
+        .create_instance(PropertyEditorBuildContext {
+            build_context: ctx,
+            property_info: &key_property_info,
+            environment,
+            definition_container: definition_container.clone(),
+            layer_index,
+            generate_property_string_values,
+            filter,
+            name_column_width,
+            hide_name_column,
+            base_path,
+            has_parent_object,
+        })
+        .ok()
+}
+
+fn create_value_editor<'a, 'b, V>(
+    key: &V,
+    environment: Option<InspectorEnvironmentContainer>,
+    definition_container: Arc<PropertyEditorDefinitionContainer>,
+    property_info: &FieldRef<'a, 'b>,
+    ctx: &mut BuildContext,
+    layer_index: usize,
+    generate_property_string_values: bool,
+    filter: PropertyFilter,
+    name_column_width: f32,
+    hide_name_column: bool,
+    base_path: String,
+    has_parent_object: bool,
+) -> Option<PropertyEditorInstance>
+where
+    V: HashMapValue,
+{
+    let value_property_editor = definition_container.get::<V>()?;
+
+    let value_property_info = FieldRef {
+        metadata: &FieldMetadata {
+            name: property_info.name,
+            display_name: property_info.display_name,
+            read_only: property_info.read_only,
+            immutable_collection: property_info.immutable_collection,
+            min_value: property_info.min_value,
+            max_value: property_info.max_value,
+            step: property_info.step,
+            precision: property_info.precision,
+            tag: property_info.tag,
+            doc: property_info.doc,
+        },
+        value: key,
+    };
+
+    value_property_editor
+        .property_editor
+        .create_instance(PropertyEditorBuildContext {
+            build_context: ctx,
+            property_info: &value_property_info,
+            environment,
+            definition_container: definition_container.clone(),
+            layer_index,
+            generate_property_string_values,
+            filter,
+            name_column_width,
+            hide_name_column,
+            base_path,
+            has_parent_object,
+        })
+        .ok()
+}
+
+fn make_entries<'a, 'b, K, V, S>(
+    hash_map: &HashMap<K, V, S>,
+    environment: Option<InspectorEnvironmentContainer>,
+    definition_container: Arc<PropertyEditorDefinitionContainer>,
+    property_info: &FieldRef<'a, 'b>,
+    ctx: &mut BuildContext,
+    layer_index: usize,
+    generate_property_string_values: bool,
+    filter: PropertyFilter,
+    name_column_width: f32,
+    hide_name_column: bool,
+    base_path: String,
+    has_parent_object: bool,
+) -> HashMap<K, Entry<V>, S>
+where
+    K: HashMapKey,
+    V: HashMapValue,
+    S: HashMapState,
+{
+    hash_map
+        .iter()
+        .enumerate()
+        .filter_map(|(i, (key, value))| {
+            let key_editor_instance = create_key_editor(
+                key,
+                environment.clone(),
+                definition_container.clone(),
+                property_info,
+                ctx,
+                layer_index,
+                generate_property_string_values,
+                filter.clone(),
+                name_column_width,
+                hide_name_column,
+                base_path.clone(),
+                has_parent_object,
+            )?;
+            let value_editor_instance = create_value_editor(
+                value,
+                environment.clone(),
+                definition_container.clone(),
+                property_info,
+                ctx,
+                layer_index,
+                generate_property_string_values,
+                filter.clone(),
+                name_column_width,
+                hide_name_column,
+                base_path.clone(),
+                has_parent_object,
+            )?;
+            let remove = ButtonBuilder::new(
+                WidgetBuilder::new()
+                    .with_width(24.0)
+                    .with_height(24.0)
+                    .with_vertical_alignment(VerticalAlignment::Center),
+            )
+            .with_text("-")
+            .build(ctx);
+
+            let row = i + 1; // "add" button occupies the first row
+            let key_editor = key_editor_instance.editor();
+            let key_editor_ref = &mut ctx[key_editor];
+            key_editor_ref.set_row(row);
+            key_editor_ref.set_column(0);
+            let value_editor = value_editor_instance.editor();
+            let value_editor_ref = &mut ctx[value_editor];
+            value_editor_ref.set_row(row);
+            value_editor_ref.set_column(1);
+            let remove_ref = &mut ctx[remove];
+            remove_ref.set_row(row);
+            remove_ref.set_column(2);
+            Some((
+                key.clone(),
+                Entry {
+                    key_editor: key_editor_instance,
+                    value_editor: value_editor_instance,
+                    remove,
+                    value: value.clone(),
+                },
+            ))
+        })
+        .collect::<HashMap<K, Entry<V>, S>>()
+}
+
 impl<K, V, S> PropertyEditorDefinition for HashMapPropertyEditorDefinition<K, V, S>
 where
     K: HashMapKey,
@@ -102,13 +305,26 @@ where
 
     fn create_instance(
         &self,
-        mut ctx: PropertyEditorBuildContext,
+        ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let hash_map = ctx.property_info.cast_value::<HashMap<K, V, S>>()?;
 
         let editor = HashMapPropertyEditorBuilder::<K, V, S>::new(WidgetBuilder::new())
-            .with_hash_map(hash_map.clone())
-            .build(&mut ctx)
+            .with_hash_map(make_entries(
+                hash_map,
+                ctx.environment.clone(),
+                ctx.definition_container.clone(),
+                ctx.property_info,
+                ctx.build_context,
+                ctx.layer_index + 1,
+                ctx.generate_property_string_values,
+                ctx.filter,
+                ctx.name_column_width,
+                ctx.hide_name_column,
+                ctx.base_path,
+                ctx.has_parent_object,
+            ))
+            .build(ctx.definition_container, ctx.environment, ctx.build_context)
             .to_base();
 
         Ok(PropertyEditorInstance::Simple { editor })
@@ -118,16 +334,135 @@ where
         &self,
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
-        let hash_map = ctx.property_info.cast_value::<HashMap<K, V, S>>()?;
+        let PropertyEditorMessageContext {
+            instance,
+            ui,
+            property_info,
+            definition_container,
+            layer_index,
+            environment,
+            generate_property_string_values,
+            filter,
+            name_column_width,
+            hide_name_column,
+            base_path,
+            has_parent_object,
+        } = ctx;
 
-        // TODO: Very unoptimal solution. It is probably better to access the editor instance and
-        //       see which entries it has and update/remove/add respective.
-        Ok(Some(UiMessage::for_widget(
-            ctx.instance,
-            HashMapPropertyEditorMessage::Update {
-                hash_map: hash_map.clone(),
-            },
-        )))
+        let instance_ref =
+            if let Some(instance) = ui.node(instance).cast::<HashMapPropertyEditor<K, V, S>>() {
+                instance
+            } else {
+                return Err(InspectorError::Custom(
+                    "Property editor is not HashMapPropertyEditor!".to_string(),
+                ));
+            };
+
+        let hash_map = property_info.cast_value::<HashMap<K, V, S>>()?;
+
+        if hash_map.len() != instance_ref.hash_map.len() {
+            // Re-create items.
+            let items = make_entries(
+                hash_map,
+                environment,
+                definition_container,
+                property_info,
+                &mut ui.build_ctx(),
+                layer_index + 1,
+                generate_property_string_values,
+                filter,
+                name_column_width,
+                hide_name_column,
+                base_path,
+                has_parent_object,
+            );
+
+            Ok(Some(UiMessage::for_widget(
+                instance,
+                HashMapPropertyEditorMessage::Entries { hash_map: items },
+            )))
+        } else {
+            for ((_, entry), (key, value)) in
+                instance_ref.hash_map.clone().iter().zip(hash_map.iter())
+            {
+                if let Some(key_property_editor_definition) = definition_container.get::<K>() {
+                    let key_property_info = FieldRef {
+                        metadata: &FieldMetadata {
+                            name: "",
+                            display_name: "",
+                            read_only: property_info.read_only,
+                            immutable_collection: property_info.immutable_collection,
+                            min_value: property_info.min_value,
+                            max_value: property_info.max_value,
+                            step: property_info.step,
+                            precision: property_info.precision,
+                            tag: property_info.tag,
+                            doc: property_info.doc,
+                        },
+                        value: key,
+                    };
+
+                    if let Some(message) = key_property_editor_definition
+                        .property_editor
+                        .create_message(PropertyEditorMessageContext {
+                            property_info: &key_property_info,
+                            environment: environment.clone(),
+                            definition_container: definition_container.clone(),
+                            instance: entry.key_editor.editor(),
+                            layer_index: layer_index + 1,
+                            ui,
+                            generate_property_string_values,
+                            filter: filter.clone(),
+                            name_column_width,
+                            hide_name_column,
+                            base_path: base_path.clone(),
+                            has_parent_object,
+                        })?
+                    {
+                        ui.send_message(message.with_delivery_mode(DeliveryMode::SyncOnly))
+                    }
+                }
+                if let Some(value_property_editor_definition) = definition_container.get::<V>() {
+                    let value_property_info = FieldRef {
+                        metadata: &FieldMetadata {
+                            name: "",
+                            display_name: "",
+                            read_only: property_info.read_only,
+                            immutable_collection: property_info.immutable_collection,
+                            min_value: property_info.min_value,
+                            max_value: property_info.max_value,
+                            step: property_info.step,
+                            precision: property_info.precision,
+                            tag: property_info.tag,
+                            doc: property_info.doc,
+                        },
+                        value,
+                    };
+
+                    if let Some(message) = value_property_editor_definition
+                        .property_editor
+                        .create_message(PropertyEditorMessageContext {
+                            property_info: &value_property_info,
+                            environment: environment.clone(),
+                            definition_container: definition_container.clone(),
+                            instance: entry.value_editor.editor(),
+                            layer_index: layer_index + 1,
+                            ui,
+                            generate_property_string_values,
+                            filter: filter.clone(),
+                            name_column_width,
+                            hide_name_column,
+                            base_path: base_path.clone(),
+                            has_parent_object,
+                        })?
+                    {
+                        ui.send_message(message.with_delivery_mode(DeliveryMode::SyncOnly))
+                    }
+                }
+            }
+
+            Ok(None)
+        }
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
@@ -197,7 +532,7 @@ where
                             })),
                         });
                     }
-                    HashMapPropertyEditorMessage::Update { .. } => {
+                    HashMapPropertyEditorMessage::Entries { .. } => {
                         // Sync only.
                     }
                 }
