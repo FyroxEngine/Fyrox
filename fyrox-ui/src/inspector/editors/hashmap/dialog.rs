@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::message::MessageData;
 use crate::{
     button::{Button, ButtonBuilder, ButtonMessage},
     control_trait_proxy_impls,
@@ -31,11 +30,11 @@ use crate::{
         },
         InspectorEnvironmentContainer, PropertyAction,
     },
-    message::UiMessage,
+    message::{MessageData, UiMessage},
     stack_panel::StackPanelBuilder,
     widget::{Widget, WidgetBuilder},
     window::{Window, WindowBuilder, WindowMessage},
-    BuildContext, Control, Orientation, Thickness, UiNode, UserInterface,
+    BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
 };
 use fxhash::FxHashSet;
 use std::{
@@ -205,17 +204,30 @@ impl<K: HashMapKey> SelectHashMapKeyDialogWindowBuilder<K> {
             })
             .unwrap_or_default();
 
-        let ok = ButtonBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
-            .with_text("OK")
-            .build(ctx);
-        let cancel = ButtonBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
-            .with_text("Cancel")
-            .build(ctx);
+        let ok = ButtonBuilder::new(
+            WidgetBuilder::new()
+                .with_height(24.0)
+                .with_width(60.0)
+                .with_margin(Thickness::uniform(1.0)),
+        )
+        .with_text("OK")
+        .build(ctx);
+        let cancel = ButtonBuilder::new(
+            WidgetBuilder::new()
+                .with_height(24.0)
+                .with_width(60.0)
+                .with_margin(Thickness::uniform(1.0)),
+        )
+        .with_text("Cancel")
+        .build(ctx);
+
         let buttons = StackPanelBuilder::new(
             WidgetBuilder::new()
+                .with_margin(Thickness::uniform(1.0))
                 .on_row(1)
                 .with_child(ok)
-                .with_child(cancel),
+                .with_child(cancel)
+                .with_horizontal_alignment(HorizontalAlignment::Right),
         )
         .with_orientation(Orientation::Horizontal)
         .build(ctx);

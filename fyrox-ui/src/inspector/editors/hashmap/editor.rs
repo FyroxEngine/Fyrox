@@ -166,10 +166,10 @@ where
 
         if let Some(ButtonMessage::Click) = message.data_from(self.add) {
             self.dialog = SelectHashMapKeyDialogWindowBuilder::new(
-                WindowBuilder::new(WidgetBuilder::new())
+                WindowBuilder::new(WidgetBuilder::new().with_width(250.0).with_height(80.0))
                     .with_remove_on_close(true)
                     .open(false)
-                    .with_title(WindowTitle::text("Select Key Value")),
+                    .with_title(WindowTitle::text("Enter New Key Value")),
                 self.property_editors.clone(),
                 K::default(),
             )
