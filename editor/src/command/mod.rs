@@ -432,11 +432,11 @@ impl<F: EntityGetter> AddOrRemoveHashMapEntryCommand<F> {
                         self.value = Some(value);
                     }
                     None => {
-                        err!("cannot remove non-existent value!")
+                        err!("Cannot remove non-existent value!")
                     }
                 },
                 None => {
-                    err!("not a hash map")
+                    err!("Not a hash map")
                 }
             },
             Err(reason) => {
@@ -453,19 +453,23 @@ impl<F: EntityGetter> AddOrRemoveHashMapEntryCommand<F> {
         let entity = some_or_return!((self.entity_getter)(ctx));
         entity.resolve_path_mut(&self.path, &mut |result| match result {
             Ok(entity) => match entity.as_hash_map_mut() {
-                Some(hash_map) => {
-                    if hash_map
-                        .reflect_insert(
-                            self.key.try_clone_box().expect("the key must be cloneable"),
-                            self.value.take().unwrap(),
-                        )
-                        .is_err()
-                    {
-                        err!("cannot insert in the hash map")
+                Some(hash_map) => match self.key.try_clone_box() {
+                    Some(key) => match self.value.take() {
+                        Some(value) => {
+                            if hash_map.reflect_insert(key, value).is_err() {
+                                err!("Cannot insert a key-value pair in the hash map!")
+                            }
+                        }
+                        None => {
+                            err!("The value must be present!")
+                        }
+                    },
+                    None => {
+                        err!("The key must be cloneable")
                     }
-                }
+                },
                 None => {
-                    err!("not a hash map")
+                    err!("Not a hash map!")
                 }
             },
             Err(reason) => {
@@ -517,24 +521,23 @@ impl<F: EntityGetter> ChangeHashMapKeyCommand<F> {
         let entity = some_or_return!((self.entity_getter)(ctx));
         entity.resolve_path_mut(&self.path, &mut |result| match result {
             Ok(entity) => match entity.as_hash_map_mut() {
-                Some(hash_map) => {
-                    match hash_map.reflect_replace_key(
-                        &*self.old_key,
-                        self.new_key
-                            .try_clone_box()
-                            .expect("the key must be cloneable"),
-                    ) {
+                Some(hash_map) => match self.new_key.try_clone_box() {
+                    Some(new_key) => match hash_map.reflect_replace_key(&*self.old_key, new_key) {
                         Ok(_) => {
                             std::mem::swap(&mut self.new_key, &mut self.old_key);
                         }
                         Err(new_key) => {
                             self.new_key = new_key;
-                            err!("cannot insert a key because it is occupied!")
+
+                            err!("Cannot insert a key because it is occupied!")
                         }
+                    },
+                    None => {
+                        err!("The key must be cloneable!")
                     }
-                }
+                },
                 None => {
-                    err!("not a hash map")
+                    err!("Not a hash map!")
                 }
             },
             Err(reason) => {
