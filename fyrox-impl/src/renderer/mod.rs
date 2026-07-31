@@ -363,7 +363,8 @@ impl RenderDataContainer {
     }
 }
 
-/// Creates a view-projection matrix that projects unit quad a screen with the specified viewport.
+/// Creates a view-projection matrix that projects unit quad to screen with the specified viewport.
+/// Uses OpenGL-style orthographic parameters (bottom=h, top=0).
 pub fn make_viewport_matrix(viewport: Rect<i32>) -> Matrix4<f32> {
     Matrix4::new_orthographic(
         0.0,
@@ -377,6 +378,36 @@ pub fn make_viewport_matrix(viewport: Rect<i32>) -> Matrix4<f32> {
         viewport.h() as f32,
         0.0,
     ))
+}
+
+/// Viewport matrix for deferred passes that reconstruct world positions from G-Buffer depth.
+///
+/// In wgpu, the viewport Y-axis is flipped relative to OpenGL (Y=0 at top vs bottom).
+/// Deferred passes that use `S_UnProject` with depth need the orthographic bottom/top
+/// swapped so that texture coordinates match the G-Buffer's pixel layout.
+///
+/// Non-deferred passes (bloom, FXAA, HDR) should use [`make_viewport_matrix`] instead.
+#[cfg(feature = "backend_wgpu")]
+pub fn make_deferred_viewport_matrix(viewport: Rect<i32>) -> Matrix4<f32> {
+    Matrix4::new_orthographic(
+        0.0,
+        viewport.w() as f32,
+        0.0,
+        viewport.h() as f32,
+        -1.0,
+        1.0,
+    ) * Matrix4::new_nonuniform_scaling(&Vector3::new(
+        viewport.w() as f32,
+        viewport.h() as f32,
+        0.0,
+    ))
+}
+
+/// Viewport matrix for deferred passes that reconstruct world positions from G-Buffer depth.
+/// On OpenGL this is identical to [`make_viewport_matrix`].
+#[cfg(not(feature = "backend_wgpu"))]
+pub fn make_deferred_viewport_matrix(viewport: Rect<i32>) -> Matrix4<f32> {
+    make_viewport_matrix(viewport)
 }
 
 /// See module docs.
