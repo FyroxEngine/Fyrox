@@ -43,8 +43,10 @@ use std::rc::{Rc, Weak};
 /// Graphics server capabilities.
 #[derive(Debug)]
 pub struct ServerCapabilities {
-    /// The maximum size in basic machine units of a uniform block, which must be at least 16384.
-    pub max_uniform_block_size: usize,
+    /// The maximum size in bytes of a single uniform buffer binding in a bind group.
+    /// This corresponds to `GL_MAX_UNIFORM_BLOCK_SIZE` (OpenGL) and
+    /// `max_uniform_buffer_binding_size` (wgpu). Must be at least 16384.
+    pub max_uniform_buffer_binding_size: usize,
     /// The minimum required alignment for uniform buffer sizes and offset. The initial value is 1.
     pub uniform_buffer_offset_alignment: usize,
     /// The maximum, absolute value of the texture level-of-detail bias. The value must be at least

@@ -702,7 +702,7 @@ impl GraphicsServer for WgpuGraphicsServer {
     fn capabilities(&self) -> ServerCapabilities {
         let limits = self.state.device.limits();
         ServerCapabilities {
-            max_uniform_block_size: limits.max_uniform_buffer_binding_size as usize,
+            max_uniform_buffer_binding_size: limits.max_uniform_buffer_binding_size as usize,
             uniform_buffer_offset_alignment: limits.min_uniform_buffer_offset_alignment as usize,
             max_lod_bias: 16.0,
         }

@@ -21,7 +21,7 @@
 //! A set of textures of certain kinds. See [`RendererResources`] docs for more info.
 
 use crate::{
-    core::{algebra::Matrix4, array_as_u8_slice},
+    core::algebra::Matrix4,
     graphics::{
         buffer::GpuBufferDescriptor,
         buffer::{BufferKind, BufferUsage, GpuBuffer},
@@ -272,9 +272,7 @@ impl RendererResources {
                     kind: BufferKind::Uniform,
                     usage: BufferUsage::StaticDraw,
                 })?;
-                const SIZE: usize = ShaderDefinition::MAX_BONE_MATRICES * size_of::<Matrix4<f32>>();
-                let zeros = [0.0; SIZE];
-                buffer.write_data(array_as_u8_slice(&zeros))?;
+                buffer.write_data(&vec![0u8; ShaderDefinition::MAX_BONE_MATRICES * size_of::<Matrix4<f32>>()])?;
                 buffer
             },
             linear_clamp_sampler: server.create_sampler(GpuSamplerDescriptor {

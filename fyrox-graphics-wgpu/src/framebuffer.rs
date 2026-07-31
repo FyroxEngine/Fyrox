@@ -1069,13 +1069,16 @@ fn create_bind_group(
                     // Hash the WgpuBuffer thin pointer + binding + data usage
                     hasher.write_usize(wb as *const WgpuBuffer as usize);
                     hasher.write_u32(*loc as u32);
+                    // SAFETY: No write_data call is active at this point (we're building
+                    // bind groups between draw calls), so the buffer reference is stable.
+                    let wb_buf = unsafe { wb.wgpu_buffer_raw() };
                     match data_usage {
                         BufferDataUsage::UseEverything => {
                             hasher.write_u64(0);
                             entries.push(wgpu::BindGroupEntry {
                                 binding: (*loc + UNIFORM_BINDING_OFFSET) as u32,
                                 resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                                    buffer: wb.wgpu_buffer(),
+                                    buffer: wb_buf,
                                     offset: 0,
                                     size: None,
                                 }),
@@ -1089,7 +1092,7 @@ fn create_bind_group(
                             entries.push(wgpu::BindGroupEntry {
                                 binding: (*loc + UNIFORM_BINDING_OFFSET) as u32,
                                 resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                                    buffer: wb.wgpu_buffer(),
+                                    buffer: wb_buf,
                                     offset: *offset as u64,
                                     size: Some(nonzero_size),
                                 }),

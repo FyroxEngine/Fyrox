@@ -644,12 +644,11 @@ impl Renderer {
 
         let shader_cache = ShaderCache::default();
 
-        let one_megabyte = 1024 * 1024;
         let uniform_memory_allocator = UniformMemoryAllocator::new(
-            // Clamp max uniform block size from the upper bound, to prevent allocating huge
-            // uniform buffers when GPU supports it. Some AMD GPUs are able to allocate ~500 Mb
-            // uniform buffers, which will lead to ridiculous VRAM consumption.
-            caps.max_uniform_block_size.min(one_megabyte),
+            // Use the GPU's max uniform buffer binding size as the page size limit.
+            // This ensures individual bindings never exceed the limit enforced by
+            // create_bind_group(). On most GPUs this is 64KB.
+            caps.max_uniform_buffer_binding_size,
             caps.uniform_buffer_offset_alignment,
         );
 
