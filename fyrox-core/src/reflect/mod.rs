@@ -28,6 +28,7 @@ mod impls;
 mod inherit;
 mod macros;
 mod map;
+mod set;
 
 use crate::sstorage::ImmutableString;
 
@@ -45,6 +46,7 @@ use std::{
     mem::ManuallyDrop,
 };
 use uuid::Uuid;
+use crate::reflect::set::ReflectHashSet;
 
 pub mod prelude {
     pub use super::{
@@ -332,6 +334,14 @@ pub trait Reflect: Any + Debug {
     }
 
     fn as_hash_map_mut(&mut self) -> Option<&mut dyn ReflectHashMap> {
+        None
+    }
+
+    fn as_hash_set(&self) -> Option<&dyn ReflectHashSet> {
+        None
+    }
+
+    fn as_hash_set_mut(&mut self) -> Option<&mut dyn ReflectHashSet> {
         None
     }
 
