@@ -67,6 +67,64 @@ pub mod registry;
 pub mod state;
 pub mod untyped;
 
+/// Implements [`ResourceData`] trait for the given resource type and creates a simple loader for the
+/// resource type with the specified name. The loader will use the specified extension. This macro
+/// is mostly is a "shortcut" that removes a lot of boilerplate code for simple scenarios where you
+/// want to turn your data structure into a saveable/loadable resource that can be used in the resource
+/// manager of the engine. This macro assumes that your structure implements `Reflect, Visit, Debug,
+/// Clone, PartialEq, Default` traits. The default implementation tries to save your data structure
+/// in the ASCII human-readable format. Keep in mind that your need to register the resource loader
+/// defined by this macro, otherwise the resource manager cannot handle your resource.
+#[macro_export]
+macro_rules! impl_simple_resource {
+    ($ty_name:ident, $loader_name:ident, $extension:expr) => {
+        impl $crate::ResourceData for $ty_name {
+            fn save(&mut self, path: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
+                let mut visitor = $crate::core::visitor::Visitor::new();
+                self.visit("Root", &mut visitor)?;
+                visitor.save_ascii_to_file(path)?;
+                Ok(())
+            }
+
+            fn can_be_saved(&self) -> bool {
+                true
+            }
+
+            fn try_clone_box(&self) -> Option<Box<dyn $crate::ResourceData>> {
+                Some(Box::new(self.clone()))
+            }
+        }
+
+        struct $loader_name {}
+
+        impl $crate::loader::ResourceLoader for $loader_name {
+            fn extensions(&self) -> &[&str] {
+                &[$extension]
+            }
+
+            fn data_type_uuid(&self) -> Uuid {
+                <$ty_name as $crate::core::reflect::Reflect>::type_info().type_uuid
+            }
+
+            fn load(
+                &self,
+                path: std::path::PathBuf,
+                _io: std::sync::Arc<dyn $crate::io::ResourceIo>,
+            ) -> $crate::loader::BoxedLoaderFuture {
+                Box::pin(async move {
+                    let mut visitor = $crate::core::visitor::Visitor::load_from_file(&path)
+                        .await
+                        .map_err($crate::state::LoadError::new)?;
+                    let mut data = $ty_name::default();
+                    data.visit("Root", &mut visitor)
+                        .map_err($crate::state::LoadError::new)?;
+                    Ok($crate::loader::LoaderPayload::new(data))
+                })
+            }
+        }
+    };
+}
+
 /// A trait for resource data.
 pub trait ResourceData: Debug + Visit + Send + Reflect {
     /// Saves the resource data a file at the specified path. This method is free to
