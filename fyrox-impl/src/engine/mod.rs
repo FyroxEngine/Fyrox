@@ -113,7 +113,7 @@ use fyrox_animation::AnimationTracksData;
 use fyrox_core::dyntype::DynTypeConstructorContainer;
 use fyrox_core::NameProvider;
 use fyrox_graphics::server::SharedGraphicsServer;
-use fyrox_graphics_gl::server::GlGraphicsServer;
+
 use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
@@ -1022,11 +1022,29 @@ pub type GraphicsServerConstructorCallback = dyn Fn(
 #[derive(Clone)]
 pub struct GraphicsServerConstructor(Rc<GraphicsServerConstructorCallback>);
 
+#[cfg(feature = "backend_opengl")]
 impl Default for GraphicsServerConstructor {
     fn default() -> Self {
         Self(Rc::new(
             |params, window_target, window_builder, named_objects| {
-                GlGraphicsServer::new(
+                fyrox_graphics_gl::server::GlGraphicsServer::new(
+                    params.vsync,
+                    params.msaa_sample_count,
+                    window_target,
+                    window_builder,
+                    named_objects,
+                )
+            },
+        ))
+    }
+}
+
+#[cfg(all(feature = "backend_wgpu", not(feature = "backend_opengl")))]
+impl Default for GraphicsServerConstructor {
+    fn default() -> Self {
+        Self(Rc::new(
+            |params, window_target, window_builder, named_objects| {
+                fyrox_graphics_wgpu::server::WgpuGraphicsServer::new(
                     params.vsync,
                     params.msaa_sample_count,
                     window_target,

@@ -44,6 +44,12 @@ use crate::{
 use fyrox::core::uuid::Uuid;
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
+#[cfg(feature = "backend_opengl")]
+const OVERLAY_SHADER_SRC: &str = include_str!("../resources/shaders/opengl/overlay.shader");
+
+#[cfg(feature = "backend_wgpu")]
+const OVERLAY_SHADER_SRC: &str = include_str!("../resources/shaders/wgpu/overlay.shader");
+
 pub struct OverlayRenderPass {
     quad: GpuGeometryBuffer,
     shader: RenderPassContainer,
@@ -65,7 +71,7 @@ impl OverlayRenderPass {
             .unwrap(),
             shader: RenderPassContainer::from_str(
                 server,
-                include_str!("../resources/shaders/overlay.shader"),
+                OVERLAY_SHADER_SRC,
             )
             .unwrap(),
             sound_icon: TextureResource::load_from_memory(

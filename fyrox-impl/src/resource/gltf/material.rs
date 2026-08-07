@@ -49,10 +49,24 @@ use crate::resource::texture::TextureMinificationFilter as FyroxMinFilter;
 use gltf::texture::MagFilter as GltfMagFilter;
 use gltf::texture::MinFilter as GltfMinFilter;
 
+#[cfg(feature = "backend_wgpu")]
+macro_rules! embedded_gltf_shader {
+    ($file:literal) => {
+        embedded_data_source!(concat!("wgpu/", $file))
+    };
+}
+
+#[cfg(feature = "backend_opengl")]
+macro_rules! embedded_gltf_shader {
+    ($file:literal) => {
+        embedded_data_source!(concat!("opengl/", $file))
+    };
+}
+
 pub static GLTF_SHADER: LazyLock<BuiltInResource<Shader>> = LazyLock::new(|| {
     BuiltInResource::new(
         "GltfShader",
-        embedded_data_source!("gltf_standard.shader"),
+        embedded_gltf_shader!("gltf_standard.shader"),
         |data| {
             ShaderResource::new_ok(
                 uuid!("33ee0142-f345-4c0a-9aca-d1f684a3485b"),

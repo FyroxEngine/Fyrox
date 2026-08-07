@@ -273,13 +273,24 @@ macro_rules! load_image {
     };
 }
 
+#[cfg(feature = "backend_opengl")]
 static GIZMO_SHADER: LazyLock<ShaderResource> = LazyLock::new(|| {
     ShaderResource::from_str(
         Uuid::new_v4(),
-        include_str!("../resources/shaders/gizmo.shader"),
+        include_str!("../resources/shaders/opengl/gizmo.shader"),
         Default::default(),
     )
     .unwrap()
+});
+
+#[cfg(feature = "backend_wgpu")]
+static GIZMO_SHADER: LazyLock<ShaderResource> = LazyLock::new(|| {
+    ShaderResource::from_str(
+        Uuid::new_v4(),
+        include_str!("../resources/shaders/wgpu/gizmo.shader"),
+        Default::default(),
+    )
+        .unwrap()
 });
 
 pub fn make_color_material(color: Color) -> MaterialResource {

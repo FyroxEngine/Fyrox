@@ -88,7 +88,15 @@ impl UniformBufferCache {
     pub fn get_or_create(&self, size: usize) -> Result<GpuBuffer, FrameworkError> {
         let mut cache = self.cache.borrow_mut();
         let set = cache.entry(size).or_default();
-        set.get_or_create(size, &*self.server)
+        let buffer = set.get_or_create(size, &*self.server)?;
+        debug_assert_eq!(
+            buffer.size(),
+            size,
+            "UniformBufferCache returned buffer of size {} but {} was requested",
+            buffer.size(),
+            size
+        );
+        Ok(buffer)
     }
 
     /// Fetches a suitable (or creates new one) GPU uniform buffer for the given CPU uniform buffer
@@ -140,17 +148,20 @@ pub struct UniformBlockLocation {
 pub struct UniformMemoryAllocator {
     gpu_buffers: Vec<GpuBuffer>,
     block_alignment: usize,
-    max_uniform_buffer_size: usize,
+    /// Maximum size of a single uniform buffer binding. This is the GPU's
+    /// `max_uniform_buffer_binding_size` and is used as both the page capacity
+    /// and the per-allocation size limit.
+    max_uniform_buffer_binding_size: usize,
     pages: Vec<Page>,
     blocks: Vec<UniformBlockLocation>,
 }
 
 impl UniformMemoryAllocator {
-    pub fn new(max_uniform_buffer_size: usize, block_alignment: usize) -> Self {
+    pub fn new(max_uniform_buffer_binding_size: usize, block_alignment: usize) -> Self {
         Self {
             gpu_buffers: Default::default(),
             block_alignment,
-            max_uniform_buffer_size,
+            max_uniform_buffer_binding_size,
             pages: Default::default(),
             blocks: Default::default(),
         }
@@ -170,20 +181,20 @@ impl UniformMemoryAllocator {
     {
         let data = buffer.finish();
         assert!(data.bytes_count() > 0);
-        assert!(data.bytes_count() < self.max_uniform_buffer_size);
+        assert!(data.bytes_count() < self.max_uniform_buffer_binding_size);
 
         let page_index = match self.pages.iter().position(|page| {
             let write_position = page
                 .dynamic
                 .next_write_aligned_position(self.block_alignment);
-            self.max_uniform_buffer_size - write_position >= data.bytes_count()
+            self.max_uniform_buffer_binding_size - write_position >= data.bytes_count()
         }) {
             Some(page_index) => page_index,
             None => {
                 let page_index = self.pages.len();
                 self.pages.push(Page {
                     dynamic: UniformBuffer::with_storage(Vec::with_capacity(
-                        self.max_uniform_buffer_size,
+                        self.max_uniform_buffer_binding_size,
                     )),
                     is_submitted: false,
                 });
@@ -211,7 +222,7 @@ impl UniformMemoryAllocator {
             for _ in 0..(self.pages.len() - self.gpu_buffers.len()) {
                 let buffer = server.create_buffer(GpuBufferDescriptor {
                     name: &format!("UniformMemoryPage{}", self.gpu_buffers.len()),
-                    size: self.max_uniform_buffer_size,
+                    size: self.max_uniform_buffer_binding_size,
                     kind: BufferKind::Uniform,
                     usage: BufferUsage::StreamCopy,
                 })?;
@@ -222,7 +233,7 @@ impl UniformMemoryAllocator {
         for (page, gpu_buffer) in self.pages.iter_mut().zip(self.gpu_buffers.iter()) {
             if !page.is_submitted {
                 let bytes = page.dynamic.storage().bytes();
-                assert!(bytes.len() <= self.max_uniform_buffer_size);
+                assert!(bytes.len() <= self.max_uniform_buffer_binding_size);
                 gpu_buffer.write_data(bytes)?;
                 page.is_submitted = true;
             }

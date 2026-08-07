@@ -966,11 +966,25 @@ impl ShaderResourceExtension for ShaderResource {
     }
 }
 
+#[cfg(all(feature = "backend_wgpu", not(feature = "backend_opengl")))]
+macro_rules! embedded_shader {
+    ($file:literal) => {
+        embedded_data_source!(concat!("standard/wgpu/", $file))
+    };
+}
+
+#[cfg(feature = "backend_opengl")]
+macro_rules! embedded_shader {
+    ($file:literal) => {
+        embedded_data_source!(concat!("standard/opengl/", $file))
+    };
+}
+
 /// Standard shader.
 pub static STANDARD: LazyLock<BuiltInResource<Shader>> = LazyLock::new(|| {
     BuiltInResource::new(
         STANDARD_SHADER_NAME,
-        embedded_data_source!("standard/standard.shader"),
+        embedded_shader!("standard.shader"),
         |data| {
             ShaderResource::new_ok(
                 uuid!("87195f6e-cba4-4c27-9f89-d0bf726db965"),
@@ -985,7 +999,7 @@ pub static STANDARD: LazyLock<BuiltInResource<Shader>> = LazyLock::new(|| {
 pub static STANDARD_2D: LazyLock<BuiltInResource<Shader>> = LazyLock::new(|| {
     BuiltInResource::new(
         STANDARD_2D_SHADER_NAME,
-        embedded_data_source!("standard/standard2d.shader"),
+        embedded_shader!("standard2d.shader"),
         |data| {
             ShaderResource::new_ok(
                 uuid!("55fa05b0-3c25-4e46-bae7-65f093185b75"),
@@ -1000,7 +1014,7 @@ pub static STANDARD_2D: LazyLock<BuiltInResource<Shader>> = LazyLock::new(|| {
 pub static STANDARD_PARTICLE_SYSTEM: LazyLock<BuiltInResource<Shader>> = LazyLock::new(|| {
     BuiltInResource::new(
         STANDARD_PARTICLE_SYSTEM_SHADER_NAME,
-        embedded_data_source!("standard/standard_particle_system.shader"),
+        embedded_shader!("standard_particle_system.shader"),
         |data| {
             ShaderResource::new_ok(
                 uuid!("eb474445-6a25-4481-bca9-f919699c300f"),
@@ -1015,7 +1029,7 @@ pub static STANDARD_PARTICLE_SYSTEM: LazyLock<BuiltInResource<Shader>> = LazyLoc
 pub static STANDARD_SPRITE: LazyLock<BuiltInResource<Shader>> = LazyLock::new(|| {
     BuiltInResource::new(
         STANDARD_SPRITE_SHADER_NAME,
-        embedded_data_source!("standard/standard_sprite.shader"),
+        embedded_shader!("standard_sprite.shader"),
         |data| {
             ShaderResource::new_ok(
                 uuid!("a135826a-4c1b-46d5-ba1f-0c9a226aa52c"),
@@ -1030,7 +1044,7 @@ pub static STANDARD_SPRITE: LazyLock<BuiltInResource<Shader>> = LazyLock::new(||
 pub static STANDARD_TERRAIN: LazyLock<BuiltInResource<Shader>> = LazyLock::new(|| {
     BuiltInResource::new(
         STANDARD_TERRAIN_SHADER_NAME,
-        embedded_data_source!("standard/terrain.shader"),
+        embedded_shader!("terrain.shader"),
         |data| {
             ShaderResource::new_ok(
                 uuid!("4911aafe-9bb1-4115-a958-25b57b87b51e"),
@@ -1045,7 +1059,7 @@ pub static STANDARD_TERRAIN: LazyLock<BuiltInResource<Shader>> = LazyLock::new(|
 pub static STANDARD_TILE: LazyLock<BuiltInResource<Shader>> = LazyLock::new(|| {
     BuiltInResource::new(
         STANDARD_TILE_SHADER_NAME,
-        embedded_data_source!("standard/tile.shader"),
+        embedded_shader!("tile.shader"),
         |data| {
             ShaderResource::new_ok(
                 uuid!("5f29dd3a-ea99-480c-bb02-d2c6420843b1"),
@@ -1060,7 +1074,7 @@ pub static STANDARD_TILE: LazyLock<BuiltInResource<Shader>> = LazyLock::new(|| {
 pub static STANDARD_TWOSIDES: LazyLock<BuiltInResource<Shader>> = LazyLock::new(|| {
     BuiltInResource::new(
         STANDARD_TWOSIDES_SHADER_NAME,
-        embedded_data_source!("standard/standard-two-sides.shader"),
+        embedded_shader!("standard-two-sides.shader"),
         |data| {
             ShaderResource::new_ok(
                 uuid!("f7979409-5185-4e1c-a644-d53cea64af8f"),
@@ -1075,7 +1089,7 @@ pub static STANDARD_TWOSIDES: LazyLock<BuiltInResource<Shader>> = LazyLock::new(
 pub static STANDARD_WIDGET: LazyLock<BuiltInResource<Shader>> = LazyLock::new(|| {
     BuiltInResource::new(
         STANDARD_WIDGET_SHADER_NAME,
-        embedded_data_source!("standard/widget.shader"),
+        embedded_shader!("widget.shader"),
         |data| {
             ShaderResource::new_ok(
                 uuid!("f5908aa4-e187-42a8-95d2-dc6577f6def4"),

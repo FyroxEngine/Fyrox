@@ -44,6 +44,8 @@ fn glsl_sampler_name(sampler: SamplerKind) -> &'static str {
         SamplerKind::USampler2D => "usampler2D",
         SamplerKind::USampler3D => "usampler3D",
         SamplerKind::USamplerCube => "usamplerCube",
+        SamplerKind::DepthSampler2D => "sampler2D",
+        SamplerKind::DepthSamplerCube => "samplerCube",
     }
 }
 

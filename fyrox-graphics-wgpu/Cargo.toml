@@ -1,0 +1,22 @@
+[package]
+name = "fyrox-graphics-wgpu"
+version = "2.0.0-rc.1"
+edition = "2021"
+license = "MIT"
+description = "Wgpu-based graphics server for Fyrox Game Engine"
+keywords = ["graphics", "gapi"]
+categories = ["graphics", "rendering::graphics-api"]
+include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
+homepage = "https://fyrox.rs"
+documentation = "https://docs.rs/fyrox-graphics-wgpu"
+repository = "https://github.com/FyroxEngine/Fyrox"
+rust-version = "1.87"
+
+[dependencies]
+winit = { version = "0.30" }
+fyrox-graphics = { version = "2.0.0-rc.1", path = "../fyrox-graphics" }
+fyrox-core = { version = "2.0.0-rc.1", path = "../fyrox-core" }
+wgpu = { version = "30.0.0" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+raw-window-handle = "0.6"

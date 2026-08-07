@@ -152,13 +152,24 @@ pub struct GameScene {
     pub settings_receiver: Receiver<SettingsMessage>,
 }
 
+#[cfg(feature = "backend_opengl")]
 static GRID_SHADER: LazyLock<ShaderResource> = LazyLock::new(|| {
     ShaderResource::from_str(
         Uuid::new_v4(),
-        include_str!("../../resources/shaders/grid.shader"),
+        include_str!("../../resources/shaders/opengl/grid.shader"),
         Default::default(),
     )
     .unwrap()
+});
+
+#[cfg(feature = "backend_wgpu")]
+static GRID_SHADER: LazyLock<ShaderResource> = LazyLock::new(|| {
+    ShaderResource::from_str(
+        Uuid::new_v4(),
+        include_str!("../../resources/shaders/wgpu/grid.shader"),
+        Default::default(),
+    )
+        .unwrap()
 });
 
 fn make_grid_material() -> MaterialResource {

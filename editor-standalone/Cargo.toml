@@ -14,5 +14,10 @@ include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
 
 [dependencies]
 fyrox = { version = "2.0.0-rc.1", path = "../fyrox" }
-fyroxed_base = { version = "2.0.0-rc.1", path = "../editor" }
+fyroxed_base = { version = "2.0.0-rc.1", path = "../editor", default-features = false }
 clap = { version = "4", features = ["derive"] }
+
+[features]
+default = ["backend_opengl"]
+backend_opengl = ["fyroxed_base/backend_opengl"]
+backend_wgpu = ["fyroxed_base/backend_wgpu"]
