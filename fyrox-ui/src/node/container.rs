@@ -23,12 +23,7 @@
 
 use crate::{
     constructor::WidgetConstructorContainer,
-    core::{
-        pool::PayloadContainer,
-        reflect::prelude::*,
-        uuid::Uuid,
-        visitor::{Visit, VisitResult, Visitor},
-    },
+    core::{pool::PayloadContainer, reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
     UiNode,
 };
 use fyrox_core::visitor::error::VisitError;

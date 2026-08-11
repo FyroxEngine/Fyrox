@@ -107,7 +107,7 @@ impl ResourceConstructorContainer {
 #[cfg(test)]
 mod test {
     use fyrox_core::reflect::prelude::*;
-    use fyrox_core::visitor::{Visit, VisitResult, Visitor};
+    use fyrox_core::visitor::prelude::*;
     use std::error::Error;
     use std::path::Path;
 

@@ -36,7 +36,7 @@ pub use rand;
 pub use sstorage::ImmutableString;
 pub use uuid;
 
-use crate::visitor::{Visit, VisitResult, Visitor};
+use crate::visitor::prelude::*;
 use bytemuck::Pod;
 use fxhash::FxHashMap;
 pub use safelock::*;

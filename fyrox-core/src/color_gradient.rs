@@ -18,11 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::{
-    color::Color,
-    reflect::prelude::*,
-    visitor::{Visit, VisitResult, Visitor},
-};
+use crate::{color::Color, reflect::prelude::*, visitor::prelude::*};
 use std::cmp::Ordering;
 
 #[derive(PartialEq, Debug, Visit, Reflect)]

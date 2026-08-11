@@ -35,7 +35,7 @@ use crate::{
         uuid::Uuid,
         variable,
         variable::mark_inheritable_properties_non_modified,
-        visitor::{Visit, VisitResult, Visitor},
+        visitor::prelude::*,
         NameProvider,
     },
     graph::NodeWrapper,

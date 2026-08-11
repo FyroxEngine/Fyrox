@@ -21,7 +21,7 @@
 use crate::{
     algebra::{Vector3, Vector4},
     reflect::prelude::*,
-    visitor::{Visit, VisitResult, Visitor},
+    visitor::prelude::*,
 };
 use bytemuck::{Pod, Zeroable};
 use num_traits::Zero;

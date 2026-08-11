@@ -30,7 +30,7 @@ use crate::{
         pool::{Handle, PoolError},
         reflect::prelude::*,
         uuid::Uuid,
-        visitor::{Visit, VisitResult, Visitor},
+        visitor::prelude::*,
     },
     engine::{input::InputState, task::TaskPoolHandler, GraphicsContext, ScriptMessageDispatcher},
     event::Event,

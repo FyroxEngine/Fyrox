@@ -69,7 +69,7 @@ use crate::core::{
     log::{Log, MessageKind},
     reflect::prelude::*,
     variable::InheritableVariable,
-    visitor::{Visit, VisitResult, Visitor},
+    visitor::prelude::*,
 };
 use std::cell::Cell;
 

@@ -33,7 +33,7 @@ use crate::{
         pool::{ErasedHandle, Handle, Pool, Ticket},
         reflect::prelude::*,
         uuid::{uuid, Uuid},
-        visitor::{Visit, VisitResult, Visitor},
+        visitor::prelude::*,
         ImmutableString, NameProvider,
     },
     track::Track,

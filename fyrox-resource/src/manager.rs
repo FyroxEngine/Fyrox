@@ -2092,7 +2092,7 @@ mod test {
     };
     use fyrox_core::{
         uuid::{uuid, Uuid},
-        visitor::{Visit, VisitResult, Visitor},
+        visitor::prelude::*,
     };
     use std::{error::Error, fs::File, time::Duration};
 

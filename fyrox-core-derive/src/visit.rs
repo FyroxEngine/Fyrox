@@ -255,6 +255,7 @@ fn impl_visit_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs])
 
              match self {
                  #(#variant_visits)*
+                _ => return Err(VisitError::UnhandledEnumVariant)
              }
 
              return Ok(());

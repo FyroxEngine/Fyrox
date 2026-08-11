@@ -54,7 +54,7 @@ use fyrox_core::{
     reflect::prelude::*,
     sparse::AtomicIndex,
     uuid::Uuid,
-    visitor::{Visit, VisitResult, Visitor},
+    visitor::prelude::*,
 };
 use fyrox_resource::{
     embedded_data_source, io::ResourceIo, manager::BuiltInResource, options::ImportOptions,

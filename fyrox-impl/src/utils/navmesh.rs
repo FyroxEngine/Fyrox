@@ -31,7 +31,7 @@ use crate::{
         arrayvec::ArrayVec,
         math::{self, plane::Plane, ray::Ray, PositionProvider, TriangleDefinition, Vector3Ext},
         reflect::prelude::*,
-        visitor::{Visit, VisitResult, Visitor},
+        visitor::prelude::*,
     },
     scene::mesh::{
         buffer::{VertexAttributeUsage, VertexReadTrait},

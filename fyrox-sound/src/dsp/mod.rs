@@ -29,7 +29,7 @@
 //! `fc` - normalized frequency, i.e. `fc = 0.2` with `sample rate = 44100 Hz` will be `f = 8820 Hz`
 
 use fyrox_core::visitor::pod::PodVecView;
-use fyrox_core::visitor::{Visit, VisitResult, Visitor};
+use fyrox_core::visitor::prelude::*;
 
 pub mod filters;
 

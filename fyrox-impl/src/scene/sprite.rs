@@ -33,7 +33,7 @@ use crate::{
         uuid::{uuid, Uuid},
         value_as_u8_slice,
         variable::InheritableVariable,
-        visitor::{Visit, VisitResult, Visitor},
+        visitor::prelude::*,
     },
     graph::{constructor::ConstructorProvider, SceneGraph},
     material::{Material, MaterialResource},
