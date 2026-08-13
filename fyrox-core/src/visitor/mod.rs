@@ -43,6 +43,7 @@ pub mod field;
 mod impls;
 pub mod pod;
 mod reader;
+mod winit_impls;
 mod writer;
 
 pub use fyrox_core_derive::Visit;
