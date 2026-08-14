@@ -772,6 +772,16 @@ impl ResourceManager {
         self.state().add_loader(loader)
     }
 
+    /// Registers a pair of resource type and its respective loader in the resource manager.
+    pub fn register_resource_type<T, L>(&self, loader: L)
+    where
+        T: TypedResourceData,
+        L: ResourceLoader,
+    {
+        self.add_loader(loader);
+        self.state().constructors_container.add::<T>();
+    }
+
     /// Add the given resource to the manager and registers the resource as an external resource with the given
     /// path, updating the metadata file with the resource's UUID and updating the registry file with the resource's path.
     /// Calling this should only be necessary after newly creating the file in the given path by saving the resource
