@@ -95,7 +95,8 @@ macro_rules! impl_simple_resource {
             }
         }
 
-        struct $loader_name {}
+        #[derive(Default, Copy, Clone, Debug, PartialEq, Eq)]
+        pub struct $loader_name {}
 
         impl $crate::loader::ResourceLoader for $loader_name {
             fn extensions(&self) -> &[&str] {
