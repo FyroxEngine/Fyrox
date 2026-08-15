@@ -47,7 +47,7 @@ use std::{any::TypeId, cell::RefCell, rc::Rc};
 #[cfg(feature = "backend_opengl")]
 const OVERLAY_SHADER_SRC: &str = include_str!("../resources/shaders/opengl/overlay.shader");
 
-#[cfg(feature = "backend_wgpu")]
+#[cfg(all(feature = "backend_wgpu", not(feature = "backend_opengl")))]
 const OVERLAY_SHADER_SRC: &str = include_str!("../resources/shaders/wgpu/overlay.shader");
 
 pub struct OverlayRenderPass {

@@ -280,7 +280,7 @@ static GIZMO_SHADER: LazyLock<ShaderResource> = LazyLock::new(|| {
     .unwrap()
 });
 
-#[cfg(feature = "backend_wgpu")]
+#[cfg(all(feature = "backend_wgpu", not(feature = "backend_opengl")))]
 static GIZMO_SHADER: LazyLock<ShaderResource> = LazyLock::new(|| {
     ShaderResource::from_str(
         Uuid::new_v4(),

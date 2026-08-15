@@ -105,7 +105,7 @@ macro_rules! include_shader {
     };
 }
 
-#[cfg(feature = "backend_wgpu")]
+#[cfg(all(feature = "backend_wgpu", not(feature = "backend_opengl")))]
 macro_rules! include_shader {
     ($file:literal) => {
         include_str!(concat!("shaders/wgpu/", $file))

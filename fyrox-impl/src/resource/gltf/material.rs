@@ -49,7 +49,7 @@ use crate::resource::texture::TextureMinificationFilter as FyroxMinFilter;
 use gltf::texture::MagFilter as GltfMagFilter;
 use gltf::texture::MinFilter as GltfMinFilter;
 
-#[cfg(feature = "backend_wgpu")]
+#[cfg(all(feature = "backend_wgpu", not(feature = "backend_opengl")))]
 macro_rules! embedded_gltf_shader {
     ($file:literal) => {
         embedded_data_source!(concat!("wgpu/", $file))
