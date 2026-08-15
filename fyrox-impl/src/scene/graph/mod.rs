@@ -52,7 +52,7 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::{Handle, MultiBorrowContext, ObjectOrVariant, Pool, PoolError, Ticket},
         reflect::prelude::*,
-        visitor::{Visit, VisitResult, Visitor},
+        visitor::prelude::*,
     },
     graph::{NodeHandleMap, NodeWrapper, SceneGraph},
     material::{MaterialResourceBinding, MaterialTextureBinding},

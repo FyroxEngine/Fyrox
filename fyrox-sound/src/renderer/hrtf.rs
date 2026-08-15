@@ -84,7 +84,7 @@ use fyrox_core::{
     log::Log,
     reflect::prelude::*,
     uuid::{uuid, Uuid},
-    visitor::{Visit, VisitResult, Visitor},
+    visitor::prelude::*,
 };
 use fyrox_resource::untyped::ResourceKind;
 use fyrox_resource::{

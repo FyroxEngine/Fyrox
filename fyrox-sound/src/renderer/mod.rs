@@ -32,10 +32,7 @@ use crate::{
     source::SoundSource,
 };
 use fyrox_core::math::lerpf;
-use fyrox_core::{
-    reflect::prelude::*,
-    visitor::{Visit, VisitResult, Visitor},
-};
+use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 pub mod hrtf;

@@ -43,6 +43,7 @@ pub mod field;
 mod impls;
 pub mod pod;
 mod reader;
+mod winit_impls;
 mod writer;
 
 pub use fyrox_core_derive::Visit;
@@ -829,7 +830,7 @@ impl Visitor {
 
 #[cfg(test)]
 mod test {
-    use crate::visitor::{BinaryBlob, Visit, VisitResult, Visitor};
+    use crate::visitor::{prelude::*, BinaryBlob};
     use nalgebra::{
         Matrix2, Matrix3, Matrix4, UnitComplex, UnitQuaternion, Vector2, Vector3, Vector4,
     };

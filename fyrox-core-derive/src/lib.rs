@@ -37,7 +37,7 @@ use syn::{parse_macro_input, DeriveInput};
 /// For example,
 ///
 /// ```
-/// use fyrox_core::visitor::{Visit, VisitResult, Visitor};
+/// use fyrox_core::visitor::prelude::*;
 /// #[derive(Visit)]
 /// struct Foo<T: Visit> {
 ///     example_one: String,
@@ -49,7 +49,7 @@ use syn::{parse_macro_input, DeriveInput};
 /// would expand to something like:
 ///
 /// ```
-/// # use fyrox_core::visitor::{Visit, VisitResult, Visitor};
+/// # use fyrox_core::visitor::prelude::*;
 /// # struct Foo<T> { example_one: String, example_two: T,}
 /// impl<T> Visit for Foo<T> where T: Visit {
 ///     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
@@ -66,7 +66,7 @@ use syn::{parse_macro_input, DeriveInput};
 /// [to_case(Case::UpperCamel)](https://docs.rs/convert_case/0.6.0/convert_case/enum.Case.html#variant.Pascal).
 ///
 /// ```
-/// # use fyrox_core::visitor::{Visit, VisitResult, Visitor};
+/// # use fyrox_core::visitor::prelude::*;
 /// #[derive(Visit)]
 /// struct Pair (usize, usize);
 /// # fn main() {}
@@ -75,7 +75,7 @@ use syn::{parse_macro_input, DeriveInput};
 /// would expand to something like:
 ///
 /// ```
-/// # use fyrox_core::visitor::{Visit, VisitResult, Visitor};
+/// # use fyrox_core::visitor::prelude::*;
 /// # struct Pair (usize, usize);
 /// impl Visit for Pair {
 ///     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
@@ -89,7 +89,7 @@ use syn::{parse_macro_input, DeriveInput};
 /// ```
 ///
 /// ```
-/// # use fyrox_core::visitor::{Visit, VisitResult, Visitor};
+/// # use fyrox_core::visitor::prelude::*;
 /// #[derive(Visit)]
 /// enum EnumExample { A, B(usize) }
 /// # fn main() {}
@@ -98,7 +98,7 @@ use syn::{parse_macro_input, DeriveInput};
 /// would expand to something like:
 ///
 /// ```
-/// # use fyrox_core::visitor::{Visit, VisitResult, Visitor};
+/// # use fyrox_core::visitor::prelude::*;
 /// # enum EnumExample { A, B(usize) }
 /// impl Visit for EnumExample {
 ///     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {

@@ -38,7 +38,7 @@ use crate::{
         reflect::prelude::*,
         sparse::AtomicIndex,
         variable::InheritableVariable,
-        visitor::{Visit, VisitResult, Visitor},
+        visitor::prelude::*,
     },
     material::{Material, MaterialResource, MaterialResourceExtension},
     resource::texture::{TextureKind, TexturePixelKind, TextureResource, TextureResourceExtension},

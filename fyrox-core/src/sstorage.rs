@@ -23,11 +23,7 @@
 
 #![warn(missing_docs)]
 
-use crate::{
-    parking_lot::Mutex,
-    visitor::{Visit, VisitResult, Visitor},
-    SafeLock,
-};
+use crate::{parking_lot::Mutex, visitor::prelude::*, SafeLock};
 use fxhash::{FxHashMap, FxHasher};
 use serde::{Deserialize, Serialize};
 use std::{

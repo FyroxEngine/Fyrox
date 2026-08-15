@@ -20,11 +20,7 @@
 
 use crate::{
     fyrox::{
-        core::{
-            algebra::Vector2,
-            pool::Handle,
-            visitor::{Visit, VisitResult, Visitor},
-        },
+        core::{algebra::Vector2, pool::Handle, visitor::prelude::*},
         gui::{
             border::BorderBuilder,
             button::{ButtonBuilder, ButtonMessage},

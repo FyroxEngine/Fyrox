@@ -55,12 +55,7 @@ use crate::{
     error::SoundError,
     listener::Listener,
 };
-use fyrox_core::{
-    algebra::Vector3,
-    log::Log,
-    reflect::prelude::*,
-    visitor::{Visit, VisitResult, Visitor},
-};
+use fyrox_core::{algebra::Vector3, log::Log, reflect::prelude::*, visitor::prelude::*};
 use std::time::Duration;
 
 /// Status (state) of sound source.

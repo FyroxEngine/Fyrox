@@ -17,7 +17,7 @@ rust-version = "1.94"
 [dependencies]
 fyrox-core = { path = "../fyrox-core", version = "2.0.0-rc.1" }
 fyrox-resource = { path = "../fyrox-resource", version = "2.0.0-rc.1" }
-hrtf = "0.8.0"
+hrtf = "0.9.0"
 hound = "3.4.0"
 strum = "0.27"
 strum_macros = "0.27"

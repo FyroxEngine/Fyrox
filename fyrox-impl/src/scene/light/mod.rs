@@ -38,11 +38,8 @@
 
 use crate::{
     core::{
-        algebra::Vector3,
-        color::Color,
-        reflect::prelude::*,
-        variable::InheritableVariable,
-        visitor::{Visit, VisitResult, Visitor},
+        algebra::Vector3, color::Color, reflect::prelude::*, variable::InheritableVariable,
+        visitor::prelude::*,
     },
     scene::base::{Base, BaseBuilder},
 };

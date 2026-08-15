@@ -53,7 +53,7 @@ use crate::{
         reflect::prelude::*,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
-        visitor::{Visit, VisitResult, Visitor},
+        visitor::prelude::*,
     },
     resource::texture::TextureResource,
     scene::{

@@ -31,7 +31,7 @@ use crate::{
         pool::{ErasedHandle, Handle},
         reflect::prelude::*,
         variable::InheritableVariable,
-        visitor::{Visit, VisitResult, Visitor},
+        visitor::prelude::*,
         ImmutableString,
     },
     engine::SerializationContext,

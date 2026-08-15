@@ -33,7 +33,7 @@ use crate::{
         pool::{ErasedHandle, Handle, Pool, Ticket},
         reflect::prelude::*,
         uuid::{uuid, Uuid},
-        visitor::{Visit, VisitResult, Visitor},
+        visitor::prelude::*,
         ImmutableString, NameProvider,
     },
     track::Track,
@@ -122,8 +122,10 @@ impl Visit for AnimationTracksData {
 }
 
 impl ResourceData for AnimationTracksData {
-    fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
-        // TODO
+    fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
+        let mut visitor = Visitor::new();
+        self.visit("Tracks", &mut visitor)?;
+        visitor.save_ascii_to_file(path)?;
         Ok(())
     }
 

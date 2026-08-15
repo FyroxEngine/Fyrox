@@ -53,7 +53,7 @@ use crate::{
         uuid::Uuid,
         variable::InheritableVariable,
         visitor::error::VisitError,
-        visitor::{Visit, VisitResult, Visitor},
+        visitor::prelude::*,
         NameProvider,
     },
     engine::SerializationContext,

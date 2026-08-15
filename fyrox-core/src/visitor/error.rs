@@ -102,6 +102,9 @@ pub enum VisitError {
     UuidError(uuid::Error),
     /// Arbitrary error.
     Any(Box<dyn Error + Send + Sync>),
+    /// Unhandled enum variant. Typically, means that a match arm of non-exhaustive pattern is not
+    /// handled.
+    UnhandledEnumVariant,
 }
 
 impl Error for VisitError {}
@@ -170,6 +173,9 @@ impl Display for VisitError {
             Self::UuidError(e) => write!(f, "uuid error: {e:?}"),
             Self::Any(e) => {
                 write!(f, "{e}")
+            }
+            VisitError::UnhandledEnumVariant => {
+                write!(f, "unhandled enum variant")
             }
         }
     }
