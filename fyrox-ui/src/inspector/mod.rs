@@ -126,6 +126,45 @@ pub enum FieldAction {
     HashMapAction(Box<HashMapAction>),
 }
 
+impl FieldAction {
+    fn path(&self) -> String {
+        match self {
+            FieldAction::CollectionAction(ref collection_changed) => {
+                if let CollectionAction::ItemChanged {
+                    action: ref property,
+                    index,
+                } = **collection_changed
+                {
+                    match property {
+                        FieldAction::InspectableAction(inspectable) => {
+                            return format!("[{}].{}", index, inspectable.path())
+                        }
+                        _ => return format!("[{index}]"),
+                    }
+                }
+            }
+            FieldAction::InspectableAction(ref inspectable) => {
+                return format!(".{}", inspectable.path())
+            }
+            FieldAction::ObjectAction(_) | FieldAction::InheritableAction { .. } => {}
+            FieldAction::HashMapAction(ref action) => match **action {
+                HashMapAction::KeyChanged { .. }
+                | HashMapAction::Remove { .. }
+                | HashMapAction::Insert { .. } => {}
+                HashMapAction::ValueChanged {
+                    ref key,
+                    ref action,
+                } => {
+                    return format!("[{}]", reflect::make_hash_map_key(&*key.value))
+                        + action.path().as_ref();
+                }
+            },
+        }
+
+        Default::default()
+    }
+}
+
 /// An action for some property.
 #[derive(Debug)]
 pub enum PropertyAction {
@@ -470,36 +509,7 @@ pub struct PropertyChanged {
 
 impl PropertyChanged {
     pub fn path(&self) -> String {
-        let mut path = self.name.clone();
-        match self.action {
-            FieldAction::CollectionAction(ref collection_changed) => {
-                if let CollectionAction::ItemChanged {
-                    action: ref property,
-                    index,
-                } = **collection_changed
-                {
-                    match property {
-                        FieldAction::InspectableAction(inspectable) => {
-                            path += format!("[{}].{}", index, inspectable.path()).as_ref();
-                        }
-                        _ => path += format!("[{index}]").as_ref(),
-                    }
-                }
-            }
-            FieldAction::InspectableAction(ref inspectable) => {
-                path += format!(".{}", inspectable.path()).as_ref();
-            }
-            FieldAction::ObjectAction(_) | FieldAction::InheritableAction { .. } => {}
-            FieldAction::HashMapAction(ref action) => match **action {
-                HashMapAction::KeyChanged { .. }
-                | HashMapAction::Remove { .. }
-                | HashMapAction::Insert { .. } => {}
-                HashMapAction::ValueChanged { ref key, .. } => {
-                    path += format!("[{}]", reflect::make_hash_map_key(&*key.value)).as_ref();
-                }
-            },
-        }
-        path
+        self.name.clone() + self.action.path().as_ref()
     }
 
     pub fn is_inheritable(&self) -> bool {
