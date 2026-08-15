@@ -441,20 +441,31 @@ impl WgpuGraphicsServer {
     /// then dropped (ending the pass). The encoder is stored back for subsequent
     /// operations. Does nothing if there is no active pass.
     pub fn flush_active_pass(&self) {
-        let Some(pass) = self.active_pass.borrow_mut().take() else { return; };
+        let Some(pass) = self.active_pass.borrow_mut().take() else {
+            return;
+        };
 
         let mut encoder = self.frame_encoder.borrow_mut().take().unwrap_or_else(|| {
-            self.state.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None })
+            self.state
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None })
         });
 
-        let color_attachments: Vec<_> = pass.color_views.iter().map(|view| {
-            Some(wgpu::RenderPassColorAttachment {
-                view,
-                resolve_target: None,
-                depth_slice: None,
-                ops: wgpu::Operations { load: pass.color_load, store: wgpu::StoreOp::Store },
+        let color_attachments: Vec<_> = pass
+            .color_views
+            .iter()
+            .map(|view| {
+                Some(wgpu::RenderPassColorAttachment {
+                    view,
+                    resolve_target: None,
+                    depth_slice: None,
+                    ops: wgpu::Operations {
+                        load: pass.color_load,
+                        store: wgpu::StoreOp::Store,
+                    },
+                })
             })
-        }).collect();
+            .collect();
 
         let mut rp = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
@@ -462,7 +473,10 @@ impl WgpuGraphicsServer {
             depth_stencil_attachment: pass.depth_view.as_ref().map(|v| {
                 wgpu::RenderPassDepthStencilAttachment {
                     view: v,
-                    depth_ops: Some(wgpu::Operations { load: pass.depth_load, store: wgpu::StoreOp::Store }),
+                    depth_ops: Some(wgpu::Operations {
+                        load: pass.depth_load,
+                        store: wgpu::StoreOp::Store,
+                    }),
                     stencil_ops: pass.stencil_load.map(|load| wgpu::Operations {
                         load,
                         store: wgpu::StoreOp::Store,
@@ -473,7 +487,14 @@ impl WgpuGraphicsServer {
         });
 
         for cmd in pass.commands {
-            rp.set_viewport(cmd.viewport.x() as f32, cmd.viewport.y() as f32, cmd.viewport.w() as f32, cmd.viewport.h() as f32, 0.0, 1.0);
+            rp.set_viewport(
+                cmd.viewport.x() as f32,
+                cmd.viewport.y() as f32,
+                cmd.viewport.w() as f32,
+                cmd.viewport.h() as f32,
+                0.0,
+                1.0,
+            );
             rp.set_pipeline(&cmd.pipeline);
             if let Some(bg) = &cmd.bind_group {
                 rp.set_bind_group(0, bg, &[]);
@@ -790,15 +811,11 @@ impl GraphicsServer for WgpuGraphicsServer {
         let pipeline_cache = self.mipmap_pipeline_cache.borrow();
         let pipeline = pipeline_cache.get(&format).unwrap();
 
-        let mut encoder = self
-            .frame_encoder
-            .borrow_mut()
-            .take()
-            .unwrap_or_else(|| {
-                self.state
-                    .device
-                    .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None })
-            });
+        let mut encoder = self.frame_encoder.borrow_mut().take().unwrap_or_else(|| {
+            self.state
+                .device
+                .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None })
+        });
 
         let mut mip_w = width;
         let mut mip_h = height;
@@ -807,36 +824,41 @@ impl GraphicsServer for WgpuGraphicsServer {
             mip_w = (mip_w / 2).max(1);
             mip_h = (mip_h / 2).max(1);
 
-            let src_view =
-                wtex.wgpu_texture().create_view(&wgpu::TextureViewDescriptor {
+            let src_view = wtex
+                .wgpu_texture()
+                .create_view(&wgpu::TextureViewDescriptor {
                     dimension: Some(wgpu::TextureViewDimension::D2),
                     base_mip_level: level - 1,
                     mip_level_count: Some(1),
                     ..Default::default()
                 });
 
-            let dst_view =
-                wtex.wgpu_texture().create_view(&wgpu::TextureViewDescriptor {
+            let dst_view = wtex
+                .wgpu_texture()
+                .create_view(&wgpu::TextureViewDescriptor {
                     dimension: Some(wgpu::TextureViewDimension::D2),
                     base_mip_level: level,
                     mip_level_count: Some(1),
                     ..Default::default()
                 });
 
-            let bind_group = self.state.device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: None,
-                layout: &self.mipmap_bind_group_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(&src_view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&self.mipmap_sampler),
-                    },
-                ],
-            });
+            let bind_group = self
+                .state
+                .device
+                .create_bind_group(&wgpu::BindGroupDescriptor {
+                    label: None,
+                    layout: &self.mipmap_bind_group_layout,
+                    entries: &[
+                        wgpu::BindGroupEntry {
+                            binding: 0,
+                            resource: wgpu::BindingResource::TextureView(&src_view),
+                        },
+                        wgpu::BindGroupEntry {
+                            binding: 1,
+                            resource: wgpu::BindingResource::Sampler(&self.mipmap_sampler),
+                        },
+                    ],
+                });
 
             let mut rp = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: None,

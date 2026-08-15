@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::make_deferred_viewport_matrix;
 use crate::{
     asset::manager::ResourceManager,
     core::{
@@ -69,7 +70,6 @@ use crate::{
         EnvironmentLightingSource, Scene,
     },
 };
-use crate::renderer::make_deferred_viewport_matrix;
 
 pub struct DeferredLightRenderer {
     sphere: GpuGeometryBuffer,

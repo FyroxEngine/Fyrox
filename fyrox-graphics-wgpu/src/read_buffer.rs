@@ -105,13 +105,10 @@ impl GpuAsyncReadBufferTrait for WgpuAsyncReadBuffer {
         };
         let bpp = self.pixel_size;
 
-        let mut encoder =
-            server
-                .state
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: None
-                });
+        let mut encoder = server
+            .state
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
         encoder.copy_texture_to_buffer(
             wgpu::TexelCopyTextureInfo {
                 texture: wgpu_tex.wgpu_texture(),

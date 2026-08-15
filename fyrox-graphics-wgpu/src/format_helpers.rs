@@ -81,9 +81,24 @@ pub fn is_integer_format(fmt: wgpu::TextureFormat) -> bool {
     use wgpu::TextureFormat as F;
     matches!(
         fmt,
-        F::R8Uint | F::R8Sint | F::R16Uint | F::R16Sint | F::R32Uint | F::R32Sint |
-        F::Rg8Uint | F::Rg8Sint | F::Rg16Uint | F::Rg16Sint | F::Rg32Uint | F::Rg32Sint |
-        F::Rgba8Uint | F::Rgba8Sint | F::Rgba16Uint | F::Rgba16Sint | F::Rgba32Uint | F::Rgba32Sint
+        F::R8Uint
+            | F::R8Sint
+            | F::R16Uint
+            | F::R16Sint
+            | F::R32Uint
+            | F::R32Sint
+            | F::Rg8Uint
+            | F::Rg8Sint
+            | F::Rg16Uint
+            | F::Rg16Sint
+            | F::Rg32Uint
+            | F::Rg32Sint
+            | F::Rgba8Uint
+            | F::Rgba8Sint
+            | F::Rgba16Uint
+            | F::Rgba16Sint
+            | F::Rgba32Uint
+            | F::Rgba32Sint
     )
 }
 

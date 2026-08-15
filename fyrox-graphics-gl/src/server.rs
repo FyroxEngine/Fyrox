@@ -1494,7 +1494,8 @@ impl GraphicsServer for GlGraphicsServer {
         let gl = &self.gl;
         unsafe {
             ServerCapabilities {
-                max_uniform_buffer_binding_size: gl.get_parameter_i32(glow::MAX_UNIFORM_BLOCK_SIZE) as usize,
+                max_uniform_buffer_binding_size: gl.get_parameter_i32(glow::MAX_UNIFORM_BLOCK_SIZE)
+                    as usize,
                 uniform_buffer_offset_alignment: gl
                     .get_parameter_i32(glow::UNIFORM_BUFFER_OFFSET_ALIGNMENT)
                     as usize,

@@ -129,7 +129,10 @@ impl GpuBufferTrait for WgpuBuffer {
             return Err(FrameworkError::GraphicsServerUnavailable);
         };
         if data.len() <= self.size.get() {
-            server.state.queue.write_buffer(&self.buffer.borrow(), 0, data);
+            server
+                .state
+                .queue
+                .write_buffer(&self.buffer.borrow(), 0, data);
         } else {
             // Reallocate the buffer to fit the larger data, matching the GL backend
             // behavior. This prevents silent data truncation that caused rendering

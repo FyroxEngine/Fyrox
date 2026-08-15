@@ -69,11 +69,7 @@ impl OverlayRenderPass {
                 server,
             )
             .unwrap(),
-            shader: RenderPassContainer::from_str(
-                server,
-                OVERLAY_SHADER_SRC,
-            )
-            .unwrap(),
+            shader: RenderPassContainer::from_str(server, OVERLAY_SHADER_SRC).unwrap(),
             sound_icon: TextureResource::load_from_memory(
                 Uuid::new_v4(),
                 ResourceKind::Embedded,

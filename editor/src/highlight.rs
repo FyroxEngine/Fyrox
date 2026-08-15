@@ -83,11 +83,8 @@ impl HighlightRenderPass {
     pub fn new_raw(server: &dyn GraphicsServer, width: usize, height: usize) -> Self {
         Self {
             framebuffer: Self::create_frame_buffer(server, width, height),
-            edge_detect_shader: RenderPassContainer::from_str(
-                server,
-                HIGHLIGHT_SHADER_SRC,
-            )
-            .unwrap(),
+            edge_detect_shader: RenderPassContainer::from_str(server, HIGHLIGHT_SHADER_SRC)
+                .unwrap(),
             scene_handle: Default::default(),
             nodes_to_highlight: Default::default(),
         }
