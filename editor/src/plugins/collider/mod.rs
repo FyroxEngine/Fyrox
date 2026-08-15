@@ -287,7 +287,7 @@ static GIZMO_SHADER: LazyLock<ShaderResource> = LazyLock::new(|| {
         include_str!("../../../resources/shaders/wgpu/sprite_gizmo.shader"),
         Default::default(),
     )
-        .unwrap()
+    .unwrap()
 });
 
 fn make_handle(scene: &mut Scene, root: Handle<Pivot>, visible: bool) -> Handle<Sprite> {

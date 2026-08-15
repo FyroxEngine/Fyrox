@@ -169,7 +169,7 @@ static GRID_SHADER: LazyLock<ShaderResource> = LazyLock::new(|| {
         include_str!("../../resources/shaders/wgpu/grid.shader"),
         Default::default(),
     )
-        .unwrap()
+    .unwrap()
 });
 
 fn make_grid_material() -> MaterialResource {

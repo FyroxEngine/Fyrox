@@ -290,7 +290,7 @@ static GIZMO_SHADER: LazyLock<ShaderResource> = LazyLock::new(|| {
         include_str!("../resources/shaders/wgpu/gizmo.shader"),
         Default::default(),
     )
-        .unwrap()
+    .unwrap()
 });
 
 pub fn make_color_material(color: Color) -> MaterialResource {

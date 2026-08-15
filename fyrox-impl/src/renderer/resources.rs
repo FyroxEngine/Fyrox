@@ -195,7 +195,7 @@ impl ShadersContainer {
                         .bytes
                         .as_ref(),
                 )
-                    .unwrap(),
+                .unwrap(),
             )?,
             environment_map_specular_convolution: RenderPassContainer::from_str(
                 server,
