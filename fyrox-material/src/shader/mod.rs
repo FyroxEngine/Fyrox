@@ -966,14 +966,14 @@ impl ShaderResourceExtension for ShaderResource {
     }
 }
 
-#[cfg(all(feature = "backend_wgpu", not(feature = "backend_opengl")))]
+#[cfg(not(feature = "backend_opengl"))]
 macro_rules! embedded_shader {
     ($file:literal) => {
         embedded_data_source!(concat!("standard/wgpu/", $file))
     };
 }
 
-#[cfg(not(feature = "backend_wgpu"))]
+#[cfg(feature = "backend_opengl")]
 macro_rules! embedded_shader {
     ($file:literal) => {
         embedded_data_source!(concat!("standard/opengl/", $file))

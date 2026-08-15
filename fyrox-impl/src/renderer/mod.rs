@@ -387,7 +387,7 @@ pub fn make_viewport_matrix(viewport: Rect<i32>) -> Matrix4<f32> {
 /// swapped so that texture coordinates match the G-Buffer's pixel layout.
 ///
 /// Non-deferred passes (bloom, FXAA, HDR) should use [`make_viewport_matrix`] instead.
-#[cfg(all(feature = "backend_wgpu", not(feature = "backend_opengl")))]
+#[cfg(not(feature = "backend_opengl"))]
 pub fn make_deferred_viewport_matrix(viewport: Rect<i32>) -> Matrix4<f32> {
     Matrix4::new_orthographic(
         0.0,
