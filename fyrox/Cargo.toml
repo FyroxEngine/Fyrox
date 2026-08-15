@@ -15,7 +15,7 @@ readme = "README.md"
 rust-version = "1.94"
 
 [features]
-default = ["fyrox-impl"]
+default = ["fyrox-impl", "backend_opengl"]
 dylib = ["fyrox-dylib"]
 mesh_analysis = ["fyrox-impl/mesh_analysis", "fyrox-dylib/mesh_analysis"]
 backend_opengl = ["fyrox-impl/backend_opengl"]

@@ -14,4 +14,4 @@ repository = "https://github.com/FyroxEngine/Fyrox"
 rust-version = "1.94"
 
 [dependencies]
-fyrox = { version = "2.0.0-rc.1", path = "../fyrox" }
+fyrox = { version = "2.0.0-rc.1", path = "../fyrox", default-features = false }
