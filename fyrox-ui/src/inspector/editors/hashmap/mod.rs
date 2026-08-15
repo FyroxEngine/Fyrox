@@ -57,8 +57,8 @@ impl<T: Reflect + Send + Eq + Hash + Clone + PartialEq + Default> HashMapKey for
 pub trait HashMapValue: Reflect + Clone + PartialEq + Default + Send {}
 impl<T: Reflect + Clone + PartialEq + Default + Send> HashMapValue for T {}
 
-pub trait HashMapState: BuildHasher + Clone + Debug + PartialEq + Default + Send + 'static {}
-impl<T: BuildHasher + Clone + Debug + Send + PartialEq + Default + 'static> HashMapState for T {}
+pub trait HashMapState: BuildHasher + Clone + Debug + Default + Send + 'static {}
+impl<T: BuildHasher + Clone + Debug + Send + Default + 'static> HashMapState for T {}
 
 pub struct HashMapPropertyEditorDefinition<K, V, S>
 where

@@ -18,12 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::grid::{Grid, GridMessage};
-use crate::widget::WidgetMessage;
 use crate::{
     button::{Button, ButtonBuilder, ButtonMessage},
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
-    grid::{Column, GridBuilder, Row},
+    grid::{Column, Grid, GridBuilder, GridMessage, Row},
     inspector::{
         editors::{
             hashmap::{
@@ -38,7 +36,7 @@ use crate::{
         InspectorEnvironmentContainer,
     },
     message::{MessageData, UiMessage},
-    widget::{Widget, WidgetBuilder},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
     window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
     BuildContext, Control, UiNode, UserInterface,
 };
@@ -49,7 +47,7 @@ use std::{
     sync::Arc,
 };
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum HashMapPropertyEditorMessage<K, V, S>
 where
     K: HashMapKey,
@@ -62,6 +60,43 @@ where
     Remove { key: K },
     InsertDefault { key: K },
 }
+
+impl<K, V, S> PartialEq for HashMapPropertyEditorMessage<K, V, S>
+where
+    K: HashMapKey,
+    V: HashMapValue,
+    S: HashMapState,
+{
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Entries { hash_map: a }, Self::Entries { hash_map: b }) => a.eq(b),
+            (
+                Self::ValueChanged {
+                    key: k_a,
+                    message: m_a,
+                },
+                Self::ValueChanged {
+                    key: k_b,
+                    message: m_b,
+                },
+            ) => k_a.eq(k_b) && m_a.eq(m_b),
+            (
+                Self::KeyChanged {
+                    key: k_a,
+                    message: m_a,
+                },
+                Self::KeyChanged {
+                    key: k_b,
+                    message: m_b,
+                },
+            ) => k_a.eq(k_b) && m_a.eq(m_b),
+            (Self::Remove { key: a }, Self::Remove { key: b }) => a.eq(b),
+            (Self::InsertDefault { key: a }, Self::InsertDefault { key: b }) => a.eq(b),
+            _ => false,
+        }
+    }
+}
+
 impl<K, V, S> MessageData for HashMapPropertyEditorMessage<K, V, S>
 where
     K: HashMapKey,
