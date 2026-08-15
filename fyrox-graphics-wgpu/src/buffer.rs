@@ -45,9 +45,9 @@ fn buffer_usage_to_wgpu(kind: BufferKind) -> wgpu::BufferUsages {
     flags
 }
 
-/// Wgpu implementation of [`GpuBufferTrait`](fyrox_graphics::buffer::GpuBufferTrait).
+/// Wgpu implementation of [`GpuBufferTrait`].
 ///
-/// Wraps a [`wgpu::Buffer`] and tracks its memory usage via [`ServerMemoryUsage`].
+/// Wraps a [`wgpu::Buffer`] and tracks its memory usage via `ServerMemoryUsage`.
 /// When `write_data` receives data larger than the current buffer capacity, the buffer
 /// is transparently reallocated to fit — matching the OpenGL backend behavior. Memory
 /// accounting is updated accordingly.

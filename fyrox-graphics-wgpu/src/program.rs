@@ -226,7 +226,7 @@ fn create_bind_group_layout_with_formats(
     })
 }
 
-/// Wgpu implementation of [`GpuShaderTrait`](fyrox_graphics::gpu_program::GpuShaderTrait).
+/// Wgpu implementation of [`GpuShaderTrait`].
 ///
 /// Wraps a compiled [`wgpu::ShaderModule`]. Shaders are compiled from WGSL source
 /// with automatically generated resource binding declarations prepended.
@@ -243,7 +243,7 @@ impl WgpuShader {
     ///
     /// The compilation pipeline:
     /// 1. Validates resource definitions for duplicate bindings/names
-    /// 2. Generates `@group(0) @binding(N)` WGSL declarations via [`generate_wgsl_declarations`]
+    /// 2. Generates `@group(0) @binding(N)` WGSL declarations via `generate_wgsl_declarations`
     /// 3. Prepends declarations + [`shared.wgsl`](shaders/shared.wgsl) to the user source
     /// 4. Compiles the combined WGSL as a [`wgpu::ShaderModule`]
     pub fn new(
@@ -299,7 +299,7 @@ impl WgpuShader {
     }
 }
 
-/// Wgpu implementation of [`GpuProgramTrait`](fyrox_graphics::gpu_program::GpuProgramTrait).
+/// Wgpu implementation of [`GpuProgramTrait`].
 ///
 /// A shader program consisting of a vertex and fragment [`wgpu::ShaderModule`],
 /// along with resource definitions and lazily-cached bind group / pipeline layouts.
@@ -313,6 +313,7 @@ pub struct WgpuProgram {
     vertex_module: wgpu::ShaderModule,
     fragment_module: wgpu::ShaderModule,
     resources: Vec<ShaderResourceDefinition>,
+    #[allow(clippy::type_complexity)]
     cached_layouts: RefCell<
         HashMap<
             Vec<(usize, wgpu::TextureSampleType)>,

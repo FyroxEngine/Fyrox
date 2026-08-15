@@ -26,7 +26,7 @@ use fyrox_graphics::{
 use std::cell::Cell;
 use std::rc::Weak;
 
-/// Wgpu implementation of [`GpuAsyncReadBufferTrait`](fyrox_graphics::read_buffer::GpuAsyncReadBufferTrait).
+/// Wgpu implementation of [`GpuAsyncReadBufferTrait`].
 ///
 /// Provides asynchronous pixel readback from a framebuffer's color attachment to
 /// CPU-accessible memory. Internally uses a `MAP_READ | COPY_DST` buffer and

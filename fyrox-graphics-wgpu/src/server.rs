@@ -136,7 +136,7 @@ pub struct WgpuState {
 
 /// The main wgpu-based graphics server.
 ///
-/// Implements [`GraphicsServer`](fyrox_graphics::server::GraphicsServer) and serves
+/// Implements [`GraphicsServer`] and serves
 /// as the entry point for all GPU resource creation. Manages the wgpu device, surface,
 /// pipeline cache, and memory usage tracking.
 ///
@@ -224,6 +224,7 @@ impl WgpuGraphicsServer {
     /// * `window_target` — the winit event loop for window/surface creation
     /// * `window_attributes` — initial window configuration
     /// * `named_objects` — whether to set debug labels on GPU objects
+    #[allow(clippy::new_ret_no_self)]
     pub fn new(
         vsync: bool,
         _msaa_sample_count: Option<u8>,
@@ -876,7 +877,7 @@ impl GraphicsServer for WgpuGraphicsServer {
             });
 
             rp.set_viewport(0.0, 0.0, mip_w as f32, mip_h as f32, 0.0, 1.0);
-            rp.set_pipeline(&pipeline);
+            rp.set_pipeline(pipeline);
             rp.set_bind_group(0, &bind_group, &[]);
             rp.draw(0..3, 0..1);
             drop(rp);

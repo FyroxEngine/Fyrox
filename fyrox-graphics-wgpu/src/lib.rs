@@ -53,7 +53,7 @@
 //! | Sampler             | `N + 100`              |
 //! | Uniform buffer      | `N + 200`              |
 //!
-//! Where `N` is the resource's declared binding index from [`ShaderResourceDefinition`].
+//! Where `N` is the resource's declared binding index from `ShaderResourceDefinition`.
 //!
 //! # Pipeline Caching
 //!

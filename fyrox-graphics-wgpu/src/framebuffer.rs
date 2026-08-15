@@ -188,7 +188,7 @@ pub struct PipelineKey {
     texture_resource_sample_types: Vec<(usize, wgpu::TextureSampleType)>,
 }
 
-/// Wgpu implementation of [`GpuFrameBufferTrait`](fyrox_graphics::framebuffer::GpuFrameBufferTrait).
+/// Wgpu implementation of [`GpuFrameBufferTrait`].
 ///
 /// Represents a render target with optional depth and color attachments. Supports
 /// both offscreen framebuffers and the screen backbuffer. Contains the core draw
@@ -234,7 +234,7 @@ impl WgpuFrameBuffer {
     /// Creates a backbuffer framebuffer that renders to the screen surface.
     ///
     /// The backbuffer acquires a surface texture on the first draw call per frame
-    /// and presents it via [`swap_buffers`](WgpuGraphicsServer::swap_buffers).
+    /// and presents it via `swap_buffers`.
     pub fn backbuffer(server: &WgpuGraphicsServer, depth: Option<Attachment>) -> Self {
         Self {
             server: server.weak_ref(),
@@ -249,6 +249,7 @@ impl WgpuFrameBuffer {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn get_or_create_pipeline(
         &self,
         server: &WgpuGraphicsServer,
@@ -420,7 +421,7 @@ impl WgpuFrameBuffer {
                 let blend = if is_integer_format(format) {
                     None
                 } else {
-                    blend_state.clone()
+                    blend_state
                 };
 
                 Some(wgpu::ColorTargetState {
@@ -484,6 +485,7 @@ impl WgpuFrameBuffer {
         pipeline
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn do_draw(
         &self,
         instance_count: u32,
@@ -772,6 +774,7 @@ impl WgpuFrameBuffer {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn copy_attachment_texture(
     encoder: &mut wgpu::CommandEncoder,
     src: &Attachment,

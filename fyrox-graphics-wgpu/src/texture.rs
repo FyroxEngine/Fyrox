@@ -142,6 +142,7 @@ fn texture_view_dimension(kind: GpuTextureKind) -> wgpu::TextureViewDimension {
 
 /// Writes a single mip level (or cubemap face) to a texture, expanding 3-component
 /// pixel data to 4-component if needed for wgpu compatibility.
+#[allow(clippy::too_many_arguments)]
 fn write_mip_data(
     queue: &wgpu::Queue,
     texture: &wgpu::Texture,
@@ -177,7 +178,7 @@ fn write_mip_data(
     );
 }
 
-/// Wgpu implementation of [`GpuTextureTrait`](fyrox_graphics::gpu_texture::GpuTextureTrait).
+/// Wgpu implementation of [`GpuTextureTrait`].
 ///
 /// Wraps a [`wgpu::Texture`] with two views: a full-aspect view for rendering and
 /// a separate `DepthOnly` view for shader bindings (depth-stencil textures require

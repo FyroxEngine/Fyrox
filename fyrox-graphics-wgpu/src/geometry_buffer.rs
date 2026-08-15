@@ -52,7 +52,7 @@ fn attribute_format(kind: AttributeKind, cc: usize, normalized: bool) -> wgpu::V
     }
 }
 
-/// Wgpu implementation of [`GpuGeometryBufferTrait`](fyrox_graphics::geometry_buffer::GpuGeometryBufferTrait).
+/// Wgpu implementation of [`GpuGeometryBufferTrait`].
 ///
 /// Holds vertex buffers, their layouts, and an index (element) buffer for indexed
 /// drawing. Supports triangles, lines, and points as element types.

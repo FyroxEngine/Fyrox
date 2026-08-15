@@ -70,7 +70,7 @@ fn wrap_mode_to_wgpu(m: WrapMode) -> wgpu::AddressMode {
     }
 }
 
-/// Wgpu implementation of [`GpuSamplerTrait`](fyrox_graphics::sampler::GpuSamplerTrait).
+/// Wgpu implementation of [`GpuSamplerTrait`].
 ///
 /// Wraps a [`wgpu::Sampler`] configured from a [`GpuSamplerDescriptor`]. When
 /// anisotropy is greater than 1, all filters are forced to `Linear` (this is a

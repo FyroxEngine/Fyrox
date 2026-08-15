@@ -27,7 +27,7 @@ use std::cell::Cell;
 use std::fmt::Debug;
 use std::rc::Weak;
 
-/// Wgpu implementation of [`GpuQueryTrait`](fyrox_graphics::query::GpuQueryTrait).
+/// Wgpu implementation of [`GpuQueryTrait`].
 ///
 /// **Stub implementation**: wgpu does not currently expose occlusion queries,
 /// so this type tracks the active state but always returns `u32::MAX` from

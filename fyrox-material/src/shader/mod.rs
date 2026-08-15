@@ -973,7 +973,7 @@ macro_rules! embedded_shader {
     };
 }
 
-#[cfg(feature = "backend_opengl")]
+#[cfg(not(feature = "backend_wgpu"))]
 macro_rules! embedded_shader {
     ($file:literal) => {
         embedded_data_source!(concat!("standard/opengl/", $file))
