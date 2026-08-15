@@ -162,7 +162,7 @@ static GRID_SHADER: LazyLock<ShaderResource> = LazyLock::new(|| {
     .unwrap()
 });
 
-#[cfg(all(feature = "backend_wgpu", not(feature = "backend_opengl")))]
+#[cfg(not(feature = "backend_opengl"))]
 static GRID_SHADER: LazyLock<ShaderResource> = LazyLock::new(|| {
     ShaderResource::from_str(
         Uuid::new_v4(),

@@ -45,7 +45,7 @@ use std::{any::TypeId, cell::RefCell, rc::Rc};
 #[cfg(feature = "backend_opengl")]
 const HIGHLIGHT_SHADER_SRC: &str = include_str!("../resources/shaders/opengl/highlight.shader");
 
-#[cfg(all(feature = "backend_wgpu", not(feature = "backend_opengl")))]
+#[cfg(not(feature = "backend_opengl"))]
 const HIGHLIGHT_SHADER_SRC: &str = include_str!("../resources/shaders/wgpu/highlight.shader");
 
 pub struct HighlightRenderPass {

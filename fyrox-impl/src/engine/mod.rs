@@ -1039,7 +1039,7 @@ impl Default for GraphicsServerConstructor {
     }
 }
 
-#[cfg(all(feature = "backend_wgpu", not(feature = "backend_opengl")))]
+#[cfg(not(feature = "backend_opengl"))]
 impl Default for GraphicsServerConstructor {
     fn default() -> Self {
         Self(Rc::new(
