@@ -269,11 +269,11 @@ where
             .build(ctx);
 
             let row = i + 1; // "add" button occupies the first row
-            let key_editor = key_editor_instance.editor();
+            let key_editor = key_editor_instance.container();
             let key_editor_ref = &mut ctx[key_editor];
             key_editor_ref.set_row(row);
             key_editor_ref.set_column(0);
-            let value_editor = value_editor_instance.editor();
+            let value_editor = value_editor_instance.container();
             let value_editor_ref = &mut ctx[value_editor];
             value_editor_ref.set_row(row);
             value_editor_ref.set_column(1);

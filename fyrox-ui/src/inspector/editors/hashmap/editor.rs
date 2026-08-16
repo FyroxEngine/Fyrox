@@ -267,8 +267,8 @@ where
             .values()
             .flat_map(|entry| {
                 Some([
-                    entry.key_editor.editor(),
-                    entry.value_editor.editor(),
+                    entry.key_editor.container(),
+                    entry.value_editor.container(),
                     entry.remove.to_base(),
                 ])
             })

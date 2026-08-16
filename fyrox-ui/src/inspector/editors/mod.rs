@@ -310,6 +310,15 @@ impl PropertyEditorInstance {
             | PropertyEditorInstance::Custom { editor, .. } => *editor,
         }
     }
+
+    /// Returns the container of the property editor instance. For simple editors the editor itself
+    /// is a container.
+    pub fn container(&self) -> Handle<UiNode> {
+        match self {
+            PropertyEditorInstance::Simple { editor } => *editor,
+            PropertyEditorInstance::Custom { container, .. } => *container,
+        }
+    }
 }
 
 /// The trait for all property editor definitions which are capable of providing
