@@ -23,10 +23,11 @@ fyrox-resource = { path = "../fyrox-resource", version = "2.0.0-rc.1" }
 fyrox-animation = { path = "../fyrox-animation", version = "2.0.0-rc.1" }
 fyrox-graph = { path = "../fyrox-graph", version = "2.0.0-rc.1" }
 fyrox-graphics = { path = "../fyrox-graphics", version = "2.0.0-rc.1" }
-fyrox-graphics-gl = { path = "../fyrox-graphics-gl", version = "2.0.0-rc.1" }
 fyrox-texture = { path = "../fyrox-texture", version = "2.0.0-rc.1" }
 fyrox-autotile = { path = "../fyrox-autotile", version = "2.0.0-rc.1" }
 fyrox-material = { path = "../fyrox-material", version = "2.0.0-rc.1" }
+fyrox-graphics-gl = { path = "../fyrox-graphics-gl", version = "2.0.0-rc.1", optional = true }
+fyrox-graphics-wgpu = { path = "../fyrox-graphics-wgpu", version = "2.0.0-rc.1", optional = true }
 rapier2d = { version = "0.33", features = ["debug-render", ] }
 rapier3d = { version = "0.33", features = ["debug-render"] }
 image = { version = "0.25.1", default-features = false, features = ["gif", "jpeg", "png", "tga", "tiff", "bmp"] }
@@ -93,6 +94,8 @@ opener = { version = "0.8", default-features = false, features = ["reveal"] }
 # === end of additional deps ===
 
 [features]
+backend_opengl = ["dep:fyrox-graphics-gl", "fyrox-material/backend_opengl"]
+backend_wgpu = ["dep:fyrox-graphics-wgpu", "fyrox-material/backend_wgpu"]
 mesh_analysis = []
 
 [target.'cfg(target_os = "android")'.dependencies]

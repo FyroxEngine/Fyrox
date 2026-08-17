@@ -153,6 +153,10 @@ pub enum SamplerKind {
     /// The sampler follows the direction of the coordinates until it finds a place on one of the six faces of the cube.
     /// Each component of the resulting value is an unsigned integer.
     USamplerCube,
+    /// A sampler for a 2D depth texture.
+    DepthSampler2D,
+    /// A sampler for a cube depth texture.
+    DepthSamplerCube,
 }
 
 /// Shader property with default value.

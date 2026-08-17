@@ -270,10 +270,21 @@ fn make_shape_gizmo(
     }
 }
 
+#[cfg(feature = "backend_opengl")]
 static GIZMO_SHADER: LazyLock<ShaderResource> = LazyLock::new(|| {
     ShaderResource::from_str(
         Uuid::new_v4(),
-        include_str!("../../../resources/shaders/sprite_gizmo.shader"),
+        include_str!("../../../resources/shaders/opengl/sprite_gizmo.shader"),
+        Default::default(),
+    )
+    .unwrap()
+});
+
+#[cfg(not(feature = "backend_opengl"))]
+static GIZMO_SHADER: LazyLock<ShaderResource> = LazyLock::new(|| {
+    ShaderResource::from_str(
+        Uuid::new_v4(),
+        include_str!("../../../resources/shaders/wgpu/sprite_gizmo.shader"),
         Default::default(),
     )
     .unwrap()

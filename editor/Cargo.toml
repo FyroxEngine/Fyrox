@@ -32,5 +32,7 @@ notify = "8"
 bitflags = "2.9.1"
 
 [features]
-default = ["fyrox/default"]
+default = ["fyrox/default", "backend_opengl"]
 dylib_engine = ["fyrox/dylib"]
+backend_opengl = ["fyrox/backend_opengl"]
+backend_wgpu = ["fyrox/backend_wgpu"]

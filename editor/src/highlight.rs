@@ -42,6 +42,12 @@ use crate::{
 };
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 
+#[cfg(feature = "backend_opengl")]
+const HIGHLIGHT_SHADER_SRC: &str = include_str!("../resources/shaders/opengl/highlight.shader");
+
+#[cfg(not(feature = "backend_opengl"))]
+const HIGHLIGHT_SHADER_SRC: &str = include_str!("../resources/shaders/wgpu/highlight.shader");
+
 pub struct HighlightRenderPass {
     framebuffer: GpuFrameBuffer,
     edge_detect_shader: RenderPassContainer,
@@ -77,11 +83,8 @@ impl HighlightRenderPass {
     pub fn new_raw(server: &dyn GraphicsServer, width: usize, height: usize) -> Self {
         Self {
             framebuffer: Self::create_frame_buffer(server, width, height),
-            edge_detect_shader: RenderPassContainer::from_str(
-                server,
-                include_str!("../resources/shaders/highlight.shader"),
-            )
-            .unwrap(),
+            edge_detect_shader: RenderPassContainer::from_str(server, HIGHLIGHT_SHADER_SRC)
+                .unwrap(),
             scene_handle: Default::default(),
             nodes_to_highlight: Default::default(),
         }
@@ -104,6 +107,13 @@ impl SceneRenderPass for HighlightRenderPass {
         let mut stats = RenderPassStatistics::default();
 
         if self.scene_handle != ctx.scene_handle {
+            return Ok(Default::default());
+        }
+
+        // Skip highlight rendering when nothing is selected.
+        // Without this, the edge-detect shader reads stale FBO content on wgpu
+        // because the deferred clear never executes when no draw calls happen.
+        if self.nodes_to_highlight.is_empty() {
             return Ok(Default::default());
         }
 

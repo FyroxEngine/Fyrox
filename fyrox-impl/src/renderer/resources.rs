@@ -21,7 +21,7 @@
 //! A set of textures of certain kinds. See [`RendererResources`] docs for more info.
 
 use crate::{
-    core::{algebra::Matrix4, array_as_u8_slice},
+    core::algebra::Matrix4,
     graphics::{
         buffer::GpuBufferDescriptor,
         buffer::{BufferKind, BufferUsage, GpuBuffer},
@@ -98,79 +98,93 @@ pub struct ShadersContainer {
     pub environment_map_irradiance_convolution: RenderPassContainer,
 }
 
+#[cfg(feature = "backend_opengl")]
+macro_rules! include_shader {
+    ($file:literal) => {
+        include_str!(concat!("shaders/opengl/", $file))
+    };
+}
+
+#[cfg(not(feature = "backend_opengl"))]
+macro_rules! include_shader {
+    ($file:literal) => {
+        include_str!(concat!("shaders/wgpu/", $file))
+    };
+}
+
 impl ShadersContainer {
-    /// Creates a new shaders container.
+    /// Creates a new shaders' container.
     pub fn new(server: &dyn GraphicsServer) -> Result<Self, FrameworkError> {
         Ok(Self {
-            decal: RenderPassContainer::from_str(server, include_str!("shaders/decal.shader"))?,
+            decal: RenderPassContainer::from_str(server, include_shader!("decal.shader"))?,
             spot_light: RenderPassContainer::from_str(
                 server,
-                include_str!("shaders/deferred_spot_light.shader"),
+                include_shader!("deferred_spot_light.shader"),
             )?,
             point_light: RenderPassContainer::from_str(
                 server,
-                include_str!("shaders/deferred_point_light.shader"),
+                include_shader!("deferred_point_light.shader"),
             )?,
             directional_light: RenderPassContainer::from_str(
                 server,
-                include_str!("shaders/deferred_directional_light.shader"),
+                include_shader!("deferred_directional_light.shader"),
             )?,
             ambient_light: RenderPassContainer::from_str(
                 server,
-                include_str!("shaders/ambient_light.shader"),
+                include_shader!("ambient_light.shader"),
             )?,
             volume_marker_lit: RenderPassContainer::from_str(
                 server,
-                include_str!("shaders/volume_marker_lit.shader"),
+                include_shader!("volume_marker_lit.shader"),
             )?,
             pixel_counter: RenderPassContainer::from_str(
                 server,
-                include_str!("shaders/pixel_counter.shader"),
+                include_shader!("pixel_counter.shader"),
             )?,
-            debug: RenderPassContainer::from_str(server, include_str!("shaders/debug.shader"))?,
-            fxaa: RenderPassContainer::from_str(server, include_str!("shaders/fxaa.shader"))?,
+            debug: RenderPassContainer::from_str(server, include_shader!("debug.shader"))?,
+            fxaa: RenderPassContainer::from_str(server, include_shader!("fxaa.shader"))?,
             spot_light_volume: RenderPassContainer::from_str(
                 server,
-                include_str!("shaders/spot_volumetric.shader"),
+                include_shader!("spot_volumetric.shader"),
             )?,
             point_light_volume: RenderPassContainer::from_str(
                 server,
-                include_str!("shaders/point_volumetric.shader"),
+                include_shader!("point_volumetric.shader"),
             )?,
             volume_marker_vol: RenderPassContainer::from_str(
                 server,
-                include_str!("shaders/volume_marker_vol.shader"),
+                include_shader!("volume_marker_vol.shader"),
             )?,
             visibility_optimizer: RenderPassContainer::from_str(
                 server,
-                include_str!("shaders/visibility_optimizer.shader"),
+                include_shader!("visibility_optimizer.shader"),
             )?,
-            ssao: RenderPassContainer::from_str(server, include_str!("shaders/ssao.shader"))?,
+            ssao: RenderPassContainer::from_str(server, include_shader!("ssao.shader"))?,
             visibility: RenderPassContainer::from_str(
                 server,
-                include_str!("shaders/visibility.shader"),
+                include_shader!("visibility.shader"),
             )?,
-            blit: RenderPassContainer::from_str(server, include_str!("shaders/blit.shader"))?,
+            blit: RenderPassContainer::from_str(server, include_shader!("blit.shader"))?,
             hdr_adaptation: RenderPassContainer::from_str(
                 server,
-                include_str!("shaders/hdr_adaptation.shader"),
+                include_shader!("hdr_adaptation.shader"),
             )?,
             hdr_luminance: RenderPassContainer::from_str(
                 server,
-                include_str!("shaders/hdr_luminance.shader"),
+                include_shader!("hdr_luminance.shader"),
             )?,
             hdr_downscale: RenderPassContainer::from_str(
                 server,
-                include_str!("shaders/hdr_downscale.shader"),
+                include_shader!("hdr_downscale.shader"),
             )?,
-            hdr_map: RenderPassContainer::from_str(server, include_str!("shaders/hdr_map.shader"))?,
-            bloom: RenderPassContainer::from_str(server, include_str!("shaders/bloom.shader"))?,
-            skybox: RenderPassContainer::from_str(server, include_str!("shaders/skybox.shader"))?,
+            hdr_map: RenderPassContainer::from_str(server, include_shader!("hdr_map.shader"))?,
+            bloom: RenderPassContainer::from_str(server, include_shader!("bloom.shader"))?,
+            skybox: RenderPassContainer::from_str(server, include_shader!("skybox.shader"))?,
             gaussian_blur: RenderPassContainer::from_str(
                 server,
-                include_str!("shaders/gaussian_blur.shader"),
+                include_shader!("gaussian_blur.shader"),
             )?,
-            box_blur: RenderPassContainer::from_str(server, include_str!("shaders/blur.shader"))?,
+            box_blur: RenderPassContainer::from_str(server, include_shader!("blur.shader"))?,
             ui: RenderPassContainer::from_str(
                 server,
                 str::from_utf8(
@@ -185,11 +199,11 @@ impl ShadersContainer {
             )?,
             environment_map_specular_convolution: RenderPassContainer::from_str(
                 server,
-                include_str!("shaders/prefilter.shader"),
+                include_shader!("prefilter.shader"),
             )?,
             environment_map_irradiance_convolution: RenderPassContainer::from_str(
                 server,
-                include_str!("shaders/irradiance.shader"),
+                include_shader!("irradiance.shader"),
             )?,
         })
     }
@@ -309,9 +323,11 @@ impl RendererResources {
                     kind: BufferKind::Uniform,
                     usage: BufferUsage::StaticDraw,
                 })?;
-                const SIZE: usize = ShaderDefinition::MAX_BONE_MATRICES * size_of::<Matrix4<f32>>();
-                let zeros = [0.0; SIZE];
-                buffer.write_data(array_as_u8_slice(&zeros))?;
+                buffer.write_data(&vec![
+                    0u8;
+                    ShaderDefinition::MAX_BONE_MATRICES
+                        * size_of::<Matrix4<f32>>()
+                ])?;
                 buffer
             },
             linear_clamp_sampler: server.create_sampler(GpuSamplerDescriptor {

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::renderer::make_deferred_viewport_matrix;
 use crate::{
     asset::manager::ResourceManager,
     core::{
@@ -48,7 +49,6 @@ use crate::{
         framework::GeometryBufferExt,
         gbuffer::GBuffer,
         light_volume::LightVolumeRenderer,
-        make_viewport_matrix,
         observer::Observer,
         resources::RendererResources,
         shadow::{
@@ -291,7 +291,8 @@ impl DeferredLightRenderer {
             Frustum::from_view_projection_matrix(observer.position.view_projection_matrix)
                 .unwrap_or_default();
 
-        let frame_matrix = make_viewport_matrix(viewport);
+        // TODO: A temporary fix until we figure out what's going on. For some reason, the deferred light renderer requires an inverted viewport matrix.
+        let frame_matrix = make_deferred_viewport_matrix(viewport);
 
         let inv_projection = observer
             .position

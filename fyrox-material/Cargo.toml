@@ -28,3 +28,7 @@ regex = "1"
 
 [dev-dependencies]
 fyrox-texture = { version = "2.0.0-rc.1", path = "../fyrox-texture" }
+
+[features]
+backend_opengl = []
+backend_wgpu = []
