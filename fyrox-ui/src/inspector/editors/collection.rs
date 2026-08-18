@@ -275,11 +275,11 @@ where
                 .with_tooltip("Remove Item")
                 .with_image_color(Color::opaque(200, 0, 0))
                 .with_visibility(!immutable_collection)
-                .with_vertical_alignment(VerticalAlignment::Top)
+                .with_vertical_alignment(VerticalAlignment::Stretch)
                 .with_horizontal_alignment(HorizontalAlignment::Right)
                 .on_column(1)
                 .with_image_size(12.0)
-                .with_size(18.0)
+                .with_width(18.0)
                 .with_image(resources::REMOVE.clone())
                 .build_button(ctx);
 
