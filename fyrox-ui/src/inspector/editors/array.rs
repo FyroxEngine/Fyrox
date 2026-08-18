@@ -261,7 +261,7 @@ where
                 definition_container,
                 property_info,
                 ctx,
-                self.layer_index + 1,
+                self.layer_index,
                 self.generate_property_string_values,
                 self.filter,
                 name_column_width,
