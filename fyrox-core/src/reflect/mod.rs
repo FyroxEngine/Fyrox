@@ -32,6 +32,7 @@ mod set;
 
 use crate::sstorage::ImmutableString;
 
+use crate::reflect::set::ReflectHashSet;
 pub use array::*;
 pub use error::*;
 pub use field::*;
@@ -46,7 +47,6 @@ use std::{
     mem::ManuallyDrop,
 };
 use uuid::Uuid;
-use crate::reflect::set::ReflectHashSet;
 
 pub mod prelude {
     pub use super::{
