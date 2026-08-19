@@ -18,5 +18,20 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-pub mod macros;
-pub mod utils;
+use fyroxed_base::menu::file::FileMenu;
+use fyroxed_base::test::macros::Macro;
+use fyroxed_base::test::utils;
+use fyroxed_base::test::utils::TestPlugin;
+
+#[test]
+fn test_open() {
+    utils::run_editor_test(
+        "Menu/File/NewScene",
+        TestPlugin::new(
+            Macro::begin()
+                .click_at(FileMenu::FILE)
+                .click_at(FileMenu::NEW_SCENE)
+                .then(|editor| assert_eq!(editor.scenes.len(), 1)),
+        ),
+    );
+}

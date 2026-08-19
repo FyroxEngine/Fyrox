@@ -52,6 +52,8 @@
       <sourceFolder url="file://$MODULE_DIR$/fyrox-graphics-gl/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/editor-automated-tests/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/fyrox-build-tools-cli/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/editor/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/fyrox-graphics-wgpu/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/examples/wasm/target" />
     </content>

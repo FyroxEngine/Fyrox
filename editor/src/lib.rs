@@ -50,12 +50,10 @@ pub mod scene;
 pub mod scene_viewer;
 pub mod settings;
 pub mod stats;
+pub mod test;
 pub mod ui_scene;
 pub mod utils;
 pub mod world;
-
-#[cfg(test)]
-mod test;
 
 pub use fyrox;
 

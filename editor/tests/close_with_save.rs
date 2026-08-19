@@ -18,5 +18,27 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-pub mod macros;
-pub mod utils;
+use fyroxed_base::menu::file::FileMenu;
+use fyroxed_base::test::macros::Macro;
+use fyroxed_base::test::utils;
+use fyroxed_base::test::utils::TestPlugin;
+use fyroxed_base::SaveSceneConfirmationDialog;
+
+#[test]
+fn test_close_with_save() {
+    utils::run_editor_test(
+        "Menu/File/CloseWithSave",
+        TestPlugin::new(
+            Macro::begin()
+                .click_at(FileMenu::FILE)
+                .click_at(FileMenu::NEW_SCENE)
+                .then(|editor| assert_eq!(editor.scenes.len(), 1))
+                .click_at(FileMenu::FILE)
+                .click_at(FileMenu::CLOSE_SCENE)
+                .click_at_text(SaveSceneConfirmationDialog::DIALOG_ID, "Yes")
+                .click_at_text(FileMenu::SAVE_FILE_SELECTOR, "Save")
+                .skip_frame()
+                .then(|editor| assert_eq!(editor.scenes.len(), 0)),
+        ),
+    );
+}
