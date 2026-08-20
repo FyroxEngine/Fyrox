@@ -215,7 +215,7 @@ where
             ctx: ctx.build_context,
             definition_container: ctx.definition_container.clone(),
             environment: ctx.environment.clone(),
-            layer_index: ctx.layer_index + 1,
+            layer_index: 0,
             generate_property_string_values: ctx.generate_property_string_values,
             filter: ctx.filter,
             name_column_width: ctx.name_column_width,
@@ -281,7 +281,7 @@ where
         if let Err(e) = inspector_context.sync(
             value,
             ctx.ui,
-            ctx.layer_index + 1,
+            0,
             ctx.generate_property_string_values,
             ctx.filter,
             ctx.base_path.clone(),

@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::inspector::InspectorEnvironmentContainer;
+use crate::inspector::{InspectorEnvironmentContainer, HEADER_MARGIN, LAYER_OFFSET};
 use crate::{
     button::{Button, ButtonMessage},
     core::{
@@ -258,7 +258,7 @@ where
                         property_info: &proxy_property_info,
                         environment: environment.clone(),
                         definition_container: definition_container.clone(),
-                        layer_index: layer_index + 1,
+                        layer_index: 0,
                         generate_property_string_values,
                         filter: filter.clone(),
                         name_column_width,
@@ -268,7 +268,10 @@ where
                     })?;
 
             if let PropertyEditorInstance::Simple { editor } = editor {
-                ctx[editor].set_margin(make_property_margin(layer_index + 1));
+                ctx[editor].set_margin(make_property_margin(
+                    name_column_width - LAYER_OFFSET - HEADER_MARGIN.left,
+                    0,
+                ));
             }
 
             let remove = ImageButtonBuilder::default()

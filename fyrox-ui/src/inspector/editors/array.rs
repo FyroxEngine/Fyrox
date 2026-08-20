@@ -35,7 +35,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 
-use crate::inspector::InspectorEnvironmentContainer;
+use crate::inspector::{InspectorEnvironmentContainer, HEADER_MARGIN, LAYER_OFFSET};
 use crate::message::{DeliveryMode, MessageData};
 use fyrox_graph::SceneGraph;
 use std::sync::Arc;
@@ -170,7 +170,10 @@ where
                     })?;
 
             if let PropertyEditorInstance::Simple { editor } = editor {
-                ctx[editor].set_margin(make_property_margin(layer_index + 1));
+                ctx[editor].set_margin(make_property_margin(
+                    name_column_width - LAYER_OFFSET - HEADER_MARGIN.left,
+                    0,
+                ));
             }
 
             items.push(Item {

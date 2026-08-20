@@ -875,6 +875,8 @@ pub const HEADER_MARGIN: Thickness = Thickness {
     bottom: 1.0,
 };
 
+pub const LAYER_OFFSET: f32 = 10.0;
+
 /// An error that may be produced by an Inspector.
 #[derive(Debug)]
 pub enum InspectorError {
@@ -1039,15 +1041,15 @@ impl Debug for InspectorContext {
 /// For example, an array editor will contain nested editors for each element of the array,
 /// and those nested editors will have the array editors index_layer + 1.
 /// Deeper layer_index values correspond to a thicker left margin.
-pub fn make_property_margin(layer_index: usize) -> Thickness {
+pub fn make_property_margin(offset: f32, layer_index: usize) -> Thickness {
     let mut margin = HEADER_MARGIN;
-    margin.left += 10.0 + layer_index as f32 * 10.0;
+    margin.left += offset + LAYER_OFFSET + layer_index as f32 * LAYER_OFFSET;
     margin
 }
 
 fn make_expander_margin(layer_index: usize) -> Thickness {
     let mut margin = HEADER_MARGIN;
-    margin.left += layer_index as f32 * 10.0;
+    margin.left += layer_index as f32 * LAYER_OFFSET;
     margin
 }
 
@@ -1138,8 +1140,13 @@ pub fn make_expander_container(
         .to_base()
 }
 
-fn create_header(ctx: &mut BuildContext, text: &str, layer_index: usize) -> Handle<Text> {
-    TextBuilder::new(WidgetBuilder::new().with_margin(make_property_margin(layer_index)))
+fn create_header(
+    ctx: &mut BuildContext,
+    text: &str,
+    offset: f32,
+    layer_index: usize,
+) -> Handle<Text> {
+    TextBuilder::new(WidgetBuilder::new().with_margin(make_property_margin(offset, layer_index)))
         .with_text(text)
         .with_vertical_text_alignment(VerticalAlignment::Center)
         .build(ctx)
@@ -1326,7 +1333,7 @@ impl InspectorContext {
                                         if hide_name_column {
                                             Handle::NONE
                                         } else {
-                                            create_header(ctx, info.display_name, layer_index)
+                                            create_header(ctx, info.display_name, 0.0, layer_index)
                                         },
                                         editor,
                                         &description,
@@ -1364,7 +1371,7 @@ impl InspectorContext {
                                 "Unable to create property editor instance: Reason {e:?}"
                             ));
                             make_simple_property_container(
-                                create_header(ctx, info.display_name, layer_index),
+                                create_header(ctx, info.display_name, 0.0, layer_index),
                                 TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
                                     .with_wrap(WrapMode::Word)
                                     .with_vertical_text_alignment(VerticalAlignment::Center)
@@ -1384,7 +1391,7 @@ impl InspectorContext {
                     editors.push(editor);
                 } else {
                     editors.push(make_simple_property_container(
-                        create_header(ctx, info.display_name, layer_index),
+                        create_header(ctx, info.display_name, 0.0, layer_index),
                         TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
                             .with_wrap(WrapMode::Word)
                             .with_vertical_text_alignment(VerticalAlignment::Center)
