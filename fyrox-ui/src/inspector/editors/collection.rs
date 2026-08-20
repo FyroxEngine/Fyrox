@@ -72,9 +72,6 @@ pub struct CollectionEditor<T: CollectionItem> {
     pub add: Handle<Button>,
     pub items: Vec<Item>,
     pub panel: Handle<StackPanel>,
-    #[visit(skip)]
-    #[reflect(hidden)]
-    pub layer_index: usize,
     #[reflect(hidden)]
     #[visit(skip)]
     pub phantom: PhantomData<T>,
@@ -87,7 +84,6 @@ impl<T: CollectionItem> Clone for CollectionEditor<T> {
             add: self.add,
             items: self.items.clone(),
             panel: self.panel,
-            layer_index: self.layer_index,
             phantom: PhantomData,
         }
     }
@@ -181,7 +177,6 @@ where
     environment: Option<InspectorEnvironmentContainer>,
     definition_container: Option<Arc<PropertyEditorDefinitionContainer>>,
     add: Handle<Button>,
-    layer_index: usize,
     generate_property_string_values: bool,
     filter: PropertyFilter,
     immutable_collection: bool,
@@ -214,7 +209,6 @@ fn create_items<'a, 'b, T, I>(
     definition_container: Arc<PropertyEditorDefinitionContainer>,
     property_info: &FieldRef<'a, 'b>,
     ctx: &mut BuildContext,
-    layer_index: usize,
     generate_property_string_values: bool,
     filter: PropertyFilter,
     immutable_collection: bool,
@@ -313,7 +307,6 @@ where
             environment: None,
             definition_container: None,
             add: Default::default(),
-            layer_index: 0,
             generate_property_string_values: false,
             filter: Default::default(),
             immutable_collection: false,
@@ -340,11 +333,6 @@ where
         definition_container: Arc<PropertyEditorDefinitionContainer>,
     ) -> Self {
         self.definition_container = Some(definition_container);
-        self
-    }
-
-    pub fn with_layer_index(mut self, layer_index: usize) -> Self {
-        self.layer_index = layer_index;
         self
     }
 
@@ -387,7 +375,6 @@ where
                 definition_container,
                 property_info,
                 ctx,
-                self.layer_index,
                 self.generate_property_string_values,
                 self.filter,
                 self.immutable_collection,
@@ -414,7 +401,6 @@ where
             add: self.add,
             items,
             panel,
-            layer_index: self.layer_index,
             phantom: PhantomData,
         };
 
@@ -495,7 +481,6 @@ where
                 .with_add(add)
                 .with_collection(value.iter())
                 .with_environment(ctx.environment.clone())
-                .with_layer_index(ctx.layer_index + 1)
                 .with_definition_container(ctx.definition_container.clone())
                 .with_generate_property_string_values(ctx.generate_property_string_values)
                 .with_filter(ctx.filter)
@@ -558,7 +543,6 @@ where
                 definition_container,
                 property_info,
                 &mut ui.build_ctx(),
-                layer_index,
                 generate_property_string_values,
                 filter,
                 property_info.immutable_collection,
