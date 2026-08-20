@@ -29,7 +29,6 @@ use darling::ast;
 use proc_macro2::TokenStream as TokenStream2;
 use prop::Property;
 use quote::quote;
-use syn::Index;
 
 pub fn impl_reflect(ty_args: &args::TypeArgs) -> TokenStream2 {
     if ty_args.hide_all {
@@ -61,6 +60,7 @@ pub fn gen_fields_metadata_body(
     field_args: &ast::Fields<args::FieldArgs>,
     is_mut: bool,
 ) -> TokenStream2 {
+    let is_single_value = field_args.fields.len() == 1;
     let props = field_args
         .fields
         .iter()
@@ -68,7 +68,7 @@ pub fn gen_fields_metadata_body(
         .filter(|(_i, f)| !f.hidden)
         .zip(props.iter().zip(field_getters))
         .map(|((i, field), (prop, field_getter))| {
-            self::quote_field_prop(&prop.value, i, field_getter, field, is_mut)
+            self::quote_field_prop(&prop.value, i, is_single_value, field_getter, field, is_mut)
         });
 
     quote! {
@@ -82,6 +82,7 @@ pub fn gen_fields_getter_body(
     field_args: &ast::Fields<args::FieldArgs>,
     is_mut: bool,
 ) -> TokenStream2 {
+    let is_single_value = field_args.fields.len() == 1;
     let props = field_args
         .fields
         .iter()
@@ -89,8 +90,14 @@ pub fn gen_fields_getter_body(
         .filter(|(_i, f)| !f.hidden)
         .zip(props.iter().zip(field_getters))
         .map(|((i, field), (prop, field_getter))| {
-            let field_definition =
-                self::quote_field_prop(&prop.value, i, field_getter, field, is_mut);
+            let field_definition = self::quote_field_prop(
+                &prop.value,
+                i,
+                is_single_value,
+                field_getter,
+                field,
+                is_mut,
+            );
             quote! {
                 if reflect_argument_index == #i {
                     return Some(#field_definition);
@@ -109,15 +116,19 @@ pub fn gen_fields_getter_body(
 fn quote_field_prop(
     prop_key_name: &str,
     nth_field: usize,
+    is_single_value: bool,
     field_getter: &TokenStream2,
     field: &args::FieldArgs,
     is_mut: bool,
 ) -> TokenStream2 {
     let field_ident = match &field.ident {
-        Some(ident) => quote!(#ident),
+        Some(ident) => ident.to_string(),
         None => {
-            let nth_field = Index::from(nth_field);
-            quote!(#nth_field)
+            if is_single_value {
+                "Value".to_string()
+            } else {
+                format!("Value {nth_field}")
+            }
         }
     };
 
@@ -126,8 +137,8 @@ fn quote_field_prop(
     let display_name = field
         .display_name
         .clone()
-        .unwrap_or_else(|| field_ident.to_string());
-    let display_name = display_name.to_case(Case::Title);
+        .unwrap_or(field_ident)
+        .to_case(Case::Title);
 
     let min_value = match field.min_value {
         None => quote! { None },
