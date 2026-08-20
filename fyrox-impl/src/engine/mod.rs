@@ -1765,6 +1765,8 @@ impl Engine {
             self.post_update_plugins(dt, controller, lag);
 
             self.input_state.mouse.speed = Vector2::default();
+            self.input_state.mouse.pressed_buttons.clear();
+            self.input_state.mouse.released_buttons.clear();
             self.input_state.keyboard.released_keys.clear();
             self.input_state.keyboard.pressed_keys.clear();
         }
