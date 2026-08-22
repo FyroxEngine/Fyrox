@@ -110,6 +110,7 @@ where
             },
             ctx.name_column_width,
             ctx.hide_name_column,
+            None,
             ctx.build_context,
         );
 

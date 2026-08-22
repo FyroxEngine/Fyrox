@@ -58,6 +58,16 @@ pub struct FieldMetadata<'s> {
     pub precision: Option<usize>,
 }
 
+impl<'s> FieldMetadata<'s> {
+    pub fn description(&self) -> String {
+        if self.doc.is_empty() {
+            self.display_name.to_string()
+        } else {
+            format!("{}\n\n{}", self.display_name, self.doc)
+        }
+    }
+}
+
 pub struct FieldRef<'a, 'b> {
     /// A reference to field's metadata.
     pub metadata: &'a FieldMetadata<'b>,

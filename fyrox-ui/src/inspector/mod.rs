@@ -22,6 +22,9 @@
 //! structure or enumeration recursively. It's primary usage is provide unified and simple way of introspection.
 //! See [`Inspector`] docs for more info and usage examples.
 
+use crate::brush::Brush;
+use crate::style::resource::StyleResourceExt;
+use crate::style::{Style, StyledProperty};
 use crate::{
     border::BorderBuilder,
     check_box::{CheckBox, CheckBoxBuilder},
@@ -1058,6 +1061,7 @@ fn make_expander_check_box(
     property_name: &str,
     property_description: &str,
     hide_name: bool,
+    text_brush: Option<Brush>,
     ctx: &mut BuildContext,
 ) -> Handle<CheckBox> {
     let handle = CheckBoxBuilder::new(
@@ -1084,6 +1088,11 @@ fn make_expander_check_box(
         };
         TextBuilder::new(
             WidgetBuilder::new()
+                .with_foreground(
+                    text_brush
+                        .map(StyledProperty::from)
+                        .unwrap_or_else(|| ctx.style.property(Style::BRUSH_FOREGROUND)),
+                )
                 .with_opt_tooltip(make_tooltip(ctx, &description))
                 .with_height(16.0)
                 .with_margin(Thickness::left(2.0)),
@@ -1118,6 +1127,7 @@ pub fn make_expander_container(
     content: Handle<impl ObjectOrVariant<UiNode>>,
     width: f32,
     hide_name_column: bool,
+    text_brush: Option<Brush>,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
     ExpanderBuilder::new(WidgetBuilder::new())
@@ -1126,6 +1136,7 @@ pub fn make_expander_container(
             property_name,
             description,
             hide_name_column,
+            text_brush,
             ctx,
         ))
         .with_expander_column(if hide_name_column {
@@ -1144,12 +1155,21 @@ fn create_header(
     ctx: &mut BuildContext,
     text: &str,
     offset: f32,
+    text_brush: Option<Brush>,
     layer_index: usize,
 ) -> Handle<Text> {
-    TextBuilder::new(WidgetBuilder::new().with_margin(make_property_margin(offset, layer_index)))
-        .with_text(text)
-        .with_vertical_text_alignment(VerticalAlignment::Center)
-        .build(ctx)
+    TextBuilder::new(
+        WidgetBuilder::new()
+            .with_foreground(
+                text_brush
+                    .map(StyledProperty::from)
+                    .unwrap_or_else(|| ctx.style.property(Style::BRUSH_FOREGROUND)),
+            )
+            .with_margin(make_property_margin(offset, layer_index)),
+    )
+    .with_text(text)
+    .with_vertical_text_alignment(VerticalAlignment::Center)
+    .build(ctx)
 }
 
 fn make_tooltip(ctx: &mut BuildContext, text: &str) -> Option<RcUiNodeHandle> {
@@ -1160,7 +1180,7 @@ fn make_tooltip(ctx: &mut BuildContext, text: &str) -> Option<RcUiNodeHandle> {
     }
 }
 
-fn make_simple_property_container(
+pub fn make_simple_property_container(
     title: Handle<Text>,
     editor: Handle<impl ObjectOrVariant<UiNode>>,
     description: &str,
@@ -1295,11 +1315,7 @@ impl InspectorContext {
                     continue;
                 }
 
-                let description = if info.doc.is_empty() {
-                    info.display_name.to_string()
-                } else {
-                    format!("{}\n\n{}", info.display_name, info.doc)
-                };
+                let description = info.description();
 
                 if let Some(definition) = definition_container
                     .definitions()
@@ -1333,7 +1349,13 @@ impl InspectorContext {
                                         if hide_name_column {
                                             Handle::NONE
                                         } else {
-                                            create_header(ctx, info.display_name, 0.0, layer_index)
+                                            create_header(
+                                                ctx,
+                                                info.display_name,
+                                                0.0,
+                                                None,
+                                                layer_index,
+                                            )
                                         },
                                         editor,
                                         &description,
@@ -1371,7 +1393,7 @@ impl InspectorContext {
                                 "Unable to create property editor instance: Reason {e:?}"
                             ));
                             make_simple_property_container(
-                                create_header(ctx, info.display_name, 0.0, layer_index),
+                                create_header(ctx, info.display_name, 0.0, None, layer_index),
                                 TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
                                     .with_wrap(WrapMode::Word)
                                     .with_vertical_text_alignment(VerticalAlignment::Center)
@@ -1391,7 +1413,7 @@ impl InspectorContext {
                     editors.push(editor);
                 } else {
                     editors.push(make_simple_property_container(
-                        create_header(ctx, info.display_name, 0.0, layer_index),
+                        create_header(ctx, info.display_name, 0.0, None, layer_index),
                         TextBuilder::new(WidgetBuilder::new().on_row(i).on_column(1))
                             .with_wrap(WrapMode::Word)
                             .with_vertical_text_alignment(VerticalAlignment::Center)

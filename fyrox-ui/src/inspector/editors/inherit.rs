@@ -21,6 +21,8 @@
 //! Property editor for [`InheritableVariable`]. It acts like a proxy to inner property, but also
 //!  adds a special "revert" button that is used to revert value to its parent's value.
 
+use crate::brush::Brush;
+use crate::inspector::{create_header, make_expander_container, make_simple_property_container};
 use crate::{
     button::{Button, ButtonBuilder, ButtonMessage},
     core::{
@@ -210,28 +212,30 @@ where
 
         let value = property_info.cast_value::<InheritableVariable<T>>()?;
 
+        let is_single_field = value.inner_value_ref().fields_count() <= 1;
+
         let inspector_context = InspectorContext::from_object(InspectorContextArgs {
             object: value,
             ctx: ctx.build_context,
             definition_container: ctx.definition_container.clone(),
             environment: ctx.environment.clone(),
-            layer_index: 0,
+            layer_index: ctx.layer_index + 1,
             generate_property_string_values: ctx.generate_property_string_values,
             filter: ctx.filter,
             name_column_width: ctx.name_column_width,
-            hide_name_column: true,
+            hide_name_column: is_single_field,
             base_path: ctx.base_path.clone(),
             has_parent_object: ctx.has_parent_object,
         });
 
-        let editor = InspectorBuilder::new(WidgetBuilder::new())
+        let inspector = InspectorBuilder::new(WidgetBuilder::new())
             .with_context(inspector_context)
             .build(ctx.build_context)
             .to_base();
 
-        let wrapper = InheritablePropertyEditorBuilder::new(WidgetBuilder::new())
-            .with_container(editor)
-            .with_inner_editor(editor)
+        let editor = InheritablePropertyEditorBuilder::new(WidgetBuilder::new())
+            .with_container(inspector)
+            .with_inner_editor(inspector)
             .with_modified(
                 ctx.has_parent_object
                     && ctx
@@ -239,10 +243,52 @@ where
                         .cast_value::<InheritableVariable<T>>()?
                         .is_modified(),
             )
-            .build(ctx.build_context)
-            .to_base();
+            .build(ctx.build_context);
 
-        Ok(PropertyEditorInstance::Simple { editor: wrapper })
+        if is_single_field {
+            let title = if ctx.hide_name_column {
+                Handle::NONE
+            } else {
+                create_header(
+                    ctx.build_context,
+                    ctx.property_info.display_name,
+                    0.0,
+                    Some(Brush::solid(160, 160, 200)),
+                    ctx.layer_index,
+                )
+            };
+
+            let container = make_simple_property_container(
+                title,
+                editor,
+                &ctx.property_info.description(),
+                ctx.name_column_width,
+                ctx.hide_name_column,
+                ctx.build_context,
+            );
+
+            Ok(PropertyEditorInstance::Custom {
+                container: container.to_base(),
+                editor: editor.to_base(),
+            })
+        } else {
+            let container = make_expander_container(
+                ctx.layer_index,
+                ctx.property_info.display_name,
+                ctx.property_info.doc,
+                Handle::<UiNode>::NONE,
+                editor,
+                ctx.name_column_width,
+                ctx.hide_name_column,
+                Some(Brush::solid(160, 160, 200)),
+                ctx.build_context,
+            );
+
+            Ok(PropertyEditorInstance::Custom {
+                container: container.to_base(),
+                editor: editor.to_base(),
+            })
+        }
     }
 
     fn create_message(
