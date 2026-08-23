@@ -21,8 +21,8 @@
 mod dialog;
 pub mod editor;
 
+use crate::utils::ImageButtonBuilder;
 use crate::{
-    button::ButtonBuilder,
     core::{reflect::prelude::*, PhantomDataSendSync},
     inspector::{
         editors::{
@@ -38,9 +38,11 @@ use crate::{
         PropertyChanged, PropertyFilter,
     },
     message::{DeliveryMode, MessageDirection, UiMessage},
+    resources,
     widget::WidgetBuilder,
-    BuildContext, VerticalAlignment,
+    BuildContext, HorizontalAlignment, VerticalAlignment,
 };
+use fyrox_core::color::Color;
 use fyrox_core::reflect;
 use fyrox_graph::SceneGraph;
 use std::sync::Arc;
@@ -165,7 +167,6 @@ fn create_value_editor<'a, 'b, V>(
     generate_property_string_values: bool,
     filter: PropertyFilter,
     name_column_width: f32,
-    hide_name_column: bool,
     base_path: String,
     has_parent_object: bool,
 ) -> Option<PropertyEditorInstance>
@@ -201,7 +202,7 @@ where
             generate_property_string_values,
             filter,
             name_column_width,
-            hide_name_column,
+            hide_name_column: true,
             base_path,
             has_parent_object,
         })
@@ -255,20 +256,24 @@ where
                 generate_property_string_values,
                 filter.clone(),
                 name_column_width,
-                hide_name_column,
                 base_path.clone(),
                 has_parent_object,
             )?;
-            let remove = ButtonBuilder::new(
-                WidgetBuilder::new()
-                    .with_width(24.0)
-                    .with_height(24.0)
-                    .with_vertical_alignment(VerticalAlignment::Center),
-            )
-            .with_text("-")
-            .build(ctx);
 
             let row = i + 1; // "add" button occupies the first row
+
+            let remove = ImageButtonBuilder::default()
+                .with_tooltip("Remove Item")
+                .with_image_color(Color::opaque(200, 0, 0))
+                .with_vertical_alignment(VerticalAlignment::Stretch)
+                .with_horizontal_alignment(HorizontalAlignment::Right)
+                .on_column(2)
+                .on_row(row)
+                .with_image_size(12.0)
+                .with_width(18.0)
+                .with_image(resources::REMOVE.clone())
+                .build_button(ctx);
+
             let key_editor = key_editor_instance.container();
             let key_editor_ref = &mut ctx[key_editor];
             key_editor_ref.set_row(row);
@@ -277,9 +282,6 @@ where
             let value_editor_ref = &mut ctx[value_editor];
             value_editor_ref.set_row(row);
             value_editor_ref.set_column(1);
-            let remove_ref = &mut ctx[remove];
-            remove_ref.set_row(row);
-            remove_ref.set_column(2);
             Some((
                 key.clone(),
                 Entry {

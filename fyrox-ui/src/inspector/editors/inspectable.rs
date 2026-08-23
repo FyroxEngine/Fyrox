@@ -104,19 +104,16 @@ where
             has_parent_object: ctx.has_parent_object,
         });
 
-        let editor;
+        let editor = InspectorBuilder::new(WidgetBuilder::new())
+            .with_context(inspector_context)
+            .build(ctx.build_context)
+            .to_base();
         let container = make_expander_container(
             ctx.layer_index,
             ctx.property_info.display_name,
             ctx.property_info.doc,
             Handle::<UiNode>::NONE,
-            {
-                editor = InspectorBuilder::new(WidgetBuilder::new())
-                    .with_context(inspector_context)
-                    .build(ctx.build_context)
-                    .to_base();
-                editor
-            },
+            editor,
             ctx.name_column_width,
             ctx.hide_name_column,
             None,

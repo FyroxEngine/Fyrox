@@ -18,8 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::utils::ImageButtonBuilder;
 use crate::{
-    button::{Button, ButtonBuilder, ButtonMessage},
+    button::{Button, ButtonMessage},
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     grid::{Column, Grid, GridBuilder, GridMessage, Row},
     inspector::{
@@ -36,11 +37,13 @@ use crate::{
         InspectorEnvironmentContainer,
     },
     message::{MessageData, UiMessage},
+    resources,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, Control, UiNode, UserInterface,
+    BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
 };
 use fxhash::FxHashSet;
+use fyrox_core::color::Color;
 use std::{
     collections::HashMap,
     ops::{Deref, DerefMut},
@@ -322,9 +325,21 @@ where
         environment: Option<InspectorEnvironmentContainer>,
         ctx: &mut BuildContext,
     ) -> Handle<HashMapPropertyEditor<K, V, S>> {
-        let add = ButtonBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
-            .with_text("Add...")
-            .build(ctx);
+        let add = ImageButtonBuilder::default()
+            .with_margin(Thickness {
+                left: 1.0,
+                top: 1.0,
+                right: 2.0,
+                bottom: 1.0,
+            })
+            .with_tooltip("Add Item")
+            .with_image_color(Color::opaque(0, 200, 0))
+            .with_horizontal_alignment(HorizontalAlignment::Right)
+            .on_column(2)
+            .with_image_size(12.0)
+            .with_size(18.0)
+            .with_image(resources::ADD.clone())
+            .build_button(ctx);
 
         let children = make_children_list(add, &self.hash_map);
 
