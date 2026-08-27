@@ -1146,6 +1146,10 @@ impl CurveEditor {
     }
 
     fn zoom_to_fit(&mut self, sender: &Sender<UiMessage>) {
+        if self.curves.curves.is_empty() {
+            return;
+        }
+
         let mut min = Vector2::repeat(f32::MAX);
         let mut max = Vector2::repeat(-f32::MAX);
 
