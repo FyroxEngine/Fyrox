@@ -1091,7 +1091,7 @@ fn make_expander_check_box(
                 .with_foreground(
                     text_brush
                         .map(StyledProperty::from)
-                        .unwrap_or_else(|| ctx.style.property(Style::BRUSH_FOREGROUND)),
+                        .unwrap_or_else(|| ctx.style.property(Style::BRUSH_TEXT)),
                 )
                 .with_opt_tooltip(make_tooltip(ctx, &description))
                 .with_height(16.0)
@@ -1163,7 +1163,7 @@ fn create_header(
             .with_foreground(
                 text_brush
                     .map(StyledProperty::from)
-                    .unwrap_or_else(|| ctx.style.property(Style::BRUSH_FOREGROUND)),
+                    .unwrap_or_else(|| ctx.style.property(Style::BRUSH_TEXT)),
             )
             .with_margin(make_property_margin(offset, layer_index)),
     )
