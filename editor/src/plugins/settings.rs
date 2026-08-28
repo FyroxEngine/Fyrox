@@ -329,6 +329,7 @@ impl SettingsWindow {
                     &mut **settings,
                     &mut Log::verify,
                 );
+                self.sync_to_model(ui, settings, property_editors);
             }
         } else if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.window {
