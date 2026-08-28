@@ -20,6 +20,7 @@
 
 use crate::fyrox::core::reflect::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 #[derive(
@@ -81,6 +82,10 @@ pub struct GeneralSettings {
 
     #[serde(default = "default_style")]
     pub style: EditorStyle,
+
+    /// A list of scenes that will be loaded at the editor start.
+    #[serde(default)]
+    pub startup_scenes: Vec<PathBuf>,
 }
 
 fn default_style() -> EditorStyle {
@@ -143,6 +148,7 @@ impl Default for GeneralSettings {
             generate_previews: default_generate_previews(),
             max_log_entries: default_max_log_entries(),
             style: EditorStyle::Dark,
+            startup_scenes: Default::default(),
         }
     }
 }

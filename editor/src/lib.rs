@@ -1034,7 +1034,7 @@ impl Editor {
         }
 
         let scenes = SceneContainer::new(&mut engine, &mut settings, message_sender.clone());
-        let editor = Self {
+        let mut editor = Self {
             docking_manager,
             engine,
             navmesh_panel,
@@ -1106,6 +1106,15 @@ impl Editor {
             startup_data: startup_data.clone(),
             property_editors,
         };
+
+        editor
+            .settings
+            .general
+            .startup_scenes
+            .retain(|p| p.exists());
+        for path in editor.settings.general.startup_scenes.iter() {
+            editor.message_sender.send(Message::LoadScene(path.clone()));
+        }
 
         if let Some(data) = startup_data {
             editor.message_sender.send(Message::Configure {
