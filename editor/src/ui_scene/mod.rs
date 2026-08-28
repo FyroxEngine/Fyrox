@@ -39,15 +39,17 @@ use crate::{
             math::Rect,
             pool::{ErasedHandle, Handle},
         },
-        engine::Engine,
+        engine::{Engine, GraphicsContext},
         fxhash::FxHashSet,
         graph::SceneGraph,
         gui::{
             brush::Brush,
             draw::{CommandTexture, Draw},
-            message::{KeyCode, MessageDirection, MouseButton},
+            file_browser::FileType,
+            message::{KeyCode, MessageDirection, MouseButton, UiMessage},
             UiNode, UiUpdateSwitches, UserInterface, UserInterfaceResourceExtension,
         },
+        renderer::ui_renderer::UiRenderInfo,
         resource::texture::{TextureKind, TextureResource, TextureResourceExtension},
         scene::SceneContainer,
     },
@@ -64,13 +66,10 @@ use crate::{
         clipboard::Clipboard,
         commands::{graph::AddUiPrefabCommand, UiSceneContext},
         selection::UiSelection,
+        utils::make_widget_name,
     },
     Message,
 };
-use fyrox::engine::GraphicsContext;
-use fyrox::gui::file_browser::FileType;
-use fyrox::gui::message::UiMessage;
-use fyrox::renderer::ui_renderer::UiRenderInfo;
 use std::{fs::File, io::Write, path::Path};
 
 pub struct PreviewInstance {
@@ -458,7 +457,7 @@ impl SceneController for UiScene {
                         self.ui
                             .try_get_node((*handle).into())
                             .ok()
-                            .map(|n| n.name().to_owned()),
+                            .map(|n| make_widget_name(n)),
                     ))
                     .with_destination(*view)
                     .with_direction(MessageDirection::ToWidget),

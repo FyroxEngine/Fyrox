@@ -18,25 +18,23 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::graph::NodeWrapper;
-use crate::fyrox::{
-    asset::manager::ResourceManager,
-    core::{
-        futures::executor::block_on, make_pretty_type_name, make_relative_path, pool::ErasedHandle,
-        pool::Handle,
-    },
-    graph::SceneGraph,
-    gui::{
-        border::Border, button::Button, canvas::Canvas, check_box::CheckBox,
-        file_browser::FileBrowser, grid::Grid, image::Image, inspector::Inspector,
-        list_view::ListView, menu::Menu, messagebox::MessageBox, popup::Popup, screen::Screen,
-        stack_panel::StackPanel, text::Text, window::Window, UiNode, UserInterface,
-        UserInterfaceResourceExtension,
-    },
-};
-use crate::world::SceneItemIcon;
 use crate::{
     command::{Command, CommandGroup},
+    fyrox::{
+        asset::manager::ResourceManager,
+        core::{
+            color::Color, futures::executor::block_on, make_pretty_type_name, make_relative_path,
+            pool::ErasedHandle, pool::Handle,
+        },
+        graph::{NodeWrapper, SceneGraph},
+        gui::{
+            border::Border, button::Button, canvas::Canvas, check_box::CheckBox,
+            file_browser::FileBrowser, grid::Grid, image::Image, inspector::Inspector,
+            list_view::ListView, menu::Menu, messagebox::MessageBox, popup::Popup, screen::Screen,
+            stack_panel::StackPanel, text::Text, window::Window, UiNode, UserInterface,
+            UserInterfaceResourceExtension,
+        },
+    },
     message::MessageSender,
     scene::{commands::ChangeSelectionCommand, Selection},
     scene_item_icon,
@@ -44,10 +42,17 @@ use crate::{
         commands::graph::{AddUiPrefabCommand, LinkWidgetsCommand, SetWidgetChildPosition},
         selection::UiSelection,
     },
-    world::{item::DropAnchor, WorldViewerDataProvider},
+    world::{item::DropAnchor, SceneItemIcon, WorldViewerDataProvider},
 };
-use fyrox::core::color::Color;
 use std::{borrow::Cow, path::Path, path::PathBuf};
+
+pub fn make_widget_name(node: &UiNode) -> String {
+    format!(
+        "{} [{}]",
+        node.name(),
+        make_pretty_type_name(node.inner_ref().type_info_ref().type_name)
+    )
+}
 
 pub struct UiSceneWorldViewerDataProvider<'a> {
     pub ui: &'a mut UserInterface,
@@ -106,13 +111,10 @@ impl WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'_> {
     }
 
     fn name_of(&self, node: ErasedHandle) -> Option<Cow<str>> {
-        self.ui.try_get_node(node.into()).ok().map(|n| {
-            Cow::Owned(format!(
-                "{} [{}]",
-                n.name(),
-                make_pretty_type_name(n.inner_ref().type_info_ref().type_name)
-            ))
-        })
+        self.ui
+            .try_get_node(node.into())
+            .ok()
+            .map(|n| Cow::Owned(make_widget_name(n)))
     }
 
     fn is_valid_handle(&self, node: ErasedHandle) -> bool {
