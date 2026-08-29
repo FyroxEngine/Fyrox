@@ -886,46 +886,49 @@ impl SceneViewer {
     pub fn sync_to_model(&self, scenes: &SceneContainer, engine: &mut Engine) {
         // Sync tabs first.
 
-        let tabs = engine.user_interfaces.first_mut()[self.tab_control]
-            .tabs
-            .clone();
         // Remove any excess tabs.
-        for tab in tabs.iter() {
-            if scenes.iter().all(|s| tab.uuid != s.id) {
-                engine
-                    .user_interfaces
-                    .first()
-                    .send_sync(self.tab_control, TabControlMessage::RemoveTab(tab.uuid));
+        let ui = engine.user_interfaces.first();
+        for tab in ui[self.tab_control].tabs.iter() {
+            if !scenes.has_scene(tab.uuid) {
+                ui.send_sync(self.tab_control, TabControlMessage::RemoveTab(tab.uuid));
             }
         }
+
         // Add any missing tabs.
         for entry in scenes.iter() {
-            if tabs.iter().all(|tab| tab.uuid != entry.id) {
-                let header = TextBuilder::new(WidgetBuilder::new().with_margin(Thickness {
-                    left: 4.0,
-                    top: 2.0,
-                    right: 4.0,
-                    bottom: 2.0,
-                }))
-                .with_text(entry.name())
-                .build(&mut engine.user_interfaces.first_mut().build_ctx())
-                .to_base();
-
-                engine.user_interfaces.first().send_sync(
-                    self.tab_control,
-                    TabControlMessage::AddTab(TabDefinition {
-                        uuid: entry.id,
-                        header,
-                        content: Default::default(),
-                        can_be_closed: true,
-                        user_data: None,
-                    }),
-                );
+            if engine.user_interfaces.first()[self.tab_control].has_tab(entry.id) {
+                continue;
             }
+
+            let ui = engine.user_interfaces.first_mut();
+
+            let header = TextBuilder::new(WidgetBuilder::new().with_margin(Thickness {
+                left: 4.0,
+                top: 2.0,
+                right: 4.0,
+                bottom: 2.0,
+            }))
+            .with_text(entry.name())
+            .build(&mut ui.build_ctx())
+            .to_base();
+
+            ui.send_sync(
+                self.tab_control,
+                TabControlMessage::AddTab(TabDefinition {
+                    uuid: entry.id,
+                    header,
+                    content: Default::default(),
+                    can_be_closed: true,
+                    user_data: None,
+                }),
+            );
         }
-        for tab in tabs.iter() {
+
+        let ui = engine.user_interfaces.first();
+
+        for tab in ui[self.tab_control].tabs.iter() {
             if let Some(scene) = scenes.entry_by_scene_id(tab.uuid) {
-                engine.user_interfaces.first().send(
+                ui.send(
                     tab.header_content,
                     TextMessage::Text(format!(
                         "{}{}",
@@ -936,14 +939,16 @@ impl SceneViewer {
             }
         }
 
-        engine.user_interfaces.first().send_sync(
+        let current_entry = scenes.current_scene_entry_ref();
+
+        ui.send_sync(
             self.tab_control,
-            TabControlMessage::ActiveTab(Some(scenes.current_scene_entry_ref().id)),
+            TabControlMessage::ActiveTab(Some(current_entry.id)),
         );
+
         // Then sync to the current scene.
-        let entry = scenes.current_scene_entry_ref();
         let title = if scenes.has_active_scene() {
-            let path = entry
+            let path = current_entry
                 .path
                 .as_ref()
                 .map_or("Unnamed Scene".to_string(), |p| {
@@ -953,19 +958,19 @@ impl SceneViewer {
         } else {
             "Scene Preview".into()
         };
-        self.set_title(engine.user_interfaces.first(), title);
 
-        self.set_render_target(
-            engine.user_interfaces.first(),
-            entry.controller.render_target(engine),
-        );
-
-        engine.user_interfaces.first().send_sync(
+        self.set_title(ui, title);
+        self.set_render_target(ui, current_entry.controller.render_target(engine));
+        ui.send_sync(
             self.scene_gizmo_image,
-            WidgetMessage::Visibility(entry.controller.downcast_ref::<GameScene>().is_some()),
+            WidgetMessage::Visibility(
+                current_entry
+                    .controller
+                    .downcast_ref::<GameScene>()
+                    .is_some(),
+            ),
         );
-
-        engine.user_interfaces.first().send_sync(
+        ui.send_sync(
             self.no_scene_reminder,
             WidgetMessage::Visibility(!scenes.has_active_scene()),
         );

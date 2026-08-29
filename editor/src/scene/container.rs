@@ -548,6 +548,10 @@ impl SceneContainer {
         }
     }
 
+    pub fn has_scene(&self, id: Uuid) -> bool {
+        self.entry_by_scene_id(id).is_some()
+    }
+
     pub fn entry_by_scene_id(&self, id: Uuid) -> Option<&EditorSceneEntry> {
         self.entries.iter().find(|e| e.id == id)
     }
