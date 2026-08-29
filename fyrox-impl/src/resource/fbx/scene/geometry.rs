@@ -60,7 +60,7 @@ fn read_vertices(
     let vertices_node_handle = nodes.find(geom_node_handle, "Vertices")?;
     let vertices_array_node = nodes.get_by_name(vertices_node_handle, "a")?;
     let mut vertices = Vec::with_capacity(vertices_array_node.attrib_count() / 3);
-    for vertex in vertices_array_node.attributes().chunks_exact(3) {
+    for vertex in vertices_array_node.attributes().as_chunks::<3>().0 {
         vertices.push(Vector3::new(
             vertex[0].as_f32()?,
             vertex[1].as_f32()?,
@@ -141,7 +141,7 @@ fn read_uvs(
             "UV",
             |attributes| {
                 let mut uvs = Vec::with_capacity(attributes.len() / 2);
-                for uv in attributes.chunks_exact(2) {
+                for uv in attributes.as_chunks::<2>().0 {
                     uvs.push(Vector2::new(uv[0].as_f32()?, uv[1].as_f32()?));
                 }
                 Ok(uvs)

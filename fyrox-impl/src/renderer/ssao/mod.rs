@@ -105,7 +105,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
             noise: {
                 const RGB_PIXEL_SIZE: usize = 3;
                 let mut pixels = [0u8; RGB_PIXEL_SIZE * NOISE_SIZE * NOISE_SIZE];
-                for pixel in pixels.chunks_exact_mut(RGB_PIXEL_SIZE) {
+                for pixel in pixels.as_chunks_mut::<RGB_PIXEL_SIZE>().0 {
                     pixel[0] = rng.gen_range(0u8..255u8); // R
                     pixel[1] = rng.gen_range(0u8..255u8); // G
                     pixel[2] = 0u8; // B

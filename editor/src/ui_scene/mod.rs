@@ -457,7 +457,7 @@ impl SceneController for UiScene {
                         self.ui
                             .try_get_node((*handle).into())
                             .ok()
-                            .map(|n| make_widget_name(n)),
+                            .map(make_widget_name),
                     ))
                     .with_destination(*view)
                     .with_direction(MessageDirection::ToWidget),

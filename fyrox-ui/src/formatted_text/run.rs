@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::core::reflect::prelude::*;
 use crate::font::FontHeight;
 use std::ops::{Deref, DerefMut};
 

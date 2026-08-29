@@ -41,7 +41,6 @@ use crate::core::{
 use std::fmt::{Debug, Display, Formatter};
 
 use super::*;
-use tileset::*;
 
 /// Trait for objects that identify a tile set property of a particular type.
 pub trait TileSetPropertyId {

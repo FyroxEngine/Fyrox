@@ -1053,7 +1053,7 @@ impl VertexBuffer {
     /// Finds free location for an attribute in the layout.
     pub fn find_free_shader_location(&self) -> u8 {
         let mut location = None;
-        for attribute in self.dense_layout.chunks_exact(2) {
+        for attribute in self.dense_layout.as_chunks::<2>().0 {
             let left = &attribute[0];
             let right = &attribute[1];
 

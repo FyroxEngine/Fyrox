@@ -1532,7 +1532,7 @@ impl Texture {
                 D3DFormat::G16R16 => {
                     // GR16 -> RG16
                     assert_eq!(bytes.len() % 4, 0);
-                    for chunk in bytes.chunks_exact_mut(4) {
+                    for chunk in bytes.as_chunks_mut::<4>().0 {
                         // Red Hi + Lo bytes
                         let gh = chunk[0];
                         let gl = chunk[1];

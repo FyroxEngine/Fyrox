@@ -587,7 +587,7 @@ pub fn attributes_to_vec3_array(
     attributes: &[FbxAttribute],
 ) -> Result<Vec<Vector3<f32>>, FbxError> {
     let mut out_container = Vec::with_capacity(attributes.len() / 3);
-    for chunk in attributes.chunks_exact(3) {
+    for chunk in attributes.as_chunks::<3>().0 {
         out_container.push(Vector3::new(
             chunk[0].as_f32()?,
             chunk[1].as_f32()?,

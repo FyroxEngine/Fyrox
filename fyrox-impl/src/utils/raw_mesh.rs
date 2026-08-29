@@ -177,7 +177,7 @@ where
             vertices: vertices.into_iter().map(|w| w.vertex).collect(),
             triangles: self
                 .indices
-                .chunks_exact(3)
+                .as_chunks::<3>().0.iter()
                 .map(|i| TriangleDefinition([i[0], i[1], i[2]]))
                 .collect(),
         }
