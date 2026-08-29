@@ -452,15 +452,15 @@ impl EditorPlugin for InspectorPlugin {
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
         let entry = editor.scenes.current_scene_entry_mut();
 
-        if (message.destination() == self.inspector
-            || editor
-                .engine
-                .user_interfaces
-                .first()
-                .is_node_child_of(message.destination(), self.inspector))
-            && message.direction() == MessageDirection::FromWidget
-        {
-            if let Some(msg) = message.data::<InspectorMessage>() {
+        if let Some(msg) = message.data::<InspectorMessage>() {
+            if (message.destination() == self.inspector
+                || editor
+                    .engine
+                    .user_interfaces
+                    .first()
+                    .is_node_child_of(message.destination(), self.inspector))
+                && message.direction() == MessageDirection::FromWidget
+            {
                 match msg {
                     InspectorMessage::CopyValue { path } => {
                         entry.selection.first_selected_entity(
