@@ -269,6 +269,7 @@ impl TabControl {
             }
         }
     }
+
     fn finalize_drag(&mut self, from: usize, to: usize, ui: &mut UserInterface) {
         let uuid = self.active_tab.map(|i| self.tabs[i].uuid);
         let tab = self.tabs.remove(from);
@@ -282,10 +283,17 @@ impl TabControl {
             WidgetMessage::ReplaceChildren(new_tab_handles),
         );
     }
+
     /// Use a tab's UUID to look up the tab.
     pub fn get_tab_by_uuid(&self, uuid: Uuid) -> Option<&Tab> {
         self.tabs.iter().find(|t| t.uuid == uuid)
     }
+
+    /// Checks if a tab with the given uuid exists.
+    pub fn has_tab(&self, uuid: Uuid) -> bool {
+        self.get_tab_by_uuid(uuid).is_some()
+    }
+
     /// Send the necessary messages to activate the tab at the given index, or deactivate all tabs if no index is given.
     /// Do nothing if the given index does not refer to any existing tab.
     /// If the index was valid, send FromWidget messages to notify listeners of the change, using messages with the given flags.
@@ -323,6 +331,7 @@ impl TabControl {
         msg.delivery_mode = delivery_mode;
         ui.send_message(msg);
     }
+
     /// Send the messages necessary to remove the tab at the given index and update the currently active tab.
     /// This does not include sending FromWidget messages to notify listeners.
     /// If the given index does not refer to any tab, do nothing and return false.
