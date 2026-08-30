@@ -22,7 +22,7 @@
 //!  adds a special "revert" button that is used to revert value to its parent's value.
 
 use crate::brush::Brush;
-use crate::inspector::{create_header, make_expander_container, make_simple_property_container};
+use crate::inspector::make_expander_container;
 use crate::{
     button::{Button, ButtonBuilder, ButtonMessage},
     core::{
@@ -81,7 +81,7 @@ impl Control for InheritablePropertyEditor {
             ui.post(self.handle, InheritablePropertyEditorMessage::Revert);
         } else if let Some(InheritablePropertyEditorMessage::Modified(modified)) = message.data() {
             if message.destination() == self.handle {
-                ui.send(self.revert, WidgetMessage::Visibility(*modified));
+                ui.send(self.revert, WidgetMessage::Enabled(*modified));
             }
         } else if let Some(InspectorMessage::PropertyChanged(property_changed)) =
             message.data_from(self.inspector)
@@ -129,7 +129,7 @@ impl InheritablePropertyEditorBuilder {
     pub fn build(self, ctx: &mut BuildContext) -> Handle<InheritablePropertyEditor> {
         let revert = ButtonBuilder::new(
             WidgetBuilder::new()
-                .with_visibility(self.modified)
+                .with_enabled(self.modified)
                 .with_width(22.0)
                 .with_height(22.0)
                 .with_vertical_alignment(VerticalAlignment::Top)
@@ -212,8 +212,6 @@ where
 
         let value = property_info.cast_value::<InheritableVariable<T>>()?;
 
-        let is_single_field = value.inner_value_ref().fields_count() <= 1;
-
         let inspector_context = InspectorContext::from_object(InspectorContextArgs {
             object: value,
             ctx: ctx.build_context,
@@ -223,7 +221,7 @@ where
             generate_property_string_values: ctx.generate_property_string_values,
             filter: ctx.filter,
             name_column_width: ctx.name_column_width,
-            hide_name_column: is_single_field,
+            hide_name_column: false,
             base_path: ctx.base_path.clone(),
             has_parent_object: ctx.has_parent_object,
         });
@@ -245,50 +243,22 @@ where
             )
             .build(ctx.build_context);
 
-        if is_single_field {
-            let title = if ctx.hide_name_column {
-                Handle::NONE
-            } else {
-                create_header(
-                    ctx.build_context,
-                    ctx.property_info.display_name,
-                    0.0,
-                    Some(Brush::solid(160, 160, 200)),
-                    ctx.layer_index,
-                )
-            };
+        let container = make_expander_container(
+            ctx.layer_index,
+            ctx.property_info.display_name,
+            ctx.property_info.doc,
+            Handle::<UiNode>::NONE,
+            editor,
+            ctx.name_column_width,
+            ctx.hide_name_column,
+            Some(Brush::solid(160, 160, 200)),
+            ctx.build_context,
+        );
 
-            let container = make_simple_property_container(
-                title,
-                editor,
-                &ctx.property_info.description(),
-                ctx.name_column_width,
-                ctx.hide_name_column,
-                ctx.build_context,
-            );
-
-            Ok(PropertyEditorInstance::Custom {
-                container: container.to_base(),
-                editor: editor.to_base(),
-            })
-        } else {
-            let container = make_expander_container(
-                ctx.layer_index,
-                ctx.property_info.display_name,
-                ctx.property_info.doc,
-                Handle::<UiNode>::NONE,
-                editor,
-                ctx.name_column_width,
-                ctx.hide_name_column,
-                Some(Brush::solid(160, 160, 200)),
-                ctx.build_context,
-            );
-
-            Ok(PropertyEditorInstance::Custom {
-                container: container.to_base(),
-                editor: editor.to_base(),
-            })
-        }
+        Ok(PropertyEditorInstance::Custom {
+            container: container.to_base(),
+            editor: editor.to_base(),
+        })
     }
 
     fn create_message(

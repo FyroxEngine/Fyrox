@@ -20,7 +20,7 @@
 
 //! A general-purpose property editor definition that creates
 //! a nested inspector within an [Expander](crate::expander::Expander) widget.
-use crate::inspector::{create_header, make_simple_property_container, InspectorContextArgs};
+use crate::inspector::InspectorContextArgs;
 use crate::{
     core::reflect::prelude::*,
     inspector::{
@@ -90,8 +90,6 @@ where
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<T>()?;
 
-        let is_single_field = value.fields_count() <= 1;
-
         let inspector_context = InspectorContext::from_object(InspectorContextArgs {
             object: value,
             ctx: ctx.build_context,
@@ -101,59 +99,28 @@ where
             generate_property_string_values: ctx.generate_property_string_values,
             filter: ctx.filter,
             name_column_width: ctx.name_column_width,
-            hide_name_column: is_single_field,
+            hide_name_column: false,
             base_path: ctx.base_path.clone(),
             has_parent_object: ctx.has_parent_object,
         });
 
         let editor = InspectorBuilder::new(WidgetBuilder::new())
             .with_context(inspector_context)
-            .build(ctx.build_context);
+            .build(ctx.build_context)
+            .to_base();
+        let container = make_expander_container(
+            ctx.layer_index,
+            ctx.property_info.display_name,
+            ctx.property_info.doc,
+            Handle::<UiNode>::NONE,
+            editor,
+            ctx.name_column_width,
+            ctx.hide_name_column,
+            None,
+            ctx.build_context,
+        );
 
-        if is_single_field {
-            let title = if ctx.hide_name_column {
-                Handle::NONE
-            } else {
-                create_header(
-                    ctx.build_context,
-                    ctx.property_info.display_name,
-                    0.0,
-                    None,
-                    ctx.layer_index,
-                )
-            };
-
-            let container = make_simple_property_container(
-                title,
-                editor,
-                &ctx.property_info.description(),
-                ctx.name_column_width,
-                ctx.hide_name_column,
-                ctx.build_context,
-            );
-
-            Ok(PropertyEditorInstance::Custom {
-                container: container.to_base(),
-                editor: editor.to_base(),
-            })
-        } else {
-            let container = make_expander_container(
-                ctx.layer_index,
-                ctx.property_info.display_name,
-                ctx.property_info.doc,
-                Handle::<UiNode>::NONE,
-                editor,
-                ctx.name_column_width,
-                ctx.hide_name_column,
-                None,
-                ctx.build_context,
-            );
-
-            Ok(PropertyEditorInstance::Custom {
-                container: container.to_base(),
-                editor: editor.to_base(),
-            })
-        }
+        Ok(PropertyEditorInstance::Custom { container, editor })
     }
 
     /// Instead of creating a message to update its widget,

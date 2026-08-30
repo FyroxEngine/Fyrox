@@ -400,8 +400,8 @@ where
 }
 
 pub static CONTENT_METADATA: FieldMetadata = FieldMetadata {
-    name: "Content",
-    display_name: "Content",
+    name: "Value",
+    display_name: "Value",
     tag: "",
     read_only: false,
     immutable_collection: false,
