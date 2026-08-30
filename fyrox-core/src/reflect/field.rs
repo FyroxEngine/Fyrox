@@ -59,11 +59,11 @@ pub struct FieldMetadata<'s> {
 }
 
 impl<'s> FieldMetadata<'s> {
-    pub fn description(&self) -> String {
+    pub fn description(&self, type_name: &str) -> String {
         if self.doc.is_empty() {
-            self.display_name.to_string()
+            format!("{} ({type_name})", self.display_name)
         } else {
-            format!("{}\n\n{}", self.display_name, self.doc)
+            format!("{} ({type_name})\n\n{}", self.display_name, self.doc)
         }
     }
 }

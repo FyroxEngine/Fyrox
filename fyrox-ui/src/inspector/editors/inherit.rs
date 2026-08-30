@@ -252,6 +252,7 @@ where
             ctx.name_column_width,
             ctx.hide_name_column,
             Some(Brush::solid(160, 160, 200)),
+            value.type_info_ref().type_name,
             ctx.build_context,
         );
 

@@ -386,33 +386,32 @@ where
         .build(ctx.build_context)
         .to_base();
 
-        let editor;
+        let editor = EnumPropertyEditorBuilder::new(WidgetBuilder::new())
+            .with_variant_selector(variant_selector)
+            .with_layer_index(ctx.layer_index + 1)
+            .with_definition_container(ctx.definition_container.clone())
+            .with_environment(ctx.environment.clone())
+            .with_generate_property_string_values(ctx.generate_property_string_values)
+            .with_filter(ctx.filter)
+            .build(
+                ctx.build_context,
+                self,
+                value,
+                ctx.name_column_width,
+                ctx.base_path.clone(),
+                ctx.has_parent_object,
+            );
+
         let container = make_expander_container(
             ctx.layer_index,
             ctx.property_info.display_name,
             ctx.property_info.doc,
             variant_selector,
-            {
-                editor = EnumPropertyEditorBuilder::new(WidgetBuilder::new())
-                    .with_variant_selector(variant_selector)
-                    .with_layer_index(ctx.layer_index + 1)
-                    .with_definition_container(ctx.definition_container.clone())
-                    .with_environment(ctx.environment.clone())
-                    .with_generate_property_string_values(ctx.generate_property_string_values)
-                    .with_filter(ctx.filter)
-                    .build(
-                        ctx.build_context,
-                        self,
-                        value,
-                        ctx.name_column_width,
-                        ctx.base_path.clone(),
-                        ctx.has_parent_object,
-                    );
-                editor
-            },
+            editor,
             ctx.name_column_width,
             ctx.hide_name_column,
             None,
+            value.type_info_ref().type_name,
             ctx.build_context,
         );
 

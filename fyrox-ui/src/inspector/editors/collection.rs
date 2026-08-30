@@ -468,16 +468,8 @@ where
             .with_image(resources::ADD.clone())
             .build_button(ctx.build_context);
 
-        let editor;
-        let container = make_expander_container(
-            ctx.layer_index,
-            ctx.property_info.display_name,
-            ctx.property_info.doc,
-            add,
-            {
-                editor = CollectionEditorBuilder::new(
-                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
-                )
+        let editor =
+            CollectionEditorBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                 .with_add(add)
                 .with_collection(value.iter())
                 .with_environment(ctx.environment.clone())
@@ -493,11 +485,17 @@ where
                     ctx.base_path.clone(),
                     ctx.has_parent_object,
                 )?;
-                editor
-            },
+
+        let container = make_expander_container(
+            ctx.layer_index,
+            ctx.property_info.display_name,
+            ctx.property_info.doc,
+            add,
+            editor,
             ctx.name_column_width,
             ctx.hide_name_column,
             None,
+            value.type_info_ref().type_name,
             ctx.build_context,
         );
 

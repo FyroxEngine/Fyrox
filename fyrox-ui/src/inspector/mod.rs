@@ -1062,6 +1062,7 @@ fn make_expander_check_box(
     property_description: &str,
     hide_name: bool,
     text_brush: Option<Brush>,
+    type_name: &str,
     ctx: &mut BuildContext,
 ) -> Handle<CheckBox> {
     let handle = CheckBoxBuilder::new(
@@ -1082,9 +1083,9 @@ fn make_expander_check_box(
         Handle::NONE
     } else {
         let description = if property_description.is_empty() {
-            property_name.to_string()
+            format!("{property_name} ({type_name})")
         } else {
-            format!("{property_name}\n\n{property_description}")
+            format!("{property_name} ({type_name})\n\n{property_description}")
         };
         TextBuilder::new(
             WidgetBuilder::new()
@@ -1128,6 +1129,7 @@ pub fn make_expander_container(
     width: f32,
     hide_name_column: bool,
     text_brush: Option<Brush>,
+    type_name: &str,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
     ExpanderBuilder::new(WidgetBuilder::new())
@@ -1137,6 +1139,7 @@ pub fn make_expander_container(
             description,
             hide_name_column,
             text_brush,
+            type_name,
             ctx,
         ))
         .with_expander_column(if hide_name_column {
@@ -1180,7 +1183,7 @@ fn make_tooltip(ctx: &mut BuildContext, text: &str) -> Option<RcUiNodeHandle> {
     }
 }
 
-pub fn make_simple_property_container(
+fn make_simple_property_container(
     title: Handle<Text>,
     editor: Handle<impl ObjectOrVariant<UiNode>>,
     description: &str,
@@ -1315,7 +1318,7 @@ impl InspectorContext {
                     continue;
                 }
 
-                let description = info.description();
+                let description = info.description(info.value.type_info_ref().type_name);
 
                 if let Some(definition) = definition_container
                     .definitions()

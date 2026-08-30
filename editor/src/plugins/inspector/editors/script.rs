@@ -381,6 +381,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
             ctx.name_column_width,
             ctx.hide_name_column,
             None,
+            value.type_info_ref().type_name,
             ctx.build_context,
         );
 

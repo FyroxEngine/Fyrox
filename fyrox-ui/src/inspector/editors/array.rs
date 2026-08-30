@@ -332,16 +332,8 @@ where
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<[T; N]>()?;
 
-        let editor;
-        let container = make_expander_container(
-            ctx.layer_index,
-            ctx.property_info.display_name,
-            ctx.property_info.doc,
-            Handle::<UiNode>::NONE,
-            {
-                editor = ArrayEditorBuilder::new(
-                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
-                )
+        let editor =
+            ArrayEditorBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
                 .with_collection(value.iter())
                 .with_environment(ctx.environment.clone())
                 .with_layer_index(ctx.layer_index + 1)
@@ -356,11 +348,17 @@ where
                     ctx.base_path.clone(),
                     ctx.has_parent_object,
                 )?;
-                editor
-            },
+
+        let container = make_expander_container(
+            ctx.layer_index,
+            ctx.property_info.display_name,
+            ctx.property_info.doc,
+            Handle::<UiNode>::NONE,
+            editor,
             ctx.name_column_width,
             false,
             None,
+            value.type_info_ref().type_name,
             ctx.build_context,
         );
 
