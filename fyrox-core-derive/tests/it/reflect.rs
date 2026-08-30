@@ -398,14 +398,18 @@ fn inspect_default() {
 fn inspect_attributes() {
     #[derive(Debug, Default, Clone, PartialEq, Reflect)]
     #[reflect(type_uuid = "e8bb7752-6ff6-4cbb-87fd-e7c10e5ec970")]
-    pub struct AarGee {
-        aar: u32,
-        gee: u32,
+    struct Foobar {
+        foo: u32,
+        bar: u32,
     }
+
+    let foobar = Foobar::default();
+
+    assert_eq!(foobar.fields_count(), 2);
 
     #[derive(Debug, Default, Clone, PartialEq, Reflect)]
     #[reflect(type_uuid = "4e0709c6-b89a-47cb-ab06-f19b01b85ec1")]
-    pub struct Data {
+    struct Data {
         // NOTE: Even though this field is skipped, the next field is given index `1` for simplicity
         #[reflect(hidden)]
         _skipped: u32,
@@ -424,6 +428,8 @@ fn inspect_attributes() {
     }
 
     let data = Data::default();
+
+    assert_eq!(data.fields_count(), 2);
 
     let x_metadata = FieldMetadata {
         name: "x",

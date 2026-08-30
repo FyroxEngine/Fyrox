@@ -217,7 +217,11 @@ fn impl_reflect_struct(ty_args: &args::TypeArgs, field_args: &args::Fields) -> T
     let getter_ref = gen_fields_getter_body(&props, &fields, field_args, false);
     let getter_mut = gen_fields_getter_body(&props, &field_muts, field_args, true);
 
-    let fields_num = field_args.len();
+    let fields_num = if ty_args.hide_all {
+        0
+    } else {
+        field_args.iter().filter(|a| !a.hidden).count()
+    };
 
     let set_field_body = self::struct_set_field_body(ty_args);
     self::gen_impl(
@@ -302,6 +306,8 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
             .filter(|(_, f)| !f.hidden)
             .collect::<Vec<_>>();
 
+        let fields_num = if ty_args.hide_all { 0 } else { fields.len() };
+
         let props = fields
             .iter()
             .map(|(i, f)| prop::enum_prop(v, *i, f))
@@ -327,8 +333,6 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
 
         let getter_ref = gen_fields_getter_body(&props, &fields, &v.fields, false);
         let getter_mut = gen_fields_getter_body(&props, &field_muts, &v.fields, true);
-
-        let fields_num = v.fields.len();
 
         fields_refs.push(quote! {
             #matcher => func(&[#metadata_ref]),
