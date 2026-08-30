@@ -94,6 +94,7 @@ opener = { version = "0.8", default-features = false, features = ["reveal"] }
 # === end of additional deps ===
 
 [features]
+default = ["backend_opengl"]
 backend_opengl = ["dep:fyrox-graphics-gl", "fyrox-material/backend_opengl"]
 backend_wgpu = ["dep:fyrox-graphics-wgpu", "fyrox-material/backend_wgpu"]
 mesh_analysis = []
