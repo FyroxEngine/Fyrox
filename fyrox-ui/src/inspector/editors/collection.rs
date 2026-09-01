@@ -54,7 +54,8 @@ use std::{
 #[derive(Clone, Debug, PartialEq, Default, Visit, Reflect)]
 #[reflect(type_uuid = "88d3a376-37db-4dbb-bdaf-794f82970690")]
 pub struct Item {
-    editor_instance: PropertyEditorInstance,
+    editor_instance: Handle<UiNode>,
+    container: Handle<UiNode>,
     remove: Handle<Button>,
 }
 
@@ -145,7 +146,7 @@ impl<T: CollectionItem> Control for CollectionEditor<T> {
         } else if let Some(index) = self
             .items
             .iter()
-            .position(|i| i.editor_instance.editor() == message.destination())
+            .position(|i| i.editor_instance == message.destination())
         {
             ui.post(
                 self.handle,
@@ -193,10 +194,7 @@ fn create_item_views(items: &[Item], ctx: &mut BuildContext) -> Vec<Handle<UiNod
         .map(|item| {
             GridBuilder::new(
                 WidgetBuilder::new()
-                    .with_child(match item.editor_instance {
-                        PropertyEditorInstance::Simple { editor } => editor,
-                        PropertyEditorInstance::Custom { container, .. } => container,
-                    })
+                    .with_child(item.container)
                     .with_child(item.remove),
             )
             .add_row(Row::stretch())
@@ -250,7 +248,7 @@ where
                 value: item,
             };
 
-            let editor =
+            let editor_instance =
                 definition
                     .property_editor
                     .create_instance(PropertyEditorBuildContext {
@@ -258,7 +256,7 @@ where
                         property_info: &proxy_property_info,
                         environment: environment.clone(),
                         definition_container: definition_container.clone(),
-                        layer_index,
+                        layer_index: layer_index + 1,
                         generate_property_string_values,
                         filter: filter.clone(),
                         name_column_width,
@@ -267,15 +265,8 @@ where
                         has_parent_object,
                     })?;
 
-            if let PropertyEditorInstance::Simple { editor } = editor {
-                ctx[editor].set_margin(make_property_margin(
-                    name_column_width - LAYER_OFFSET - HEADER_MARGIN.left,
-                    0,
-                ));
-            }
-
             let remove = ImageButtonBuilder::default()
-                .with_tooltip("Remove Item")
+                .with_tooltip(format!("Remove {display_name} Item").as_str())
                 .with_image_color(Color::opaque(200, 0, 0))
                 .with_visibility(!immutable_collection)
                 .with_vertical_alignment(VerticalAlignment::Stretch)
@@ -286,10 +277,40 @@ where
                 .with_image(resources::REMOVE.clone())
                 .build_button(ctx);
 
-            items.push(Item {
-                editor_instance: editor,
-                remove,
-            });
+            match editor_instance {
+                PropertyEditorInstance::Simple { editor } => {
+                    ctx[editor].set_margin(make_property_margin(
+                        name_column_width - LAYER_OFFSET - HEADER_MARGIN.left,
+                        0,
+                    ));
+
+                    let container = make_expander_container(
+                        layer_index + 1,
+                        display_name.as_str(),
+                        property_info.doc,
+                        remove,
+                        editor_instance.container(),
+                        name_column_width,
+                        hide_name_column,
+                        None,
+                        item.type_info_ref().type_name,
+                        ctx,
+                    );
+
+                    items.push(Item {
+                        editor_instance: editor_instance.editor(),
+                        container,
+                        remove,
+                    });
+                }
+                PropertyEditorInstance::Custom { container, editor } => {
+                    items.push(Item {
+                        editor_instance: editor,
+                        container,
+                        remove,
+                    });
+                }
+            }
         } else {
             return Err(InspectorError::Custom(format!(
                 "Missing property editor of type {}",
@@ -502,7 +523,7 @@ where
                 )?;
 
         let container = make_expander_container(
-            ctx.layer_index,
+            ctx.layer_index + 1,
             ctx.property_info.display_name,
             ctx.property_info.doc,
             add,
@@ -606,7 +627,7 @@ where
                                 property_info: &proxy_property_info,
                                 environment: environment.clone(),
                                 definition_container: definition_container.clone(),
-                                instance: item.editor_instance.editor(),
+                                instance: item.editor_instance,
                                 layer_index: layer_index + 1,
                                 ui,
                                 generate_property_string_values,
