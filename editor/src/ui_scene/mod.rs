@@ -162,7 +162,11 @@ impl SceneController for UiScene {
 
     fn on_mouse_wheel(&mut self, _amount: f32, _engine: &mut Engine, _settings: &Settings) {}
 
-    fn on_mouse_leave(&mut self, _engine: &mut Engine, _settings: &Settings) {}
+    fn on_mouse_leave(&mut self, _engine: &mut Engine, _settings: &Settings) {
+        if let Some(preview) = self.preview_instance.take() {
+            self.ui.remove_node(preview.instance);
+        }
+    }
 
     fn on_drag_over(
         &mut self,
