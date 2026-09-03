@@ -24,7 +24,7 @@
 #![warn(missing_docs)]
 
 use crate::reflect::TypeInfo;
-use crate::{reflect::prelude::*, visitor::prelude::*, SafeLock};
+use crate::{err, reflect::prelude::*, visitor::prelude::*, SafeLock};
 use fxhash::FxHashMap;
 use parking_lot::{Mutex, MutexGuard};
 use std::{
@@ -186,6 +186,15 @@ impl DynTypeContainer {
                 }
             },
         }
+    }
+
+    /// Same as [`Self::try_take`], but fallbacks to the default value of the given type and prints
+    /// error reason to the log.
+    pub fn try_take_or_default<T: DynType + Default>(&mut self) -> T {
+        self.try_take::<T>().unwrap_or_else(|err| {
+            err!("Unable to take dyntype data! Reason: {err}",);
+            T::default()
+        })
     }
 
     /// Tries to return a reference to the inner value. Returns [`None`] if the container is empty.
