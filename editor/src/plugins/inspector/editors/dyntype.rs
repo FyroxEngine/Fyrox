@@ -20,13 +20,16 @@
 
 use crate::{
     fyrox::{
-        core::dyntype::{DynTypeConstructorContainer, DynTypeContainer},
+        core::{
+            dyntype::{DynTypeConstructorContainer, DynTypeContainer, DynTypeWrapper},
+            reflect::Reflect,
+            visitor::Visit,
+        },
         graph::SceneGraph,
         gui::{
             core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
             dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
             grid::{GridBuilder, GridDimension},
-            inspector::InspectorContextArgs,
             inspector::{
                 editors::{
                     PropertyEditorBuildContext, PropertyEditorDefinition,
@@ -34,27 +37,25 @@ use crate::{
                     PropertyEditorMessageContext, PropertyEditorTranslationContext,
                 },
                 make_expander_container, FieldAction, Inspector, InspectorBuilder,
-                InspectorContext, InspectorError, InspectorMessage, PropertyChanged,
-                PropertyFilter,
+                InspectorContext, InspectorContextArgs, InspectorEnvironmentContainer,
+                InspectorError, InspectorMessage, PropertyChanged, PropertyFilter,
             },
-            message::MessageData,
-            message::{MessageDirection, UiMessage},
+            message::{MessageData, MessageDirection, UiMessage},
             utils::make_dropdown_list_option,
-            widget::{Widget, WidgetBuilder},
+            widget::{UserData, Widget, WidgetBuilder},
             BuildContext, Control, UiNode, UserInterface,
         },
     },
     plugins::inspector::EditorEnvironment,
 };
-use fyrox::core::dyntype::DynTypeWrapper;
-use fyrox::gui::inspector::InspectorEnvironmentContainer;
-use fyrox::gui::widget::UserData;
 use std::{
     any::TypeId,
     cell::Cell,
     ops::{Deref, DerefMut},
     sync::Arc,
 };
+
+const INTERNALS_PATH: &'static str = "0.Some@0.0";
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum DynTypePropertyEditorMessage {
@@ -412,7 +413,7 @@ impl PropertyEditorDefinition for DynTypePropertyEditorDefinition {
                     }
                     DynTypePropertyEditorMessage::PropertyChanged(property_changed) => {
                         return Some(PropertyChanged {
-                            name: ctx.name.to_string() + ".0.Some@0.Content",
+                            name: ctx.name.to_string() + "." + INTERNALS_PATH,
                             action: FieldAction::InspectableAction(Box::new(
                                 property_changed.clone(),
                             )),
@@ -422,5 +423,33 @@ impl PropertyEditorDefinition for DynTypePropertyEditorDefinition {
             }
         }
         None
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::INTERNALS_PATH;
+    use crate::fyrox::core::{
+        dyntype::{DynTypeContainer, DynTypeWrapper},
+        reflect::prelude::*,
+        visitor::prelude::*,
+    };
+
+    #[test]
+    fn ensure_internals_path_exists() {
+        #[derive(Debug, Default, Reflect, Visit, Clone, PartialEq)]
+        #[reflect(type_uuid = "609c9249-b853-484e-97d6-3519ae7cd474")]
+        struct Foobar {
+            foo: u32,
+        }
+        let w = DynTypeContainer {
+            0: Some(DynTypeWrapper(Box::new(Foobar { foo: 123 }))),
+        };
+        w.resolve_path(INTERNALS_PATH, &mut |result| {
+            assert_eq!(
+                result.unwrap().downcast_ref::<Foobar>().unwrap().foo,
+                123u32
+            );
+        })
     }
 }
