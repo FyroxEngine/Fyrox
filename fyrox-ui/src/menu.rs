@@ -552,8 +552,10 @@ impl Control for MenuItem {
                     let menu = find_menu(self.parent(), ui);
                     if menu.is_some() {
                         if self.is_opened(ui) {
-                            ui.send(self.handle(), MenuItemMessage::Close { deselect: true });
-                            ui.send(menu, MenuMessage::Deactivate);
+                            if self.items_container.is_empty() {
+                                ui.send(self.handle(), MenuItemMessage::Close { deselect: true });
+                                ui.send(menu, MenuMessage::Deactivate);
+                            }
                         } else {
                             // Activate menu so its user will be able to open submenus by
                             // mouse hover.
