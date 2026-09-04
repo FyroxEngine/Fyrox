@@ -22,7 +22,7 @@
 
 #![warn(missing_docs)]
 
-use crate::message::MessageData;
+use crate::message::{MessageData, MouseButton};
 use crate::style::StyledProperty;
 use crate::{
     border::BorderBuilder,
@@ -91,8 +91,11 @@ impl MessageData for ButtonMessage {}
 /// }
 /// ```
 #[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
-#[reflect(type_uuid = "2abcf12b-2f19-46da-b900-ae8890f7c9c6")]
-#[reflect(derived_type = "UiNode")]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "2abcf12b-2f19-46da-b900-ae8890f7c9c6"
+)]
+#[visit(optional)]
 pub struct Button {
     /// Base widget of the button.
     pub widget: Widget,
@@ -101,17 +104,17 @@ pub struct Button {
     /// Current content of the button. It is attached to the content holder.
     pub content: InheritableVariable<Handle<UiNode>>,
     /// Click repetition interval (in seconds) of the button.
-    #[visit(optional)]
     #[reflect(min_value = 0.0)]
     pub repeat_interval: InheritableVariable<f32>,
     /// Current clicks repetition timer.
-    #[visit(optional)]
     #[reflect(hidden)]
     pub repeat_timer: RefCell<Option<f32>>,
     /// A flag, that defines whether the button should repeat click message when being
     /// hold or not. Default is `false` (disabled).
-    #[visit(optional)]
     pub repeat_clicks_on_hold: InheritableVariable<bool>,
+    /// Specifies the mouse button that will be used to accept clicks on the button. Any other button
+    /// event will be ignored. The default value is left mouse button.
+    pub click_button: InheritableVariable<MouseButton>,
 }
 
 impl Button {
@@ -125,6 +128,29 @@ impl Button {
         Style::default()
             .with(Self::CORNER_RADIUS, 4.0f32)
             .with(Self::BORDER_THICKNESS, Thickness::uniform(1.0))
+    }
+
+    fn on_mouse_down(&mut self, message: &mut UiMessage, ui: &mut UserInterface) {
+        // The only way to avoid a `MouseLeave` message is by capturing the currently picked node.
+        // Capturing any other node will change the picked node and be considered leaving,
+        // which would affect the decorator.
+        ui.capture_mouse(message.destination());
+        message.set_handled(true);
+        if *self.repeat_clicks_on_hold {
+            self.repeat_timer.replace(Some(*self.repeat_interval));
+        }
+    }
+
+    fn on_mouse_up(&mut self, message: &mut UiMessage, ui: &mut UserInterface) {
+        // Do the click only if the mouse is still within the button and the event hasn't been handled.
+        // The event might be handled if there is a child button within this button, as with the
+        // close button on a tab.
+        if self.screen_bounds().contains(ui.cursor_position()) && !message.handled() {
+            ui.post(self.handle(), ButtonMessage::Click);
+        }
+        ui.release_mouse_capture();
+        message.set_handled(true);
+        self.repeat_timer.replace(None);
     }
 }
 
@@ -168,29 +194,17 @@ impl Control for Button {
                 || self.has_descendant(message.destination(), ui)
             {
                 match msg {
-                    WidgetMessage::MouseDown { .. }
-                    | WidgetMessage::TouchStarted { .. }
-                    | WidgetMessage::TouchMoved { .. } => {
-                        // The only way to avoid a `MouseLeave` message is by capturing the currently picked node.
-                        // Capturing any other node will change the picked node and be considered leaving,
-                        // which would affect the decorator.
-                        ui.capture_mouse(message.destination());
-                        message.set_handled(true);
-                        if *self.repeat_clicks_on_hold {
-                            self.repeat_timer.replace(Some(*self.repeat_interval));
-                        }
+                    WidgetMessage::MouseDown { button, .. } if *button == *self.click_button => {
+                        self.on_mouse_down(message, ui);
                     }
-                    WidgetMessage::MouseUp { .. } | WidgetMessage::TouchEnded { .. } => {
-                        // Do the click only if the mouse is still within the button and the event hasn't been handled.
-                        // The event might be handled if there is a child button within this button, as with the
-                        // close button on a tab.
-                        if self.screen_bounds().contains(ui.cursor_position()) && !message.handled()
-                        {
-                            ui.post(self.handle(), ButtonMessage::Click);
-                        }
-                        ui.release_mouse_capture();
-                        message.set_handled(true);
-                        self.repeat_timer.replace(None);
+                    WidgetMessage::TouchStarted { .. } | WidgetMessage::TouchMoved { .. } => {
+                        self.on_mouse_down(message, ui);
+                    }
+                    WidgetMessage::MouseUp { button, .. } if *button == *self.click_button => {
+                        self.on_mouse_up(message, ui);
+                    }
+                    WidgetMessage::TouchEnded { .. } => {
+                        self.on_mouse_up(message, ui);
                     }
                     WidgetMessage::KeyDown(key_code)
                         if !message.handled()
@@ -314,6 +328,7 @@ pub struct ButtonBuilder {
     back: Option<Handle<UiNode>>,
     repeat_interval: f32,
     repeat_clicks_on_hold: bool,
+    click_button: MouseButton,
 }
 
 fn make_decorator_builder(ctx: &mut BuildContext) -> DecoratorBuilder {
@@ -334,6 +349,7 @@ impl ButtonBuilder {
             back: None,
             repeat_interval: 0.1,
             repeat_clicks_on_hold: false,
+            click_button: MouseButton::Left,
         }
     }
 
@@ -363,6 +379,13 @@ impl ButtonBuilder {
     /// Sets the content of the button to be [`ButtonContent::Node`] (arbitrary widget handle).
     pub fn with_content(mut self, node: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
         self.content = Some(ButtonContent::Node(node.to_base()));
+        self
+    }
+
+    /// Specifies the mouse button that will be used to accept clicks on the button. Any other button
+    /// event will be ignored. The default value is left mouse button.
+    pub fn with_click_button(mut self, mouse_button: MouseButton) -> Self {
+        self.click_button = mouse_button;
         self
     }
 
@@ -437,6 +460,7 @@ impl ButtonBuilder {
             repeat_interval: self.repeat_interval.into(),
             repeat_clicks_on_hold: self.repeat_clicks_on_hold.into(),
             repeat_timer: Default::default(),
+            click_button: self.click_button.into(),
         }
     }
 
