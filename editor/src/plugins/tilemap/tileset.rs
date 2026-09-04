@@ -140,6 +140,7 @@ fn make_tab(
         content,
         can_be_closed: false,
         user_data: None,
+        context_menu: None,
     }
 }
 

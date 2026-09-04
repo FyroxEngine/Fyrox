@@ -920,6 +920,7 @@ impl SceneViewer {
                     content: Default::default(),
                     can_be_closed: true,
                     user_data: None,
+                    context_menu: None,
                 }),
             );
         }

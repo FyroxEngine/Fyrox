@@ -39,8 +39,8 @@ use crate::{
     vector_image::VectorImageBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     wrap_panel::{WrapPanel, WrapPanelBuilder},
-    BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-    VerticalAlignment,
+    BuildContext, Control, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
+    UserInterface, VerticalAlignment,
 };
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -495,6 +495,8 @@ pub struct TabDefinition {
     pub can_be_closed: bool,
     /// User-defined data.
     pub user_data: Option<TabUserData>,
+    /// An option context menu that will be used on the tab header.
+    pub context_menu: Option<RcUiNodeHandle>,
 }
 
 struct Header {
@@ -514,79 +516,84 @@ impl Header {
         let close_button;
         let decorator;
 
-        let button = ButtonBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
-            .with_back({
-                decorator = DecoratorBuilder::new(
-                    BorderBuilder::new(WidgetBuilder::new().with_margin(Thickness {
-                        left: 0.0,
-                        top: 2.0,
-                        right: 2.0,
-                        bottom: 2.0,
-                    }))
-                    .with_stroke_thickness(Thickness::uniform(0.0).into())
-                    .with_pad_by_corner_radius(false)
-                    .with_corner_radius(4.0.into()),
-                )
-                .with_normal_brush(ctx.style.property(Style::BRUSH_DARK))
-                .with_selected_brush(active_tab_brush)
-                .with_pressed_brush(ctx.style.property(Style::BRUSH_LIGHTEST))
-                .with_hover_brush(ctx.style.property(Style::BRUSH_LIGHT))
-                .with_selected(selected)
-                .build(ctx);
-                decorator
-            })
-            .with_content(
-                GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child(tab_definition.header)
-                        .with_child({
-                            close_button = if tab_definition.can_be_closed {
-                                ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_margin(Thickness::right(1.0))
-                                        .on_row(0)
-                                        .on_column(1)
-                                        .with_width(16.0)
-                                        .with_height(16.0),
-                                )
-                                .with_back(
-                                    DecoratorBuilder::new(
-                                        BorderBuilder::new(WidgetBuilder::new())
-                                            .with_corner_radius(5.0f32.into())
-                                            .with_pad_by_corner_radius(false)
-                                            .with_stroke_thickness(Thickness::uniform(0.0).into()),
-                                    )
-                                    .with_normal_brush(Brush::Solid(Color::TRANSPARENT).into())
-                                    .with_hover_brush(ctx.style.property(Style::BRUSH_DARK))
-                                    .build(ctx),
-                                )
-                                .with_content(
-                                    VectorImageBuilder::new(
-                                        WidgetBuilder::new()
-                                            .with_horizontal_alignment(HorizontalAlignment::Center)
-                                            .with_vertical_alignment(VerticalAlignment::Center)
-                                            .with_width(8.0)
-                                            .with_height(8.0)
-                                            .with_foreground(
-                                                ctx.style.property(Style::BRUSH_BRIGHTEST),
-                                            ),
-                                    )
-                                    .with_primitives(make_cross_primitive(8.0, 2.0))
-                                    .build(ctx),
-                                )
-                                .build(ctx)
-                            } else {
-                                Handle::NONE
-                            };
-                            close_button
-                        }),
-                )
-                .add_row(Row::auto())
-                .add_column(Column::stretch())
-                .add_column(Column::auto())
-                .build(ctx),
+        let button = ButtonBuilder::new(
+            WidgetBuilder::new()
+                .on_row(0)
+                .on_column(0)
+                .with_opt_context_menu(tab_definition.context_menu.clone()),
+        )
+        .with_back({
+            decorator = DecoratorBuilder::new(
+                BorderBuilder::new(WidgetBuilder::new().with_margin(Thickness {
+                    left: 0.0,
+                    top: 2.0,
+                    right: 2.0,
+                    bottom: 2.0,
+                }))
+                .with_stroke_thickness(Thickness::uniform(0.0).into())
+                .with_pad_by_corner_radius(false)
+                .with_corner_radius(4.0.into()),
             )
+            .with_normal_brush(ctx.style.property(Style::BRUSH_DARK))
+            .with_selected_brush(active_tab_brush)
+            .with_pressed_brush(ctx.style.property(Style::BRUSH_LIGHTEST))
+            .with_hover_brush(ctx.style.property(Style::BRUSH_LIGHT))
+            .with_selected(selected)
             .build(ctx);
+            decorator
+        })
+        .with_content(
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(tab_definition.header)
+                    .with_child({
+                        close_button = if tab_definition.can_be_closed {
+                            ButtonBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_margin(Thickness::right(1.0))
+                                    .on_row(0)
+                                    .on_column(1)
+                                    .with_width(16.0)
+                                    .with_height(16.0),
+                            )
+                            .with_back(
+                                DecoratorBuilder::new(
+                                    BorderBuilder::new(WidgetBuilder::new())
+                                        .with_corner_radius(5.0f32.into())
+                                        .with_pad_by_corner_radius(false)
+                                        .with_stroke_thickness(Thickness::uniform(0.0).into()),
+                                )
+                                .with_normal_brush(Brush::Solid(Color::TRANSPARENT).into())
+                                .with_hover_brush(ctx.style.property(Style::BRUSH_DARK))
+                                .build(ctx),
+                            )
+                            .with_content(
+                                VectorImageBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_horizontal_alignment(HorizontalAlignment::Center)
+                                        .with_vertical_alignment(VerticalAlignment::Center)
+                                        .with_width(8.0)
+                                        .with_height(8.0)
+                                        .with_foreground(
+                                            ctx.style.property(Style::BRUSH_BRIGHTEST),
+                                        ),
+                                )
+                                .with_primitives(make_cross_primitive(8.0, 2.0))
+                                .build(ctx),
+                            )
+                            .build(ctx)
+                        } else {
+                            Handle::NONE
+                        };
+                        close_button
+                    }),
+            )
+            .add_row(Row::auto())
+            .add_column(Column::stretch())
+            .add_column(Column::auto())
+            .build(ctx),
+        )
+        .build(ctx);
 
         Header {
             button,

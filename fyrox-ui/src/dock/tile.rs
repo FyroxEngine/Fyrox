@@ -1040,6 +1040,7 @@ impl Tile {
             header,
             content: Handle::NONE,
             user_data: None,
+            context_menu: None,
         };
         ui.send(self.tabs, TabControlMessage::AddTab(definition));
     }
@@ -1327,6 +1328,7 @@ impl TileBuilder {
                         content: Handle::NONE,
                         user_data: None,
                         header,
+                        context_menu: None,
                     };
                     tabs = tabs.with_tab(definition);
                 }

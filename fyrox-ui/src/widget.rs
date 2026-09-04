@@ -2071,6 +2071,12 @@ impl WidgetBuilder {
         self
     }
 
+    /// The context menu receives `PopupMessage`s for being displayed, and so should support those.
+    pub fn with_opt_context_menu(mut self, context_menu: Option<RcUiNodeHandle>) -> Self {
+        self.context_menu = context_menu;
+        self
+    }
+
     /// Sets the desired tab index.
     pub fn with_tab_index(mut self, tab_index: Option<usize>) -> Self {
         self.tab_index = tab_index;
