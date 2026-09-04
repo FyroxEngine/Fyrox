@@ -199,6 +199,8 @@ use crate::{
         selection::SelectionSettings,
     },
 };
+use fyrox::gui::message::{ButtonState, KeyboardModifiers};
+use fyrox::gui::{MouseState, RenderMode, RestrictionEntry};
 use fyrox::scene::graph::physics::character::{
     CharacterAutostep, CharacterLength, KinematicCharacterController,
 };
@@ -649,6 +651,17 @@ pub fn make_property_editors_container(
 
     container.insert(EnumPropertyEditorDefinition::<BlendFactor>::new());
     container.insert(EnumPropertyEditorDefinition::<BlendFactor>::new_optional());
+
+    container.insert(EnumPropertyEditorDefinition::<RenderMode>::new());
+    container.insert(EnumPropertyEditorDefinition::<RenderMode>::new_optional());
+
+    container.insert(EnumPropertyEditorDefinition::<ButtonState>::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<RestrictionEntry>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<RestrictionEntry>::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<KeyboardModifiers>::new());
+    container.insert(InspectablePropertyEditorDefinition::<MouseState>::new());
 
     container.insert(ShaderSourceCodeEditorDefinition);
 

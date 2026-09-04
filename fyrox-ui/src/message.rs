@@ -521,7 +521,21 @@ impl UiMessage {
 }
 
 /// Mouse button state.
-#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy, Visit, Reflect)]
+#[derive(
+    Debug,
+    Hash,
+    Ord,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    Visit,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    VariantNames,
+)]
 #[reflect(type_uuid = "520d4eae-6772-4037-bff2-23a591a761ee")]
 pub enum ButtonState {
     /// Pressed state.

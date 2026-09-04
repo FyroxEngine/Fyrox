@@ -693,7 +693,7 @@ pub struct UiUpdateSwitches {
 
 pub type WidgetPool = Pool<UiNode, WidgetContainer>;
 
-#[derive(Default, Debug, Clone, PartialEq, Reflect, Visit)]
+#[derive(Default, Debug, Clone, PartialEq, Reflect, Visit, AsRefStr, EnumString, VariantNames)]
 #[reflect(type_uuid = "b426e937-4050-4539-8041-ade4222539c8")]
 pub enum RenderMode {
     /// The UI will be re-rendered on every frame. This is the default behavior.
@@ -745,10 +745,12 @@ pub struct UserInterface {
     pub style: StyleResource,
     #[reflect(hidden)]
     ui_message_channel: UiMessageChannel,
+    #[reflect(hidden)]
     stack: Vec<Handle<UiNode>>,
     picking_stack: Vec<RestrictionEntry>,
     #[reflect(hidden)]
     bubble_queue: VecDeque<Handle<UiNode>>,
+    #[reflect(hidden)]
     drag_context: DragContext,
     mouse_state: MouseState,
     keyboard_modifiers: KeyboardModifiers,
