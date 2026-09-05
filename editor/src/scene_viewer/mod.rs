@@ -723,6 +723,13 @@ impl SceneViewer {
                     }
                 }
             }
+            SceneItemAction::UnmarkAsStartup(scene_id) => {
+                if let Some(entry) = scenes.entry_by_scene_id(scene_id) {
+                    if let Some(entry_path) = entry.path.as_ref() {
+                        settings.general.remove_startup_scene(entry_path);
+                    }
+                }
+            }
         }
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {

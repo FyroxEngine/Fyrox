@@ -95,6 +95,12 @@ impl GeneralSettings {
         }
         self.startup_scenes.push(path.clone());
     }
+
+    pub fn remove_startup_scene(&mut self, path: &PathBuf) {
+        while let Some(pos) = self.startup_scenes.iter().position(|p| p == path) {
+            self.startup_scenes.remove(pos);
+        }
+    }
 }
 
 fn default_style() -> EditorStyle {
