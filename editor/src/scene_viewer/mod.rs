@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::scene_viewer::menu::{SceneItemAction, SceneItemMenu};
 use crate::{
     fyrox::{
         core::{color::Color, math::Rect, pool::Handle, uuid::Uuid},
@@ -60,6 +61,7 @@ use crate::{
     scene::container::EditorSceneEntry,
     scene_viewer::gizmo::{SceneGizmo, SceneGizmoAction},
     settings::SettingsMessage,
+    utils,
     utils::enable_widget,
     DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
     SceneContainer, Settings,
@@ -82,6 +84,7 @@ use strum::{IntoEnumIterator, VariantNames};
 use strum_macros::{AsRefStr, EnumIter, EnumString, VariantNames};
 
 mod gizmo;
+mod menu;
 
 #[derive(Default, Clone, Debug, EnumIter, AsRefStr, EnumString, VariantNames)]
 pub enum GraphicsDebugSwitches {
@@ -284,6 +287,7 @@ pub struct SceneViewer {
     scene_gizmo_image: Handle<Image>,
     debug_switches: Handle<DropdownList>,
     grid_snap_menu: GridSnappingMenu,
+    scene_item_menu: SceneItemMenu,
 }
 
 impl SceneViewer {
@@ -558,6 +562,9 @@ impl SceneViewer {
             .with_title(WindowTitle::text("Scene Preview"))
             .with_tab_label("Scene")
             .build(ctx);
+
+        let scene_item_menu = SceneItemMenu::new(ctx);
+
         Self {
             sender,
             window,
@@ -577,6 +584,7 @@ impl SceneViewer {
             debug_switches,
             grid_snap_menu,
             build,
+            scene_item_menu,
         }
     }
 }
@@ -671,6 +679,19 @@ impl SceneViewer {
         self.sync_interaction_modes(new_scene, ui)
     }
 
+    fn close_scene(&self, scenes: &mut SceneContainer, uuid: &Uuid) {
+        if let Some(entry) = scenes.entry_by_scene_id(*uuid) {
+            if entry.need_save() {
+                self.sender.send(Message::OpenSaveSceneConfirmationDialog {
+                    id: entry.id,
+                    action: SaveSceneConfirmationDialogAction::CloseScene(entry.id),
+                });
+            } else {
+                self.sender.send(Message::CloseScene(entry.id));
+            }
+        }
+    }
+
     pub fn handle_ui_message(
         &mut self,
         message: &mut UiMessage,
@@ -682,6 +703,20 @@ impl SceneViewer {
         self.grid_snap_menu.handle_ui_message(message, settings);
 
         let ui = engine.user_interfaces.first_mut();
+
+        match self.scene_item_menu.handle_ui_message(ui, message) {
+            SceneItemAction::None => {}
+            SceneItemAction::Close(scene_id) => self.close_scene(scenes, &scene_id),
+            SceneItemAction::ShowInExplorer(scene_id) => {
+                if let Some(entry) = scenes.entry_by_scene_id(scene_id) {
+                    if let Some(entry_path) = entry.path.as_ref() {
+                        if let Ok(canonical_path) = entry_path.canonicalize() {
+                            utils::show_in_explorer(canonical_path);
+                        }
+                    }
+                }
+            }
+        }
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             for (mode_id, mode_button) in self.interaction_modes.iter() {
@@ -744,18 +779,7 @@ impl SceneViewer {
                 && message.direction() == MessageDirection::FromWidget
             {
                 match msg {
-                    TabControlMessage::CloseTab(uuid) => {
-                        if let Some(entry) = scenes.entry_by_scene_id(*uuid) {
-                            if entry.need_save() {
-                                self.sender.send(Message::OpenSaveSceneConfirmationDialog {
-                                    id: entry.id,
-                                    action: SaveSceneConfirmationDialogAction::CloseScene(entry.id),
-                                });
-                            } else {
-                                self.sender.send(Message::CloseScene(entry.id));
-                            }
-                        }
-                    }
+                    TabControlMessage::CloseTab(uuid) => self.close_scene(scenes, uuid),
                     TabControlMessage::ActiveTab(Some(uuid)) => {
                         if let Some(entry) = scenes.entry_by_scene_id(*uuid) {
                             self.sender.send(Message::SetCurrentScene(entry.id));
@@ -920,7 +944,7 @@ impl SceneViewer {
                     content: Default::default(),
                     can_be_closed: true,
                     user_data: None,
-                    context_menu: None,
+                    context_menu: Some(self.scene_item_menu.menu.clone()),
                 }),
             );
         }

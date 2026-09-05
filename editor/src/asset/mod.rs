@@ -85,34 +85,6 @@ pub mod preview;
 mod selection;
 pub mod selector;
 
-fn show_in_explorer<P: AsRef<Path>>(path: P) {
-    // opener crate is bugged on Windows, so using explorer's command directly.
-    #[cfg(target_os = "windows")]
-    {
-        use std::process::Command;
-
-        fn execute_command(command: &mut Command) {
-            match command.spawn() {
-                Ok(mut process) => Log::verify(process.wait()),
-                Err(err) => Log::err(format!(
-                    "Failed to show asset item in explorer. Reason: {err:?}"
-                )),
-            }
-        }
-
-        execute_command(Command::new("explorer").arg("/select,").arg(path.as_ref()))
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        if let Err(err) = opener::reveal(path) {
-            Log::err(format!(
-                "Failed to show asset item in explorer. Reason: {err:?}"
-            ))
-        }
-    }
-}
-
 fn open_in_explorer<P: AsRef<Path>>(path: P) {
     if let Ok(path) = path.as_ref().canonicalize() {
         Log::verify(open::that(path))

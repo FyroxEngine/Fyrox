@@ -523,6 +523,7 @@ impl Header {
             WidgetBuilder::new()
                 .on_row(0)
                 .on_column(0)
+                .with_id(tab_definition.uuid)
                 .with_opt_context_menu(tab_definition.context_menu.clone()),
         )
         .with_back({

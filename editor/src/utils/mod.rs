@@ -36,6 +36,7 @@ use crate::{
     },
     load_image,
 };
+use fyrox::core::log::Log;
 use fyrox::core::pool::ObjectOrVariant;
 use fyrox::gui::button::Button;
 use fyrox::gui::file_browser::{FileSelector, FileSelectorMode, FileType};
@@ -173,6 +174,34 @@ pub fn is_native_scene(path: &Path) -> bool {
         Visitor::is_supported(&mut file)
     } else {
         false
+    }
+}
+
+pub fn show_in_explorer<P: AsRef<Path>>(path: P) {
+    // opener crate is bugged on Windows, so using explorer's command directly.
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+
+        fn execute_command(command: &mut Command) {
+            match command.spawn() {
+                Ok(mut process) => Log::verify(process.wait()),
+                Err(err) => Log::err(format!(
+                    "Failed to show asset item in explorer. Reason: {err:?}"
+                )),
+            }
+        }
+
+        execute_command(Command::new("explorer").arg("/select,").arg(path.as_ref()))
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        if let Err(err) = opener::reveal(path) {
+            Log::err(format!(
+                "Failed to show asset item in explorer. Reason: {err:?}"
+            ))
+        }
     }
 }
 

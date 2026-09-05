@@ -52,7 +52,7 @@ use crate::{
         },
     },
     message::MessageSender,
-    Message,
+    utils, Message,
 };
 use std::{
     fs::File,
@@ -382,7 +382,7 @@ impl AssetItemContextMenu {
                     return true;
                 } else if message.destination() == self.show_in_explorer {
                     if let Ok(canonical_path) = item.path.canonicalize() {
-                        asset::show_in_explorer(canonical_path)
+                        utils::show_in_explorer(canonical_path)
                     }
                 } else if message.destination() == self.open {
                     item.open();
