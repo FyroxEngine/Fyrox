@@ -88,6 +88,15 @@ pub struct GeneralSettings {
     pub startup_scenes: Vec<PathBuf>,
 }
 
+impl GeneralSettings {
+    pub fn add_startup_scene(&mut self, path: &PathBuf) {
+        if self.startup_scenes.contains(path) {
+            return;
+        }
+        self.startup_scenes.push(path.clone());
+    }
+}
+
 fn default_style() -> EditorStyle {
     EditorStyle::Dark
 }
