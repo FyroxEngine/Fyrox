@@ -1109,7 +1109,7 @@ mod test {
             &[],
         );
 
-        foo.resolve_path("enum_field.Content.Stuff@field", &mut |result| {
+        foo.resolve_path("enum_field.Value.Stuff@field", &mut |result| {
             let enum_field = result.expect("the field must exist!");
             assert_eq!(
                 *enum_field

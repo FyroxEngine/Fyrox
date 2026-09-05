@@ -149,6 +149,7 @@ pub struct Tab {
 ///                 .to_base(),
 ///             can_be_closed: true,
 ///             user_data: None,
+///             context_menu: None
 ///         })
 ///         .with_tab(TabDefinition {
 ///             uuid: uuid!("265e78db-f95a-445e-b027-2eee796dd996"),
@@ -162,6 +163,7 @@ pub struct Tab {
 ///                 .to_base(),
 ///             can_be_closed: true,
 ///             user_data: None,
+///             context_menu: None
 ///         })
 ///         .build(ctx);
 /// }
@@ -201,6 +203,7 @@ pub struct Tab {
 /// #   content: Default::default(),
 /// #   can_be_closed: true,
 /// #   user_data: None,
+/// #   context_menu: None
 ///     // ...
 /// };
 /// # }

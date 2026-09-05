@@ -55,7 +55,7 @@ use std::{
     sync::Arc,
 };
 
-const INTERNALS_PATH: &'static str = "0.Some@0.0";
+const INTERNALS_PATH: &str = "0.Some@0.0";
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum DynTypePropertyEditorMessage {
@@ -442,9 +442,7 @@ mod test {
         struct Foobar {
             foo: u32,
         }
-        let w = DynTypeContainer {
-            0: Some(DynTypeWrapper(Box::new(Foobar { foo: 123 }))),
-        };
+        let w = DynTypeContainer(Some(DynTypeWrapper(Box::new(Foobar { foo: 123 }))));
         w.resolve_path(INTERNALS_PATH, &mut |result| {
             assert_eq!(
                 result.unwrap().downcast_ref::<Foobar>().unwrap().foo,
