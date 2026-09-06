@@ -718,7 +718,21 @@ crate::define_widget_deref!(Inspector);
 
 impl Inspector {
     pub fn apply_filter(&self, filter_text: &str, ui: &UserInterface) {
-        fn apply_recursive(
+        fn make_visible_recursive(inspector: Handle<UiNode>, ui: &UserInterface) {
+            let inspector = ok_or_return!(ui.try_get_of_type::<Inspector>(inspector));
+            for entry in inspector.context.entries.iter() {
+                let sub_inspector = ui.find_handle(entry.property_editor, &mut |node| {
+                    node.is_or_has_field::<Inspector>()
+                });
+                if sub_inspector.is_some() {
+                    make_visible_recursive(sub_inspector, ui);
+                }
+
+                ui.send(entry.property_container, WidgetMessage::Visibility(true));
+            }
+        }
+
+        fn filter_recursive(
             filter_text: &str,
             inspector: Handle<UiNode>,
             ui: &UserInterface,
@@ -727,32 +741,35 @@ impl Inspector {
 
             let mut is_any_match = false;
             for entry in inspector.context.entries.iter() {
-                // First look at any inner inspectors, because they could also contain properties
-                // matching search criteria.
-                let mut inner_match = false;
-                let sub_inspector = ui.find_handle(entry.property_editor, &mut |node| {
-                    node.is_or_has_field::<Inspector>()
-                });
-                if sub_inspector.is_some() {
-                    inner_match |= apply_recursive(filter_text, sub_inspector, ui);
-                }
-
                 let display_name = entry.property_display_name.to_lowercase();
-                inner_match |= display_name.contains(filter_text)
+                let mut is_visible = filter_text.is_empty()
+                    || display_name.contains(filter_text)
                     || rust_fuzzy_search::fuzzy_compare(filter_text, display_name.as_str()) >= 0.5;
 
-                ui.send(
-                    entry.property_container,
-                    WidgetMessage::Visibility(inner_match),
-                );
+                if !is_visible {
+                    let sub_inspector = ui.find_handle(entry.property_editor, &mut |node| {
+                        node.is_or_has_field::<Inspector>()
+                    });
+                    if sub_inspector.is_some() {
+                        is_visible |= filter_recursive(filter_text, sub_inspector, ui);
+                    }
+                }
 
-                is_any_match |= inner_match;
+                if !is_visible {
+                    ui.send(
+                        entry.property_container,
+                        WidgetMessage::Visibility(is_visible),
+                    );
+                }
+
+                is_any_match |= is_visible;
             }
 
             is_any_match
         }
 
-        apply_recursive(filter_text, self.handle, ui);
+        make_visible_recursive(self.handle, ui);
+        filter_recursive(filter_text, self.handle, ui);
     }
 
     pub fn handle_context_menu_message(

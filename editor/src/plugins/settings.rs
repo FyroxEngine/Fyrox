@@ -41,7 +41,7 @@ use crate::{
             stack_panel::StackPanelBuilder,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+            HorizontalAlignment, Orientation, Thickness, UserInterface,
         },
     },
     load_image,
@@ -49,7 +49,6 @@ use crate::{
     settings::Settings,
     Editor,
 };
-use fyrox::core::ok_or_return;
 use fyrox::core::uuid::{uuid, Uuid};
 use fyrox::engine::GraphicsContext;
 use fyrox::gui::button::Button;
@@ -61,7 +60,6 @@ use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
 use fyrox::gui::widget::UserData;
 use fyrox::gui::window::{Window, WindowAlignment};
-use rust_fuzzy_search::fuzzy_compare;
 use std::sync::Arc;
 
 #[derive(Clone, PartialEq)]
