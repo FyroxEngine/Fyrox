@@ -223,6 +223,7 @@
 pub use bbcode::*;
 pub use copypasta;
 pub use fyrox_core as core;
+pub use fyrox_graph as graph;
 use message::TouchPhase;
 
 pub mod absm;
@@ -3801,6 +3802,28 @@ impl UserInterfaceResourceExtension for Resource<UserInterface> {
 
         (root, mapping)
     }
+}
+
+#[macro_export]
+macro_rules! define_widget_constructor {
+    ($type_name:ty, $display_name:expr, $group_name:expr) => {
+        impl $crate::graph::constructor::ConstructorProvider<$crate::UiNode, $crate::UserInterface>
+            for $type_name
+        {
+            fn constructor() -> $crate::graph::constructor::GraphNodeConstructor<
+                $crate::UiNode,
+                $crate::UserInterface,
+            > {
+                $crate::graph::constructor::GraphNodeConstructor::new::<Self>()
+                    .with_variant($display_name, |ui| {
+                        ui.add_node($crate::UiNode::new(<$type_name>::default()))
+                            .transmute()
+                            .into()
+                    })
+                    .with_group($group_name)
+            }
+        }
+    };
 }
 
 fn is_approx_zero(v: f32) -> bool {
