@@ -22,22 +22,27 @@ use crate::{
     command::{Command, CommandGroup},
     fyrox::{
         asset::untyped::UntypedResource,
-        core::{algebra::Vector2, algebra::Vector3, pool::Handle, reflect::Reflect},
+        core::{
+            algebra::{Vector2, Vector3},
+            pool::Handle,
+            reflect::Reflect,
+            uuid::{uuid, Uuid},
+        },
         engine::SerializationContext,
         graph::SceneGraph,
         gui::{
             constructor::WidgetConstructorContainer,
-            file_browser::FileSelectorMessage,
+            file_browser::{FileSelector, FileSelectorMessage, FileType},
             menu::{
-                self, ContextMenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage,
-                SortingPredicate,
+                self, ContextMenuBuilder, MenuItem, MenuItemBuilder, MenuItemContent,
+                MenuItemMessage, SortingPredicate,
             },
             message::UiMessage,
             popup::{Placement, PopupBuilder, PopupMessage},
             stack_panel::StackPanelBuilder,
             widget::{WidgetBuilder, WidgetMessage},
-            window::WindowMessage,
-            BuildContext, RcUiNodeHandle, UiNode,
+            window::{WindowAlignment, WindowMessage},
+            BuildContext, RcUiNodeHandle, UiNode, UserInterface,
         },
     },
     make_save_file_selector,
@@ -59,19 +64,18 @@ use crate::{
     world::WorldViewerItemContextMenu,
     Engine, Message, PasteCommand,
 };
-use fyrox::core::uuid::{uuid, Uuid};
-use fyrox::gui::file_browser::{FileSelector, FileType};
-use fyrox::gui::menu::MenuItem;
-use fyrox::gui::window::WindowAlignment;
 use std::{any::TypeId, path::PathBuf};
 
 pub struct SceneNodeContextMenu {
     menu: RcUiNodeHandle,
     delete_selection: Handle<MenuItem>,
     copy_selection: Handle<MenuItem>,
+    create_child_menu: Handle<MenuItem>,
     create_child_entity_menu: CreateEntityMenu,
+    create_parent_menu: Handle<MenuItem>,
     create_parent_entity_menu: CreateEntityMenu,
-    replace_with_menu: CreateEntityMenu,
+    replace_with_menu: Handle<MenuItem>,
+    replace_with_entity_menu: CreateEntityMenu,
     placement_target: Handle<UiNode>,
     save_as_prefab: Handle<MenuItem>,
     save_as_prefab_dialog: Handle<FileSelector>,
@@ -84,6 +88,26 @@ pub struct SceneNodeContextMenu {
 impl WorldViewerItemContextMenu for SceneNodeContextMenu {
     fn menu(&self) -> RcUiNodeHandle {
         self.menu.clone()
+    }
+
+    fn on_plugin_added(
+        &mut self,
+        serialization_context: &SerializationContext,
+        widget_constructors_container: &WidgetConstructorContainer,
+        ui: &mut UserInterface,
+    ) {
+        for (handle, menu) in [
+            (self.create_child_menu, &mut self.create_child_entity_menu),
+            (self.create_parent_menu, &mut self.create_parent_entity_menu),
+            (self.replace_with_menu, &mut self.replace_with_entity_menu),
+        ] {
+            *menu = CreateEntityMenu::new(
+                serialization_context,
+                widget_constructors_container,
+                &mut ui.build_ctx(),
+            );
+            ui.send(handle, MenuItemMessage::Items(menu.root_items.clone()));
+        }
     }
 }
 
@@ -141,7 +165,7 @@ impl SceneNodeContextMenu {
             CreateEntityMenu::new(serialization_context, widget_constructors_container, ctx);
         let create_parent_entity_menu =
             CreateEntityMenu::new(serialization_context, widget_constructors_container, ctx);
-        let replace_with_menu =
+        let replace_with_entity_menu =
             CreateEntityMenu::new(serialization_context, widget_constructors_container, ctx);
 
         let menu = ContextMenuBuilder::new(
@@ -209,7 +233,7 @@ impl SceneNodeContextMenu {
                                         .with_min_size(Vector2::new(120.0, 22.0)),
                                 )
                                 .with_content(MenuItemContent::text("Replace With Node"))
-                                .with_items(replace_with_menu.root_items.clone())
+                                .with_items(replace_with_entity_menu.root_items.clone())
                                 .build(ctx);
                                 replace_with
                             })
@@ -273,12 +297,15 @@ impl SceneNodeContextMenu {
             placement_target: Default::default(),
             save_as_prefab,
             save_as_prefab_dialog: Default::default(),
-            replace_with_menu,
+            replace_with_entity_menu,
             paste,
             make_root,
             open_asset,
             reset_inheritable_properties,
             create_parent_entity_menu,
+            create_child_menu: create_child,
+            create_parent_menu: create_parent,
+            replace_with_menu: replace_with,
         }
     }
 
@@ -350,7 +377,7 @@ impl SceneNodeContextMenu {
                     }
                 }
             }
-        } else if let Some(replacement) = self.replace_with_menu.handle_ui_message(
+        } else if let Some(replacement) = self.replace_with_entity_menu.handle_ui_message(
             message,
             sender,
             controller,

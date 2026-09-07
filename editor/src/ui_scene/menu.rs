@@ -19,16 +19,22 @@
 // SOFTWARE.
 
 use crate::{
-    fyrox::graph::{NodeWrapper, SceneGraph},
     fyrox::{
-        core::pool::Handle,
+        asset::manager::ResourceManager,
+        core::{
+            pool::Handle,
+            uuid::{uuid, Uuid},
+        },
+        engine::SerializationContext,
+        graph::{NodeWrapper, SceneGraph},
         gui::{
-            menu::MenuItemMessage,
+            constructor::WidgetConstructorContainer,
+            menu::{ContextMenuBuilder, MenuItem, MenuItemMessage},
             message::UiMessage,
             popup::{Placement, PopupBuilder, PopupMessage},
-            stack_panel::StackPanelBuilder,
+            stack_panel::{StackPanel, StackPanelBuilder},
             widget::{WidgetBuilder, WidgetMessage},
-            BuildContext, RcUiNodeHandle, UiNode,
+            BuildContext, RcUiNodeHandle, UiNode, UserInterface,
         },
     },
     menu::{create_menu_item, create_menu_item_shortcut, ui::UiMenu},
@@ -42,10 +48,6 @@ use crate::{
     world::WorldViewerItemContextMenu,
     Engine, Message,
 };
-use fyrox::asset::manager::ResourceManager;
-use fyrox::core::uuid::{uuid, Uuid};
-use fyrox::gui::constructor::WidgetConstructorContainer;
-use fyrox::gui::menu::{ContextMenuBuilder, MenuItem};
 use std::path::PathBuf;
 
 pub struct WidgetContextMenu {
@@ -57,11 +59,30 @@ pub struct WidgetContextMenu {
     paste: Handle<MenuItem>,
     make_root: Handle<MenuItem>,
     open_asset: Handle<MenuItem>,
+    stack_panel: Handle<StackPanel>,
 }
 
 impl WorldViewerItemContextMenu for WidgetContextMenu {
     fn menu(&self) -> RcUiNodeHandle {
         self.menu.clone()
+    }
+
+    fn on_plugin_added(
+        &mut self,
+        _serialization_context: &SerializationContext,
+        widget_constructors_container: &WidgetConstructorContainer,
+        ui: &mut UserInterface,
+    ) {
+        ui.send(self.widgets_menu.menu, WidgetMessage::Remove);
+        self.widgets_menu = UiMenu::new(
+            widget_constructors_container,
+            "Create Child Widget",
+            &mut ui.build_ctx(),
+        );
+        ui.send(
+            self.widgets_menu.menu,
+            WidgetMessage::LinkWith(self.stack_panel.to_base()),
+        );
     }
 }
 
@@ -104,10 +125,11 @@ impl WidgetContextMenu {
 
         let widgets_menu = UiMenu::new(widget_constructors_container, "Create Child Widget", ctx);
 
+        let stack_panel;
         let menu = ContextMenuBuilder::new(
             PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
-                .with_content(
-                    StackPanelBuilder::new(
+                .with_content({
+                    stack_panel = StackPanelBuilder::new(
                         WidgetBuilder::new()
                             .with_child({
                                 delete_selection = create_menu_item_shortcut(
@@ -152,8 +174,9 @@ impl WidgetContextMenu {
                             })
                             .with_child(widgets_menu.menu),
                     )
-                    .build(ctx),
-                )
+                    .build(ctx);
+                    stack_panel
+                })
                 .with_restrict_picking(false),
         )
         .build(ctx);
@@ -168,6 +191,7 @@ impl WidgetContextMenu {
             paste,
             make_root,
             open_asset,
+            stack_panel,
         }
     }
 

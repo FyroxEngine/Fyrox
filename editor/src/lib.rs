@@ -57,6 +57,7 @@ pub mod world;
 
 pub use fyrox;
 
+use crate::world::WorldViewerItemContextMenu;
 use crate::{
     asset::{item::AssetItem, AssetBrowser},
     audio::{preview::AudioPreviewPanel, AudioPanel},
@@ -2840,12 +2841,28 @@ impl Editor {
         );
     }
 
+    fn on_game_plugin_added(&mut self) {
+        let mut widget_context_menu = self.widget_context_menu.borrow_mut();
+        let mut scene_node_context_menu = self.scene_node_context_menu.borrow_mut();
+        for menu in [
+            &mut *widget_context_menu as &mut dyn WorldViewerItemContextMenu,
+            &mut *scene_node_context_menu as &mut dyn WorldViewerItemContextMenu,
+        ] {
+            menu.on_plugin_added(
+                &self.engine.serialization_context,
+                &self.engine.widget_constructors,
+                self.engine.user_interfaces.first_mut(),
+            );
+        }
+    }
+
     pub fn add_game_plugin<P>(&mut self, plugin: P)
     where
         P: Plugin + 'static,
     {
         plugin.register_property_editors(self.property_editors.clone());
-        self.engine.add_plugin(plugin)
+        self.engine.add_plugin(plugin);
+        self.on_game_plugin_added();
     }
 
     /// Tries to add a new dynamic plugin. This method attempts to load a dynamic library by the
@@ -2882,6 +2899,7 @@ impl Editor {
         let plugin = self.engine.add_dynamic_plugin_custom(plugin);
         *self.property_editors.context_type_id.safe_lock() = plugin.type_id();
         plugin.register_property_editors(self.property_editors.clone());
+        self.on_game_plugin_added();
         Ok(())
     }
 
