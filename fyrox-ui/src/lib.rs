@@ -3816,13 +3816,21 @@ macro_rules! define_widget_constructor {
             > {
                 $crate::graph::constructor::GraphNodeConstructor::new::<Self>()
                     .with_variant($display_name, |ui| {
-                        ui.add_node($crate::UiNode::new(<$type_name>::default()))
-                            .transmute()
-                            .into()
+                        let mut node = $crate::UiNode::new(<$type_name>::default());
+                        **node = $crate::widget::WidgetBuilder::new().build(&mut ui.build_ctx());
+                        ui.add_node(node).transmute().into()
                     })
                     .with_group($group_name)
             }
         }
+    };
+}
+
+#[macro_export]
+macro_rules! define_widget_traits {
+    ($type_name:ty, $display_name:expr, $group_name:expr) => {
+        $crate::define_widget_deref!($type_name);
+        $crate::define_widget_constructor!($type_name, $display_name, $group_name);
     };
 }
 
