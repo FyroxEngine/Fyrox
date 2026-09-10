@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::world::create::EntityCreatorMode;
 use crate::{
     fyrox::{
         asset::manager::ResourceManager,
@@ -25,19 +26,17 @@ use crate::{
             pool::Handle,
             uuid::{uuid, Uuid},
         },
-        engine::SerializationContext,
         graph::{NodeWrapper, SceneGraph},
         gui::{
-            constructor::WidgetConstructorContainer,
             menu::{ContextMenuBuilder, MenuItem, MenuItemMessage},
             message::UiMessage,
             popup::{Placement, PopupBuilder, PopupMessage},
-            stack_panel::{StackPanel, StackPanelBuilder},
+            stack_panel::StackPanelBuilder,
             widget::{WidgetBuilder, WidgetMessage},
-            BuildContext, RcUiNodeHandle, UiNode, UserInterface,
+            BuildContext, RcUiNodeHandle, UiNode,
         },
     },
-    menu::{create_menu_item, create_menu_item_shortcut, ui::UiMenu},
+    menu::{create_menu_item, create_menu_item_shortcut},
     message::MessageSender,
     scene::{controller::SceneController, Selection},
     ui_scene::{
@@ -54,35 +53,16 @@ pub struct WidgetContextMenu {
     menu: RcUiNodeHandle,
     delete_selection: Handle<MenuItem>,
     copy_selection: Handle<MenuItem>,
-    widgets_menu: UiMenu,
+    create_child: Handle<MenuItem>,
     placement_target: Handle<UiNode>,
     paste: Handle<MenuItem>,
     make_root: Handle<MenuItem>,
     open_asset: Handle<MenuItem>,
-    stack_panel: Handle<StackPanel>,
 }
 
 impl WorldViewerItemContextMenu for WidgetContextMenu {
     fn menu(&self) -> RcUiNodeHandle {
         self.menu.clone()
-    }
-
-    fn on_plugin_added(
-        &mut self,
-        _serialization_context: &SerializationContext,
-        widget_constructors_container: &WidgetConstructorContainer,
-        ui: &mut UserInterface,
-    ) {
-        ui.send(self.widgets_menu.menu, WidgetMessage::Remove);
-        self.widgets_menu = UiMenu::new(
-            widget_constructors_container,
-            "Create Child Widget",
-            &mut ui.build_ctx(),
-        );
-        ui.send(
-            self.widgets_menu.menu,
-            WidgetMessage::LinkWith(self.stack_panel.to_base()),
-        );
     }
 }
 
@@ -110,21 +90,17 @@ impl WidgetContextMenu {
     pub const DELETE_SELECTION: Uuid = uuid!("30eef2a7-9f12-4e64-9142-b604f25e9e06");
     pub const COPY_SELECTION: Uuid = uuid!("0a2d10bc-de1e-4196-aba6-0a51c54eb238");
     pub const PASTE_AS_CHILD: Uuid = uuid!("d3b86c8c-1efd-4917-9543-b0f5f32f8cbd");
+    pub const CREATE_CHILD_WIDGET: Uuid = uuid!("26b2ed1f-c4b8-4ec4-8112-9f29fc600101");
     pub const MAKE_ROOT: Uuid = uuid!("968318f6-21c7-430f-a13d-36aefb61cde2");
     pub const OPEN_ASSET: Uuid = uuid!("f3f7d0fa-e905-4371-8973-dfc1eb758e5a");
 
-    pub fn new(
-        widget_constructors_container: &WidgetConstructorContainer,
-        ctx: &mut BuildContext,
-    ) -> Self {
+    pub fn new(ctx: &mut BuildContext) -> Self {
         let delete_selection;
         let copy_selection;
         let paste;
         let make_root;
         let open_asset;
-
-        let widgets_menu = UiMenu::new(widget_constructors_container, "Create Child Widget", ctx);
-
+        let create_child;
         let stack_panel;
         let menu = ContextMenuBuilder::new(
             PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
@@ -172,7 +148,15 @@ impl WidgetContextMenu {
                                     create_menu_item("Open Asset", Self::OPEN_ASSET, vec![], ctx);
                                 open_asset
                             })
-                            .with_child(widgets_menu.menu),
+                            .with_child({
+                                create_child = create_menu_item(
+                                    "Create Child Widget",
+                                    Self::CREATE_CHILD_WIDGET,
+                                    vec![],
+                                    ctx,
+                                );
+                                create_child
+                            }),
                     )
                     .build(ctx);
                     stack_panel
@@ -183,7 +167,7 @@ impl WidgetContextMenu {
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         Self {
-            widgets_menu,
+            create_child,
             menu,
             delete_selection,
             copy_selection,
@@ -191,7 +175,6 @@ impl WidgetContextMenu {
             paste,
             make_root,
             open_asset,
-            stack_panel,
         }
     }
 
@@ -204,9 +187,6 @@ impl WidgetContextMenu {
         sender: &MessageSender,
     ) {
         if let Some(ui_scene) = controller.downcast_mut::<UiScene>() {
-            self.widgets_menu
-                .handle_ui_message(sender, message, ui_scene, editor_selection);
-
             if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
                 if message.destination() == self.delete_selection {
                     if let Some(ui_selection) = editor_selection.as_ui() {
@@ -247,6 +227,8 @@ impl WidgetContextMenu {
                             sender.send(Message::LoadScene(path));
                         }
                     }
+                } else if message.destination() == self.create_child {
+                    sender.send(Message::OpenEntityCreator(EntityCreatorMode::CreateChild));
                 }
             } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data()
             {

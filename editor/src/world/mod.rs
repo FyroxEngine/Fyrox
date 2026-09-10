@@ -57,9 +57,7 @@ use crate::{
 };
 use fyrox::core::color::Color;
 use fyrox::core::pool::HandlesVecExtension;
-use fyrox::engine::SerializationContext;
 use fyrox::gui::button::Button;
-use fyrox::gui::constructor::WidgetConstructorContainer;
 use fyrox::gui::scroll_viewer::ScrollViewer;
 use fyrox::gui::searchbar::SearchBar;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
@@ -78,6 +76,7 @@ use std::{
     rc::Rc,
 };
 
+pub mod create;
 pub mod graph;
 pub mod item;
 pub mod menu;
@@ -139,12 +138,6 @@ pub trait WorldViewerDataProvider {
 
 pub trait WorldViewerItemContextMenu {
     fn menu(&self) -> RcUiNodeHandle;
-    fn on_plugin_added(
-        &mut self,
-        serialization_context: &SerializationContext,
-        widget_constructors_container: &WidgetConstructorContainer,
-        ui: &mut UserInterface,
-    );
 }
 
 pub struct WorldViewer {

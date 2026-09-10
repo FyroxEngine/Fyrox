@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::world::create::EntityCreatorMode;
 use crate::{
     command::{Command, CommandGroup, CommandTrait},
     fyrox::{
@@ -122,6 +123,7 @@ pub enum Message {
     ViewSurfaceData(SurfaceResource),
     SyncInteractionModes,
     SetAssetBrowserCurrentDir(PathBuf),
+    OpenEntityCreator(EntityCreatorMode),
 }
 
 #[derive(Clone, Debug, Reflect)]

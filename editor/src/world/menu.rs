@@ -18,20 +18,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::world::create::EntityCreatorMode;
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
         asset::untyped::UntypedResource,
         core::{
-            algebra::{Vector2, Vector3},
+            algebra::Vector2,
             pool::Handle,
             reflect::Reflect,
             uuid::{uuid, Uuid},
         },
-        engine::SerializationContext,
         graph::SceneGraph,
         gui::{
-            constructor::WidgetConstructorContainer,
             file_browser::{FileSelector, FileSelectorMessage, FileType},
             menu::{
                 self, ContextMenuBuilder, MenuItem, MenuItemBuilder, MenuItemContent,
@@ -42,18 +41,15 @@ use crate::{
             stack_panel::StackPanelBuilder,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowAlignment, WindowMessage},
-            BuildContext, RcUiNodeHandle, UiNode, UserInterface,
+            BuildContext, RcUiNodeHandle, UiNode,
         },
     },
     make_save_file_selector,
-    menu::{create::CreateEntityMenu, create_menu_item, create_menu_item_shortcut},
+    menu::{create_menu_item, create_menu_item_shortcut},
     message::MessageSender,
     scene::{
         commands::{
-            graph::{
-                AddNodeCommand, LinkNodesCommand, MoveNodeCommand, ReplaceNodeCommand,
-                SetGraphRootCommand, SetNodeTransformCommand,
-            },
+            graph::{SetGraphRootCommand, SetNodeTransformCommand},
             make_delete_selection_command, RevertSceneNodePropertyCommand,
         },
         controller::SceneController,
@@ -71,11 +67,8 @@ pub struct SceneNodeContextMenu {
     delete_selection: Handle<MenuItem>,
     copy_selection: Handle<MenuItem>,
     create_child_menu: Handle<MenuItem>,
-    create_child_entity_menu: CreateEntityMenu,
     create_parent_menu: Handle<MenuItem>,
-    create_parent_entity_menu: CreateEntityMenu,
     replace_with_menu: Handle<MenuItem>,
-    replace_with_entity_menu: CreateEntityMenu,
     placement_target: Handle<UiNode>,
     save_as_prefab: Handle<MenuItem>,
     save_as_prefab_dialog: Handle<FileSelector>,
@@ -88,26 +81,6 @@ pub struct SceneNodeContextMenu {
 impl WorldViewerItemContextMenu for SceneNodeContextMenu {
     fn menu(&self) -> RcUiNodeHandle {
         self.menu.clone()
-    }
-
-    fn on_plugin_added(
-        &mut self,
-        serialization_context: &SerializationContext,
-        widget_constructors_container: &WidgetConstructorContainer,
-        ui: &mut UserInterface,
-    ) {
-        for (handle, menu) in [
-            (self.create_child_menu, &mut self.create_child_entity_menu),
-            (self.create_parent_menu, &mut self.create_parent_entity_menu),
-            (self.replace_with_menu, &mut self.replace_with_entity_menu),
-        ] {
-            *menu = CreateEntityMenu::new(
-                serialization_context,
-                widget_constructors_container,
-                &mut ui.build_ctx(),
-            );
-            ui.send(handle, MenuItemMessage::Items(menu.root_items.clone()));
-        }
     }
 }
 
@@ -145,11 +118,7 @@ impl SceneNodeContextMenu {
     pub const RESET_INHERITABLE: Uuid = uuid!("95c6437f-dc23-4ec1-9490-d35f0864f027");
     pub const SAVE_AS_PREFAB_FILE_SELECTOR: Uuid = uuid!("5d438037-a4be-4d70-a830-138185e1a049");
 
-    pub fn new(
-        serialization_context: &SerializationContext,
-        widget_constructors_container: &WidgetConstructorContainer,
-        ctx: &mut BuildContext,
-    ) -> Self {
+    pub fn new(ctx: &mut BuildContext) -> Self {
         let delete_selection;
         let copy_selection;
         let save_as_prefab;
@@ -161,13 +130,6 @@ impl SceneNodeContextMenu {
         let create_child;
         let replace_with;
 
-        let create_child_entity_menu =
-            CreateEntityMenu::new(serialization_context, widget_constructors_container, ctx);
-        let create_parent_entity_menu =
-            CreateEntityMenu::new(serialization_context, widget_constructors_container, ctx);
-        let replace_with_entity_menu =
-            CreateEntityMenu::new(serialization_context, widget_constructors_container, ctx);
-
         let menu = ContextMenuBuilder::new(
             PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
                 .with_content(
@@ -177,8 +139,7 @@ impl SceneNodeContextMenu {
                                 create_child = MenuItemBuilder::new(
                                     WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
                                 )
-                                .with_content(MenuItemContent::text("Create Child Node"))
-                                .with_items(create_child_entity_menu.root_items.clone())
+                                .with_content(MenuItemContent::text("Create Child Node..."))
                                 .build(ctx);
                                 create_child
                             })
@@ -221,8 +182,7 @@ impl SceneNodeContextMenu {
                                         .with_id(Self::CREATE_PARENT)
                                         .with_min_size(Vector2::new(120.0, 22.0)),
                                 )
-                                .with_content(MenuItemContent::text("Create Parent Node"))
-                                .with_items(create_parent_entity_menu.root_items.clone())
+                                .with_content(MenuItemContent::text("Create Parent Node..."))
                                 .build(ctx);
                                 create_parent
                             })
@@ -232,8 +192,7 @@ impl SceneNodeContextMenu {
                                         .with_id(Self::REPLACE_WITH)
                                         .with_min_size(Vector2::new(120.0, 22.0)),
                                 )
-                                .with_content(MenuItemContent::text("Replace With Node"))
-                                .with_items(replace_with_entity_menu.root_items.clone())
+                                .with_content(MenuItemContent::text("Replace With Node..."))
                                 .build(ctx);
                                 replace_with
                             })
@@ -290,19 +249,16 @@ impl SceneNodeContextMenu {
         }
 
         Self {
-            create_child_entity_menu,
             menu,
             delete_selection,
             copy_selection,
             placement_target: Default::default(),
             save_as_prefab,
             save_as_prefab_dialog: Default::default(),
-            replace_with_entity_menu,
             paste,
             make_root,
             open_asset,
             reset_inheritable_properties,
-            create_parent_entity_menu,
             create_child_menu: create_child,
             create_parent_menu: create_parent,
             replace_with_menu: replace_with,
@@ -318,82 +274,6 @@ impl SceneNodeContextMenu {
         sender: &MessageSender,
         settings: &Settings,
     ) {
-        if let Some(node) = self.create_child_entity_menu.handle_ui_message(
-            message,
-            sender,
-            controller,
-            editor_selection,
-            engine,
-        ) {
-            if let Some(graph_selection) = editor_selection.as_graph() {
-                if let Some(parent) = graph_selection.nodes().first() {
-                    sender.do_command(AddNodeCommand::new(node, *parent, true));
-                }
-            }
-        } else if let Some(node) = self.create_parent_entity_menu.handle_ui_message(
-            message,
-            sender,
-            controller,
-            editor_selection,
-            engine,
-        ) {
-            if let Some(graph_selection) = editor_selection.as_graph() {
-                if let Some(first) = graph_selection.nodes().first() {
-                    if let Some(game_scene) = controller.downcast_ref::<GameScene>() {
-                        let scene = &engine.scenes[game_scene.scene];
-
-                        let position = game_scene
-                            .camera_controller
-                            .placement_position(&scene.graph, *first);
-
-                        let first_ref = &scene.graph[*first];
-                        let parent = if first_ref.parent().is_some() {
-                            first_ref.parent()
-                        } else {
-                            game_scene.scene_content_root
-                        };
-
-                        let new_parent_handle = scene.graph.generate_free_handles(1)[0];
-                        let mut commands = CommandGroup::from(vec![
-                            Command::new(AddNodeCommand::new(node, parent, true)),
-                            Command::new(LinkNodesCommand::new(*first, new_parent_handle)),
-                        ]);
-
-                        if parent == game_scene.scene_content_root {
-                            commands.push(MoveNodeCommand::new(
-                                new_parent_handle,
-                                Vector3::default(),
-                                position,
-                            ));
-                        }
-
-                        if *first == game_scene.scene_content_root {
-                            commands.push(SetGraphRootCommand {
-                                root: new_parent_handle,
-                                link_scheme: Default::default(),
-                            })
-                        }
-                        sender.do_command(commands);
-                    }
-                }
-            }
-        } else if let Some(replacement) = self.replace_with_entity_menu.handle_ui_message(
-            message,
-            sender,
-            controller,
-            editor_selection,
-            engine,
-        ) {
-            if let Some(graph_selection) = editor_selection.as_graph() {
-                if let Some(first) = graph_selection.nodes().first() {
-                    sender.do_command(ReplaceNodeCommand {
-                        handle: *first,
-                        node: replacement,
-                    });
-                }
-            }
-        }
-
         if let Some(game_scene) = controller.downcast_mut::<GameScene>() {
             if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
                 if message.destination() == self.delete_selection {
@@ -503,6 +383,14 @@ impl SceneNodeContextMenu {
                         }
                         sender.do_command(CommandGroup::from(commands));
                     }
+                } else if message.destination() == self.create_child_menu {
+                    sender.send(Message::OpenEntityCreator(EntityCreatorMode::CreateChild));
+                } else if message.destination() == self.create_parent_menu {
+                    sender.send(Message::OpenEntityCreator(EntityCreatorMode::CreateParent));
+                } else if message.destination() == self.replace_with_menu {
+                    sender.send(Message::OpenEntityCreator(
+                        EntityCreatorMode::CreateReplacement,
+                    ));
                 }
             } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data()
             {

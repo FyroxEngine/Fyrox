@@ -22,45 +22,38 @@ use crate::{
     asset::preview::cache::IconRequest,
     export::ExportWindow,
     fyrox::{
+        asset::manager::ResourceManager,
+        core::uuid::Uuid,
         core::{algebra::Vector2, pool::Handle},
         gui::{
-            menu::{MenuBuilder, MenuItemBuilder, MenuItemContent},
+            file_browser::FileType,
+            image::{Image, ImageBuilder},
+            menu::{MenuBuilder, MenuItem, MenuItemBuilder, MenuItemContent},
             message::UiMessage,
+            texture::TextureResource,
             widget::{WidgetBuilder, WidgetMessage},
+            window::Window,
             BuildContext, Thickness, UserInterface,
         },
     },
-    menu::{
-        create::CreateEntityRootMenu, edit::EditMenu, file::FileMenu, help::HelpMenu,
-        utils::UtilsMenu, view::ViewMenu,
-    },
+    menu::{edit::EditMenu, file::FileMenu, help::HelpMenu, utils::UtilsMenu, view::ViewMenu},
     message::MessageSender,
-    scene::{container::EditorSceneEntry, controller::SceneController},
+    scene::container::EditorSceneEntry,
     settings::Settings,
     stats::StatisticsWindow,
     Engine, Mode, SceneSettingsWindow,
 };
-use fyrox::asset::manager::ResourceManager;
-use fyrox::core::uuid::Uuid;
-use fyrox::gui::file_browser::FileType;
-use fyrox::gui::image::{Image, ImageBuilder};
-use fyrox::gui::menu::MenuItem;
-use fyrox::gui::texture::TextureResource;
-use fyrox::gui::window::Window;
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 
-pub mod create;
 pub mod edit;
 pub mod file;
 pub mod help;
-pub mod ui;
 pub mod utils;
 pub mod view;
 
 pub struct Menu {
     pub menu: Handle<fyrox::gui::menu::Menu>,
-    pub create_entity_menu: CreateEntityRootMenu,
     pub edit_menu: EditMenu,
     pub file_menu: FileMenu,
     pub view_menu: ViewMenu,
@@ -160,11 +153,6 @@ impl Menu {
     pub fn new(engine: &mut Engine, message_sender: MessageSender, settings: &Settings) -> Self {
         let file_menu = FileMenu::new(engine, settings);
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
-        let create_entity_menu = CreateEntityRootMenu::new(
-            &engine.serialization_context,
-            &engine.widget_constructors,
-            ctx,
-        );
         let edit_menu = EditMenu::new(ctx);
         let view_menu = ViewMenu::new(ctx);
         let utils_menu = UtilsMenu::new(ctx);
@@ -174,7 +162,6 @@ impl Menu {
             .with_items(vec![
                 file_menu.menu,
                 edit_menu.menu,
-                create_entity_menu.menu,
                 view_menu.menu,
                 utils_menu.menu,
                 help_menu.menu,
@@ -183,7 +170,6 @@ impl Menu {
 
         Self {
             menu,
-            create_entity_menu,
             edit_menu,
             message_sender,
             file_menu,
@@ -216,7 +202,6 @@ impl Menu {
             self.file_menu.close_scene,
             self.file_menu.save,
             self.file_menu.save_as,
-            self.create_entity_menu.menu,
             self.edit_menu.menu,
             self.file_menu.open_scene_settings,
         ]
@@ -233,14 +218,6 @@ impl Menu {
             &self.message_sender,
             &entry.selection,
             &mut *entry.controller,
-            ctx.engine,
-        );
-
-        self.create_entity_menu.handle_ui_message(
-            message,
-            &self.message_sender,
-            &mut *entry.controller,
-            &entry.selection,
             ctx.engine,
         );
 
@@ -266,12 +243,7 @@ impl Menu {
         self.help_menu.handle_ui_message(message);
     }
 
-    pub fn on_scene_changed(&self, controller: &dyn SceneController, ui: &UserInterface) {
-        self.create_entity_menu.on_scene_changed(controller, ui);
-    }
-
     pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
-        self.create_entity_menu.on_mode_changed(ui, mode);
         self.edit_menu.on_mode_changed(ui, mode);
         self.file_menu.on_mode_changed(ui, mode);
     }

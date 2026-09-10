@@ -57,7 +57,7 @@ pub mod world;
 
 pub use fyrox;
 
-use crate::world::WorldViewerItemContextMenu;
+use crate::world::create::EntityCreator;
 use crate::{
     asset::{item::AssetItem, AssetBrowser},
     audio::{preview::AudioPreviewPanel, AudioPanel},
@@ -658,6 +658,7 @@ pub struct Editor {
     pub engine: Engine,
     pub plugins: EditorPluginsContainer,
     pub focused: bool,
+    pub entity_creator: EntityCreator,
     pub update_loop_state: UpdateLoopState,
     pub is_suspended: bool,
     pub scene_node_context_menu: Rc<RefCell<SceneNodeContextMenu>>,
@@ -836,15 +837,8 @@ impl Editor {
         )
         .build(ctx);
         let navmesh_panel = NavmeshPanel::new(scene_viewer.frame(), ctx, message_sender.clone());
-        let scene_node_context_menu = Rc::new(RefCell::new(SceneNodeContextMenu::new(
-            &engine.serialization_context,
-            &engine.widget_constructors,
-            ctx,
-        )));
-        let widget_context_menu = Rc::new(RefCell::new(WidgetContextMenu::new(
-            &engine.widget_constructors,
-            ctx,
-        )));
+        let scene_node_context_menu = Rc::new(RefCell::new(SceneNodeContextMenu::new(ctx)));
+        let widget_context_menu = Rc::new(RefCell::new(WidgetContextMenu::new(ctx)));
         let world_outliner = WorldViewer::new(ctx, message_sender.clone(), &settings);
         let command_stack_viewer = CommandStackViewer::new(ctx, message_sender.clone());
         let log = LogPanel::new(
@@ -1017,6 +1011,7 @@ impl Editor {
         )
         .with_buttons(MessageBoxButtons::Ok)
         .build(ctx);
+        let entity_creator = EntityCreator::new(ctx);
 
         let save_scene_dialog = SaveSceneConfirmationDialog::new(ctx);
 
@@ -1086,6 +1081,7 @@ impl Editor {
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread
             // will sleep forever and the window won't come up.
             focused: true,
+            entity_creator,
             update_loop_state: UpdateLoopState::default(),
             is_suspended: false,
             scene_node_context_menu,
@@ -1482,6 +1478,13 @@ impl Editor {
         );
 
         if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
+            self.entity_creator.handle_ui_message_with_game_scene(
+                game_scene,
+                engine,
+                message,
+                &current_scene_entry.selection,
+                &self.message_sender,
+            );
             self.particle_system_control_panel.handle_ui_message(
                 message,
                 &current_scene_entry.selection,
@@ -1560,6 +1563,14 @@ impl Editor {
             self.light_panel
                 .handle_ui_message(message, game_scene, engine);
         } else if let Some(ui_scene) = current_scene_entry.controller.downcast_mut::<UiScene>() {
+            self.entity_creator.handle_ui_message_with_ui_scene(
+                ui_scene,
+                engine,
+                message,
+                &current_scene_entry.selection,
+                &self.message_sender,
+            );
+
             self.bbcode_panel.handle_ui_message(
                 message,
                 &current_scene_entry.selection,
@@ -2232,7 +2243,9 @@ impl Editor {
     }
 
     fn on_scene_changed(&mut self, old_selection: Selection) {
-        let ui = &self.engine.user_interfaces.first();
+        self.refresh_entity_creator();
+
+        let ui = self.engine.user_interfaces.first_mut();
         let entry = self.scenes.current_scene_entry_ref();
         if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
             self.world_viewer.item_context_menu = Some(self.scene_node_context_menu.clone());
@@ -2247,7 +2260,6 @@ impl Editor {
 
         self.message_sender
             .send(Message::SelectionChanged { old_selection });
-        self.menu.on_scene_changed(&*entry.controller, ui);
 
         self.world_viewer.clear(ui);
 
@@ -2685,6 +2697,10 @@ impl Editor {
                             )
                         }
                     }
+                    Message::OpenEntityCreator(mode) => {
+                        self.entity_creator
+                            .open(mode, self.engine.user_interfaces.first());
+                    }
                     Message::SetAssetBrowserCurrentDir(path) => {
                         self.asset_browser
                             .request_current_path(path, self.engine.user_interfaces.first());
@@ -2841,19 +2857,20 @@ impl Editor {
         );
     }
 
-    fn on_game_plugin_added(&mut self) {
-        let mut widget_context_menu = self.widget_context_menu.borrow_mut();
-        let mut scene_node_context_menu = self.scene_node_context_menu.borrow_mut();
-        for menu in [
-            &mut *widget_context_menu as &mut dyn WorldViewerItemContextMenu,
-            &mut *scene_node_context_menu as &mut dyn WorldViewerItemContextMenu,
-        ] {
-            menu.on_plugin_added(
-                &self.engine.serialization_context,
-                &self.engine.widget_constructors,
-                self.engine.user_interfaces.first_mut(),
-            );
+    fn refresh_entity_creator(&mut self) {
+        let ui = self.engine.user_interfaces.first_mut();
+        let entry = self.scenes.current_scene_entry_ref();
+        if entry.controller.downcast_ref::<GameScene>().is_some() {
+            self.entity_creator
+                .on_constructors_changed(ui, &self.engine.serialization_context.node_constructors);
+        } else if entry.controller.downcast_ref::<UiScene>().is_some() {
+            self.entity_creator
+                .on_constructors_changed(ui, &self.engine.widget_constructors);
         }
+    }
+
+    fn on_game_plugin_added(&mut self) {
+        self.refresh_entity_creator();
     }
 
     pub fn add_game_plugin<P>(&mut self, plugin: P)
