@@ -24,7 +24,7 @@ use fyrox_core::uuid::Uuid;
 use fyrox_core::{
     parking_lot::{Mutex, MutexGuard},
     reflect::prelude::*,
-    SafeLock,
+    ImmutableString, SafeLock,
 };
 use std::sync::Arc;
 
@@ -57,7 +57,7 @@ pub type VariantConstructor<Node, Ctx> = Arc<dyn Fn(&mut Ctx) -> VariantResult<N
 /// Constructor variant.
 pub struct Variant<Node, Ctx> {
     /// Name of the variant.
-    pub name: String,
+    pub name: ImmutableString,
     /// Boxed type constructor.
     pub constructor: VariantConstructor<Node, Ctx>,
 }
@@ -110,7 +110,7 @@ impl<Node, Ctx> GraphNodeConstructor<Node, Ctx> {
         F: Fn(&mut Ctx) -> VariantResult<Node> + Send + Sync + 'static,
     {
         self.variants.push(Variant {
-            name: name.as_ref().to_string(),
+            name: ImmutableString::new(name),
             constructor: Arc::new(variant),
         });
         self

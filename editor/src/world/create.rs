@@ -21,20 +21,24 @@
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
-        core::{algebra::Vector3, pool::Handle},
+        core::{algebra::Vector3, pool::Handle, ImmutableString},
         engine::Engine,
         fxhash::FxHashMap,
-        graph::constructor::{ConstructorVariantId, GraphNodeConstructorContainer, VariantResult},
+        graph::{
+            constructor::{ConstructorVariantId, GraphNodeConstructorContainer, VariantResult},
+            SceneGraph,
+        },
         gui::{
             button::{Button, ButtonBuilder, ButtonMessage},
             grid::{Column, GridBuilder, Row},
             list_view::{ListView, ListViewBuilder},
             message::UiMessage,
-            scroll_viewer::ScrollViewerBuilder,
+            scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
+            searchbar::{SearchBar, SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
             text::TextBuilder,
             tree::{Tree, TreeBuilder, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
-            widget::WidgetBuilder,
+            widget::{UserData, WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
         },
@@ -47,7 +51,6 @@ use crate::{
     scene::{GameScene, Selection},
     ui_scene::{commands::graph::AddWidgetCommand, UiScene},
 };
-use fyrox::gui::widget::WidgetMessage;
 
 #[derive(Default, Eq, PartialEq, Copy, Clone, Debug)]
 pub enum EntityCreatorMode {
@@ -59,6 +62,7 @@ pub enum EntityCreatorMode {
 
 pub struct EntityCreator {
     window: Handle<Window>,
+    #[allow(unused)] // TODO
     recent_list: Handle<ListView>,
     groups_tree: Handle<TreeRoot>,
     items_map: FxHashMap<Handle<Tree>, ConstructorVariantId>,
@@ -66,11 +70,22 @@ pub struct EntityCreator {
     cancel: Handle<Button>,
     selection: Option<ConstructorVariantId>,
     mode: EntityCreatorMode,
+    search_bar: Handle<SearchBar>,
+    groups_scroll_viewer: Handle<ScrollViewer>,
 }
 
-fn make_tree_item(ui: &mut UserInterface, text: &str) -> Handle<Tree> {
+#[derive(Clone)]
+struct TreeData {
+    variant_name: ImmutableString,
+}
+
+fn make_tree_item(
+    ui: &mut UserInterface,
+    variant_name: ImmutableString,
+    text: &str,
+) -> Handle<Tree> {
     let ctx = &mut ui.build_ctx();
-    TreeBuilder::new(WidgetBuilder::new())
+    TreeBuilder::new(WidgetBuilder::new().with_user_data(UserData::new(TreeData { variant_name })))
         .with_content(
             TextBuilder::new(WidgetBuilder::new())
                 .with_text(text)
@@ -79,8 +94,35 @@ fn make_tree_item(ui: &mut UserInterface, text: &str) -> Handle<Tree> {
         .build(ctx)
 }
 
+fn apply_filter_recursive(node: Handle<UiNode>, filter: &str, ui: &UserInterface) -> bool {
+    let node_ref = ui.node(node);
+
+    let mut is_any_match = false;
+    for &child in node_ref.children() {
+        is_any_match |= apply_filter_recursive(child, filter, ui)
+    }
+
+    if let Some(data) = node_ref
+        .self_or_field_ref::<Tree>()
+        .and_then(|n| n.user_data_cloned::<TreeData>())
+    {
+        is_any_match |= data.variant_name.to_lowercase().contains(filter);
+
+        ui.send(node, WidgetMessage::Visibility(is_any_match));
+    }
+
+    is_any_match
+}
+
 impl EntityCreator {
     pub fn new(ctx: &mut BuildContext) -> Self {
+        let search_bar = SearchBarBuilder::new(
+            WidgetBuilder::new()
+                .on_row(0)
+                .with_margin(Thickness::uniform(2.0)),
+        )
+        .build(ctx);
+
         let recent_list = ListViewBuilder::new(WidgetBuilder::new().on_column(0)).build(ctx);
 
         let groups_tree = TreeRootBuilder::new(WidgetBuilder::new()).build(ctx);
@@ -109,7 +151,7 @@ impl EntityCreator {
             WidgetBuilder::new()
                 .with_height(28.0)
                 .with_horizontal_alignment(HorizontalAlignment::Right)
-                .on_row(1)
+                .on_row(2)
                 .with_child(create)
                 .with_child(cancel),
         )
@@ -118,6 +160,7 @@ impl EntityCreator {
 
         let grid = GridBuilder::new(
             WidgetBuilder::new()
+                .on_row(1)
                 .with_margin(Thickness::uniform(2.0))
                 .with_child(recent_list)
                 .with_child(groups_scroll_viewer),
@@ -127,11 +170,17 @@ impl EntityCreator {
         .add_row(Row::stretch())
         .build(ctx);
 
-        let content = GridBuilder::new(WidgetBuilder::new().with_child(grid).with_child(buttons))
-            .add_column(Column::stretch())
-            .add_row(Row::stretch())
-            .add_row(Row::auto())
-            .build(ctx);
+        let content = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(search_bar)
+                .with_child(grid)
+                .with_child(buttons),
+        )
+        .add_column(Column::stretch())
+        .add_row(Row::auto())
+        .add_row(Row::stretch())
+        .add_row(Row::auto())
+        .build(ctx);
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(500.0).with_height(600.0))
             .with_content(content)
@@ -148,6 +197,8 @@ impl EntityCreator {
             cancel,
             selection: None,
             mode: EntityCreatorMode::default(),
+            search_bar,
+            groups_scroll_viewer,
         }
     }
 
@@ -176,14 +227,18 @@ impl EntityCreator {
         let mut groups = FxHashMap::default();
         for (type_uuid, constructor) in constructors.iter() {
             for (variant_index, variant) in constructor.variants.iter().enumerate() {
-                let item = make_tree_item(ui, &variant.name);
+                let item = make_tree_item(ui, variant.name.clone(), &variant.name);
                 self.items_map
                     .insert(item, ConstructorVariantId::new(type_uuid, variant_index));
                 if constructor.group.is_empty() {
                     ui.send(self.groups_tree, TreeRootMessage::AddItem(item));
                 } else {
                     let group = *groups.entry(constructor.group).or_insert_with(|| {
-                        let group = make_tree_item(ui, constructor.group);
+                        let group = make_tree_item(
+                            ui,
+                            ImmutableString::new(constructor.group),
+                            constructor.group,
+                        );
                         ui.send(self.groups_tree, TreeRootMessage::AddItem(group));
                         group
                     });
@@ -216,6 +271,19 @@ impl EntityCreator {
             }
         } else if let Some(ButtonMessage::Click) = message.data_from(self.cancel) {
             ui.send(self.window, WindowMessage::Close);
+        } else if let Some(SearchBarMessage::Text(filter_text)) = message.data_from(self.search_bar)
+        {
+            apply_filter_recursive(self.groups_tree.to_base(), &filter_text.to_lowercase(), ui);
+
+            // Bring first item of current selection in the view when clearing the filter.
+            if filter_text.is_empty() {
+                if let Some(first) = ui[self.groups_tree].selected.first() {
+                    ui.send(
+                        self.groups_scroll_viewer,
+                        ScrollViewerMessage::BringIntoView(first.to_base()),
+                    );
+                }
+            }
         }
         None
     }
@@ -315,13 +383,23 @@ impl EntityCreator {
                 &mut ui_scene.ui,
             )
         {
-            let sub_graph = ui_scene.ui.take_reserve_sub_graph(ui_node_handle);
-            let parent = if let Some(selection) = editor_selection.as_ui() {
-                selection.widgets.first().cloned().unwrap_or_default()
-            } else {
-                Handle::NONE
-            };
-            sender.do_command(AddWidgetCommand::new(sub_graph, parent, true));
+            match self.mode {
+                EntityCreatorMode::CreateChild => {
+                    let sub_graph = ui_scene.ui.take_reserve_sub_graph(ui_node_handle);
+                    let parent = if let Some(selection) = editor_selection.as_ui() {
+                        selection.widgets.first().cloned().unwrap_or_default()
+                    } else {
+                        Handle::NONE
+                    };
+                    sender.do_command(AddWidgetCommand::new(sub_graph, parent, true));
+                }
+                EntityCreatorMode::CreateParent => {
+                    // TODO
+                }
+                EntityCreatorMode::CreateReplacement => {
+                    // TODO
+                }
+            }
         }
     }
 }
