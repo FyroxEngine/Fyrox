@@ -117,6 +117,21 @@ impl<Node, Ctx> GraphNodeConstructor<Node, Ctx> {
     }
 }
 
+#[derive(PartialEq, Clone, Debug)]
+pub struct ConstructorVariantId {
+    pub type_uuid: Uuid,
+    pub variant_index: usize,
+}
+
+impl ConstructorVariantId {
+    pub fn new(type_uuid: &Uuid, variant_index: usize) -> Self {
+        Self {
+            type_uuid: *type_uuid,
+            variant_index,
+        }
+    }
+}
+
 /// A special container that is able to create nodes by their type UUID.
 pub struct GraphNodeConstructorContainer<Node, Ctx> {
     map: Mutex<FxHashMap<Uuid, GraphNodeConstructor<Node, Ctx>>>,
@@ -161,6 +176,19 @@ impl<Node, Ctx> GraphNodeConstructorContainer<Node, Ctx> {
             .safe_lock()
             .get_mut(type_uuid)
             .map(|c| (c.default)())
+    }
+
+    pub fn try_create_variant(
+        &self,
+        constructor_variant_id: &ConstructorVariantId,
+        ctx: &mut Ctx,
+    ) -> Option<VariantResult<Node>> {
+        let map = self.map.safe_lock();
+        let variants = map.get(&constructor_variant_id.type_uuid)?;
+        let variant = variants
+            .variants
+            .get(constructor_variant_id.variant_index)?;
+        Some((variant.constructor)(ctx))
     }
 
     /// Returns total amount of constructors.
