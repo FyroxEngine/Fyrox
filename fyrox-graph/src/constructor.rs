@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use fxhash::FxHashMap;
+use fyrox_core::parking_lot::MappedMutexGuard;
 use fyrox_core::pool::Handle;
 use fyrox_core::uuid::Uuid;
 use fyrox_core::{
@@ -178,17 +179,27 @@ impl<Node, Ctx> GraphNodeConstructorContainer<Node, Ctx> {
             .map(|c| (c.default)())
     }
 
+    pub fn try_get_variant(
+        &self,
+        constructor_variant_id: &ConstructorVariantId,
+    ) -> Option<MappedMutexGuard<'_, Variant<Node, Ctx>>> {
+        let map = self.map.safe_lock();
+        MutexGuard::try_map(map, |v| {
+            let variants = v.get_mut(&constructor_variant_id.type_uuid)?;
+            variants
+                .variants
+                .get_mut(constructor_variant_id.variant_index)
+        })
+        .ok()
+    }
+
     pub fn try_create_variant(
         &self,
         constructor_variant_id: &ConstructorVariantId,
         ctx: &mut Ctx,
     ) -> Option<VariantResult<Node>> {
-        let map = self.map.safe_lock();
-        let variants = map.get(&constructor_variant_id.type_uuid)?;
-        let variant = variants
-            .variants
-            .get(constructor_variant_id.variant_index)?;
-        Some((variant.constructor)(ctx))
+        self.try_get_variant(constructor_variant_id)
+            .map(|variant| (variant.constructor)(ctx))
     }
 
     /// Returns total amount of constructors.
