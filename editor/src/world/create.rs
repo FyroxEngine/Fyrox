@@ -31,13 +31,14 @@ use crate::{
         gui::{
             button::{Button, ButtonBuilder, ButtonMessage},
             grid::{Column, GridBuilder, Row},
-            list_view::{ListView, ListViewBuilder},
+            list_view::{ListView, ListViewBuilder, ListViewMessage},
             message::UiMessage,
             scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
             searchbar::{SearchBar, SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
             text::TextBuilder,
             tree::{Tree, TreeBuilder, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
+            utils,
             widget::{UserData, WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
@@ -65,7 +66,6 @@ pub enum EntityCreatorMode {
 
 pub struct EntityCreator {
     window: Handle<Window>,
-    #[allow(unused)] // TODO
     recent_list: Handle<ListView>,
     groups_tree: Handle<TreeRoot>,
     items_map: FxHashMap<Handle<Tree>, ConstructorVariantId>,
@@ -77,16 +77,14 @@ pub struct EntityCreator {
     groups_scroll_viewer: Handle<ScrollViewer>,
 }
 
+type VariantName = ImmutableString;
+
 #[derive(Clone)]
 struct TreeData {
-    variant_name: ImmutableString,
+    variant_name: VariantName,
 }
 
-fn make_tree_item(
-    ui: &mut UserInterface,
-    variant_name: ImmutableString,
-    text: &str,
-) -> Handle<Tree> {
+fn make_tree_item(ui: &mut UserInterface, variant_name: VariantName, text: &str) -> Handle<Tree> {
     let ctx = &mut ui.build_ctx();
     TreeBuilder::new(WidgetBuilder::new().with_user_data(UserData::new(TreeData { variant_name })))
         .with_content(
@@ -97,32 +95,13 @@ fn make_tree_item(
         .build(ctx)
 }
 
-fn apply_filter_recursive(node: Handle<UiNode>, filter: &str, ui: &UserInterface) -> bool {
-    let node_ref = ui.node(node);
-
-    let mut is_any_match = false;
-    for &child in node_ref.children() {
-        is_any_match |= apply_filter_recursive(child, filter, ui)
-    }
-
-    if let Some(data) = node_ref
-        .self_or_field_ref::<Tree>()
-        .and_then(|n| n.user_data_cloned::<TreeData>())
-    {
-        is_any_match |= data.variant_name.to_lowercase().contains(filter);
-
-        ui.send(node, WidgetMessage::Visibility(is_any_match));
-    }
-
-    is_any_match
-}
-
 impl EntityCreator {
     const TITLE: &str = "Entity Creator";
 
     pub fn new(ctx: &mut BuildContext) -> Self {
         let search_bar = SearchBarBuilder::new(
             WidgetBuilder::new()
+                .with_tab_index(Some(0))
                 .on_row(0)
                 .with_margin(Thickness::uniform(2.0)),
         )
@@ -138,6 +117,7 @@ impl EntityCreator {
 
         let create = ButtonBuilder::new(
             WidgetBuilder::new()
+                .with_tab_index(Some(1))
                 .with_enabled(false)
                 .with_width(100.0)
                 .with_margin(Thickness::uniform(2.0)),
@@ -190,6 +170,7 @@ impl EntityCreator {
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(500.0).with_height(600.0))
             .with_content(content)
             .open(false)
+            .with_close_by_esc(true)
             .with_title(WindowTitle::text(Self::TITLE))
             .build(ctx);
 
@@ -214,7 +195,7 @@ impl EntityCreator {
             WindowMessage::Open {
                 alignment: WindowAlignment::Center,
                 modal: true,
-                focus_content: true,
+                focus_content: false,
             },
         );
         let title = match self.mode {
@@ -226,6 +207,7 @@ impl EntityCreator {
             self.window,
             WindowMessage::Title(WindowTitle::text(format!("{} - {}", Self::TITLE, title))),
         );
+        ui.send(self.search_bar, WidgetMessage::Focus);
     }
 
     pub fn on_constructors_changed<N, C>(
@@ -250,7 +232,7 @@ impl EntityCreator {
                     let group = *groups.entry(constructor.group).or_insert_with(|| {
                         let group = make_tree_item(
                             ui,
-                            ImmutableString::new(constructor.group),
+                            VariantName::new(constructor.group),
                             constructor.group,
                         );
                         ui.send(self.groups_tree, TreeRootMessage::AddItem(group));
@@ -262,42 +244,139 @@ impl EntityCreator {
         }
     }
 
+    fn has_recent_item(&self, ui: &UserInterface, name: &str) -> bool {
+        if let Ok(recent_list) = ui.try_get(self.recent_list) {
+            for item in recent_list.items.iter() {
+                if let Ok(item_ref) = ui.try_get(*item) {
+                    if let Some(existing_name) = item_ref.user_data_cloned::<VariantName>() {
+                        if existing_name.as_str() == name {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
+
+    fn on_recent_item_selected(&self, ui: &UserInterface, selection: &[usize]) {
+        if let Some(name) = ui
+            .try_get(self.recent_list)
+            .ok()
+            .and_then(|list| selection.first().and_then(|n| list.items.get(*n)))
+            .and_then(|item| ui.try_get(*item).ok())
+            .and_then(|item_ref| item_ref.user_data_cloned::<VariantName>())
+        {
+            let query = name.as_str().to_owned();
+            ui.send(self.search_bar, SearchBarMessage::Text(query));
+        }
+    }
+
+    fn on_create_clicked<N, Ctx>(
+        &self,
+        constructors: &GraphNodeConstructorContainer<N, Ctx>,
+        ui: &mut UserInterface,
+        ctx: &mut Ctx,
+    ) -> Option<VariantResult<N>> {
+        let constructor_id = self.selection.as_ref()?;
+        ui.send(self.window, WindowMessage::Close);
+        let variant = constructors.try_get_variant(constructor_id)?;
+        if !self.has_recent_item(ui, variant.name.as_str()) {
+            let recent_item = utils::make_dropdown_list_option_universal(
+                &mut ui.build_ctx(),
+                variant.name.as_str(),
+                24.0,
+                variant.name.clone(),
+            );
+            ui.send(self.recent_list, ListViewMessage::AddItem(recent_item));
+        }
+        Some((variant.constructor)(ctx))
+    }
+
+    fn on_filter_changed(&self, filter_text: &str, ui: &UserInterface) {
+        fn apply_filter_recursive(
+            node: Handle<UiNode>,
+            filter: &str,
+            ui: &UserInterface,
+            first_match_selected: &mut bool,
+            tree_root: Handle<TreeRoot>,
+        ) -> bool {
+            let node_ref = ui.node(node);
+
+            let mut is_any_match = false;
+            for &child in node_ref.children() {
+                is_any_match |=
+                    apply_filter_recursive(child, filter, ui, first_match_selected, tree_root)
+            }
+
+            if let Some(data) = node_ref
+                .self_or_field_ref::<Tree>()
+                .and_then(|n| n.user_data_cloned::<TreeData>())
+            {
+                is_any_match |= data.variant_name.to_lowercase().contains(filter);
+
+                if !*first_match_selected && is_any_match {
+                    ui.send(tree_root, TreeRootMessage::Select(vec![node.to_variant()]));
+                    *first_match_selected = true;
+                }
+
+                ui.send(node, WidgetMessage::Visibility(is_any_match));
+            }
+
+            is_any_match
+        }
+
+        let mut first_match_selected = false;
+        apply_filter_recursive(
+            self.groups_tree.to_base(),
+            &filter_text.to_lowercase(),
+            ui,
+            &mut first_match_selected,
+            self.groups_tree,
+        );
+
+        // Bring first item of current selection in the view when clearing the filter.
+        if filter_text.is_empty() {
+            if let Some(first) = ui[self.groups_tree].selected.first() {
+                ui.send(
+                    self.groups_scroll_viewer,
+                    ScrollViewerMessage::BringIntoView(first.to_base()),
+                );
+            }
+        }
+    }
+
+    fn on_constructor_selected(&mut self, selection: &[Handle<Tree>], ui: &UserInterface) {
+        if let Some(first) = selection.first() {
+            let constructor_id = self.items_map.get(first);
+            if let Some(constructor_id) = constructor_id {
+                self.selection = Some(constructor_id.clone());
+            }
+            let can_create = constructor_id.is_some();
+            ui.send(self.create, WidgetMessage::Enabled(can_create));
+        }
+    }
+
     fn handle_ui_message_internal<N, Ctx>(
         &mut self,
         constructors: &GraphNodeConstructorContainer<N, Ctx>,
         message: &UiMessage,
-        ui: &UserInterface,
+        ui: &mut UserInterface,
         ctx: &mut Ctx,
     ) -> Option<VariantResult<N>> {
         if let Some(TreeRootMessage::Select(selection)) = message.data_from(self.groups_tree) {
-            if let Some(first) = selection.first() {
-                let constructor_id = self.items_map.get(first);
-                if let Some(constructor_id) = constructor_id {
-                    self.selection = Some(constructor_id.clone());
-                }
-                let can_create = constructor_id.is_some();
-                ui.send(self.create, WidgetMessage::Enabled(can_create));
-            }
+            self.on_constructor_selected(selection, ui)
         } else if let Some(ButtonMessage::Click) = message.data_from(self.create) {
-            if let Some(constructor_id) = self.selection.as_ref() {
-                ui.send(self.window, WindowMessage::Close);
-                return constructors.try_create_variant(constructor_id, ctx);
-            }
+            return self.on_create_clicked(constructors, ui, ctx);
         } else if let Some(ButtonMessage::Click) = message.data_from(self.cancel) {
             ui.send(self.window, WindowMessage::Close);
         } else if let Some(SearchBarMessage::Text(filter_text)) = message.data_from(self.search_bar)
         {
-            apply_filter_recursive(self.groups_tree.to_base(), &filter_text.to_lowercase(), ui);
-
-            // Bring first item of current selection in the view when clearing the filter.
-            if filter_text.is_empty() {
-                if let Some(first) = ui[self.groups_tree].selected.first() {
-                    ui.send(
-                        self.groups_scroll_viewer,
-                        ScrollViewerMessage::BringIntoView(first.to_base()),
-                    );
-                }
-            }
+            self.on_filter_changed(filter_text, ui);
+        } else if let Some(ListViewMessage::Selection(selection)) =
+            message.data_from(self.recent_list)
+        {
+            self.on_recent_item_selected(ui, selection)
         }
         None
     }
@@ -318,7 +397,7 @@ impl EntityCreator {
         if let Some(VariantResult::Owned(node)) = self.handle_ui_message_internal::<Node, Graph>(
             &engine.serialization_context.node_constructors,
             message,
-            engine.user_interfaces.first(),
+            engine.user_interfaces.first_mut(),
             graph,
         ) {
             let graph_selection = editor_selection.as_graph()?;
@@ -388,7 +467,7 @@ impl EntityCreator {
             .handle_ui_message_internal::<UiNode, UserInterface>(
                 &engine.widget_constructors,
                 message,
-                engine.user_interfaces.first(),
+                engine.user_interfaces.first_mut(),
                 &mut ui_scene.ui,
             )
         {
