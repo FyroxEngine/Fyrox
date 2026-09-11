@@ -309,75 +309,71 @@ impl EntityCreator {
         message: &UiMessage,
         editor_selection: &Selection,
         sender: &MessageSender,
-    ) {
-        let ui = engine.user_interfaces.first();
-        let graph = &mut engine.scenes[game_scene.scene].graph;
+    ) -> Option<()> {
+        let graph = engine
+            .scenes
+            .try_get_mut(game_scene.scene)
+            .ok()
+            .map(|s| &mut s.graph)?;
         if let Some(VariantResult::Owned(node)) = self.handle_ui_message_internal::<Node, Graph>(
             &engine.serialization_context.node_constructors,
             message,
-            ui,
+            engine.user_interfaces.first(),
             graph,
         ) {
+            let graph_selection = editor_selection.as_graph()?;
+            let first_selected_node = graph_selection.nodes().first().cloned()?;
+
             match self.mode {
                 EntityCreatorMode::CreateChild => {
-                    if let Some(graph_selection) = editor_selection.as_graph() {
-                        if let Some(parent) = graph_selection.nodes().first() {
-                            sender.do_command(AddNodeCommand::new(node, *parent, true));
-                        }
-                    }
+                    sender.do_command(AddNodeCommand::new(node, first_selected_node, true));
                 }
                 EntityCreatorMode::CreateParent => {
-                    if let Some(graph_selection) = editor_selection.as_graph() {
-                        if let Some(first) = graph_selection.nodes().first() {
-                            let scene = &engine.scenes[game_scene.scene];
+                    let position = game_scene
+                        .camera_controller
+                        .placement_position(graph, first_selected_node);
 
-                            let position = game_scene
-                                .camera_controller
-                                .placement_position(&scene.graph, *first);
+                    let first_ref = graph.try_get(first_selected_node).ok()?;
+                    let parent = if first_ref.parent().is_some() {
+                        first_ref.parent()
+                    } else {
+                        game_scene.scene_content_root
+                    };
 
-                            let first_ref = &scene.graph[*first];
-                            let parent = if first_ref.parent().is_some() {
-                                first_ref.parent()
-                            } else {
-                                game_scene.scene_content_root
-                            };
+                    let new_parent_handle = graph.generate_free_handles(1)[0];
+                    let mut commands = CommandGroup::from(vec![
+                        Command::new(AddNodeCommand::new(node, parent, true)),
+                        Command::new(LinkNodesCommand::new(
+                            first_selected_node,
+                            new_parent_handle,
+                        )),
+                    ]);
 
-                            let new_parent_handle = scene.graph.generate_free_handles(1)[0];
-                            let mut commands = CommandGroup::from(vec![
-                                Command::new(AddNodeCommand::new(node, parent, true)),
-                                Command::new(LinkNodesCommand::new(*first, new_parent_handle)),
-                            ]);
-
-                            if parent == game_scene.scene_content_root {
-                                commands.push(MoveNodeCommand::new(
-                                    new_parent_handle,
-                                    Vector3::default(),
-                                    position,
-                                ));
-                            }
-
-                            if *first == game_scene.scene_content_root {
-                                commands.push(SetGraphRootCommand {
-                                    root: new_parent_handle,
-                                    link_scheme: Default::default(),
-                                })
-                            }
-                            sender.do_command(commands);
-                        }
+                    if parent == game_scene.scene_content_root {
+                        commands.push(MoveNodeCommand::new(
+                            new_parent_handle,
+                            Vector3::default(),
+                            position,
+                        ));
                     }
+
+                    if first_selected_node == game_scene.scene_content_root {
+                        commands.push(SetGraphRootCommand {
+                            root: new_parent_handle,
+                            link_scheme: Default::default(),
+                        })
+                    }
+                    sender.do_command(commands);
                 }
                 EntityCreatorMode::CreateReplacement => {
-                    if let Some(graph_selection) = editor_selection.as_graph() {
-                        if let Some(first) = graph_selection.nodes().first() {
-                            sender.do_command(ReplaceNodeCommand {
-                                handle: *first,
-                                node,
-                            });
-                        }
-                    }
+                    sender.do_command(ReplaceNodeCommand {
+                        handle: first_selected_node,
+                        node,
+                    });
                 }
             }
         }
+        None
     }
 
     pub fn handle_ui_message_with_ui_scene(
@@ -388,12 +384,11 @@ impl EntityCreator {
         editor_selection: &Selection,
         sender: &MessageSender,
     ) {
-        let ui = engine.user_interfaces.first();
         if let Some(VariantResult::Handle(ui_node_handle)) = self
             .handle_ui_message_internal::<UiNode, UserInterface>(
                 &engine.widget_constructors,
                 message,
-                ui,
+                engine.user_interfaces.first(),
                 &mut ui_scene.ui,
             )
         {
