@@ -45,10 +45,13 @@ use crate::{
         scene::{graph::Graph, node::Node},
     },
     message::MessageSender,
-    scene::commands::graph::{
-        AddNodeCommand, LinkNodesCommand, MoveNodeCommand, ReplaceNodeCommand, SetGraphRootCommand,
+    scene::{
+        commands::graph::{
+            AddNodeCommand, LinkNodesCommand, MoveNodeCommand, ReplaceNodeCommand,
+            SetGraphRootCommand,
+        },
+        GameScene, Selection,
     },
-    scene::{GameScene, Selection},
     ui_scene::{commands::graph::AddWidgetCommand, UiScene},
 };
 
@@ -115,6 +118,8 @@ fn apply_filter_recursive(node: Handle<UiNode>, filter: &str, ui: &UserInterface
 }
 
 impl EntityCreator {
+    const TITLE: &str = "Entity Creator";
+
     pub fn new(ctx: &mut BuildContext) -> Self {
         let search_bar = SearchBarBuilder::new(
             WidgetBuilder::new()
@@ -185,7 +190,7 @@ impl EntityCreator {
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(500.0).with_height(600.0))
             .with_content(content)
             .open(false)
-            .with_title(WindowTitle::text("Entity Creator"))
+            .with_title(WindowTitle::text(Self::TITLE))
             .build(ctx);
 
         Self {
@@ -211,7 +216,16 @@ impl EntityCreator {
                 modal: true,
                 focus_content: true,
             },
-        )
+        );
+        let title = match self.mode {
+            EntityCreatorMode::CreateChild => "Create Child Node",
+            EntityCreatorMode::CreateParent => "Create Parent Node",
+            EntityCreatorMode::CreateReplacement => "Create Node Replacement",
+        };
+        ui.send(
+            self.window,
+            WindowMessage::Title(WindowTitle::text(format!("{} - {}", Self::TITLE, title))),
+        );
     }
 
     pub fn on_constructors_changed<N, C>(
