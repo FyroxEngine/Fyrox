@@ -49,6 +49,7 @@ use fyrox_core::pool::ObjectOrVariant;
 use fyrox_graph::SceneGraph;
 use fyrox_material::{Material, MaterialResource};
 use fyrox_resource::Resource;
+use smallvec::SmallVec;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -559,6 +560,9 @@ impl PartialEq for UserData {
     }
 }
 
+/// Type alias for widget children collection.
+pub type ChildrenCollection = SmallVec<[Handle<UiNode>; 8]>;
+
 /// Widget is a base UI element, that is always used to build derived, more complex, widgets. In general, it is a container
 /// for layout information, basic visual appearance, visibility options, parent-child information. It does almost nothing
 /// on its own, instead, the user interface modifies its state accordingly.
@@ -616,7 +620,7 @@ pub struct Widget {
     pub global_visibility: bool,
     /// A set of handles to children nodes of this widget.
     #[reflect(hidden)]
-    pub children: Vec<Handle<UiNode>>,
+    pub children: ChildrenCollection,
     /// A handle to the parent node of this widget.
     #[reflect(hidden)]
     pub parent: Handle<UiNode>,
@@ -1475,7 +1479,7 @@ impl Widget {
     }
 
     #[inline]
-    pub(crate) fn set_children(&mut self, children: Vec<Handle<UiNode>>) {
+    pub(crate) fn set_children(&mut self, children: ChildrenCollection) {
         self.invalidate_layout();
         self.request_update_visibility();
         self.children = children;
@@ -1711,7 +1715,7 @@ pub struct WidgetBuilder {
     /// Margin of the widget.
     pub margin: Thickness,
     /// Children handles of the widget.
-    pub children: Vec<Handle<UiNode>>,
+    pub children: SmallVec<[Handle<UiNode>; 8]>,
     /// Whether the hit test is enabled or not.
     pub is_hit_test_visible: bool,
     /// Whether the widget is visible or not.
@@ -1788,7 +1792,7 @@ impl WidgetBuilder {
             column: 0,
             margin: Thickness::zero(),
             desired_position: Vector2::default(),
-            children: Vec::new(),
+            children: SmallVec::new(),
             is_hit_test_visible: true,
             visibility: true,
             z_index: 0,

@@ -25,6 +25,7 @@ use crate::{
     },
 };
 use nalgebra::{Matrix2, Matrix3, Matrix4, UnitComplex, UnitQuaternion, Vector2, Vector3, Vector4};
+use smallvec::SmallVec;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -141,6 +142,37 @@ where
 }
 
 impl<T> Visit for Vec<T>
+where
+    T: Default + Visit + 'static,
+{
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+
+        let mut len = self.len() as u32;
+        len.visit("Length", &mut region)?;
+
+        fn make_name(i: usize) -> String {
+            format!("Item{i}")
+        }
+
+        if region.reading {
+            self.clear();
+            for index in 0..len as usize {
+                let mut object = T::default();
+                object.visit(&make_name(index), &mut region)?;
+                self.push(object);
+            }
+        } else {
+            for (index, item) in self.iter_mut().enumerate() {
+                item.visit(&make_name(index), &mut region)?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl<const N: usize, T> Visit for SmallVec<[T; N]>
 where
     T: Default + Visit + 'static,
 {

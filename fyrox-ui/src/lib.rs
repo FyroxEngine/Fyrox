@@ -354,6 +354,7 @@ use std::{
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
+use crate::widget::ChildrenCollection;
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
@@ -3380,7 +3381,7 @@ impl UserInterface {
         let mut cloned = UiNode(node.clone_boxed());
         cloned.id = Uuid::new_v4();
 
-        let mut cloned_children = Vec::new();
+        let mut cloned_children = ChildrenCollection::new();
         for child in node.children().to_vec() {
             cloned_children.push(self.copy_node_recursive(child, old_new_mapping));
         }
@@ -3483,7 +3484,7 @@ impl UserInterface {
         let mut cloned = UiNode(node.clone_boxed());
         cloned.id = Uuid::new_v4();
 
-        let mut cloned_children = Vec::new();
+        let mut cloned_children = ChildrenCollection::new();
         for child in node.children().to_vec() {
             let cloned_child =
                 self.copy_node_recursive_with_limit(child, old_new_mapping, limit, counter);

@@ -38,6 +38,7 @@ use core::f32;
 use crate::message::MessageData;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;
+use smallvec::SmallVec;
 use std::cell::RefCell;
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
@@ -151,6 +152,9 @@ pub type Column = GridDimension;
 /// Type alias for grid rows.
 pub type Row = GridDimension;
 
+/// Type alias for grid groups collection.
+pub type GroupsCollection = SmallVec<[usize; 4]>;
+
 /// Grids are one of several methods to position multiple widgets in relation to each other. A Grid widget, as the name
 /// implies, is able to position children widgets into a grid of specifically sized rows and columns.
 ///
@@ -242,7 +246,7 @@ pub struct Grid {
     /// later.
     #[visit(skip)]
     #[reflect(hidden)]
-    pub groups: RefCell<[Vec<usize>; 4]>,
+    pub groups: RefCell<[GroupsCollection; 4]>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for Grid {
@@ -260,12 +264,15 @@ impl ConstructorProvider<UiNode, UserInterface> for Grid {
 
 crate::define_widget_deref!(Grid);
 
+/// Type alias for grid cell nodes collection.
+pub type CellNodesContainer = SmallVec<[Handle<UiNode>; 4]>;
+
 /// Cell of the grid, that contains additional information for layout purposes. It does not have any
 /// particular use outside of grid's internals.
 #[derive(Clone, PartialEq, Debug)]
 pub struct Cell {
     /// A set of nodes of the cell.
-    pub nodes: Vec<Handle<UiNode>>,
+    pub nodes: CellNodesContainer,
     /// Vertical location of the cell (row number).
     pub row_index: usize,
     /// Horizontal location of the cell (column number).
