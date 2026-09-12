@@ -53,8 +53,10 @@ use crate::{
         },
         GameScene, Selection,
     },
+    settings::{scene::SceneSettings, Settings},
     ui_scene::{commands::graph::AddWidgetCommand, UiScene},
 };
+use std::path::PathBuf;
 
 #[derive(Default, Eq, PartialEq, Copy, Clone, Debug)]
 pub enum EntityCreatorMode {
@@ -93,6 +95,15 @@ fn make_tree_item(ui: &mut UserInterface, variant_name: VariantName, text: &str)
                 .build(ctx),
         )
         .build(ctx)
+}
+
+fn make_recent_item(ui: &mut UserInterface, variant_name: &VariantName) -> Handle<UiNode> {
+    utils::make_dropdown_list_option_universal(
+        &mut ui.build_ctx(),
+        variant_name.as_str(),
+        24.0,
+        variant_name.clone(),
+    )
 }
 
 impl EntityCreator {
@@ -244,6 +255,15 @@ impl EntityCreator {
         }
     }
 
+    pub fn on_scene_changed(&self, ui: &mut UserInterface, scene_settings: &SceneSettings) {
+        let mut new_items = Vec::with_capacity(scene_settings.recently_created_entities.len());
+        for recent_entity in scene_settings.recently_created_entities.iter() {
+            let recent_item = make_recent_item(ui, &ImmutableString::new(recent_entity));
+            new_items.push(recent_item);
+        }
+        ui.send(self.recent_list, ListViewMessage::Items(new_items))
+    }
+
     fn has_recent_item(&self, ui: &UserInterface, name: &str) -> bool {
         if let Ok(recent_list) = ui.try_get(self.recent_list) {
             for item in recent_list.items.iter() {
@@ -277,18 +297,22 @@ impl EntityCreator {
         constructors: &GraphNodeConstructorContainer<N, Ctx>,
         ui: &mut UserInterface,
         ctx: &mut Ctx,
+        settings: &mut Settings,
+        scene_path: Option<&PathBuf>,
     ) -> Option<VariantResult<N>> {
         let constructor_id = self.selection.as_ref()?;
         ui.send(self.window, WindowMessage::Close);
         let variant = constructors.try_get_variant(constructor_id)?;
         if !self.has_recent_item(ui, variant.name.as_str()) {
-            let recent_item = utils::make_dropdown_list_option_universal(
-                &mut ui.build_ctx(),
-                variant.name.as_str(),
-                24.0,
-                variant.name.clone(),
-            );
+            let recent_item = make_recent_item(ui, &variant.name);
             ui.send(self.recent_list, ListViewMessage::AddItem(recent_item));
+            if let Some(scene_settings) =
+                scene_path.and_then(|p| settings.scene_settings.get_mut(p))
+            {
+                scene_settings
+                    .recently_created_entities
+                    .push(variant.name.as_str().to_owned());
+            }
         }
         Some((variant.constructor)(ctx))
     }
@@ -363,11 +387,13 @@ impl EntityCreator {
         message: &UiMessage,
         ui: &mut UserInterface,
         ctx: &mut Ctx,
+        settings: &mut Settings,
+        scene_path: Option<&PathBuf>,
     ) -> Option<VariantResult<N>> {
         if let Some(TreeRootMessage::Select(selection)) = message.data_from(self.groups_tree) {
             self.on_constructor_selected(selection, ui)
         } else if let Some(ButtonMessage::Click) = message.data_from(self.create) {
-            return self.on_create_clicked(constructors, ui, ctx);
+            return self.on_create_clicked(constructors, ui, ctx, settings, scene_path);
         } else if let Some(ButtonMessage::Click) = message.data_from(self.cancel) {
             ui.send(self.window, WindowMessage::Close);
         } else if let Some(SearchBarMessage::Text(filter_text)) = message.data_from(self.search_bar)
@@ -388,6 +414,8 @@ impl EntityCreator {
         message: &UiMessage,
         editor_selection: &Selection,
         sender: &MessageSender,
+        settings: &mut Settings,
+        scene_path: Option<&PathBuf>,
     ) -> Option<()> {
         let graph = engine
             .scenes
@@ -399,6 +427,8 @@ impl EntityCreator {
             message,
             engine.user_interfaces.first_mut(),
             graph,
+            settings,
+            scene_path,
         ) {
             let graph_selection = editor_selection.as_graph()?;
             let first_selected_node = graph_selection.nodes().first().cloned()?;
@@ -462,6 +492,8 @@ impl EntityCreator {
         message: &UiMessage,
         editor_selection: &Selection,
         sender: &MessageSender,
+        settings: &mut Settings,
+        scene_path: Option<&PathBuf>,
     ) {
         if let Some(VariantResult::Handle(ui_node_handle)) = self
             .handle_ui_message_internal::<UiNode, UserInterface>(
@@ -469,6 +501,8 @@ impl EntityCreator {
                 message,
                 engine.user_interfaces.first_mut(),
                 &mut ui_scene.ui,
+                settings,
+                scene_path,
             )
         {
             match self.mode {

@@ -57,4 +57,5 @@ impl Default for NodeInfo {
 pub struct SceneSettings {
     pub camera_settings: SceneCameraSettings,
     pub node_infos: HashMap<ErasedHandle, NodeInfo>,
+    pub recently_created_entities: Vec<String>,
 }

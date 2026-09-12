@@ -1484,6 +1484,8 @@ impl Editor {
                 message,
                 &current_scene_entry.selection,
                 &self.message_sender,
+                &mut self.settings,
+                current_scene_entry.path.as_ref(),
             );
             self.particle_system_control_panel.handle_ui_message(
                 message,
@@ -1569,6 +1571,8 @@ impl Editor {
                 message,
                 &current_scene_entry.selection,
                 &self.message_sender,
+                &mut self.settings,
+                current_scene_entry.path.as_ref(),
             );
 
             self.bbcode_panel.handle_ui_message(
@@ -2866,6 +2870,13 @@ impl Editor {
         } else if entry.controller.downcast_ref::<UiScene>().is_some() {
             self.entity_creator
                 .on_constructors_changed(ui, &self.engine.widget_constructors);
+        }
+        if let Some(scene_settings) = entry
+            .path
+            .as_ref()
+            .and_then(|p| self.settings.scene_settings.get(p))
+        {
+            self.entity_creator.on_scene_changed(ui, scene_settings);
         }
     }
 
