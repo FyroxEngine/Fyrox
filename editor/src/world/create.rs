@@ -118,7 +118,19 @@ impl EntityCreator {
         )
         .build(ctx);
 
-        let recent_list = ListViewBuilder::new(WidgetBuilder::new().on_column(0)).build(ctx);
+        let recent_list = ListViewBuilder::new(WidgetBuilder::new()).build(ctx);
+
+        let recent_list_container = StackPanelBuilder::new(
+            WidgetBuilder::new()
+                .on_column(0)
+                .with_child(
+                    TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
+                        .with_text("Recently Created")
+                        .build(ctx),
+                )
+                .with_child(recent_list),
+        )
+        .build(ctx);
 
         let groups_tree = TreeRootBuilder::new(WidgetBuilder::new()).build(ctx);
 
@@ -158,7 +170,7 @@ impl EntityCreator {
             WidgetBuilder::new()
                 .on_row(1)
                 .with_margin(Thickness::uniform(2.0))
-                .with_child(recent_list)
+                .with_child(recent_list_container)
                 .with_child(groups_scroll_viewer),
         )
         .add_column(Column::strict(200.0))
