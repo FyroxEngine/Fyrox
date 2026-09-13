@@ -29,14 +29,17 @@ use crate::{
             SceneGraph,
         },
         gui::{
+            border::BorderBuilder,
             button::{Button, ButtonBuilder, ButtonMessage},
+            formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
             list_view::{ListView, ListViewBuilder, ListViewMessage},
             message::UiMessage,
             scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
             searchbar::{SearchBar, SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
-            text::TextBuilder,
+            style::{resource::StyleResourceExt, Style},
+            text::{Text, TextBuilder, TextMessage},
             tree::{Tree, TreeBuilder, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
             utils,
             widget::{UserData, WidgetBuilder, WidgetMessage},
@@ -77,6 +80,8 @@ pub struct EntityCreator {
     mode: EntityCreatorMode,
     search_bar: Handle<SearchBar>,
     groups_scroll_viewer: Handle<ScrollViewer>,
+    description: Handle<Text>,
+    description_scroll_viewer: Handle<ScrollViewer>,
 }
 
 type VariantName = ImmutableString;
@@ -159,7 +164,7 @@ impl EntityCreator {
             WidgetBuilder::new()
                 .with_height(28.0)
                 .with_horizontal_alignment(HorizontalAlignment::Right)
-                .on_row(2)
+                .on_row(3)
                 .with_child(create)
                 .with_child(cancel),
         )
@@ -173,20 +178,48 @@ impl EntityCreator {
                 .with_child(recent_list_container)
                 .with_child(groups_scroll_viewer),
         )
-        .add_column(Column::strict(200.0))
+        .add_column(Column::strict(150.0))
         .add_column(Column::stretch())
         .add_row(Row::stretch())
+        .build(ctx);
+
+        let description = TextBuilder::new(WidgetBuilder::new())
+            .with_wrap(WrapMode::Word)
+            .build(ctx);
+        let description_scroll_viewer = ScrollViewerBuilder::new(WidgetBuilder::new())
+            .with_content(description)
+            .build(ctx);
+        let description_container = StackPanelBuilder::new(
+            WidgetBuilder::new()
+                .on_row(2)
+                .with_child(
+                    TextBuilder::new(WidgetBuilder::new())
+                        .with_text("Description")
+                        .build(ctx),
+                )
+                .with_child(
+                    BorderBuilder::new(
+                        WidgetBuilder::new()
+                            .with_height(100.0)
+                            .with_background(ctx.style.property(Style::BRUSH_DARK))
+                            .with_child(description_scroll_viewer),
+                    )
+                    .build(ctx),
+                ),
+        )
         .build(ctx);
 
         let content = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child(search_bar)
                 .with_child(grid)
+                .with_child(description_container)
                 .with_child(buttons),
         )
         .add_column(Column::stretch())
         .add_row(Row::auto())
         .add_row(Row::stretch())
+        .add_row(Row::auto())
         .add_row(Row::auto())
         .build(ctx);
 
@@ -208,6 +241,8 @@ impl EntityCreator {
             mode: EntityCreatorMode::default(),
             search_bar,
             groups_scroll_viewer,
+            description,
+            description_scroll_viewer,
         }
     }
 
@@ -382,11 +417,28 @@ impl EntityCreator {
         }
     }
 
-    fn on_constructor_selected(&mut self, selection: &[Handle<Tree>], ui: &UserInterface) {
+    fn on_constructor_selected<N, Ctx>(
+        &mut self,
+        constructors: &GraphNodeConstructorContainer<N, Ctx>,
+        selection: &[Handle<Tree>],
+        ui: &UserInterface,
+    ) {
         if let Some(first) = selection.first() {
             let constructor_id = self.items_map.get(first);
             if let Some(constructor_id) = constructor_id {
                 self.selection = Some(constructor_id.clone());
+                if let Some(constructor) =
+                    constructors.try_get_constructor(&constructor_id.type_uuid)
+                {
+                    ui.send(
+                        self.description,
+                        TextMessage::Text(constructor.description.to_string()),
+                    );
+                    ui.send(
+                        self.description_scroll_viewer,
+                        ScrollViewerMessage::VerticalScroll(0.0),
+                    )
+                }
             }
             let can_create = constructor_id.is_some();
             ui.send(self.create, WidgetMessage::Enabled(can_create));
@@ -403,7 +455,7 @@ impl EntityCreator {
         scene_path: Option<&PathBuf>,
     ) -> Option<VariantResult<N>> {
         if let Some(TreeRootMessage::Select(selection)) = message.data_from(self.groups_tree) {
-            self.on_constructor_selected(selection, ui)
+            self.on_constructor_selected(constructors, selection, ui)
         } else if let Some(ButtonMessage::Click) = message.data_from(self.create) {
             return self.on_create_clicked(constructors, ui, ctx, settings, scene_path);
         } else if let Some(ButtonMessage::Click) = message.data_from(self.cancel) {
