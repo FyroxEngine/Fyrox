@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::world::create::EntityCreatorMode;
 use crate::{
     fyrox::{
         asset::manager::ResourceManager,
@@ -28,7 +27,7 @@ use crate::{
         },
         graph::{NodeWrapper, SceneGraph},
         gui::{
-            menu::{ContextMenuBuilder, MenuItem, MenuItemMessage},
+            menu::{make_menu_splitter, ContextMenuBuilder, MenuItem, MenuItemMessage},
             message::UiMessage,
             popup::{Placement, PopupBuilder, PopupMessage},
             stack_panel::StackPanelBuilder,
@@ -44,7 +43,7 @@ use crate::{
         UiScene,
     },
     utils,
-    world::WorldViewerItemContextMenu,
+    world::{create::EntityCreatorMode, WorldViewerItemContextMenu},
     Engine, Message,
 };
 use std::path::PathBuf;
@@ -108,6 +107,16 @@ impl WidgetContextMenu {
                     stack_panel = StackPanelBuilder::new(
                         WidgetBuilder::new()
                             .with_child({
+                                create_child = create_menu_item(
+                                    "Create Child Widget...",
+                                    Self::CREATE_CHILD_WIDGET,
+                                    vec![],
+                                    ctx,
+                                );
+                                create_child
+                            })
+                            .with_child(make_menu_splitter(ctx))
+                            .with_child({
                                 delete_selection = create_menu_item_shortcut(
                                     "Delete Selection",
                                     None,
@@ -138,6 +147,7 @@ impl WidgetContextMenu {
                                 );
                                 paste
                             })
+                            .with_child(make_menu_splitter(ctx))
                             .with_child({
                                 make_root =
                                     create_menu_item("Make Root", Self::MAKE_ROOT, vec![], ctx);
@@ -147,15 +157,6 @@ impl WidgetContextMenu {
                                 open_asset =
                                     create_menu_item("Open Asset", Self::OPEN_ASSET, vec![], ctx);
                                 open_asset
-                            })
-                            .with_child({
-                                create_child = create_menu_item(
-                                    "Create Child Widget",
-                                    Self::CREATE_CHILD_WIDGET,
-                                    vec![],
-                                    ctx,
-                                );
-                                create_child
                             }),
                     )
                     .build(ctx);
