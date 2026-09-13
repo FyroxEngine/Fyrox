@@ -45,7 +45,10 @@ use crate::{
             style::{resource::StyleResourceExt, Style},
             text::{Text, TextBuilder, TextMessage},
             text_box::EmptyTextPlaceholder,
-            tree::{Tree, TreeBuilder, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
+            tree::{
+                Tree, TreeBuilder, TreeExpansionStrategy, TreeMessage, TreeRoot, TreeRootBuilder,
+                TreeRootMessage,
+            },
             utils,
             widget::{UserData, WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
@@ -412,6 +415,13 @@ impl EntityCreator {
 
                 if !*first_match_selected && is_any_match {
                     ui.send(tree_root, TreeRootMessage::Select(vec![node.to_variant()]));
+                    ui.send(
+                        node,
+                        TreeMessage::Expand {
+                            expand: true,
+                            expansion_strategy: TreeExpansionStrategy::RecursiveAncestors,
+                        },
+                    );
                     *first_match_selected = true;
                 }
 
