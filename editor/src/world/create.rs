@@ -44,6 +44,7 @@ use crate::{
             stack_panel::StackPanelBuilder,
             style::{resource::StyleResourceExt, Style},
             text::{Text, TextBuilder, TextMessage},
+            text_box::EmptyTextPlaceholder,
             tree::{Tree, TreeBuilder, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
             utils,
             widget::{UserData, WidgetBuilder, WidgetMessage},
@@ -161,6 +162,7 @@ impl EntityCreator {
                 .on_row(0)
                 .with_margin(Thickness::uniform(2.0)),
         )
+        .with_empty_text_placeholder(EmptyTextPlaceholder::Text("Search for an Entity"))
         .build(ctx);
 
         let recent_list = ListViewBuilder::new(WidgetBuilder::new()).build(ctx);
