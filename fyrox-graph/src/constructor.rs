@@ -80,6 +80,8 @@ pub struct GraphNodeConstructor<Node, Ctx> {
 
     /// A name of the assembly this node constructor is from.
     pub assembly_name: &'static str,
+
+    pub description: &'static str,
 }
 
 impl<Node, Ctx> GraphNodeConstructor<Node, Ctx> {
@@ -91,11 +93,13 @@ impl<Node, Ctx> GraphNodeConstructor<Node, Ctx> {
         Node: From<Inner>,
         Inner: ConstructorProvider<Node, Ctx>,
     {
+        let type_info = Inner::type_info();
         Self {
             default: Arc::new(|| Node::from(Inner::default())),
             variants: vec![],
             group: "",
-            assembly_name: Inner::type_info().assembly_name,
+            assembly_name: type_info.assembly_name,
+            description: type_info.doc_comment,
         }
     }
 
@@ -177,6 +181,14 @@ impl<Node, Ctx> GraphNodeConstructorContainer<Node, Ctx> {
             .safe_lock()
             .get_mut(type_uuid)
             .map(|c| (c.default)())
+    }
+
+    pub fn try_get_constructor(
+        &self,
+        type_uuid: &Uuid,
+    ) -> Option<MappedMutexGuard<'_, GraphNodeConstructor<Node, Ctx>>> {
+        let map = self.map.safe_lock();
+        MutexGuard::try_map(map, |v| v.get_mut(type_uuid)).ok()
     }
 
     pub fn try_get_variant(
