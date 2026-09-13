@@ -21,7 +21,11 @@
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
-        core::{algebra::Vector3, pool::Handle, ImmutableString},
+        core::{
+            algebra::Vector3,
+            pool::{Handle, ObjectOrVariant},
+            ImmutableString,
+        },
         engine::Engine,
         fxhash::FxHashMap,
         graph::{
@@ -32,7 +36,7 @@ use crate::{
             border::BorderBuilder,
             button::{Button, ButtonBuilder, ButtonMessage},
             formatted_text::WrapMode,
-            grid::{Column, GridBuilder, Row},
+            grid::{Column, Grid, GridBuilder, Row},
             list_view::{ListView, ListViewBuilder, ListViewMessage},
             message::UiMessage,
             scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
@@ -111,6 +115,42 @@ fn make_recent_item(ui: &mut UserInterface, variant_name: &VariantName) -> Handl
     )
 }
 
+fn make_section(
+    ctx: &mut BuildContext,
+    name: &str,
+    row: usize,
+    column: usize,
+    height: f32,
+    content: Handle<impl ObjectOrVariant<UiNode>>,
+) -> Handle<Grid> {
+    GridBuilder::new(
+        WidgetBuilder::new()
+            .on_row(row)
+            .on_column(column)
+            .with_margin(Thickness::uniform(2.0))
+            .with_child(
+                TextBuilder::new(WidgetBuilder::new().on_row(0))
+                    .with_text(name)
+                    .build(ctx),
+            )
+            .with_child(
+                BorderBuilder::new(
+                    WidgetBuilder::new()
+                        .on_row(1)
+                        .with_height(height)
+                        .with_background(ctx.style.property(Style::BRUSH_DARK))
+                        .with_child(content),
+                )
+                .with_corner_radius(4.0.into())
+                .build(ctx),
+            ),
+    )
+    .add_row(Row::auto())
+    .add_row(Row::stretch())
+    .add_column(Column::stretch())
+    .build(ctx)
+}
+
 impl EntityCreator {
     const TITLE: &str = "Entity Creator";
 
@@ -124,24 +164,17 @@ impl EntityCreator {
         .build(ctx);
 
         let recent_list = ListViewBuilder::new(WidgetBuilder::new()).build(ctx);
-
-        let recent_list_container = StackPanelBuilder::new(
-            WidgetBuilder::new()
-                .on_column(0)
-                .with_child(
-                    TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
-                        .with_text("Recently Created")
-                        .build(ctx),
-                )
-                .with_child(recent_list),
-        )
-        .build(ctx);
+        let recent_list_container =
+            make_section(ctx, "Recently Created", 0, 0, f32::NAN, recent_list);
 
         let groups_tree = TreeRootBuilder::new(WidgetBuilder::new()).build(ctx);
 
         let groups_scroll_viewer = ScrollViewerBuilder::new(WidgetBuilder::new().on_column(1))
             .with_content(groups_tree)
             .build(ctx);
+
+        let groups_scroll_viewer_container =
+            make_section(ctx, "Matches", 0, 1, f32::NAN, groups_scroll_viewer);
 
         let create = ButtonBuilder::new(
             WidgetBuilder::new()
@@ -176,7 +209,7 @@ impl EntityCreator {
                 .on_row(1)
                 .with_margin(Thickness::uniform(2.0))
                 .with_child(recent_list_container)
-                .with_child(groups_scroll_viewer),
+                .with_child(groups_scroll_viewer_container),
         )
         .add_column(Column::strict(150.0))
         .add_column(Column::stretch())
@@ -189,25 +222,8 @@ impl EntityCreator {
         let description_scroll_viewer = ScrollViewerBuilder::new(WidgetBuilder::new())
             .with_content(description)
             .build(ctx);
-        let description_container = StackPanelBuilder::new(
-            WidgetBuilder::new()
-                .on_row(2)
-                .with_child(
-                    TextBuilder::new(WidgetBuilder::new())
-                        .with_text("Description")
-                        .build(ctx),
-                )
-                .with_child(
-                    BorderBuilder::new(
-                        WidgetBuilder::new()
-                            .with_height(100.0)
-                            .with_background(ctx.style.property(Style::BRUSH_DARK))
-                            .with_child(description_scroll_viewer),
-                    )
-                    .build(ctx),
-                ),
-        )
-        .build(ctx);
+        let description_container =
+            make_section(ctx, "Description", 2, 0, 100.0, description_scroll_viewer);
 
         let content = GridBuilder::new(
             WidgetBuilder::new()
