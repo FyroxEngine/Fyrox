@@ -59,7 +59,7 @@ use crate::{
     settings::{scene::SceneSettings, Settings},
     ui_scene::{commands::graph::AddWidgetCommand, UiScene},
 };
-use std::path::PathBuf;
+use std::{collections::BTreeMap, path::PathBuf};
 
 #[derive(Default, Eq, PartialEq, Copy, Clone, Debug)]
 pub enum EntityCreatorMode {
@@ -279,26 +279,31 @@ impl EntityCreator {
         self.items_map.clear();
         let constructors = constructors.map();
         let mut groups = FxHashMap::default();
+        let mut root_items = BTreeMap::default();
         for (type_uuid, constructor) in constructors.iter() {
             for (variant_index, variant) in constructor.variants.iter().enumerate() {
                 let item = make_tree_item(ui, variant.name.clone(), &variant.name);
                 self.items_map
                     .insert(item, ConstructorVariantId::new(type_uuid, variant_index));
                 if constructor.group.is_empty() {
-                    ui.send(self.groups_tree, TreeRootMessage::AddItem(item));
+                    root_items.insert(variant.name.as_str(), item);
                 } else {
                     let group = *groups.entry(constructor.group).or_insert_with(|| {
-                        let group = make_tree_item(
+                        let item = make_tree_item(
                             ui,
                             VariantName::new(constructor.group),
                             constructor.group,
                         );
-                        ui.send(self.groups_tree, TreeRootMessage::AddItem(group));
-                        group
+                        root_items.insert(constructor.group, item);
+                        item
                     });
                     ui.send(group, TreeMessage::AddItem(item))
                 }
             }
+        }
+        // Insert in sorted order.
+        for group in root_items.values() {
+            ui.send(self.groups_tree, TreeRootMessage::AddItem(*group));
         }
     }
 
