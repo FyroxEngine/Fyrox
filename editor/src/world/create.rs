@@ -183,6 +183,7 @@ impl EntityCreator {
                 .with_width(100.0)
                 .with_margin(Thickness::uniform(2.0)),
         )
+        .with_ok_back(ctx)
         .with_text("Create")
         .build(ctx);
         let cancel = ButtonBuilder::new(
