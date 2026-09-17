@@ -720,6 +720,7 @@ impl SceneViewer {
                 if let Some(entry) = scenes.entry_by_scene_id(scene_id) {
                     if let Some(entry_path) = entry.path.as_ref() {
                         settings.general.add_startup_scene(entry_path);
+                        self.sender.send(Message::ForceSync);
                     }
                 }
             }
@@ -727,6 +728,7 @@ impl SceneViewer {
                 if let Some(entry) = scenes.entry_by_scene_id(scene_id) {
                     if let Some(entry_path) = entry.path.as_ref() {
                         settings.general.remove_startup_scene(entry_path);
+                        self.sender.send(Message::ForceSync);
                     }
                 }
             }
@@ -921,7 +923,7 @@ impl SceneViewer {
         }
     }
 
-    pub fn sync_to_model(&self, scenes: &SceneContainer, engine: &mut Engine) {
+    pub fn sync_to_model(&self, scenes: &SceneContainer, settings: &Settings, engine: &mut Engine) {
         // Sync tabs first.
 
         // Remove any excess tabs.
@@ -967,14 +969,22 @@ impl SceneViewer {
 
         for tab in ui[self.tab_control].tabs.iter() {
             if let Some(scene) = scenes.entry_by_scene_id(tab.uuid) {
-                ui.send(
-                    tab.header_content,
-                    TextMessage::Text(format!(
-                        "{}{}",
-                        scene.name(),
-                        if scene.need_save() { "*" } else { "" }
-                    )),
-                );
+                let mut title = String::with_capacity(64);
+                if scene.need_save() {
+                    title += "* ";
+                }
+                let is_startup = scene
+                    .path
+                    .as_ref()
+                    .is_some_and(|p| settings.general.startup_scenes.contains(p));
+                if is_startup {
+                    title += "[";
+                }
+                title += scene.name().as_str();
+                if is_startup {
+                    title += "]";
+                }
+                ui.send(tab.header_content, TextMessage::Text(title));
             }
         }
 

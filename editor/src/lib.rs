@@ -1814,7 +1814,8 @@ impl Editor {
             engine.user_interfaces.first_mut(),
         );
 
-        self.scene_viewer.sync_to_model(&self.scenes, engine);
+        self.scene_viewer
+            .sync_to_model(&self.scenes, &self.settings, engine);
         if let Some(exporter) = self.export_window.as_ref() {
             exporter.sync_to_model(engine.user_interfaces.first_mut());
         }
