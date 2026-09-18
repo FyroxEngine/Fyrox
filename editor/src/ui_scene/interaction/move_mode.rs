@@ -170,7 +170,7 @@ impl InteractionMode for MoveWidgetsInteractionMode {
         controller: &mut dyn SceneController,
         _engine: &mut Engine,
         _frame_size: Vector2<f32>,
-        _settings: &Settings,
+        settings: &Settings,
     ) {
         let Some(ui_scene) = controller.downcast_mut::<UiScene>() else {
             return;
@@ -189,12 +189,16 @@ impl InteractionMode for MoveWidgetsInteractionMode {
                     new_screen_space_position.x,
                     new_screen_space_position.y,
                 ));
+                let snapped_coords = settings
+                    .move_mode_settings
+                    .try_snap_vector_to_grid(new_local_position.coords.to_homogeneous())
+                    .xy();
                 ui_scene
                     .ui
                     .node_mut(entry.widget)
-                    .set_desired_local_position(new_local_position.coords);
+                    .set_desired_local_position(snapped_coords);
                 ui_scene.ui.invalidate_layout();
-                entry.new_local_position = new_local_position.coords;
+                entry.new_local_position = snapped_coords;
             }
         }
     }
