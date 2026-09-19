@@ -86,8 +86,8 @@ pub fn gen_fields_getter_body(
     let props = field_args
         .fields
         .iter()
+        .filter(|f| !f.hidden)
         .enumerate()
-        .filter(|(_i, f)| !f.hidden)
         .zip(props.iter().zip(field_getters))
         .map(|((i, field), (prop, field_getter))| {
             let field_definition = self::quote_field_prop(

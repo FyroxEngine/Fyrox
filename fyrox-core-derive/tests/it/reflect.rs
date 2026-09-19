@@ -603,6 +603,45 @@ fn inspect_enum() {
 }
 
 #[test]
+fn test_direct_field_refs() {
+    #[derive(PartialEq, Reflect, Clone, Debug)]
+    #[reflect(type_uuid = "7a97f35b-3919-4ad8-bf7a-72f21c8639c4")]
+    pub struct MyStruct {
+        field: usize,
+        #[reflect(hidden)]
+        hidden: usize,
+        another_field: f32,
+    }
+    let my_struct = MyStruct {
+        field: 123,
+        hidden: 0,
+        another_field: 321.123,
+    };
+
+    assert_eq!(my_struct.fields_count(), 2);
+    assert_eq!(
+        my_struct
+            .field_direct_ref(0)
+            .and_then(|v| v.value.downcast_ref::<usize>())
+            .cloned(),
+        Some(123usize)
+    );
+    assert_eq!(
+        my_struct
+            .field_direct_ref(1)
+            .and_then(|v| v.value.downcast_ref::<f32>())
+            .cloned(),
+        Some(321.123f32)
+    );
+    assert_eq!(
+        (&my_struct as &dyn Reflect)
+            .first_field_ref::<f32>()
+            .cloned(),
+        Some(321.123f32)
+    );
+}
+
+#[test]
 fn inspect_prop_key_constants() {
     #[allow(dead_code)]
     #[derive(PartialEq, Reflect, Clone, Debug)]
