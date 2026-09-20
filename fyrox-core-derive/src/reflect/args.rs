@@ -267,36 +267,14 @@ pub struct VariantArgs {
 }
 
 pub fn fetch_doc_comment(attrs: &[Attribute]) -> String {
-    let mut strings = Vec::new();
+    let mut doc = String::new();
 
     for attr in attrs.iter() {
         if let Ok(Meta::NameValue(name_value)) = attr.parse_meta() {
             if let Lit::Str(doc_comment) = name_value.lit {
-                strings.push(doc_comment.value());
+                doc += doc_comment.value().as_str();
+                doc += "\n";
             }
-        }
-    }
-
-    let mut doc = String::new();
-
-    for (i, string) in strings.iter().enumerate() {
-        let mut line_break = false;
-        if let Some(next) = strings.get(i + 1) {
-            let mut leading_white_space_count = 0;
-            for c in next.chars() {
-                if c.is_whitespace() {
-                    leading_white_space_count += 1;
-                } else {
-                    break;
-                }
-            }
-
-            line_break = next.is_empty() || leading_white_space_count > 1;
-        }
-
-        doc.push_str(string);
-        if line_break || string.is_empty() {
-            doc.push('\n');
         }
     }
 
