@@ -616,7 +616,7 @@ pub struct Widget {
     #[reflect(setter = "set_visibility_notify")]
     pub visibility: InheritableVariable<bool>,
     /// Current, **global** (including the chain of parent widgets), visibility state of the widget.
-    #[reflect(hidden)]
+    #[reflect(read_only)]
     pub global_visibility: bool,
     /// A set of handles to children nodes of this widget.
     #[reflect(hidden)]
@@ -667,16 +667,14 @@ pub struct Widget {
     pub clip_to_bounds: InheritableVariable<bool>,
     /// Current render transform of the node. It modifies layout information of the widget, as well as it affects visual transform
     /// of the widget.
-    #[reflect(hidden)]
     layout_transform: Matrix3<f32>,
     /// Current render transform of the node. It only modifies the widget at drawing stage, layout information remains unmodified.
-    #[reflect(hidden)]
     render_transform: Matrix3<f32>,
     /// Current visual transform of the node. It always contains a result of mixing the layout and
     /// render transformation matrices. Visual transform could be used to transform a point to
     /// screen space. To transform a screen space point to local coordinates use [`Widget::screen_to_local`]
     /// method.
-    #[reflect(hidden)]
+    #[reflect(read_only)]
     pub visual_transform: Matrix3<f32>,
     /// A flag, that defines whether the widget will preview UI messages or not. Basically, it defines whether [crate::Control::preview_message]
     /// is called or not.
@@ -707,7 +705,7 @@ pub struct Widget {
     pub id: Uuid,
     /// A flag, that indicates whether this widget is a root widget of a hierarchy of widgets
     /// instantiated from a resource.
-    #[reflect(hidden)]
+    #[reflect(read_only)]
     pub is_resource_instance_root: bool,
     /// A resource from which this widget was instantiated from, can work in pair with `original`
     /// handle to get a corresponding widget from resource.
