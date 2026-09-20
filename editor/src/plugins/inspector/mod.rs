@@ -39,13 +39,16 @@ use crate::{
             grid::{Column, GridBuilder, Row},
             inspector::{
                 editors::PropertyEditorDefinitionContainer, InspectorBuilder, InspectorContext,
-                InspectorContextArgs, InspectorEnvironment, InspectorError, InspectorMessage,
+                InspectorContextArgs, InspectorEnvironment, InspectorEnvironmentContainer,
+                InspectorError, InspectorMessage,
             },
             message::{MessageDirection, UiMessage},
             scroll_viewer::ScrollViewerBuilder,
+            searchbar::{SearchBar, SearchBarBuilder, SearchBarMessage},
             stack_panel::{StackPanel, StackPanelBuilder},
             style::{resource::StyleResource, resource::StyleResourceExt, Style},
             text::{Text, TextBuilder, TextMessage},
+            text_box::EmptyTextPlaceholder,
             utils::ImageButtonBuilder,
             widget::WidgetBuilder,
             window::{Window, WindowBuilder, WindowTitle},
@@ -62,8 +65,6 @@ use crate::{
     utils::window_content,
     Editor, Message, WidgetMessage, WrapMode,
 };
-use fyrox::gui::inspector::InspectorEnvironmentContainer;
-use fyrox::gui::searchbar::{SearchBar, SearchBarBuilder, SearchBarMessage};
 use std::{any::Any, sync::mpsc::Sender, sync::Arc};
 
 pub mod editors;
@@ -246,6 +247,7 @@ impl InspectorPlugin {
                 .on_row(2)
                 .with_margin(Thickness::uniform(2.0)),
         )
+        .with_empty_text_placeholder(EmptyTextPlaceholder::Text("Search for a property"))
         .build(ctx);
         let type_name_text = TextBuilder::new(
             WidgetBuilder::new()
