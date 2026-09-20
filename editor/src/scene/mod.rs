@@ -1200,8 +1200,6 @@ pub trait SelectionContainer: BaseSelectionContainer {
     );
 
     fn paste_property(&mut self, path: &str, value: &dyn Reflect, sender: &MessageSender);
-
-    fn provide_docs(&self, controller: &dyn SceneController, engine: &Engine) -> Option<String>;
 }
 
 impl dyn SelectionContainer {
@@ -1358,8 +1356,12 @@ impl Selection {
         controller: &dyn SceneController,
         engine: &Engine,
     ) -> Option<String> {
-        self.0
-            .as_ref()
-            .and_then(|c| c.provide_docs(controller, engine))
+        self.0.as_ref().map(|c| {
+            let mut doc_comment = String::default();
+            c.first_selected_entity(controller, &engine.scenes, &mut |e| {
+                doc_comment = e.entity.type_info_ref().doc_comment.to_string();
+            });
+            doc_comment
+        })
     }
 }

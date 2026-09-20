@@ -118,12 +118,6 @@ impl SelectionContainer for UiSelection {
 
         sender.do_command_group(group);
     }
-
-    fn provide_docs(&self, controller: &dyn SceneController, _engine: &Engine) -> Option<String> {
-        let ui_scene = controller.downcast_ref::<UiScene>()?;
-        let widget = ui_scene.ui.try_get_node(*self.widgets.first()?).ok()?;
-        Some(widget.inner_ref().type_info_ref().doc_comment.to_string())
-    }
 }
 
 impl UiSelection {

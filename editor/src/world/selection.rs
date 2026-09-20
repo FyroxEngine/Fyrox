@@ -119,13 +119,6 @@ impl SelectionContainer for GraphSelection {
 
         sender.do_command_group(group);
     }
-
-    fn provide_docs(&self, controller: &dyn SceneController, engine: &Engine) -> Option<String> {
-        let game_scene = controller.downcast_ref::<GameScene>()?;
-        let scene = &engine.scenes[game_scene.scene];
-        let node = scene.graph.try_get(*self.nodes.first()?).ok()?;
-        Some(node.inner_ref().type_info_ref().doc_comment.to_string())
-    }
 }
 
 impl PartialEq for GraphSelection {

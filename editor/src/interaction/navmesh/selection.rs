@@ -111,17 +111,6 @@ impl SelectionContainer for NavmeshSelection {
             sender.send_command(command)
         }
     }
-
-    fn provide_docs(&self, controller: &dyn SceneController, engine: &Engine) -> Option<String> {
-        let game_scene = controller.downcast_ref::<GameScene>()?;
-        let scene = &engine.scenes[game_scene.scene];
-        Some(
-            scene.graph[self.navmesh_node()]
-                .type_info_ref()
-                .doc_comment
-                .to_string(),
-        )
-    }
 }
 
 impl NavmeshSelection {

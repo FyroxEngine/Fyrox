@@ -307,8 +307,4 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
 
         sender.do_command_group(group);
     }
-
-    fn provide_docs(&self, _controller: &dyn SceneController, _engine: &Engine) -> Option<String> {
-        None
-    }
 }

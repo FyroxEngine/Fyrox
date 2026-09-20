@@ -18,22 +18,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::command::{CommandContext, CommandTrait};
-use crate::scene::EntityInfo;
 use crate::{
-    command::{make_command, Command, SetPropertyCommand},
+    command::{make_command, Command, CommandContext, CommandTrait, SetPropertyCommand},
     fyrox::{
-        asset::{manager::ResourceManager, options::BaseImportOptions, ResourceData},
-        core::{futures::executor::block_on, reflect::Reflect, SafeLock},
+        asset::{
+            manager::ResourceManager, options::BaseImportOptions, untyped::UntypedResource,
+            ResourceData,
+        },
+        core::{futures::executor::block_on, log::Log, reflect::Reflect, SafeLock},
         engine::Engine,
         gui::inspector::PropertyChanged,
         scene::SceneContainer,
     },
     message::MessageSender,
-    scene::{controller::SceneController, SelectionContainer},
+    scene::{controller::SceneController, EntityInfo, SelectionContainer},
 };
-use fyrox::asset::untyped::UntypedResource;
-use fyrox::core::log::Log;
 use std::{
     cell::{RefCell, RefMut},
     path::{Path, PathBuf},
@@ -296,9 +295,5 @@ impl SelectionContainer for AssetSelection {
             .collect::<Vec<_>>();
 
         sender.do_command_group(group);
-    }
-
-    fn provide_docs(&self, _controller: &dyn SceneController, _engine: &Engine) -> Option<String> {
-        None
     }
 }

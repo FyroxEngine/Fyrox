@@ -201,27 +201,6 @@ where
 
         sender.do_command_group(group);
     }
-
-    fn provide_docs(&self, controller: &dyn SceneController, engine: &Engine) -> Option<String> {
-        if let Some(game_scene) = controller.downcast_ref::<GameScene>() {
-            Some(
-                engine.scenes[game_scene.scene]
-                    .graph
-                    .node(ErasedHandle::from(self.animation_player).into())
-                    .type_info_ref()
-                    .doc_comment
-                    .to_string(),
-            )
-        } else {
-            controller.downcast_ref::<UiScene>().map(|ui| {
-                ui.ui
-                    .node(ErasedHandle::from(self.animation_player).into())
-                    .type_info_ref()
-                    .doc_comment
-                    .to_string()
-            })
-        }
-    }
 }
 
 impl<N> AnimationSelection<N>
