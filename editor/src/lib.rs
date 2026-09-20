@@ -1030,7 +1030,7 @@ impl Editor {
         }
 
         let scenes = SceneContainer::new(&mut engine, &mut settings, message_sender.clone());
-        let mut editor = Self {
+        let editor = Self {
             docking_manager,
             engine,
             navmesh_panel,
@@ -1104,14 +1104,13 @@ impl Editor {
             property_editors,
         };
 
-        editor
+        let mut startup_scenes = editor
             .settings
             .general
             .startup_scenes
-            .retain(|p| p.exists());
-        for path in editor.settings.general.startup_scenes.iter() {
-            editor.message_sender.send(Message::LoadScene(path.clone()));
-        }
+            .iter()
+            .cloned()
+            .collect::<FxHashSet<_>>();
 
         if let Some(data) = startup_data {
             editor.message_sender.send(Message::Configure {
@@ -1122,10 +1121,8 @@ impl Editor {
                 },
             });
 
-            for scene in data.scenes {
-                if scene != PathBuf::default() {
-                    editor.message_sender.send(Message::LoadScene(scene));
-                }
+            for path in data.scenes {
+                startup_scenes.insert(path);
             }
         } else {
             // Open configurator as usual.
@@ -1137,6 +1134,12 @@ impl Editor {
                     focus_content: true,
                 },
             );
+        }
+
+        for path in startup_scenes.iter() {
+            if path.exists() {
+                editor.message_sender.send(Message::LoadScene(path.clone()));
+            }
         }
 
         editor
