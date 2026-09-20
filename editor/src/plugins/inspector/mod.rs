@@ -454,14 +454,29 @@ impl EditorPlugin for InspectorPlugin {
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
         let entry = editor.scenes.current_scene_entry_mut();
 
+        fn is_sub_inspector_message(
+            inspector: Handle<fyrox::gui::inspector::Inspector>,
+            ui: &UserInterface,
+            message: &UiMessage,
+        ) -> bool {
+            let src = message.destination();
+            if !ui
+                .try_get(src)
+                .is_ok_and(|n| n.cast::<fyrox::gui::inspector::Inspector>().is_some())
+            {
+                return false;
+            }
+            ui.is_node_child_of(message.destination(), inspector)
+        }
+
         if let Some(msg) = message.data::<InspectorMessage>() {
-            if (message.destination() == self.inspector
-                || editor
-                    .engine
-                    .user_interfaces
-                    .first()
-                    .is_node_child_of(message.destination(), self.inspector))
-                && message.direction() == MessageDirection::FromWidget
+            if message.direction() == MessageDirection::FromWidget
+                && (message.destination() == self.inspector
+                    || is_sub_inspector_message(
+                        self.inspector,
+                        editor.engine.user_interfaces.first(),
+                        message,
+                    ))
             {
                 match msg {
                     InspectorMessage::CopyValue { path } => {
