@@ -32,6 +32,7 @@ serde = { version = "1", features = ["derive"] }
 bytemuck = { version = "1.23.2", features = ["derive"] }
 uuid = { version = "1", features = ["v4", "default"] }
 smallvec = { version = "1", features = ["const_generics"] }
+markdown = "1.0.0"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 sysinfo = "0.29.0"
