@@ -51,7 +51,7 @@ use crate::{
     plugins::inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
     scene::{
         commands::{
-            effect::{AddAudioBusCommand, LinkAudioBuses, RemoveAudioBusCommand},
+            effect::{AddOrRemoveAudioBusCommand, LinkAudioBuses},
             sound_context::{
                 SetDistanceModelCommand, SetHrtfRendererHrirSphereResource, SetRendererCommand,
             },
@@ -189,10 +189,11 @@ fn fetch_possible_parent_buses(
     let mut stack = vec![graph.primary_bus_handle()];
     let mut result = Vec::new();
     while let Some(other_bus) = stack.pop() {
-        let other_bus_ref = graph.try_get_bus_ref(other_bus).expect("Malformed graph!");
-        if other_bus != bus {
-            result.push((other_bus, other_bus_ref.name().to_owned()));
-            stack.extend_from_slice(other_bus_ref.children());
+        if let Ok(other_bus_ref) = graph.try_get_bus_ref(other_bus) {
+            if other_bus != bus {
+                result.push((other_bus, other_bus_ref.name().to_owned()));
+                stack.extend_from_slice(other_bus_ref.children());
+            }
         }
     }
     result
@@ -375,7 +376,7 @@ impl AudioPanel {
     ) {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.add_bus {
-                sender.do_command(AddAudioBusCommand::new(AudioBus::new(
+                sender.do_command(AddOrRemoveAudioBusCommand::new_add(AudioBus::new(
                     "AudioBus".to_string(),
                 )))
             } else if message.destination() == self.remove_bus {
@@ -385,7 +386,7 @@ impl AudioPanel {
                     ))];
 
                     for &bus in &selection.buses {
-                        commands.push(Command::new(RemoveAudioBusCommand::new(bus)));
+                        commands.push(Command::new(AddOrRemoveAudioBusCommand::new_remove(bus)));
                     }
 
                     sender.do_command(CommandGroup::from(commands));

@@ -25,107 +25,85 @@ use crate::fyrox::{
 use crate::{command::CommandContext, CommandTrait, GameSceneContext};
 
 #[derive(Debug)]
-pub struct AddAudioBusCommand {
+pub struct AddOrRemoveAudioBusCommand {
     bus: Option<AudioBus>,
     handle: Handle<AudioBus>,
     ticket: Option<Ticket<AudioBus>>,
+    add: bool,
 }
 
-impl AddAudioBusCommand {
-    pub fn new(bus: AudioBus) -> Self {
+impl AddOrRemoveAudioBusCommand {
+    pub fn new_add(bus: AudioBus) -> Self {
         Self {
             bus: Some(bus),
             handle: Default::default(),
             ticket: None,
+            add: true,
         }
     }
-}
 
-impl CommandTrait for AddAudioBusCommand {
-    fn name(&mut self, _: &dyn CommandContext) -> String {
-        "Add Effect".to_owned()
-    }
-
-    fn execute(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
-        let mut state = context.scene.graph.sound_context.state();
-        let parent = state.bus_graph_ref().primary_bus_handle();
-        self.handle = state
-            .bus_graph_mut()
-            .add_bus(self.bus.take().unwrap(), parent);
-    }
-
-    fn revert(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
-        let (ticket, effect) = context
-            .scene
-            .graph
-            .sound_context
-            .state()
-            .bus_graph_mut()
-            .try_take_reserve_bus(self.handle)
-            .unwrap();
-        self.bus = Some(effect);
-        self.ticket = Some(ticket);
-    }
-
-    fn finalize(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
-        if let Some(ticket) = self.ticket.take() {
-            context
-                .scene
-                .graph
-                .sound_context
-                .state()
-                .bus_graph_mut()
-                .forget_bus_ticket(ticket);
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct RemoveAudioBusCommand {
-    bus: Option<AudioBus>,
-    handle: Handle<AudioBus>,
-    ticket: Option<Ticket<AudioBus>>,
-}
-
-impl RemoveAudioBusCommand {
-    pub fn new(handle: Handle<AudioBus>) -> Self {
+    pub fn new_remove(handle: Handle<AudioBus>) -> Self {
         Self {
             bus: None,
             handle,
             ticket: None,
+            add: false,
         }
     }
-}
 
-impl CommandTrait for RemoveAudioBusCommand {
-    fn name(&mut self, _: &dyn CommandContext) -> String {
-        "Remove Effect".to_owned()
+    fn add(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
+        let mut state = context.scene.graph.sound_context.state();
+        let parent = state.bus_graph_ref().primary_bus_handle();
+        if let Some(bus) = self.bus.take() {
+            let bus_graph = state.bus_graph_mut();
+            if let Some(ticket) = self.ticket.take() {
+                self.handle = bus_graph.put_bus_back(ticket, bus);
+            } else {
+                self.handle = bus_graph.add_bus(bus, parent);
+            }
+        }
     }
 
-    fn execute(&mut self, context: &mut dyn CommandContext) {
+    fn remove(&mut self, context: &mut dyn CommandContext) {
         let context = context.get_mut::<GameSceneContext>();
-        let (ticket, effect) = context
+        if let Ok((ticket, effect)) = context
             .scene
             .graph
             .sound_context
             .state()
             .bus_graph_mut()
             .try_take_reserve_bus(self.handle)
-            .unwrap();
-        self.bus = Some(effect);
-        self.ticket = Some(ticket);
+        {
+            self.bus = Some(effect);
+            self.ticket = Some(ticket);
+        }
+    }
+}
+
+impl CommandTrait for AddOrRemoveAudioBusCommand {
+    fn name(&mut self, _: &dyn CommandContext) -> String {
+        if self.add {
+            "Add Audio Bus".to_owned()
+        } else {
+            "Remove Audio Bus".to_owned()
+        }
+    }
+
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        if self.add {
+            self.add(context)
+        } else {
+            self.remove(context)
+        }
     }
 
     fn revert(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
-        let mut state = context.scene.graph.sound_context.state();
-        let parent = state.bus_graph_ref().primary_bus_handle();
-        self.handle = state
-            .bus_graph_mut()
-            .add_bus(self.bus.take().unwrap(), parent);
+        if self.add {
+            self.remove(context);
+        } else {
+            self.add(context);
+        }
     }
 
     fn finalize(&mut self, context: &mut dyn CommandContext) {
