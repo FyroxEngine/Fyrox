@@ -23,6 +23,7 @@
 
 #![warn(missing_docs)]
 
+use crate::formatted_text::InlineContext;
 use crate::{
     brush::Brush,
     core::{
@@ -694,7 +695,10 @@ impl TextBox {
             .unwrap_or_default();
         let mut text = self.formatted_text.borrow_mut();
         text.insert_str(&str, position);
-        text.measure();
+        text.measure(Some(InlineContext {
+            children: &self.children,
+            ui,
+        }));
         drop(text);
         self.set_caret_position(
             self.char_index_to_position(position + str.chars().count())
@@ -954,13 +958,22 @@ impl Control for TextBox {
             .borrow_mut()
             .set_super_sampling_scale(self.visual_max_scaling())
             .set_constraint(available_size)
-            .measure();
+            .measure(Some(InlineContext {
+                children: &self.children,
+                ui,
+            }));
         let children_size = self.widget.measure_override(ui, available_size);
         text_size.sup(&children_size)
     }
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
-        self.formatted_text.borrow_mut().arrange(final_size);
+        self.formatted_text.borrow_mut().arrange(
+            final_size,
+            Some(InlineContext {
+                children: &self.children,
+                ui,
+            }),
+        );
         self.widget.arrange_override(ui, final_size)
     }
 

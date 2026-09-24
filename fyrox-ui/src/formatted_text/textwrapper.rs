@@ -21,7 +21,7 @@
 use std::ops::Range;
 
 pub trait TextWrapper {
-    fn push(&mut self, c: char, advance: f32);
+    fn push(&mut self, c: Option<char>, advance: f32);
     fn finish(&mut self);
 }
 
@@ -53,16 +53,18 @@ impl<S> NoWrap<S> {
 }
 
 impl<S: LineSink> TextWrapper for NoWrap<S> {
-    fn push(&mut self, c: char, advance: f32) {
-        if is_newline(c) {
-            self.sink.push_line(self.start..self.position, self.width);
-            self.start = self.position + 1; // Next like starts after the newline, so skip ahead by one.
-            self.position += 1;
-            self.width = 0.0;
-        } else {
-            self.position += 1;
-            self.width += advance;
+    fn push(&mut self, c: Option<char>, advance: f32) {
+        if let Some(c) = c {
+            if is_newline(c) {
+                self.sink.push_line(self.start..self.position, self.width);
+                self.start = self.position + 1; // Next like starts after the newline, so skip ahead by one.
+                self.position += 1;
+                self.width = 0.0;
+                return;
+            }
         }
+        self.position += 1;
+        self.width += advance;
     }
     fn finish(&mut self) {
         self.sink.push_line(self.start..self.position, self.width);
@@ -88,7 +90,7 @@ impl<S> LetterWrap<S> {
 }
 
 impl<S: LineSink> TextWrapper for LetterWrap<S> {
-    fn push(&mut self, c: char, advance: f32) {
+    fn push(&mut self, c: Option<char>, advance: f32) {
         if self.position != self.start && self.width + advance > self.sink.max_width() {
             self.sink.push_line(self.start..self.position, self.width);
             self.start = self.position;
@@ -96,10 +98,12 @@ impl<S: LineSink> TextWrapper for LetterWrap<S> {
         }
         self.position += 1;
         self.width += advance;
-        if is_newline(c) {
-            self.sink.push_line(self.start..self.position, self.width);
-            self.start = self.position; // Next line starts after the newline
-            self.width = 0.0;
+        if let Some(c) = c {
+            if is_newline(c) {
+                self.sink.push_line(self.start..self.position, self.width);
+                self.start = self.position; // Next line starts after the newline
+                self.width = 0.0;
+            }
         }
     }
 
@@ -138,7 +142,7 @@ impl<S> WordWrap<S> {
 }
 
 impl<S: LineSink> TextWrapper for WordWrap<S> {
-    fn push(&mut self, c: char, advance: f32) {
+    fn push(&mut self, c: Option<char>, advance: f32) {
         if self.position != self.start && self.width + advance > self.sink.max_width() {
             if self.start < self.word_start {
                 self.sink
@@ -156,20 +160,22 @@ impl<S: LineSink> TextWrapper for WordWrap<S> {
         }
         self.position += 1;
         self.width += advance;
-        if is_newline(c) {
-            self.sink.push_line(self.start..self.position, self.width);
-            self.start = self.position;
-            self.width = 0.0;
-            // newline is not part of a word, so move word_start ahead.
-            self.word_start = self.position;
-            self.word_width = 0.0;
-        } else if c.is_whitespace() {
-            // We are not in a word, so move word_start ahead.
-            self.word_start = self.position;
-            self.word_width = 0.0;
-        } else {
-            // We are in a word, so leave word_start alone and increase word_width.
-            self.word_width += advance;
+        if let Some(c) = c {
+            if is_newline(c) {
+                self.sink.push_line(self.start..self.position, self.width);
+                self.start = self.position;
+                self.width = 0.0;
+                // newline is not part of a word, so move word_start ahead.
+                self.word_start = self.position;
+                self.word_width = 0.0;
+            } else if c.is_whitespace() {
+                // We are not in a word, so move word_start ahead.
+                self.word_start = self.position;
+                self.word_width = 0.0;
+            } else {
+                // We are in a word, so leave word_start alone and increase word_width.
+                self.word_width += advance;
+            }
         }
     }
 
@@ -205,7 +211,7 @@ mod tests {
 
     fn wrap<W: TextWrapper>(wrap: &mut W, text: &str) {
         for c in text.chars() {
-            wrap.push(c, 1.0);
+            wrap.push(Some(c), 1.0);
         }
         wrap.finish();
     }

@@ -23,6 +23,7 @@
 
 #![warn(missing_docs)]
 
+use crate::formatted_text::InlineContext;
 use crate::{
     brush::Brush,
     core::{
@@ -359,16 +360,25 @@ impl ConstructorProvider<UiNode, UserInterface> for Text {
 crate::define_widget_deref!(Text);
 
 impl Control for Text {
-    fn measure_override(&self, _: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
+    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         self.formatted_text
             .borrow_mut()
             .set_super_sampling_scale(self.visual_max_scaling())
             .set_constraint(available_size)
-            .measure()
+            .measure(Some(InlineContext {
+                children: &self.children,
+                ui,
+            }))
     }
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
-        self.formatted_text.borrow_mut().arrange(final_size);
+        self.formatted_text.borrow_mut().arrange(
+            final_size,
+            Some(InlineContext {
+                children: &self.children,
+                ui,
+            }),
+        );
         self.widget.arrange_override(ui, final_size)
     }
 
