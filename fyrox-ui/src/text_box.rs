@@ -415,6 +415,15 @@ impl Deref for TextBoxFilter {
 ///
 /// You can change brush of caret by using [`TextBoxBuilder::with_caret_brush`] and also selection brush by using
 /// [`TextBoxBuilder::with_selection_brush`], it could be useful if you don't like default colors.
+///
+/// ## Inline Elements
+///
+/// It is possible to put a child widget in the text at arbitrary position, such widgets are called
+/// inline widgets. It could be useful to create complex text layout. For example, this ability allows
+/// you to create text with embedded images. To add an inline element all you need to do is to put
+/// it as a direct child widget of the [`TextBox`] widget and set its column property to the desired
+/// character index. The inline widget will then be put at the specified position and the rest of the
+/// text will be put right next to it.
 #[derive(Default, Clone, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",

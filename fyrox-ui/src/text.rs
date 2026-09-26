@@ -320,6 +320,15 @@ impl MessageData for TextMessage {}
 ///
 /// Please keep in mind, that like any other situation when you "changing" something via messages, you should remember
 /// that the change is **not** immediate.
+///
+/// ## Inline Elements
+///
+/// It is possible to put a child widget in the text at arbitrary position, such widgets are called
+/// inline widgets. It could be useful to create complex text layout. For example, this ability allows
+/// you to create text with embedded images. To add an inline element all you need to do is to put
+/// it as a direct child widget of the [`Text`] widget and set its column property to the desired
+/// character index. The inline widget will then be put at the specified position and the rest of the
+/// text will be put right next to it.
 #[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
