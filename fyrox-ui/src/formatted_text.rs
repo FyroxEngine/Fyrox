@@ -1162,7 +1162,7 @@ impl FormattedText {
                                             inline,
                                             &Rect {
                                                 position: Vector2::new(x, y),
-                                                size: desired_size,
+                                                size: Vector2::new(desired_size.x, line.height),
                                             },
                                         );
                                         bounds = bounds.sup(&desired_size);
