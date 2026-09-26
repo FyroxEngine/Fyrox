@@ -379,7 +379,7 @@ impl Control for Text {
                 ui,
             }),
         );
-        self.widget.arrange_override(ui, final_size)
+        final_size
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
