@@ -987,23 +987,27 @@ impl FormattedText {
 
         // Calculate line height
         for line in lines.iter_mut() {
+            for (pos, size) in inline_bounds.iter() {
+                if (line.begin..line.end).contains(pos) {
+                    line.height = size.y;
+                }
+            }
+
             if self.mask_char.is_some() || self.runs.is_empty() {
-                line.height = GlyphMetrics {
+                let ascender = GlyphMetrics {
                     font: &mut self.get_font().data_ref(),
                     size: **self.font_size,
                 }
                 .ascender();
+                line.height = line.height.max(ascender);
             } else {
                 for i in line.begin..line.end {
-                    let h = GlyphMetrics {
+                    let ascender = GlyphMetrics {
                         font: &mut self.font_at(i).data_ref(),
                         size: self.font_size_at(i),
                     }
                     .ascender();
-                    line.height = line.height.max(h);
-                    if let Some(inline) = inline_bounds.get(&i) {
-                        line.height = line.height.max(inline.y);
-                    }
+                    line.height = line.height.max(ascender);
                 }
             }
             self.total_height += line.height + self.line_space();
