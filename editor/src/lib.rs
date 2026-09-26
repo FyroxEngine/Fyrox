@@ -1124,7 +1124,7 @@ impl Editor {
             for path in data.scenes {
                 startup_scenes.insert(path);
             }
-        } else {
+        } else if startup_scenes.is_empty() {
             // Open configurator as usual.
             editor.engine.user_interfaces.first().send(
                 editor.configurator.window,
