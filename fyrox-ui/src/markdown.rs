@@ -87,7 +87,12 @@ pub fn markdown_to_visual_tree(ui: &mut UserInterface, text: impl AsRef<str>) ->
 
                 for child_ast_node in paragraph.children.iter() {
                     if let Node::Text(text) = child_ast_node {
-                        full_text.push_str(&text.value);
+                        for mut ch in text.value.chars() {
+                            if ch == '\n' {
+                                ch = ' ';
+                            }
+                            full_text.push(ch);
+                        }
                     } else {
                         let child_widget =
                             traverse_ast_recursively(child_ast_node, heading_depth, ui);
