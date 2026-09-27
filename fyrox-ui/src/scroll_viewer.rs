@@ -312,6 +312,7 @@ impl Control for ScrollViewer {
             if message.destination() == self.handle() {
                 match msg {
                     ScrollViewerMessage::Content(content) => {
+                        self.content = *content;
                         for child in ui[self.scroll_panel].children() {
                             ui.send(*child, WidgetMessage::Remove);
                         }
