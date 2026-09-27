@@ -97,7 +97,7 @@ pub fn markdown_to_visual_tree(ui: &mut UserInterface, text: impl AsRef<str>) ->
                         let child_widget =
                             traverse_ast_recursively(child_ast_node, heading_depth, ui);
                         let child_widget_ref = &mut ui[child_widget];
-                        child_widget_ref.set_column(full_text.chars().count().saturating_sub(1));
+                        child_widget_ref.set_column(full_text.chars().count());
                         child_widget_ref.set_vertical_alignment(VerticalAlignment::Center);
                         ui.send(child_widget, WidgetMessage::LinkWith(paragraph_text));
                     }
