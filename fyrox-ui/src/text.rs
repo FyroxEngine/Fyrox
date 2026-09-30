@@ -563,6 +563,7 @@ pub struct TextBuilder {
     text: Option<String>,
     font: Option<FontResource>,
     vertical_text_alignment: VerticalAlignment,
+    vertical_baseline_alignment: VerticalAlignment,
     horizontal_text_alignment: HorizontalAlignment,
     wrap: WrapMode,
     shadow: bool,
@@ -583,6 +584,7 @@ impl TextBuilder {
             text: None,
             font: None,
             vertical_text_alignment: VerticalAlignment::Top,
+            vertical_baseline_alignment: VerticalAlignment::Bottom,
             horizontal_text_alignment: HorizontalAlignment::Left,
             wrap: WrapMode::NoWrap,
             shadow: false,
@@ -624,6 +626,14 @@ impl TextBuilder {
     /// Sets the desired vertical alignment of the widget.
     pub fn with_vertical_text_alignment(mut self, valign: VerticalAlignment) -> Self {
         self.vertical_text_alignment = valign;
+        self
+    }
+
+    pub fn with_vertical_baseline_alignment(
+        mut self,
+        vertical_baseline_alignment: VerticalAlignment,
+    ) -> Self {
+        self.vertical_baseline_alignment = vertical_baseline_alignment;
         self
     }
 
@@ -722,6 +732,7 @@ impl TextBuilder {
             .with_shadow_dilation(self.shadow_dilation)
             .with_shadow_offset(self.shadow_offset)
             .with_trim_text(self.trim_text)
+            .with_vertical_baseline_alignment(self.vertical_baseline_alignment)
             .with_font_size(
                 self.font_size
                     .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),

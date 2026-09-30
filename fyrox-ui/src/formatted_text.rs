@@ -276,6 +276,13 @@ pub struct FormattedText {
     glyphs: Vec<TextGlyph>,
     vertical_alignment: InheritableVariable<VerticalAlignment>,
     horizontal_alignment: InheritableVariable<HorizontalAlignment>,
+    /// Baseline alignment defines how the glyphs will be aligned in each line of the text. This
+    /// setting has limited use in case of text with inline widgets; it allows you to specify
+    /// how the text will be aligned relative to the line height defined by inline elements. By default,
+    /// [`VerticalAlignment::Bottom`] is used, this way the baseline is anchored to the bottom of the
+    /// line. [`VerticalAlignment::Center`] can be used to center glyphs relative to the line bounds.
+    #[visit(optional)]
+    vertical_baseline_alignment: InheritableVariable<VerticalAlignment>,
     #[reflect(hidden)]
     brush: InheritableVariable<Brush>,
     #[visit(skip)]
@@ -1125,6 +1132,11 @@ impl FormattedText {
         let mut y: f32 = cursor_y_start.floor();
         for line in lines.iter_mut() {
             let mut x = line.x_offset.floor();
+            // TODO. Add the rest of alignments.
+            let base_line = match *self.vertical_baseline_alignment {
+                VerticalAlignment::Center => y + line.height * 0.5,
+                _ => y + line.height,
+            };
             if let Some(mask) = *self.mask_char {
                 let mut prev = None;
                 let font = self.get_font();
@@ -1172,7 +1184,12 @@ impl FormattedText {
                         }
                         _ => {
                             // Then the glyph.
-                            let y1 = y + line.height - metrics.ascender();
+                            let mut y1 = base_line;
+                            // TODO. Add the rest of alignments.
+                            match *self.vertical_baseline_alignment {
+                                VerticalAlignment::Center => y1 -= metrics.ascender() * 0.5,
+                                _ => y1 -= metrics.ascender(),
+                            }
                             let scale = self.super_sampling_scale;
                             let (glyph, advance) =
                                 build_glyph(&mut metrics, x, y1, i, c, prev, scale);
@@ -1217,6 +1234,7 @@ pub struct FormattedTextBuilder {
     constraint: Vector2<f32>,
     text: Vec<char>,
     vertical_alignment: VerticalAlignment,
+    vertical_baseline_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
     wrap: WrapMode,
     mask_char: Option<char>,
@@ -1243,6 +1261,7 @@ impl FormattedTextBuilder {
             text: Vec::default(),
             horizontal_alignment: HorizontalAlignment::Left,
             vertical_alignment: VerticalAlignment::Top,
+            vertical_baseline_alignment: VerticalAlignment::Bottom,
             brush: Brush::Solid(Color::WHITE),
             constraint: Vector2::new(128.0, 128.0),
             wrap: WrapMode::NoWrap,
@@ -1263,6 +1282,14 @@ impl FormattedTextBuilder {
 
     pub fn with_vertical_alignment(mut self, vertical_alignment: VerticalAlignment) -> Self {
         self.vertical_alignment = vertical_alignment;
+        self
+    }
+
+    pub fn with_vertical_baseline_alignment(
+        mut self,
+        vertical_baseline_alignment: VerticalAlignment,
+    ) -> Self {
+        self.vertical_baseline_alignment = vertical_baseline_alignment;
         self
     }
 
@@ -1390,6 +1417,7 @@ impl FormattedTextBuilder {
             glyphs: Vec::new(),
             vertical_alignment: self.vertical_alignment.into(),
             horizontal_alignment: self.horizontal_alignment.into(),
+            vertical_baseline_alignment: self.vertical_baseline_alignment.into(),
             brush: self.brush.into(),
             constraint: self.constraint,
             wrap: self.wrap.into(),
