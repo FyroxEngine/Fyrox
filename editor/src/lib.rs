@@ -1134,6 +1134,10 @@ impl Editor {
                     focus_content: true,
                 },
             );
+        } else {
+            editor.message_sender.send(Message::Configure {
+                working_directory: std::env::current_dir().unwrap(),
+            });
         }
 
         for path in startup_scenes.iter() {
