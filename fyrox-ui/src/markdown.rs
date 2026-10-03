@@ -18,14 +18,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::text::TextMessage;
 use crate::{
     border::BorderBuilder,
-    core::{err, pool::Handle},
+    core::{algebra::Vector2, err, pool::Handle},
     formatted_text::WrapMode,
+    grid::{Column, GridBuilder, Row},
     stack_panel::StackPanelBuilder,
     style::{resource::StyleResourceExt, Style},
-    text::TextBuilder,
+    text::{TextBuilder, TextMessage},
+    vector_image::{Primitive, VectorImageBuilder},
     widget::{WidgetBuilder, WidgetMessage},
     BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
@@ -59,9 +60,36 @@ fn make_text_with_border(
                     .build(ctx),
             ),
     )
-    .with_corner_radius(10.0f32.into())
+    .with_corner_radius(5.0f32.into())
     .build(ctx)
     .to_base()
+}
+
+fn make_list_item(widget_builder: WidgetBuilder, ctx: &mut BuildContext) -> Handle<UiNode> {
+    let bullet = VectorImageBuilder::new(
+        WidgetBuilder::new()
+            .on_row(0)
+            .on_column(0)
+            .with_width(16.0)
+            .with_height(16.0),
+    )
+    .with_primitives(vec![Primitive::Circle {
+        center: Vector2::new(8.0, 8.0),
+        radius: 4.0,
+        segments: 16,
+    }])
+    .build(ctx);
+    let mut columns = Vec::with_capacity(widget_builder.children.capacity());
+    for (i, child) in widget_builder.children.iter().enumerate() {
+        ctx[*child].column.set_value_and_mark_modified(i + 1);
+        columns.push(Column::stretch())
+    }
+    GridBuilder::new(widget_builder.with_child(bullet))
+        .add_column(Column::auto())
+        .add_columns(columns)
+        .add_row(Row::stretch())
+        .build(ctx)
+        .to_base()
 }
 
 pub fn markdown_to_visual_tree(ui: &mut UserInterface, text: impl AsRef<str>) -> Handle<UiNode> {
@@ -80,6 +108,7 @@ pub fn markdown_to_visual_tree(ui: &mut UserInterface, text: impl AsRef<str>) ->
                     TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::top(16.0)))
                         .with_font_size(heading_depth_to_font_size(*heading_depth).into())
                         .with_wrap(WrapMode::Word)
+                        .with_baseline_alignment(VerticalAlignment::Center)
                         .build(&mut ui.build_ctx())
                         .to_base();
 
@@ -141,6 +170,10 @@ pub fn markdown_to_visual_tree(ui: &mut UserInterface, text: impl AsRef<str>) ->
                         WrapMode::Word,
                         ctx,
                     ),
+                    Node::ListItem(_) => {
+                        // TODO: Support checked items.
+                        make_list_item(widget_builder, ctx)
+                    }
                     _ => StackPanelBuilder::new(widget_builder)
                         .build(ctx)
                         .to_base::<UiNode>(),
@@ -151,7 +184,7 @@ pub fn markdown_to_visual_tree(ui: &mut UserInterface, text: impl AsRef<str>) ->
 
     let text = text.as_ref();
 
-    match to_mdast(text, &Default::default()) {
+    match dbg!(to_mdast(text, &Default::default())) {
         Ok(root) => {
             let mut heading_depth = 0;
             return traverse_ast_recursively(&root, &mut heading_depth, ui);
