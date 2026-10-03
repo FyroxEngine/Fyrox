@@ -20,7 +20,8 @@
 
 use crate::{
     border::BorderBuilder,
-    core::{algebra::Vector2, err, pool::Handle},
+    brush::Brush,
+    core::{algebra::Vector2, color::Color, err, pool::Handle},
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
     stack_panel::StackPanelBuilder,
@@ -103,32 +104,44 @@ pub fn markdown_to_visual_tree(ui: &mut UserInterface, text: impl AsRef<str>) ->
         let prev_heading_depth = *heading_depth;
 
         match ast_node {
-            Node::Paragraph(paragraph) => {
-                let paragraph_text =
-                    TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::top(16.0)))
-                        .with_font_size(heading_depth_to_font_size(*heading_depth).into())
-                        .with_wrap(WrapMode::Word)
-                        .with_baseline_alignment(VerticalAlignment::Center)
-                        .build(&mut ui.build_ctx())
-                        .to_base();
+            Node::Paragraph(_) | Node::Link(_) => {
+                let mut widget_builder = WidgetBuilder::new();
+
+                let is_link = matches!(ast_node, Node::Link(_));
+                if is_link {
+                    // TODO: Add navigation for links.
+                    widget_builder =
+                        widget_builder.with_foreground(Brush::Solid(Color::DEEP_SKY_BLUE).into());
+                } else {
+                    widget_builder = widget_builder.with_margin(Thickness::top(16.0));
+                }
+
+                let paragraph_text = TextBuilder::new(widget_builder)
+                    .with_font_size(heading_depth_to_font_size(*heading_depth).into())
+                    .with_wrap(WrapMode::Word)
+                    .with_baseline_alignment(VerticalAlignment::Center)
+                    .build(&mut ui.build_ctx())
+                    .to_base();
 
                 let mut full_text = String::new();
 
-                for child_ast_node in paragraph.children.iter() {
-                    if let Node::Text(text) = child_ast_node {
-                        for mut ch in text.value.chars() {
-                            if ch == '\n' {
-                                ch = ' ';
+                if let Some(children) = ast_node.children() {
+                    for child_ast_node in children {
+                        if let Node::Text(text) = child_ast_node {
+                            for mut ch in text.value.chars() {
+                                if ch == '\n' {
+                                    ch = ' ';
+                                }
+                                full_text.push(ch);
                             }
-                            full_text.push(ch);
+                        } else {
+                            let child_widget =
+                                traverse_ast_recursively(child_ast_node, heading_depth, ui);
+                            let child_widget_ref = &mut ui[child_widget];
+                            child_widget_ref.set_column(full_text.chars().count());
+                            child_widget_ref.set_vertical_alignment(VerticalAlignment::Center);
+                            ui.send(child_widget, WidgetMessage::LinkWith(paragraph_text));
                         }
-                    } else {
-                        let child_widget =
-                            traverse_ast_recursively(child_ast_node, heading_depth, ui);
-                        let child_widget_ref = &mut ui[child_widget];
-                        child_widget_ref.set_column(full_text.chars().count());
-                        child_widget_ref.set_vertical_alignment(VerticalAlignment::Center);
-                        ui.send(child_widget, WidgetMessage::LinkWith(paragraph_text));
                     }
                 }
 
