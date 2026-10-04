@@ -37,7 +37,6 @@ use crate::{
 
 use crate::border::Border;
 use crate::message::MessageData;
-use core::f32;
 use fyrox_core::pool::{HandlesVecExtension, ObjectOrVariant};
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;

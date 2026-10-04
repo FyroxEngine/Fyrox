@@ -20,6 +20,8 @@
 
 //! Derive input types defined with `darling`.
 
+#![allow(clippy::redundant_field_names)]
+
 use darling::*;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;

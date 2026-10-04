@@ -32,7 +32,6 @@ use crate::{
 };
 
 use crate::message::MessageData;
-use core::f32;
 
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
