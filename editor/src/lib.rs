@@ -2766,7 +2766,7 @@ impl Editor {
                     }
                     Message::ShowDocumentation(doc) => {
                         self.doc_window
-                            .open(doc, self.engine.user_interfaces.first());
+                            .open(doc, self.engine.user_interfaces.first_mut());
                     }
                     Message::SaveLayout => {
                         self.save_layout();

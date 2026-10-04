@@ -21,26 +21,22 @@
 use crate::fyrox::{
     core::pool::Handle,
     gui::{
-        formatted_text::WrapMode,
-        scroll_viewer::ScrollViewerBuilder,
-        text::TextMessage,
-        text_box::TextBoxBuilder,
+        markdown,
+        scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
         widget::WidgetBuilder,
-        window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Thickness, UserInterface,
+        window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
+        BuildContext, UserInterface,
     },
 };
-use fyrox::gui::text_box::TextBox;
-use fyrox::gui::window::{Window, WindowAlignment};
 
 pub struct DocWindow {
     pub window: Handle<Window>,
-    text: Handle<TextBox>,
+    scroll_viewer: Handle<ScrollViewer>,
 }
 
 impl DocWindow {
     pub fn new(ctx: &mut BuildContext) -> Self {
-        let text;
+        let scroll_viewer = ScrollViewerBuilder::new(WidgetBuilder::new()).build(ctx);
         let window = WindowBuilder::new(
             WidgetBuilder::new()
                 .with_name("DocPanel")
@@ -48,26 +44,18 @@ impl DocWindow {
                 .with_height(300.0),
         )
         .open(false)
-        .with_content(
-            ScrollViewerBuilder::new(WidgetBuilder::new())
-                .with_content({
-                    text = TextBoxBuilder::new(
-                        WidgetBuilder::new().with_margin(Thickness::uniform(3.0)),
-                    )
-                    .with_editable(false)
-                    .with_wrap(WrapMode::Word)
-                    .build(ctx);
-                    text
-                })
-                .build(ctx),
-        )
+        .with_content(scroll_viewer)
         .with_title(WindowTitle::text("Documentation"))
         .build(ctx);
-        Self { window, text }
+        Self {
+            window,
+            scroll_viewer,
+        }
     }
 
-    pub fn open(&self, doc: String, ui: &UserInterface) {
-        ui.send(self.text, TextMessage::Text(doc));
+    pub fn open(&self, doc: String, ui: &mut UserInterface) {
+        let content = markdown::markdown_to_visual_tree(ui, doc);
+        ui.send(self.scroll_viewer, ScrollViewerMessage::Content(content));
         ui.send(
             self.window,
             WindowMessage::Open {
