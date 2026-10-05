@@ -545,7 +545,22 @@ pub enum ButtonState {
 }
 
 /// A set of possible mouse buttons.
-#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy, Default, Visit, Reflect)]
+#[derive(
+    Debug,
+    Hash,
+    Ord,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    Default,
+    Visit,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    VariantNames,
+)]
 #[reflect(type_uuid = "3e3097b4-5845-439f-8926-91850ee376da")]
 pub enum MouseButton {
     /// Left mouse button.

@@ -128,6 +128,7 @@ use std::{
     sync::Arc,
 };
 use strum::VariantNames;
+use crate::message::MouseButton;
 
 pub mod array;
 pub mod bit;
@@ -632,6 +633,8 @@ impl PropertyEditorDefinitionContainer {
         container.insert(InheritablePropertyEditorDefinition::<Option<SelectionRange>>::new());
 
         container.register_inheritable_inspectable::<Position>();
+
+        container.register_inheritable_enum::<MouseButton, _>();
 
         container.insert(EnumPropertyEditorDefinition::<RcUiNodeHandle>::new_optional());
         container.insert(InspectablePropertyEditorDefinition::<RcUiNodeHandle>::new());
