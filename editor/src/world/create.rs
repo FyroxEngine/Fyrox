@@ -335,8 +335,15 @@ impl EntityCreator {
             let recent_item = make_recent_item(ui, &ImmutableString::new(recent_entity));
             new_items.push(recent_item);
         }
-        ui.send(self.recent_list, ListViewMessage::Items(new_items))
+        ui.send(self.recent_list, ListViewMessage::Items(new_items));
+        if let Some(most_recent_entity) = scene_settings.recently_created_entities.first() {
+            ui.send(self.recent_list, ListViewMessage::Selection(vec![0]));
+            ui.send(
+                self.search_bar,
+                SearchBarMessage::Text(most_recent_entity.clone()),
+            );
         }
+    }
 
     fn has_recent_item(&self, ui: &UserInterface, name: &str) -> bool {
         if let Ok(recent_list) = ui.try_get(self.recent_list) {
@@ -389,9 +396,10 @@ impl EntityCreator {
             if let Some(scene_settings) =
                 scene_path.and_then(|p| settings.scene_settings.get_mut(p))
             {
+                // Insert at the top.
                 scene_settings
                     .recently_created_entities
-                    .push(variant.name.as_str().to_owned());
+                    .insert(0, variant.name.as_str().to_owned());
             }
         }
         Some((variant.constructor)(ctx))
@@ -454,6 +462,8 @@ impl EntityCreator {
                     ScrollViewerMessage::BringIntoView(first.to_base()),
                 );
             }
+
+            ui.send(self.recent_list, ListViewMessage::Selection(vec![]));
         }
     }
 
