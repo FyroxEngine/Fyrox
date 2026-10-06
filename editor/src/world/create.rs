@@ -336,7 +336,7 @@ impl EntityCreator {
             new_items.push(recent_item);
         }
         ui.send(self.recent_list, ListViewMessage::Items(new_items))
-    }
+        }
 
     fn has_recent_item(&self, ui: &UserInterface, name: &str) -> bool {
         if let Ok(recent_list) = ui.try_get(self.recent_list) {
@@ -379,7 +379,13 @@ impl EntityCreator {
         let variant = constructors.try_get_variant(constructor_id)?;
         if !self.has_recent_item(ui, variant.name.as_str()) {
             let recent_item = make_recent_item(ui, &variant.name);
-            ui.send(self.recent_list, ListViewMessage::AddItem(recent_item));
+            ui.send(
+                self.recent_list,
+                ListViewMessage::AddItem {
+                    node: recent_item,
+                    in_front: true,
+                },
+            );
             if let Some(scene_settings) =
                 scene_path.and_then(|p| settings.scene_settings.get_mut(p))
             {
@@ -613,12 +619,8 @@ impl EntityCreator {
                     };
                     sender.do_command(AddWidgetCommand::new(sub_graph, parent, true));
                 }
-                EntityCreatorMode::CreateParent => {
-                    // TODO
-                }
-                EntityCreatorMode::CreateReplacement => {
-                    // TODO
-                }
+                // The rest is unsupported.
+                _ => (),
             }
         }
     }

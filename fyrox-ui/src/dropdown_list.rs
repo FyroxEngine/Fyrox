@@ -258,7 +258,13 @@ impl Control for DropdownList {
                     self.sync_selected_item_preview(ui);
                 }
                 &DropdownListMessage::AddItem(item) => {
-                    ui.send(*self.list_view, ListViewMessage::AddItem(item));
+                    ui.send(
+                        *self.list_view,
+                        ListViewMessage::AddItem {
+                            node: item,
+                            in_front: false,
+                        },
+                    );
                     self.items.push(item);
                 }
                 &DropdownListMessage::Selection(selection) => {

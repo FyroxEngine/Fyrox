@@ -498,7 +498,13 @@ impl AudioPanel {
                         .with_audio_bus(audio_bus_handle)
                         .build(&mut ui.build_ctx());
 
-                        ui.send_sync(self.audio_buses, ListViewMessage::add_item(item));
+                        ui.send_sync(
+                            self.audio_buses,
+                            ListViewMessage::AddItem {
+                                node: item.to_base(),
+                                in_front: false,
+                            },
+                        );
                     }
                 }
             }

@@ -327,10 +327,13 @@ impl Configurator {
                         self.history.last().unwrap(),
                     );
 
-                    engine
-                        .user_interfaces
-                        .first()
-                        .send(self.lv_history, ListViewMessage::AddItem(widget));
+                    engine.user_interfaces.first().send(
+                        self.lv_history,
+                        ListViewMessage::AddItem {
+                            node: widget,
+                            in_front: false,
+                        },
+                    );
                 }
 
                 engine

@@ -55,30 +55,20 @@ pub enum ListViewMessage {
     /// A message, that is used to set new items of a list view.
     Items(Vec<Handle<UiNode>>),
     /// A message, that is used to add an item to a list view.
-    AddItem(Handle<UiNode>),
+    AddItem {
+        /// An item to add.
+        node: Handle<UiNode>,
+        /// Where to add the item - either in front or the back of the list.
+        /// Adding an item in front will result in [`Self::Selection`] message to be produced
+        /// in response with current selection shifted by one.
+        in_front: bool,
+    },
     /// A message, that is used to remove an item from a list view.
     RemoveItem(Handle<UiNode>),
     /// A message, that is used to bring an item into view.
     BringItemIntoView(Handle<UiNode>),
 }
 impl MessageData for ListViewMessage {}
-
-impl ListViewMessage {
-    /// Creates [`Self::AddItem`] message.
-    pub fn add_item(handle: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
-        Self::AddItem(handle.to_base())
-    }
-
-    /// Creates [`Self::RemoveItem`] message.
-    pub fn remove_item(handle: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
-        Self::RemoveItem(handle.to_base())
-    }
-
-    /// Creates [`Self::BringItemIntoView`] message.
-    pub fn bring_item_into_view(handle: Handle<impl ObjectOrVariant<UiNode>>) -> Self {
-        Self::BringItemIntoView(handle.to_base())
-    }
-}
 
 /// List view is used to display lists with arbitrary items. It supports multiple selection and by
 /// default, it stacks the items vertically (this can be changed by providing a custom panel for the
@@ -423,13 +413,27 @@ impl Control for ListView {
                     self.fix_selection(ui);
                     self.sync_decorators(ui);
                 }
-                &ListViewMessage::AddItem(item) => {
-                    let item_container = generate_item_container(&mut ui.build_ctx(), item);
+                &ListViewMessage::AddItem { node, in_front } => {
+                    let item_container = generate_item_container(&mut ui.build_ctx(), node);
 
-                    ui.send(item_container, WidgetMessage::LinkWith(*self.panel));
+                    if in_front {
+                        ui.send(item_container, WidgetMessage::LinkWithReverse(*self.panel));
 
-                    self.item_containers.push(item_container);
-                    self.items.push(item);
+                        self.item_containers.insert(0, item_container);
+                        self.items.insert(0, node);
+
+                        // Keep selection the same.
+                        let mut new_selection = self.selection.clone();
+                        for index in new_selection.iter_mut() {
+                            *index += 1;
+                        }
+                        ui.send(self.handle, ListViewMessage::Selection(new_selection));
+                    } else {
+                        ui.send(item_container, WidgetMessage::LinkWith(*self.panel));
+
+                        self.item_containers.push(item_container);
+                        self.items.push(node);
+                    }
                 }
                 ListViewMessage::Selection(selection) => {
                     if &self.selection != selection {
