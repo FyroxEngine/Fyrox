@@ -22,6 +22,7 @@
 //! including standard Rust types and Fyrox core types.
 
 use crate::inspector::InspectorEnvironmentContainer;
+use crate::message::MouseButton;
 use crate::style::{StyleProperty, StylePropertyContainer};
 use crate::{
     absm::{EventAction, EventKind},
@@ -128,7 +129,6 @@ use std::{
     sync::Arc,
 };
 use strum::VariantNames;
-use crate::message::MouseButton;
 
 pub mod array;
 pub mod bit;
@@ -603,6 +603,8 @@ impl PropertyEditorDefinitionContainer {
 
         container.register_inheritable_vec_collection::<GradientPoint>();
         container.register_inheritable_vec_collection::<Primitive>();
+
+        container.register_inheritable_vec_collection::<usize>();
 
         container.insert(RefCellPropertyEditorDefinition::<FormattedText>::new());
 
