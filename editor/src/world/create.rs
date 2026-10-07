@@ -67,6 +67,7 @@ use crate::{
     settings::{scene::SceneSettings, Settings},
     ui_scene::{commands::graph::AddWidgetCommand, UiScene},
 };
+use fyrox::gui::message::KeyCode;
 use std::{collections::BTreeMap, path::PathBuf};
 
 #[derive(Default, Eq, PartialEq, Copy, Clone, Debug)]
@@ -517,6 +518,11 @@ impl EntityCreator {
             message.data_from(self.recent_list)
         {
             self.on_recent_item_selected(ui, selection)
+        } else if let Some(WidgetMessage::KeyDown(code)) = message.data() {
+            // Commit selected entity creation by hitting Enter.
+            if ui.is_node_child_of(message.destination(), self.window) && *code == KeyCode::Enter {
+                return self.on_create_clicked(constructors, ui, ctx, settings, scene_path);
+            }
         }
         None
     }
