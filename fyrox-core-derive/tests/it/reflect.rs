@@ -77,7 +77,7 @@ fn doc_comments() {
     s.fields_ref(&mut |infos| {
         assert_eq!(infos[0].doc, " This is a\n multiline doc comment.\n");
     });
-    assert_eq!(s.type_info_ref().doc_comment, " Struct doc comment.");
+    assert_eq!(s.type_info_ref().doc_comment, " Struct doc comment.\n");
 }
 
 #[test]
