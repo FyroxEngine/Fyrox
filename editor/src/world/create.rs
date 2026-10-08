@@ -625,18 +625,14 @@ impl EntityCreator {
                 scene_path,
             )
         {
-            match self.mode {
-                EntityCreatorMode::CreateChild => {
-                    let sub_graph = ui_scene.ui.take_reserve_sub_graph(ui_node_handle);
-                    let parent = if let Some(selection) = editor_selection.as_ui() {
-                        selection.widgets.first().cloned().unwrap_or_default()
-                    } else {
-                        Handle::NONE
-                    };
-                    sender.do_command(AddWidgetCommand::new(sub_graph, parent, true));
-                }
-                // The rest is unsupported.
-                _ => (),
+            if let EntityCreatorMode::CreateChild = self.mode {
+                let sub_graph = ui_scene.ui.take_reserve_sub_graph(ui_node_handle);
+                let parent = if let Some(selection) = editor_selection.as_ui() {
+                    selection.widgets.first().cloned().unwrap_or_default()
+                } else {
+                    Handle::NONE
+                };
+                sender.do_command(AddWidgetCommand::new(sub_graph, parent, true));
             }
         }
     }
