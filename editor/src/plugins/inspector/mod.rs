@@ -129,6 +129,7 @@ pub struct InspectorPlugin {
     warning_text: Handle<Text>,
     type_name_text: Handle<Text>,
     docs_button: Handle<Button>,
+    filter_text: String,
     clipboard: Option<Box<dyn Reflect>>,
 }
 
@@ -310,6 +311,7 @@ impl InspectorPlugin {
             warning_text,
             type_name_text,
             docs_button,
+            filter_text: String::default(),
             clipboard: None,
             footer,
             search_bar,
@@ -375,6 +377,11 @@ impl InspectorPlugin {
             self.inspector,
             InspectorMessage::Context(Default::default()),
         );
+    }
+
+    fn apply_filter(&self, editor: &Editor) {
+        let ui = editor.engine.user_interfaces.first();
+        ui[self.inspector].apply_filter(&self.filter_text, ui);
     }
 }
 
@@ -551,11 +558,6 @@ impl EditorPlugin for InspectorPlugin {
                     _ => (),
                 }
             }
-        } else if let Some(SearchBarMessage::Text(search_text)) = message.data_from(self.search_bar)
-        {
-            let ui = editor.engine.user_interfaces.first();
-            let filter = search_text.to_lowercase();
-            ui[self.inspector].apply_filter(&filter, ui);
         }
 
         if let Some(InspectorMessage::PropertyChanged(args)) =
@@ -576,6 +578,12 @@ impl EditorPlugin for InspectorPlugin {
                     editor.message_sender.send(Message::ShowDocumentation(doc));
                 }
             }
+        } else if let Some(SearchBarMessage::Text(search_text)) = message.data_from(self.search_bar)
+        {
+            self.filter_text = search_text.to_lowercase();
+            self.apply_filter(editor);
+        } else if let Some(InspectorMessage::ContextChanged) = message.data_from(self.inspector) {
+            self.apply_filter(editor);
         }
     }
 }
