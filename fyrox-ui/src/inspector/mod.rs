@@ -575,6 +575,8 @@ pub enum InspectorMessage {
         /// A path of the property to which the cloned value should be pasted.
         dest: String,
     },
+    /// Inspector context was changed.
+    ContextChanged,
 }
 impl MessageData for InspectorMessage {}
 
@@ -1677,6 +1679,8 @@ impl Control for Inspector {
                     ui.send(ctx.stack_panel, WidgetMessage::LinkWith(self.handle));
 
                     self.context = ctx.clone();
+
+                    ui.post(self.handle, InspectorMessage::ContextChanged);
                 }
                 InspectorMessage::PropertyContextMenuStatus {
                     can_clone,
