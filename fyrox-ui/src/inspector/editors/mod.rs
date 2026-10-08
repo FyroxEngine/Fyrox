@@ -568,6 +568,51 @@ impl PropertyEditorDefinitionContainer {
         reg_array_property_editor! { container, usize, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
         reg_array_property_editor! { container, isize, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
 
+        // [Vector2<NumericType>; 1..N]
+        reg_array_property_editor! { container, Vector2<f64>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<f32>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<u64>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<i64>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<u32>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<i32>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<u16>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<i16>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<u8>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<i8>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<u8>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<usize>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<isize>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+
+        // [Vector3<NumericType>; 1..N]
+        reg_array_property_editor! { container, Vector3<f64>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<f32>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<u64>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<i64>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<u32>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<i32>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<u16>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<i16>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<u8>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<i8>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<u8>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<usize>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<isize>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+
+        // [Vector4<NumericType>; 1..N]
+        reg_array_property_editor! { container, Vector4<f64>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<f32>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<u64>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<i64>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<u32>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<i32>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<u16>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<i16>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<u8>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<i8>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<u8>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<usize>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<isize>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+
         // SmoothAngle
         container.register_inheritable_inspectable::<SmoothAngle>();
 
