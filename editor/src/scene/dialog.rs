@@ -18,36 +18,32 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::graph::SceneGraph;
-use crate::fyrox::{
-    core::pool::Handle,
-    engine::Engine,
-    gui::{
-        button::{ButtonBuilder, ButtonMessage},
-        formatted_text::WrapMode,
-        grid::{Column, GridBuilder, Row},
-        message::UiMessage,
-        scroll_viewer::ScrollViewerBuilder,
-        stack_panel::StackPanelBuilder,
-        text::{TextBuilder, TextMessage},
-        text_box::TextBoxBuilder,
-        widget::WidgetBuilder,
-        window::{WindowBuilder, WindowMessage},
-        BuildContext, HorizontalAlignment, Orientation, Thickness,
-    },
-};
-use crate::scene::Selection;
 use crate::{
+    fyrox::{
+        core::pool::Handle,
+        engine::Engine,
+        graph::SceneGraph,
+        gui::{
+            button::{Button, ButtonBuilder, ButtonMessage},
+            formatted_text::WrapMode,
+            grid::{Column, GridBuilder, Row},
+            message::UiMessage,
+            scroll_viewer::ScrollViewerBuilder,
+            stack_panel::StackPanelBuilder,
+            text::{TextBuilder, TextMessage},
+            text_box::{TextBox, TextBoxBuilder},
+            widget::WidgetBuilder,
+            window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
+            BuildContext, HorizontalAlignment, Orientation, Thickness,
+        },
+    },
     message::MessageSender,
     scene::{
         commands::{make_delete_selection_command, selection_to_delete},
-        GameScene,
+        GameScene, Selection,
     },
     Message,
 };
-use fyrox::gui::button::Button;
-use fyrox::gui::text_box::TextBox;
-use fyrox::gui::window::{Window, WindowAlignment};
 
 pub struct NodeRemovalDialog {
     pub window: Handle<Window>,
@@ -68,6 +64,7 @@ impl NodeRemovalDialog {
             The full list of reference pairs is listed below:";
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(500.0))
             .open(false)
+            .with_title(WindowTitle::text("Node References"))
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
@@ -75,7 +72,7 @@ impl NodeRemovalDialog {
                             TextBuilder::new(
                                 WidgetBuilder::new()
                                     .on_row(0)
-                                    .with_margin(Thickness::uniform(1.0)),
+                                    .with_margin(Thickness::uniform(4.0)),
                             )
                             .with_wrap(WrapMode::Word)
                             .with_text(text)
@@ -107,19 +104,19 @@ impl NodeRemovalDialog {
                                     .with_child({
                                         ok = ButtonBuilder::new(
                                             WidgetBuilder::new()
-                                                .with_width(100.0)
-                                                .with_height(20.0)
+                                                .with_width(120.0)
+                                                .with_height(24.0)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
-                                        .with_text("OK")
+                                        .with_text("Delete Anyway")
                                         .build(ctx);
                                         ok
                                     })
                                     .with_child({
                                         cancel = ButtonBuilder::new(
                                             WidgetBuilder::new()
-                                                .with_width(100.0)
-                                                .with_height(20.0)
+                                                .with_width(120.0)
+                                                .with_height(24.0)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
                                         .with_text("Cancel")
