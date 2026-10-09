@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::{
-    command::{Command, SetPropertyCommand},
+    command::{Command, CommandGroup, SetPropertyCommand},
     fyrox::{
         asset::core::algebra::Vector3,
         core::{
@@ -33,8 +33,9 @@ use crate::{
     },
     message::MessageSender,
     scene::{
-        commands::GameSceneContext, controller::SceneController, EntityInfo, GameScene,
-        SelectionContainer,
+        commands::{graph::DeleteSubGraphCommand, ChangeSelectionCommand, GameSceneContext},
+        controller::SceneController,
+        EntityInfo, GameScene, SelectionContainer,
     },
     utils,
 };
@@ -118,6 +119,46 @@ impl SelectionContainer for GraphSelection {
             .collect::<Vec<_>>();
 
         sender.do_command_group(group);
+    }
+
+    fn make_delete_selection_command(
+        &self,
+        controller: &dyn SceneController,
+        engine: &Engine,
+    ) -> Option<Command> {
+        if self.is_empty() {
+            return None;
+        }
+
+        let game_scene = controller.downcast_ref::<GameScene>()?;
+
+        let selection = self.selection_to_delete(game_scene);
+
+        let graph = &engine.scenes[game_scene.scene].graph;
+
+        // Change selection first.
+        let mut command_group = CommandGroup::from(vec![Command::new(
+            ChangeSelectionCommand::new(Default::default()),
+        )]);
+
+        // Find sub-graphs to delete - we need to do this because we can end up in situation like this:
+        // A_
+        //   B_      <-
+        //   | C       | these are selected
+        //   | D_    <-
+        //   |   E
+        //   F
+        // In this case we must delete only node B, there is no need to delete node D separately because
+        // by engine's design when we delete a node, we also delete all its children. So we have to keep
+        // this behaviour in editor too.
+
+        let root_nodes = selection.root_nodes(graph);
+
+        for root_node in root_nodes {
+            command_group.push(DeleteSubGraphCommand::new(root_node));
+        }
+
+        Some(Command::new(command_group))
     }
 }
 
@@ -292,5 +333,20 @@ impl GraphSelection {
             scales.push(**graph[handle].local_transform().scale());
         }
         scales
+    }
+
+    pub fn selection_to_delete(&self, game_scene: &GameScene) -> GraphSelection {
+        // Graph's root is non-deletable.
+        let mut selection = self.clone();
+
+        if let Some(root_position) = selection
+            .nodes
+            .iter()
+            .position(|&n| n == game_scene.scene_content_root)
+        {
+            selection.nodes.remove(root_position);
+        }
+
+        selection
     }
 }

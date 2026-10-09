@@ -190,10 +190,10 @@ impl WidgetContextMenu {
         if let Some(ui_scene) = controller.downcast_mut::<UiScene>() {
             if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
                 if message.destination() == self.delete_selection {
-                    if let Some(ui_selection) = editor_selection.as_ui() {
-                        sender.send(Message::DoCommand(
-                            ui_selection.make_deletion_command(&ui_scene.ui),
-                        ));
+                    if let Some(command) =
+                        editor_selection.make_delete_selection_command(controller, engine)
+                    {
+                        sender.send(Message::DoCommand(command));
                     }
                 } else if message.destination() == self.copy_selection {
                     if let Some(ui_selection) = editor_selection.as_ui() {

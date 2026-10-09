@@ -118,6 +118,33 @@ impl SelectionContainer for UiSelection {
 
         sender.do_command_group(group);
     }
+
+    fn make_delete_selection_command(
+        &self,
+        controller: &dyn SceneController,
+        _engine: &Engine,
+    ) -> Option<Command> {
+        if self.is_empty() {
+            return None;
+        }
+
+        let ui_scene = controller.downcast_ref::<UiScene>()?;
+
+        let selection = self.selection_to_delete(&ui_scene.ui);
+
+        // Change selection first.
+        let mut command_group = CommandGroup::from(vec![Command::new(
+            ChangeSelectionCommand::new(Default::default()),
+        )]);
+
+        let root_nodes = selection.root_widgets(&ui_scene.ui);
+
+        for root_node in root_nodes {
+            command_group.push(DeleteWidgetsSubGraphCommand::new(root_node));
+        }
+
+        Some(Command::new(command_group))
+    }
 }
 
 impl UiSelection {
@@ -194,22 +221,5 @@ impl UiSelection {
             }
         }
         root_widgets
-    }
-
-    pub fn make_deletion_command(&self, ui: &UserInterface) -> Command {
-        let selection = self.selection_to_delete(ui);
-
-        // Change selection first.
-        let mut command_group = CommandGroup::from(vec![Command::new(
-            ChangeSelectionCommand::new(Default::default()),
-        )]);
-
-        let root_nodes = selection.root_widgets(ui);
-
-        for root_node in root_nodes {
-            command_group.push(DeleteWidgetsSubGraphCommand::new(root_node));
-        }
-
-        Command::new(command_group)
     }
 }

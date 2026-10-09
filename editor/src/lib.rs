@@ -165,9 +165,7 @@ use crate::{
         tilemap::TileMapEditorPlugin,
     },
     scene::{
-        commands::{
-            make_delete_selection_command, ChangeSelectionCommand, GameSceneContext, PasteCommand,
-        },
+        commands::{ChangeSelectionCommand, GameSceneContext, PasteCommand},
         container::{EditorSceneEntry, SceneContainer},
         dialog::NodeRemovalDialog,
         settings::SceneSettingsWindow,
@@ -1336,30 +1334,28 @@ impl Editor {
                     sender.send(Message::CloseScene(entry.id));
                 } else if hot_key == key_bindings.remove_selection {
                     let entry = self.scenes.current_scene_entry_mut();
-                    if !entry.selection.is_empty() {
+                    if let Some(command) = entry
+                        .selection
+                        .make_delete_selection_command(&*entry.controller, engine)
+                    {
+                        let mut can_delete_immediately = true;
+
                         if entry.selection.is_graph() {
-                            if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
+                            if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
                                 if self.settings.general.show_node_removal_dialog
                                     && game_scene.is_current_selection_has_external_refs(
                                         &entry.selection,
                                         &engine.scenes[game_scene.scene].graph,
                                     )
                                 {
+                                    can_delete_immediately = false;
                                     sender.send(Message::OpenNodeRemovalDialog);
-                                } else {
-                                    sender.send(Message::DoCommand(make_delete_selection_command(
-                                        &entry.selection,
-                                        game_scene,
-                                        engine,
-                                    )));
                                 }
                             }
-                        } else if let Some(selection) = entry.selection.as_ui() {
-                            if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
-                                sender.send(Message::DoCommand(
-                                    selection.make_deletion_command(&ui_scene.ui),
-                                ));
-                            }
+                        }
+
+                        if can_delete_immediately {
+                            sender.send(Message::DoCommand(command));
                         }
                     }
                 } else if hot_key == key_bindings.focus {

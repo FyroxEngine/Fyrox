@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::scene::controller::SceneController;
 use crate::{
     fyrox::{
         core::pool::Handle,
@@ -38,12 +39,10 @@ use crate::{
         },
     },
     message::MessageSender,
-    scene::{
-        commands::{make_delete_selection_command, selection_to_delete},
-        GameScene, Selection,
-    },
+    scene::{GameScene, Selection},
     Message,
 };
+use fyrox::core::some_or_return;
 
 pub struct NodeRemovalDialog {
     pub window: Handle<Window>,
@@ -145,6 +144,8 @@ impl NodeRemovalDialog {
     }
 
     pub fn open(&mut self, editor_selection: &Selection, game_scene: &GameScene, engine: &Engine) {
+        let graph_selection = some_or_return!(editor_selection.as_graph());
+
         let ui = &engine.user_interfaces.first();
         let graph = &engine.scenes[game_scene.scene].graph;
 
@@ -159,7 +160,7 @@ impl NodeRemovalDialog {
 
         let mut text = String::new();
 
-        let selection = selection_to_delete(editor_selection, game_scene);
+        let selection = graph_selection.selection_to_delete(game_scene);
         for root in selection.nodes.iter() {
             for (node_handle, node) in graph.traverse_iter(*root) {
                 for reference_handle in graph.find_references_to(node_handle) {
@@ -183,7 +184,7 @@ impl NodeRemovalDialog {
     pub fn handle_ui_message(
         &mut self,
         editor_selection: &Selection,
-        game_scene: &GameScene,
+        controller: &dyn SceneController,
         message: &UiMessage,
         engine: &Engine,
         sender: &MessageSender,
@@ -193,11 +194,11 @@ impl NodeRemovalDialog {
             if message.destination() == self.ok {
                 ui.send(self.window, WindowMessage::Close);
 
-                sender.send(Message::DoCommand(make_delete_selection_command(
-                    editor_selection,
-                    game_scene,
-                    engine,
-                )));
+                if let Some(command) =
+                    editor_selection.make_delete_selection_command(controller, engine)
+                {
+                    sender.send(Message::DoCommand(command));
+                }
             } else if message.destination() == self.cancel {
                 ui.send(self.window, WindowMessage::Close);
             }

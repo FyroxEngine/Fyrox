@@ -1209,6 +1209,15 @@ pub trait SelectionContainer: BaseSelectionContainer {
     );
 
     fn paste_property(&mut self, path: &str, value: &dyn Reflect, sender: &MessageSender);
+
+    fn make_delete_selection_command(
+        &self,
+        _controller: &dyn SceneController,
+        _engine: &Engine,
+    ) -> Option<Command> {
+        // TODO. Make this impl mandatory and refactor/unify deletion in general.
+        None
+    }
 }
 
 impl dyn SelectionContainer {
@@ -1372,5 +1381,15 @@ impl Selection {
             });
             doc_comment
         })
+    }
+
+    pub fn make_delete_selection_command(
+        &self,
+        controller: &dyn SceneController,
+        engine: &Engine,
+    ) -> Option<Command> {
+        self.0
+            .as_ref()
+            .and_then(|c| c.make_delete_selection_command(controller, engine))
     }
 }

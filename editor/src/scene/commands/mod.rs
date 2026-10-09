@@ -26,14 +26,13 @@ use crate::fyrox::{
     scene::{graph::SubGraph, node::Node, Scene},
 };
 use crate::{
-    command::{Command, CommandContext, CommandGroup, CommandTrait},
+    command::{CommandContext, CommandTrait},
     message::MessageSender,
     scene::{
         clipboard::{Clipboard, DeepCloneResult},
-        commands::graph::DeleteSubGraphCommand,
-        GameScene, GraphSelection, Selection,
+        GraphSelection, Selection,
     },
-    Engine, Message,
+    Message,
 };
 use std::sync::Arc;
 
@@ -96,61 +95,6 @@ impl GameSceneContext {
 }
 
 impl CommandContext for GameSceneContext {}
-
-pub fn selection_to_delete(editor_selection: &Selection, game_scene: &GameScene) -> GraphSelection {
-    // Graph's root is non-deletable.
-    let mut selection = if let Some(selection) = editor_selection.as_graph() {
-        selection.clone()
-    } else {
-        Default::default()
-    };
-    if let Some(root_position) = selection
-        .nodes
-        .iter()
-        .position(|&n| n == game_scene.scene_content_root)
-    {
-        selection.nodes.remove(root_position);
-    }
-
-    selection
-}
-
-/// Creates scene command (command group) which removes current selection in editor's scene.
-/// This is **not** trivial because each node has multiple connections inside engine and
-/// in editor's data model, so we have to thoroughly build command using simple commands.
-pub fn make_delete_selection_command(
-    editor_selection: &Selection,
-    game_scene: &GameScene,
-    engine: &Engine,
-) -> Command {
-    let selection = selection_to_delete(editor_selection, game_scene);
-
-    let graph = &engine.scenes[game_scene.scene].graph;
-
-    // Change selection first.
-    let mut command_group = CommandGroup::from(vec![Command::new(ChangeSelectionCommand::new(
-        Default::default(),
-    ))]);
-
-    // Find sub-graphs to delete - we need to do this because we can end up in situation like this:
-    // A_
-    //   B_      <-
-    //   | C       | these are selected
-    //   | D_    <-
-    //   |   E
-    //   F
-    // In this case we must deleted only node B, there is no need to delete node D separately because
-    // by engine's design when we delete a node, we also delete all its children. So we have to keep
-    // this behaviour in editor too.
-
-    let root_nodes = selection.root_nodes(graph);
-
-    for root_node in root_nodes {
-        command_group.push(DeleteSubGraphCommand::new(root_node));
-    }
-
-    Command::new(command_group)
-}
 
 #[derive(Debug)]
 pub struct ChangeSelectionCommand {

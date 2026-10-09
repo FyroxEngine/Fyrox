@@ -50,7 +50,7 @@ use crate::{
     scene::{
         commands::{
             graph::{SetGraphRootCommand, SetNodeTransformCommand},
-            make_delete_selection_command, RevertSceneNodePropertyCommand,
+            RevertSceneNodePropertyCommand,
         },
         controller::SceneController,
         GameScene, Selection,
@@ -284,12 +284,10 @@ impl SceneNodeContextMenu {
                         )
                     {
                         sender.send(Message::OpenNodeRemovalDialog);
-                    } else {
-                        sender.send(Message::DoCommand(make_delete_selection_command(
-                            editor_selection,
-                            game_scene,
-                            engine,
-                        )));
+                    } else if let Some(command) =
+                        editor_selection.make_delete_selection_command(game_scene, engine)
+                    {
+                        sender.send(Message::DoCommand(command));
                     }
                 } else if message.destination() == self.copy_selection {
                     if let Some(graph_selection) = editor_selection.as_graph() {
