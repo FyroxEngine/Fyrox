@@ -441,10 +441,19 @@ impl GameScene {
         graph: &Graph,
     ) -> bool {
         if let Some(selection) = editor_selection.as_graph() {
+            // Convert selection to the full list of descendant nodes first.
+            let roots = selection.root_nodes(graph);
+            let mut all_nodes = FxHashSet::default();
+            for root in roots {
+                for (descendant_handle, _) in graph.traverse_iter(root) {
+                    all_nodes.insert(descendant_handle);
+                }
+            }
+
             for node in selection.nodes() {
                 for (descendant_handle, _) in graph.traverse_iter(*node) {
                     for reference in graph.find_references_to(descendant_handle) {
-                        if !selection.contains(reference) {
+                        if !all_nodes.contains(&reference) {
                             return true;
                         }
                     }
