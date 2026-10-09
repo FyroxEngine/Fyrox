@@ -1492,6 +1492,35 @@ pub trait SceneGraph: 'static {
             }
         }
     }
+
+    /// Tries to find references of the given node in other nodes. It could be used to check if the
+    /// node is used by some other scene node or not. Returns an array of handles, that references
+    /// the given node. This method is reflection-based, so it is quite slow and should not be used
+    /// every frame. It also correctly processes handles of derived types.
+    fn find_references_to(
+        &self,
+        target: Handle<impl ObjectOrVariant<Self::NodeWrapper>>,
+    ) -> Vec<Handle<Self::NodeWrapper>> {
+        let mut references = Vec::new();
+        for (node_handle, node) in self.pair_iter() {
+            (node as &dyn Reflect).apply_recursively(
+                &mut |object| {
+                    if let Some(handle) = object.as_handle() {
+                        if handle.reflect_as_erased() == target.into()
+                            && handle
+                                .type_info_ref()
+                                .derived_types
+                                .contains(&TypeId::of::<Self::NodeWrapper>())
+                        {
+                            references.push(node_handle);
+                        }
+                    }
+                },
+                &[TypeId::of::<UntypedResource>()],
+            );
+        }
+        references
+    }
 }
 
 /// Iterator that traverses tree in depth and returns shared references to nodes.
@@ -1658,18 +1687,22 @@ mod test {
 
     #[derive(Visit, Reflect, PartialEq, Debug, Clone)]
     #[reflect(type_uuid = "34f5e3ea-3008-45e9-9e6e-0b8fbff1ac28")]
-    pub struct Base {
+    pub struct TestBase {
         name: String,
-        self_handle: Handle<Node>,
+        #[reflect(hidden)]
+        self_handle: Handle<TestNode>,
         is_resource_instance_root: bool,
-        original_handle_in_resource: Handle<Node>,
-        resource: Option<Resource<Graph>>,
-        parent: Handle<Node>,
-        children: Vec<Handle<Node>>,
+        #[reflect(hidden)]
+        original_handle_in_resource: Handle<TestNode>,
+        resource: Option<Resource<TestGraph>>,
+        #[reflect(hidden)]
+        parent: Handle<TestNode>,
+        #[reflect(hidden)]
+        children: Vec<Handle<TestNode>>,
         instance_id: Uuid,
     }
 
-    impl Default for Base {
+    impl Default for TestBase {
         fn default() -> Self {
             Self {
                 name: Default::default(),
@@ -1685,19 +1718,19 @@ mod test {
     }
 
     /// A set of useful methods that is possible to auto-implement.
-    pub trait BaseNodeTrait: Any + Debug + Deref<Target = Base> + DerefMut + Send {
+    pub trait BaseNodeTrait: Any + Debug + Deref<Target = TestBase> + DerefMut + Send {
         /// This method creates raw copy of a node, it should never be called in normal circumstances
         /// because internally nodes may (and most likely will) contain handles to other nodes. To
         /// correctly clone a node you have to use [copy_node](struct.Graph.html#method.copy_node).
-        fn clone_box(&self) -> Node;
+        fn clone_box(&self) -> TestNode;
     }
 
     impl<T> BaseNodeTrait for T
     where
         T: Clone + NodeTrait + 'static,
     {
-        fn clone_box(&self) -> Node {
-            Node(Box::new(self.clone()))
+        fn clone_box(&self) -> TestNode {
+            TestNode(Box::new(self.clone()))
         }
     }
 
@@ -1707,58 +1740,58 @@ mod test {
 
     // Essentially implements ObjectOrVariant for NodeTrait types.
     // See ObjectOrVariantHelper for the cause of the indirection.
-    impl<T: NodeTrait> ObjectOrVariantHelper<Node, T> for PhantomData<T> {
-        fn convert_to_dest_type_helper(node: &Node) -> Option<&T> {
+    impl<T: NodeTrait> ObjectOrVariantHelper<TestNode, T> for PhantomData<T> {
+        fn convert_to_dest_type_helper(node: &TestNode) -> Option<&T> {
             NodeAsAny::as_any(node.0.deref()).downcast_ref()
         }
-        fn convert_to_dest_type_helper_mut(node: &mut Node) -> Option<&mut T> {
+        fn convert_to_dest_type_helper_mut(node: &mut TestNode) -> Option<&mut T> {
             NodeAsAny::as_any_mut(node.0.deref_mut()).downcast_mut()
         }
     }
 
     #[derive(Debug, Reflect)]
     #[reflect(type_uuid = "e2c18cd6-f1bf-40e5-9ec6-0dc48cc75409")]
-    pub struct Node(#[reflect(deref, display_name = "Node")] Box<dyn NodeTrait>);
+    pub struct TestNode(#[reflect(deref, display_name = "Node")] Box<dyn NodeTrait>);
 
-    impl Clone for Node {
+    impl Clone for TestNode {
         fn clone(&self) -> Self {
             self.0.clone_box()
         }
     }
 
-    impl PartialEq for Node {
+    impl PartialEq for TestNode {
         fn eq(&self, other: &Self) -> bool {
             self.0.try_compare(other.0.deref()).unwrap_or_default()
         }
     }
 
-    impl Node {
+    impl TestNode {
         fn new(node: impl NodeTrait) -> Self {
             Self(Box::new(node))
         }
     }
 
-    impl Visit for Node {
+    impl Visit for TestNode {
         fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
             self.0.visit(name, visitor)
         }
     }
 
-    impl NameProvider for Node {
+    impl NameProvider for TestNode {
         fn name(&self) -> &str {
             &self.name
         }
     }
 
-    impl Deref for Node {
-        type Target = Base;
+    impl Deref for TestNode {
+        type Target = TestBase;
 
         fn deref(&self) -> &Self::Target {
             self.0.deref()
         }
     }
 
-    impl DerefMut for Node {
+    impl DerefMut for TestNode {
         fn deref_mut(&mut self) -> &mut Self::Target {
             self.0.deref_mut()
         }
@@ -1768,17 +1801,17 @@ mod test {
     /// control over instantiation process at deserialization.
     #[derive(Debug, Default, Clone, PartialEq, Reflect)]
     #[reflect(type_uuid = "08052dac-c0c0-4df3-8005-1330827bf9c2")]
-    pub struct NodeContainer(Option<Node>);
+    pub struct TestNodeContainer(Option<TestNode>);
 
-    impl Visit for NodeContainer {
+    impl Visit for TestNodeContainer {
         fn visit(&mut self, _name: &str, _visitor: &mut Visitor) -> VisitResult {
             // Dummy impl.
             Ok(())
         }
     }
 
-    impl PayloadContainer for NodeContainer {
-        type Element = Node;
+    impl PayloadContainer for TestNodeContainer {
+        type Element = TestNode;
 
         fn new_empty() -> Self {
             Self(None)
@@ -1809,10 +1842,10 @@ mod test {
         }
     }
 
-    impl NodeWrapper for Node {
-        type Base = Base;
-        type SceneGraph = Graph;
-        type ResourceData = Graph;
+    impl NodeWrapper for TestNode {
+        type Base = TestBase;
+        type SceneGraph = TestGraph;
+        type ResourceData = TestGraph;
 
         fn inner_ref(&self) -> &dyn Reflect {
             self.0.deref()
@@ -1870,12 +1903,12 @@ mod test {
 
     #[derive(Default, Clone, Visit, Reflect, PartialEq, Debug)]
     #[reflect(type_uuid = "fc887063-7780-44af-8710-5e0bcf9a83fd")]
-    pub struct Graph {
-        root: Handle<Node>,
-        nodes: Pool<Node, NodeContainer>,
+    pub struct TestGraph {
+        root: Handle<TestNode>,
+        nodes: Pool<TestNode, TestNodeContainer>,
     }
 
-    impl ResourceData for Graph {
+    impl ResourceData for TestGraph {
         fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
             Ok(())
         }
@@ -1889,8 +1922,8 @@ mod test {
         }
     }
 
-    impl PrefabData for Graph {
-        type Graph = Graph;
+    impl PrefabData for TestGraph {
+        type Graph = TestGraph;
 
         fn graph(&self) -> &Self::Graph {
             self
@@ -1901,25 +1934,25 @@ mod test {
         }
     }
 
-    impl Index<Handle<Node>> for Graph {
-        type Output = Node;
+    impl Index<Handle<TestNode>> for TestGraph {
+        type Output = TestNode;
 
         #[inline]
-        fn index(&self, index: Handle<Node>) -> &Self::Output {
+        fn index(&self, index: Handle<TestNode>) -> &Self::Output {
             &self.nodes[index]
         }
     }
 
-    impl IndexMut<Handle<Node>> for Graph {
+    impl IndexMut<Handle<TestNode>> for TestGraph {
         #[inline]
-        fn index_mut(&mut self, index: Handle<Node>) -> &mut Self::Output {
+        fn index_mut(&mut self, index: Handle<TestNode>) -> &mut Self::Output {
             &mut self.nodes[index]
         }
     }
 
-    impl SceneGraph for Graph {
-        type Prefab = Graph;
-        type NodeWrapper = Node;
+    impl SceneGraph for TestGraph {
+        type Prefab = TestGraph;
+        type NodeWrapper = TestNode;
 
         fn summary(&self) -> String {
             "Summary".to_string()
@@ -2037,11 +2070,14 @@ mod test {
             self.nodes.iter_mut()
         }
 
-        fn try_get<U: ObjectOrVariant<Node>>(&self, handle: Handle<U>) -> Result<&U, PoolError> {
+        fn try_get<U: ObjectOrVariant<TestNode>>(
+            &self,
+            handle: Handle<U>,
+        ) -> Result<&U, PoolError> {
             self.nodes.try_get(handle)
         }
 
-        fn try_get_mut<U: ObjectOrVariant<Node>>(
+        fn try_get_mut<U: ObjectOrVariant<TestNode>>(
             &mut self,
             handle: Handle<U>,
         ) -> Result<&mut U, PoolError> {
@@ -2049,7 +2085,7 @@ mod test {
         }
     }
 
-    fn remap_handles(old_new_mapping: &NodeHandleMap<Node>, dest_graph: &mut Graph) {
+    fn remap_handles(old_new_mapping: &NodeHandleMap<TestNode>, dest_graph: &mut TestGraph) {
         // Iterate over instantiated nodes and remap handles.
         for &new_node_handle in old_new_mapping.inner().values() {
             old_new_mapping.remap_handles(
@@ -2059,19 +2095,19 @@ mod test {
         }
     }
 
-    fn clear_links(mut node: Node) -> Node {
+    fn clear_links(mut node: TestNode) -> TestNode {
         node.children.clear();
         node.parent = Handle::NONE;
         node
     }
 
-    impl Graph {
+    impl TestGraph {
         #[inline]
         pub fn copy_node(
             &self,
-            node_handle: Handle<Node>,
-            dest_graph: &mut Graph,
-        ) -> (Handle<Node>, NodeHandleMap<Node>) {
+            node_handle: Handle<TestNode>,
+            dest_graph: &mut TestGraph,
+        ) -> (Handle<TestNode>, NodeHandleMap<TestNode>) {
             let mut old_new_mapping = NodeHandleMap::default();
             let root_handle = self.copy_node_raw(node_handle, dest_graph, &mut old_new_mapping);
 
@@ -2081,10 +2117,10 @@ mod test {
         }
         fn copy_node_raw(
             &self,
-            root_handle: Handle<Node>,
-            dest_graph: &mut Graph,
-            old_new_mapping: &mut NodeHandleMap<Node>,
-        ) -> Handle<Node> {
+            root_handle: Handle<TestNode>,
+            dest_graph: &mut TestGraph,
+            old_new_mapping: &mut NodeHandleMap<TestNode>,
+        ) -> Handle<TestNode> {
             let src_node = &self.nodes[root_handle];
             let dest_node = clear_links(src_node.clone());
             let dest_copy_handle = dest_graph.add_node(dest_node);
@@ -2101,39 +2137,39 @@ mod test {
     }
 
     #[derive(Clone, Reflect, Visit, PartialEq, Default, Debug)]
-    #[reflect(derived_type = "Node")]
+    #[reflect(derived_type = "TestNode")]
     #[reflect(type_uuid = "c7452fb6-78c1-4e77-a2f9-d9ae31f50327")]
-    pub struct Pivot {
-        base: Base,
+    pub struct TestPivot {
+        base: TestBase,
     }
 
-    impl NodeTrait for Pivot {}
+    impl NodeTrait for TestPivot {}
 
-    impl Deref for Pivot {
-        type Target = Base;
+    impl Deref for TestPivot {
+        type Target = TestBase;
 
         fn deref(&self) -> &Self::Target {
             &self.base
         }
     }
 
-    impl DerefMut for Pivot {
+    impl DerefMut for TestPivot {
         fn deref_mut(&mut self) -> &mut Self::Target {
             &mut self.base
         }
     }
 
     #[derive(Clone, Reflect, Visit, PartialEq, Default, Debug)]
-    #[reflect(derived_type = "Node")]
+    #[reflect(derived_type = "TestNode")]
     #[reflect(type_uuid = "17cc2d25-6ba4-4e2d-a31e-867e429bc659")]
     pub struct RigidBody {
-        base: Base,
+        base: TestBase,
     }
 
     impl NodeTrait for RigidBody {}
 
     impl Deref for RigidBody {
-        type Target = Base;
+        type Target = TestBase;
 
         fn deref(&self) -> &Self::Target {
             &self.base
@@ -2147,25 +2183,25 @@ mod test {
     }
 
     #[derive(Clone, Reflect, Visit, PartialEq, Default, Debug)]
-    #[reflect(derived_type = "Node")]
+    #[reflect(derived_type = "TestNode")]
     #[reflect(type_uuid = "1f869298-37b1-4153-a2a9-6576daa0e8b3")]
-    pub struct Joint {
-        base: Base,
+    pub struct TestJoint {
+        base: TestBase,
         connected_body1: Handle<RigidBody>,
         connected_body2: Handle<RigidBody>,
     }
 
-    impl NodeTrait for Joint {}
+    impl NodeTrait for TestJoint {}
 
-    impl Deref for Joint {
-        type Target = Base;
+    impl Deref for TestJoint {
+        type Target = TestBase;
 
         fn deref(&self) -> &Self::Target {
             &self.base
         }
     }
 
-    impl DerefMut for Joint {
+    impl DerefMut for TestJoint {
         fn deref_mut(&mut self) -> &mut Self::Target {
             &mut self.base
         }
@@ -2173,19 +2209,19 @@ mod test {
 
     #[test]
     fn test_set_child_position() {
-        let mut graph = Graph::default();
+        let mut graph = TestGraph::default();
 
-        let root = graph.add_node(Node::new(Pivot::default()));
-        let a = graph.add_node(Node::new(Pivot::default()));
-        let b = graph.add_node(Node::new(Pivot::default()));
-        let c = graph.add_node(Node::new(Pivot::default()));
-        let d = graph.add_node(Node::new(Pivot::default()));
+        let root = graph.add_node(TestNode::new(TestPivot::default()));
+        let a = graph.add_node(TestNode::new(TestPivot::default()));
+        let b = graph.add_node(TestNode::new(TestPivot::default()));
+        let c = graph.add_node(TestNode::new(TestPivot::default()));
+        let d = graph.add_node(TestNode::new(TestPivot::default()));
         graph.link_nodes(a, root);
         graph.link_nodes(b, root);
         graph.link_nodes(c, root);
         graph.link_nodes(d, root);
 
-        assert!(graph.try_get_of_type::<Pivot>(a).is_ok());
+        assert!(graph.try_get_of_type::<TestPivot>(a).is_ok());
 
         let root_ref = &mut graph[root];
         assert_eq!(root_ref.set_child_position(a, 0), Some(0));
@@ -2226,19 +2262,19 @@ mod test {
 
     #[test]
     fn test_derived_handles_mapping() {
-        let mut prefab_graph = Graph::default();
+        let mut prefab_graph = TestGraph::default();
 
-        prefab_graph.add_node(Node::new(Pivot::default()));
-        let rigid_body = prefab_graph.add_node(Node::new(RigidBody::default()));
-        let rigid_body2 = prefab_graph.add_node(Node::new(RigidBody::default()));
-        let joint = prefab_graph.add_node(Node::new(Joint {
-            base: Base::default(),
+        prefab_graph.add_node(TestNode::new(TestPivot::default()));
+        let rigid_body = prefab_graph.add_node(TestNode::new(RigidBody::default()));
+        let rigid_body2 = prefab_graph.add_node(TestNode::new(RigidBody::default()));
+        let joint = prefab_graph.add_node(TestNode::new(TestJoint {
+            base: TestBase::default(),
             connected_body1: rigid_body.transmute(),
             connected_body2: rigid_body2.transmute(),
         }));
 
-        let mut scene_graph = Graph::default();
-        let root = scene_graph.add_node(Node::new(Pivot::default()));
+        let mut scene_graph = TestGraph::default();
+        let root = scene_graph.add_node(TestNode::new(TestPivot::default()));
 
         let (_, mapping) = prefab_graph.copy_node(root, &mut scene_graph);
         let rigid_body_copy = mapping
@@ -2256,7 +2292,7 @@ mod test {
         let joint_copy = mapping.inner().get(&joint).cloned().unwrap();
         let joint_copy_ref = scene_graph.nodes[joint_copy]
             .inner_ref()
-            .downcast_ref::<Joint>()
+            .downcast_ref::<TestJoint>()
             .unwrap();
         assert_eq!(joint_copy_ref.connected_body1, rigid_body_copy);
         assert_eq!(joint_copy_ref.connected_body2, rigid_body2_copy);
@@ -2264,24 +2300,24 @@ mod test {
 
     #[test]
     fn test_change_root() {
-        let mut graph = Graph::default();
+        let mut graph = TestGraph::default();
 
         // Root_
         //      |_A_
         //          |_B
         //          |_C_
         //             |_D
-        let root = graph.add_node(Node::new(Pivot::default()));
-        let d = graph.add_node(Node::new(Pivot::default()));
-        let c = graph.add_node(Node::new(Pivot {
-            base: Base {
+        let root = graph.add_node(TestNode::new(TestPivot::default()));
+        let d = graph.add_node(TestNode::new(TestPivot::default()));
+        let c = graph.add_node(TestNode::new(TestPivot {
+            base: TestBase {
                 children: vec![d],
                 ..Default::default()
             },
         }));
-        let b = graph.add_node(Node::new(Pivot::default()));
-        let a = graph.add_node(Node::new(Pivot {
-            base: Base {
+        let b = graph.add_node(TestNode::new(TestPivot::default()));
+        let a = graph.add_node(TestNode::new(TestPivot {
+            base: TestBase {
                 children: vec![b, c],
                 ..Default::default()
             },
@@ -2299,7 +2335,7 @@ mod test {
         //   |_Root
         assert_eq!(graph.root, c);
 
-        assert_eq!(graph[graph.root].parent, Handle::<Node>::NONE);
+        assert_eq!(graph[graph.root].parent, Handle::<TestNode>::NONE);
         assert_eq!(graph[graph.root].children.len(), 3);
 
         assert_eq!(graph[graph.root].children[0], d);
@@ -2322,14 +2358,14 @@ mod test {
         graph.apply_link_scheme(link_scheme);
 
         assert_eq!(graph.root, root);
-        assert_eq!(graph[graph.root].parent, Handle::<Node>::NONE);
+        assert_eq!(graph[graph.root].parent, Handle::<TestNode>::NONE);
         assert_eq!(graph[graph.root].children, vec![a]);
 
         assert_eq!(graph[a].parent, root);
         assert_eq!(graph[a].children, vec![b, c]);
 
         assert_eq!(graph[b].parent, a);
-        assert_eq!(graph[b].children, Vec::<Handle<Node>>::new());
+        assert_eq!(graph[b].children, Vec::<Handle<TestNode>>::new());
 
         assert_eq!(graph[c].parent, a);
         assert_eq!(graph[c].children, vec![d]);
@@ -2337,7 +2373,7 @@ mod test {
 
     #[test]
     fn test_traverse_iter() {
-        let mut graph = Graph::default();
+        let mut graph = TestGraph::default();
 
         // Root_
         //      |_A_
@@ -2347,29 +2383,29 @@ mod test {
         //      |   |     |_E
         //      |   |_F
         //      |_X
-        let root = graph.add_node(Node::new(Pivot::default()));
-        let e = graph.add_node(Node::new(Pivot::default()));
-        let d = graph.add_node(Node::new(Pivot {
-            base: Base {
+        let root = graph.add_node(TestNode::new(TestPivot::default()));
+        let e = graph.add_node(TestNode::new(TestPivot::default()));
+        let d = graph.add_node(TestNode::new(TestPivot {
+            base: TestBase {
                 children: vec![e],
                 ..Default::default()
             },
         }));
-        let c = graph.add_node(Node::new(Pivot {
-            base: Base {
+        let c = graph.add_node(TestNode::new(TestPivot {
+            base: TestBase {
                 children: vec![d],
                 ..Default::default()
             },
         }));
-        let b = graph.add_node(Node::new(Pivot::default()));
-        let a = graph.add_node(Node::new(Pivot {
-            base: Base {
+        let b = graph.add_node(TestNode::new(TestPivot::default()));
+        let a = graph.add_node(TestNode::new(TestPivot {
+            base: TestBase {
                 children: vec![b, c],
                 ..Default::default()
             },
         }));
-        let f = graph.add_node(Node::new(Pivot::default()));
-        let x = graph.add_node(Node::new(Pivot::default()));
+        let f = graph.add_node(TestNode::new(TestPivot::default()));
+        let x = graph.add_node(TestNode::new(TestPivot::default()));
         graph.link_nodes(a, root);
         graph.link_nodes(f, a);
         graph.link_nodes(x, root);
@@ -2432,5 +2468,20 @@ mod test {
         assert_eq!(iter_mut.next(), None);
 
         drop(iter_mut);
+    }
+
+    #[test]
+    fn test_find_references() {
+        let mut graph = TestGraph::default();
+        graph.add_node(TestNode::new(TestPivot::default()));
+        let rigid_body = graph.add_node(TestNode::new(RigidBody::default()));
+        let rigid_body2 = graph.add_node(TestNode::new(RigidBody::default()));
+        let joint = graph.add_node(TestNode::new(TestJoint {
+            base: TestBase::default(),
+            connected_body1: rigid_body.transmute(),
+            connected_body2: rigid_body2.transmute(),
+        }));
+        assert_eq!(graph.find_references_to(rigid_body), vec![joint]);
+        assert_eq!(graph.find_references_to(rigid_body2), vec![joint]);
     }
 }

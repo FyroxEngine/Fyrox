@@ -533,29 +533,6 @@ impl Graph {
         self.link_nodes(prev_root, handle);
     }
 
-    /// Tries to find references of the given node in other scene nodes. It could be used to check if the node is
-    /// used by some other scene node or not. Returns an array of nodes, that references the given node. This method
-    /// is reflection-based, so it is quite slow and should not be used every frame.
-    pub fn find_references_to(
-        &self,
-        target: Handle<impl ObjectOrVariant<Node>>,
-    ) -> Vec<Handle<Node>> {
-        let mut references = Vec::new();
-        for (node_handle, node) in self.pair_iter() {
-            (node as &dyn Reflect).apply_recursively(
-                &mut |object| {
-                    if let Some(handle) = object.downcast_ref::<Handle<Node>>() {
-                        if *handle == target {
-                            references.push(node_handle);
-                        }
-                    }
-                },
-                &[TypeId::of::<UntypedResource>()],
-            );
-        }
-        references
-    }
-
     /// Sets global position of a scene node. Internally, this method converts the given position
     /// to the local space of the parent node of the given scene node and sets it as local position
     /// of the node. In other words, this method does not modify global position itself, but calculates
