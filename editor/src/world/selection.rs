@@ -152,7 +152,7 @@ impl SelectionContainer for GraphSelection {
         // by engine's design when we delete a node, we also delete all its children. So we have to keep
         // this behaviour in editor too.
 
-        let root_nodes = selection.root_nodes(graph);
+        let root_nodes = graph.root_nodes(selection.nodes());
 
         for root_node in root_nodes {
             command_group.push(DeleteSubGraphCommand::new(root_node));
@@ -205,38 +205,6 @@ impl GraphSelection {
 
     pub fn extend(&mut self, other: &GraphSelection) {
         self.nodes.extend_from_slice(&other.nodes)
-    }
-
-    pub fn root_nodes(&self, graph: &Graph) -> Vec<Handle<Node>> {
-        // Helper function.
-        fn is_descendant_of(handle: Handle<Node>, other: Handle<Node>, graph: &Graph) -> bool {
-            for &child in graph[other].children() {
-                if child == handle {
-                    return true;
-                }
-
-                let inner = is_descendant_of(handle, child, graph);
-                if inner {
-                    return true;
-                }
-            }
-            false
-        }
-
-        let mut root_nodes = Vec::new();
-        for &node in self.nodes().iter() {
-            let mut descendant = false;
-            for &other_node in self.nodes().iter() {
-                if is_descendant_of(node, other_node, graph) {
-                    descendant = true;
-                    break;
-                }
-            }
-            if !descendant {
-                root_nodes.push(node);
-            }
-        }
-        root_nodes
     }
 
     pub fn global_rotation_position(

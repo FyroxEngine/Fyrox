@@ -141,8 +141,8 @@ impl MoveContext {
             frame_size,
             |plane_point, gizmo_inv_transform, gizmo_origin| {
                 let graph = &scene.graph;
-                selection
-                    .root_nodes(graph)
+                graph
+                    .root_nodes(selection.nodes())
                     .iter()
                     .map(|&node_handle| {
                         let node = &graph[node_handle];

@@ -28,9 +28,10 @@ pub mod prelude {
     pub use crate::SceneGraph;
 }
 
-use fxhash::FxHashMap;
+use fxhash::{FxHashMap, FxHashSet};
 use fyrox_core::{
     log::{Log, MessageKind},
+    ok_or_return,
     pool::{Handle, ObjectOrVariant, PoolError},
     reflect::{prelude::*, ReflectHandle},
     uuid::Uuid,
@@ -1521,6 +1522,77 @@ pub trait SceneGraph: 'static {
         }
         references
     }
+
+    /// Checks if a node with `handle` is a descendant node of some `other` node.
+    fn is_descendant_of(
+        &self,
+        handle: Handle<Self::NodeWrapper>,
+        other: Handle<Self::NodeWrapper>,
+    ) -> bool {
+        let other_ref = ok_or_return!(self.try_get(other), false);
+
+        for &child in other_ref.children() {
+            if child == handle {
+                return true;
+            }
+
+            let inner = self.is_descendant_of(handle, child);
+            if inner {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Returns a set of root nodes of arbitrary set of graph nodes. For example:
+    ///
+    /// ```text
+    /// A_
+    ///   B_      <-
+    ///   | C       | these are in `nodes` argument
+    ///   | D_    <-
+    ///   |   E
+    ///   F
+    /// ```
+    ///
+    /// Then this method will return only a handle to `B` node.
+    fn root_nodes(&self, nodes: &[Handle<Self::NodeWrapper>]) -> Vec<Handle<Self::NodeWrapper>> {
+        let mut root_nodes = Vec::new();
+        for &node in nodes.iter() {
+            let mut descendant = false;
+            for &other_node in nodes.iter() {
+                if self.is_descendant_of(node, other_node) {
+                    descendant = true;
+                    break;
+                }
+            }
+            if !descendant {
+                root_nodes.push(node);
+            }
+        }
+        root_nodes
+    }
+
+    /// Tries to find all handles to nodes outside the subgraphs formed by the given set of nodes.
+    fn external_refs(&self, nodes: &[Handle<Self::NodeWrapper>]) -> Vec<Handle<Self::NodeWrapper>> {
+        let roots = self.root_nodes(nodes);
+        let mut all_nodes = FxHashSet::default();
+        for root in roots {
+            for (descendant_handle, _) in self.traverse_iter(root) {
+                all_nodes.insert(descendant_handle);
+            }
+        }
+
+        let mut external_refs = FxHashSet::default();
+        for &descendant_handle in all_nodes.iter() {
+            for reference in self.find_references_to(descendant_handle) {
+                if !all_nodes.contains(&reference) {
+                    external_refs.insert(reference);
+                }
+            }
+        }
+        external_refs.into_iter().collect()
+    }
 }
 
 /// Iterator that traverses tree in depth and returns shared references to nodes.
@@ -2162,13 +2234,13 @@ mod test {
     #[derive(Clone, Reflect, Visit, PartialEq, Default, Debug)]
     #[reflect(derived_type = "TestNode")]
     #[reflect(type_uuid = "17cc2d25-6ba4-4e2d-a31e-867e429bc659")]
-    pub struct RigidBody {
+    pub struct TestRigidBody {
         base: TestBase,
     }
 
-    impl NodeTrait for RigidBody {}
+    impl NodeTrait for TestRigidBody {}
 
-    impl Deref for RigidBody {
+    impl Deref for TestRigidBody {
         type Target = TestBase;
 
         fn deref(&self) -> &Self::Target {
@@ -2176,7 +2248,7 @@ mod test {
         }
     }
 
-    impl DerefMut for RigidBody {
+    impl DerefMut for TestRigidBody {
         fn deref_mut(&mut self) -> &mut Self::Target {
             &mut self.base
         }
@@ -2187,8 +2259,8 @@ mod test {
     #[reflect(type_uuid = "1f869298-37b1-4153-a2a9-6576daa0e8b3")]
     pub struct TestJoint {
         base: TestBase,
-        connected_body1: Handle<RigidBody>,
-        connected_body2: Handle<RigidBody>,
+        connected_body1: Handle<TestRigidBody>,
+        connected_body2: Handle<TestRigidBody>,
     }
 
     impl NodeTrait for TestJoint {}
@@ -2265,8 +2337,8 @@ mod test {
         let mut prefab_graph = TestGraph::default();
 
         prefab_graph.add_node(TestNode::new(TestPivot::default()));
-        let rigid_body = prefab_graph.add_node(TestNode::new(RigidBody::default()));
-        let rigid_body2 = prefab_graph.add_node(TestNode::new(RigidBody::default()));
+        let rigid_body = prefab_graph.add_node(TestNode::new(TestRigidBody::default()));
+        let rigid_body2 = prefab_graph.add_node(TestNode::new(TestRigidBody::default()));
         let joint = prefab_graph.add_node(TestNode::new(TestJoint {
             base: TestBase::default(),
             connected_body1: rigid_body.transmute(),
@@ -2282,13 +2354,13 @@ mod test {
             .get(&rigid_body)
             .cloned()
             .unwrap()
-            .transmute::<RigidBody>();
+            .transmute::<TestRigidBody>();
         let rigid_body2_copy = mapping
             .inner()
             .get(&rigid_body2)
             .cloned()
             .unwrap()
-            .transmute::<RigidBody>();
+            .transmute::<TestRigidBody>();
         let joint_copy = mapping.inner().get(&joint).cloned().unwrap();
         let joint_copy_ref = scene_graph.nodes[joint_copy]
             .inner_ref()
@@ -2470,18 +2542,102 @@ mod test {
         drop(iter_mut);
     }
 
+    struct TestGraphInstance {
+        graph: TestGraph,
+        rigid_body: Handle<TestRigidBody>,
+        rigid_body_child: Handle<TestPivot>,
+        rigid_body2: Handle<TestRigidBody>,
+        rigid_body2_child: Handle<TestPivot>,
+        joint: Handle<TestJoint>,
+    }
+
+    impl TestGraphInstance {
+        fn new() -> Self {
+            let mut graph = TestGraph::default();
+            graph.add_node(TestNode::new(TestPivot::default()));
+            let rigid_body = graph
+                .add_node(TestNode::new(TestRigidBody::default()))
+                .transmute::<TestRigidBody>();
+            let rigid_body_child = graph
+                .add_node(TestNode::new(TestPivot::default()))
+                .transmute::<TestPivot>();
+            let rigid_body2 = graph
+                .add_node(TestNode::new(TestRigidBody::default()))
+                .transmute::<TestRigidBody>();
+            let rigid_body2_child = graph
+                .add_node(TestNode::new(TestPivot::default()))
+                .transmute::<TestPivot>();
+            let joint = graph
+                .add_node(TestNode::new(TestJoint {
+                    base: TestBase::default(),
+                    connected_body1: rigid_body,
+                    connected_body2: rigid_body2,
+                }))
+                .transmute::<TestJoint>();
+            graph.link_nodes(rigid_body_child, rigid_body);
+            graph.link_nodes(rigid_body2_child, rigid_body2);
+            Self {
+                graph,
+                rigid_body,
+                rigid_body_child,
+                rigid_body2,
+                rigid_body2_child,
+                joint,
+            }
+        }
+    }
+
     #[test]
     fn test_find_references() {
-        let mut graph = TestGraph::default();
-        graph.add_node(TestNode::new(TestPivot::default()));
-        let rigid_body = graph.add_node(TestNode::new(RigidBody::default()));
-        let rigid_body2 = graph.add_node(TestNode::new(RigidBody::default()));
-        let joint = graph.add_node(TestNode::new(TestJoint {
-            base: TestBase::default(),
-            connected_body1: rigid_body.transmute(),
-            connected_body2: rigid_body2.transmute(),
-        }));
-        assert_eq!(graph.find_references_to(rigid_body), vec![joint]);
-        assert_eq!(graph.find_references_to(rigid_body2), vec![joint]);
+        let instance = TestGraphInstance::new();
+        assert_eq!(
+            instance.graph.find_references_to(instance.rigid_body),
+            vec![instance.joint]
+        );
+        assert_eq!(
+            instance.graph.find_references_to(instance.rigid_body2),
+            vec![instance.joint]
+        );
+    }
+
+    #[test]
+    fn test_root_nodes() {
+        let instance = TestGraphInstance::new();
+        assert_eq!(
+            instance.graph.root_nodes(&[
+                instance.rigid_body.to_base(),
+                instance.rigid_body_child.to_base()
+            ]),
+            vec![instance.rigid_body]
+        );
+        assert_eq!(
+            instance.graph.root_nodes(&[
+                instance.rigid_body.to_base(),
+                instance.rigid_body_child.to_base(),
+                instance.rigid_body2.to_base(),
+                instance.rigid_body2_child.to_base()
+            ]),
+            vec![instance.rigid_body, instance.rigid_body2]
+        );
+        let nodes = Vec::<Handle<TestNode>>::new();
+        let empty_nodes = Vec::<Handle<TestNode>>::new();
+        assert_eq!(instance.graph.root_nodes(&nodes), empty_nodes);
+    }
+
+    #[test]
+    fn test_is_nodes_have_external_refs() {
+        let instance = TestGraphInstance::new();
+        let empty_nodes = Vec::<Handle<TestNode>>::new();
+        assert_eq!(
+            instance.graph.external_refs(&[instance.joint.to_base()],),
+            empty_nodes
+        );
+        assert_eq!(
+            instance.graph.external_refs(&[
+                instance.rigid_body.to_base(),
+                instance.rigid_body2.to_base()
+            ]),
+            vec![instance.joint]
+        );
     }
 }

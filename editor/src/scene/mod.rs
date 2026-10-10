@@ -440,34 +440,16 @@ impl GameScene {
         editor_selection: &Selection,
         graph: &Graph,
     ) -> bool {
-        if let Some(selection) = editor_selection.as_graph() {
-            // Convert selection to the full list of descendant nodes first.
-            let roots = selection.root_nodes(graph);
-            let mut all_nodes = FxHashSet::default();
-            for root in roots {
-                for (descendant_handle, _) in graph.traverse_iter(root) {
-                    all_nodes.insert(descendant_handle);
-                }
-            }
-
-            for node in selection.nodes() {
-                for (descendant_handle, _) in graph.traverse_iter(*node) {
-                    for reference in graph.find_references_to(descendant_handle) {
-                        if !all_nodes.contains(&reference) {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-        false
+        editor_selection
+            .as_graph()
+            .is_some_and(|s| !graph.external_refs(s.nodes()).is_empty())
     }
 
     fn try_save_selection_as_prefab(&self, path: &Path, selection: &Selection, engine: &Engine) {
         let source_scene = &engine.scenes[self.scene];
         let mut dest_scene = Scene::new();
         if let Some(graph_selection) = selection.as_graph() {
-            for root_node in graph_selection.root_nodes(&source_scene.graph) {
+            for root_node in source_scene.graph.root_nodes(graph_selection.nodes()) {
                 source_scene.graph.copy_node(
                     root_node,
                     &mut dest_scene.graph,
