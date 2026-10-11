@@ -3713,7 +3713,7 @@ impl SceneGraph for UserInterface {
                 self.captured_node = Handle::NONE;
             }
             if self.keyboard_focus_node == handle {
-                self.keyboard_focus_node = Handle::NONE;
+                self.request_focus(self.root_canvas);
             }
             self.remove_picking_restriction(handle);
 
