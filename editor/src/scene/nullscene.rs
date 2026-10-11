@@ -273,4 +273,12 @@ impl SceneController for NullSceneController {
             })
             .collect::<Vec<_>>()
     }
+
+    fn is_current_selection_has_external_refs(
+        &self,
+        editor_selection: &Selection,
+        engine: &Engine,
+    ) -> bool {
+        false
+    }
 }

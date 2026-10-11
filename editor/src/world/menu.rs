@@ -278,10 +278,8 @@ impl SceneNodeContextMenu {
             if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
                 if message.destination() == self.delete_selection {
                     if settings.general.show_node_removal_dialog
-                        && game_scene.is_current_selection_has_external_refs(
-                            editor_selection,
-                            &engine.scenes[game_scene.scene].graph,
-                        )
+                        && game_scene
+                            .is_current_selection_has_external_refs(editor_selection, engine)
                     {
                         sender.send(Message::OpenNodeRemovalDialog);
                     } else if let Some(command) =

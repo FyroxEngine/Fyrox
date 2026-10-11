@@ -17,6 +17,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
+
 use crate::{
     asset::item::AssetItem,
     audio::AudioBusSelection,
@@ -26,6 +27,7 @@ use crate::{
         asset::manager::ResourceManager,
         core::{
             algebra::{Matrix4, Vector2, Vector3},
+            blank_reflect_ref,
             color::Color,
             define_as_any_trait,
             futures::executor::block_on,
@@ -34,15 +36,16 @@ use crate::{
             math::{aabb::AxisAlignedBoundingBox, plane::Plane, Rect},
             pool::{ErasedHandle, Handle},
             reflect::Reflect,
+            uuid::Uuid,
             visitor::Visitor,
         },
-        engine::{Engine, SerializationContext},
+        engine::{Engine, GraphicsContext, SerializationContext},
         fxhash::FxHashSet,
         graph::{NodeWrapper, SceneGraph},
         gui::{
+            file_browser::FileType,
             inspector::PropertyChanged,
-            message::UiMessage,
-            message::{KeyCode, MessageDirection, MouseButton},
+            message::{KeyCode, MessageDirection, MouseButton, UiMessage},
             UiNode,
         },
         material::{
@@ -55,16 +58,17 @@ use crate::{
         scene::{
             base::BaseBuilder,
             camera::{Camera, Projection},
+            collider::BitMask,
             debug::{Line, SceneDrawingContext},
             graph::{Graph, GraphUpdateSwitches},
             light::{point::PointLight, spot::SpotLight},
-            mesh::RenderPath,
             mesh::{
                 surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
-                Mesh, MeshBuilder,
+                Mesh, MeshBuilder, RenderPath,
             },
             navmesh::NavigationalMesh,
             node::Node,
+            pivot::Pivot,
             pivot::PivotBuilder,
             terrain::Terrain,
             Scene, SceneContainer,
@@ -95,12 +99,6 @@ use crate::{
     world::selection::GraphSelection,
     Message, Settings,
 };
-use fyrox::core::blank_reflect_ref;
-use fyrox::core::uuid::Uuid;
-use fyrox::engine::GraphicsContext;
-use fyrox::gui::file_browser::FileType;
-use fyrox::scene::collider::BitMask;
-use fyrox::scene::pivot::Pivot;
 use std::{
     cell::RefCell,
     fmt::Debug,
@@ -432,17 +430,6 @@ impl GameScene {
             self,
             settings,
         );
-    }
-
-    /// Checks whether the current graph selection has references to the nodes outside of the selection.
-    pub fn is_current_selection_has_external_refs(
-        &self,
-        editor_selection: &Selection,
-        graph: &Graph,
-    ) -> bool {
-        editor_selection
-            .as_graph()
-            .is_some_and(|s| !graph.external_refs(s.nodes()).is_empty())
     }
 
     fn try_save_selection_as_prefab(&self, path: &Path, selection: &Selection, engine: &Engine) {
@@ -1117,6 +1104,17 @@ impl SceneController for GameScene {
                 name
             })
             .collect::<Vec<_>>()
+    }
+
+    fn is_current_selection_has_external_refs(
+        &self,
+        editor_selection: &Selection,
+        engine: &Engine,
+    ) -> bool {
+        let graph = &engine.scenes[self.scene].graph;
+        editor_selection
+            .as_graph()
+            .is_some_and(|s| !graph.external_refs(s.nodes()).is_empty())
     }
 }
 

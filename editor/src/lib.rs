@@ -57,6 +57,7 @@ pub mod world;
 
 pub use fyrox;
 
+use crate::scene::controller::SceneController;
 use crate::world::create::EntityCreator;
 use crate::{
     asset::{item::AssetItem, AssetBrowser},
@@ -1345,7 +1346,7 @@ impl Editor {
                                 if self.settings.general.show_node_removal_dialog
                                     && game_scene.is_current_selection_has_external_refs(
                                         &entry.selection,
-                                        &engine.scenes[game_scene.scene].graph,
+                                        engine,
                                     )
                                 {
                                     can_delete_immediately = false;

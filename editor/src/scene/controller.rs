@@ -21,9 +21,10 @@
 use crate::{
     command::{Command, CommandStack},
     fyrox::{
-        core::{algebra::Vector2, math::Rect, pool::Handle},
+        core::{algebra::Vector2, define_as_any_trait, math::Rect, pool::Handle},
         engine::Engine,
         gui::{
+            file_browser::FileType,
             message::{KeyCode, MouseButton},
             UiNode,
         },
@@ -34,8 +35,6 @@ use crate::{
     settings::{keys::KeyBindings, Settings},
     Message,
 };
-use fyrox::core::define_as_any_trait;
-use fyrox::gui::file_browser::FileType;
 use std::path::Path;
 
 define_as_any_trait!(SceneControllerAsAny => SceneController);
@@ -169,6 +168,13 @@ pub trait SceneController: SceneControllerAsAny {
         selection: &mut Selection,
         engine: &mut Engine,
     ) -> Vec<String>;
+
+    /// Checks whether the current selection has references to the nodes outside of the selection.
+    fn is_current_selection_has_external_refs(
+        &self,
+        editor_selection: &Selection,
+        engine: &Engine,
+    ) -> bool;
 }
 
 impl dyn SceneController {
