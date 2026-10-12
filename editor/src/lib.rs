@@ -57,7 +57,6 @@ pub mod world;
 
 pub use fyrox;
 
-use crate::scene::controller::SceneController;
 use crate::world::create::EntityCreator;
 use crate::{
     asset::{AssetBrowser, item::AssetItem},
@@ -1330,24 +1329,21 @@ impl Editor {
                     sender.send(Message::CloseScene(entry.id));
                 } else if hot_key == key_bindings.remove_selection {
                     let entry = self.scenes.current_scene_entry_mut();
-                    if let Some(command) = entry
+                    if let Some(delete_command) = entry
                         .selection
                         .make_delete_selection_command(&*entry.controller, engine)
                     {
-                        let mut can_delete_immediately = true;
-
-                        if entry.selection.is_graph()
-                            && let Some(game_scene) = entry.controller.downcast_ref::<GameScene>()
-                            && self.settings.general.show_node_removal_dialog
-                            && game_scene
-                                .is_current_selection_has_external_refs(&entry.selection, engine)
+                        if self.settings.general.show_node_removal_dialog
+                            && let Some(refs) = entry
+                                .controller
+                                .selection_external_refs(&entry.selection, engine)
                         {
-                            can_delete_immediately = false;
-                            sender.send(Message::OpenNodeRemovalDialog);
-                        }
-
-                        if can_delete_immediately {
-                            sender.send(Message::DoCommand(command));
+                            sender.send(Message::OpenNodeRemovalDialog {
+                                delete_command,
+                                refs,
+                            });
+                        } else {
+                            sender.send(Message::DoCommand(delete_command));
                         }
                     }
                 } else if hot_key == key_bindings.focus {
@@ -1508,13 +1504,8 @@ impl Editor {
                 &self.message_sender,
                 engine,
             );
-            self.node_removal_dialog.handle_ui_message(
-                &current_scene_entry.selection,
-                game_scene,
-                message,
-                engine,
-                &self.message_sender,
-            );
+            self.node_removal_dialog
+                .handle_ui_message(message, engine, &self.message_sender);
 
             self.navmesh_panel
                 .handle_message(message, &current_scene_entry.selection);
@@ -2686,17 +2677,12 @@ impl Editor {
                         self.configure(working_directory);
                         needs_sync = true;
                     }
-                    Message::OpenNodeRemovalDialog => {
-                        let entry = self.scenes.current_scene_entry_ref();
-                        // TODO
-                        if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
-                            self.node_removal_dialog.open(
-                                &entry.selection,
-                                game_scene,
-                                &self.engine,
-                            )
-                        }
-                    }
+                    Message::OpenNodeRemovalDialog {
+                        delete_command,
+                        refs,
+                    } => self
+                        .node_removal_dialog
+                        .open(delete_command, refs, &self.engine),
                     Message::OpenEntityCreator(mode) => {
                         self.entity_creator
                             .open(mode, self.engine.user_interfaces.first());
@@ -2941,7 +2927,7 @@ impl Editor {
             // Keep the editor active if user holds any mouse button.
             || self.engine.user_interfaces.first().captured_node().is_some()
             // Keep the editor active until it fully loads all the queued scenes.
-            ||!self.loading_scenes.safe_lock().is_empty())
+            || !self.loading_scenes.safe_lock().is_empty())
     }
 
     fn on_resumed(&mut self, event_loop: &ActiveEventLoop) {
@@ -3078,12 +3064,12 @@ impl Editor {
                                 self.try_process_file_system_events();
                             }
                             WindowEvent::Moved(new_position)
-                                // Allow the window to go outside the screen bounds by a little. This
-                                // happens when the window is maximized.
-                                if new_position.x > -50 && new_position.y > -50 => {
-                                    self.settings.windows.window_position.x = new_position.x as f32;
-                                    self.settings.windows.window_position.y = new_position.y as f32;
-                                }
+                            // Allow the window to go outside the screen bounds by a little. This
+                            // happens when the window is maximized.
+                            if new_position.x > -50 && new_position.y > -50 => {
+                                self.settings.windows.window_position.x = new_position.x as f32;
+                                self.settings.windows.window_position.y = new_position.y as f32;
+                            }
                             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                                 set_ui_scaling(
                                     self.engine.user_interfaces.first(),
@@ -3091,18 +3077,18 @@ impl Editor {
                                 );
                             }
                             WindowEvent::RedrawRequested
-                                if self.is_active() => {
-                                    let entry = self.scenes.current_scene_entry_mut();
-                                    entry
-                                        .controller
-                                        .on_before_render(&entry.selection, &mut self.engine);
+                            if self.is_active() => {
+                                let entry = self.scenes.current_scene_entry_mut();
+                                entry
+                                    .controller
+                                    .on_before_render(&entry.selection, &mut self.engine);
 
-                                    self.engine.render().unwrap();
+                                self.engine.render().unwrap();
 
-                                    self.scenes
-                                        .current_scene_controller_mut()
-                                        .on_after_render(&mut self.engine);
-                                }
+                                self.scenes
+                                    .current_scene_controller_mut()
+                                    .on_after_render(&mut self.engine);
+                            }
                             _ => (),
                         }
 

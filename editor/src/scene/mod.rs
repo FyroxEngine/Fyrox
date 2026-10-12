@@ -1103,15 +1103,15 @@ impl SceneController for GameScene {
             .collect::<Vec<_>>()
     }
 
-    fn is_current_selection_has_external_refs(
+    fn selection_external_refs(
         &self,
         editor_selection: &Selection,
         engine: &Engine,
-    ) -> bool {
+    ) -> Option<String> {
         let graph = &engine.scenes[self.scene].graph;
         editor_selection
             .as_graph()
-            .is_some_and(|s| !graph.external_refs(s.nodes()).is_empty())
+            .and_then(|s| graph.external_refs_summary(s.nodes()))
     }
 }
 

@@ -1571,7 +1571,10 @@ pub trait SceneGraph: 'static {
     }
 
     /// Tries to find all handles to nodes outside the subgraphs formed by the given set of nodes.
-    fn external_refs(&self, nodes: &[Handle<Self::NodeWrapper>]) -> Vec<Handle<Self::NodeWrapper>> {
+    fn external_refs(
+        &self,
+        nodes: &[Handle<Self::NodeWrapper>],
+    ) -> FxHashMap<Handle<Self::NodeWrapper>, Vec<Handle<Self::NodeWrapper>>> {
         let roots = self.root_nodes(nodes);
         let mut all_nodes = FxHashSet::default();
         for root in roots {
@@ -1580,15 +1583,57 @@ pub trait SceneGraph: 'static {
             }
         }
 
-        let mut external_refs = FxHashSet::default();
+        let mut external_refs =
+            FxHashMap::<Handle<Self::NodeWrapper>, Vec<Handle<Self::NodeWrapper>>>::default();
         for &descendant_handle in all_nodes.iter() {
             for reference in self.find_references_to(descendant_handle) {
                 if !all_nodes.contains(&reference) {
-                    external_refs.insert(reference);
+                    external_refs
+                        .entry(descendant_handle)
+                        .or_default()
+                        .push(reference);
                 }
             }
         }
-        external_refs.into_iter().collect()
+        external_refs
+    }
+
+    fn external_refs_summary(&self, nodes: &[Handle<Self::NodeWrapper>]) -> Option<String> {
+        use std::fmt::Write;
+        let refs = self.external_refs(nodes);
+        if refs.is_empty() {
+            None
+        } else {
+            let mut summary = String::new();
+            for (node_handle, references) in refs {
+                if let Ok(node) = self.try_get_node(node_handle) {
+                    write!(
+                        &mut summary,
+                        "Node `{}`({}:{}) referenced in ",
+                        node.name(),
+                        node_handle.index(),
+                        node_handle.generation(),
+                    )
+                    .unwrap();
+
+                    for reference_handle in references {
+                        if let Ok(reference) = self.try_get_node(reference_handle) {
+                            writeln!(
+                                &mut summary,
+                                "`{}`({}:{}); ",
+                                reference.name(),
+                                reference_handle.index(),
+                                reference_handle.generation()
+                            )
+                            .unwrap();
+                        }
+                    }
+
+                    writeln!(&mut summary, " node(s).").unwrap();
+                }
+            }
+            Some(summary)
+        }
     }
 }
 
@@ -1735,6 +1780,7 @@ where
 #[cfg(test)]
 mod test {
     use crate::{NodeHandleMap, NodeMapping, NodeWrapper, PrefabData, SceneGraph};
+    use fxhash::FxHashMap;
     use fyrox_core::pool::{ObjectOrVariant, ObjectOrVariantHelper, PoolError};
     use fyrox_core::uuid::Uuid;
     use fyrox_core::{
@@ -2623,17 +2669,26 @@ mod test {
     #[test]
     fn test_is_nodes_have_external_refs() {
         let instance = TestGraphInstance::new();
-        let empty_nodes = Vec::<Handle<TestNode>>::new();
+        let empty_nodes = FxHashMap::<Handle<TestNode>, Vec<Handle<TestNode>>>::default();
         assert_eq!(
             instance.graph.external_refs(&[instance.joint.to_base()],),
             empty_nodes
+        );
+        let mut expected_refs = FxHashMap::<Handle<TestNode>, Vec<Handle<TestNode>>>::default();
+        expected_refs.insert(
+            instance.rigid_body.to_base(),
+            vec![instance.joint.to_base()],
+        );
+        expected_refs.insert(
+            instance.rigid_body2.to_base(),
+            vec![instance.joint.to_base()],
         );
         assert_eq!(
             instance.graph.external_refs(&[
                 instance.rigid_body.to_base(),
                 instance.rigid_body2.to_base()
             ]),
-            vec![instance.joint]
+            expected_refs
         );
     }
 }

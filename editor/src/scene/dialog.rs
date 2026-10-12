@@ -18,13 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::scene::controller::SceneController;
+use crate::command::Command;
 use crate::{
     Message,
     fyrox::{
         core::pool::Handle,
         engine::Engine,
-        graph::SceneGraph,
         gui::{
             BuildContext, HorizontalAlignment, Orientation, Thickness,
             button::{Button, ButtonBuilder, ButtonMessage},
@@ -40,15 +39,14 @@ use crate::{
         },
     },
     message::MessageSender,
-    scene::{GameScene, Selection},
 };
-use fyrox::core::some_or_return;
 
 pub struct NodeRemovalDialog {
     pub window: Handle<Window>,
     info_text: Handle<TextBox>,
     ok: Handle<Button>,
     cancel: Handle<Button>,
+    command: Option<Command>,
 }
 
 impl NodeRemovalDialog {
@@ -140,14 +138,12 @@ impl NodeRemovalDialog {
             window,
             ok,
             cancel,
+            command: None,
         }
     }
 
-    pub fn open(&mut self, editor_selection: &Selection, game_scene: &GameScene, engine: &Engine) {
-        let graph_selection = some_or_return!(editor_selection.as_graph());
-
+    pub fn open(&mut self, delete_command: Command, refs: String, engine: &Engine) {
         let ui = &engine.user_interfaces.first();
-        let graph = &engine.scenes[game_scene.scene].graph;
 
         ui.send(
             self.window,
@@ -158,33 +154,13 @@ impl NodeRemovalDialog {
             },
         );
 
-        let mut text = String::new();
+        ui.send(self.info_text, TextMessage::Text(refs));
 
-        let selection = graph_selection.selection_to_delete(game_scene);
-        for root in selection.nodes.iter() {
-            for (node_handle, node) in graph.traverse_iter(*root) {
-                for reference_handle in graph.find_references_to(node_handle) {
-                    let reference = &graph[reference_handle];
-                    text += &format!(
-                        "Scene node `{}`({}:{}) referenced in `{}`({}:{}) scene node.\n",
-                        node.name(),
-                        node_handle.index(),
-                        node_handle.generation(),
-                        reference.name(),
-                        reference_handle.index(),
-                        reference_handle.generation()
-                    );
-                }
-            }
-        }
-
-        ui.send(self.info_text, TextMessage::Text(text));
+        self.command = Some(delete_command);
     }
 
     pub fn handle_ui_message(
         &mut self,
-        editor_selection: &Selection,
-        controller: &dyn SceneController,
         message: &UiMessage,
         engine: &Engine,
         sender: &MessageSender,
@@ -194,9 +170,7 @@ impl NodeRemovalDialog {
             if message.destination() == self.ok {
                 ui.send(self.window, WindowMessage::Close);
 
-                if let Some(command) =
-                    editor_selection.make_delete_selection_command(controller, engine)
-                {
+                if let Some(command) = self.command.take() {
                     sender.send(Message::DoCommand(command));
                 }
             } else if message.destination() == self.cancel {

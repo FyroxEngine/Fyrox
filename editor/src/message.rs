@@ -83,7 +83,10 @@ pub enum Message {
     OpenMaterialEditor(MaterialResource),
     OpenTileSetEditor(TileSetResource),
     OpenTileMapBrushEditor(TileMapBrushResource),
-    OpenNodeRemovalDialog,
+    OpenNodeRemovalDialog {
+        delete_command: Command,
+        refs: String,
+    },
     ShowInAssetBrowser(PathBuf),
     LocateObject {
         handle: ErasedHandle,

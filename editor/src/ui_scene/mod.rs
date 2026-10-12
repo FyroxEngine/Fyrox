@@ -507,13 +507,13 @@ impl SceneController for UiScene {
             .collect::<Vec<_>>()
     }
 
-    fn is_current_selection_has_external_refs(
+    fn selection_external_refs(
         &self,
         editor_selection: &Selection,
         _engine: &Engine,
-    ) -> bool {
+    ) -> Option<String> {
         editor_selection
             .as_ui()
-            .is_some_and(|s| !self.ui.external_refs(&s.widgets).is_empty())
+            .and_then(|s| self.ui.external_refs_summary(&s.widgets))
     }
 }

@@ -170,11 +170,11 @@ pub trait SceneController: SceneControllerAsAny {
     ) -> Vec<String>;
 
     /// Checks whether the current selection has references to the nodes outside of the selection.
-    fn is_current_selection_has_external_refs(
+    fn selection_external_refs(
         &self,
         editor_selection: &Selection,
         engine: &Engine,
-    ) -> bool;
+    ) -> Option<String>;
 }
 
 impl dyn SceneController {
