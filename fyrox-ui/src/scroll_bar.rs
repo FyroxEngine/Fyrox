@@ -187,31 +187,34 @@ impl Control for ScrollBar {
         // Adjust indicator position according to current value
         let percent = (*self.value - *self.min) / (*self.max - *self.min);
 
-        let field_size = ui[*self.indicator_canvas].actual_local_size();
+        if let (Ok(indicator_canvas), Ok(indicator)) = (
+            ui.try_get(*self.indicator_canvas),
+            ui.try_get(*self.indicator),
+        ) {
+            let field_size = indicator_canvas.actual_local_size();
+            match *self.orientation {
+                Orientation::Horizontal => {
+                    ui.send(*self.indicator, WidgetMessage::Height(field_size.y));
+                    ui.send(*self.decrease, WidgetMessage::Width(field_size.y));
+                    ui.send(*self.increase, WidgetMessage::Width(field_size.y));
 
-        let indicator = ui.node(*self.indicator);
-        match *self.orientation {
-            Orientation::Horizontal => {
-                ui.send(*self.indicator, WidgetMessage::Height(field_size.y));
-                ui.send(*self.decrease, WidgetMessage::Width(field_size.y));
-                ui.send(*self.increase, WidgetMessage::Width(field_size.y));
+                    let position = Vector2::new(
+                        percent * (field_size.x - indicator.actual_local_size().x).max(0.0),
+                        0.0,
+                    );
+                    ui.send(*self.indicator, WidgetMessage::DesiredPosition(position));
+                }
+                Orientation::Vertical => {
+                    ui.send(*self.indicator, WidgetMessage::Width(field_size.x));
+                    ui.send(*self.decrease, WidgetMessage::Height(field_size.x));
+                    ui.send(*self.increase, WidgetMessage::Height(field_size.x));
 
-                let position = Vector2::new(
-                    percent * (field_size.x - indicator.actual_local_size().x).max(0.0),
-                    0.0,
-                );
-                ui.send(*self.indicator, WidgetMessage::DesiredPosition(position));
-            }
-            Orientation::Vertical => {
-                ui.send(*self.indicator, WidgetMessage::Width(field_size.x));
-                ui.send(*self.decrease, WidgetMessage::Height(field_size.x));
-                ui.send(*self.increase, WidgetMessage::Height(field_size.x));
-
-                let position = Vector2::new(
-                    0.0,
-                    percent * (field_size.y - indicator.actual_local_size().y).max(0.0),
-                );
-                ui.send(*self.indicator, WidgetMessage::DesiredPosition(position));
+                    let position = Vector2::new(
+                        0.0,
+                        percent * (field_size.y - indicator.actual_local_size().y).max(0.0),
+                    );
+                    ui.send(*self.indicator, WidgetMessage::DesiredPosition(position));
+                }
             }
         }
 
@@ -304,26 +307,31 @@ impl Control for ScrollBar {
                     }
                 }
                 ScrollBarMessage::SizeRatio(size_ratio) => {
-                    let field_size = ui[*self.indicator_canvas].actual_global_size();
-                    let indicator_size = ui.node(*self.indicator).actual_global_size();
+                    if let (Ok(indicator_canvas), Ok(indicator)) = (
+                        ui.try_get(*self.indicator_canvas),
+                        ui.try_get(*self.indicator),
+                    ) {
+                        let field_size = indicator_canvas.actual_global_size();
+                        let indicator_size = indicator.actual_global_size();
 
-                    match *self.orientation {
-                        Orientation::Horizontal => {
-                            // the minimum size of the indicator will be 15 irrespective of size ratio
-                            let new_size = (size_ratio * field_size.x).max(15.0);
-                            let old_size = indicator_size.x;
+                        match *self.orientation {
+                            Orientation::Horizontal => {
+                                // the minimum size of the indicator will be 15 irrespective of size ratio
+                                let new_size = (size_ratio * field_size.x).max(15.0);
+                                let old_size = indicator_size.x;
 
-                            if new_size != old_size {
-                                ui.send(*self.indicator, WidgetMessage::Width(new_size));
+                                if new_size != old_size {
+                                    ui.send(*self.indicator, WidgetMessage::Width(new_size));
+                                }
                             }
-                        }
-                        Orientation::Vertical => {
-                            // the minimum size of the indicator will be 15 irrespective of size ratio
-                            let new_size = (size_ratio * field_size.y).max(15.0);
-                            let old_size = indicator_size.y;
+                            Orientation::Vertical => {
+                                // the minimum size of the indicator will be 15 irrespective of size ratio
+                                let new_size = (size_ratio * field_size.y).max(15.0);
+                                let old_size = indicator_size.y;
 
-                            if new_size != old_size {
-                                ui.send(*self.indicator, WidgetMessage::Height(new_size));
+                                if new_size != old_size {
+                                    ui.send(*self.indicator, WidgetMessage::Height(new_size));
+                                }
                             }
                         }
                     }
@@ -345,39 +353,45 @@ impl Control for ScrollBar {
                     ui.release_mouse_capture();
                     message.set_handled(true);
                 }
-                WidgetMessage::MouseMove { pos: mouse_pos, .. } if self.indicator.is_some() => {
-                    let indicator_canvas = &ui[*self.indicator_canvas];
-                    let indicator_size = ui.nodes.borrow(*self.indicator).actual_global_size();
-                    if self.is_dragging {
-                        let percent = match *self.orientation {
-                            Orientation::Horizontal => {
-                                let span =
-                                    indicator_canvas.actual_global_size().x - indicator_size.x;
-                                let offset = mouse_pos.x - indicator_canvas.screen_position().x
-                                    + self.offset.x;
-                                if span > 0.0 {
-                                    (offset / span).clamp(0.0, 1.0)
-                                } else {
-                                    0.0
+                WidgetMessage::MouseMove { pos: mouse_pos, .. } => {
+                    if let (Ok(indicator_canvas), Ok(indicator)) = (
+                        ui.try_get(*self.indicator_canvas),
+                        ui.try_get(*self.indicator),
+                    ) {
+                        let indicator_size = indicator.actual_global_size();
+                        if self.is_dragging {
+                            let percent = match *self.orientation {
+                                Orientation::Horizontal => {
+                                    let span =
+                                        indicator_canvas.actual_global_size().x - indicator_size.x;
+                                    let offset = mouse_pos.x - indicator_canvas.screen_position().x
+                                        + self.offset.x;
+                                    if span > 0.0 {
+                                        (offset / span).clamp(0.0, 1.0)
+                                    } else {
+                                        0.0
+                                    }
                                 }
-                            }
-                            Orientation::Vertical => {
-                                let span =
-                                    indicator_canvas.actual_global_size().y - indicator_size.y;
-                                let offset = mouse_pos.y - indicator_canvas.screen_position().y
-                                    + self.offset.y;
-                                if span > 0.0 {
-                                    (offset / span).clamp(0.0, 1.0)
-                                } else {
-                                    0.0
+                                Orientation::Vertical => {
+                                    let span =
+                                        indicator_canvas.actual_global_size().y - indicator_size.y;
+                                    let offset = mouse_pos.y - indicator_canvas.screen_position().y
+                                        + self.offset.y;
+                                    if span > 0.0 {
+                                        (offset / span).clamp(0.0, 1.0)
+                                    } else {
+                                        0.0
+                                    }
                                 }
-                            }
-                        };
-                        ui.send(
-                            self.handle(),
-                            ScrollBarMessage::Value(*self.min + percent * (*self.max - *self.min)),
-                        );
-                        message.set_handled(true);
+                            };
+                            ui.send(
+                                self.handle(),
+                                ScrollBarMessage::Value(
+                                    *self.min + percent * (*self.max - *self.min),
+                                ),
+                            );
+                            message.set_handled(true);
+                        }
                     }
                 }
                 _ => (),
