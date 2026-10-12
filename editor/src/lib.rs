@@ -1468,6 +1468,9 @@ impl Editor {
             &self.message_sender,
         );
 
+        self.node_removal_dialog
+            .handle_ui_message(message, engine, &self.message_sender);
+
         if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
             self.entity_creator.handle_ui_message_with_game_scene(
                 game_scene,
@@ -1504,8 +1507,6 @@ impl Editor {
                 &self.message_sender,
                 engine,
             );
-            self.node_removal_dialog
-                .handle_ui_message(message, engine, &self.message_sender);
 
             self.navmesh_panel
                 .handle_message(message, &current_scene_entry.selection);
