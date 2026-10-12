@@ -22,6 +22,7 @@ use crate::font::FontHeight;
 use crate::formatted_text::{DrawValueLayer, GlyphDrawValues};
 use crate::style::resource::StyleResource;
 use crate::{
+    Thickness,
     brush::Brush,
     core::{
         algebra::{Matrix3, Point2, Vector2},
@@ -31,10 +32,9 @@ use crate::{
     },
     font::FontResource,
     formatted_text::FormattedText,
-    Thickness,
 };
 use bytemuck::{Pod, Zeroable};
-use fyrox_core::math::{round_to_step, OptionRect};
+use fyrox_core::math::{OptionRect, round_to_step};
 use fyrox_material::MaterialResource;
 use fyrox_texture::TextureResource;
 use std::fmt::{Display, Formatter};
@@ -104,10 +104,10 @@ impl ClippingGeometry {
     #[inline]
     pub fn is_contains_point(&self, pos: Vector2<f32>) -> bool {
         for triangle in self.triangle_buffer.iter() {
-            if let Some((va, vb, vc)) = self.triangle_points(triangle) {
-                if math::is_point_inside_2d_triangle(pos, va.pos, vb.pos, vc.pos) {
-                    return true;
-                }
+            if let Some((va, vb, vc)) = self.triangle_points(triangle)
+                && math::is_point_inside_2d_triangle(pos, va.pos, vb.pos, vc.pos)
+            {
+                return true;
             }
         }
 
@@ -860,12 +860,11 @@ impl RenderData {
     #[inline]
     pub fn is_command_contains_point(&self, command: &Command, pos: Vector2<f32>) -> bool {
         for i in command.triangles.clone() {
-            if let Some(triangle) = self.triangle_buffer.get(i) {
-                if let Some((va, vb, vc)) = self.triangle_points(triangle) {
-                    if math::is_point_inside_2d_triangle(pos, va.pos, vb.pos, vc.pos) {
-                        return true;
-                    }
-                }
+            if let Some(triangle) = self.triangle_buffer.get(i)
+                && let Some((va, vb, vc)) = self.triangle_points(triangle)
+                && math::is_point_inside_2d_triangle(pos, va.pos, vb.pos, vc.pos)
+            {
+                return true;
             }
         }
 
@@ -895,13 +894,12 @@ impl RenderData {
         screen_space_rect: Rect<f32>,
     ) -> bool {
         for i in command.triangles.clone() {
-            if let Some(triangle) = self.triangle_buffer.get(i) {
-                if let Some(edges) = self.screen_space_triangle_edges(triangle, &command.transform)
-                {
-                    for (a, b) in edges {
-                        if math::ray_rect_intersection(screen_space_rect, a, b - a).is_some() {
-                            return true;
-                        }
+            if let Some(triangle) = self.triangle_buffer.get(i)
+                && let Some(edges) = self.screen_space_triangle_edges(triangle, &command.transform)
+            {
+                for (a, b) in edges {
+                    if math::ray_rect_intersection(screen_space_rect, a, b - a).is_some() {
+                        return true;
                     }
                 }
             }
@@ -1101,10 +1099,10 @@ impl DrawingContext {
         ) {
             let mut current_draw_values = None;
             for element in formatted_text.get_glyphs() {
-                if let DrawValueLayer::Shadow = layer {
-                    if !formatted_text.shadow_at(element.source_char_index) {
-                        continue;
-                    }
+                if let DrawValueLayer::Shadow = layer
+                    && !formatted_text.shadow_at(element.source_char_index)
+                {
+                    continue;
                 }
                 let draw_values = formatted_text.get_glyph_draw_values(layer, element);
                 if current_draw_values.is_none() {

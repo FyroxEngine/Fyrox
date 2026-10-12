@@ -19,15 +19,18 @@
 // SOFTWARE.
 
 use crate::{
+    Engine,
     fyrox::{
         core::{log::Log, make_relative_path, pool::Handle, reflect::prelude::*},
         gui::{
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
+            VerticalAlignment,
             button::{Button, ButtonBuilder, ButtonMessage},
             formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
             inspector::{
-                editors::PropertyEditorDefinitionContainer, Inspector, InspectorBuilder,
-                InspectorContext, InspectorContextArgs, InspectorMessage, PropertyAction,
+                Inspector, InspectorBuilder, InspectorContext, InspectorContextArgs,
+                InspectorMessage, PropertyAction, editors::PropertyEditorDefinitionContainer,
             },
             message::UiMessage,
             progress_bar::{ProgressBar, ProgressBarBuilder, ProgressBarMessage},
@@ -36,8 +39,6 @@ use crate::{
             text::{Text, TextBuilder, TextMessage},
             widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
-            VerticalAlignment,
         },
         utils::lightmap::{
             CancellationToken, Lightmap, LightmapGenerationError, LightmapInputData,
@@ -45,13 +46,12 @@ use crate::{
         },
     },
     scene::GameScene,
-    Engine,
 };
 use std::{
     path::PathBuf,
     sync::{
-        mpsc::{Receiver, Sender},
         Arc,
+        mpsc::{Receiver, Sender},
     },
 };
 
@@ -405,10 +405,10 @@ impl LightPanel {
                 Log::verify(scene.graph.set_lightmap(None));
             }
 
-            if let Some(progress_window) = self.progress_window.as_ref() {
-                if message.destination() == progress_window.cancel {
-                    progress_window.cancellation_token.cancel();
-                }
+            if let Some(progress_window) = self.progress_window.as_ref()
+                && message.destination() == progress_window.cancel
+            {
+                progress_window.cancellation_token.cancel();
             }
         } else if let Some(InspectorMessage::PropertyChanged(args)) =
             message.data_from(self.inspector)

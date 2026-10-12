@@ -18,13 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use cargo_metadata::{semver::VersionReq, Dependency, Metadata};
+use cargo_metadata::{Dependency, Metadata, semver::VersionReq};
 use fyrox::gui::button::Button;
 use fyrox::{
     core::pool::Handle,
     gui::{
-        button::ButtonBuilder, text::TextBuilder, utils::make_simple_tooltip,
-        widget::WidgetBuilder, BuildContext, HorizontalAlignment, Thickness, VerticalAlignment,
+        BuildContext, HorizontalAlignment, Thickness, VerticalAlignment, button::ButtonBuilder,
+        text::TextBuilder, utils::make_simple_tooltip, widget::WidgetBuilder,
     },
 };
 use std::{

@@ -31,7 +31,7 @@ use fyrox_texture::{
     CompressionOptions, Texture, TextureImportOptions, TextureKind, TextureMinificationFilter,
     TexturePixelKind, TextureResource, TextureResourceExtension, TextureWrapMode,
 };
-use uuid::{uuid, Uuid};
+use uuid::{Uuid, uuid};
 
 /// Skybox is a huge box around a camera. Each face has its own texture, when textures are
 /// properly made, there is no seams and you get good decoration which contains static
@@ -431,10 +431,15 @@ impl Display for SkyBoxError {
                 actual_width,
                 actual_height,
                 actual_pixel_kind,
-            } => write!(f, "Some input texture differs in size or pixel kind. Index: {index}. \
+            } => write!(
+                f,
+                "Some input texture differs in size or pixel kind. Index: {index}. \
             Expected width: {expected_width}, height: {expected_height}, kind: {expected_pixel_kind:?}. \
-            Actual width: {actual_width}, height: {actual_height}, kind: {actual_pixel_kind:?}."),
-            SkyBoxError::TextureIsNotReady { index } => write!(f, "Input texture is not loaded. Index: {index}"),
+            Actual width: {actual_width}, height: {actual_height}, kind: {actual_pixel_kind:?}."
+            ),
+            SkyBoxError::TextureIsNotReady { index } => {
+                write!(f, "Input texture is not loaded. Index: {index}")
+            }
         }
     }
 }

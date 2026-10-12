@@ -21,11 +21,11 @@
 use crate::{
     core::reflect::prelude::*,
     inspector::{
+        InspectorError, PropertyChanged,
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        InspectorError, PropertyChanged,
     },
     message::UiMessage,
 };

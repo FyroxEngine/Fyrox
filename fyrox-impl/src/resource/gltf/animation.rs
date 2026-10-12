@@ -247,10 +247,10 @@ fn target_is_fixed_in_all(
     graph: &Graph,
 ) -> bool {
     for anim in anims {
-        if let Some(track) = anim.get(target) {
-            if !track.is_fixed_to_graph(graph) {
-                return false;
-            }
+        if let Some(track) = anim.get(target)
+            && !track.is_fixed_to_graph(graph)
+        {
+            return false;
         }
     }
     true

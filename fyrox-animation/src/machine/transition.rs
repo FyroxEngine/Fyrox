@@ -21,12 +21,12 @@
 //! Transition is a connection between two states with a rule that defines possibility of actual transition with blending.
 
 use crate::{
+    Animation, AnimationContainer, EntityId,
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     machine::{Parameter, ParameterContainer, State},
-    Animation, AnimationContainer, EntityId,
 };
-use fyrox_core::uuid::uuid;
 use fyrox_core::NameProvider;
+use fyrox_core::uuid::uuid;
 use std::ops::{Deref, DerefMut};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 

@@ -19,15 +19,15 @@
 // SOFTWARE.
 
 use crate::{
+    Editor, StartupData,
     fyrox::{
         core::{algebra::Vector2, info, pool::Handle},
         engine::ApplicationLoopController,
-        gui::{test::UserInterfaceTestingExtension, Control, UiNode},
+        gui::{Control, UiNode, test::UserInterfaceTestingExtension},
     },
     plugin::EditorPlugin,
     settings::Settings,
     test::macros::Macro,
-    Editor, StartupData,
 };
 use fyrox::core::uuid::Uuid;
 use std::path::PathBuf;

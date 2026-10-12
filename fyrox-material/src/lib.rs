@@ -12,15 +12,15 @@ use fyrox_core::{
     io::FileError,
     reflect::prelude::*,
     sstorage::ImmutableString,
-    uuid::{uuid, Uuid},
+    uuid::{Uuid, uuid},
     visitor::prelude::*,
 };
 use fyrox_resource::{
+    Resource, ResourceData,
     io::ResourceIo,
     manager::{BuiltInResource, ResourceManager},
     state::ResourceState,
     untyped::ResourceKind,
-    Resource, ResourceData,
 };
 use fyrox_texture::TextureResource;
 use std::{

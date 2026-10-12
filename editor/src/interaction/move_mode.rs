@@ -20,6 +20,7 @@
 
 use crate::camera::PickMethod;
 use crate::{
+    Engine, Message,
     camera::{CameraController, PickingOptions},
     command::{Command, CommandGroup},
     fyrox::{
@@ -28,26 +29,25 @@ use crate::{
             math::plane::Plane,
             pool::Handle,
             reflect::prelude::*,
-            uuid::{uuid, Uuid},
+            uuid::{Uuid, uuid},
         },
         fxhash::FxHashSet,
         graph::SceneGraph,
         gui::BuildContext,
-        scene::{camera::Projection, graph::Graph, node::Node, Scene},
+        scene::{Scene, camera::Projection, graph::Graph, node::Node},
     },
     interaction::{
-        gizmo::move_gizmo::MoveGizmo, make_interaction_mode_button, plane::PlaneKind,
-        InteractionMode,
+        InteractionMode, gizmo::move_gizmo::MoveGizmo, make_interaction_mode_button,
+        plane::PlaneKind,
     },
     message::MessageSender,
     scene::{
-        commands::{graph::MoveNodeCommand, ChangeSelectionCommand},
-        controller::SceneController,
         GameScene, Selection,
+        commands::{ChangeSelectionCommand, graph::MoveNodeCommand},
+        controller::SceneController,
     },
     settings::Settings,
     world::selection::GraphSelection,
-    Engine, Message,
 };
 use fyrox::core::some_or_return;
 use fyrox::gui::button::Button;
@@ -326,20 +326,18 @@ impl InteractionMode for MoveInteractionMode {
                 method: Default::default(),
                 settings: &settings.selection,
             },
-        ) {
-            if let Some(plane_kind) = self.move_gizmo.handle_pick(result.node, graph) {
-                if let Some(selection) = editor_selection.as_graph() {
-                    self.move_context = Some(MoveContext::from_graph_selection(
-                        selection,
-                        scene,
-                        &self.move_gizmo,
-                        &game_scene.camera_controller,
-                        plane_kind,
-                        mouse_pos,
-                        frame_size,
-                    ));
-                }
-            }
+        ) && let Some(plane_kind) = self.move_gizmo.handle_pick(result.node, graph)
+            && let Some(selection) = editor_selection.as_graph()
+        {
+            self.move_context = Some(MoveContext::from_graph_selection(
+                selection,
+                scene,
+                &self.move_gizmo,
+                &game_scene.camera_controller,
+                plane_kind,
+                mouse_pos,
+                frame_size,
+            ));
         }
     }
 
@@ -504,8 +502,7 @@ impl InteractionMode for MoveInteractionMode {
     }
 
     fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<Button> {
-        let move_mode_tooltip =
-            "Move Object(s) - Shortcut: [2]\n\nMovement interaction mode allows you to move selected \
+        let move_mode_tooltip = "Move Object(s) - Shortcut: [2]\n\nMovement interaction mode allows you to move selected \
         objects. Keep in mind that movement always works in local coordinates!\n\n\
         This also allows you to select an object or add an object to current selection using Ctrl+Click";
 

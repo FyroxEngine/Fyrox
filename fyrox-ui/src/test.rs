@@ -20,11 +20,11 @@
 
 use crate::message::{ButtonState, KeyCode, OsEvent};
 use crate::{
+    BuildContext, Control, UiNode, UserInterface,
     core::{algebra::Vector2, info, pool::Handle, reflect::Reflect},
     message::{MessageData, UiMessage},
     text::Text,
     widget::WidgetMessage,
-    BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_core::err;
 use fyrox_core::pool::ObjectOrVariant;
@@ -134,12 +134,12 @@ impl UserInterfaceTestingExtension for UserInterface {
                 self.click(center);
                 if self.visual_debug {
                     info!(
-                    "==== Clicked at {text}({}:{}) at [{};{}] coords. Found from {uuid} starting location. ====",
-                    text_handle.index(),
-                    text_handle.generation(),
-                    center.x,
-                    center.y
-                );
+                        "==== Clicked at {text}({}:{}) at [{};{}] coords. Found from {uuid} starting location. ====",
+                        text_handle.index(),
+                        text_handle.generation(),
+                        center.x,
+                        center.y
+                    );
                 }
             }
         } else {
@@ -167,11 +167,11 @@ impl UserInterfaceTestingExtension for UserInterface {
 
     fn poll_all_messages(&mut self) {
         while let Some(msg) = self.poll_message() {
-            if self.visual_debug {
-                if let Ok(widget) = self.try_get(msg.destination()) {
-                    let ty = widget.type_info_ref().type_name;
-                    info!("[{ty}]{msg:?}");
-                }
+            if self.visual_debug
+                && let Ok(widget) = self.try_get(msg.destination())
+            {
+                let ty = widget.type_info_ref().type_name;
+                info!("[{ty}]{msg:?}");
             }
         }
         let screen_size = self.screen_size();
@@ -181,11 +181,11 @@ impl UserInterfaceTestingExtension for UserInterface {
     fn poll_and_count(&mut self, mut pred: impl FnMut(&UiMessage) -> bool) -> usize {
         let mut num = 0;
         while let Some(msg) = self.poll_message() {
-            if self.visual_debug {
-                if let Ok(widget) = self.try_get(msg.destination()) {
-                    let ty = widget.type_info_ref().type_name;
-                    info!("[{ty}]{msg:?}");
-                }
+            if self.visual_debug
+                && let Ok(widget) = self.try_get(msg.destination())
+            {
+                let ty = widget.type_info_ref().type_name;
+                info!("[{ty}]{msg:?}");
             }
 
             if pred(&msg) {

@@ -27,14 +27,14 @@
 pub mod resource;
 
 use crate::{
+    Thickness,
     brush::Brush,
     button::Button,
     check_box::CheckBox,
-    core::{color::Color, reflect::prelude::*, visitor::prelude::*, ImmutableString},
+    core::{ImmutableString, color::Color, reflect::prelude::*, visitor::prelude::*},
     dropdown_list::DropdownList,
     style::resource::{StyleResource, StyleResourceError, StyleResourceExt},
     toggle::ToggleButton,
-    Thickness,
 };
 use fyrox_resource::untyped::ResourceKind;
 use fyrox_resource::{
@@ -669,8 +669,8 @@ impl Style {
 mod test {
     use crate::brush::Brush;
     use crate::style::Style;
-    use fyrox_core::color::Color;
     use fyrox_core::ImmutableString;
+    use fyrox_core::color::Color;
 
     #[test]
     fn test_style() {

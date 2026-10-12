@@ -21,10 +21,10 @@
 //! `Reflect` implementations
 
 use crate::{
+    SafeLock,
     reflect::{blank_reflect, prelude::*},
     sstorage::ImmutableString,
     uuid::Uuid,
-    SafeLock,
 };
 use fyrox_core_derive::impl_reflect;
 use nalgebra::*;

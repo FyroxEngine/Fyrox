@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::export::{asset, utils, ExportOptions};
-use cargo_metadata::{camino::Utf8Path, Metadata, Package};
+use crate::export::{ExportOptions, asset, utils};
+use cargo_metadata::{Metadata, Package, camino::Utf8Path};
 use fyrox_core::{log::Log, platform::TargetPlatform};
 use fyrox_resource::manager::ResourceManager;
 use std::{
@@ -61,16 +61,16 @@ pub fn copy_binaries(
         .unwrap()
         .flatten()
     {
-        if let Ok(file_metadata) = entry.metadata() {
-            if !file_metadata.file_type().is_file() {
-                continue;
-            }
+        if let Ok(file_metadata) = entry.metadata()
+            && !file_metadata.file_type().is_file()
+        {
+            continue;
         }
 
-        if let Some(stem) = entry.path().file_stem() {
-            if stem == OsStr::new(package_name) {
-                binary_paths.push(entry.path());
-            }
+        if let Some(stem) = entry.path().file_stem()
+            && stem == OsStr::new(package_name)
+        {
+            binary_paths.push(entry.path());
         }
     }
     for path in binary_paths {

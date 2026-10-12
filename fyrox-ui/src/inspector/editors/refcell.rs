@@ -19,18 +19,19 @@
 // SOFTWARE.
 
 use crate::{
-    core::{pool::Handle, reflect::prelude::*, PhantomDataSendSync},
+    UiNode,
+    core::{PhantomDataSendSync, pool::Handle, reflect::prelude::*},
     inspector::{
+        FieldAction, Inspector, InspectorBuilder, InspectorContext, InspectorContextArgs,
+        InspectorError, InspectorMessage, PropertyChanged,
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        make_expander_container, FieldAction, Inspector, InspectorBuilder, InspectorContext,
-        InspectorContextArgs, InspectorError, InspectorMessage, PropertyChanged,
+        make_expander_container,
     },
     message::{MessageDirection, UiMessage},
     widget::WidgetBuilder,
-    UiNode,
 };
 use fyrox_graph::SceneGraph;
 use std::{
@@ -156,13 +157,12 @@ where
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
         if let Some(InspectorMessage::PropertyChanged(msg)) = ctx.message.data::<InspectorMessage>()
+            && ctx.message.direction() == MessageDirection::FromWidget
         {
-            if ctx.message.direction() == MessageDirection::FromWidget {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_owned(),
-                    action: FieldAction::InspectableAction(Box::new(msg.clone())),
-                });
-            }
+            return Some(PropertyChanged {
+                name: ctx.name.to_owned(),
+                action: FieldAction::InspectableAction(Box::new(msg.clone())),
+            });
         }
 
         None

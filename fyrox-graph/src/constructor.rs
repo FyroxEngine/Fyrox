@@ -23,9 +23,9 @@ use fyrox_core::parking_lot::MappedMutexGuard;
 use fyrox_core::pool::Handle;
 use fyrox_core::uuid::Uuid;
 use fyrox_core::{
+    ImmutableString, SafeLock,
     parking_lot::{Mutex, MutexGuard},
     reflect::prelude::*,
-    ImmutableString, SafeLock,
 };
 use std::sync::Arc;
 

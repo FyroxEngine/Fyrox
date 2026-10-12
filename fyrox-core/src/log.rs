@@ -32,8 +32,8 @@ use std::fmt::{Debug, Display};
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::{self, Write};
 use std::path::Path;
-use std::sync::mpsc::Sender;
 use std::sync::LazyLock;
+use std::sync::mpsc::Sender;
 use std::time::Duration;
 
 #[cfg(target_arch = "wasm32")]

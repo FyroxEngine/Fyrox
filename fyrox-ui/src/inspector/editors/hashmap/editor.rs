@@ -20,27 +20,27 @@
 
 use crate::utils::ImageButtonBuilder;
 use crate::{
+    BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
     button::{Button, ButtonMessage},
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     grid::{Column, Grid, GridBuilder, GridMessage, Row},
     inspector::{
+        InspectorEnvironmentContainer,
         editors::{
+            PropertyEditorDefinitionContainer, PropertyEditorInstance,
             hashmap::{
+                HashMapKey, HashMapState, HashMapValue,
                 dialog::{
                     SelectHashMapKeyDialogWindow, SelectHashMapKeyDialogWindowBuilder,
                     SelectHashMapKeyDialogWindowMessage,
                 },
-                HashMapKey, HashMapState, HashMapValue,
             },
-            PropertyEditorDefinitionContainer, PropertyEditorInstance,
         },
-        InspectorEnvironmentContainer,
     },
     message::{MessageData, UiMessage},
     resources,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
 };
 use fxhash::FxHashSet;
 use fyrox_core::color::Color;

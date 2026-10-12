@@ -20,15 +20,15 @@
 
 //! Resource event handling.
 
+use crate::UntypedResource;
 use crate::core::{
+    SafeLock,
     parking_lot::Mutex,
     pool::{Handle, Pool},
-    SafeLock,
 };
-use crate::UntypedResource;
 use std::{
     path::PathBuf,
-    sync::{mpsc::Sender, Arc},
+    sync::{Arc, mpsc::Sender},
 };
 
 /// A resource event.

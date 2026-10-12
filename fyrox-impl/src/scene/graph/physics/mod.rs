@@ -24,6 +24,7 @@ pub mod character;
 
 use crate::{
     core::{
+        BiDirHashMap, SafeLock,
         algebra::{
             Isometry3, Matrix4, Point3, Translation, Translation3, UnitQuaternion, UnitVector3,
             Vector2, Vector3,
@@ -37,17 +38,16 @@ use crate::{
         reflect::prelude::*,
         variable::{InheritableVariable, VariableFlags},
         visitor::prelude::*,
-        BiDirHashMap, SafeLock,
     },
     scene::{
         self,
         collider::{self, ColliderShape, GeometrySource},
         debug::SceneDrawingContext,
-        graph::{isometric_global_transform, Graph, NodePool},
+        graph::{Graph, NodePool, isometric_global_transform},
         joint::{JointLocalFrames, JointMotorParams, JointParams},
         mesh::{
-            buffer::{VertexAttributeUsage, VertexReadTrait},
             Mesh,
+            buffer::{VertexAttributeUsage, VertexReadTrait},
         },
         node::{Node, NodeTrait},
         rigidbody::{self, ApplyAction, RigidBodyMassPropertiesType},
@@ -1441,48 +1441,47 @@ impl PhysicsWorld {
         rigid_body: &mut scene::rigidbody::RigidBody,
         parent_transform: Matrix4<f32>,
     ) {
-        if *self.enabled {
-            if let Some(native) = self.bodies.get(rigid_body.native.get()) {
-                if native.body_type() != RigidBodyType::Fixed {
-                    let local_transform: Matrix4<f32> = parent_transform
-                        .try_inverse()
-                        .unwrap_or_else(Matrix4::identity)
-                        * Isometry3::from(*native.position()).to_homogeneous();
+        if *self.enabled
+            && let Some(native) = self.bodies.get(rigid_body.native.get())
+            && native.body_type() != RigidBodyType::Fixed
+        {
+            let local_transform: Matrix4<f32> = parent_transform
+                .try_inverse()
+                .unwrap_or_else(Matrix4::identity)
+                * Isometry3::from(*native.position()).to_homogeneous();
 
-                    let new_local_rotation = UnitQuaternion::from_matrix_eps(
-                        &local_transform.basis(),
-                        f32::EPSILON,
-                        16,
-                        UnitQuaternion::identity(),
-                    );
-                    let new_local_position = Vector3::new(
-                        local_transform[12],
-                        local_transform[13],
-                        local_transform[14],
-                    );
+            let new_local_rotation = UnitQuaternion::from_matrix_eps(
+                &local_transform.basis(),
+                f32::EPSILON,
+                16,
+                UnitQuaternion::identity(),
+            );
+            let new_local_position = Vector3::new(
+                local_transform[12],
+                local_transform[13],
+                local_transform[14],
+            );
 
-                    // Do not touch local transform if position/rotation is not changing. This will
-                    // prevent redundant update of its global transform, which in its turn save some
-                    // CPU cycles.
-                    let local_transform = rigid_body.local_transform();
-                    if **local_transform.position() != new_local_position
-                        || **local_transform.rotation() != new_local_rotation
-                    {
-                        rigid_body
-                            .local_transform_mut()
-                            .set_position(new_local_position)
-                            .set_rotation(new_local_rotation);
-                    }
-
-                    rigid_body
-                        .lin_vel
-                        .set_value_with_flags(native.linvel().into(), VariableFlags::MODIFIED);
-                    rigid_body
-                        .ang_vel
-                        .set_value_with_flags(native.angvel().into(), VariableFlags::MODIFIED);
-                    rigid_body.sleeping = native.is_sleeping();
-                }
+            // Do not touch local transform if position/rotation is not changing. This will
+            // prevent redundant update of its global transform, which in its turn save some
+            // CPU cycles.
+            let local_transform = rigid_body.local_transform();
+            if **local_transform.position() != new_local_position
+                || **local_transform.rotation() != new_local_rotation
+            {
+                rigid_body
+                    .local_transform_mut()
+                    .set_position(new_local_position)
+                    .set_rotation(new_local_rotation);
             }
+
+            rigid_body
+                .lin_vel
+                .set_value_with_flags(native.linvel().into(), VariableFlags::MODIFIED);
+            rigid_body
+                .ang_vel
+                .set_value_with_flags(native.angvel().into(), VariableFlags::MODIFIED);
+            rigid_body.sleeping = native.is_sleeping();
         }
     }
 
@@ -1502,149 +1501,149 @@ impl PhysicsWorld {
         //    and a lot of other stuff, this is why we need `anything_changed` flag.
         if rigid_body_node.native.get() != RigidBodyHandle::invalid() {
             let mut actions = rigid_body_node.actions.inner();
-            if rigid_body_node.need_sync_model() || !actions.is_empty() {
-                if let Some(native) = self.bodies.get_mut(rigid_body_node.native.get()) {
-                    // Sync native rigid body's properties with scene node's in case if they
-                    // were changed by user.
-                    rigid_body_node
-                        .body_type
-                        .try_sync_model(|v| native.set_body_type(v.into(), false));
-                    rigid_body_node
-                        .lin_vel
-                        .try_sync_model(|v| native.set_linvel(v.into(), true));
-                    rigid_body_node
-                        .ang_vel
-                        .try_sync_model(|v| native.set_angvel(v.into(), true));
-                    rigid_body_node.mass.try_sync_model(|v| {
-                        match *rigid_body_node.mass_properties_type {
-                            RigidBodyMassPropertiesType::Default => {
-                                native.set_additional_mass(v, false);
-                            }
-                            RigidBodyMassPropertiesType::Additional {
-                                center_of_mass,
-                                principal_inertia,
-                            } => {
-                                native.set_additional_mass_properties(
-                                    MassProperties::new(
-                                        center_of_mass.into(),
-                                        v,
-                                        principal_inertia.into(),
-                                    ),
-                                    false,
-                                );
-                            }
-                        };
-                    });
-                    rigid_body_node.mass_properties_type.try_sync_model(|v| {
-                        match v {
-                            RigidBodyMassPropertiesType::Default => {
-                                native.set_additional_mass(*rigid_body_node.mass, false);
-                            }
-                            RigidBodyMassPropertiesType::Additional {
-                                center_of_mass,
-                                principal_inertia,
-                            } => {
-                                native.set_additional_mass_properties(
-                                    MassProperties::new(
-                                        center_of_mass.into(),
-                                        *rigid_body_node.mass,
-                                        principal_inertia.into(),
-                                    ),
-                                    false,
-                                );
-                            }
-                        };
-                    });
-                    rigid_body_node
-                        .lin_damping
-                        .try_sync_model(|v| native.set_linear_damping(v));
-                    rigid_body_node
-                        .ang_damping
-                        .try_sync_model(|v| native.set_angular_damping(v));
-                    rigid_body_node
-                        .ccd_enabled
-                        .try_sync_model(|v| native.enable_ccd(v));
-                    rigid_body_node.can_sleep.try_sync_model(|v| {
-                        if v {
-                            *native.activation_mut() = RigidBodyActivation::active();
-                        } else {
-                            *native.activation_mut() = RigidBodyActivation::cannot_sleep();
-                        };
-                    });
-                    rigid_body_node
-                        .translation_locked
-                        .try_sync_model(|v| native.lock_translations(v, false));
-                    rigid_body_node.x_rotation_locked.try_sync_model(|v| {
-                        native.set_enabled_rotations(
-                            !v,
-                            !native.is_rotation_locked()[1],
-                            !native.is_rotation_locked()[2],
-                            false,
-                        );
-                    });
-                    rigid_body_node.y_rotation_locked.try_sync_model(|v| {
-                        native.set_enabled_rotations(
-                            !native.is_rotation_locked()[0],
-                            !v,
-                            !native.is_rotation_locked()[2],
-                            false,
-                        );
-                    });
-                    rigid_body_node.z_rotation_locked.try_sync_model(|v| {
-                        native.set_enabled_rotations(
-                            !native.is_rotation_locked()[0],
-                            !native.is_rotation_locked()[1],
-                            !v,
-                            false,
-                        );
-                    });
-                    rigid_body_node
-                        .dominance
-                        .try_sync_model(|v| native.set_dominance_group(v));
-                    rigid_body_node
-                        .gravity_scale
-                        .try_sync_model(|v| native.set_gravity_scale(v, false));
+            if (rigid_body_node.need_sync_model() || !actions.is_empty())
+                && let Some(native) = self.bodies.get_mut(rigid_body_node.native.get())
+            {
+                // Sync native rigid body's properties with scene node's in case if they
+                // were changed by user.
+                rigid_body_node
+                    .body_type
+                    .try_sync_model(|v| native.set_body_type(v.into(), false));
+                rigid_body_node
+                    .lin_vel
+                    .try_sync_model(|v| native.set_linvel(v.into(), true));
+                rigid_body_node
+                    .ang_vel
+                    .try_sync_model(|v| native.set_angvel(v.into(), true));
+                rigid_body_node.mass.try_sync_model(|v| {
+                    match *rigid_body_node.mass_properties_type {
+                        RigidBodyMassPropertiesType::Default => {
+                            native.set_additional_mass(v, false);
+                        }
+                        RigidBodyMassPropertiesType::Additional {
+                            center_of_mass,
+                            principal_inertia,
+                        } => {
+                            native.set_additional_mass_properties(
+                                MassProperties::new(
+                                    center_of_mass.into(),
+                                    v,
+                                    principal_inertia.into(),
+                                ),
+                                false,
+                            );
+                        }
+                    };
+                });
+                rigid_body_node.mass_properties_type.try_sync_model(|v| {
+                    match v {
+                        RigidBodyMassPropertiesType::Default => {
+                            native.set_additional_mass(*rigid_body_node.mass, false);
+                        }
+                        RigidBodyMassPropertiesType::Additional {
+                            center_of_mass,
+                            principal_inertia,
+                        } => {
+                            native.set_additional_mass_properties(
+                                MassProperties::new(
+                                    center_of_mass.into(),
+                                    *rigid_body_node.mass,
+                                    principal_inertia.into(),
+                                ),
+                                false,
+                            );
+                        }
+                    };
+                });
+                rigid_body_node
+                    .lin_damping
+                    .try_sync_model(|v| native.set_linear_damping(v));
+                rigid_body_node
+                    .ang_damping
+                    .try_sync_model(|v| native.set_angular_damping(v));
+                rigid_body_node
+                    .ccd_enabled
+                    .try_sync_model(|v| native.enable_ccd(v));
+                rigid_body_node.can_sleep.try_sync_model(|v| {
+                    if v {
+                        *native.activation_mut() = RigidBodyActivation::active();
+                    } else {
+                        *native.activation_mut() = RigidBodyActivation::cannot_sleep();
+                    };
+                });
+                rigid_body_node
+                    .translation_locked
+                    .try_sync_model(|v| native.lock_translations(v, false));
+                rigid_body_node.x_rotation_locked.try_sync_model(|v| {
+                    native.set_enabled_rotations(
+                        !v,
+                        !native.is_rotation_locked()[1],
+                        !native.is_rotation_locked()[2],
+                        false,
+                    );
+                });
+                rigid_body_node.y_rotation_locked.try_sync_model(|v| {
+                    native.set_enabled_rotations(
+                        !native.is_rotation_locked()[0],
+                        !v,
+                        !native.is_rotation_locked()[2],
+                        false,
+                    );
+                });
+                rigid_body_node.z_rotation_locked.try_sync_model(|v| {
+                    native.set_enabled_rotations(
+                        !native.is_rotation_locked()[0],
+                        !native.is_rotation_locked()[1],
+                        !v,
+                        false,
+                    );
+                });
+                rigid_body_node
+                    .dominance
+                    .try_sync_model(|v| native.set_dominance_group(v));
+                rigid_body_node
+                    .gravity_scale
+                    .try_sync_model(|v| native.set_gravity_scale(v, false));
 
-                    // We must reset any forces applied at previous update step, otherwise physics engine
-                    // will keep pushing the rigid body infinitely.
-                    if rigid_body_node.reset_forces.replace(false) {
-                        native.reset_forces(false);
-                        native.reset_torques(false);
-                    }
+                // We must reset any forces applied at previous update step, otherwise physics engine
+                // will keep pushing the rigid body infinitely.
+                if rigid_body_node.reset_forces.replace(false) {
+                    native.reset_forces(false);
+                    native.reset_torques(false);
+                }
 
-                    while let Some(action) = actions.pop_front() {
-                        match action {
-                            ApplyAction::Force(force) => {
-                                native.add_force(force.into(), false);
-                                rigid_body_node.reset_forces.set(true);
-                            }
-                            ApplyAction::Torque(torque) => {
-                                native.add_torque(torque.into(), false);
-                                rigid_body_node.reset_forces.set(true);
-                            }
-                            ApplyAction::ForceAtPoint { force, point } => {
-                                native.add_force_at_point(force.into(), point.into(), false);
-                                rigid_body_node.reset_forces.set(true);
-                            }
-                            ApplyAction::Impulse(impulse) => {
-                                native.apply_impulse(impulse.into(), false)
-                            }
-                            ApplyAction::TorqueImpulse(impulse) => {
-                                native.apply_torque_impulse(impulse.into(), false)
-                            }
-                            ApplyAction::ImpulseAtPoint { impulse, point } => {
-                                native.apply_impulse_at_point(impulse.into(), point.into(), false)
-                            }
-                            ApplyAction::WakeUp => native.wake_up(true),
-                            ApplyAction::NextTranslation(position) => {
-                                native.set_next_kinematic_translation(position.into())
-                            }
-                            ApplyAction::NextRotation(rotation) => {
-                                native.set_next_kinematic_rotation(rotation.into())
-                            }
-                            ApplyAction::NextPosition(position) => {
-                                native.set_next_kinematic_position(position.into())
-                            }
+                while let Some(action) = actions.pop_front() {
+                    match action {
+                        ApplyAction::Force(force) => {
+                            native.add_force(force.into(), false);
+                            rigid_body_node.reset_forces.set(true);
+                        }
+                        ApplyAction::Torque(torque) => {
+                            native.add_torque(torque.into(), false);
+                            rigid_body_node.reset_forces.set(true);
+                        }
+                        ApplyAction::ForceAtPoint { force, point } => {
+                            native.add_force_at_point(force.into(), point.into(), false);
+                            rigid_body_node.reset_forces.set(true);
+                        }
+                        ApplyAction::Impulse(impulse) => {
+                            native.apply_impulse(impulse.into(), false)
+                        }
+                        ApplyAction::TorqueImpulse(impulse) => {
+                            native.apply_torque_impulse(impulse.into(), false)
+                        }
+                        ApplyAction::ImpulseAtPoint { impulse, point } => {
+                            native.apply_impulse_at_point(impulse.into(), point.into(), false)
+                        }
+                        ApplyAction::WakeUp => native.wake_up(true),
+                        ApplyAction::NextTranslation(position) => {
+                            native.set_next_kinematic_translation(position.into())
+                        }
+                        ApplyAction::NextRotation(rotation) => {
+                            native.set_next_kinematic_rotation(rotation.into())
+                        }
+                        ApplyAction::NextPosition(position) => {
+                            native.set_next_kinematic_position(position.into())
                         }
                     }
                 }
@@ -1720,117 +1719,112 @@ impl PhysicsWorld {
         // 2) `get_mut` is **very** expensive because it forces physics engine to recalculate contacts
         //    and a lot of other stuff, this is why we need `anything_changed` flag.
         if collider_node.native.get() != ColliderHandle::invalid() {
-            if anything_changed {
-                if let Some(native) = self.colliders.get_mut(collider_node.native.get()) {
-                    collider_node
-                        .restitution
-                        .try_sync_model(|v| native.set_restitution(v));
-                    collider_node.collision_groups.try_sync_model(|v| {
-                        native.set_collision_groups(InteractionGroups::new(
-                            u32_to_group(v.memberships.0),
-                            u32_to_group(v.filter.0),
-                            Default::default(),
-                        ))
-                    });
-                    collider_node.solver_groups.try_sync_model(|v| {
-                        native.set_solver_groups(InteractionGroups::new(
-                            u32_to_group(v.memberships.0),
-                            u32_to_group(v.filter.0),
-                            Default::default(),
-                        ))
-                    });
-                    collider_node
-                        .friction
-                        .try_sync_model(|v| native.set_friction(v));
-                    collider_node
-                        .is_sensor
-                        .try_sync_model(|v| native.set_sensor(v));
-                    collider_node
-                        .friction_combine_rule
-                        .try_sync_model(|v| native.set_friction_combine_rule(v.into()));
-                    collider_node
-                        .restitution_combine_rule
-                        .try_sync_model(|v| native.set_restitution_combine_rule(v.into()));
-                    let mut remove_collider = false;
-                    collider_node.shape.try_sync_model(|v| {
-                        let inv_global_transform = isometric_global_transform(nodes, handle)
-                            .try_inverse()
-                            .unwrap_or_default();
+            if anything_changed
+                && let Some(native) = self.colliders.get_mut(collider_node.native.get())
+            {
+                collider_node
+                    .restitution
+                    .try_sync_model(|v| native.set_restitution(v));
+                collider_node.collision_groups.try_sync_model(|v| {
+                    native.set_collision_groups(InteractionGroups::new(
+                        u32_to_group(v.memberships.0),
+                        u32_to_group(v.filter.0),
+                        Default::default(),
+                    ))
+                });
+                collider_node.solver_groups.try_sync_model(|v| {
+                    native.set_solver_groups(InteractionGroups::new(
+                        u32_to_group(v.memberships.0),
+                        u32_to_group(v.filter.0),
+                        Default::default(),
+                    ))
+                });
+                collider_node
+                    .friction
+                    .try_sync_model(|v| native.set_friction(v));
+                collider_node
+                    .is_sensor
+                    .try_sync_model(|v| native.set_sensor(v));
+                collider_node
+                    .friction_combine_rule
+                    .try_sync_model(|v| native.set_friction_combine_rule(v.into()));
+                collider_node
+                    .restitution_combine_rule
+                    .try_sync_model(|v| native.set_restitution_combine_rule(v.into()));
+                let mut remove_collider = false;
+                collider_node.shape.try_sync_model(|v| {
+                    let inv_global_transform = isometric_global_transform(nodes, handle)
+                        .try_inverse()
+                        .unwrap_or_default();
 
-                        if let Some(shape) = collider_shape_into_native_shape(
-                            &v,
-                            inv_global_transform,
-                            handle,
-                            nodes,
-                        ) {
-                            native.set_shape(shape);
-                        } else {
-                            remove_collider = true;
-                        }
-                    });
-                    if remove_collider {
-                        self.remove_collider(collider_node.native.get());
-                        collider_node.native.set(ColliderHandle::invalid());
+                    if let Some(shape) =
+                        collider_shape_into_native_shape(&v, inv_global_transform, handle, nodes)
+                    {
+                        native.set_shape(shape);
+                    } else {
+                        remove_collider = true;
                     }
+                });
+                if remove_collider {
+                    self.remove_collider(collider_node.native.get());
+                    collider_node.native.set(ColliderHandle::invalid());
                 }
             }
         } else if let Ok(parent_body) =
             nodes.try_get_or_field_ref::<scene::rigidbody::RigidBody>(collider_node.parent())
+            && parent_body.native.get() != RigidBodyHandle::invalid()
         {
-            if parent_body.native.get() != RigidBodyHandle::invalid() {
-                let inv_global_transform = isometric_global_transform(nodes, handle)
-                    .try_inverse()
-                    .unwrap();
-                let rigid_body_native = parent_body.native.get();
-                if let Some(shape) = collider_shape_into_native_shape(
-                    collider_node.shape(),
-                    inv_global_transform,
-                    handle,
-                    nodes,
-                ) {
-                    let mut builder = ColliderBuilder::new(shape)
-                        .position(
-                            Isometry3 {
-                                rotation: **collider_node.local_transform().rotation(),
-                                translation: Translation3 {
-                                    vector: **collider_node.local_transform().position(),
-                                },
-                            }
-                            .into(),
-                        )
-                        .friction(collider_node.friction())
-                        .restitution(collider_node.restitution())
-                        .collision_groups(InteractionGroups::new(
-                            u32_to_group(collider_node.collision_groups().memberships.0),
-                            u32_to_group(collider_node.collision_groups().filter.0),
-                            Default::default(),
-                        ))
-                        .friction_combine_rule(collider_node.friction_combine_rule().into())
-                        .restitution_combine_rule(collider_node.restitution_combine_rule().into())
-                        .solver_groups(InteractionGroups::new(
-                            u32_to_group(collider_node.solver_groups().memberships.0),
-                            u32_to_group(collider_node.solver_groups().filter.0),
-                            Default::default(),
-                        ))
-                        .sensor(collider_node.is_sensor());
+            let inv_global_transform = isometric_global_transform(nodes, handle)
+                .try_inverse()
+                .unwrap();
+            let rigid_body_native = parent_body.native.get();
+            if let Some(shape) = collider_shape_into_native_shape(
+                collider_node.shape(),
+                inv_global_transform,
+                handle,
+                nodes,
+            ) {
+                let mut builder = ColliderBuilder::new(shape)
+                    .position(
+                        Isometry3 {
+                            rotation: **collider_node.local_transform().rotation(),
+                            translation: Translation3 {
+                                vector: **collider_node.local_transform().position(),
+                            },
+                        }
+                        .into(),
+                    )
+                    .friction(collider_node.friction())
+                    .restitution(collider_node.restitution())
+                    .collision_groups(InteractionGroups::new(
+                        u32_to_group(collider_node.collision_groups().memberships.0),
+                        u32_to_group(collider_node.collision_groups().filter.0),
+                        Default::default(),
+                    ))
+                    .friction_combine_rule(collider_node.friction_combine_rule().into())
+                    .restitution_combine_rule(collider_node.restitution_combine_rule().into())
+                    .solver_groups(InteractionGroups::new(
+                        u32_to_group(collider_node.solver_groups().memberships.0),
+                        u32_to_group(collider_node.solver_groups().filter.0),
+                        Default::default(),
+                    ))
+                    .sensor(collider_node.is_sensor());
 
-                    if let Some(density) = collider_node.density() {
-                        builder = builder.density(density);
-                    }
-
-                    let native_handle =
-                        self.add_collider(handle, rigid_body_native, builder.build());
-
-                    collider_node.native.set(native_handle);
-
-                    Log::writeln(
-                        MessageKind::Information,
-                        format!(
-                            "Native collider was created for node {}",
-                            collider_node.name()
-                        ),
-                    );
+                if let Some(density) = collider_node.density() {
+                    builder = builder.density(density);
                 }
+
+                let native_handle = self.add_collider(handle, rigid_body_native, builder.build());
+
+                collider_node.native.set(native_handle);
+
+                Log::writeln(
+                    MessageKind::Information,
+                    format!(
+                        "Native collider was created for node {}",
+                        collider_node.name()
+                    ),
+                );
             }
         }
     }
@@ -1893,15 +1887,14 @@ impl PhysicsWorld {
                 native.data.set_contacts_enabled(v);
             });
             let mut local_frames = joint.local_frames.borrow_mut();
-            if local_frames.is_none() {
-                if let (Ok(body1), Ok(body2)) =
+            if local_frames.is_none()
+                && let (Ok(body1), Ok(body2)) =
                     (nodes.try_get(joint.body1()), nodes.try_get(joint.body2()))
-                {
-                    let (local_frame1, local_frame2) = calculate_local_frames(joint, body1, body2);
-                    native.data =
-                        convert_joint_params((*joint.params).clone(), local_frame1, local_frame2);
-                    *local_frames = Some(JointLocalFrames::new(&local_frame1, &local_frame2));
-                }
+            {
+                let (local_frame1, local_frame2) = calculate_local_frames(joint, body1, body2);
+                native.data =
+                    convert_joint_params((*joint.params).clone(), local_frame1, local_frame2);
+                *local_frames = Some(JointLocalFrames::new(&local_frame1, &local_frame2));
             }
             joint.body1.try_sync_model(|v| {
                 if let (Ok(rigid_body_node1), Ok(rigid_body_node2)) =

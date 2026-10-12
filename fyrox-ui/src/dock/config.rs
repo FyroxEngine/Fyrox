@@ -20,10 +20,10 @@
 
 use crate::window::Window;
 use crate::{
-    core::{algebra::Vector2, log::Log, pool::Handle, visitor::prelude::*, ImmutableString},
+    Orientation, UserInterface,
+    core::{ImmutableString, algebra::Vector2, log::Log, pool::Handle, visitor::prelude::*},
     dock::{Tile, TileBuilder, TileContent},
     widget::{WidgetBuilder, WidgetMessage},
-    Orientation, UserInterface,
 };
 use fyrox_graph::SceneGraph;
 use serde::{Deserialize, Serialize};
@@ -154,10 +154,10 @@ fn find_window(
 
     if window_handle.is_none() {
         for other_window_handle in windows.iter().cloned() {
-            if let Ok(window_node) = ui.try_get(other_window_handle) {
-                if &window_node.name == window_name {
-                    return other_window_handle;
-                }
+            if let Ok(window_node) = ui.try_get(other_window_handle)
+                && &window_node.name == window_name
+            {
+                return other_window_handle;
             }
         }
     }

@@ -28,11 +28,11 @@ use crate::scene::mesh::buffer::{
 };
 use crate::scene::mesh::surface::{InputBlendShapeData, SurfaceData};
 use crate::scene::mesh::vertex::{AnimatedVertex, SimpleVertex, StaticVertex};
+use gltf::Primitive;
 use gltf::buffer::Buffer;
-use gltf::mesh::util::ReadJoints;
 use gltf::mesh::Mode;
 use gltf::mesh::Semantic;
-use gltf::Primitive;
+use gltf::mesh::util::ReadJoints;
 use half::f16;
 
 #[cfg(feature = "mesh_analysis")]

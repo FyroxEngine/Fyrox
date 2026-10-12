@@ -21,9 +21,9 @@
 //! Data types that can be serialized as-is, by dumping the memory into a file.
 
 use crate::visitor::{
+    Visit, VisitResult, Visitor,
     error::VisitError,
     field::{Field, FieldKind},
-    Visit, VisitResult, Visitor,
 };
 
 const POD_TYPES: &[&str] = &[

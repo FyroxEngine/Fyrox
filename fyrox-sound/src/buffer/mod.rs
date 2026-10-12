@@ -35,8 +35,8 @@ use crate::{
 use fyrox_core::{io::FileError, reflect::prelude::*, uuid::Uuid, visitor::prelude::*};
 use fyrox_resource::untyped::ResourceKind;
 use fyrox_resource::{
-    io::{FileReader, ResourceIo},
     Resource, ResourceData,
+    io::{FileReader, ResourceIo},
 };
 use std::{
     error::Error,

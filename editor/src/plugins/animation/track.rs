@@ -32,21 +32,23 @@ use crate::{
             math::curve::{CurveKey, CurveKeyKind},
             ok_or_continue,
             pool::{ErasedHandle, Handle},
-            reflect::{prelude::*, Reflect},
+            reflect::{Reflect, prelude::*},
             some_or_return,
             variable::InheritableVariable,
             visitor::prelude::*,
         },
         fxhash::{FxHashMap, FxHashSet},
         generic_animation::{
+            Animation,
             container::{TrackDataContainer, TrackValueKind},
             track::{Track, TrackBinding},
             value::{ValueBinding, ValueType},
-            Animation,
         },
         graph::{NodeWrapper, SceneGraph},
         graphics::DrawParameters,
         gui::{
+            BuildContext, Control, Orientation, RcUiNodeHandle, Thickness, UiNode, UserInterface,
+            VerticalAlignment,
             border::BorderBuilder,
             brush::Brush,
             button::{Button, ButtonMessage},
@@ -59,15 +61,13 @@ use crate::{
             scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
             searchbar::{SearchBar, SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
-            style::{resource::StyleResourceExt, Style},
+            style::{Style, resource::StyleResourceExt},
             text::{Text, TextBuilder, TextMessage},
             text_box::EmptyTextPlaceholder,
             tree::{Tree, TreeBuilder, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
-            utils::{make_simple_tooltip, ImageButtonBuilder},
+            utils::{ImageButtonBuilder, make_simple_tooltip},
             widget::{Widget, WidgetBuilder, WidgetMessage},
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, Control, Orientation, RcUiNodeHandle, Thickness, UiNode, UserInterface,
-            VerticalAlignment,
         },
         resource::{model::ModelResource, texture::TextureBytes},
         scene::{
@@ -79,25 +79,24 @@ use crate::{
     menu::create_menu_item,
     message::MessageSender,
     plugins::animation::{
-        animation_container_ref,
+        TransformProvider, animation_container_ref,
         command::{
             AddTrackCommand, RemoveTrackCommand, ReplaceTrackCurveCommand, SetTrackEnabledCommand,
             SetTrackTargetCommand, SetTrackValueBindingCommand,
         },
         selection::{AnimationSelection, SelectedEntity},
-        TransformProvider,
     },
     scene::{
+        Selection,
         commands::ChangeSelectionCommand,
         property::{
-            object_to_property_tree, PropertyDescriptorData, PropertySelectorMessage,
-            PropertySelectorWindow, PropertySelectorWindowBuilder,
+            PropertyDescriptorData, PropertySelectorMessage, PropertySelectorWindow,
+            PropertySelectorWindowBuilder, object_to_property_tree,
         },
         selector::{
             AllowedType, HierarchyNode, NodeSelectorMessage, NodeSelectorWindow,
             NodeSelectorWindowBuilder,
         },
-        Selection,
     },
     utils::{self},
 };
@@ -787,8 +786,10 @@ impl TrackList {
             return;
         };
 
-        let animation = some_or_return!(animation_container_ref(graph, animation_player)
-            .and_then(|c| c.try_get(animation_handle).ok()));
+        let animation = some_or_return!(
+            animation_container_ref(graph, animation_player)
+                .and_then(|c| c.try_get(animation_handle).ok())
+        );
         let state = animation.tracks_data().state();
         let tracks_data = some_or_return!(state.data_ref());
 
@@ -996,10 +997,10 @@ impl TrackList {
         {
             let filter_text = text.to_lowercase();
             utils::apply_visibility_filter(self.tree_root.to_base(), ui, |node| {
-                if let Some(tree) = node.self_or_field_ref::<Tree>() {
-                    if let Some(tree_text) = ui.node(tree.content).self_or_field_ref::<Text>() {
-                        return Some(tree_text.text().to_lowercase().contains(&filter_text));
-                    }
+                if let Some(tree) = node.self_or_field_ref::<Tree>()
+                    && let Some(tree_text) = ui.node(tree.content).self_or_field_ref::<Text>()
+                {
+                    return Some(tree_text.text().to_lowercase().contains(&filter_text));
                 }
 
                 None
@@ -1075,23 +1076,23 @@ impl TrackList {
                         }
                     }
                 }
-            } else if message.destination() == self.context_menu.target_node_selector {
-                if let Some(first) = node_selection.first() {
-                    let mut commands = Vec::new();
+            } else if message.destination() == self.context_menu.target_node_selector
+                && let Some(first) = node_selection.first()
+            {
+                let mut commands = Vec::new();
 
-                    for entity in selection.entities.iter() {
-                        if let SelectedEntity::Track(id) = entity {
-                            commands.push(Command::new(SetTrackTargetCommand {
-                                animation_player_handle: selection.animation_player,
-                                animation_handle: selection.animation,
-                                track: *id,
-                                target: first.handle.into(),
-                            }));
-                        }
+                for entity in selection.entities.iter() {
+                    if let SelectedEntity::Track(id) = entity {
+                        commands.push(Command::new(SetTrackTargetCommand {
+                            animation_player_handle: selection.animation_player,
+                            animation_handle: selection.animation,
+                            track: *id,
+                            target: first.handle.into(),
+                        }));
                     }
-
-                    sender.do_command(CommandGroup::from(commands));
                 }
+
+                sender.do_command(CommandGroup::from(commands));
             }
         } else if let Some(PropertySelectorMessage::Selection(selected_properties)) = message.data()
         {
@@ -1131,12 +1132,11 @@ impl TrackList {
                 } else {
                     Log::err("Invalid node handle!");
                 }
-            } else if message.is_from(self.context_menu.property_rebinding_selector) {
-                if let Some(entry) = selected_properties.first() {
-                    if let Some(animation) = selected_animation {
-                        self.rebind_property(entry, graph, selection, animation, sender);
-                    }
-                }
+            } else if message.is_from(self.context_menu.property_rebinding_selector)
+                && let Some(entry) = selected_properties.first()
+                && let Some(animation) = selected_animation
+            {
+                self.rebind_property(entry, graph, selection, animation, sender);
             }
         } else if let Some(TreeRootMessage::Select(tree_selection)) =
             message.data_from(self.tree_root)
@@ -1206,59 +1206,55 @@ impl TrackList {
                 if let Some(animation) = selected_animation {
                     self.on_rebind_clicked(graph, selection, animation, ui);
                 }
-            } else if message.destination() == self.context_menu.duplicate {
-                if let Some(animation) = selected_animation {
-                    let commands = selection
-                        .entities
-                        .iter()
-                        .filter_map(|e| match e {
-                            SelectedEntity::Track(track_id) => {
-                                let state = animation.tracks_data().state();
-                                let tracks_data = state.data_ref()?;
-                                let binding = animation.track_bindings().get(track_id)?;
+            } else if message.destination() == self.context_menu.duplicate
+                && let Some(animation) = selected_animation
+            {
+                let commands = selection
+                    .entities
+                    .iter()
+                    .filter_map(|e| match e {
+                        SelectedEntity::Track(track_id) => {
+                            let state = animation.tracks_data().state();
+                            let tracks_data = state.data_ref()?;
+                            let binding = animation.track_bindings().get(track_id)?;
 
-                                let index = tracks_data
-                                    .tracks()
-                                    .iter()
-                                    .position(|t| t.id() == *track_id)
-                                    .unwrap();
+                            let index = tracks_data
+                                .tracks()
+                                .iter()
+                                .position(|t| t.id() == *track_id)
+                                .unwrap();
 
-                                let mut track = tracks_data.tracks()[index].clone();
+                            let mut track = tracks_data.tracks()[index].clone();
 
-                                track.set_id(Uuid::new_v4());
+                            track.set_id(Uuid::new_v4());
 
-                                Some(Command::new(AddTrackCommand::new(
-                                    selection.animation_player,
-                                    selection.animation,
-                                    track,
-                                    TrackBinding::new(binding.target),
-                                )))
-                            }
-                            _ => None,
-                        })
-                        .collect::<Vec<_>>();
-
-                    sender.do_command(CommandGroup::from(commands));
-                }
-            }
-        } else if let Some(TrackViewMessage::TrackEnabled(enabled)) = message.data() {
-            if message.direction() == MessageDirection::FromWidget {
-                if let Some(animation) = selected_animation {
-                    if let Some(track_view_ref) = ui
-                        .node(message.destination())
-                        .self_or_field_ref::<TrackView>()
-                    {
-                        if animation.track_bindings().contains_key(&track_view_ref.id) {
-                            sender.do_command(SetTrackEnabledCommand {
-                                animation_player_handle: selection.animation_player,
-                                animation_handle: selection.animation,
-                                track: track_view_ref.id,
-                                enabled: *enabled,
-                            })
+                            Some(Command::new(AddTrackCommand::new(
+                                selection.animation_player,
+                                selection.animation,
+                                track,
+                                TrackBinding::new(binding.target),
+                            )))
                         }
-                    }
-                }
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>();
+
+                sender.do_command(CommandGroup::from(commands));
             }
+        } else if let Some(TrackViewMessage::TrackEnabled(enabled)) = message.data()
+            && message.direction() == MessageDirection::FromWidget
+            && let Some(animation) = selected_animation
+            && let Some(track_view_ref) = ui
+                .node(message.destination())
+                .self_or_field_ref::<TrackView>()
+            && animation.track_bindings().contains_key(&track_view_ref.id)
+        {
+            sender.do_command(SetTrackEnabledCommand {
+                animation_player_handle: selection.animation_player,
+                animation_handle: selection.animation,
+                track: track_view_ref.id,
+                enabled: *enabled,
+            })
         }
     }
 
@@ -1626,10 +1622,11 @@ impl TrackList {
 
                         ui.send_sync(parent_group, TreeMessage::AddItem(track_view.transmute()));
 
-                        assert!(self
-                            .track_views
-                            .insert(model_track.id(), track_view)
-                            .is_none());
+                        assert!(
+                            self.track_views
+                                .insert(model_track.id(), track_view)
+                                .is_none()
+                        );
                     }
                 }
             }

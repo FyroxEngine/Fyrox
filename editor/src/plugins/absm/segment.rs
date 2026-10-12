@@ -20,7 +20,7 @@
 
 use crate::fyrox::{
     core::{algebra::Vector2, pool::Handle, reflect::prelude::*, visitor::prelude::*},
-    gui::{message::UiMessage, UiNode},
+    gui::{UiNode, message::UiMessage},
 };
 use fyrox::gui::message::MessageData;
 

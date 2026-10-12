@@ -49,16 +49,16 @@ pub fn copy_binaries(
         .unwrap()
         .flatten()
     {
-        if let Ok(file_metadata) = entry.metadata() {
-            if !file_metadata.file_type().is_file() {
-                continue;
-            }
+        if let Ok(file_metadata) = entry.metadata()
+            && !file_metadata.file_type().is_file()
+        {
+            continue;
         }
 
-        if let Some(stem) = entry.path().file_stem() {
-            if stem == OsStr::new(package_name) {
-                binary_paths.push(entry.path());
-            }
+        if let Some(stem) = entry.path().file_stem()
+            && stem == OsStr::new(package_name)
+        {
+            binary_paths.push(entry.path());
         }
     }
     for path in binary_paths {

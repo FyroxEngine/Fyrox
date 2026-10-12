@@ -378,16 +378,16 @@ fn find_symlink_relative_path(base_dir: &Path, canon_path: &Path) -> Option<Path
         for entry in entries.flatten() {
             let entry_path = entry.path();
             if entry_path.is_symlink() {
-                if let Ok(link_target) = entry_path.canonicalize() {
-                    if let Ok(rest) = canon_path.strip_prefix(&link_target) {
-                        let relative_link = entry_path.strip_prefix(prefix).ok()?;
-                        return Some(relative_link.join(rest));
-                    }
+                if let Ok(link_target) = entry_path.canonicalize()
+                    && let Ok(rest) = canon_path.strip_prefix(&link_target)
+                {
+                    let relative_link = entry_path.strip_prefix(prefix).ok()?;
+                    return Some(relative_link.join(rest));
                 }
-            } else if entry_path.is_dir() {
-                if let Some(result) = walk(&entry_path, prefix, canon_path, depth + 1) {
-                    return Some(result);
-                }
+            } else if entry_path.is_dir()
+                && let Some(result) = walk(&entry_path, prefix, canon_path, depth + 1)
+            {
+                return Some(result);
             }
         }
         None
@@ -631,11 +631,11 @@ mod test {
     use std::path::Path;
 
     use crate::{
-        append_extension, cmp_strings_case_insensitive, hash_combine, make_relative_path,
+        BiDirHashMap, append_extension, cmp_strings_case_insensitive, hash_combine,
+        make_relative_path,
         reflect::prelude::*,
         transmute_vec_as_bytes,
         visitor::{Visit, Visitor},
-        BiDirHashMap,
     };
     use fxhash::FxHashMap;
     use std::mem::size_of;

@@ -21,8 +21,8 @@
 //! Resource loader. It manages resource loading.
 
 use crate::{
-    core::uuid::Uuid, io::ResourceIo, options::BaseImportOptions, state::LoadError, ResourceData,
-    TypedResourceData,
+    ResourceData, TypedResourceData, core::uuid::Uuid, io::ResourceIo, options::BaseImportOptions,
+    state::LoadError,
 };
 use fyrox_core::io::FileError;
 use fyrox_core::platform::TargetPlatform;

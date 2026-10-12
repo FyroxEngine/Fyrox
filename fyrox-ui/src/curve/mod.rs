@@ -19,23 +19,24 @@
 // SOFTWARE.
 
 use crate::message::{CursorIcon, MessageData};
-use crate::style::resource::StyleResourceExt;
 use crate::style::Style;
+use crate::style::resource::StyleResourceExt;
 use crate::{
+    BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
     brush::Brush,
     core::{
+        SafeLock,
         algebra::{Matrix3, Point2, SimdPartialOrd, Vector2, Vector3},
         color::Color,
         math::{
-            cubicf,
+            Rect, cubicf,
             curve::{Curve, CurveKeyKind},
-            lerpf, wrap_angle, Rect,
+            lerpf, wrap_angle,
         },
         parking_lot::{MappedMutexGuard, Mutex, MutexGuard},
         pool::Handle,
         reflect::prelude::*,
         visitor::prelude::*,
-        SafeLock,
     },
     curve::key::{CurveKeyView, CurveKeyViewContainer},
     draw::{CommandTexture, Draw, DrawingContext},
@@ -48,15 +49,14 @@ use crate::{
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use fxhash::FxHashSet;
 
 use crate::grid::Grid;
 use crate::menu::MenuItem;
 use crate::numeric::NumericUpDown;
-use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     cell::{Cell, RefCell},
     sync::mpsc::Sender,
@@ -1067,19 +1067,20 @@ impl Control for CurveEditor {
             } else if message.destination() == self.context_menu.paste_keys {
                 ui.send(self.handle, CurveEditorMessage::PasteSelection);
             }
-        } else if let Some(NumericUpDownMessage::<f32>::Value(value)) = message.data() {
-            if message.direction() == MessageDirection::FromWidget && !message.handled() {
-                if message.destination() == self.context_menu.key_value {
-                    ui.send(
-                        self.handle,
-                        CurveEditorMessage::ChangeSelectedKeysValue(*value),
-                    );
-                } else if message.destination() == self.context_menu.key_location {
-                    ui.send(
-                        self.handle,
-                        CurveEditorMessage::ChangeSelectedKeysLocation(*value),
-                    );
-                }
+        } else if let Some(NumericUpDownMessage::<f32>::Value(value)) = message.data()
+            && message.direction() == MessageDirection::FromWidget
+            && !message.handled()
+        {
+            if message.destination() == self.context_menu.key_value {
+                ui.send(
+                    self.handle,
+                    CurveEditorMessage::ChangeSelectedKeysValue(*value),
+                );
+            } else if message.destination() == self.context_menu.key_location {
+                ui.send(
+                    self.handle,
+                    CurveEditorMessage::ChangeSelectedKeysLocation(*value),
+                );
             }
         }
     }
@@ -1262,19 +1263,18 @@ impl CurveEditor {
             WidgetMessage::Enabled(self.selection.is_some()),
         );
 
-        if let Some(Selection::Keys { keys }) = self.selection.as_ref() {
-            if let Some(first) = keys.iter().next() {
-                if let Some(key) = self.curves.key_ref(*first) {
-                    ui.send_handled(
-                        self.context_menu.key_location,
-                        NumericUpDownMessage::Value(key.position.x),
-                    );
-                    ui.send_handled(
-                        self.context_menu.key_value,
-                        NumericUpDownMessage::Value(key.position.y),
-                    );
-                }
-            }
+        if let Some(Selection::Keys { keys }) = self.selection.as_ref()
+            && let Some(first) = keys.iter().next()
+            && let Some(key) = self.curves.key_ref(*first)
+        {
+            ui.send_handled(
+                self.context_menu.key_location,
+                NumericUpDownMessage::Value(key.position.x),
+            );
+            ui.send_handled(
+                self.context_menu.key_value,
+                NumericUpDownMessage::Value(key.position.y),
+            );
         }
     }
 

@@ -24,15 +24,15 @@
 #![warn(missing_docs)]
 
 use crate::{
+    BuildContext, Control, Orientation, UiNode, UserInterface,
     core::{algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     message::{MessageData, UiMessage},
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, Orientation, UiNode, UserInterface,
 };
 
 use fyrox_core::variable::InheritableVariable;
-use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 
 /// A set of possible [`StackPanel`] widget messages.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -239,11 +239,11 @@ impl Control for StackPanel {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(StackPanelMessage::Orientation(orientation)) = message.data_for(self.handle) {
-            if *orientation != *self.orientation {
-                self.orientation.set_value_and_mark_modified(*orientation);
-                self.invalidate_layout();
-            }
+        if let Some(StackPanelMessage::Orientation(orientation)) = message.data_for(self.handle)
+            && *orientation != *self.orientation
+        {
+            self.orientation.set_value_and_mark_modified(*orientation);
+            self.invalidate_layout();
         }
     }
 }

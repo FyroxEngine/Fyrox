@@ -19,21 +19,21 @@
 // SOFTWARE.
 
 use crate::{
+    Thickness,
     color::{
-        gradient::{ColorGradientEditorBuilder, ColorGradientEditorMessage},
         ColorFieldBuilder, ColorFieldMessage,
+        gradient::{ColorGradientEditorBuilder, ColorGradientEditorMessage},
     },
     core::{algebra::Vector2, color::Color, color_gradient::ColorGradient},
     inspector::{
+        FieldAction, InspectorError, PropertyChanged,
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldAction, InspectorError, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
     widget::WidgetBuilder,
-    Thickness,
 };
 use std::any::TypeId;
 
@@ -73,14 +73,14 @@ impl PropertyEditorDefinition for ColorPropertyEditorDefinition {
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(ColorFieldMessage::Color(value)) = ctx.message.data::<ColorFieldMessage>() {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(ColorFieldMessage::Color(value)) = ctx.message.data::<ColorFieldMessage>()
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
 
-                    action: FieldAction::object(*value),
-                });
-            }
+                action: FieldAction::object(*value),
+            });
         }
         None
     }
@@ -122,14 +122,14 @@ impl PropertyEditorDefinition for ColorGradientPropertyEditorDefinition {
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(ColorGradientEditorMessage::Value(value)) = ctx.message.data() {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(ColorGradientEditorMessage::Value(value)) = ctx.message.data()
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
 
-                    action: FieldAction::object(value.clone()),
-                });
-            }
+                action: FieldAction::object(value.clone()),
+            });
         }
         None
     }

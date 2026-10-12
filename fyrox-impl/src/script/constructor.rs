@@ -22,9 +22,9 @@
 
 use crate::{
     core::{
+        SafeLock,
         parking_lot::{Mutex, MutexGuard},
         uuid::Uuid,
-        SafeLock,
     },
     script::{Script, ScriptTrait},
 };

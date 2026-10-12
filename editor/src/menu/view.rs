@@ -19,20 +19,20 @@
 // SOFTWARE.
 
 use crate::{
+    Message,
     fyrox::{
         core::pool::Handle,
         gui::{
+            BuildContext, UserInterface,
             menu::{self, MenuItemMessage},
             message::UiMessage,
             window::WindowMessage,
-            BuildContext, UserInterface,
         },
     },
-    menu::{create_menu_item, create_root_menu_item, Panels},
+    menu::{Panels, create_menu_item, create_root_menu_item},
     message::MessageSender,
-    Message,
 };
-use fyrox::core::uuid::{uuid, Uuid};
+use fyrox::core::uuid::{Uuid, uuid};
 use fyrox::gui::menu::MenuItem;
 use fyrox::gui::window::{Window, WindowAlignment};
 

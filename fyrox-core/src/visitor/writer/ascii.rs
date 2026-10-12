@@ -19,9 +19,9 @@
 // SOFTWARE.
 
 use crate::visitor::{
+    VisitResult, Visitor, VisitorNode,
     field::{Field, FieldKind},
     writer::Writer,
-    VisitResult, Visitor, VisitorNode,
 };
 use base64::Engine;
 use byteorder::WriteBytesExt;

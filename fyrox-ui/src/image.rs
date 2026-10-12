@@ -24,6 +24,7 @@
 #![warn(missing_docs)]
 
 use crate::{
+    BuildContext, Control, UiNode, UserInterface,
     brush::Brush,
     color::draw_checker_board,
     core::{
@@ -33,7 +34,6 @@ use crate::{
     draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, UiNode, UserInterface,
 };
 
 use crate::message::MessageData;
@@ -202,23 +202,23 @@ impl Control for Image {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         let mut size: Vector2<f32> = self.widget.measure_override(ui, available_size);
 
-        if *self.sync_with_texture_size {
-            if let Some(texture) = self.texture.as_ref() {
-                let state = texture.state();
-                if let Some(data) = state.data_ref() {
-                    if let TextureKind::Rectangle { width, height } = data.kind() {
-                        let width = width as f32;
-                        let height = height as f32;
+        if *self.sync_with_texture_size
+            && let Some(texture) = self.texture.as_ref()
+        {
+            let state = texture.state();
+            if let Some(data) = state.data_ref()
+                && let TextureKind::Rectangle { width, height } = data.kind()
+            {
+                let width = width as f32;
+                let height = height as f32;
 
-                        if *self.keep_aspect_ratio {
-                            let aspect_ratio = width / height;
-                            size.x = size.x.max(width).min(available_size.x);
-                            size.y = size.x * aspect_ratio;
-                        } else {
-                            size.x = size.x.max(width);
-                            size.y = size.y.max(height);
-                        }
-                    }
+                if *self.keep_aspect_ratio {
+                    let aspect_ratio = width / height;
+                    size.x = size.x.max(width).min(available_size.x);
+                    size.y = size.x * aspect_ratio;
+                } else {
+                    size.x = size.x.max(width);
+                    size.y = size.y.max(height);
                 }
             }
         }
@@ -291,26 +291,26 @@ impl Control for Image {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(msg) = message.data::<ImageMessage>() {
-            if message.destination() == self.handle {
-                match msg {
-                    ImageMessage::Texture(tex) => {
-                        self.texture.set_value_and_mark_modified(tex.clone());
-                        self.invalidate_visual();
-                    }
-                    &ImageMessage::Flip(flip) => {
-                        self.flip.set_value_and_mark_modified(flip);
-                        self.invalidate_visual();
-                    }
-                    ImageMessage::UvRect(uv_rect) => {
-                        self.uv_rect.set_value_and_mark_modified(*uv_rect);
-                        self.invalidate_visual();
-                    }
-                    ImageMessage::CheckerboardBackground(value) => {
-                        self.checkerboard_background
-                            .set_value_and_mark_modified(*value);
-                        self.invalidate_visual();
-                    }
+        if let Some(msg) = message.data::<ImageMessage>()
+            && message.destination() == self.handle
+        {
+            match msg {
+                ImageMessage::Texture(tex) => {
+                    self.texture.set_value_and_mark_modified(tex.clone());
+                    self.invalidate_visual();
+                }
+                &ImageMessage::Flip(flip) => {
+                    self.flip.set_value_and_mark_modified(flip);
+                    self.invalidate_visual();
+                }
+                ImageMessage::UvRect(uv_rect) => {
+                    self.uv_rect.set_value_and_mark_modified(*uv_rect);
+                    self.invalidate_visual();
+                }
+                ImageMessage::CheckerboardBackground(value) => {
+                    self.checkerboard_background
+                        .set_value_and_mark_modified(*value);
+                    self.invalidate_visual();
                 }
             }
         }

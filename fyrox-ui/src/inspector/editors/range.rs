@@ -20,11 +20,11 @@
 
 use crate::{
     inspector::{
+        FieldAction, InspectorError, PropertyChanged,
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldAction, InspectorError, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
     numeric::NumericType,
@@ -77,16 +77,15 @@ impl<T: NumericType> PropertyEditorDefinition for RangePropertyEditorDefinition<
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(RangeEditorMessage::Value(value)) =
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(RangeEditorMessage::Value(value)) =
                 ctx.message.data::<RangeEditorMessage<T>>()
-            {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
 
-                    action: FieldAction::object(value.clone()),
-                });
-            }
+                action: FieldAction::object(value.clone()),
+            });
         }
 
         None

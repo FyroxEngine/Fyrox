@@ -21,8 +21,8 @@
 //! Layer mask is a sort of blacklist that prevents layer from animating certain nodes. See [`LayerMask`] docs
 //! for more info.
 
-use crate::core::{reflect::prelude::*, visitor::prelude::*};
 use crate::EntityId;
+use crate::core::{reflect::prelude::*, visitor::prelude::*};
 
 /// Layer mask is a sort of blacklist that prevents layer from animating certain nodes. Its main use case is to
 /// disable animation on animation layers for specific body parts of humanoid (but not only) characters. The

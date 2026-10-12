@@ -34,15 +34,15 @@ use crate::bus::AudioBusGraph;
 use crate::{
     listener::Listener,
     pool::Ticket,
-    renderer::{render_source_default, Renderer},
+    renderer::{Renderer, render_source_default},
     source::{SoundSource, Status},
 };
 use fyrox_core::pool::PoolError;
 use fyrox_core::{
+    SafeLock,
     pool::{Handle, Pool},
     reflect::prelude::*,
     visitor::prelude::*,
-    SafeLock,
 };
 use std::{
     sync::{Arc, Mutex, MutexGuard},

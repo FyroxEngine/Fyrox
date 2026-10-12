@@ -32,16 +32,16 @@ use crate::{
         server::GraphicsServer,
     },
     renderer::{
+        GeometryCache, RenderPassStatistics, SPOT_SHADOW_PASS_NAME,
         bundle::{BundleRenderContext, RenderDataBundleStorage, RenderDataBundleStorageOptions},
         cache::{
-            shader::ShaderCache, texture::TextureCache, uniform::UniformMemoryAllocator,
-            DynamicSurfaceCache,
+            DynamicSurfaceCache, shader::ShaderCache, texture::TextureCache,
+            uniform::UniformMemoryAllocator,
         },
         observer::ObserverPosition,
         resources::RendererResources,
         settings::ShadowMapPrecision,
         shadow::cascade_size,
-        GeometryCache, RenderPassStatistics, SPOT_SHADOW_PASS_NAME,
     },
     scene::{collider::BitMask, graph::Graph},
 };

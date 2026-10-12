@@ -24,6 +24,7 @@
 //! supported by the engine.
 
 use crate::{
+    PolygonFace, PolygonFillMode,
     buffer::{GpuBuffer, GpuBufferDescriptor},
     error::FrameworkError,
     framebuffer::{Attachment, GpuFrameBuffer},
@@ -34,7 +35,6 @@ use crate::{
     read_buffer::GpuAsyncReadBuffer,
     sampler::{GpuSampler, GpuSamplerDescriptor},
     stats::PipelineStatistics,
-    PolygonFace, PolygonFillMode,
 };
 use fyrox_core::define_as_any_trait;
 use std::fmt::{Display, Formatter};

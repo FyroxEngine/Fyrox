@@ -19,16 +19,19 @@
 // SOFTWARE.
 
 use crate::{
+    Message,
     asset::{self, item::AssetItem},
     fyrox::{
         asset::manager::ResourceManager,
         core::{
-            futures::executor::block_on, log::Log, ok_or_return, pool::Handle,
-            pool::HandlesVecExtension, reflect::prelude::*, visitor::prelude::*, SafeLock,
+            SafeLock, futures::executor::block_on, log::Log, ok_or_return, pool::Handle,
+            pool::HandlesVecExtension, reflect::prelude::*, visitor::prelude::*,
         },
         engine::Engine,
         graph::SceneGraph,
         gui::{
+            BuildContext, Control, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness,
+            UiNode, UserInterface,
             button::{Button, ButtonBuilder, ButtonMessage},
             control_trait_proxy_impls,
             formatted_text::WrapMode,
@@ -47,12 +50,10 @@ use crate::{
             text_box::{TextBox, TextBoxBuilder, TextCommitMode},
             widget::{Widget, WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, Control, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness,
-            UiNode, UserInterface,
         },
     },
     message::MessageSender,
-    utils, Message,
+    utils,
 };
 use std::{
     fs::File,
@@ -121,10 +122,10 @@ impl Control for AssetRenameDialog {
             ));
 
             ui.send(self.rename, WidgetMessage::Enabled(can_be_moved));
-        } else if let Some(WindowMessage::Open { .. }) = message.data() {
-            if message.destination() == self.handle {
-                ui.send(self.name_field, WidgetMessage::Focus);
-            }
+        } else if let Some(WindowMessage::Open { .. }) = message.data()
+            && message.destination() == self.handle
+        {
+            ui.send(self.name_field, WidgetMessage::Focus);
         }
     }
 }
@@ -387,96 +388,87 @@ impl AssetItemContextMenu {
                 } else if message.destination() == self.open {
                     item.open();
                 } else if message.destination() == self.duplicate {
-                    if let Some(resource) = item.untyped_resource() {
-                        if let Some(path) = engine.resource_manager.resource_path(&resource) {
-                            let built_in = engine
+                    if let Some(resource) = item.untyped_resource()
+                        && let Some(path) = engine.resource_manager.resource_path(&resource)
+                    {
+                        let built_in = engine
+                            .resource_manager
+                            .state()
+                            .built_in_resources
+                            .get(&path)
+                            .cloned();
+                        if let Some(built_in) = built_in {
+                            let registry_path = engine
                                 .resource_manager
                                 .state()
-                                .built_in_resources
-                                .get(&path)
-                                .cloned();
-                            if let Some(built_in) = built_in {
-                                let registry_path = engine
-                                    .resource_manager
-                                    .state()
-                                    .resource_registry
-                                    .safe_lock()
-                                    .path()
-                                    .parent()
-                                    .map(|p| p.to_path_buf())
-                                    .unwrap_or_default();
+                                .resource_registry
+                                .safe_lock()
+                                .path()
+                                .parent()
+                                .map(|p| p.to_path_buf())
+                                .unwrap_or_default();
 
-                                if let Some(data_source) = built_in.data_source.as_ref() {
+                            if let Some(data_source) = built_in.data_source.as_ref() {
+                                let final_copy_path = asset::make_unique_path(
+                                    &registry_path,
+                                    path.to_str().unwrap(),
+                                    &data_source.extension,
+                                );
+
+                                match File::create(&final_copy_path) {
+                                    Ok(mut file) => {
+                                        let result = file.write_all(&data_source.bytes);
+                                        drop(file);
+                                        if result.is_ok() {
+                                            engine
+                                                .resource_manager
+                                                .request_untyped(&final_copy_path);
+                                        }
+                                        Log::verify(result);
+                                        sender.send(Message::ShowInAssetBrowser(final_copy_path));
+                                    }
+                                    Err(err) => Log::err(format!(
+                                        "Failed to create a file for resource at path {final_copy_path:?}. \
+                                                Reason: {err}",
+                                    )),
+                                }
+                            } else if let Some(data) = built_in.resource.lock().state.data_mut() {
+                                let loaders = engine.resource_manager.state().loaders.clone();
+                                let loaders = loaders.lock();
+
+                                if let Some(loader) = loaders.loader_for_data_type(
+                                    data.inner_ref().type_info_ref().type_uuid,
+                                ) && let Some(extension) = loader.extensions().first()
+                                    && data.inner_ref().can_be_saved()
+                                {
                                     let final_copy_path = asset::make_unique_path(
                                         &registry_path,
                                         path.to_str().unwrap(),
-                                        &data_source.extension,
+                                        extension,
                                     );
+                                    drop(loaders);
+                                    if data.inner_mut().save(&final_copy_path).is_ok() {
+                                        engine.resource_manager.request_untyped(&final_copy_path);
 
-                                    match File::create(&final_copy_path) {
-                                        Ok(mut file) => {
-                                            let result = file.write_all(&data_source.bytes);
-                                            drop(file);
-                                            if result.is_ok() {
-                                                engine
-                                                    .resource_manager
-                                                    .request_untyped(&final_copy_path);
-                                            }
-                                            Log::verify(result);
-                                            sender
-                                                .send(Message::ShowInAssetBrowser(final_copy_path));
-                                        }
-                                        Err(err) => Log::err(format!(
-                                            "Failed to create a file for resource at path {final_copy_path:?}. \
-                                                Reason: {err}",
-                                        )),
+                                        sender.send(Message::ShowInAssetBrowser(final_copy_path));
                                     }
-                                } else if let Some(data) = built_in.resource.lock().state.data_mut()
-                                {
-                                    let loaders = engine.resource_manager.state().loaders.clone();
-                                    let loaders = loaders.lock();
-
-                                    if let Some(loader) = loaders.loader_for_data_type(
-                                        data.inner_ref().type_info_ref().type_uuid,
-                                    ) {
-                                        if let Some(extension) = loader.extensions().first() {
-                                            if data.inner_ref().can_be_saved() {
-                                                let final_copy_path = asset::make_unique_path(
-                                                    &registry_path,
-                                                    path.to_str().unwrap(),
-                                                    extension,
-                                                );
-                                                drop(loaders);
-                                                if data.inner_mut().save(&final_copy_path).is_ok() {
-                                                    engine
-                                                        .resource_manager
-                                                        .request_untyped(&final_copy_path);
-
-                                                    sender.send(Message::ShowInAssetBrowser(
-                                                        final_copy_path,
-                                                    ));
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            } else if let Ok(canonical_path) = path.canonicalize() {
-                                if let (Some(parent), Some(stem), Some(ext)) = (
-                                    canonical_path.parent(),
-                                    canonical_path.file_stem(),
-                                    canonical_path.extension(),
-                                ) {
-                                    let stem = stem.to_string_lossy().to_string();
-                                    let ext = ext.to_string_lossy().to_string();
-                                    let final_copy_path =
-                                        asset::make_unique_path(parent, &stem, &ext);
-                                    let result = std::fs::copy(canonical_path, &final_copy_path);
-                                    if result.is_ok() {
-                                        engine.resource_manager.request_untyped(final_copy_path);
-                                    }
-                                    Log::verify(result);
                                 }
                             }
+                        } else if let Ok(canonical_path) = path.canonicalize()
+                            && let (Some(parent), Some(stem), Some(ext)) = (
+                                canonical_path.parent(),
+                                canonical_path.file_stem(),
+                                canonical_path.extension(),
+                            )
+                        {
+                            let stem = stem.to_string_lossy().to_string();
+                            let ext = ext.to_string_lossy().to_string();
+                            let final_copy_path = asset::make_unique_path(parent, &stem, &ext);
+                            let result = std::fs::copy(canonical_path, &final_copy_path);
+                            if result.is_ok() {
+                                engine.resource_manager.request_untyped(final_copy_path);
+                            }
+                            Log::verify(result);
                         }
                     }
                 } else if message.destination() == self.copy_path {
@@ -518,12 +510,11 @@ impl AssetItemContextMenu {
                             },
                         );
                     }
-                } else if message.destination() == self.reload {
-                    if let Ok(resource) =
+                } else if message.destination() == self.reload
+                    && let Ok(resource) =
                         block_on(engine.resource_manager.request_untyped(&item.path))
-                    {
-                        engine.resource_manager.state().reload_resource(resource);
-                    }
+                {
+                    engine.resource_manager.state().reload_resource(resource);
                 }
             }
         } else if let Some(MessageBoxMessage::Close(result)) =

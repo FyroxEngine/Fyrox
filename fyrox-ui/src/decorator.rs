@@ -24,6 +24,7 @@
 #![warn(missing_docs)]
 
 use crate::{
+    BuildContext, Control, UiNode, UserInterface,
     border::{Border, BorderBuilder},
     brush::Brush,
     core::{
@@ -32,9 +33,8 @@ use crate::{
     },
     draw::DrawingContext,
     message::{MessageData, UiMessage},
-    style::{resource::StyleResourceExt, Style, StyledProperty},
+    style::{Style, StyledProperty, resource::StyleResourceExt},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
@@ -261,13 +261,13 @@ impl Control for Decorator {
                 }
             }
 
-            if message.destination() == self.handle() {
-                if let WidgetMessage::Style(style) = msg {
-                    self.normal_brush.update(style);
-                    self.hover_brush.update(style);
-                    self.pressed_brush.update(style);
-                    self.selected_brush.update(style);
-                }
+            if message.destination() == self.handle()
+                && let WidgetMessage::Style(style) = msg
+            {
+                self.normal_brush.update(style);
+                self.hover_brush.update(style);
+                self.pressed_brush.update(style);
+                self.selected_brush.update(style);
             }
         }
     }

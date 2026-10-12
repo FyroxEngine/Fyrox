@@ -18,16 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::{cubicf, inf_sup_cubicf, lerpf, Rect};
+use crate::{Rect, cubicf, inf_sup_cubicf, lerpf};
 use std::cmp::Ordering;
 use uuid::Uuid;
 
 fn stepf(p0: f32, p1: f32, t: f32) -> f32 {
-    if t.eq(&1.0) {
-        p1
-    } else {
-        p0
-    }
+    if t.eq(&1.0) { p1 } else { p0 }
 }
 
 #[derive(Default, Clone, Debug, PartialEq)]

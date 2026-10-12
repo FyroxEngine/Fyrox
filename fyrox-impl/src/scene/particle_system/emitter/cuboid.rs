@@ -27,8 +27,8 @@ use crate::{
     core::{algebra::Vector3, reflect::prelude::*, visitor::prelude::*},
     scene::particle_system::{
         emitter::{
-            base::{BaseEmitter, BaseEmitterBuilder},
             Emit, Emitter,
+            base::{BaseEmitter, BaseEmitterBuilder},
         },
         particle::Particle,
     },

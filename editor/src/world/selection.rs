@@ -29,13 +29,13 @@ use crate::{
         engine::Engine,
         graph::{NodeWrapper, SceneGraph},
         gui::inspector::PropertyChanged,
-        scene::{graph::Graph, node::Node, SceneContainer},
+        scene::{SceneContainer, graph::Graph, node::Node},
     },
     message::MessageSender,
     scene::{
-        commands::{graph::DeleteSubGraphCommand, ChangeSelectionCommand, GameSceneContext},
-        controller::SceneController,
         EntityInfo, GameScene, SelectionContainer,
+        commands::{ChangeSelectionCommand, GameSceneContext, graph::DeleteSubGraphCommand},
+        controller::SceneController,
     },
     utils,
 };

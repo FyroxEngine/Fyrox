@@ -21,6 +21,7 @@
 //! A special container that is able to create widgets by their type UUID.
 use crate::file_browser::FileSelectorField;
 use crate::{
+    UiNode, UserInterface,
     absm::{AbsmEventProvider, AnimationBlendingStateMachine},
     animation::AnimationPlayer,
     bit::BitField,
@@ -67,7 +68,6 @@ use crate::{
     vector_image::VectorImage,
     window::Window,
     wrap_panel::WrapPanel,
-    UiNode, UserInterface,
 };
 use fyrox_graph::constructor::{GraphNodeConstructor, GraphNodeConstructorContainer};
 

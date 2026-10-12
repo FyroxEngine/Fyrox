@@ -23,11 +23,11 @@
 
 use crate::popup::Popup;
 use crate::{
+    BuildContext, Control, UiNode, UserInterface,
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     message::{MouseButton, UiMessage},
     popup::{Placement, PopupBuilder, PopupMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_core::pool::ObjectOrVariant;
 use std::sync::mpsc::Sender;
@@ -56,14 +56,14 @@ impl Control for DropdownMenu {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(WidgetMessage::MouseDown { button, .. }) = message.data() {
-            if *button == MouseButton::Left {
-                ui.send(
-                    self.popup,
-                    PopupMessage::Placement(Placement::LeftBottom(self.handle)),
-                );
-                ui.send(self.popup, PopupMessage::Open);
-            }
+        if let Some(WidgetMessage::MouseDown { button, .. }) = message.data()
+            && *button == MouseButton::Left
+        {
+            ui.send(
+                self.popup,
+                PopupMessage::Placement(Placement::LeftBottom(self.handle)),
+            );
+            ui.send(self.popup, PopupMessage::Open);
         }
     }
 }

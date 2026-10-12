@@ -35,10 +35,11 @@ use crate::{
         graph::{NodeWrapper, SceneGraph},
         graphics::{framebuffer::ReadTarget, gpu_texture::GpuTextureKind},
         gui::{
-            font::Font, formatted_text::WrapMode, screen::ScreenBuilder, text::TextBuilder,
-            widget::WidgetBuilder, HorizontalAlignment, UserInterface, VerticalAlignment,
+            HorizontalAlignment, UserInterface, VerticalAlignment, font::Font,
+            formatted_text::WrapMode, screen::ScreenBuilder, text::TextBuilder,
+            widget::WidgetBuilder,
         },
-        material::{shader::Shader, Material, MaterialResource},
+        material::{Material, MaterialResource, shader::Shader},
         resource::{
             curve::CurveResourceState,
             model::{Model, ModelResourceExtension},
@@ -47,17 +48,17 @@ use crate::{
             },
         },
         scene::{
+            EnvironmentLightingSource, Scene,
             base::BaseBuilder,
             camera::{Camera, CameraBuilder, FitParameters, Projection},
-            light::{directional::DirectionalLightBuilder, BaseLightBuilder},
+            light::{BaseLightBuilder, directional::DirectionalLightBuilder},
             mesh::{
-                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
                 MeshBuilder, RenderPath,
+                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
             },
             node::Node,
             skybox::SkyBox,
             sound::{HrirSphereResourceData, SoundBuffer, SoundBuilder, Status},
-            EnvironmentLightingSource, Scene,
         },
     },
     load_image,
@@ -182,18 +183,18 @@ impl AssetPreviewGenerator for TexturePreview {
             let material = MaterialResource::new_embedded(material);
 
             MeshBuilder::new(BaseBuilder::new())
-                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
-                    SurfaceData::make_quad(
+                .with_surfaces(vec![
+                    SurfaceBuilder::new(SurfaceResource::new_embedded(SurfaceData::make_quad(
                         &(UnitQuaternion::from_axis_angle(
                             &Vector3::z_axis(),
                             180.0f32.to_radians(),
                         )
                         .to_homogeneous()
                             * Matrix4::new_nonuniform_scaling(&scale)),
-                    ),
-                ))
-                .with_material(material)
-                .build()])
+                    )))
+                    .with_material(material)
+                    .build(),
+                ])
                 .with_render_path(RenderPath::Forward)
                 .build(&mut scene.graph)
                 .to_base()
@@ -251,69 +252,68 @@ impl AssetPreviewGenerator for SoundPreview {
         resource: &UntypedResource,
         _engine: &mut Engine,
     ) -> Option<AssetPreviewTexture> {
-        if let Some(buffer) = resource.try_cast::<SoundBuffer>() {
-            if let Some(data) = buffer.state().data() {
-                let height = asset::item::DEFAULT_SIZE;
-                let half_height = height / 2.0;
-                let width = asset::item::DEFAULT_SIZE;
-                let mut image =
-                    image::DynamicImage::new(width as u32, height as u32, ColorType::Rgba8);
+        if let Some(buffer) = resource.try_cast::<SoundBuffer>()
+            && let Some(data) = buffer.state().data()
+        {
+            let height = asset::item::DEFAULT_SIZE;
+            let half_height = height / 2.0;
+            let width = asset::item::DEFAULT_SIZE;
+            let mut image = image::DynamicImage::new(width as u32, height as u32, ColorType::Rgba8);
 
-                for i in 0..(width as u32) {
-                    for j in 0..(height as u32) {
-                        image.put_pixel(j, i, Rgba::from([100, 100, 100, 255]));
-                    }
+            for i in 0..(width as u32) {
+                for j in 0..(height as u32) {
+                    image.put_pixel(j, i, Rgba::from([100, 100, 100, 255]));
                 }
-
-                let samples = data.samples();
-                let mut min = f32::MAX;
-                let mut max = -f32::MAX;
-                for sample in samples.iter() {
-                    if *sample < min {
-                        min = *sample;
-                    }
-                    if *sample > max {
-                        max = *sample;
-                    }
-                }
-                let amplitude_range = (max.abs() + min.abs()) / 4.0;
-
-                let sample_count = samples.len();
-                let step = sample_count / width as usize;
-                for (step_num, sample_num) in (0..sample_count).step_by(step).enumerate() {
-                    let current_amplitude = samples[sample_num] / amplitude_range;
-                    let next_amplitude = samples
-                        [(sample_num + step).min(sample_count.saturating_sub(1))]
-                        / amplitude_range;
-                    let current_x = step_num as f32;
-                    let next_x = (step_num + 1) as f32;
-                    let current_y = half_height + current_amplitude * half_height;
-                    let next_y = half_height + next_amplitude * half_height;
-                    imageproc::drawing::draw_antialiased_line_segment_mut(
-                        &mut image,
-                        (current_x as i32, current_y as i32),
-                        (next_x as i32, next_y as i32),
-                        Rgba::from([255, 127, 39, 255]),
-                        imageproc::pixelops::interpolate,
-                    );
-                }
-
-                return TextureResource::from_bytes(
-                    Uuid::new_v4(),
-                    TextureKind::Rectangle {
-                        width: width as u32,
-                        height: height as u32,
-                    },
-                    TexturePixelKind::RGBA8,
-                    image.as_bytes().to_vec(),
-                    ResourceKind::Embedded,
-                )
-                .map(|texture| AssetPreviewTexture {
-                    texture,
-                    flip_y: false,
-                    color: Color::WHITE,
-                });
             }
+
+            let samples = data.samples();
+            let mut min = f32::MAX;
+            let mut max = -f32::MAX;
+            for sample in samples.iter() {
+                if *sample < min {
+                    min = *sample;
+                }
+                if *sample > max {
+                    max = *sample;
+                }
+            }
+            let amplitude_range = (max.abs() + min.abs()) / 4.0;
+
+            let sample_count = samples.len();
+            let step = sample_count / width as usize;
+            for (step_num, sample_num) in (0..sample_count).step_by(step).enumerate() {
+                let current_amplitude = samples[sample_num] / amplitude_range;
+                let next_amplitude = samples
+                    [(sample_num + step).min(sample_count.saturating_sub(1))]
+                    / amplitude_range;
+                let current_x = step_num as f32;
+                let next_x = (step_num + 1) as f32;
+                let current_y = half_height + current_amplitude * half_height;
+                let next_y = half_height + next_amplitude * half_height;
+                imageproc::drawing::draw_antialiased_line_segment_mut(
+                    &mut image,
+                    (current_x as i32, current_y as i32),
+                    (next_x as i32, next_y as i32),
+                    Rgba::from([255, 127, 39, 255]),
+                    imageproc::pixelops::interpolate,
+                );
+            }
+
+            return TextureResource::from_bytes(
+                Uuid::new_v4(),
+                TextureKind::Rectangle {
+                    width: width as u32,
+                    height: height as u32,
+                },
+                TexturePixelKind::RGBA8,
+                image.as_bytes().to_vec(),
+                ResourceKind::Embedded,
+            )
+            .map(|texture| AssetPreviewTexture {
+                texture,
+                flip_y: false,
+                color: Color::WHITE,
+            });
         }
         None
     }
@@ -524,11 +524,16 @@ impl AssetPreviewGenerator for ShaderPreview {
             let material = MaterialResource::new_embedded(Material::from_shader(shader));
 
             MeshBuilder::new(BaseBuilder::new())
-                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
-                    SurfaceData::make_sphere(32, 32, 1.0, &Matrix4::identity()),
-                ))
-                .with_material(material)
-                .build()])
+                .with_surfaces(vec![
+                    SurfaceBuilder::new(SurfaceResource::new_embedded(SurfaceData::make_sphere(
+                        32,
+                        32,
+                        1.0,
+                        &Matrix4::identity(),
+                    )))
+                    .with_material(material)
+                    .build(),
+                ])
                 .build(&mut scene.graph)
                 .to_base()
         } else {
@@ -567,11 +572,16 @@ impl AssetPreviewGenerator for MaterialPreview {
     ) -> Handle<Node> {
         if let Some(material) = resource.try_cast::<Material>() {
             MeshBuilder::new(BaseBuilder::new())
-                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
-                    SurfaceData::make_sphere(32, 32, 1.0, &Matrix4::identity()),
-                ))
-                .with_material(material)
-                .build()])
+                .with_surfaces(vec![
+                    SurfaceBuilder::new(SurfaceResource::new_embedded(SurfaceData::make_sphere(
+                        32,
+                        32,
+                        1.0,
+                        &Matrix4::identity(),
+                    )))
+                    .with_material(material)
+                    .build(),
+                ])
                 .build(&mut scene.graph)
                 .to_base()
         } else {
@@ -690,11 +700,13 @@ pub fn render_ui_to_texture(
         })
         .ok()?;
 
-    assert!(graphics_context
-        .renderer
-        .ui_frame_buffers
-        .remove(&render_target.key())
-        .is_some());
+    assert!(
+        graphics_context
+            .renderer
+            .ui_frame_buffers
+            .remove(&render_target.key())
+            .is_some()
+    );
 
     Some(AssetPreviewTexture {
         texture: render_target,

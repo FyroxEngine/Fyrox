@@ -21,6 +21,7 @@
 use crate::button::Button;
 use crate::text_box::TextBox;
 use crate::{
+    Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     button::{ButtonBuilder, ButtonMessage},
     control_trait_proxy_impls,
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
@@ -32,7 +33,6 @@ use crate::{
     text_box::{EmptyTextPlaceholder, TextBoxBuilder},
     widget::{WidgetBuilder, WidgetMessage},
     window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-    Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
 };
 
 #[derive(Clone, PartialEq, Debug)]

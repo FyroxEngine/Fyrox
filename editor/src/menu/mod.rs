@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    Engine, Mode, SceneSettingsWindow,
     asset::preview::cache::IconRequest,
     export::ExportWindow,
     fyrox::{
@@ -26,6 +27,7 @@ use crate::{
         core::uuid::Uuid,
         core::{algebra::Vector2, pool::Handle},
         gui::{
+            BuildContext, Thickness, UserInterface,
             file_browser::FileType,
             image::{Image, ImageBuilder},
             menu::{MenuBuilder, MenuItem, MenuItemBuilder, MenuItemContent},
@@ -33,7 +35,6 @@ use crate::{
             texture::TextureResource,
             widget::{WidgetBuilder, WidgetMessage},
             window::Window,
-            BuildContext, Thickness, UserInterface,
         },
     },
     menu::{edit::EditMenu, file::FileMenu, help::HelpMenu, utils::UtilsMenu, view::ViewMenu},
@@ -41,7 +42,6 @@ use crate::{
     scene::container::EditorSceneEntry,
     settings::Settings,
     stats::StatisticsWindow,
-    Engine, Mode, SceneSettingsWindow,
 };
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;

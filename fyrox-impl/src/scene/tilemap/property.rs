@@ -35,8 +35,8 @@
 //! so the user can see each tile's shape and the shepe's layer at a glance.
 
 use crate::core::{
-    algebra::Vector2, color::Color, num_traits::Euclid, reflect::prelude::*, visitor::prelude::*,
-    ImmutableString,
+    ImmutableString, algebra::Vector2, color::Color, num_traits::Euclid, reflect::prelude::*,
+    visitor::prelude::*,
 };
 use std::fmt::{Debug, Display, Formatter};
 
@@ -698,17 +698,17 @@ impl TileSetPropertyOptionValue {
         use TileSetPropertyValue as PropValue;
         match self {
             OptValue::I32(x0) => {
-                if let Some(x) = x0 {
-                    if *value != PropValue::I32(*x) {
-                        *x0 = None
-                    }
+                if let Some(x) = x0
+                    && *value != PropValue::I32(*x)
+                {
+                    *x0 = None
                 }
             }
             OptValue::F32(x0) => {
-                if let Some(x) = x0 {
-                    if *value != PropValue::F32(*x) {
-                        *x0 = None
-                    }
+                if let Some(x) = x0
+                    && *value != PropValue::F32(*x)
+                {
+                    *x0 = None
                 }
             }
             OptValue::String(x0) => {
@@ -725,10 +725,10 @@ impl TileSetPropertyOptionValue {
             OptValue::NineSlice(arr0) => {
                 if let PropValue::NineSlice(arr1) = value {
                     for (x0, x1) in arr0.iter_mut().zip(arr1.0.iter()) {
-                        if let Some(x) = x0 {
-                            if *x != *x1 {
-                                *x0 = None
-                            }
+                        if let Some(x) = x0
+                            && *x != *x1
+                        {
+                            *x0 = None
                         }
                     }
                 } else {

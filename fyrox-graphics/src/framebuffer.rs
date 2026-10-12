@@ -28,6 +28,7 @@
 
 use crate::sampler::GpuSampler;
 use crate::{
+    DrawParameters, ElementRange,
     buffer::GpuBuffer,
     core::{color::Color, math::Rect},
     define_shared_wrapper,
@@ -35,7 +36,6 @@ use crate::{
     geometry_buffer::GpuGeometryBuffer,
     gpu_program::GpuProgram,
     gpu_texture::{CubeMapFace, GpuTexture},
-    DrawParameters, ElementRange,
 };
 use bytemuck::Pod;
 use fyrox_core::define_as_any_trait;

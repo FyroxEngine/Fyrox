@@ -19,17 +19,17 @@
 // SOFTWARE.
 
 use crate::{
+    BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
     border::BorderBuilder,
     brush::Brush,
     core::{algebra::Vector2, color::Color, err, pool::Handle},
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
     stack_panel::StackPanelBuilder,
-    style::{resource::StyleResourceExt, Style, StyledProperty},
+    style::{Style, StyledProperty, resource::StyleResourceExt},
     text::{TextBuilder, TextMessage},
     vector_image::{Primitive, VectorImageBuilder},
     widget::{WidgetBuilder, WidgetMessage},
-    BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 
 fn heading_depth_to_font_size(heading_depth: u8) -> StyledProperty<f32> {

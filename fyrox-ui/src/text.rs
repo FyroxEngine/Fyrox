@@ -25,6 +25,8 @@
 
 use crate::formatted_text::InlineContext;
 use crate::{
+    BBCode, BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
+    WidgetMessage,
     brush::Brush,
     core::{
         algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, visitor::prelude::*,
@@ -33,10 +35,8 @@ use crate::{
     font::FontResource,
     formatted_text::{FormattedText, FormattedTextBuilder, Run, RunSet, WrapMode},
     message::{MessageData, UiMessage},
-    style::{resource::StyleResourceExt, Style, StyledProperty},
+    style::{Style, StyledProperty, resource::StyleResourceExt},
     widget::{Widget, WidgetBuilder},
-    BBCode, BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
-    WidgetMessage,
 };
 use fyrox_core::algebra::Matrix3;
 use fyrox_core::variable::InheritableVariable;

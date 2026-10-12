@@ -57,8 +57,8 @@ use fyrox_core::{
     visitor::prelude::*,
 };
 use fyrox_resource::{
-    embedded_data_source, io::ResourceIo, manager::BuiltInResource, options::ImportOptions,
-    untyped::ResourceKind, Resource, ResourceData,
+    Resource, ResourceData, embedded_data_source, io::ResourceIo, manager::BuiltInResource,
+    options::ImportOptions, untyped::ResourceKind,
 };
 use image::{ColorType, DynamicImage, ImageError, ImageFormat, Pixel};
 use serde::{Deserialize, Serialize};
@@ -190,7 +190,7 @@ impl Visit for TextureKind {
                 _ => {
                     return VisitResult::Err(VisitError::User(format!(
                         "Invalid texture kind {id}!"
-                    )))
+                    )));
                 }
             };
         }
@@ -716,7 +716,7 @@ pub trait TextureResourceExtension: Sized {
     /// to correct settings, after render target was created, it must not be modified, otherwise
     /// result is undefined.
     fn new_render_target_with_format(width: u32, height: u32, pixel_kind: TexturePixelKind)
-        -> Self;
+    -> Self;
 
     /// Tries to load a texture from given data. Use this method if you want to
     /// load a texture from embedded data.
@@ -1958,10 +1958,10 @@ impl Texture {
     /// Keep in mind, that this method will return a reference to **all** data in the texture, including all mip
     /// levels. If you need to get typed data from specific mip level use [`Self::mip_level_data_of_type`].
     pub fn data_of_type<T: Sized>(&self) -> Option<&[T]> {
-        if let Some(pixel_size) = self.pixel_kind.size_in_bytes() {
-            if pixel_size == std::mem::size_of::<T>() {
-                return Some(transmute_slice(&self.bytes));
-            }
+        if let Some(pixel_size) = self.pixel_kind.size_in_bytes()
+            && pixel_size == std::mem::size_of::<T>()
+        {
+            return Some(transmute_slice(&self.bytes));
         }
         None
     }
@@ -1988,10 +1988,10 @@ impl Texture {
     /// safe in terms of memory access (both are 4 bytes total), but not ok in terms of actual data. Be careful
     /// when using this method.
     pub fn mip_level_data_of_type<T: Sized>(&self, mip: usize) -> Option<&[T]> {
-        if let Some(pixel_size) = self.pixel_kind.size_in_bytes() {
-            if pixel_size == std::mem::size_of::<T>() {
-                return Some(transmute_slice(self.mip_level_data(mip)));
-            }
+        if let Some(pixel_size) = self.pixel_kind.size_in_bytes()
+            && pixel_size == std::mem::size_of::<T>()
+        {
+            return Some(transmute_slice(self.mip_level_data(mip)));
         }
         None
     }
@@ -2065,10 +2065,10 @@ impl TextureDataRefMut<'_> {
     /// structure `struct Rgba8 { r: u8, g: u8, b: u8, a: u8 }` which is safe in terms of memory access (both are 4
     /// bytes total), but not ok in terms of actual data. Be careful when using the method.
     pub fn data_mut_of_type<T: Sized>(&mut self) -> Option<&mut [T]> {
-        if let Some(pixel_size) = self.texture.pixel_kind.size_in_bytes() {
-            if pixel_size == std::mem::size_of::<T>() {
-                return Some(transmute_slice_mut(&mut self.texture.bytes));
-            }
+        if let Some(pixel_size) = self.texture.pixel_kind.size_in_bytes()
+            && pixel_size == std::mem::size_of::<T>()
+        {
+            return Some(transmute_slice_mut(&mut self.texture.bytes));
         }
         None
     }

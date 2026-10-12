@@ -19,15 +19,15 @@
 // SOFTWARE.
 
 use crate::{
+    MessageDirection, Thickness, UiMessage, WidgetBuilder,
     bit::{BitContainer, BitFieldBuilder, BitFieldMessage},
     inspector::{
+        FieldAction, InspectorError, PropertyChanged,
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldAction, InspectorError, PropertyChanged,
     },
-    MessageDirection, Thickness, UiMessage, WidgetBuilder,
 };
 use fyrox_core::PhantomDataSendSync;
 use std::any::TypeId;
@@ -84,13 +84,13 @@ where
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(BitFieldMessage::Value(value)) = ctx.message.data::<BitFieldMessage<T>>() {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
-                    action: FieldAction::object(*value),
-                });
-            }
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(BitFieldMessage::Value(value)) = ctx.message.data::<BitFieldMessage<T>>()
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
+                action: FieldAction::object(*value),
+            });
         }
         None
     }

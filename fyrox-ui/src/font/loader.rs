@@ -29,7 +29,7 @@ use fyrox_resource::{
     loader::{BoxedImportOptionsLoaderFuture, BoxedLoaderFuture, LoaderPayload, ResourceLoader},
     manager::ResourceManager,
     options::{
-        try_get_import_settings, try_get_import_settings_opaque, BaseImportOptions, ImportOptions,
+        BaseImportOptions, ImportOptions, try_get_import_settings, try_get_import_settings_opaque,
     },
     state::LoadError,
 };

@@ -20,11 +20,13 @@
 
 use crate::scene::controller::SceneController;
 use crate::{
+    Message,
     fyrox::{
         core::pool::Handle,
         engine::Engine,
         graph::SceneGraph,
         gui::{
+            BuildContext, HorizontalAlignment, Orientation, Thickness,
             button::{Button, ButtonBuilder, ButtonMessage},
             formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
@@ -35,12 +37,10 @@ use crate::{
             text_box::{TextBox, TextBoxBuilder},
             widget::WidgetBuilder,
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, HorizontalAlignment, Orientation, Thickness,
         },
     },
     message::MessageSender,
     scene::{GameScene, Selection},
-    Message,
 };
 use fyrox::core::some_or_return;
 

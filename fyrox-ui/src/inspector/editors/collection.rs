@@ -18,29 +18,30 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::inspector::{InspectorEnvironmentContainer, HEADER_MARGIN, LAYER_OFFSET};
+use crate::inspector::{HEADER_MARGIN, InspectorEnvironmentContainer, LAYER_OFFSET};
 use crate::{
+    BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
+    VerticalAlignment,
     button::{Button, ButtonMessage},
     core::{
-        color::Color, pool::Handle, reflect::prelude::*, visitor::prelude::*, PhantomDataSendSync,
+        PhantomDataSendSync, color::Color, pool::Handle, reflect::prelude::*, visitor::prelude::*,
     },
     grid::{Column, GridBuilder, Row},
     inspector::{
+        CollectionAction, FieldAction, InspectorError, ObjectValue, PropertyChanged,
+        PropertyFilter,
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition,
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        make_expander_container, make_property_margin, CollectionAction, FieldAction,
-        InspectorError, ObjectValue, PropertyChanged, PropertyFilter,
+        make_expander_container, make_property_margin,
     },
     message::{DeliveryMode, MessageData, MessageDirection, UiMessage},
     resources,
     stack_panel::{StackPanel, StackPanelBuilder},
     utils::ImageButtonBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
-    VerticalAlignment,
 };
 use fyrox_graph::SceneGraph;
 use std::{
@@ -128,20 +129,20 @@ impl<T: CollectionItem> Control for CollectionEditor<T> {
                 ui.post(self.handle, CollectionAction::Remove(index));
             }
         } else if let Some(msg) = message.data::<CollectionEditorMessage>() {
-            if message.destination == self.handle {
-                if let CollectionEditorMessage::Items(items) = msg {
-                    let views = create_item_views(items, &mut ui.build_ctx());
+            if message.destination == self.handle
+                && let CollectionEditorMessage::Items(items) = msg
+            {
+                let views = create_item_views(items, &mut ui.build_ctx());
 
-                    for old_item in ui[self.panel].children() {
-                        ui.send(*old_item, WidgetMessage::Remove);
-                    }
-
-                    for view in views {
-                        ui.send(view, WidgetMessage::link_with(self.panel));
-                    }
-
-                    self.items.clone_from(items);
+                for old_item in ui[self.panel].children() {
+                    ui.send(*old_item, WidgetMessage::Remove);
                 }
+
+                for view in views {
+                    ui.send(view, WidgetMessage::link_with(self.panel));
+                }
+
+                self.items.clone_from(items);
             }
         } else if let Some(index) = self
             .items
@@ -159,15 +160,15 @@ impl<T: CollectionItem> Control for CollectionEditor<T> {
     }
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
-            if message.destination() == self.add {
-                ui.post(
-                    self.handle,
-                    CollectionAction::Add(ObjectValue {
-                        value: Box::<T>::default(),
-                    }),
-                )
-            }
+        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>()
+            && message.destination() == self.add
+        {
+            ui.post(
+                self.handle,
+                CollectionAction::Add(ObjectValue {
+                    value: Box::<T>::default(),
+                }),
+            )
         }
     }
 }
@@ -658,27 +659,26 @@ where
                 });
             } else if let Some(CollectionEditorMessage::ItemChanged { index, message }) =
                 ctx.message.data()
+                && let Some(definition) = ctx.definition_container.get::<T>()
             {
-                if let Some(definition) = ctx.definition_container.get::<T>() {
-                    return Some(PropertyChanged {
-                        name: ctx.name.to_string(),
+                return Some(PropertyChanged {
+                    name: ctx.name.to_string(),
 
-                        action: FieldAction::CollectionAction(Box::new(
-                            CollectionAction::ItemChanged {
-                                index: *index,
-                                action: definition
-                                    .property_editor
-                                    .translate_message(PropertyEditorTranslationContext {
-                                        environment: ctx.environment.clone(),
-                                        name: "",
-                                        message,
-                                        definition_container: ctx.definition_container.clone(),
-                                    })?
-                                    .action,
-                            },
-                        )),
-                    });
-                }
+                    action: FieldAction::CollectionAction(Box::new(
+                        CollectionAction::ItemChanged {
+                            index: *index,
+                            action: definition
+                                .property_editor
+                                .translate_message(PropertyEditorTranslationContext {
+                                    environment: ctx.environment.clone(),
+                                    name: "",
+                                    message,
+                                    definition_container: ctx.definition_container.clone(),
+                                })?
+                                .action,
+                        },
+                    )),
+                });
             }
         }
 

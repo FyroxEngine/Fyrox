@@ -26,8 +26,8 @@ use fyrox::gui::check_box::CheckBox;
 use fyrox::gui::numeric::NumericUpDown;
 use fyrox::gui::stack_panel::StackPanel;
 use fyrox::{
-    asset::{untyped::UntypedResource, Resource, ResourceData},
-    core::{swap_hash_map_entry, SafeLock},
+    asset::{Resource, ResourceData, untyped::UntypedResource},
+    core::{SafeLock, swap_hash_map_entry},
     fxhash::FxHashMap,
     gui::{
         button::ButtonMessage,
@@ -38,25 +38,29 @@ use fyrox::{
     },
     rand::thread_rng,
     scene::tilemap::{
+        MacroTilesUpdate, TileMapDataResource, TileSetWfcConstraint, TileSetWfcPropagator,
+        TileTerrainId,
         brush::TileMapBrushResource,
         tileset::{
             NamableValue, TileSetPropertyF32, TileSetPropertyId, TileSetPropertyNine,
             TileSetPropertyType, TileSetPropertyValueElement,
         },
-        MacroTilesUpdate, TileMapDataResource, TileSetWfcConstraint, TileSetWfcPropagator,
-        TileTerrainId,
     },
 };
 
 const DEFAULT_MAX_ATTEMPTS: u32 = 300;
 const DEFAULT_CONSTRAIN_EDGES: bool = true;
 
-const PATTERN_PROP_DESC: &str = concat!("Choose a nine-slice property from the tile set. ",
-    "This property will provide the pattern that the autotiler uses to know whether two tiles match along each edge. ");
+const PATTERN_PROP_DESC: &str = concat!(
+    "Choose a nine-slice property from the tile set. ",
+    "This property will provide the pattern that the autotiler uses to know whether two tiles match along each edge. "
+);
 
-const FREQUENCY_PROP_DESC: &str = concat!("Choose a float property from the tile set. ",
+const FREQUENCY_PROP_DESC: &str = concat!(
+    "Choose a float property from the tile set. ",
     "This property will provide the frequency that the autotiler uses to know know often to choose a tile when there is more than one ",
-    "tile with the same pattern.");
+    "tile with the same pattern."
+);
 
 #[derive(Default)]
 pub struct WfcMacro {
@@ -725,12 +729,11 @@ impl BrushMacro for WfcMacro {
         let mut propagator = TileSetWfcPropagator::default();
         propagator.fill_from(constraint.deref());
         for (&p, v) in update.iter() {
-            if let Some(StampElement { source, .. }) = v {
-                if let Some(cell) = source.and_then(|s| s.handle()) {
-                    if instance.cells.contains(&cell) {
-                        propagator.add_cell(p);
-                    }
-                }
+            if let Some(StampElement { source, .. }) = v
+                && let Some(cell) = source.and_then(|s| s.handle())
+                && instance.cells.contains(&cell)
+            {
+                propagator.add_cell(p);
             }
         }
         if propagator.is_empty() {

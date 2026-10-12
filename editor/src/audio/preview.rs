@@ -19,11 +19,13 @@
 // SOFTWARE.
 
 use crate::{
+    Message,
     fyrox::{
         core::pool::Handle,
         engine::Engine,
         graph::SceneGraph,
         gui::{
+            BuildContext, Thickness, VerticalAlignment,
             button::{Button, ButtonBuilder, ButtonMessage},
             check_box::{CheckBox, CheckBoxBuilder, CheckBoxMessage},
             grid::{Column, Grid, GridBuilder, Row},
@@ -32,7 +34,6 @@ use crate::{
             stack_panel::StackPanel,
             text::TextBuilder,
             widget::{WidgetBuilder, WidgetMessage},
-            BuildContext, Thickness, VerticalAlignment,
         },
         scene::{
             node::Node,
@@ -40,7 +41,6 @@ use crate::{
         },
     },
     scene::{GameScene, Selection},
-    Message,
 };
 
 pub struct AudioPreviewPanel {
@@ -180,13 +180,12 @@ impl AudioPreviewPanel {
         mut game_scene: Option<&mut GameScene>,
         engine: &mut Engine,
     ) {
-        if let Some(game_scene) = game_scene.as_mut() {
-            if let Message::DoCommand(_)
+        if let Some(game_scene) = game_scene.as_mut()
+            && let Message::DoCommand(_)
             | Message::UndoCurrentSceneCommand
             | Message::RedoCurrentSceneCommand = message
-            {
-                self.leave_preview_mode(game_scene, engine);
-            }
+        {
+            self.leave_preview_mode(game_scene, engine);
         }
 
         if let Message::SelectionChanged { .. } = message {

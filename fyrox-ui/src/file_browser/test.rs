@@ -18,19 +18,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::file_browser::fs_tree::{sanitize_path, TreeItemPath};
+use crate::file_browser::fs_tree::{TreeItemPath, sanitize_path};
 use crate::file_browser::{FileType, PathFilter};
 use crate::widget::UserData;
 use crate::{
+    RcUiNodeHandle, UiNode, UserInterface,
     core::{algebra::Vector2, pool::Handle},
     file_browser::{
-        fs_tree::{self, read_dir_entries, DisksProvider},
         FileBrowserBuilder, FileBrowserMessage,
+        fs_tree::{self, DisksProvider, read_dir_entries},
     },
-    test::{test_widget_deletion, UserInterfaceTestingExtension},
+    test::{UserInterfaceTestingExtension, test_widget_deletion},
     tree::{Tree, TreeRoot, TreeRootBuilder},
     widget::WidgetBuilder,
-    RcUiNodeHandle, UiNode, UserInterface,
 };
 use fyrox_graph::SceneGraph;
 use std::{
@@ -43,11 +43,12 @@ fn create_dir(path: impl AsRef<Path>) {
 }
 
 fn write_empty_file(path: impl AsRef<Path>) {
-    if let Some(parent) = path.as_ref().parent() {
-        if !parent.exists() {
-            create_dir(parent)
-        }
+    if let Some(parent) = path.as_ref().parent()
+        && !parent.exists()
+    {
+        create_dir(parent)
     }
+
     File::create(path).unwrap();
 }
 

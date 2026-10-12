@@ -23,11 +23,11 @@
 
 use crate::{
     asset::{
+        Resource, ResourceData,
         io::ResourceIo,
         loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
         state::LoadError,
         untyped::ResourceKind,
-        Resource, ResourceData,
     },
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},

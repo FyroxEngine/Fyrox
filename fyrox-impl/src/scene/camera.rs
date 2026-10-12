@@ -25,10 +25,10 @@ use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         color::Color,
-        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, ray::Ray, Rect},
+        math::{Rect, aabb::AxisAlignedBoundingBox, frustum::Frustum, ray::Ray},
         pool::Handle,
         reflect::prelude::*,
-        uuid::{uuid, Uuid},
+        uuid::{Uuid, uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
     },

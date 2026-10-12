@@ -41,12 +41,12 @@ use crate::{
         server::GraphicsServer,
     },
     renderer::{
+        RenderPassStatistics,
         cache::{
-            shader::{binding, property, PropertyGroup, RenderMaterial},
+            shader::{PropertyGroup, RenderMaterial, binding, property},
             uniform::UniformBufferCache,
         },
         resources::RendererResources,
-        RenderPassStatistics,
     },
     scene::debug::Line,
 };

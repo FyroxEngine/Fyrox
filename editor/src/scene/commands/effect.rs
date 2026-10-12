@@ -22,7 +22,7 @@ use crate::fyrox::{
     core::pool::{Handle, Ticket},
     scene::sound::AudioBus,
 };
-use crate::{command::CommandContext, CommandTrait, GameSceneContext};
+use crate::{CommandTrait, GameSceneContext, command::CommandContext};
 
 #[derive(Debug)]
 pub struct AddOrRemoveAudioBusCommand {

@@ -22,7 +22,7 @@
 
 use crate::export::utils;
 use fyrox_core::{
-    futures::executor, futures::future::join_all, log::Log, platform::TargetPlatform, SafeLock,
+    SafeLock, futures::executor, futures::future::join_all, log::Log, platform::TargetPlatform,
 };
 use fyrox_resource::manager::ResourceManager;
 use std::{fs, io, path::Path};

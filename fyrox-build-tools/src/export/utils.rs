@@ -127,12 +127,10 @@ pub fn is_installed(program: &str) -> bool {
         // Assuming that `help` command is always present.
         .arg("--help")
         .spawn()
+        && let Ok(code) = handle.wait()
+        && code.code().unwrap_or(1) == 0
     {
-        if let Ok(code) = handle.wait() {
-            if code.code().unwrap_or(1) == 0 {
-                return true;
-            }
-        }
+        return true;
     }
 
     false

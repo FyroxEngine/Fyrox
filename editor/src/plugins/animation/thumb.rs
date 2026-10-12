@@ -30,18 +30,17 @@ use crate::fyrox::{
         visitor::prelude::*,
     },
     gui::{
-        define_widget_deref,
+        BuildContext, Control, UiNode, UserInterface, define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
         message::UiMessage,
         widget::{Widget, WidgetBuilder},
-        BuildContext, Control, UiNode, UserInterface,
     },
 };
 
 use fyrox::gui::curve::CurveTransformCell;
 use fyrox::gui::message::MessageData;
-use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::style::resource::StyleResourceExt;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ThumbMessage {

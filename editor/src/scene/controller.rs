@@ -19,21 +19,21 @@
 // SOFTWARE.
 
 use crate::{
+    Message,
     command::{Command, CommandStack},
     fyrox::{
         core::{algebra::Vector2, define_as_any_trait, math::Rect, pool::Handle},
         engine::Engine,
         gui::{
+            UiNode,
             file_browser::FileType,
             message::{KeyCode, MouseButton},
-            UiNode,
         },
         resource::texture::TextureResource,
         scene::SceneContainer,
     },
     scene::Selection,
-    settings::{keys::KeyBindings, Settings},
-    Message,
+    settings::{Settings, keys::KeyBindings},
 };
 use std::path::Path;
 
@@ -160,7 +160,7 @@ pub trait SceneController: SceneControllerAsAny {
     );
 
     fn on_message(&mut self, message: &Message, selection: &Selection, engine: &mut Engine)
-        -> bool;
+    -> bool;
 
     fn command_names(
         &mut self,

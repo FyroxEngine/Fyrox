@@ -19,13 +19,13 @@
 // SOFTWARE.
 
 use crate::{
+    BuildContext, Control, Thickness, UiNode, UserInterface,
     border::BorderBuilder,
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     decorator::{DecoratorBuilder, DecoratorMessage},
     message::{MessageDirection, UiMessage},
-    style::{resource::StyleResourceExt, Style},
+    style::{Style, resource::StyleResourceExt},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 use fyrox_core::pool::ObjectOrVariant;
 

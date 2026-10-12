@@ -20,7 +20,7 @@
 
 use crate::scene::EntityInfo;
 use crate::{
-    command::{make_command, Command, SetPropertyCommand},
+    command::{Command, SetPropertyCommand, make_command},
     fyrox::{
         core::{
             pool::{ErasedHandle, Handle},
@@ -36,7 +36,7 @@ use crate::{
     },
     message::MessageSender,
     plugins::{animation, animation::command::fetch_animations_container},
-    scene::{controller::SceneController, GameScene, SelectionContainer},
+    scene::{GameScene, SelectionContainer, controller::SceneController},
     ui_scene::UiScene,
 };
 use std::fmt::{Debug, Formatter};
@@ -129,16 +129,11 @@ where
         callback: &mut dyn FnMut(EntityInfo),
     ) {
         if let Some(container) = get_animations_container(self.animation_player, controller, scenes)
+            && let Ok(animation) = container.try_get(self.animation)
+            && let Some(animation::selection::SelectedEntity::Signal(id)) = self.entities.first()
+            && let Some(signal) = animation.signals().iter().find(|s| s.id == *id)
         {
-            if let Ok(animation) = container.try_get(self.animation) {
-                if let Some(animation::selection::SelectedEntity::Signal(id)) =
-                    self.entities.first()
-                {
-                    if let Some(signal) = animation.signals().iter().find(|s| s.id == *id) {
-                        (callback)(EntityInfo::with_no_parent(signal));
-                    }
-                }
-            }
+            (callback)(EntityInfo::with_no_parent(signal));
         }
     }
 

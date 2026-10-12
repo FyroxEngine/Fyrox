@@ -54,14 +54,14 @@ impl<S> NoWrap<S> {
 
 impl<S: LineSink> TextWrapper for NoWrap<S> {
     fn push(&mut self, c: Option<char>, advance: f32) {
-        if let Some(c) = c {
-            if is_newline(c) {
-                self.sink.push_line(self.start..self.position, self.width);
-                self.start = self.position + 1; // Next like starts after the newline, so skip ahead by one.
-                self.position += 1;
-                self.width = 0.0;
-                return;
-            }
+        if let Some(c) = c
+            && is_newline(c)
+        {
+            self.sink.push_line(self.start..self.position, self.width);
+            self.start = self.position + 1; // Next like starts after the newline, so skip ahead by one.
+            self.position += 1;
+            self.width = 0.0;
+            return;
         }
         self.position += 1;
         self.width += advance;
@@ -98,12 +98,12 @@ impl<S: LineSink> TextWrapper for LetterWrap<S> {
         }
         self.position += 1;
         self.width += advance;
-        if let Some(c) = c {
-            if is_newline(c) {
-                self.sink.push_line(self.start..self.position, self.width);
-                self.start = self.position; // Next line starts after the newline
-                self.width = 0.0;
-            }
+        if let Some(c) = c
+            && is_newline(c)
+        {
+            self.sink.push_line(self.start..self.position, self.width);
+            self.start = self.position; // Next line starts after the newline
+            self.width = 0.0;
         }
     }
 

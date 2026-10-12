@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    Editor,
     fyrox::{
         core::{color::Color, pool::Handle, sstorage::ImmutableString},
         fxhash::FxHashSet,
@@ -30,15 +31,15 @@ use crate::{
             server::GraphicsServer,
         },
         renderer::{
+            RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
             bundle::{BundleRenderContext, RenderContext, RenderDataBundleStorage},
             cache::shader::{
-                binding, property, PropertyGroup, RenderMaterial, RenderPassContainer,
+                PropertyGroup, RenderMaterial, RenderPassContainer, binding, property,
             },
-            make_viewport_matrix, RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
+            make_viewport_matrix,
         },
-        scene::{node::Node, Scene},
+        scene::{Scene, node::Node},
     },
-    Editor,
 };
 use std::{any::TypeId, cell::RefCell, rc::Rc};
 

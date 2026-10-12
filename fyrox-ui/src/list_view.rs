@@ -24,6 +24,7 @@
 #![warn(missing_docs)]
 
 use crate::{
+    BuildContext, Control, Thickness, UiNode, UserInterface,
     border::BorderBuilder,
     brush::Brush,
     core::{
@@ -35,16 +36,15 @@ use crate::{
     message::{KeyCode, UiMessage},
     scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
     stack_panel::StackPanelBuilder,
-    style::{resource::StyleResourceExt, Style},
+    style::{Style, resource::StyleResourceExt},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 use fyrox_core::pool::{HandlesVecExtension, ObjectOrVariant};
 
 use crate::message::MessageData;
 use fyrox_graph::{
-    constructor::{ConstructorProvider, GraphNodeConstructor},
     SceneGraph,
+    constructor::{ConstructorProvider, GraphNodeConstructor},
 };
 
 /// A set of messages that can be used to modify/fetch the state of a [`ListView`] widget at runtime.
@@ -361,32 +361,32 @@ impl Control for ListViewItem {
         let parent_list_view =
             self.find_by_criteria_up(ui, |node| node.cast::<ListView>().is_some());
 
-        if let Some(WidgetMessage::MouseUp { .. }) = message.data::<WidgetMessage>() {
-            if !message.handled() {
-                let list_view = ui
-                    .node(parent_list_view)
-                    .cast::<ListView>()
-                    .expect("Parent of ListViewItem must be ListView!");
+        if let Some(WidgetMessage::MouseUp { .. }) = message.data::<WidgetMessage>()
+            && !message.handled()
+        {
+            let list_view = ui
+                .node(parent_list_view)
+                .cast::<ListView>()
+                .expect("Parent of ListViewItem must be ListView!");
 
-                let self_index = list_view
-                    .item_containers
-                    .iter()
-                    .position(|c| self.handle == *c)
-                    .expect("ListViewItem must be used as a child of ListView");
+            let self_index = list_view
+                .item_containers
+                .iter()
+                .position(|c| self.handle == *c)
+                .expect("ListViewItem must be used as a child of ListView");
 
-                let new_selection = if ui.keyboard_modifiers.control {
-                    let mut selection = list_view.selection.clone();
-                    selection.push(self_index);
-                    selection
-                } else {
-                    vec![self_index]
-                };
+            let new_selection = if ui.keyboard_modifiers.control {
+                let mut selection = list_view.selection.clone();
+                selection.push(self_index);
+                selection
+            } else {
+                vec![self_index]
+            };
 
-                // Explicitly set selection on parent items control. This will send
-                // SelectionChanged message and all items will react.
-                ui.send(parent_list_view, ListViewMessage::Selection(new_selection));
-                message.set_handled(true);
-            }
+            // Explicitly set selection on parent items control. This will send
+            // SelectionChanged message and all items will react.
+            ui.send(parent_list_view, ListViewMessage::Selection(new_selection));
+            message.set_handled(true);
         }
     }
 }
@@ -464,50 +464,50 @@ impl Control for ListView {
                     }
                 }
             }
-        } else if let Some(WidgetMessage::KeyDown(key_code)) = message.data() {
-            if !message.handled() {
-                let new_selection = if *key_code == KeyCode::ArrowDown {
-                    match self.largest_selection_index() {
-                        Some(i) => Some(i.saturating_add(1) % self.items.len()),
-                        None => {
-                            if self.items.is_empty() {
-                                None
-                            } else {
-                                Some(0)
-                            }
+        } else if let Some(WidgetMessage::KeyDown(key_code)) = message.data()
+            && !message.handled()
+        {
+            let new_selection = if *key_code == KeyCode::ArrowDown {
+                match self.largest_selection_index() {
+                    Some(i) => Some(i.saturating_add(1) % self.items.len()),
+                    None => {
+                        if self.items.is_empty() {
+                            None
+                        } else {
+                            Some(0)
                         }
                     }
-                } else if *key_code == KeyCode::ArrowUp {
-                    match self.smallest_selection_index() {
-                        Some(i) => {
-                            let mut index = (i as isize).saturating_sub(1);
-                            let count = self.items.len() as isize;
-                            if index < 0 {
-                                index += count;
-                            }
-                            Some((index % count) as usize)
-                        }
-                        None => {
-                            if self.items.is_empty() {
-                                None
-                            } else {
-                                Some(0)
-                            }
-                        }
-                    }
-                } else {
-                    None
-                };
-
-                if let Some(new_selection) = new_selection {
-                    ui.send(self.handle, ListViewMessage::Selection(vec![new_selection]));
-                    ui.send(
-                        self.handle,
-                        ListViewMessage::BringItemIntoView(self.items[new_selection]),
-                    );
-
-                    message.set_handled(true);
                 }
+            } else if *key_code == KeyCode::ArrowUp {
+                match self.smallest_selection_index() {
+                    Some(i) => {
+                        let mut index = (i as isize).saturating_sub(1);
+                        let count = self.items.len() as isize;
+                        if index < 0 {
+                            index += count;
+                        }
+                        Some((index % count) as usize)
+                    }
+                    None => {
+                        if self.items.is_empty() {
+                            None
+                        } else {
+                            Some(0)
+                        }
+                    }
+                }
+            } else {
+                None
+            };
+
+            if let Some(new_selection) = new_selection {
+                ui.send(self.handle, ListViewMessage::Selection(vec![new_selection]));
+                ui.send(
+                    self.handle,
+                    ListViewMessage::BringItemIntoView(self.items[new_selection]),
+                );
+
+                message.set_handled(true);
             }
         }
     }

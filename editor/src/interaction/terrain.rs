@@ -31,47 +31,47 @@ use crate::{
             math::vector_to_quat,
             pool::Handle,
             reflect::prelude::*,
-            uuid::{uuid, Uuid},
+            uuid::{Uuid, uuid},
         },
         engine::Engine,
         graph::SceneGraph,
         gui::{
+            BuildContext, UserInterface,
             inspector::{
-                editors::{
-                    enumeration::EnumPropertyEditorDefinition, PropertyEditorDefinitionContainer,
-                },
                 Inspector, InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction,
+                editors::{
+                    PropertyEditorDefinitionContainer, enumeration::EnumPropertyEditorDefinition,
+                },
             },
             key::HotKey,
             message::UiMessage,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, UserInterface,
         },
         gui::{HorizontalAlignment, Thickness, VerticalAlignment},
         scene::{
             base::BaseBuilder,
             graph::Graph,
             mesh::{
-                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
                 MeshBuilder, RenderPath,
+                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
             },
             node::Node,
             terrain::{
-                brushstroke::{Brush, BrushMode, BrushShape, BrushStroke, BrushTarget},
                 Terrain, TerrainRayCastResult,
+                brushstroke::{Brush, BrushMode, BrushShape, BrushStroke, BrushTarget},
             },
         },
     },
-    interaction::{make_interaction_mode_button, InteractionMode},
+    interaction::{InteractionMode, make_interaction_mode_button},
     make_color_material,
     message::MessageSender,
     scene::{
+        GameScene, Selection, SelectionContainer,
         commands::terrain::{
             ModifyTerrainHeightCommand, ModifyTerrainHolesCommand, ModifyTerrainLayerMaskCommand,
         },
         controller::SceneController,
-        GameScene, Selection, SelectionContainer,
     },
     settings::Settings,
 };
@@ -81,8 +81,8 @@ use fyrox::gui::image::Image;
 use fyrox::gui::inspector::InspectorContextArgs;
 use fyrox::gui::window::{Window, WindowAlignment};
 use fyrox::scene::mesh::Mesh;
-use std::sync::mpsc::channel;
 use std::sync::Arc;
+use std::sync::mpsc::channel;
 
 fn modify_clamp(x: &mut f32, delta: f32, min: f32, max: f32) {
     *x = (*x + delta).clamp(min, max)
@@ -190,10 +190,10 @@ impl TerrainInteractionMode {
     fn start_stroke(&self, terrain: &mut Terrain, handle: Handle<Node>, shift: bool) {
         let mut brush = self.brush.clone();
         // Ignore stroke with a non-existent layer index.
-        if let BrushTarget::LayerMask { layer } = brush.target {
-            if layer >= terrain.layers().len() {
-                return;
-            }
+        if let BrushTarget::LayerMask { layer } = brush.target
+            && layer >= terrain.layers().len()
+        {
+            return;
         }
         // Reverse the behavior of a brush when shift is held.
         if shift {
@@ -260,11 +260,13 @@ impl BrushGizmo {
                 .with_visibility(false),
         )
         .with_render_path(RenderPath::Forward)
-        .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
-            SurfaceData::make_quad(&Matrix4::identity()),
-        ))
-        .with_material(make_color_material(Color::from_rgba(0, 255, 0, 130)))
-        .build()])
+        .with_surfaces(vec![
+            SurfaceBuilder::new(SurfaceResource::new_embedded(SurfaceData::make_quad(
+                &Matrix4::identity(),
+            )))
+            .with_material(make_color_material(Color::from_rgba(0, 255, 0, 130)))
+            .build(),
+        ])
         .build(graph);
 
         graph.link_nodes(brush, game_scene.editor_objects_root);
@@ -291,47 +293,45 @@ impl InteractionMode for TerrainInteractionMode {
             return;
         };
 
-        if let Some(selection) = editor_selection.as_graph() {
-            if selection.is_single_selection() {
-                let shift = engine
-                    .user_interfaces
-                    .first_mut()
-                    .keyboard_modifiers()
-                    .shift;
-                let graph = &mut engine.scenes[game_scene.scene].graph;
-                let handle = selection.nodes()[0];
-                let ray =
-                    graph[game_scene.camera_controller.camera].make_ray(mouse_pos, frame_size);
-                if let Some(terrain) = graph[handle].cast_mut::<Terrain>() {
-                    // Pick height value at the point of interaction.
-                    if let BrushMode::Flatten = &mut self.brush.mode {
-                        let mut intersections = ArrayVec::<TerrainRayCastResult, 128>::new();
-                        terrain.raycast(ray, &mut intersections, true);
+        if let Some(selection) = editor_selection.as_graph()
+            && selection.is_single_selection()
+        {
+            let shift = engine
+                .user_interfaces
+                .first_mut()
+                .keyboard_modifiers()
+                .shift;
+            let graph = &mut engine.scenes[game_scene.scene].graph;
+            let handle = selection.nodes()[0];
+            let ray = graph[game_scene.camera_controller.camera].make_ray(mouse_pos, frame_size);
+            if let Some(terrain) = graph[handle].cast_mut::<Terrain>() {
+                // Pick height value at the point of interaction.
+                if let BrushMode::Flatten = &mut self.brush.mode {
+                    let mut intersections = ArrayVec::<TerrainRayCastResult, 128>::new();
+                    terrain.raycast(ray, &mut intersections, true);
 
-                        let first = intersections.first();
-                        if let (Some(closest), BrushTarget::HeightMap) = (first, self.brush.target)
-                        {
-                            self.brush_value = closest.height;
-                        } else if let Some(closest) = first {
-                            let p = terrain.project(closest.position);
-                            self.brush_value = if let Some(position) = p {
-                                terrain.interpolate_value(position, self.brush.target)
-                            } else {
-                                0.0
-                            };
+                    let first = intersections.first();
+                    if let (Some(closest), BrushTarget::HeightMap) = (first, self.brush.target) {
+                        self.brush_value = closest.height;
+                    } else if let Some(closest) = first {
+                        let p = terrain.project(closest.position);
+                        self.brush_value = if let Some(position) = p {
+                            terrain.interpolate_value(position, self.brush.target)
                         } else {
-                            self.brush_value = 0.0;
-                        }
+                            0.0
+                        };
+                    } else {
+                        self.brush_value = 0.0;
                     }
-                    if self.brush.target == BrushTarget::HoleMask && !terrain.holes_enabled() {
-                        Log::err("Invalid brush stroke. Holes are not enabled on terrain.");
-                        return;
-                    }
-                    self.start_stroke(terrain, handle, shift);
-                    self.prev_brush_position = None;
-                    self.draw(terrain);
-                    self.interacting = true;
                 }
+                if self.brush.target == BrushTarget::HoleMask && !terrain.holes_enabled() {
+                    Log::err("Invalid brush stroke. Holes are not enabled on terrain.");
+                    return;
+                }
+                self.start_stroke(terrain, handle, shift);
+                self.prev_brush_position = None;
+                self.draw(terrain);
+                self.interacting = true;
             }
         }
     }
@@ -370,40 +370,38 @@ impl InteractionMode for TerrainInteractionMode {
 
         let mut gizmo_visible = false;
 
-        if let Some(selection) = editor_selection.as_graph() {
-            if selection.is_single_selection() {
-                let handle = selection.nodes()[0];
+        if let Some(selection) = editor_selection.as_graph()
+            && selection.is_single_selection()
+        {
+            let handle = selection.nodes()[0];
 
-                let camera = &graph[game_scene.camera_controller.camera];
+            let camera = &graph[game_scene.camera_controller.camera];
 
-                let ray = camera.make_ray(mouse_position, frame_size);
-                if let Some(terrain) = graph[handle].cast_mut::<Terrain>() {
-                    let mut intersections = ArrayVec::<TerrainRayCastResult, 128>::new();
-                    terrain.raycast(ray, &mut intersections, true);
+            let ray = camera.make_ray(mouse_position, frame_size);
+            if let Some(terrain) = graph[handle].cast_mut::<Terrain>() {
+                let mut intersections = ArrayVec::<TerrainRayCastResult, 128>::new();
+                terrain.raycast(ray, &mut intersections, true);
 
-                    if let Some(closest) = intersections.first() {
-                        self.brush_position = closest.position;
-                        gizmo_visible = true;
+                if let Some(closest) = intersections.first() {
+                    self.brush_position = closest.position;
+                    gizmo_visible = true;
 
-                        if self.interacting {
-                            self.draw(terrain);
-                        }
-
-                        let scale = match self.brush.shape {
-                            BrushShape::Circle { radius } => {
-                                Vector3::new(radius * 2.0, radius * 2.0, 1.0)
-                            }
-                            BrushShape::Rectangle { width, length } => {
-                                Vector3::new(width, length, 1.0)
-                            }
-                        };
-
-                        graph[self.brush_gizmo.brush]
-                            .local_transform_mut()
-                            .set_position(closest.position)
-                            .set_scale(scale)
-                            .set_rotation(vector_to_quat(closest.normal));
+                    if self.interacting {
+                        self.draw(terrain);
                     }
+
+                    let scale = match self.brush.shape {
+                        BrushShape::Circle { radius } => {
+                            Vector3::new(radius * 2.0, radius * 2.0, 1.0)
+                        }
+                        BrushShape::Rectangle { width, length } => Vector3::new(width, length, 1.0),
+                    };
+
+                    graph[self.brush_gizmo.brush]
+                        .local_transform_mut()
+                        .set_position(closest.position)
+                        .set_scale(scale)
+                        .set_rotation(vector_to_quat(closest.normal));
                 }
             }
         }
@@ -464,10 +462,10 @@ impl InteractionMode for TerrainInteractionMode {
         _controller: &mut dyn SceneController,
         _engine: &mut Engine,
     ) {
-        if let Some(selection) = editor_selection.as_graph() {
-            if selection.is_single_selection() {
-                self.brush_panel.handle_ui_message(message, &mut self.brush);
-            }
+        if let Some(selection) = editor_selection.as_graph()
+            && selection.is_single_selection()
+        {
+            self.brush_panel.handle_ui_message(message, &mut self.brush);
         }
     }
 
@@ -542,8 +540,7 @@ impl InteractionMode for TerrainInteractionMode {
     }
 
     fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<Button> {
-        let terrain_mode_tooltip =
-            "Edit Terrain - Shortcut: [6]\n\nTerrain edit mode allows you to modify selected \
+        let terrain_mode_tooltip = "Edit Terrain - Shortcut: [6]\n\nTerrain edit mode allows you to modify selected \
         terrain.";
 
         make_interaction_mode_button(

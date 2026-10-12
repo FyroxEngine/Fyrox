@@ -20,7 +20,7 @@
 
 use crate::scene::EntityInfo;
 use crate::{
-    command::{make_command, Command, SetPropertyCommand},
+    command::{Command, SetPropertyCommand, make_command},
     fyrox::{
         core::log::Log,
         core::pool::ErasedHandle,
@@ -36,9 +36,9 @@ use crate::{
     },
     message::MessageSender,
     plugins::absm::command::fetch_machine,
-    scene::controller::SceneController,
     scene::GameScene,
     scene::SelectionContainer,
+    scene::controller::SceneController,
     ui_scene::UiScene,
 };
 use std::fmt::{Debug, Formatter};
@@ -167,24 +167,22 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
         scenes: &SceneContainer,
         callback: &mut dyn FnMut(EntityInfo),
     ) {
-        if let Some(machine) = get_machine_ref(controller, self.absm_node_handle, scenes) {
-            if let Some(first) = self.entities.first() {
-                if let Some(layer_index) = self.layer {
-                    if let Some(layer) = machine.layers().get(layer_index) {
-                        match first {
-                            SelectedEntity::Transition(transition) => (callback)(
-                                EntityInfo::with_no_parent(&layer.transitions()[*transition]),
-                            ),
-                            SelectedEntity::State(state) => (callback)(EntityInfo::with_no_parent(
-                                &layer.states()[*state] as &dyn Reflect,
-                            )),
-                            SelectedEntity::PoseNode(pose) => (callback)(
-                                EntityInfo::with_no_parent(&layer.nodes()[*pose] as &dyn Reflect),
-                            ),
-                        };
-                    }
-                }
-            }
+        if let Some(machine) = get_machine_ref(controller, self.absm_node_handle, scenes)
+            && let Some(first) = self.entities.first()
+            && let Some(layer_index) = self.layer
+            && let Some(layer) = machine.layers().get(layer_index)
+        {
+            match first {
+                SelectedEntity::Transition(transition) => (callback)(EntityInfo::with_no_parent(
+                    &layer.transitions()[*transition],
+                )),
+                SelectedEntity::State(state) => (callback)(EntityInfo::with_no_parent(
+                    &layer.states()[*state] as &dyn Reflect,
+                )),
+                SelectedEntity::PoseNode(pose) => (callback)(EntityInfo::with_no_parent(
+                    &layer.nodes()[*pose] as &dyn Reflect,
+                )),
+            };
         }
     }
 

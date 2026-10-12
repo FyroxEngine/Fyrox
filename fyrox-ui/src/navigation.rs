@@ -24,11 +24,11 @@
 #![warn(missing_docs)]
 
 use crate::{
+    BuildContext, Control, UiNode, UserInterface,
     core::{pool::Handle, reflect::prelude::*, variable::InheritableVariable, visitor::prelude::*},
     message::{KeyCode, UiMessage},
     scroll_viewer::{ScrollViewer, ScrollViewerMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, UiNode, UserInterface,
 };
 
 use fyrox_graph::SceneGraph;
@@ -103,13 +103,14 @@ impl Control for NavigationLayer {
             let mut tab_list = Vec::new();
             for &child in self.children() {
                 for (descendant_handle, descendant_ref) in ui.traverse_iter(child) {
-                    if !*descendant_ref.tab_stop && descendant_ref.is_globally_visible() {
-                        if let Some(tab_index) = *descendant_ref.tab_index {
-                            tab_list.push(OrderedHandle {
-                                tab_index,
-                                handle: descendant_handle,
-                            });
-                        }
+                    if !*descendant_ref.tab_stop
+                        && descendant_ref.is_globally_visible()
+                        && let Some(tab_index) = *descendant_ref.tab_index
+                    {
+                        tab_list.push(OrderedHandle {
+                            tab_index,
+                            handle: descendant_handle,
+                        });
                     }
                 }
             }

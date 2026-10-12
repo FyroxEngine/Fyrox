@@ -28,11 +28,13 @@ use crate::fyrox::{
         visitor::prelude::*,
     },
     generic_animation::machine::{
-        node::blendspace::BlendSpacePoint, node::PoseNode, parameter::Parameter,
-        parameter::ParameterContainer, Machine, MachineLayer,
+        Machine, MachineLayer, node::PoseNode, node::blendspace::BlendSpacePoint,
+        parameter::Parameter, parameter::ParameterContainer,
     },
     graph::{NodeWrapper, PrefabData, SceneGraph},
     gui::{
+        BuildContext, Control, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode,
+        UserInterface, VerticalAlignment,
         brush::Brush,
         define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
@@ -44,8 +46,6 @@ use crate::fyrox::{
         text::{TextBuilder, TextMessage},
         widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Control, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode,
-        UserInterface, VerticalAlignment,
     },
 };
 use crate::plugins::absm::{
@@ -58,8 +58,8 @@ use crate::{menu::create_menu_item, message::MessageSender};
 
 use fyrox::gui::menu::{ContextMenuBuilder, MenuItem};
 use fyrox::gui::message::MessageData;
-use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::text::Text;
 use fyrox::gui::window::{Window, WindowAlignment};
 use std::{
@@ -317,56 +317,56 @@ impl Control for BlendSpaceField {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.destination() == self.handle {
-            if let Some(msg) = message.data::<BlendSpaceFieldMessage>() {
-                match msg {
-                    BlendSpaceFieldMessage::Points(points) => {
-                        for &pt in self.points.iter() {
-                            ui.send(pt, WidgetMessage::Remove);
-                        }
+        if message.destination() == self.handle
+            && let Some(msg) = message.data::<BlendSpaceFieldMessage>()
+        {
+            match msg {
+                BlendSpaceFieldMessage::Points(points) => {
+                    for &pt in self.points.iter() {
+                        ui.send(pt, WidgetMessage::Remove);
+                    }
 
-                        let point_views = make_points(
-                            points.iter().cloned(),
-                            self.field_context_menu.menu.clone(),
-                            &mut ui.build_ctx(),
-                        );
+                    let point_views = make_points(
+                        points.iter().cloned(),
+                        self.field_context_menu.menu.clone(),
+                        &mut ui.build_ctx(),
+                    );
 
-                        for &new_pt in point_views.iter() {
-                            ui.send(new_pt, WidgetMessage::LinkWith(self.handle));
-                        }
+                    for &new_pt in point_views.iter() {
+                        ui.send(new_pt, WidgetMessage::LinkWith(self.handle));
+                    }
 
-                        self.points = point_views;
-                        self.point_positions.clone_from(points);
+                    self.points = point_views;
+                    self.point_positions.clone_from(points);
+                    self.invalidate_visual();
+                }
+                BlendSpaceFieldMessage::Triangles(triangles) => {
+                    self.triangles.clone_from(triangles);
+                    self.invalidate_visual();
+                }
+                BlendSpaceFieldMessage::MinValues(min) => {
+                    self.min_values = *min;
+                    self.invalidate_visual();
+                }
+                BlendSpaceFieldMessage::MaxValues(max) => {
+                    self.max_values = *max;
+                    self.invalidate_visual();
+                }
+                BlendSpaceFieldMessage::SnapStep(snap_step) => {
+                    self.snap_step = *snap_step;
+                    self.invalidate_visual();
+                }
+                BlendSpaceFieldMessage::SamplingPoint(sampling_point) => {
+                    if message.is_for(self.handle) {
+                        self.sampling_point = *sampling_point;
                         self.invalidate_visual();
+                        ui.try_send_response(message);
                     }
-                    BlendSpaceFieldMessage::Triangles(triangles) => {
-                        self.triangles.clone_from(triangles);
-                        self.invalidate_visual();
-                    }
-                    BlendSpaceFieldMessage::MinValues(min) => {
-                        self.min_values = *min;
-                        self.invalidate_visual();
-                    }
-                    BlendSpaceFieldMessage::MaxValues(max) => {
-                        self.max_values = *max;
-                        self.invalidate_visual();
-                    }
-                    BlendSpaceFieldMessage::SnapStep(snap_step) => {
-                        self.snap_step = *snap_step;
-                        self.invalidate_visual();
-                    }
-                    BlendSpaceFieldMessage::SamplingPoint(sampling_point) => {
-                        if message.is_for(self.handle) {
-                            self.sampling_point = *sampling_point;
-                            self.invalidate_visual();
-                            ui.try_send_response(message);
-                        }
-                    }
-                    BlendSpaceFieldMessage::MovePoint { .. }
-                    | BlendSpaceFieldMessage::AddPoint(_)
-                    | BlendSpaceFieldMessage::RemovePoint(_) => {
-                        // Do nothing
-                    }
+                }
+                BlendSpaceFieldMessage::MovePoint { .. }
+                | BlendSpaceFieldMessage::AddPoint(_)
+                | BlendSpaceFieldMessage::RemovePoint(_) => {
+                    // Do nothing
                 }
             }
         }
@@ -386,25 +386,25 @@ impl Control for BlendSpaceField {
                     ui.capture_mouse(self.handle);
                 }
                 WidgetMessage::MouseUp { button, pos, .. } => {
-                    if let Some(drag_context) = self.drag_context.take() {
-                        if *button == MouseButton::Left {
-                            if let DragContext::Point { point } = drag_context {
-                                ui.send(
-                                    self.handle,
-                                    BlendSpaceFieldMessage::MovePoint {
-                                        index: point,
-                                        position: screen_to_blend(
-                                            *pos,
-                                            self.min_values,
-                                            self.max_values,
-                                            self.screen_bounds(),
-                                        ),
-                                    },
-                                );
-                            }
-
-                            ui.release_mouse_capture();
+                    if let Some(drag_context) = self.drag_context.take()
+                        && *button == MouseButton::Left
+                    {
+                        if let DragContext::Point { point } = drag_context {
+                            ui.send(
+                                self.handle,
+                                BlendSpaceFieldMessage::MovePoint {
+                                    index: point,
+                                    position: screen_to_blend(
+                                        *pos,
+                                        self.min_values,
+                                        self.max_values,
+                                        self.screen_bounds(),
+                                    ),
+                                },
+                            );
                         }
+
+                        ui.release_mouse_capture();
                     }
                 }
                 WidgetMessage::MouseMove { pos, .. } => {
@@ -459,14 +459,13 @@ impl Control for BlendSpaceField {
                     self.screen_bounds(),
                 );
                 ui.post(self.handle, BlendSpaceFieldMessage::AddPoint(pos));
-            } else if message.destination() == self.field_context_menu.remove_point {
-                if let Some(pos) = self
+            } else if message.destination() == self.field_context_menu.remove_point
+                && let Some(pos) = self
                     .points
                     .iter()
                     .position(|p| self.field_context_menu.placement_target.get() == *p)
-                {
-                    ui.post(self.handle, BlendSpaceFieldMessage::RemovePoint(pos));
-                }
+            {
+                ui.post(self.handle, BlendSpaceFieldMessage::RemovePoint(pos));
             }
         }
     }
@@ -593,11 +592,11 @@ impl Control for BlendSpaceFieldPoint {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(BlendSpaceFieldPointMessage::Select) = message.data() {
-            if message.destination() == self.handle {
-                self.selected = true;
-                self.invalidate_visual();
-            }
+        if let Some(BlendSpaceFieldPointMessage::Select) = message.data()
+            && message.destination() == self.handle
+        {
+            self.selected = true;
+            self.invalidate_visual();
         }
     }
 }
@@ -828,47 +827,47 @@ impl BlendSpaceEditor {
         G: SceneGraph<NodeWrapper = N, Prefab = P>,
         N: NodeWrapper<SceneGraph = G, ResourceData = P>,
     {
-        if let Some(SelectedEntity::PoseNode(first)) = selection.entities.first() {
-            if let PoseNode::BlendSpace(blend_space) = layer.node(*first) {
-                let sync_text = |destination: Handle<Text>, text: String| {
-                    ui.send_sync(destination, TextMessage::Text(text));
-                };
+        if let Some(SelectedEntity::PoseNode(first)) = selection.entities.first()
+            && let PoseNode::BlendSpace(blend_space) = layer.node(*first)
+        {
+            let sync_text = |destination: Handle<Text>, text: String| {
+                ui.send_sync(destination, TextMessage::Text(text));
+            };
 
-                sync_text(self.min_x, blend_space.min_values().x.to_string());
-                sync_text(self.max_x, blend_space.max_values().x.to_string());
-                sync_text(self.min_y, blend_space.min_values().y.to_string());
-                sync_text(self.max_y, blend_space.max_values().y.to_string());
-                sync_text(self.x_axis_name, blend_space.x_axis_name().to_string());
-                sync_text(self.y_axis_name, blend_space.y_axis_name().to_string());
+            sync_text(self.min_x, blend_space.min_values().x.to_string());
+            sync_text(self.max_x, blend_space.max_values().x.to_string());
+            sync_text(self.min_y, blend_space.min_values().y.to_string());
+            sync_text(self.max_y, blend_space.max_values().y.to_string());
+            sync_text(self.x_axis_name, blend_space.x_axis_name().to_string());
+            sync_text(self.y_axis_name, blend_space.y_axis_name().to_string());
 
-                ui.send_sync(
-                    self.field,
-                    BlendSpaceFieldMessage::MinValues(blend_space.min_values()),
-                );
-                ui.send_sync(
-                    self.field,
-                    BlendSpaceFieldMessage::MaxValues(blend_space.max_values()),
-                );
-                ui.send_sync(
-                    self.field,
-                    BlendSpaceFieldMessage::SnapStep(blend_space.snap_step()),
-                );
-                ui.send_sync(
-                    self.field,
-                    BlendSpaceFieldMessage::Points(
-                        blend_space.points().iter().map(|p| p.position).collect(),
-                    ),
-                );
-                ui.send_sync(
-                    self.field,
-                    BlendSpaceFieldMessage::Triangles(blend_space.triangles().to_vec()),
-                );
+            ui.send_sync(
+                self.field,
+                BlendSpaceFieldMessage::MinValues(blend_space.min_values()),
+            );
+            ui.send_sync(
+                self.field,
+                BlendSpaceFieldMessage::MaxValues(blend_space.max_values()),
+            );
+            ui.send_sync(
+                self.field,
+                BlendSpaceFieldMessage::SnapStep(blend_space.snap_step()),
+            );
+            ui.send_sync(
+                self.field,
+                BlendSpaceFieldMessage::Points(
+                    blend_space.points().iter().map(|p| p.position).collect(),
+                ),
+            );
+            ui.send_sync(
+                self.field,
+                BlendSpaceFieldMessage::Triangles(blend_space.triangles().to_vec()),
+            );
 
-                if let Some(Parameter::SamplingPoint(pt)) =
-                    parameters.get(blend_space.sampling_parameter())
-                {
-                    ui.send_sync(self.field, BlendSpaceFieldMessage::SamplingPoint(*pt));
-                }
+            if let Some(Parameter::SamplingPoint(pt)) =
+                parameters.get(blend_space.sampling_parameter())
+            {
+                ui.send_sync(self.field, BlendSpaceFieldMessage::SamplingPoint(*pt));
             }
         }
     }
@@ -885,59 +884,54 @@ impl BlendSpaceEditor {
         G: SceneGraph<NodeWrapper = N, Prefab = P>,
         N: NodeWrapper<SceneGraph = G, ResourceData = P>,
     {
-        if let Some(SelectedEntity::PoseNode(first)) = selection.entities.first() {
-            if let Some(layer_index) = selection.layer {
-                if let PoseNode::BlendSpace(blend_space) =
-                    machine.layers()[layer_index].node(*first)
+        if let Some(SelectedEntity::PoseNode(first)) = selection.entities.first()
+            && let Some(layer_index) = selection.layer
+            && let PoseNode::BlendSpace(blend_space) = machine.layers()[layer_index].node(*first)
+            && message.destination() == self.field
+            && let Some(msg) = message.data::<BlendSpaceFieldMessage>()
+        {
+            match *msg {
+                BlendSpaceFieldMessage::SamplingPoint(point)
+                    if is_preview_mode_active
+                        && message.direction() == MessageDirection::FromWidget =>
                 {
-                    if message.destination() == self.field {
-                        if let Some(msg) = message.data::<BlendSpaceFieldMessage>() {
-                            match *msg {
-                                BlendSpaceFieldMessage::SamplingPoint(point)
-                                    if is_preview_mode_active
-                                        && message.direction() == MessageDirection::FromWidget =>
-                                {
-                                    let param = blend_space.sampling_parameter().to_string();
-                                    if let Some(Parameter::SamplingPoint(param)) =
-                                        machine.parameters_mut().get_mut(&param)
-                                    {
-                                        *param = point;
-                                    }
-                                }
-                                BlendSpaceFieldMessage::MovePoint { index, position } => {
-                                    sender.do_command(SetBlendSpacePointPositionCommand {
-                                        node_handle: selection.absm_node_handle,
-                                        handle: *first,
-                                        layer_index,
-                                        index,
-                                        value: position,
-                                    });
-                                }
-                                BlendSpaceFieldMessage::RemovePoint(index) => {
-                                    sender.do_command(RemoveBlendSpacePointCommand {
-                                        scene_node_handle: selection.absm_node_handle,
-                                        node_handle: *first,
-                                        layer_index,
-                                        point_index: index,
-                                        point: None,
-                                    })
-                                }
-                                BlendSpaceFieldMessage::AddPoint(pos) => {
-                                    sender.do_command(AddBlendSpacePointCommand {
-                                        node_handle: selection.absm_node_handle,
-                                        handle: *first,
-                                        layer_index,
-                                        value: Some(BlendSpacePoint {
-                                            position: pos,
-                                            pose_source: Default::default(),
-                                        }),
-                                    })
-                                }
-                                _ => (),
-                            }
-                        }
+                    let param = blend_space.sampling_parameter().to_string();
+                    if let Some(Parameter::SamplingPoint(param)) =
+                        machine.parameters_mut().get_mut(&param)
+                    {
+                        *param = point;
                     }
                 }
+                BlendSpaceFieldMessage::MovePoint { index, position } => {
+                    sender.do_command(SetBlendSpacePointPositionCommand {
+                        node_handle: selection.absm_node_handle,
+                        handle: *first,
+                        layer_index,
+                        index,
+                        value: position,
+                    });
+                }
+                BlendSpaceFieldMessage::RemovePoint(index) => {
+                    sender.do_command(RemoveBlendSpacePointCommand {
+                        scene_node_handle: selection.absm_node_handle,
+                        node_handle: *first,
+                        layer_index,
+                        point_index: index,
+                        point: None,
+                    })
+                }
+                BlendSpaceFieldMessage::AddPoint(pos) => {
+                    sender.do_command(AddBlendSpacePointCommand {
+                        node_handle: selection.absm_node_handle,
+                        handle: *first,
+                        layer_index,
+                        value: Some(BlendSpacePoint {
+                            position: pos,
+                            pose_source: Default::default(),
+                        }),
+                    })
+                }
+                _ => (),
             }
         }
     }

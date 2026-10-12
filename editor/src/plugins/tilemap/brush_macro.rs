@@ -24,11 +24,11 @@ use fyrox::asset::TypedResourceData;
 use fyrox::gui::dropdown_list::DropdownList;
 use fyrox::gui::message::{DeliveryMode, MessageData};
 use fyrox::{
-    asset::{untyped::UntypedResource, Resource, ResourceDataRef},
+    asset::{Resource, ResourceDataRef, untyped::UntypedResource},
     core::{
         futures::executor::block_on,
         log::Log,
-        parking_lot::{lock_api::MutexGuard, RawMutex},
+        parking_lot::{RawMutex, lock_api::MutexGuard},
     },
     gui::{
         dropdown_list::{DropdownListBuilder, DropdownListMessage},
@@ -38,11 +38,11 @@ use fyrox::{
         text_box::TextBoxBuilder,
     },
     scene::tilemap::{
+        MacroTilesUpdate,
         brush::{BrushMacroData, TileMapBrush, TileMapBrushResource},
         tileset::{
             NamableValue, TileSetPropertyLayer, TileSetPropertyType, TileSetPropertyValueElement,
         },
-        MacroTilesUpdate,
     },
 };
 
@@ -857,31 +857,29 @@ impl MacroPropertyValueField {
                     ui,
                 );
             }
-        } else if let Some(DropdownListMessage::Selection(Some(index))) = message.data() {
-            if message.destination() == self.list
-                && message.direction() == MessageDirection::FromWidget
-                && *index > 0
-            {
-                if let Some(v) = prop.and_then(|p| p.named_values.get(index - 1)) {
-                    ui.send_message(TileSetPropertyValueMessage::value(
-                        self.handle,
-                        MessageDirection::FromWidget,
-                        v.value.into(),
-                    ));
-                    let msg = match v.value {
-                        NamableValue::I32(v) => {
-                            UiMessage::for_widget(self.textbox, NumericUpDownMessage::Value(v))
-                        }
-                        NamableValue::F32(v) => {
-                            UiMessage::for_widget(self.textbox, NumericUpDownMessage::Value(v))
-                        }
-                        NamableValue::I8(v) => {
-                            UiMessage::for_widget(self.textbox, NumericUpDownMessage::Value(v))
-                        }
-                    };
-                    ui.send_message(msg.with_delivery_mode(DeliveryMode::SyncOnly));
+        } else if let Some(DropdownListMessage::Selection(Some(index))) = message.data()
+            && message.destination() == self.list
+            && message.direction() == MessageDirection::FromWidget
+            && *index > 0
+            && let Some(v) = prop.and_then(|p| p.named_values.get(index - 1))
+        {
+            ui.send_message(TileSetPropertyValueMessage::value(
+                self.handle,
+                MessageDirection::FromWidget,
+                v.value.into(),
+            ));
+            let msg = match v.value {
+                NamableValue::I32(v) => {
+                    UiMessage::for_widget(self.textbox, NumericUpDownMessage::Value(v))
                 }
-            }
+                NamableValue::F32(v) => {
+                    UiMessage::for_widget(self.textbox, NumericUpDownMessage::Value(v))
+                }
+                NamableValue::I8(v) => {
+                    UiMessage::for_widget(self.textbox, NumericUpDownMessage::Value(v))
+                }
+            };
+            ui.send_message(msg.with_delivery_mode(DeliveryMode::SyncOnly));
         }
     }
 }
@@ -992,30 +990,29 @@ impl MacroPropertyField {
         message: &UiMessage,
         ui: &mut UserInterface,
     ) {
-        if let Some(DropdownListMessage::Selection(index)) = message.data() {
-            if message.destination() == self.list
-                && message.direction() == MessageDirection::FromWidget
-            {
-                let id = if let Some(index) = *index {
-                    if index > 0 {
-                        tile_set
-                            .properties
-                            .iter()
-                            .filter(|p| p.prop_type == self.prop_type)
-                            .nth(index - 1)
-                            .map(|p| p.uuid)
-                    } else {
-                        None
-                    }
+        if let Some(DropdownListMessage::Selection(index)) = message.data()
+            && message.destination() == self.list
+            && message.direction() == MessageDirection::FromWidget
+        {
+            let id = if let Some(index) = *index {
+                if index > 0 {
+                    tile_set
+                        .properties
+                        .iter()
+                        .filter(|p| p.prop_type == self.prop_type)
+                        .nth(index - 1)
+                        .map(|p| p.uuid)
                 } else {
                     None
-                };
-                ui.send_message(TileSetPropertyMessage::property_id(
-                    self.handle,
-                    MessageDirection::FromWidget,
-                    id,
-                ));
-            }
+                }
+            } else {
+                None
+            };
+            ui.send_message(TileSetPropertyMessage::property_id(
+                self.handle,
+                MessageDirection::FromWidget,
+                id,
+            ));
         }
     }
 }

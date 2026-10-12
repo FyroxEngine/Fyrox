@@ -19,14 +19,14 @@
 // SOFTWARE.
 
 use crate::{
+    HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
     brush::Brush,
     core::{
         algebra::Vector2, color::Color, log::Log, math::Rect, reflect::prelude::*,
         variable::InheritableVariable, visitor::prelude::*,
     },
-    font::{Font, FontGlyph, FontHeight, FontResource, BUILT_IN_FONT},
-    style::{resource::StyleResource, StyledProperty},
-    HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
+    font::{BUILT_IN_FONT, Font, FontGlyph, FontHeight, FontResource},
+    style::{StyledProperty, resource::StyleResource},
 };
 use fxhash::FxHashMap;
 use fyrox_core::pool::Handle;
@@ -849,10 +849,10 @@ impl FormattedText {
             return false;
         }
         for run in self.runs.iter() {
-            if let Some(font) = run.font() {
-                if !font.is_ok() {
-                    return false;
-                }
+            if let Some(font) = run.font()
+                && !font.is_ok()
+            {
+                return false;
             }
         }
         true
@@ -863,10 +863,10 @@ impl FormattedText {
             return true;
         }
         for run in self.runs.iter() {
-            if let Some(font) = run.font() {
-                if !font.is_loading() {
-                    return true;
-                }
+            if let Some(font) = run.font()
+                && !font.is_loading()
+            {
+                return true;
             }
         }
         false
@@ -878,10 +878,10 @@ impl FormattedText {
             list.push((path.clone(), error.clone()));
         }
         for run in self.runs.iter() {
-            if let Some(font) = run.font() {
-                if let ResourceState::LoadError { path, error } = &font.header().state {
-                    list.push((path.clone(), error.clone()));
-                }
+            if let Some(font) = run.font()
+                && let ResourceState::LoadError { path, error } = &font.header().state
+            {
+                list.push((path.clone(), error.clone()));
             }
         }
         list
@@ -1156,23 +1156,23 @@ impl FormattedText {
                 let mut prev = None;
                 for (i, &c) in self.text.iter().enumerate().take(line.end).skip(line.begin) {
                     // Put inlines first (if any).
-                    if let Some(ref inline_ctx) = inline_ctx {
-                        if let Some(inlines) = inlines.get(&i) {
-                            let mut bounds = Vector2::zeros();
-                            for &inline in inlines {
-                                let inline_ref = inline_ctx.ui.node(inline);
-                                let desired_size = inline_ref.desired_size();
-                                inline_ctx.ui.arrange_node(
-                                    inline,
-                                    &Rect {
-                                        position: Vector2::new(x, y),
-                                        size: Vector2::new(desired_size.x, line.height),
-                                    },
-                                );
-                                bounds = bounds.sup(&desired_size);
-                            }
-                            x += bounds.x;
+                    if let Some(ref inline_ctx) = inline_ctx
+                        && let Some(inlines) = inlines.get(&i)
+                    {
+                        let mut bounds = Vector2::zeros();
+                        for &inline in inlines {
+                            let inline_ref = inline_ctx.ui.node(inline);
+                            let desired_size = inline_ref.desired_size();
+                            inline_ctx.ui.arrange_node(
+                                inline,
+                                &Rect {
+                                    position: Vector2::new(x, y),
+                                    size: Vector2::new(desired_size.x, line.height),
+                                },
+                            );
+                            bounds = bounds.sup(&desired_size);
                         }
+                        x += bounds.x;
                     }
 
                     let font = self.font_at(i);

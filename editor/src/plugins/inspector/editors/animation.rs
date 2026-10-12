@@ -20,6 +20,7 @@
 
 //! Animation selector for `Handle<Animation>` fields.
 
+use crate::Message;
 use crate::fyrox::generic_animation::EntityId;
 use crate::fyrox::{
     core::pool::Handle,
@@ -28,18 +29,17 @@ use crate::fyrox::{
         dropdown_list::{DropdownListBuilder, DropdownListMessage},
         generic_animation::machine::Machine,
         inspector::{
+            FieldAction, InspectorError, PropertyChanged,
             editors::{
                 PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
                 PropertyEditorMessageContext, PropertyEditorTranslationContext,
             },
-            FieldAction, InspectorError, PropertyChanged,
         },
         message::{MessageDirection, UiMessage},
         widget::WidgetBuilder,
     },
 };
 use crate::plugins::inspector::EditorEnvironment;
-use crate::Message;
 
 use fyrox::core::reflect::Reflect;
 use fyrox::gui::utils::make_dropdown_list_option_universal;
@@ -135,18 +135,16 @@ where
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(DropdownListMessage::Selection(Some(value))) = ctx.message.data() {
-                if let Ok(environment) = EditorEnvironment::try_get_from(&ctx.environment) {
-                    if let Some(definition) = environment.available_animations.get(*value) {
-                        return Some(PropertyChanged {
-                            name: ctx.name.to_string(),
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(DropdownListMessage::Selection(Some(value))) = ctx.message.data()
+            && let Ok(environment) = EditorEnvironment::try_get_from(&ctx.environment)
+            && let Some(definition) = environment.available_animations.get(*value)
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
 
-                            action: FieldAction::object(Handle::<T>::from(definition.handle)),
-                        });
-                    }
-                }
-            }
+                action: FieldAction::object(Handle::<T>::from(definition.handle)),
+            });
         }
         None
     }
@@ -198,12 +196,11 @@ where
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(ButtonMessage::Click) = ctx.message.data() {
-                if let Ok(environment) = EditorEnvironment::try_get_from(&ctx.environment) {
-                    environment.sender.send(Message::OpenAnimationEditor);
-                }
-            }
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(ButtonMessage::Click) = ctx.message.data()
+            && let Ok(environment) = EditorEnvironment::try_get_from(&ctx.environment)
+        {
+            environment.sender.send(Message::OpenAnimationEditor);
         }
         None
     }
@@ -255,12 +252,11 @@ where
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(ButtonMessage::Click) = ctx.message.data() {
-                if let Ok(environment) = EditorEnvironment::try_get_from(&ctx.environment) {
-                    environment.sender.send(Message::OpenAbsmEditor);
-                }
-            }
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(ButtonMessage::Click) = ctx.message.data()
+            && let Ok(environment) = EditorEnvironment::try_get_from(&ctx.environment)
+        {
+            environment.sender.send(Message::OpenAbsmEditor);
         }
         None
     }

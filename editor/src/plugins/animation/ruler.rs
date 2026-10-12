@@ -28,7 +28,7 @@ use crate::fyrox::{
         visitor::prelude::*,
     },
     gui::{
-        define_widget_deref,
+        BuildContext, Control, RcUiNodeHandle, UiNode, UserInterface, define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
         formatted_text::{FormattedText, FormattedTextBuilder},
         menu::MenuItemMessage,
@@ -37,7 +37,6 @@ use crate::fyrox::{
         popup::{Placement, PopupMessage},
         stack_panel::StackPanelBuilder,
         widget::{Widget, WidgetBuilder, WidgetMessage},
-        BuildContext, Control, RcUiNodeHandle, UiNode, UserInterface,
     },
 };
 use crate::menu::create_menu_item;
@@ -45,8 +44,8 @@ use crate::menu::create_menu_item;
 use fyrox::gui::curve::{CurveTransformCell, STANDARD_GRID_SIZE};
 use fyrox::gui::menu::{ContextMenuBuilder, MenuItem};
 use fyrox::gui::message::MessageData;
-use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::style::resource::StyleResourceExt;
 use std::{
     cell::{Cell, RefCell},
     fmt::{Debug, Formatter},
@@ -318,87 +317,85 @@ impl Control for Ruler {
                     self.invalidate_visual();
                 }
             }
-        } else if let Some(msg) = message.data::<WidgetMessage>() {
-            if message.direction() == MessageDirection::FromWidget {
-                match msg {
-                    WidgetMessage::MouseDown { pos, button } if *button == MouseButton::Left => {
-                        ui.capture_mouse(self.handle);
+        } else if let Some(msg) = message.data::<WidgetMessage>()
+            && message.direction() == MessageDirection::FromWidget
+        {
+            match msg {
+                WidgetMessage::MouseDown { pos, button } if *button == MouseButton::Left => {
+                    ui.capture_mouse(self.handle);
 
-                        for signal in self.signals.borrow_mut().iter_mut() {
-                            signal.selected = false;
+                    for signal in self.signals.borrow_mut().iter_mut() {
+                        signal.selected = false;
 
-                            let bounds = signal.screen_bounds(self);
+                        let bounds = signal.screen_bounds(self);
 
-                            if self.drag_context.is_none() && bounds.contains(*pos) {
-                                signal.selected = true;
-                                self.drag_context = Some(DragContext {
-                                    entity: DragEntity::Signal(signal.id),
-                                });
+                        if self.drag_context.is_none() && bounds.contains(*pos) {
+                            signal.selected = true;
+                            self.drag_context = Some(DragContext {
+                                entity: DragEntity::Signal(signal.id),
+                            });
 
-                                ui.post(self.handle, RulerMessage::SelectSignal(signal.id));
+                            ui.post(self.handle, RulerMessage::SelectSignal(signal.id));
+                        }
+
+                        self.invalidate_visual();
+                    }
+
+                    if self.drag_context.is_none() {
+                        ui.send(
+                            self.handle,
+                            RulerMessage::Value(self.screen_to_value_space(pos.x)),
+                        );
+
+                        self.drag_context = Some(DragContext {
+                            entity: DragEntity::TimePosition,
+                        });
+                    }
+                }
+                WidgetMessage::MouseUp { button, pos } if *button == MouseButton::Left => {
+                    ui.release_mouse_capture();
+
+                    if let Some(drag_context) = self.drag_context.take()
+                        && let DragEntity::Signal(id) = drag_context.entity
+                        && let Some(signal) =
+                            self.signals.borrow_mut().iter_mut().find(|s| s.id == id)
+                    {
+                        signal.selected = false;
+
+                        ui.post(
+                            self.handle,
+                            RulerMessage::MoveSignal {
+                                id,
+                                new_position: self.screen_to_value_space(pos.x),
+                            },
+                        );
+
+                        self.invalidate_visual();
+                    }
+                }
+                WidgetMessage::MouseMove { pos, .. } => {
+                    if let Some(drag_context) = self.drag_context.as_ref() {
+                        match drag_context.entity {
+                            DragEntity::TimePosition => {
+                                ui.send(
+                                    self.handle,
+                                    RulerMessage::Value(self.screen_to_value_space(pos.x)),
+                                );
                             }
 
-                            self.invalidate_visual();
-                        }
-
-                        if self.drag_context.is_none() {
-                            ui.send(
-                                self.handle,
-                                RulerMessage::Value(self.screen_to_value_space(pos.x)),
-                            );
-
-                            self.drag_context = Some(DragContext {
-                                entity: DragEntity::TimePosition,
-                            });
-                        }
-                    }
-                    WidgetMessage::MouseUp { button, pos } if *button == MouseButton::Left => {
-                        ui.release_mouse_capture();
-
-                        if let Some(drag_context) = self.drag_context.take() {
-                            if let DragEntity::Signal(id) = drag_context.entity {
+                            DragEntity::Signal(id) => {
                                 if let Some(signal) =
                                     self.signals.borrow_mut().iter_mut().find(|s| s.id == id)
                                 {
-                                    signal.selected = false;
-
-                                    ui.post(
-                                        self.handle,
-                                        RulerMessage::MoveSignal {
-                                            id,
-                                            new_position: self.screen_to_value_space(pos.x),
-                                        },
-                                    );
-
+                                    signal.time = self.screen_to_value_space(pos.x);
                                     self.invalidate_visual();
                                 }
                             }
                         }
                     }
-                    WidgetMessage::MouseMove { pos, .. } => {
-                        if let Some(drag_context) = self.drag_context.as_ref() {
-                            match drag_context.entity {
-                                DragEntity::TimePosition => {
-                                    ui.send(
-                                        self.handle,
-                                        RulerMessage::Value(self.screen_to_value_space(pos.x)),
-                                    );
-                                }
-
-                                DragEntity::Signal(id) => {
-                                    if let Some(signal) =
-                                        self.signals.borrow_mut().iter_mut().find(|s| s.id == id)
-                                    {
-                                        signal.time = self.screen_to_value_space(pos.x);
-                                        self.invalidate_visual();
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    _ => (),
-                };
-            }
+                }
+                _ => (),
+            };
         }
     }
 

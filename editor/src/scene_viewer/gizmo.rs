@@ -29,17 +29,17 @@ use crate::fyrox::{
     material::{Material, MaterialResource},
     resource::texture::{TextureResource, TextureResourceExtension},
     scene::{
+        Scene,
         base::BaseBuilder,
         camera::CameraBuilder,
         graph::Graph,
-        light::{directional::DirectionalLightBuilder, BaseLightBuilder},
+        light::{BaseLightBuilder, directional::DirectionalLightBuilder},
         mesh::{
-            surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
             MeshBuilder,
+            surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
         },
         pivot::PivotBuilder,
         transform::TransformBuilder,
-        Scene,
     },
 };
 use crate::scene::GameScene;
@@ -85,11 +85,13 @@ fn make_cone(transform: Matrix4<f32>, color: Color, graph: &mut Graph) -> Handle
     material.set_property("diffuseColor", color);
 
     MeshBuilder::new(BaseBuilder::new().with_cast_shadows(false))
-        .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
-            SurfaceData::make_cone(16, 0.3, 1.0, &transform),
-        ))
-        .with_material(MaterialResource::new_embedded(material))
-        .build()])
+        .with_surfaces(vec![
+            SurfaceBuilder::new(SurfaceResource::new_embedded(SurfaceData::make_cone(
+                16, 0.3, 1.0, &transform,
+            )))
+            .with_material(MaterialResource::new_embedded(material))
+            .build(),
+        ])
         .build(graph)
 }
 
@@ -193,10 +195,12 @@ impl SceneGizmo {
                     neg_z
                 }),
         )
-        .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
-            SurfaceData::make_cube(Matrix4::identity()),
-        ))
-        .build()])
+        .with_surfaces(vec![
+            SurfaceBuilder::new(SurfaceResource::new_embedded(SurfaceData::make_cube(
+                Matrix4::identity(),
+            )))
+            .build(),
+        ])
         .build(&mut scene.graph);
 
         let camera_hinge;
@@ -287,11 +291,10 @@ impl SceneGizmo {
                 &node_ref
                     .local_bounding_box()
                     .transform(&node_ref.global_transform()),
-            ) {
-                if result.min < min_toi {
-                    closest = node;
-                    min_toi = result.min;
-                }
+            ) && result.min < min_toi
+            {
+                closest = node;
+                min_toi = result.min;
             }
         }
         closest

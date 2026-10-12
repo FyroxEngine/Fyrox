@@ -25,20 +25,20 @@
 
 use crate::message::MessageData;
 use crate::{
+    BuildContext, Control, RestrictionEntry, Thickness, UiNode, UserInterface,
     border::BorderBuilder,
     core::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*,
         variable::InheritableVariable, visitor::prelude::*,
     },
     message::{ButtonState, KeyCode, OsEvent, UiMessage},
-    style::{resource::StyleResourceExt, Style},
+    style::{Style, resource::StyleResourceExt},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, RestrictionEntry, Thickness, UiNode, UserInterface,
 };
 use fyrox_core::pool::ObjectOrVariant;
 use fyrox_graph::{
-    constructor::{ConstructorProvider, GraphNodeConstructor},
     SceneGraph,
+    constructor::{ConstructorProvider, GraphNodeConstructor},
 };
 
 /// A set of messages for [`Popup`] widget.
@@ -488,11 +488,12 @@ impl Control for Popup {
                 }
                 PopupMessage::RelayedMessage(_) => (),
             }
-        } else if let Some(WidgetMessage::KeyDown(key)) = message.data() {
-            if !message.handled() && *key == KeyCode::Escape {
-                ui.send(self.handle, PopupMessage::Close);
-                message.set_handled(true);
-            }
+        } else if let Some(WidgetMessage::KeyDown(key)) = message.data()
+            && !message.handled()
+            && *key == KeyCode::Escape
+        {
+            ui.send(self.handle, PopupMessage::Close);
+            message.set_handled(true);
         }
         if ui.is_valid_handle(self.owner) && !message.handled() {
             ui.send(self.owner, PopupMessage::RelayedMessage(message.clone()));
@@ -510,12 +511,11 @@ impl Control for Popup {
                 return;
             }
 
-            if *self.restrict_picking {
-                if let Some(top_restriction) = ui.top_picking_restriction() {
-                    if top_restriction.handle != self_handle {
-                        return;
-                    }
-                }
+            if *self.restrict_picking
+                && let Some(top_restriction) = ui.top_picking_restriction()
+                && top_restriction.handle != self_handle
+            {
+                return;
             }
 
             let pos = ui.cursor_position();

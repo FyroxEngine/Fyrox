@@ -20,8 +20,8 @@
 
 use crate::buffer::WgpuBuffer;
 use crate::format_helpers::{
-    is_filterable_format, is_integer_format, sample_type_for_format, SAMPLER_BINDING_OFFSET,
-    UNIFORM_BINDING_OFFSET,
+    SAMPLER_BINDING_OFFSET, UNIFORM_BINDING_OFFSET, is_filterable_format, is_integer_format,
+    sample_type_for_format,
 };
 use crate::geometry_buffer::WgpuGeometryBuffer;
 use crate::program::WgpuProgram;
@@ -30,6 +30,7 @@ use crate::server::WgpuGraphicsServer;
 use crate::texture::WgpuTexture;
 use fyrox_core::log::Log;
 use fyrox_graphics::{
+    BlendMode, CompareFunc, CullFace, DrawParameters, ElementRange,
     core::{color::Color, math::Rect},
     error::FrameworkError,
     framebuffer::{
@@ -39,7 +40,6 @@ use fyrox_graphics::{
     geometry_buffer::GpuGeometryBuffer,
     gpu_program::GpuProgram,
     gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind},
-    BlendMode, CompareFunc, CullFace, DrawParameters, ElementRange,
 };
 use std::cell::{Cell, RefCell};
 use std::collections::hash_map::DefaultHasher;
@@ -609,7 +609,7 @@ impl WgpuFrameBuffer {
                         other => {
                             return Err(FrameworkError::Custom(format!(
                                 "Surface texture error: {other:?}"
-                            )))
+                            )));
                         }
                     }
                 }

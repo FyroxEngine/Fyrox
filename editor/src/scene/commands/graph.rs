@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    Message,
     command::{CommandContext, CommandTrait},
     fyrox::{
         core::{
@@ -33,9 +34,8 @@ use crate::{
             transform::Transform,
         },
     },
-    scene::{commands::GameSceneContext, Selection},
+    scene::{Selection, commands::GameSceneContext},
     world::selection::GraphSelection,
-    Message,
 };
 use fyrox::core::err;
 

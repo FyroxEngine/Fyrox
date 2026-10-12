@@ -23,9 +23,10 @@
 
 pub use crate::builtin::*;
 use crate::{
+    Resource, TypedResourceData, UntypedResource,
     constructor::ResourceConstructorContainer,
     core::{
-        append_extension, err,
+        SafeLock, append_extension, err,
         futures::future::join_all,
         info,
         io::FileError,
@@ -35,9 +36,8 @@ use crate::{
         reflect::prelude::*,
         task::TaskPool,
         watcher::FileSystemWatcher,
-        SafeLock,
     },
-    entry::{TimedEntry, DEFAULT_RESOURCE_LIFETIME},
+    entry::{DEFAULT_RESOURCE_LIFETIME, TimedEntry},
     event::{ResourceEvent, ResourceEventBroadcaster},
     io::ResourceIo,
     loader::{ResourceLoader, ResourceLoadersContainer},
@@ -46,7 +46,6 @@ use crate::{
     registry::{RegistryUpdate, ResourceRegistry, ResourceRegistryRefMut},
     state::{LoadError, ResourceDataWrapper, ResourceState},
     untyped::ResourceKind,
-    Resource, TypedResourceData, UntypedResource,
 };
 use fxhash::FxHashSet;
 use fyrox_core::uuid::Uuid;
@@ -538,14 +537,14 @@ impl ResourceManager {
 
         let untyped = state.find_uuid(uuid);
 
-        if let Some(type_uuid) = untyped.type_uuid_non_blocking() {
-            if type_uuid != <T as Reflect>::type_info().type_uuid {
-                panic!(
-                    "Unable to get a resource of type {} from {uuid} UUID! Its actual data has some other \
+        if let Some(type_uuid) = untyped.type_uuid_non_blocking()
+            && type_uuid != <T as Reflect>::type_info().type_uuid
+        {
+            panic!(
+                "Unable to get a resource of type {} from {uuid} UUID! Its actual data has some other \
                     data type with type UUID {type_uuid}!",
-                    <T as Reflect>::type_info().type_uuid,
-                )
-            }
+                <T as Reflect>::type_info().type_uuid,
+            )
         }
 
         Resource {
@@ -1082,8 +1081,8 @@ impl ResourceManagerState {
                 self.update_or_load_registry();
                 self.reload_resources();
             } else {
-                use notify::event::{CreateKind, ModifyKind, RemoveKind, RenameMode};
                 use notify::EventKind;
+                use notify::event::{CreateKind, ModifyKind, RemoveKind, RenameMode};
                 match evt.kind {
                     EventKind::Create(CreateKind::Any | CreateKind::File) => {
                         self.on_create_event(evt.paths.first())
@@ -1146,8 +1145,8 @@ impl ResourceManagerState {
                 }) => {
                     if changed {
                         info!(
-                        "The resource {relative_path:?} was registered successfully with {} id from a newly created meta file!",
-                        metadata.resource_id
+                            "The resource {relative_path:?} was registered successfully with {} id from a newly created meta file!",
+                            metadata.resource_id
                         )
                     }
                 }
@@ -1181,8 +1180,8 @@ impl ResourceManagerState {
             }) => {
                 if changed {
                     info!(
-                    "The newly created resource {relative_path:?} was registered successfully with {} id from the meta file!",
-                    metadata.resource_id
+                        "The newly created resource {relative_path:?} was registered successfully with {} id from the meta file!",
+                        metadata.resource_id
                     )
                 }
             }
@@ -1195,7 +1194,9 @@ impl ResourceManagerState {
                     }) => {
                         assert!(old_path.is_none());
                         if changed {
-                            info!("The newly created resource {relative_path:?} was registered successfully with new id: {uuid}");
+                            info!(
+                                "The newly created resource {relative_path:?} was registered successfully with new id: {uuid}"
+                            );
                         }
                     }
                     Err(err) => {
@@ -1237,7 +1238,9 @@ impl ResourceManagerState {
         // Recreate the meta file, using the current UUID for the resource's path, if possible.
         let uuid = match registry.path_to_uuid(&relative_path) {
             Some(uuid) => {
-                info!("The meta file for {relative_path:?} was removed, but its UUID is still in memory: {uuid}");
+                info!(
+                    "The meta file for {relative_path:?} was removed, but its UUID is still in memory: {uuid}"
+                );
                 uuid
             }
             None => {
@@ -1483,7 +1486,7 @@ impl ResourceManagerState {
             let uuid = match self.find_uuid_or_register_new(path.clone()) {
                 Ok(uuid) => uuid,
                 Err(err) => {
-                    return UntypedResource::new_load_error(ResourceKind::External, path, err)
+                    return UntypedResource::new_load_error(ResourceKind::External, path, err);
                 }
             };
             let resource = UntypedResource::new_unloaded(uuid);
@@ -1873,13 +1876,13 @@ impl ResourceManagerState {
         let relative_src_path = self.resource_io.canonicalize_path(src_path)?;
         let relative_dest_path = self.resource_io.canonicalize_path(dest_path)?;
 
-        if let Some(file_stem) = relative_dest_path.file_stem() {
-            if !self.resource_io.is_valid_file_name(file_stem) {
-                return Err(ResourceMovementError::DestinationPathIsInvalid {
-                    src_path: relative_src_path.clone(),
-                    dest_path: relative_dest_path.clone(),
-                });
-            }
+        if let Some(file_stem) = relative_dest_path.file_stem()
+            && !self.resource_io.is_valid_file_name(file_stem)
+        {
+            return Err(ResourceMovementError::DestinationPathIsInvalid {
+                src_path: relative_src_path.clone(),
+                dest_path: relative_dest_path.clone(),
+            });
         }
 
         if !overwrite_existing && self.resource_io.exists(&relative_dest_path).await {
@@ -2023,12 +2026,11 @@ impl ResourceManagerState {
     /// Checks if the given path is located inside the folder tracked by the resource registry.
     pub fn is_path_in_registry(&self, path: &Path) -> bool {
         let registry = self.resource_registry.safe_lock();
-        if let Some(registry_directory) = registry.directory() {
-            if let Ok(canonical_registry_path) = registry_directory.canonicalize() {
-                if let Ok(canonical_path) = path.canonicalize() {
-                    return canonical_path.starts_with(canonical_registry_path);
-                }
-            }
+        if let Some(registry_directory) = registry.directory()
+            && let Ok(canonical_registry_path) = registry_directory.canonicalize()
+            && let Ok(canonical_path) = path.canonicalize()
+        {
+            return canonical_path.starts_with(canonical_registry_path);
         }
         false
     }
@@ -2097,11 +2099,11 @@ mod test {
     use super::*;
     use crate::io::FsResourceIo;
     use crate::{
-        loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
         ResourceData,
+        loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
     };
     use fyrox_core::{
-        uuid::{uuid, Uuid},
+        uuid::{Uuid, uuid},
         visitor::prelude::*,
     };
     use std::{error::Error, fs::File, time::Duration};
@@ -2204,28 +2206,34 @@ mod test {
         assert_eq!(state.count_registered_resources(), 0);
         assert_eq!(state.len(), 0);
 
-        assert!(state
-            .register(
-                UntypedResource::new_pending(Default::default(), ResourceKind::External),
-                "foo.bar",
-            )
-            .is_ok());
-        assert!(state
-            .register(
-                UntypedResource::new_load_error(
-                    ResourceKind::External,
-                    Default::default(),
-                    LoadError::default()
-                ),
-                "foo.bar",
-            )
-            .is_ok());
-        assert!(state
-            .register(
-                UntypedResource::new_ok(Uuid::new_v4(), Default::default(), Stub {}),
-                "foo.bar",
-            )
-            .is_ok());
+        assert!(
+            state
+                .register(
+                    UntypedResource::new_pending(Default::default(), ResourceKind::External),
+                    "foo.bar",
+                )
+                .is_ok()
+        );
+        assert!(
+            state
+                .register(
+                    UntypedResource::new_load_error(
+                        ResourceKind::External,
+                        Default::default(),
+                        LoadError::default()
+                    ),
+                    "foo.bar",
+                )
+                .is_ok()
+        );
+        assert!(
+            state
+                .register(
+                    UntypedResource::new_ok(Uuid::new_v4(), Default::default(), Stub {}),
+                    "foo.bar",
+                )
+                .is_ok()
+        );
 
         assert_eq!(state.count_registered_resources(), 3);
         assert_eq!(state.len(), 3);

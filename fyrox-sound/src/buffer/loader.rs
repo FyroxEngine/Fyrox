@@ -26,7 +26,7 @@ use fyrox_resource::{
     io::ResourceIo,
     loader::{BoxedImportOptionsLoaderFuture, BoxedLoaderFuture, LoaderPayload, ResourceLoader},
     options::{
-        try_get_import_settings, try_get_import_settings_opaque, BaseImportOptions, ImportOptions,
+        BaseImportOptions, ImportOptions, try_get_import_settings, try_get_import_settings_opaque,
     },
     state::LoadError,
 };

@@ -26,14 +26,14 @@
 use crate::check_box::CheckBox;
 use crate::message::MessageData;
 use crate::{
+    BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
     check_box::{CheckBoxBuilder, CheckBoxMessage},
     core::pool::Handle,
     core::{reflect::prelude::*, visitor::prelude::*},
     grid::{Column, GridBuilder, Row},
     message::UiMessage,
-    utils::{make_arrow, ArrowDirection},
+    utils::{ArrowDirection, make_arrow},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox_core::pool::ObjectOrVariant;
 

@@ -22,7 +22,7 @@ use crate::core::byteorder::{LittleEndian, ReadBytesExt};
 use crate::{
     core::pool::{Handle, Pool},
     resource::fbx::{
-        document::{attribute::FbxAttribute, FbxDocument, FbxNode, FbxNodeContainer},
+        document::{FbxDocument, FbxNode, FbxNodeContainer, attribute::FbxAttribute},
         error::FbxError,
     },
 };

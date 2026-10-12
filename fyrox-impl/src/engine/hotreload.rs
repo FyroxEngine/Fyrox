@@ -24,7 +24,7 @@ use crate::{
         dyntype::{DynTypeConstructorContainer, DynTypeContainer},
         log::Log,
         pool::{Handle, PayloadContainer, Ticket},
-        visitor::{error::VisitError, Visit, Visitor, VisitorFlags},
+        visitor::{Visit, Visitor, VisitorFlags, error::VisitError},
     },
     engine::SerializationContext,
     graph::SceneGraph,
@@ -32,15 +32,15 @@ use crate::{
     plugin::Plugin,
     resource::model::ModelResource,
     scene::{
-        base::{visit_opt_script, NodeMessage, NodeScriptMessage},
-        node::{container::NodeContainer, Node},
         Scene,
+        base::{NodeMessage, NodeScriptMessage, visit_opt_script},
+        node::{Node, container::NodeContainer},
     },
     script::Script,
 };
 use std::{
     ops::Deref,
-    sync::{mpsc::Sender, Arc},
+    sync::{Arc, mpsc::Sender},
 };
 
 pub struct ScriptState {
@@ -135,22 +135,22 @@ impl SceneState {
             } else {
                 // The node does not belong to the plugin, try to check its scripts.
                 for (script_index, record) in node.scripts.iter_mut().enumerate() {
-                    if let Some(script) = record.script.as_ref() {
-                        if is_script_belongs_to_plugin(serialization_context, script, plugin) {
-                            // Take the script out of the node and serialize it. The script will be
-                            // dropped and destroyed.
-                            let mut script = record.script.take();
-                            let mut visitor = make_writing_visitor();
-                            visit_opt_script("Script", &mut script, &mut visitor)
-                                .map_err(|e| e.to_string())?;
-                            let binary_blob =
-                                visitor.save_binary_to_vec().map_err(|e| e.to_string())?;
+                    if let Some(script) = record.script.as_ref()
+                        && is_script_belongs_to_plugin(serialization_context, script, plugin)
+                    {
+                        // Take the script out of the node and serialize it. The script will be
+                        // dropped and destroyed.
+                        let mut script = record.script.take();
+                        let mut visitor = make_writing_visitor();
+                        visit_opt_script("Script", &mut script, &mut visitor)
+                            .map_err(|e| e.to_string())?;
+                        let binary_blob =
+                            visitor.save_binary_to_vec().map_err(|e| e.to_string())?;
 
-                            node_state.scripts.push(ScriptState {
-                                index: script_index,
-                                binary_blob,
-                            })
-                        }
+                        node_state.scripts.push(ScriptState {
+                            index: script_index,
+                            binary_blob,
+                        })
                     }
                 }
             }
@@ -343,10 +343,9 @@ fn is_script_belongs_to_plugin(
         .script_constructors
         .map()
         .get(&script_id)
+        && constructor.assembly_name == plugin.type_info_ref().assembly_name
     {
-        if constructor.assembly_name == plugin.type_info_ref().assembly_name {
-            return true;
-        }
+        return true;
     }
     false
 }
@@ -358,10 +357,10 @@ fn is_node_belongs_to_plugin(
 ) -> bool {
     let node_id = (*node).id();
 
-    if let Some(constructor) = serialization_context.node_constructors.map().get(&node_id) {
-        if constructor.assembly_name == plugin.type_info_ref().assembly_name {
-            return true;
-        }
+    if let Some(constructor) = serialization_context.node_constructors.map().get(&node_id)
+        && constructor.assembly_name == plugin.type_info_ref().assembly_name
+    {
+        return true;
     }
     false
 }

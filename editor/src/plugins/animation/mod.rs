@@ -19,19 +19,21 @@
 // SOFTWARE.
 
 use crate::{
+    Editor, Message,
     command::{Command, CommandGroup},
     fyrox::{
         asset::manager::ResourceManager,
         core::{
-            algebra::Vector2, color::Color, log::Log, math::curve::Curve, math::Rect,
+            algebra::Vector2, color::Color, log::Log, math::Rect, math::curve::Curve,
             pool::ErasedHandle, pool::Handle, reflect::Reflect, some_or_return, uuid::Uuid,
             variable::InheritableVariable,
         },
         engine::ApplicationLoopController,
         fxhash::FxHashSet,
-        generic_animation::{signal::AnimationSignal, AnimationContainer},
+        generic_animation::{AnimationContainer, signal::AnimationSignal},
         graph::{NodeWrapper, PrefabData, SceneGraph},
         gui::{
+            BuildContext, UserInterface,
             border::BorderBuilder,
             brush::Brush,
             curve::{CurveEditor, CurveEditorBuilder, CurveEditorMessage, HighlightZone},
@@ -39,11 +41,10 @@ use crate::{
             grid::{Column, Grid, GridBuilder, Row},
             menu::{MenuItem, MenuItemMessage},
             message::UiMessage,
-            style::{resource::StyleResourceExt, Style},
+            style::{Style, resource::StyleResourceExt},
             toggle::ToggleButtonMessage,
             widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, UserInterface,
         },
         resource::model::AnimationSource,
     },
@@ -61,9 +62,8 @@ use crate::{
         toolbar::{Toolbar, ToolbarAction},
         track::TrackList,
     },
-    scene::{commands::ChangeSelectionCommand, GameScene, Selection},
+    scene::{GameScene, Selection, commands::ChangeSelectionCommand},
     ui_scene::UiScene,
-    Editor, Message,
 };
 use fyrox::core::uuid::uuid;
 use fyrox::gui::UiNode;
@@ -423,59 +423,59 @@ impl AnimationEditor {
                     }
                     _ => (),
                 }
-            } else if let Some(msg) = message.data_from::<RulerMessage>(self.ruler) {
-                if animations.try_get(selection.animation).is_ok() {
-                    match msg {
-                        RulerMessage::Value(value) => {
-                            if let Ok(animation) = animations.try_get_mut(selection.animation) {
-                                animation.set_time_position(*value);
-                            }
+            } else if let Some(msg) = message.data_from::<RulerMessage>(self.ruler)
+                && animations.try_get(selection.animation).is_ok()
+            {
+                match msg {
+                    RulerMessage::Value(value) => {
+                        if let Ok(animation) = animations.try_get_mut(selection.animation) {
+                            animation.set_time_position(*value);
                         }
-                        RulerMessage::AddSignal(time) => {
-                            sender.do_command(AddAnimationSignal {
-                                animation_player_handle: selection.animation_player,
-                                animation_handle: selection.animation,
-                                signal: Some(AnimationSignal {
-                                    id: Uuid::new_v4(),
-                                    name: "Unnamed".to_string(),
-                                    time: *time,
-                                    enabled: true,
-                                }),
-                            });
-                        }
-                        RulerMessage::RemoveSignal(id) => {
-                            if let Ok(animation) = animations.try_get(selection.animation) {
-                                sender.do_command(RemoveAnimationSignal {
-                                    animation_player_handle: selection.animation_player,
-                                    animation_handle: selection.animation,
-                                    signal_index: animation
-                                        .signals()
-                                        .iter()
-                                        .position(|s| s.id == *id)
-                                        .unwrap(),
-                                    signal: None,
-                                })
-                            }
-                        }
-                        RulerMessage::MoveSignal { id, new_position } => {
-                            sender.do_command(MoveAnimationSignal {
-                                animation_player_handle: selection.animation_player,
-                                animation_handle: selection.animation,
-                                signal: *id,
-                                time: *new_position,
-                            });
-                        }
-                        RulerMessage::SelectSignal(id) => {
-                            sender.do_command(ChangeSelectionCommand::new(Selection::new(
-                                AnimationSelection {
-                                    animation_player: selection.animation_player,
-                                    animation: selection.animation,
-                                    entities: vec![SelectedEntity::Signal(*id)],
-                                },
-                            )));
-                        }
-                        _ => (),
                     }
+                    RulerMessage::AddSignal(time) => {
+                        sender.do_command(AddAnimationSignal {
+                            animation_player_handle: selection.animation_player,
+                            animation_handle: selection.animation,
+                            signal: Some(AnimationSignal {
+                                id: Uuid::new_v4(),
+                                name: "Unnamed".to_string(),
+                                time: *time,
+                                enabled: true,
+                            }),
+                        });
+                    }
+                    RulerMessage::RemoveSignal(id) => {
+                        if let Ok(animation) = animations.try_get(selection.animation) {
+                            sender.do_command(RemoveAnimationSignal {
+                                animation_player_handle: selection.animation_player,
+                                animation_handle: selection.animation,
+                                signal_index: animation
+                                    .signals()
+                                    .iter()
+                                    .position(|s| s.id == *id)
+                                    .unwrap(),
+                                signal: None,
+                            })
+                        }
+                    }
+                    RulerMessage::MoveSignal { id, new_position } => {
+                        sender.do_command(MoveAnimationSignal {
+                            animation_player_handle: selection.animation_player,
+                            animation_handle: selection.animation,
+                            signal: *id,
+                            time: *new_position,
+                        });
+                    }
+                    RulerMessage::SelectSignal(id) => {
+                        sender.do_command(ChangeSelectionCommand::new(Selection::new(
+                            AnimationSelection {
+                                animation_player: selection.animation_player,
+                                animation: selection.animation,
+                                entities: vec![SelectedEntity::Signal(*id)],
+                            },
+                        )));
+                    }
+                    _ => (),
                 }
             }
 
@@ -554,18 +554,18 @@ impl AnimationEditor {
                     );
                 }
                 ToolbarAction::PlayPause => {
-                    if self.preview_mode_data.is_some() {
-                        if let Ok(animation) = animations.try_get_mut(selection.animation) {
-                            animation.set_enabled(!animation.is_enabled());
-                        }
+                    if self.preview_mode_data.is_some()
+                        && let Ok(animation) = animations.try_get_mut(selection.animation)
+                    {
+                        animation.set_enabled(!animation.is_enabled());
                     }
                 }
                 ToolbarAction::Stop => {
-                    if self.preview_mode_data.is_some() {
-                        if let Ok(animation) = animations.try_get_mut(selection.animation) {
-                            animation.rewind();
-                            animation.set_enabled(false);
-                        }
+                    if self.preview_mode_data.is_some()
+                        && let Ok(animation) = animations.try_get_mut(selection.animation)
+                    {
+                        animation.rewind();
+                        animation.set_enabled(false);
                     }
                 }
                 ToolbarAction::NewAnimation => {
@@ -726,13 +726,13 @@ impl AnimationEditor {
     {
         let selection = fetch_selection(self, graph, editor_selection);
 
-        if let Some(container) = animation_container_ref(graph, selection.animation_player) {
-            if let Ok(animation) = container.try_get(selection.animation) {
-                ui.send(
-                    self.thumb,
-                    ThumbMessage::Position(animation.time_position()),
-                );
-            }
+        if let Some(container) = animation_container_ref(graph, selection.animation_player)
+            && let Ok(animation) = container.try_get(selection.animation)
+        {
+            ui.send(
+                self.thumb,
+                ThumbMessage::Position(animation.time_position()),
+            );
         }
     }
 
@@ -834,13 +834,11 @@ impl AnimationEditor {
                                         },
                                     )
                                 })
-                            {
-                                if !selected_curves
+                                && !selected_curves
                                     .iter()
                                     .any(|(_, curve)| curve.id == selected_curve.id)
-                                {
-                                    selected_curves.push((index, selected_curve.clone()));
-                                }
+                            {
+                                selected_curves.push((index, selected_curve.clone()));
                             }
                         }
                         _ => (),
@@ -960,10 +958,10 @@ impl EditorPlugin for AnimationEditorPlugin {
     fn on_start(&mut self, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first_mut();
 
-        if let Some(layout) = editor.settings.windows.layout.as_ref() {
-            if layout.has_window(AnimationEditor::WINDOW_NAME) {
-                self.get_or_create_animation_editor(ui);
-            }
+        if let Some(layout) = editor.settings.windows.layout.as_ref()
+            && layout.has_window(AnimationEditor::WINDOW_NAME)
+        {
+            self.get_or_create_animation_editor(ui);
         }
 
         let ctx = &mut ui.build_ctx();
@@ -994,27 +992,27 @@ impl EditorPlugin for AnimationEditorPlugin {
     }
 
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
-        if let Some(MenuItemMessage::Click) = message.data() {
-            if message.destination() == self.open_animation_editor {
-                editor.message_sender.send(Message::OpenAnimationEditor);
-            }
+        if let Some(MenuItemMessage::Click) = message.data()
+            && message.destination() == self.open_animation_editor
+        {
+            editor.message_sender.send(Message::OpenAnimationEditor);
         }
 
         let animation_editor = some_or_return!(self.animation_editor.as_mut());
 
-        if let Some(WindowMessage::Close) = message.data() {
-            if message.destination() == animation_editor.window {
-                self.on_leave_preview_mode(editor);
+        if let Some(WindowMessage::Close) = message.data()
+            && message.destination() == animation_editor.window
+        {
+            self.on_leave_preview_mode(editor);
 
-                let animation_editor = some_or_return!(self.animation_editor.take());
+            let animation_editor = some_or_return!(self.animation_editor.take());
 
-                animation_editor.destroy(
-                    editor.engine.user_interfaces.first(),
-                    editor.docking_manager,
-                );
+            animation_editor.destroy(
+                editor.engine.user_interfaces.first(),
+                editor.docking_manager,
+            );
 
-                return;
-            }
+            return;
         }
 
         let entry = editor.scenes.current_scene_entry_mut();

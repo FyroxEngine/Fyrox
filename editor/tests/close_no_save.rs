@@ -18,11 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use fyroxed_base::SaveSceneConfirmationDialog;
 use fyroxed_base::menu::file::FileMenu;
 use fyroxed_base::test::macros::Macro;
 use fyroxed_base::test::utils;
 use fyroxed_base::test::utils::TestPlugin;
-use fyroxed_base::SaveSceneConfirmationDialog;
 
 #[test]
 fn test_close_no_save() {

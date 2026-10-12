@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::{
-    core::{color::Color, math::Rect, ImmutableString},
+    core::{ImmutableString, color::Color, math::Rect},
     graphics::{
         error::FrameworkError,
         framebuffer::{Attachment, GpuFrameBuffer},
@@ -31,7 +31,7 @@ use crate::{
     renderer::resources::RendererResources,
     renderer::{
         cache::{
-            shader::{binding, property, PropertyGroup, RenderMaterial},
+            shader::{PropertyGroup, RenderMaterial, binding, property},
             uniform::UniformBufferCache,
         },
         make_viewport_matrix,

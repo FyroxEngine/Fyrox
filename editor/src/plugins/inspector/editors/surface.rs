@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    Message,
     asset::{
         item::{AssetItem, AssetItemMessage},
         preview::cache::IconRequest,
@@ -32,24 +33,24 @@ use crate::{
         },
         graph::SceneGraph,
         gui::{
+            BuildContext, Control, Orientation, Thickness, UiNode, UserInterface,
             brush::Brush,
             button::{Button, ButtonBuilder, ButtonMessage},
             define_widget_deref,
             grid::{Column, GridBuilder, Row},
             image::{Image, ImageBuilder, ImageMessage},
             inspector::{
+                FieldAction, InspectorError, PropertyChanged,
                 editors::{
                     PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
                     PropertyEditorMessageContext, PropertyEditorTranslationContext,
                 },
-                FieldAction, InspectorError, PropertyChanged,
             },
             message::{MessageData, MessageDirection, UiMessage},
             stack_panel::StackPanelBuilder,
             text::{Text, TextBuilder, TextMessage},
-            utils::{make_asset_preview_tooltip, ImageButtonBuilder},
+            utils::{ImageButtonBuilder, make_asset_preview_tooltip},
             widget::{Widget, WidgetBuilder, WidgetMessage},
-            BuildContext, Control, Orientation, Thickness, UiNode, UserInterface,
         },
         scene::mesh::surface::{SurfaceData, SurfaceResource},
     },
@@ -57,7 +58,6 @@ use crate::{
     message::MessageSender,
     plugins::inspector::EditorEnvironment,
     utils::make_pick_button,
-    Message,
 };
 use std::{any::TypeId, sync::mpsc::Sender};
 
@@ -99,46 +99,42 @@ impl Control for SurfaceDataPropertyEditor {
                 if let Some(sender) = self.sender.as_ref() {
                     sender.send(Message::ViewSurfaceData(self.surface_resource.clone()));
                 }
-            } else if message.destination() == self.locate {
-                if let Some(path) = self
+            } else if message.destination() == self.locate
+                && let Some(path) = self
                     .asset_selector_mixin
                     .resource_manager
                     .resource_path(&self.surface_resource)
-                {
-                    if let Some(sender) = self.sender.as_ref() {
-                        sender.send(Message::ShowInAssetBrowser(path));
-                    }
-                }
+                && let Some(sender) = self.sender.as_ref()
+            {
+                sender.send(Message::ShowInAssetBrowser(path));
             }
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
-            if message.destination() == self.handle() {
-                if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
-                    let path = if self
+            if message.destination() == self.handle()
+                && let Some(item) = ui.node(*dropped).cast::<AssetItem>()
+            {
+                let path = if self
+                    .asset_selector_mixin
+                    .resource_manager
+                    .state()
+                    .built_in_resources
+                    .contains_key(&item.path)
+                {
+                    Ok(item.path.clone())
+                } else {
+                    make_relative_path(&item.path)
+                };
+
+                if let Ok(path) = path
+                    && let Some(request) = self
                         .asset_selector_mixin
                         .resource_manager
-                        .state()
-                        .built_in_resources
-                        .contains_key(&item.path)
-                    {
-                        Ok(item.path.clone())
-                    } else {
-                        make_relative_path(&item.path)
-                    };
-
-                    if let Ok(path) = path {
-                        if let Some(request) = self
-                            .asset_selector_mixin
-                            .resource_manager
-                            .try_request::<SurfaceData>(path)
-                        {
-                            if let Ok(value) = block_on(request) {
-                                ui.send(
-                                    self.handle(),
-                                    SurfaceDataPropertyEditorMessage::Value(value),
-                                );
-                            }
-                        }
-                    }
+                        .try_request::<SurfaceData>(path)
+                    && let Ok(value) = block_on(request)
+                {
+                    ui.send(
+                        self.handle(),
+                        SurfaceDataPropertyEditorMessage::Value(value),
+                    );
                 }
             }
         } else if let Some(SurfaceDataPropertyEditorMessage::Value(surface_resource)) =
@@ -350,13 +346,13 @@ impl PropertyEditorDefinition for SurfaceDataPropertyEditorDefinition {
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(SurfaceDataPropertyEditorMessage::Value(value)) = ctx.message.data() {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
-                    action: FieldAction::object(value.clone()),
-                });
-            }
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(SurfaceDataPropertyEditorMessage::Value(value)) = ctx.message.data()
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
+                action: FieldAction::object(value.clone()),
+            });
         }
         None
     }

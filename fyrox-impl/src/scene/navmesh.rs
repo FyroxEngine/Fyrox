@@ -29,7 +29,7 @@ use crate::{
         parking_lot::RwLock,
         pool::Handle,
         reflect::prelude::*,
-        uuid::{uuid, Uuid},
+        uuid::{Uuid, uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
     },
@@ -44,8 +44,8 @@ use crate::{
 use fyrox_core::algebra::Vector3;
 use fyrox_core::math::TriangleDefinition;
 use fyrox_core::parking_lot::{RwLockReadGuard, RwLockWriteGuard};
-use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::SceneGraph;
+use fyrox_graph::constructor::ConstructorProvider;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,

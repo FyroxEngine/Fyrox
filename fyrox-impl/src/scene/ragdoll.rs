@@ -26,10 +26,10 @@ use crate::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
         log::Log,
-        math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
+        math::{Matrix4Ext, aabb::AxisAlignedBoundingBox},
         pool::{Handle, PoolError},
         reflect::prelude::*,
-        uuid::{uuid, Uuid},
+        uuid::{Uuid, uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
     },
@@ -38,7 +38,7 @@ use crate::{
         base::{Base, BaseBuilder},
         collider::Collider,
         graph::Graph,
-        node::{constructor::NodeConstructor, Node, NodeTrait, UpdateContext},
+        node::{Node, NodeTrait, UpdateContext, constructor::NodeConstructor},
         rigidbody::{RigidBody, RigidBodyType},
     },
 };
@@ -154,11 +154,12 @@ impl NodeTrait for Ragdoll {
         // Get linear and angular velocities of the character rigid body and transfer it onto rag doll bodies when it is just activated.
         let mut new_lin_vel = None;
         let mut new_ang_vel = None;
-        if *self.is_active && !self.prev_enabled {
-            if let Ok(character_rigid_body) = ctx.nodes.try_get(*self.character_rigid_body) {
-                new_lin_vel = Some(character_rigid_body.lin_vel());
-                new_ang_vel = Some(character_rigid_body.ang_vel());
-            }
+        if *self.is_active
+            && !self.prev_enabled
+            && let Ok(character_rigid_body) = ctx.nodes.try_get(*self.character_rigid_body)
+        {
+            new_lin_vel = Some(character_rigid_body.lin_vel());
+            new_ang_vel = Some(character_rigid_body.ang_vel());
         }
         self.prev_enabled = *self.is_active;
 

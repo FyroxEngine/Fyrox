@@ -63,11 +63,11 @@ use crate::{
     },
     engine::error::EngineError,
     graphics::{
+        PolygonFace, PolygonFillMode,
         error::FrameworkError,
         framebuffer::{Attachment, DrawCallStatistics, GpuFrameBuffer},
         gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
         server::{GraphicsServer, SharedGraphicsServer},
-        PolygonFace, PolygonFillMode,
     },
     material::shader::Shader,
     renderer::{
@@ -76,7 +76,7 @@ use crate::{
         cache::{
             geometry::GeometryCache,
             shader::{
-                binding, property, PropertyGroup, RenderMaterial, RenderPassContainer, ShaderCache,
+                PropertyGroup, RenderMaterial, RenderPassContainer, ShaderCache, binding, property,
             },
             texture::TextureCache,
             uniform::{UniformBufferCache, UniformMemoryAllocator},
@@ -93,7 +93,7 @@ use crate::{
         visibility::VisibilityCache,
     },
     resource::texture::{Texture, TextureKind, TextureResource},
-    scene::{mesh::RenderPath, node::Node, Scene, SceneContainer},
+    scene::{Scene, SceneContainer, mesh::RenderPath, node::Node},
 };
 use cache::DynamicSurfaceCache;
 use fxhash::FxHashMap;
@@ -911,24 +911,24 @@ impl Renderer {
 
         let mut uploaded = 0;
         while let Ok(event) = self.texture_event_receiver.try_recv() {
-            if let ResourceEvent::Loaded(resource) | ResourceEvent::Reloaded(resource) = event {
-                if let Some(texture) = resource.try_cast::<Texture>() {
-                    match self
-                        .texture_cache
-                        .upload(&*self.server, resource_manager, &texture)
-                    {
-                        Ok(_) => {
-                            uploaded += 1;
-                            if uploaded >= THROUGHPUT {
-                                break;
-                            }
+            if let ResourceEvent::Loaded(resource) | ResourceEvent::Reloaded(resource) = event
+                && let Some(texture) = resource.try_cast::<Texture>()
+            {
+                match self
+                    .texture_cache
+                    .upload(&*self.server, resource_manager, &texture)
+                {
+                    Ok(_) => {
+                        uploaded += 1;
+                        if uploaded >= THROUGHPUT {
+                            break;
                         }
-                        Err(e) => {
-                            Log::writeln(
-                                MessageKind::Error,
-                                format!("Failed to upload texture to GPU. Reason: {e:?}"),
-                            );
-                        }
+                    }
+                    Err(e) => {
+                        Log::writeln(
+                            MessageKind::Error,
+                            format!("Failed to upload texture to GPU. Reason: {e:?}"),
+                        );
                     }
                 }
             }
@@ -939,12 +939,12 @@ impl Renderer {
 
     fn update_shader_cache(&mut self, dt: f32) {
         while let Ok(event) = self.shader_event_receiver.try_recv() {
-            if let ResourceEvent::Loaded(resource) | ResourceEvent::Reloaded(resource) = event {
-                if let Some(shader) = resource.try_cast::<Shader>() {
-                    // Remove and immediately "touch" the shader cache to force upload shader.
-                    self.shader_cache.remove(&shader);
-                    let _ = self.shader_cache.get(&*self.server, &shader);
-                }
+            if let ResourceEvent::Loaded(resource) | ResourceEvent::Reloaded(resource) = event
+                && let Some(shader) = resource.try_cast::<Shader>()
+            {
+                // Remove and immediately "touch" the shader cache to force upload shader.
+                self.shader_cache.remove(&shader);
+                let _ = self.shader_cache.get(&*self.server, &shader);
             }
         }
 

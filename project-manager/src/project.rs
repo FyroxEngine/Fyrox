@@ -26,6 +26,8 @@ use crate::{
 use fyrox::{
     core::pool::Handle,
     gui::{
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
+        VerticalAlignment,
         button::{Button, ButtonMessage},
         dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
         file_browser::PathFilter,
@@ -40,8 +42,6 @@ use fyrox::{
         utils::make_dropdown_list_option,
         widget::{WidgetBuilder, WidgetMessage},
         window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
-        VerticalAlignment,
     },
 };
 use std::path::{Path, PathBuf};

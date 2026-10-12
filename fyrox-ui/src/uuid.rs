@@ -24,6 +24,7 @@
 #![warn(missing_docs)]
 
 use crate::{
+    BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
     button::{Button, ButtonMessage},
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     define_widget_deref,
@@ -33,7 +34,6 @@ use crate::{
     text::{Text, TextBuilder, TextMessage},
     utils::ImageButtonBuilder,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};

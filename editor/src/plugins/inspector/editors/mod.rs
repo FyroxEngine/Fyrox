@@ -20,19 +20,19 @@
 
 use crate::{
     fyrox::{
-        asset::{manager::ResourceManager, untyped::UntypedResource, Resource},
+        asset::{Resource, manager::ResourceManager, untyped::UntypedResource},
         core::{
             pool::{ErasedHandle, Handle},
             reflect::Reflect,
         },
         graphics::{
-            gpu_program::{SamplerKind, ShaderProperty, ShaderPropertyKind},
             BlendEquation, BlendFactor, BlendFunc, BlendMode, BlendParameters, ColorMask,
             CompareFunc, CullFace, DrawParameters, PolygonFillMode, ScissorBox, StencilAction,
             StencilFunc, StencilOp,
+            gpu_program::{SamplerKind, ShaderProperty, ShaderPropertyKind},
         },
         gui::{
-            self,
+            self, UiNode, UserInterface,
             border::Border,
             button::Button,
             canvas::Canvas,
@@ -47,12 +47,11 @@ use crate::{
             image::Image,
             inspector::editors::key::HotKeyPropertyEditorDefinition,
             inspector::editors::{
-                bit::BitFieldPropertyEditorDefinition,
+                PropertyEditorDefinitionContainer, bit::BitFieldPropertyEditorDefinition,
                 collection::VecCollectionPropertyEditorDefinition,
                 enumeration::EnumPropertyEditorDefinition,
                 inherit::InheritablePropertyEditorDefinition,
                 inspectable::InspectablePropertyEditorDefinition,
-                PropertyEditorDefinitionContainer,
             },
             key::KeyBindingEditor,
             list_view::{ListView, ListViewItem},
@@ -70,7 +69,7 @@ use crate::{
             searchbar::SearchBar,
             selector::Selector,
             stack_panel::StackPanel,
-            style::{resource::StyleResource, Style},
+            style::{Style, resource::StyleResource},
             tab_control::TabControl,
             text::Text,
             text_box::TextBox,
@@ -81,7 +80,6 @@ use crate::{
             vector_image::VectorImage,
             window::Window,
             wrap_panel::WrapPanel,
-            UiNode, UserInterface,
         },
         material::shader::{
             RenderPassDefinition, SamplerFallback, Shader, ShaderDefinition, ShaderResource,
@@ -100,7 +98,7 @@ use crate::{
         },
         scene::base::SceneNodeId,
         scene::{
-            self,
+            self, EnvironmentLightingSource,
             base::{Base, LevelOfDetail, LodGroup, Property, PropertyValue, ScriptRecord},
             camera::{
                 Camera, ColorGradingLut, Exposure, OrthographicProjection, PerspectiveProjection,
@@ -116,23 +114,23 @@ use crate::{
             graph::physics::CoefficientCombineRule,
             joint::*,
             light::{
+                BaseLight,
                 directional::{CsmOptions, DirectionalLight, FrustumSplitOptions},
                 point::PointLight,
                 spot::SpotLight,
-                BaseLight,
             },
             mesh::{
-                surface::{BlendShape, Surface, SurfaceResource},
                 BatchingMode, Mesh, RenderPath,
+                surface::{BlendShape, Surface, SurfaceResource},
             },
             navmesh::NavigationalMesh,
             node::Node,
             particle_system::{
-                emitter::{
-                    base::BaseEmitter, cuboid::CuboidEmitter, cylinder::CylinderEmitter,
-                    sphere::SphereEmitter, Emitter,
-                },
                 CoordinateSystem, ParticleSystem, ParticleSystemRng,
+                emitter::{
+                    Emitter, base::BaseEmitter, cuboid::CuboidEmitter, cylinder::CylinderEmitter,
+                    sphere::SphereEmitter,
+                },
             },
             pivot::Pivot,
             probe::UpdateMode,
@@ -140,25 +138,23 @@ use crate::{
             rigidbody::{RigidBody, RigidBodyMassPropertiesType, RigidBodyType},
             skybox::SkyBox,
             sound::{
-                self,
+                self, Attenuate, AudioBus, Biquad, DistanceModel, Effect, Sound, SoundBuffer,
+                SoundBufferResource, Status,
                 filter::{
                     AllPassFilterEffect, BandPassFilterEffect, HighPassFilterEffect,
                     HighShelfFilterEffect, LowPassFilterEffect, LowShelfFilterEffect,
                 },
                 listener::Listener,
                 reverb::Reverb,
-                Attenuate, AudioBus, Biquad, DistanceModel, Effect, Sound, SoundBuffer,
-                SoundBufferResource, Status,
             },
             sprite::Sprite,
             terrain::{Chunk, Layer, Terrain},
             tilemap::{
+                Tile, TileCollider, TileDefinitionHandle, TileMap,
                 brush::{TileMapBrush, TileMapBrushResource},
                 tileset::TileSet,
-                Tile, TileCollider, TileDefinitionHandle, TileMap,
             },
             transform::Transform,
-            EnvironmentLightingSource,
         },
     },
     message::MessageSender,
@@ -243,14 +239,14 @@ where
     T: Reflect,
 {
     use crate::fyrox::generic_animation::machine::{
+        BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput, Machine,
+        PlayAnimation, PoseNode, PoseWeight, State,
         node::{
-            blendspace::{BlendSpace, BlendSpacePoint},
             BasePoseNode,
+            blendspace::{BlendSpace, BlendSpacePoint},
         },
         state::{StateAction, StateActionWrapper},
         transition::{AndNode, LogicNode, NotNode, OrNode, XorNode},
-        BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput, Machine,
-        PlayAnimation, PoseNode, PoseWeight, State,
     };
 
     container.insert(InspectablePropertyEditorDefinition::<BasePoseNode<Handle<T>>>::new());

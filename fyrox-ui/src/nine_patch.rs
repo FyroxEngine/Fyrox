@@ -19,21 +19,21 @@
 // SOFTWARE.
 
 use crate::{
+    BuildContext, Control, UiNode, UserInterface,
     brush::Brush,
     core::{
         algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
         some_or_return, variable::InheritableVariable, visitor::prelude::*,
     },
     draw::{CommandTexture, Draw, DrawingContext},
-    message::{compare_and_set, UiMessage},
+    message::{UiMessage, compare_and_set},
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, UiNode, UserInterface,
 };
 
 use crate::message::MessageData;
 use fyrox_graph::{
-    constructor::{ConstructorProvider, GraphNodeConstructor},
     SceneGraph,
+    constructor::{ConstructorProvider, GraphNodeConstructor},
 };
 use fyrox_material::MaterialResource;
 use fyrox_texture::{TextureKind, TextureResource};

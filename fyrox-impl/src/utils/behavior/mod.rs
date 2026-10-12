@@ -338,7 +338,7 @@ mod test {
     use crate::utils::behavior::BehaviorResult;
     use crate::{
         core::{futures::executor::block_on, visitor::prelude::*},
-        utils::behavior::{leaf, sequence, Behavior, BehaviorTree, Status},
+        utils::behavior::{Behavior, BehaviorTree, Status, leaf, sequence},
     };
     use std::{env, fs::File, io::Write, path::PathBuf};
 

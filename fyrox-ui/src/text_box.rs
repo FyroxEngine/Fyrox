@@ -25,8 +25,11 @@
 
 use crate::formatted_text::InlineContext;
 use crate::{
+    BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
+    VerticalAlignment,
     brush::Brush,
     core::{
+        SafeLock,
         algebra::{Matrix3, Point2, Vector2},
         color::Color,
         math::Rect,
@@ -36,18 +39,15 @@ use crate::{
         some_or_return,
         variable::InheritableVariable,
         visitor::prelude::*,
-        SafeLock,
     },
     draw::{CommandTexture, Draw, DrawingContext},
     font::FontResource,
     formatted_text::{FormattedText, FormattedTextBuilder, WrapMode},
     message::{CursorIcon, KeyCode, MessageData, MessageDirection, MouseButton, UiMessage},
-    style::{resource::StyleResourceExt, Style, StyledProperty},
+    style::{Style, StyledProperty, resource::StyleResourceExt},
     text::TextBuilder,
     text::TextMessage,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
-    VerticalAlignment,
 };
 use copypasta::ClipboardProvider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -566,20 +566,20 @@ impl TextBox {
 
         drop(text);
 
-        if let Some(selection_range) = self.selection_range.as_mut() {
-            if select {
-                if *self.caret_position != selection_range.end {
-                    if !selection_range.contains(position) {
-                        if position < selection_range.left() {
-                            selection_range.begin = selection_range.right();
-                        } else {
-                            selection_range.begin = selection_range.left();
-                        }
-                        selection_range.end = position;
+        if let Some(selection_range) = self.selection_range.as_mut()
+            && select
+        {
+            if *self.caret_position != selection_range.end {
+                if !selection_range.contains(position) {
+                    if position < selection_range.left() {
+                        selection_range.begin = selection_range.right();
+                    } else {
+                        selection_range.begin = selection_range.left();
                     }
-                } else {
                     selection_range.end = position;
                 }
+            } else {
+                selection_range.end = position;
             }
         }
 
@@ -787,11 +787,11 @@ impl TextBox {
     }
 
     fn remove_char(&mut self, direction: HorizontalDirection, ui: &UserInterface) {
-        if let Some(selection) = *self.selection_range {
-            if !selection.is_collapsed() {
-                self.remove_range(ui, selection);
-                return;
-            }
+        if let Some(selection) = *self.selection_range
+            && !selection.is_collapsed()
+        {
+            self.remove_range(ui, selection);
+            return;
         }
         let Some(position) = self.position_to_char_index_unclamped(*self.caret_position) else {
             return;
@@ -1233,44 +1233,44 @@ impl Control for TextBox {
                                 }
                             }
                             KeyCode::KeyC if ui.keyboard_modifiers().control => {
-                                if let Some(mut clipboard) = ui.clipboard_mut() {
-                                    if let Some(selection_range) = self.selection_range.as_ref() {
-                                        let range = self
-                                            .formatted_text
-                                            .borrow()
-                                            .position_range_to_char_index_range(
-                                                selection_range.range(),
-                                            );
-                                        if !range.is_empty() {
-                                            let _ = clipboard.set_contents(
-                                                self.formatted_text.borrow().text_range(range),
-                                            );
-                                        }
+                                if let Some(mut clipboard) = ui.clipboard_mut()
+                                    && let Some(selection_range) = self.selection_range.as_ref()
+                                {
+                                    let range = self
+                                        .formatted_text
+                                        .borrow()
+                                        .position_range_to_char_index_range(
+                                            selection_range.range(),
+                                        );
+                                    if !range.is_empty() {
+                                        let _ = clipboard.set_contents(
+                                            self.formatted_text.borrow().text_range(range),
+                                        );
                                     }
                                 }
                             }
                             KeyCode::KeyV if ui.keyboard_modifiers().control => {
-                                if let Some(mut clipboard) = ui.clipboard_mut() {
-                                    if let Ok(content) = clipboard.get_contents() {
-                                        self.insert_str(&content, ui);
-                                    }
+                                if let Some(mut clipboard) = ui.clipboard_mut()
+                                    && let Ok(content) = clipboard.get_contents()
+                                {
+                                    self.insert_str(&content, ui);
                                 }
                             }
                             KeyCode::KeyX if ui.keyboard_modifiers().control => {
-                                if let Some(mut clipboard) = ui.clipboard_mut() {
-                                    if let Some(selection_range) = self.selection_range.as_ref() {
-                                        let range = self
-                                            .formatted_text
-                                            .borrow()
-                                            .position_range_to_char_index_range(
-                                                selection_range.range(),
-                                            );
-                                        if !range.is_empty() {
-                                            let _ = clipboard.set_contents(
-                                                self.formatted_text.borrow().text_range(range),
-                                            );
-                                            self.remove_char(HorizontalDirection::Left, ui);
-                                        }
+                                if let Some(mut clipboard) = ui.clipboard_mut()
+                                    && let Some(selection_range) = self.selection_range.as_ref()
+                                {
+                                    let range = self
+                                        .formatted_text
+                                        .borrow()
+                                        .position_range_to_char_index_range(
+                                            selection_range.range(),
+                                        );
+                                    if !range.is_empty() {
+                                        let _ = clipboard.set_contents(
+                                            self.formatted_text.borrow().text_range(range),
+                                        );
+                                        self.remove_char(HorizontalDirection::Left, ui);
                                     }
                                 }
                             }
@@ -1342,10 +1342,10 @@ impl Control for TextBox {
                     WidgetMessage::DoubleClick {
                         button: MouseButton::Left,
                     } => {
-                        if let Some(position) = self.screen_pos_to_text_pos(ui.cursor_position) {
-                            if position == self.before_click_position {
-                                self.select_word(position);
-                            }
+                        if let Some(position) = self.screen_pos_to_text_pos(ui.cursor_position)
+                            && position == self.before_click_position
+                        {
+                            self.select_word(position);
                         }
                     }
                     WidgetMessage::MouseMove { pos, .. } if self.selecting => {
@@ -1479,54 +1479,54 @@ impl Control for TextBox {
                         }
                     }
                 }
-            } else if let Some(msg) = message.data::<TextBoxMessage>() {
-                if message.direction() == MessageDirection::ToWidget {
-                    match msg {
-                        TextBoxMessage::SelectionBrush(brush) => {
-                            if &*self.selection_brush != brush {
-                                self.selection_brush
-                                    .set_value_and_mark_modified(brush.clone());
-                                ui.try_send_response(message);
-                            }
+            } else if let Some(msg) = message.data::<TextBoxMessage>()
+                && message.direction() == MessageDirection::ToWidget
+            {
+                match msg {
+                    TextBoxMessage::SelectionBrush(brush) => {
+                        if &*self.selection_brush != brush {
+                            self.selection_brush
+                                .set_value_and_mark_modified(brush.clone());
+                            ui.try_send_response(message);
                         }
-                        TextBoxMessage::CaretBrush(brush) => {
-                            if &*self.caret_brush != brush {
-                                self.caret_brush.set_value_and_mark_modified(brush.clone());
-                                ui.try_send_response(message);
-                            }
+                    }
+                    TextBoxMessage::CaretBrush(brush) => {
+                        if &*self.caret_brush != brush {
+                            self.caret_brush.set_value_and_mark_modified(brush.clone());
+                            ui.try_send_response(message);
                         }
-                        TextBoxMessage::TextCommitMode(mode) => {
-                            if &*self.commit_mode != mode {
-                                self.commit_mode.set_value_and_mark_modified(*mode);
-                                ui.try_send_response(message);
-                            }
+                    }
+                    TextBoxMessage::TextCommitMode(mode) => {
+                        if &*self.commit_mode != mode {
+                            self.commit_mode.set_value_and_mark_modified(*mode);
+                            ui.try_send_response(message);
                         }
-                        TextBoxMessage::Multiline(multiline) => {
-                            if &*self.multiline != multiline {
-                                self.multiline.set_value_and_mark_modified(*multiline);
-                                ui.try_send_response(message);
-                            }
+                    }
+                    TextBoxMessage::Multiline(multiline) => {
+                        if &*self.multiline != multiline {
+                            self.multiline.set_value_and_mark_modified(*multiline);
+                            ui.try_send_response(message);
                         }
-                        TextBoxMessage::Editable(editable) => {
-                            if &*self.editable != editable {
-                                self.editable.set_value_and_mark_modified(*editable);
-                                ui.try_send_response(message);
-                            }
+                    }
+                    TextBoxMessage::Editable(editable) => {
+                        if &*self.editable != editable {
+                            self.editable.set_value_and_mark_modified(*editable);
+                            ui.try_send_response(message);
                         }
-                        TextBoxMessage::Padding(padding) => {
-                            let mut formatted_text = self.formatted_text.borrow_mut();
-                            if &*formatted_text.padding != padding {
-                                formatted_text.padding.set_value_and_mark_modified(*padding);
-                                ui.try_send_response(message);
-                            }
+                    }
+                    TextBoxMessage::Padding(padding) => {
+                        let mut formatted_text = self.formatted_text.borrow_mut();
+                        if &*formatted_text.padding != padding {
+                            formatted_text.padding.set_value_and_mark_modified(*padding);
+                            ui.try_send_response(message);
                         }
-                        TextBoxMessage::CornerRadius(corner_radius) => {
-                            if *self.corner_radius != *corner_radius {
-                                self.corner_radius
-                                    .set_value_and_mark_modified(*corner_radius);
-                                ui.try_send_response(message);
-                                self.invalidate_visual();
-                            }
+                    }
+                    TextBoxMessage::CornerRadius(corner_radius) => {
+                        if *self.corner_radius != *corner_radius {
+                            self.corner_radius
+                                .set_value_and_mark_modified(*corner_radius);
+                            ui.try_send_response(message);
+                            self.invalidate_visual();
                         }
                     }
                 }

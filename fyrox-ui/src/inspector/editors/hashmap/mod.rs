@@ -23,24 +23,24 @@ pub mod editor;
 
 use crate::utils::ImageButtonBuilder;
 use crate::{
-    core::{reflect::prelude::*, PhantomDataSendSync},
+    BuildContext, HorizontalAlignment, VerticalAlignment,
+    core::{PhantomDataSendSync, reflect::prelude::*},
     inspector::{
+        FieldAction, HashMapAction, InspectorEnvironmentContainer, InspectorError, ObjectValue,
+        PropertyChanged, PropertyFilter,
         editors::{
+            PropertyEditorBuildContext, PropertyEditorDefinition,
+            PropertyEditorDefinitionContainer, PropertyEditorInstance,
+            PropertyEditorMessageContext, PropertyEditorTranslationContext,
             hashmap::editor::{
                 Entry, HashMapPropertyEditor, HashMapPropertyEditorBuilder,
                 HashMapPropertyEditorMessage,
             },
-            PropertyEditorBuildContext, PropertyEditorDefinition,
-            PropertyEditorDefinitionContainer, PropertyEditorInstance,
-            PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldAction, HashMapAction, InspectorEnvironmentContainer, InspectorError, ObjectValue,
-        PropertyChanged, PropertyFilter,
     },
     message::{DeliveryMode, MessageDirection, UiMessage},
     resources,
     widget::WidgetBuilder,
-    BuildContext, HorizontalAlignment, VerticalAlignment,
 };
 use fyrox_core::color::Color;
 use fyrox_core::reflect;
@@ -469,75 +469,71 @@ where
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(msg) = ctx.message.data::<HashMapPropertyEditorMessage<K, V, S>>() {
-                match msg {
-                    HashMapPropertyEditorMessage::ValueChanged { key, message } => {
-                        if let Some(definition) = ctx.definition_container.get::<V>() {
-                            return Some(PropertyChanged {
-                                name: ctx.name.to_string(),
-                                action: FieldAction::HashMapAction(Box::new(
-                                    HashMapAction::ValueChanged {
-                                        key: ObjectValue::new(key.clone()),
-                                        action: definition
-                                            .property_editor
-                                            .translate_message(PropertyEditorTranslationContext {
-                                                environment: ctx.environment.clone(),
-                                                name: "",
-                                                message,
-                                                definition_container: ctx
-                                                    .definition_container
-                                                    .clone(),
-                                            })?
-                                            .action,
-                                    },
-                                )),
-                            });
-                        }
-                    }
-                    HashMapPropertyEditorMessage::KeyChanged { key, message } => {
-                        if let Some(definition) = ctx.definition_container.get::<K>() {
-                            return Some(PropertyChanged {
-                                name: ctx.name.to_string(),
-                                action: FieldAction::HashMapAction(Box::new(
-                                    HashMapAction::KeyChanged {
-                                        key: ObjectValue::new(key.clone()),
-                                        action: definition
-                                            .property_editor
-                                            .translate_message(PropertyEditorTranslationContext {
-                                                environment: ctx.environment.clone(),
-                                                name: "",
-                                                message,
-                                                definition_container: ctx
-                                                    .definition_container
-                                                    .clone(),
-                                            })?
-                                            .action,
-                                    },
-                                )),
-                            });
-                        }
-                    }
-                    HashMapPropertyEditorMessage::Remove { key } => {
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(msg) = ctx.message.data::<HashMapPropertyEditorMessage<K, V, S>>()
+        {
+            match msg {
+                HashMapPropertyEditorMessage::ValueChanged { key, message } => {
+                    if let Some(definition) = ctx.definition_container.get::<V>() {
                         return Some(PropertyChanged {
                             name: ctx.name.to_string(),
-                            action: FieldAction::HashMapAction(Box::new(HashMapAction::Remove {
-                                key: ObjectValue::new(key.clone()),
-                            })),
+                            action: FieldAction::HashMapAction(Box::new(
+                                HashMapAction::ValueChanged {
+                                    key: ObjectValue::new(key.clone()),
+                                    action: definition
+                                        .property_editor
+                                        .translate_message(PropertyEditorTranslationContext {
+                                            environment: ctx.environment.clone(),
+                                            name: "",
+                                            message,
+                                            definition_container: ctx.definition_container.clone(),
+                                        })?
+                                        .action,
+                                },
+                            )),
                         });
                     }
-                    HashMapPropertyEditorMessage::InsertDefault { key } => {
+                }
+                HashMapPropertyEditorMessage::KeyChanged { key, message } => {
+                    if let Some(definition) = ctx.definition_container.get::<K>() {
                         return Some(PropertyChanged {
                             name: ctx.name.to_string(),
-                            action: FieldAction::HashMapAction(Box::new(HashMapAction::Insert {
-                                key: ObjectValue::new(key.clone()),
-                                value: ObjectValue::new(V::default()),
-                            })),
+                            action: FieldAction::HashMapAction(Box::new(
+                                HashMapAction::KeyChanged {
+                                    key: ObjectValue::new(key.clone()),
+                                    action: definition
+                                        .property_editor
+                                        .translate_message(PropertyEditorTranslationContext {
+                                            environment: ctx.environment.clone(),
+                                            name: "",
+                                            message,
+                                            definition_container: ctx.definition_container.clone(),
+                                        })?
+                                        .action,
+                                },
+                            )),
                         });
                     }
-                    HashMapPropertyEditorMessage::Entries { .. } => {
-                        // Sync only.
-                    }
+                }
+                HashMapPropertyEditorMessage::Remove { key } => {
+                    return Some(PropertyChanged {
+                        name: ctx.name.to_string(),
+                        action: FieldAction::HashMapAction(Box::new(HashMapAction::Remove {
+                            key: ObjectValue::new(key.clone()),
+                        })),
+                    });
+                }
+                HashMapPropertyEditorMessage::InsertDefault { key } => {
+                    return Some(PropertyChanged {
+                        name: ctx.name.to_string(),
+                        action: FieldAction::HashMapAction(Box::new(HashMapAction::Insert {
+                            key: ObjectValue::new(key.clone()),
+                            value: ObjectValue::new(V::default()),
+                        })),
+                    });
+                }
+                HashMapPropertyEditorMessage::Entries { .. } => {
+                    // Sync only.
                 }
             }
         }

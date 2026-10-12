@@ -24,6 +24,8 @@ use crate::{
         fxhash::FxHashSet,
         graph::{NodeWrapper, SceneGraph},
         gui::{
+            BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode,
+            UserInterface,
             border::BorderBuilder,
             button::{ButtonBuilder, ButtonMessage},
             define_widget_deref,
@@ -33,13 +35,11 @@ use crate::{
             scroll_viewer::ScrollViewerMessage,
             searchbar::{SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
-            style::{resource::StyleResourceExt, Style},
+            style::{Style, resource::StyleResourceExt},
             text::TextBuilder,
             tree::{Tree, TreeBuilder, TreeRootBuilder, TreeRootMessage},
             widget::{Widget, WidgetBuilder, WidgetMessage},
             window::{Window, WindowBuilder, WindowMessage},
-            BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode,
-            UserInterface,
         },
     },
     utils::make_node_name,
@@ -307,15 +307,15 @@ impl NodeSelector {
         while let Some(node_handle) = stack.pop() {
             let node = ui.node(node_handle);
 
-            if let Some(tree) = node.self_or_field_ref::<Tree>() {
-                if self.selected.iter().any(|selected| {
+            if let Some(tree) = node.self_or_field_ref::<Tree>()
+                && self.selected.iter().any(|selected| {
                     let tree_data = tree.user_data_cloned::<TreeData>().unwrap();
                     tree_data.handle == selected.handle
                         && (tree_data.inner_type_id == selected.inner_type_id
                             || tree_data.derived_type_ids.contains(&selected.inner_type_id))
-                }) {
-                    selected_trees.push(node_handle.to_variant());
-                }
+                })
+            {
+                selected_trees.push(node_handle.to_variant());
             }
 
             stack.extend_from_slice(node.children());
@@ -502,11 +502,10 @@ impl Control for NodeSelectorWindow {
             ui.send(self.selector, NodeSelectorMessage::ChooseFocus);
         } else if let Some(WidgetMessage::KeyDown(KeyCode::Enter | KeyCode::NumpadEnter)) =
             message.data()
+            && !message.handled()
         {
-            if !message.handled() {
-                self.confirm(ui);
-                message.set_handled(true);
-            }
+            self.confirm(ui);
+            message.set_handled(true);
         }
     }
 }

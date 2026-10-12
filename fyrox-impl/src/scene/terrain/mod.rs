@@ -23,17 +23,17 @@
 use crate::{
     asset::{Resource, ResourceDataRef},
     core::{
+        SafeLock,
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         arrayvec::ArrayVec,
         log::Log,
-        math::{aabb::AxisAlignedBoundingBox, ray::Ray, ray_rect_intersection, Rect},
+        math::{Rect, aabb::AxisAlignedBoundingBox, ray::Ray, ray_rect_intersection},
         parking_lot::Mutex,
         pool::Handle,
         reflect::prelude::*,
-        uuid::{uuid, Uuid},
+        uuid::{Uuid, uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
-        SafeLock,
     },
     graphics::ElementRange,
     material::MaterialResourceExtension,
@@ -49,13 +49,13 @@ use crate::{
     },
     scene::node::RdcControlFlow,
     scene::{
+        Scene,
         base::{Base, BaseBuilder},
         debug::SceneDrawingContext,
         graph::Graph,
         mesh::RenderPath,
         node::{Node, NodeTrait},
         terrain::{geometry::TerrainGeometry, quadtree::QuadTree},
-        Scene,
     },
 };
 use fxhash::FxHashMap;
@@ -63,7 +63,7 @@ use fyrox_core::warn;
 use fyrox_graph::SceneGraph;
 use fyrox_resource::untyped::ResourceKind;
 use half::f16;
-use image::{imageops::FilterType, ImageBuffer, Luma};
+use image::{ImageBuffer, Luma, imageops::FilterType};
 use std::{
     cell::Cell,
     cmp::Ordering,
@@ -743,16 +743,15 @@ impl Chunk {
         heightmap: TextureResource,
     ) -> Result<(), TextureResource> {
         let data = heightmap.data_ref();
-        if let TextureKind::Rectangle { width, height } = data.kind() {
-            if data.pixel_kind() == TexturePixelKind::R32F
-                && self.height_map_size.x == width
-                && self.height_map_size.y == height
-            {
-                drop(data);
-                self.heightmap = Some(heightmap);
-                self.update_quad_tree();
-                return Ok(());
-            }
+        if let TextureKind::Rectangle { width, height } = data.kind()
+            && data.pixel_kind() == TexturePixelKind::R32F
+            && self.height_map_size.x == width
+            && self.height_map_size.y == height
+        {
+            drop(data);
+            self.heightmap = Some(heightmap);
+            self.update_quad_tree();
+            return Ok(());
         }
         drop(data);
         Err(heightmap)

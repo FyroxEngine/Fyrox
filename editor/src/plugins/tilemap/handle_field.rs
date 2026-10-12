@@ -22,6 +22,7 @@
 
 use super::*;
 use crate::fyrox::gui::{
+    Control, Orientation,
     button::ButtonMessage,
     define_widget_deref,
     grid::{Column, GridBuilder, Row},
@@ -29,7 +30,6 @@ use crate::fyrox::gui::{
     text::{TextBuilder, TextMessage},
     text_box::TextBoxBuilder,
     widget::Widget,
-    Control, Orientation,
 };
 use fyrox::gui::message::MessageData;
 use fyrox::gui::text::Text;
@@ -97,16 +97,16 @@ impl Control for TileHandleField {
                     ui.post(self.handle(), TileHandleEditorMessage::Goto(value));
                 }
             }
-        } else if let Some(TextMessage::Text(text)) = message.data() {
-            if message.flags == 0 {
-                if let Ok(value) = text.parse() {
-                    if self.value != Some(value) {
-                        self.value = Some(value);
-                        ui.post(self.handle(), TileHandleEditorMessage::Value(self.value));
-                    }
-                }
-                ui.send_sync(self.field, TextMessage::Text(value_to_string(self.value)));
+        } else if let Some(TextMessage::Text(text)) = message.data()
+            && message.flags == 0
+        {
+            if let Ok(value) = text.parse()
+                && self.value != Some(value)
+            {
+                self.value = Some(value);
+                ui.post(self.handle(), TileHandleEditorMessage::Value(self.value));
             }
+            ui.send_sync(self.field, TextMessage::Text(value_to_string(self.value)));
         }
     }
 }

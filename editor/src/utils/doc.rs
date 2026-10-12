@@ -21,11 +21,10 @@
 use crate::fyrox::{
     core::pool::Handle,
     gui::{
-        markdown,
+        BuildContext, UserInterface, markdown,
         scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
         widget::WidgetBuilder,
         window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, UserInterface,
     },
 };
 

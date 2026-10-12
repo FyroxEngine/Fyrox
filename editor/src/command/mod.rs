@@ -22,7 +22,7 @@ use crate::fyrox::{
     core::{
         err,
         reflect::{
-            is_path_to_array_element, Reflect, ResolvePath, SetFieldByPathError, SetFieldError,
+            Reflect, ResolvePath, SetFieldByPathError, SetFieldError, is_path_to_array_element,
         },
         some_or_return,
     },
@@ -263,10 +263,10 @@ impl CommandStack {
             if self.commands.len() >= self.max_capacity {
                 let range = 0..(self.commands.len() - self.max_capacity);
                 drain(&mut self.commands, range, context, self.debug);
-                if let Some(top) = self.top.as_mut() {
-                    if *top > self.commands.len() {
-                        *top = self.commands.len();
-                    }
+                if let Some(top) = self.top.as_mut()
+                    && *top > self.commands.len()
+                {
+                    *top = self.commands.len();
                 }
             }
         }
@@ -287,19 +287,19 @@ impl CommandStack {
     }
 
     pub fn undo(&mut self, context: &mut dyn CommandContext) {
-        if !self.commands.is_empty() {
-            if let Some(top) = self.top.as_mut() {
-                if let Some(command) = self.commands.get_mut(*top) {
-                    if self.debug {
-                        println!("Undo command {command:?}");
-                    }
-                    command.revert(context)
+        if !self.commands.is_empty()
+            && let Some(top) = self.top.as_mut()
+        {
+            if let Some(command) = self.commands.get_mut(*top) {
+                if self.debug {
+                    println!("Undo command {command:?}");
                 }
-                if *top == 0 {
-                    self.top = None;
-                } else {
-                    *top -= 1;
-                }
+                command.revert(context)
+            }
+            if *top == 0 {
+                self.top = None;
+            } else {
+                *top -= 1;
             }
         }
     }

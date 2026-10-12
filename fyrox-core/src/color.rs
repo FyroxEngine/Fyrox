@@ -284,11 +284,7 @@ impl From<Color> for Hsl {
             0.0
         } else if cmax.eq(&r) {
             let k = 60.0 * (((g - b) / d) % 6.0);
-            if g >= b {
-                k
-            } else {
-                k + 360.0
-            }
+            if g >= b { k } else { k + 360.0 }
         } else if cmax.eq(&g) {
             60.0 * ((b - r) / d + 2.0)
         } else if cmax.eq(&b) {

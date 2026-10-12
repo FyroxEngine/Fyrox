@@ -25,7 +25,7 @@
 use crate::core::{
     algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
     color::{Color, Hsl},
-    math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Matrix4Ext},
+    math::{Matrix4Ext, aabb::AxisAlignedBoundingBox, frustum::Frustum},
 };
 use rapier2d::math::Vector;
 use rapier2d::pipeline::{DebugColor, DebugRenderObject};

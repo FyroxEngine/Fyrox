@@ -21,10 +21,11 @@
 use crate::{
     asset::manager::ResourceManager,
     core::{
+        ImmutableString,
         algebra::{Matrix4, Vector2},
         color::Color,
         math::Rect,
-        value_as_u8_slice, ImmutableString,
+        value_as_u8_slice,
     },
     graphics::{
         error::FrameworkError,
@@ -33,16 +34,16 @@ use crate::{
         server::GraphicsServer,
     },
     renderer::{
+        LuminanceCalculationMethod, QualitySettings, RenderPassStatistics,
         bloom::BloomRenderer,
         cache::{
-            shader::{binding, property, PropertyGroup, RenderMaterial},
+            shader::{PropertyGroup, RenderMaterial, binding, property},
             texture::TextureCache,
             uniform::UniformBufferCache,
         },
         hdr::{adaptation::AdaptationChain, luminance::luminance_evaluator::LuminanceEvaluator},
         make_viewport_matrix,
         resources::RendererResources,
-        LuminanceCalculationMethod, QualitySettings, RenderPassStatistics,
     },
     scene::camera::{ColorGradingLut, Exposure},
 };

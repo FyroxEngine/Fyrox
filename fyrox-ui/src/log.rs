@@ -19,6 +19,8 @@
 // SOFTWARE.
 
 use crate::{
+    BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
+    UserInterface, VerticalAlignment,
     border::BorderBuilder,
     button::{Button, ButtonMessage},
     copypasta::ClipboardProvider,
@@ -34,14 +36,12 @@ use crate::{
     resources,
     scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
     stack_panel::{StackPanel, StackPanelBuilder},
-    style::{resource::StyleResourceExt, Style},
+    style::{Style, resource::StyleResourceExt},
     text::{Text, TextBuilder},
     toggle::{ToggleButton, ToggleButtonMessage},
     utils::ImageButtonBuilder,
     widget::{WidgetBuilder, WidgetMessage},
     window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
-    UserInterface, VerticalAlignment,
 };
 use fyrox_graph::SceneGraph;
 use fyrox_texture::TextureResource;
@@ -307,10 +307,10 @@ impl LogPanel {
             received_anything = true;
 
             let mut text = format!("[{:.2}s] {}", msg.time.as_secs_f32(), msg.content);
-            if let Some(ch) = text.chars().last() {
-                if ch == '\n' {
-                    text.pop();
-                }
+            if let Some(ch) = text.chars().last()
+                && ch == '\n'
+            {
+                text.pop();
             }
 
             let ctx = &mut ui.build_ctx();

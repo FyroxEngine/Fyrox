@@ -34,8 +34,8 @@ use crate::{
 };
 use bytemuck::Pod;
 use fxhash::FxHasher;
-use fyrox_core::visitor::pod::PodVecView;
 use fyrox_core::visitor::BinaryBlob;
+use fyrox_core::visitor::pod::PodVecView;
 use std::{
     alloc::Layout,
     fmt::{Display, Formatter},

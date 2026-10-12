@@ -26,8 +26,8 @@ use fyrox::plugin::error::GameResult;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, UnitVector3, Vector3},
-        math::curve::{Curve, CurveKey, CurveKeyKind},
         math::Vector3Ext,
+        math::curve::{Curve, CurveKey, CurveKeyKind},
         reflect::prelude::*,
         variable::InheritableVariable,
         visitor::prelude::*,
@@ -213,10 +213,10 @@ impl ScriptTrait for FlyingCameraController {
                     (&self.move_left_key, &mut self.move_left),
                     (&self.move_right_key, &mut self.move_right),
                 ] {
-                    if let KeyBinding::Some(key_code) = **binding {
-                        if utils::translate_key_from_ui(key_code) == event.physical_key {
-                            *state = event.state == ElementState::Pressed;
-                        }
+                    if let KeyBinding::Some(key_code) = **binding
+                        && utils::translate_key_from_ui(key_code) == event.physical_key
+                    {
+                        *state = event.state == ElementState::Pressed;
                     }
                 }
             }

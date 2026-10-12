@@ -21,17 +21,17 @@
 use crate::{
     pool::{Handle, Pool},
     visitor::{
+        VisitableElementaryField, Visitor, VisitorFlags, VisitorNode,
         blackboard::Blackboard,
         error::VisitError,
         field::{Field, FieldKind},
         reader::Reader,
-        VisitableElementaryField, Visitor, VisitorFlags, VisitorNode,
     },
 };
 use byteorder::{LittleEndian, ReadBytesExt};
 use nalgebra::{
     Complex, Const, Matrix, Matrix2, Matrix3, Matrix4, Quaternion, RawStorage, RawStorageMut,
-    Scalar, UnitComplex, UnitQuaternion, Vector2, Vector3, Vector4, U1,
+    Scalar, U1, UnitComplex, UnitQuaternion, Vector2, Vector3, Vector4,
 };
 use std::io::Read;
 use uuid::Uuid;

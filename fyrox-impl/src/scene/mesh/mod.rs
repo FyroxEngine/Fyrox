@@ -23,6 +23,7 @@
 
 use crate::{
     core::{
+        SafeLock,
         algebra::{Matrix4, Point3, Vector3, Vector4},
         color::Color,
         math::aabb::AxisAlignedBoundingBox,
@@ -31,7 +32,6 @@ use crate::{
         reflect::prelude::*,
         variable::InheritableVariable,
         visitor::prelude::*,
-        SafeLock,
     },
     graph::SceneGraph,
     graphics::ElementRange,
@@ -581,43 +581,51 @@ impl ConstructorProvider<Node, Graph> for Mesh {
             })
             .with_variant("Cube", |_| {
                 MeshBuilder::new(BaseBuilder::new().with_name("Cube"))
-                    .with_surfaces(vec![SurfaceBuilder::new(surface::CUBE.resource.clone())
-                        .with_material(placeholder_material())
-                        .build()])
+                    .with_surfaces(vec![
+                        SurfaceBuilder::new(surface::CUBE.resource.clone())
+                            .with_material(placeholder_material())
+                            .build(),
+                    ])
                     .build_node()
                     .into()
             })
             .with_variant("Cone", |_| {
                 MeshBuilder::new(BaseBuilder::new().with_name("Cone"))
-                    .with_surfaces(vec![SurfaceBuilder::new(surface::CONE.resource.clone())
-                        .with_material(placeholder_material())
-                        .build()])
+                    .with_surfaces(vec![
+                        SurfaceBuilder::new(surface::CONE.resource.clone())
+                            .with_material(placeholder_material())
+                            .build(),
+                    ])
                     .build_node()
                     .into()
             })
             .with_variant("Cylinder", |_| {
                 MeshBuilder::new(BaseBuilder::new().with_name("Cylinder"))
-                    .with_surfaces(vec![SurfaceBuilder::new(
-                        surface::CYLINDER.resource.clone(),
-                    )
-                    .with_material(placeholder_material())
-                    .build()])
+                    .with_surfaces(vec![
+                        SurfaceBuilder::new(surface::CYLINDER.resource.clone())
+                            .with_material(placeholder_material())
+                            .build(),
+                    ])
                     .build_node()
                     .into()
             })
             .with_variant("Sphere", |_| {
                 MeshBuilder::new(BaseBuilder::new().with_name("Sphere"))
-                    .with_surfaces(vec![SurfaceBuilder::new(surface::SPHERE.resource.clone())
-                        .with_material(placeholder_material())
-                        .build()])
+                    .with_surfaces(vec![
+                        SurfaceBuilder::new(surface::SPHERE.resource.clone())
+                            .with_material(placeholder_material())
+                            .build(),
+                    ])
                     .build_node()
                     .into()
             })
             .with_variant("Quad", |_| {
                 MeshBuilder::new(BaseBuilder::new().with_name("Quad"))
-                    .with_surfaces(vec![SurfaceBuilder::new(surface::QUAD.resource.clone())
-                        .with_material(placeholder_material())
-                        .build()])
+                    .with_surfaces(vec![
+                        SurfaceBuilder::new(surface::QUAD.resource.clone())
+                            .with_material(placeholder_material())
+                            .build(),
+                    ])
                     .build_node()
                     .into()
             })

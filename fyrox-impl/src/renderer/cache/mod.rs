@@ -196,10 +196,10 @@ impl<T> TemporaryCache<T> {
         }
 
         for i in 0..self.buffer.len() {
-            if let Some(entry) = self.buffer.get_raw(i) {
-                if *entry.time_to_live <= 0.0 {
-                    self.buffer.free_raw(i);
-                }
+            if let Some(entry) = self.buffer.get_raw(i)
+                && *entry.time_to_live <= 0.0
+            {
+                self.buffer.free_raw(i);
             }
         }
     }

@@ -577,7 +577,7 @@ where
 #[cfg(test)]
 mod test {
     use crate::spritesheet::{
-        signal::Signal, Event, ImageParameters, SpriteSheetAnimation, Status,
+        Event, ImageParameters, SpriteSheetAnimation, Status, signal::Signal,
     };
     use fyrox_core::{algebra::Vector2, math::Rect, reflect::prelude::*, visitor::prelude::*};
 

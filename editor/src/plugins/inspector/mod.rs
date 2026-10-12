@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    Editor, Message, WidgetMessage, WrapMode,
     asset::preview::cache::IconRequest,
     fyrox::{
         asset::manager::ResourceManager,
@@ -33,39 +34,37 @@ use crate::{
         engine::SerializationContext,
         graph::SceneGraph,
         gui::{
-            self,
+            self, BuildContext, Thickness, UiNode, UserInterface,
             border::BorderBuilder,
             button::{Button, ButtonMessage},
             grid::{Column, GridBuilder, Row},
             inspector::{
-                editors::PropertyEditorDefinitionContainer, InspectorBuilder, InspectorContext,
-                InspectorContextArgs, InspectorEnvironment, InspectorEnvironmentContainer,
-                InspectorError, InspectorMessage,
+                InspectorBuilder, InspectorContext, InspectorContextArgs, InspectorEnvironment,
+                InspectorEnvironmentContainer, InspectorError, InspectorMessage,
+                editors::PropertyEditorDefinitionContainer,
             },
             message::{MessageDirection, UiMessage},
             scroll_viewer::ScrollViewerBuilder,
             searchbar::{SearchBar, SearchBarBuilder, SearchBarMessage},
             stack_panel::{StackPanel, StackPanelBuilder},
-            style::{resource::StyleResource, resource::StyleResourceExt, Style},
+            style::{Style, resource::StyleResource, resource::StyleResourceExt},
             text::{Text, TextBuilder, TextMessage},
             text_box::EmptyTextPlaceholder,
             utils::ImageButtonBuilder,
             widget::WidgetBuilder,
             window::{Window, WindowBuilder, WindowTitle},
-            BuildContext, Thickness, UiNode, UserInterface,
         },
-        scene::{self, graph::Graph, node::Node, SceneContainer},
+        scene::{self, SceneContainer, graph::Graph, node::Node},
     },
     load_image,
     message::MessageSender,
     plugin::EditorPlugin,
     plugins::absm::animation_container_ref,
-    scene::{controller::SceneController, EntityInfo, GameScene, Selection},
+    scene::{EntityInfo, GameScene, Selection, controller::SceneController},
     ui_scene::UiScene,
     utils::window_content,
-    Editor, Message, WidgetMessage, WrapMode,
 };
-use std::{any::Any, sync::mpsc::Sender, sync::Arc};
+use std::{any::Any, sync::Arc, sync::mpsc::Sender};
 
 pub mod editors;
 pub mod handlers;
@@ -140,41 +139,38 @@ fn fetch_available_animations(
 ) -> Vec<AnimationDefinition> {
     if let Some(ui_scene) = controller.downcast_ref::<UiScene>() {
         // TODO: Remove duplicated code.
-        if let Some(absm_selection) = selection.as_absm::<UiNode>() {
-            if let Some((_, animation_player)) =
+        if let Some(absm_selection) = selection.as_absm::<UiNode>()
+            && let Some((_, animation_player)) =
                 animation_container_ref::<UserInterface, UiNode, gui::animation::AnimationPlayer>(
                     &ui_scene.ui,
                     absm_selection.absm_node_handle,
                 )
-            {
-                return animation_player
-                    .pair_iter()
-                    .map(|(handle, anim)| AnimationDefinition {
-                        name: anim.name().to_string(),
-                        handle: handle.into(),
-                    })
-                    .collect();
-            }
+        {
+            return animation_player
+                .pair_iter()
+                .map(|(handle, anim)| AnimationDefinition {
+                    name: anim.name().to_string(),
+                    handle: handle.into(),
+                })
+                .collect();
         }
     }
 
-    if let Some(game_scene) = controller.downcast_ref::<GameScene>() {
-        if let Some(absm_selection) = selection.as_absm() {
-            if let Some((_, animation_player)) =
-                animation_container_ref::<Graph, Node, scene::animation::AnimationPlayer>(
-                    &scenes[game_scene.scene].graph,
-                    absm_selection.absm_node_handle,
-                )
-            {
-                return animation_player
-                    .pair_iter()
-                    .map(|(handle, anim)| AnimationDefinition {
-                        name: anim.name().to_string(),
-                        handle: handle.into(),
-                    })
-                    .collect();
-            }
-        }
+    if let Some(game_scene) = controller.downcast_ref::<GameScene>()
+        && let Some(absm_selection) = selection.as_absm()
+        && let Some((_, animation_player)) =
+            animation_container_ref::<Graph, Node, scene::animation::AnimationPlayer>(
+                &scenes[game_scene.scene].graph,
+                absm_selection.absm_node_handle,
+            )
+    {
+        return animation_player
+            .pair_iter()
+            .map(|(handle, anim)| AnimationDefinition {
+                name: anim.name().to_string(),
+                handle: handle.into(),
+            })
+            .collect();
     }
     Default::default()
 }
@@ -183,14 +179,14 @@ fn current_widget_style(
     selection: &Selection,
     controller: &dyn SceneController,
 ) -> Option<StyleResource> {
-    if let Some(ui_scene) = controller.downcast_ref::<UiScene>() {
-        if let Some(ui_selection) = selection.as_ui() {
-            return ui_scene
-                .ui
-                .try_get_node(ui_selection.widgets[0])
-                .ok()
-                .and_then(|n| n.style.clone());
-        }
+    if let Some(ui_scene) = controller.downcast_ref::<UiScene>()
+        && let Some(ui_selection) = selection.as_ui()
+    {
+        return ui_scene
+            .ui
+            .try_get_node(ui_selection.widgets[0])
+            .ok()
+            .and_then(|n| n.style.clone());
     }
     None
 }
@@ -218,8 +214,7 @@ fn is_out_of_sync(sync_errors: &[InspectorError]) -> bool {
 
 impl InspectorPlugin {
     pub fn new(ctx: &mut BuildContext) -> Self {
-        let warning_text_str =
-            "Multiple objects are selected, showing properties of the first object only!\
+        let warning_text_str = "Multiple objects are selected, showing properties of the first object only!\
             Only common properties will be editable!";
 
         let head = StackPanelBuilder::new(WidgetBuilder::new()).build(ctx);
@@ -478,85 +473,83 @@ impl EditorPlugin for InspectorPlugin {
             ui.is_node_child_of(message.destination(), inspector)
         }
 
-        if let Some(msg) = message.data::<InspectorMessage>() {
-            if message.direction() == MessageDirection::FromWidget
-                && (message.destination() == self.inspector
-                    || is_sub_inspector_message(
-                        self.inspector,
-                        editor.engine.user_interfaces.first(),
-                        message,
-                    ))
-            {
-                match msg {
-                    InspectorMessage::CopyValue { path } => {
-                        entry.selection.first_selected_entity(
-                            &*entry.controller,
-                            &editor.engine.scenes,
-                            &mut |entity_info| {
-                                entity_info
-                                    .entity
-                                    .resolve_path(path, &mut |result| match result {
-                                        Ok(result) => {
-                                            self.clipboard = result.try_clone_box();
-                                        }
-                                        Err(err) => {
-                                            err!(
-                                                "Failed to resolve property on attempt to \
+        if let Some(msg) = message.data::<InspectorMessage>()
+            && message.direction() == MessageDirection::FromWidget
+            && (message.destination() == self.inspector
+                || is_sub_inspector_message(
+                    self.inspector,
+                    editor.engine.user_interfaces.first(),
+                    message,
+                ))
+        {
+            match msg {
+                InspectorMessage::CopyValue { path } => {
+                    entry.selection.first_selected_entity(
+                        &*entry.controller,
+                        &editor.engine.scenes,
+                        &mut |entity_info| {
+                            entity_info
+                                .entity
+                                .resolve_path(path, &mut |result| match result {
+                                    Ok(result) => {
+                                        self.clipboard = result.try_clone_box();
+                                    }
+                                    Err(err) => {
+                                        err!(
+                                            "Failed to resolve property on attempt to \
                                                 copy value at path {path}. Reason: {err:?}"
-                                            );
-                                        }
-                                    });
-                            },
-                        );
-                    }
-                    InspectorMessage::PasteValue { dest } => {
-                        if let Some(value) = self.clipboard.as_ref() {
-                            entry
-                                .selection
-                                .paste_property(dest, &**value, &editor.message_sender);
-                        }
-                    }
-                    InspectorMessage::PropertyContextMenuOpened { path } => {
-                        let mut can_paste = false;
-                        let mut can_clone = false;
-
-                        // TODO: This could work incorrectly in case of multiselection of objects
-                        // of different types.
-                        entry.selection.first_selected_entity(
-                            &*entry.controller,
-                            &editor.engine.scenes,
-                            &mut |entity_info| {
-                                entity_info
-                                    .entity
-                                    .resolve_path(path, &mut |result| match result {
-                                        Ok(property) => {
-                                            can_clone = property.try_clone_box().is_some();
-
-                                            if let Some(value) = self.clipboard.as_ref() {
-                                                can_paste =
-                                                    property.type_id() == (**value).type_id();
-                                            }
-                                        }
-                                        Err(err) => {
-                                            err!(
-                                                "Failed to resolve property on attempt to fetch \
-                                                status at path {path}. Reason: {err:?}"
-                                            );
-                                        }
-                                    });
-                            },
-                        );
-
-                        editor.engine.user_interfaces.first().send(
-                            message.destination(),
-                            InspectorMessage::PropertyContextMenuStatus {
-                                can_clone,
-                                can_paste,
-                            },
-                        )
-                    }
-                    _ => (),
+                                        );
+                                    }
+                                });
+                        },
+                    );
                 }
+                InspectorMessage::PasteValue { dest } => {
+                    if let Some(value) = self.clipboard.as_ref() {
+                        entry
+                            .selection
+                            .paste_property(dest, &**value, &editor.message_sender);
+                    }
+                }
+                InspectorMessage::PropertyContextMenuOpened { path } => {
+                    let mut can_paste = false;
+                    let mut can_clone = false;
+
+                    // TODO: This could work incorrectly in case of multiselection of objects
+                    // of different types.
+                    entry.selection.first_selected_entity(
+                        &*entry.controller,
+                        &editor.engine.scenes,
+                        &mut |entity_info| {
+                            entity_info
+                                .entity
+                                .resolve_path(path, &mut |result| match result {
+                                    Ok(property) => {
+                                        can_clone = property.try_clone_box().is_some();
+
+                                        if let Some(value) = self.clipboard.as_ref() {
+                                            can_paste = property.type_id() == (**value).type_id();
+                                        }
+                                    }
+                                    Err(err) => {
+                                        err!(
+                                            "Failed to resolve property on attempt to fetch \
+                                                status at path {path}. Reason: {err:?}"
+                                        );
+                                    }
+                                });
+                        },
+                    );
+
+                    editor.engine.user_interfaces.first().send(
+                        message.destination(),
+                        InspectorMessage::PropertyContextMenuStatus {
+                            can_clone,
+                            can_paste,
+                        },
+                    )
+                }
+                _ => (),
             }
         }
 
@@ -570,13 +563,12 @@ impl EditorPlugin for InspectorPlugin {
                 &editor.message_sender,
             );
         } else if let Some(ButtonMessage::Click) = message.data() {
-            if message.destination() == self.docs_button {
-                if let Some(doc) = entry
+            if message.destination() == self.docs_button
+                && let Some(doc) = entry
                     .selection
                     .provide_docs(&*entry.controller, &editor.engine)
-                {
-                    editor.message_sender.send(Message::ShowDocumentation(doc));
-                }
+            {
+                editor.message_sender.send(Message::ShowDocumentation(doc));
             }
         } else if let Some(SearchBarMessage::Text(search_text)) = message.data_from(self.search_bar)
         {

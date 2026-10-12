@@ -32,11 +32,11 @@ use crate::{
         uuid::Uuid,
         visitor::prelude::*,
     },
-    engine::{input::InputState, task::TaskPoolHandler, GraphicsContext, ScriptMessageDispatcher},
+    engine::{GraphicsContext, ScriptMessageDispatcher, input::InputState, task::TaskPoolHandler},
     event::Event,
     gui::UiContainer,
     plugin::{Plugin, PluginContainer},
-    scene::{base::NodeScriptMessage, node::Node, Scene},
+    scene::{Scene, base::NodeScriptMessage, node::Node},
 };
 use fyrox_core::pool::ObjectOrVariant;
 use fyrox_core::reflect::{FieldMetadata, TypeInfo};
@@ -824,7 +824,7 @@ mod test {
     use crate::scene::base::ScriptRecord;
     use crate::{
         core::{
-            reflect::prelude::*, variable::try_inherit_properties, variable::InheritableVariable,
+            reflect::prelude::*, variable::InheritableVariable, variable::try_inherit_properties,
             visitor::prelude::*,
         },
         scene::base::Base,

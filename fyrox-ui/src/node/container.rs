@@ -22,9 +22,9 @@
 //! control over instantiation process at deserialization.
 
 use crate::{
+    UiNode,
     constructor::WidgetConstructorContainer,
     core::{pool::PayloadContainer, reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
-    UiNode,
 };
 use fyrox_core::visitor::error::VisitError;
 

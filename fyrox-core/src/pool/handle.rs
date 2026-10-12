@@ -22,7 +22,7 @@ use crate::pool::ObjectOrVariant;
 use crate::reflect::{ReflectHandle, TypeInfo};
 use crate::{pool::INVALID_GENERATION, reflect::prelude::*, visitor::prelude::*};
 use serde::{Deserialize, Serialize};
-use std::any::{type_name, TypeId};
+use std::any::{TypeId, type_name};
 use std::{
     cmp::Ordering,
     fmt::{Debug, Display, Formatter},

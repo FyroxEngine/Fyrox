@@ -1,9 +1,9 @@
 use crate::{
+    Message,
     command::{CommandContext, CommandTrait},
     message::MessageSender,
     scene::Selection,
-    ui_scene::{commands::UiSceneContext, UiScene},
-    Message,
+    ui_scene::{UiScene, commands::UiSceneContext},
 };
 use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::text_box::TextBox;
@@ -12,13 +12,13 @@ use fyrox::{
     engine::Engine,
     graph::SceneGraph,
     gui::{
+        BBCode, BuildContext, UiNode, UserInterface,
         formatted_text::{RunSet, WrapMode},
         message::UiMessage,
         stack_panel::StackPanelBuilder,
         text::{Text, TextBuilder, TextMessage},
         text_box::{TextBoxBuilder, TextCommitMode},
         widget::{WidgetBuilder, WidgetMessage},
-        BBCode, BuildContext, UiNode, UserInterface,
     },
 };
 

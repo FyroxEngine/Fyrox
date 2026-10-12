@@ -19,30 +19,22 @@
 // SOFTWARE.
 
 use crate::num_traits::Num;
-use rand::distributions::uniform::SampleUniform;
 use rand::Rng;
+use rand::distributions::uniform::SampleUniform;
 use std::ops::Range;
 
 fn min<T>(a: T, b: T) -> T
 where
     T: PartialOrd,
 {
-    if a > b {
-        b
-    } else {
-        a
-    }
+    if a > b { b } else { a }
 }
 
 fn max<T>(a: T, b: T) -> T
 where
     T: PartialOrd,
 {
-    if a > b {
-        a
-    } else {
-        b
-    }
+    if a > b { a } else { b }
 }
 
 pub trait RangeExt<T>

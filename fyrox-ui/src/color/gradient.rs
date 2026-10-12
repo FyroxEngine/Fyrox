@@ -20,6 +20,7 @@
 
 use crate::menu::{ContextMenuBuilder, MenuItem};
 use crate::{
+    BuildContext, Control, RcUiNodeHandle, UiNode, UserInterface,
     brush::Brush,
     color::{ColorFieldBuilder, ColorFieldMessage},
     core::{
@@ -39,14 +40,13 @@ use crate::{
     popup::{Placement, PopupBuilder, PopupMessage},
     stack_panel::StackPanelBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, RcUiNodeHandle, UiNode, UserInterface,
 };
 
 use crate::color::ColorField;
 use crate::message::MessageData;
 use fyrox_core::pool::HandlesVecExtension;
-use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::cell::Cell;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -232,11 +232,11 @@ impl Control for ColorGradientEditor {
             ui.send(self.points_canvas, WidgetMessage::ReplaceChildren(points));
         }
 
-        if message.direction() == MessageDirection::FromWidget {
-            if let Some(ColorPointMessage::Location(_)) = message.data() {
-                let gradient = self.fetch_gradient(Handle::NONE, ui);
-                ui.post(self.handle, ColorGradientEditorMessage::Value(gradient));
-            }
+        if message.direction() == MessageDirection::FromWidget
+            && let Some(ColorPointMessage::Location(_)) = message.data()
+        {
+            let gradient = self.fetch_gradient(Handle::NONE, ui);
+            ui.post(self.handle, ColorGradientEditorMessage::Value(gradient));
         }
     }
 
@@ -285,24 +285,21 @@ impl Control for ColorGradientEditor {
 
                 ui.post(self.handle, ColorGradientEditorMessage::Value(gradient));
             }
-        } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == self.context_menu.handle()
-                || message.destination() == self.point_context_menu.handle()
-            {
-                self.context_menu_open_position.set(ui.cursor_position());
-                self.context_menu_target.set(*target);
+        } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data()
+            && (message.destination() == self.context_menu.handle()
+                || message.destination() == self.point_context_menu.handle())
+        {
+            self.context_menu_open_position.set(ui.cursor_position());
+            self.context_menu_target.set(*target);
 
-                if message.destination() == self.point_context_menu.handle() {
-                    if let Ok(point) =
-                        ui.try_get_of_type::<ColorPoint>(self.context_menu_target.get())
-                    {
-                        ui.send_with_flags(
-                            self.selector_field,
-                            SYNC_FLAG,
-                            ColorFieldMessage::Color(point.color()),
-                        )
-                    }
-                }
+            if message.destination() == self.point_context_menu.handle()
+                && let Ok(point) = ui.try_get_of_type::<ColorPoint>(self.context_menu_target.get())
+            {
+                ui.send_with_flags(
+                    self.selector_field,
+                    SYNC_FLAG,
+                    ColorFieldMessage::Color(point.color()),
+                )
             }
         }
     }
@@ -516,49 +513,49 @@ impl Control for ColorPoint {
         self.widget.handle_routed_message(ui, message);
 
         if message.destination() == self.handle {
-            if message.direction() == MessageDirection::ToWidget {
-                if let Some(msg) = message.data::<ColorPointMessage>() {
-                    match msg {
-                        ColorPointMessage::Location(location) => {
-                            if *location != self.location {
-                                self.location = *location;
-                                self.invalidate_layout();
-                                ui.try_send_response(message);
-                                self.invalidate_visual();
-                            }
+            if message.direction() == MessageDirection::ToWidget
+                && let Some(msg) = message.data::<ColorPointMessage>()
+            {
+                match msg {
+                    ColorPointMessage::Location(location) => {
+                        if *location != self.location {
+                            self.location = *location;
+                            self.invalidate_layout();
+                            ui.try_send_response(message);
+                            self.invalidate_visual();
                         }
                     }
                 }
             }
 
-            if message.direction() == MessageDirection::FromWidget {
-                if let Some(msg) = message.data::<WidgetMessage>() {
-                    match msg {
-                        WidgetMessage::MouseDown { button, .. } if *button == MouseButton::Left => {
-                            ui.capture_mouse(self.handle);
+            if message.direction() == MessageDirection::FromWidget
+                && let Some(msg) = message.data::<WidgetMessage>()
+            {
+                match msg {
+                    WidgetMessage::MouseDown { button, .. } if *button == MouseButton::Left => {
+                        ui.capture_mouse(self.handle);
 
-                            self.dragging = true;
-                        }
-                        WidgetMessage::MouseUp { button, .. } if *button == MouseButton::Left => {
-                            ui.release_mouse_capture();
-
-                            self.dragging = false;
-
-                            ui.post(self.handle, ColorPointMessage::Location(self.location));
-                        }
-                        WidgetMessage::MouseMove { pos, .. } if self.dragging => {
-                            let parent_canvas = ui.node(self.parent);
-
-                            let cursor_x_local_to_parent = parent_canvas.screen_to_local(*pos).x;
-
-                            self.location = (cursor_x_local_to_parent
-                                / parent_canvas.actual_local_size().x)
-                                .clamp(0.0, 1.0);
-
-                            self.invalidate_layout();
-                        }
-                        _ => (),
+                        self.dragging = true;
                     }
+                    WidgetMessage::MouseUp { button, .. } if *button == MouseButton::Left => {
+                        ui.release_mouse_capture();
+
+                        self.dragging = false;
+
+                        ui.post(self.handle, ColorPointMessage::Location(self.location));
+                    }
+                    WidgetMessage::MouseMove { pos, .. } if self.dragging => {
+                        let parent_canvas = ui.node(self.parent);
+
+                        let cursor_x_local_to_parent = parent_canvas.screen_to_local(*pos).x;
+
+                        self.location = (cursor_x_local_to_parent
+                            / parent_canvas.actual_local_size().x)
+                            .clamp(0.0, 1.0);
+
+                        self.invalidate_layout();
+                    }
+                    _ => (),
                 }
             }
         }

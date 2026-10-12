@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::SafeLock;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::futures::executor::ThreadPool;
-use crate::SafeLock;
 use parking_lot::Mutex;
 use std::{
     any::Any,

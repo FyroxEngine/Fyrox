@@ -24,6 +24,8 @@ use crate::file_browser::FileBrowser;
 use crate::messagebox::MessageBox;
 use crate::text_box::TextBox;
 use crate::{
+    BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+    VerticalAlignment,
     border::BorderBuilder,
     button::{ButtonBuilder, ButtonMessage},
     core::{algebra::Vector2, pool::Handle, reflect::prelude::*, visitor::prelude::*},
@@ -34,14 +36,12 @@ use crate::{
     message::{MessageData, OsEvent, UiMessage},
     messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult},
     stack_panel::StackPanelBuilder,
-    style::{resource::StyleResourceExt, Style},
+    style::{Style, resource::StyleResourceExt},
     text::{TextBuilder, TextMessage},
     text_box::{TextBoxBuilder, TextCommitMode},
     utils::make_dropdown_list_option,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     window::{Window, WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-    VerticalAlignment,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{

@@ -22,22 +22,23 @@
 
 use crate::{
     core::{
+        ImmutableString,
         algebra::{Matrix4, Point3},
         color::Color,
         math::Rect,
-        some_or_break, ImmutableString,
+        some_or_break,
     },
     graphics::{
+        ElementRange,
         error::FrameworkError,
         framebuffer::{Attachment, GpuFrameBuffer},
         gpu_texture::{GpuTexture, GpuTextureDescriptor, GpuTextureKind, PixelKind},
         server::GraphicsServer,
         stats::RenderPassStatistics,
-        ElementRange,
     },
     renderer::{
         cache::{
-            shader::{binding, property, PropertyGroup, RenderMaterial},
+            shader::{PropertyGroup, RenderMaterial, binding, property},
             uniform::UniformBufferCache,
         },
         resources::RendererResources,

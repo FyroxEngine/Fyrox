@@ -20,4 +20,4 @@
 
 //! UV generation utils.
 
-pub use uvgen::{generate_uvs, SurfaceDataPatch};
+pub use uvgen::{SurfaceDataPatch, generate_uvs};

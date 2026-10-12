@@ -21,17 +21,17 @@
 use crate::fyrox::{
     core::math::TriangleDefinition,
     gui::{
+        Thickness, VerticalAlignment,
         inspector::{
+            InspectorError, PropertyChanged,
             editors::{
                 PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
                 PropertyEditorMessageContext, PropertyEditorTranslationContext,
             },
-            InspectorError, PropertyChanged,
         },
         message::UiMessage,
         text::{TextBuilder, TextMessage},
         widget::WidgetBuilder,
-        Thickness, VerticalAlignment,
     },
     scene::mesh::buffer::TriangleBuffer,
 };

@@ -22,13 +22,13 @@
 //! for more info.
 
 use crate::core::{
+    ImmutableString,
     algebra::{Unit, UnitQuaternion, Vector2, Vector3, Vector4},
     log::Log,
     math::lerpf,
     num_traits::AsPrimitive,
     reflect::prelude::*,
     visitor::prelude::*,
-    ImmutableString,
 };
 use std::any::TypeId;
 use std::{
@@ -410,10 +410,8 @@ impl BoundValue {
         object.resolve_path_mut(property_path, &mut |result| match result {
             Ok(property) => {
                 let applied = self.value.apply_to_any(property, value_type);
-                if applied {
-                    if let Some(var) = property.as_inheritable_variable_mut() {
-                        var.mark_modified();
-                    }
+                if applied && let Some(var) = property.as_inheritable_variable_mut() {
+                    var.mark_modified();
                 }
             }
             Err(err) => {

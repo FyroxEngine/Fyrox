@@ -25,8 +25,8 @@ use fyrox_core::reflect::Reflect;
 use fyrox_core::uuid::Uuid;
 use fyrox_resource::{
     io::ResourceIo, loader::BoxedImportOptionsLoaderFuture, loader::BoxedLoaderFuture,
-    loader::LoaderPayload, loader::ResourceLoader, options::try_get_import_settings,
-    options::try_get_import_settings_opaque, options::BaseImportOptions, state::LoadError,
+    loader::LoaderPayload, loader::ResourceLoader, options::BaseImportOptions,
+    options::try_get_import_settings, options::try_get_import_settings_opaque, state::LoadError,
 };
 use std::{path::PathBuf, sync::Arc};
 

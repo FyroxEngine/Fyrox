@@ -26,11 +26,11 @@ use crate::fyrox::{
 };
 use crate::{
     command::{Command, CommandGroup},
-    interaction::{make_interaction_mode_button, InteractionMode},
+    interaction::{InteractionMode, make_interaction_mode_button},
     message::MessageSender,
-    scene::{commands::ChangeSelectionCommand, controller::SceneController, Selection},
+    scene::{Selection, commands::ChangeSelectionCommand, controller::SceneController},
     settings::Settings,
-    ui_scene::{commands::widget::MoveWidgetCommand, UiScene},
+    ui_scene::{UiScene, commands::widget::MoveWidgetCommand},
 };
 use fyrox::gui::button::Button;
 
@@ -204,8 +204,7 @@ impl InteractionMode for MoveWidgetsInteractionMode {
     }
 
     fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<Button> {
-        let move_mode_tooltip =
-            "Move Object(s) - Shortcut: [2]\n\nMovement interaction mode allows you to move selected \
+        let move_mode_tooltip = "Move Object(s) - Shortcut: [2]\n\nMovement interaction mode allows you to move selected \
         objects. Keep in mind that movement always works in local coordinates!\n\n\
         This also allows you to select an object or add an object to current selection using Ctrl+Click";
 

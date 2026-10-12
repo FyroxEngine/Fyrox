@@ -29,7 +29,7 @@ use crate::{
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
-        uuid::{uuid, Uuid},
+        uuid::{Uuid, uuid},
         visitor::prelude::*,
     },
     scene::{
@@ -38,8 +38,8 @@ use crate::{
         node::{Node, NodeTrait, SyncContext},
     },
 };
-use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::SceneGraph;
+use fyrox_graph::constructor::ConstructorProvider;
 use std::ops::{Deref, DerefMut};
 
 /// Listener represents directional microphone-like device. It receives sound from surroundings

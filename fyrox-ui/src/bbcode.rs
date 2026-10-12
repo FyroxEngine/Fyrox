@@ -203,13 +203,13 @@ fn update_font(
     bold_italic: Option<&FontResource>,
 ) {
     if let Some(run) = find_font_run(runs, range.start) {
-        if other_font == run.font() {
-            if let Some(bold_italic) = bold_italic {
-                if range == run.range {
-                    *run = Run::new(range).with_font(bold_italic.clone());
-                } else {
-                    runs.push(Run::new(range).with_font(bold_italic.clone()));
-                }
+        if other_font == run.font()
+            && let Some(bold_italic) = bold_italic
+        {
+            if range == run.range {
+                *run = Run::new(range).with_font(bold_italic.clone());
+            } else {
+                runs.push(Run::new(range).with_font(bold_italic.clone()));
             }
         }
     } else if let Some(new_font) = new_font {
@@ -302,7 +302,7 @@ mod test {
     use fyrox_resource::untyped::ResourceKind;
     use uuid::Uuid;
 
-    use crate::font::{Font, BUILT_IN_FONT};
+    use crate::font::{BUILT_IN_FONT, Font};
 
     use super::*;
     #[test]

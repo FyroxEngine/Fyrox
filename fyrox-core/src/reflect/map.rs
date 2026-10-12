@@ -20,8 +20,8 @@
 
 #![allow(clippy::type_complexity)]
 
-use crate::reflect::blank_reflect;
 use crate::reflect::Reflect;
+use crate::reflect::blank_reflect;
 use std::collections::HashMap;
 use std::hash::{BuildHasher, Hash};
 

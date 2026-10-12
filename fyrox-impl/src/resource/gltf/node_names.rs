@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::core::NameProvider;
 use crate::core::log::Log;
 use crate::core::pool::Handle;
-use crate::core::NameProvider;
 use crate::fxhash::{FxHashMap, FxHashSet};
 use crate::graph::SceneGraph;
 use crate::scene::graph::Graph;
@@ -111,12 +111,12 @@ fn resolve_conflict(handles: Vec<Handle<Node>>, graph: &mut Graph) {
     let node_sets = build_node_sets_from_list(&node_names);
     // Add ancestor names if that will eliminate duplicates.
     for set in node_sets {
-        if set.len() > 1 {
-            if let Some(names) = find_distinct_ancestor_names(set.as_slice(), graph) {
-                for (node, name) in set.iter().zip(names.iter()) {
-                    node.name.borrow_mut().push('+');
-                    node.name.borrow_mut().push_str(name);
-                }
+        if set.len() > 1
+            && let Some(names) = find_distinct_ancestor_names(set.as_slice(), graph)
+        {
+            for (node, name) in set.iter().zip(names.iter()) {
+                node.name.borrow_mut().push('+');
+                node.name.borrow_mut().push_str(name);
             }
         }
     }

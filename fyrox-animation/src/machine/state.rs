@@ -21,6 +21,7 @@
 //! State is a final "container" for animation pose. See [`State`] docs for more info.
 
 use crate::{
+    Animation, AnimationContainer, AnimationPose, EntityId,
     core::{
         algebra::Vector2,
         pool::{Handle, Pool},
@@ -29,12 +30,11 @@ use crate::{
         visitor::prelude::*,
     },
     machine::{AnimationPoseSource, ParameterContainer, PoseNode},
-    Animation, AnimationContainer, AnimationPose, EntityId,
 };
 use fxhash::FxHashSet;
+use fyrox_core::NameProvider;
 use fyrox_core::pool::PoolError;
 use fyrox_core::uuid::uuid;
-use fyrox_core::NameProvider;
 use std::{
     cell::Ref,
     ops::{Deref, DerefMut},
@@ -106,10 +106,10 @@ impl<T: EntityId> StateAction<T> {
                 }
             }
             StateAction::EnableRandomAnimation(animation_handles) => {
-                if let Some(animation) = animation_handles.iter().choose(&mut rand::thread_rng()) {
-                    if let Ok(animation) = animations.try_get_mut(*animation) {
-                        animation.set_enabled(true);
-                    }
+                if let Some(animation) = animation_handles.iter().choose(&mut rand::thread_rng())
+                    && let Ok(animation) = animations.try_get_mut(*animation)
+                {
+                    animation.set_enabled(true);
                 }
             }
         }

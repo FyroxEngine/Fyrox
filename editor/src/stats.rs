@@ -22,12 +22,12 @@ use crate::fyrox::{
     core::pool::Handle,
     engine::{Engine, GraphicsContext},
     gui::{
+        BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
         message::UiMessage,
         scroll_viewer::ScrollViewerBuilder,
         text::{TextBuilder, TextMessage},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
 };
 use fyrox::core::pool::ObjectOrVariant;
@@ -86,31 +86,31 @@ impl StatisticsWindow {
         message: &UiMessage,
         ui: &UserInterface,
     ) -> StatisticsWindowAction {
-        if let Some(WindowMessage::Close) = message.data() {
-            if message.destination() == self.window {
-                ui.send(self.window, WidgetMessage::Remove);
-                return StatisticsWindowAction::Remove;
-            }
+        if let Some(WindowMessage::Close) = message.data()
+            && message.destination() == self.window
+        {
+            ui.send(self.window, WidgetMessage::Remove);
+            return StatisticsWindowAction::Remove;
         }
         StatisticsWindowAction::None
     }
 
     pub fn update(&self, current_scene: Handle<Scene>, engine: &Engine) {
-        if let GraphicsContext::Initialized(ref graphics_context) = engine.graphics_context {
-            if let Some(stats) = graphics_context.renderer.scene_data_map.get(&current_scene) {
-                let global_stats = graphics_context.renderer.get_statistics();
-                let statistics = format!(
-                    "FPS: {}\nFrame Time:{}\n{}\nMemory Usage:\n{}",
-                    global_stats.frames_per_second,
-                    global_stats.pure_frame_time,
-                    stats.scene_data.statistics,
-                    graphics_context.renderer.server.memory_usage()
-                );
-                engine
-                    .user_interfaces
-                    .first()
-                    .send(self.text, TextMessage::Text(statistics));
-            }
+        if let GraphicsContext::Initialized(ref graphics_context) = engine.graphics_context
+            && let Some(stats) = graphics_context.renderer.scene_data_map.get(&current_scene)
+        {
+            let global_stats = graphics_context.renderer.get_statistics();
+            let statistics = format!(
+                "FPS: {}\nFrame Time:{}\n{}\nMemory Usage:\n{}",
+                global_stats.frames_per_second,
+                global_stats.pure_frame_time,
+                stats.scene_data.statistics,
+                graphics_context.renderer.server.memory_usage()
+            );
+            engine
+                .user_interfaces
+                .first()
+                .send(self.text, TextMessage::Text(statistics));
         }
     }
 }

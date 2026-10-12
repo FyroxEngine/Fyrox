@@ -19,54 +19,53 @@
 // SOFTWARE.
 
 use crate::{
+    Mode,
     camera::PickingOptions,
     command::{Command, CommandGroup},
     fyrox::{
         core::{
             algebra::{Vector2, Vector3},
             color::Color,
-            math::{ray::CylinderKind, TriangleEdge},
+            math::{TriangleEdge, ray::CylinderKind},
             pool::Handle,
             reflect::prelude::*,
-            uuid::{uuid, Uuid},
+            uuid::{Uuid, uuid},
         },
         engine::Engine,
         graph::SceneGraph,
         gui::{
+            BuildContext, Orientation, Thickness, UserInterface,
             button::{ButtonBuilder, ButtonMessage},
             grid::{Column, GridBuilder, Row},
             message::{KeyCode, UiMessage},
             stack_panel::StackPanelBuilder,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, Orientation, Thickness, UserInterface,
         },
         gui::{HorizontalAlignment, VerticalAlignment},
         scene::navmesh::NavigationalMesh,
     },
     interaction::{
-        calculate_gizmo_distance_scaling,
+        InteractionMode, calculate_gizmo_distance_scaling,
         gizmo::move_gizmo::MoveGizmo,
         make_interaction_mode_button,
         navmesh::selection::{NavmeshEntity, NavmeshSelection},
         plane::PlaneKind,
-        InteractionMode,
     },
     message::MessageSender,
     scene::{
+        GameScene, Selection, SelectionContainer,
         commands::{
+            ChangeSelectionCommand,
             navmesh::{
                 AddNavmeshEdgeCommand, ConnectNavmeshEdgesCommand, DeleteNavmeshVertexCommand,
                 MoveNavmeshVertexCommand,
             },
-            ChangeSelectionCommand,
         },
         controller::SceneController,
-        GameScene, Selection, SelectionContainer,
     },
     settings::Settings,
     utils::window_content,
-    Mode,
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::image::Image;
@@ -129,27 +128,26 @@ impl NavmeshPanel {
     }
 
     pub fn handle_message(&mut self, message: &UiMessage, editor_selection: &Selection) {
-        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
-            if message.destination() == self.connect_edges {
-                if let Some(selection) = fetch_selection(editor_selection) {
-                    let vertices = selection
-                        .entities()
-                        .iter()
-                        .filter_map(|entity| {
-                            if let NavmeshEntity::Edge(v) = *entity {
-                                Some(v)
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<_>>();
+        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>()
+            && message.destination() == self.connect_edges
+            && let Some(selection) = fetch_selection(editor_selection)
+        {
+            let vertices = selection
+                .entities()
+                .iter()
+                .filter_map(|entity| {
+                    if let NavmeshEntity::Edge(v) = *entity {
+                        Some(v)
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
 
-                    self.sender.do_command(ConnectNavmeshEdgesCommand::new(
-                        selection.navmesh_node(),
-                        [vertices[0], vertices[1]],
-                    ));
-                }
-            }
+            self.sender.do_command(ConnectNavmeshEdgesCommand::new(
+                selection.navmesh_node(),
+                [vertices[0], vertices[1]],
+            ));
         }
     }
 
@@ -367,44 +365,42 @@ impl InteractionMode for EditNavmeshMode {
 
         self.move_gizmo.reset_state(graph);
 
-        if let Some(selection) = fetch_selection(editor_selection) {
-            if let Ok(navmesh) = graph
+        if let Some(selection) = fetch_selection(editor_selection)
+            && let Ok(navmesh) = graph
                 .try_get_of_type::<NavigationalMesh>(selection.navmesh_node())
                 .map(|n| n.navmesh_ref())
-            {
-                if let Some(drag_context) = self.drag_context.take() {
-                    let mut commands = Vec::new();
+            && let Some(drag_context) = self.drag_context.take()
+        {
+            let mut commands = Vec::new();
 
-                    match drag_context {
-                        DragContext::MoveSelection { initial_positions } => {
-                            for vertex in selection.unique_vertices().iter() {
-                                commands.push(Command::new(MoveNavmeshVertexCommand::new(
-                                    selection.navmesh_node(),
-                                    *vertex,
-                                    *initial_positions.get(vertex).unwrap(),
-                                    navmesh.vertices()[*vertex],
-                                )));
-                            }
-                        }
-                        DragContext::EdgeDuplication {
-                            vertices,
-                            opposite_edge,
-                        } => {
-                            let va = vertices[0];
-                            let vb = vertices[1];
-
-                            commands.push(Command::new(AddNavmeshEdgeCommand::new(
-                                selection.navmesh_node(),
-                                (va, vb),
-                                opposite_edge,
-                                true,
-                            )));
-                        }
+            match drag_context {
+                DragContext::MoveSelection { initial_positions } => {
+                    for vertex in selection.unique_vertices().iter() {
+                        commands.push(Command::new(MoveNavmeshVertexCommand::new(
+                            selection.navmesh_node(),
+                            *vertex,
+                            *initial_positions.get(vertex).unwrap(),
+                            navmesh.vertices()[*vertex],
+                        )));
                     }
+                }
+                DragContext::EdgeDuplication {
+                    vertices,
+                    opposite_edge,
+                } => {
+                    let va = vertices[0];
+                    let vb = vertices[1];
 
-                    self.message_sender.do_command(CommandGroup::from(commands));
+                    commands.push(Command::new(AddNavmeshEdgeCommand::new(
+                        selection.navmesh_node(),
+                        (va, vb),
+                        opposite_edge,
+                        true,
+                    )));
                 }
             }
+
+            self.message_sender.do_command(CommandGroup::from(commands));
         }
     }
 
@@ -458,50 +454,48 @@ impl InteractionMode for EditNavmeshMode {
             self.plane_kind,
         );
 
-        if let Some(selection) = fetch_selection(editor_selection) {
-            if let Ok(mut navmesh) = graph
+        if let Some(selection) = fetch_selection(editor_selection)
+            && let Ok(mut navmesh) = graph
                 .try_get_mut_of_type::<NavigationalMesh>(selection.navmesh_node())
                 .map(|n| n.navmesh_mut())
+        {
+            // If we're dragging single edge it is possible to enter edge duplication mode by
+            // holding Shift key. This is the main navmesh construction mode.
+            if selection.entities().len() == 1
+                && let NavmeshEntity::Edge(edge) = selection.entities().first().unwrap()
+                && engine
+                    .user_interfaces
+                    .first_mut()
+                    .keyboard_modifiers()
+                    .shift
+                && !self.drag_context.as_ref().unwrap().is_edge_duplication()
             {
-                // If we're dragging single edge it is possible to enter edge duplication mode by
-                // holding Shift key. This is the main navmesh construction mode.
-                if selection.entities().len() == 1 {
-                    if let NavmeshEntity::Edge(edge) = selection.entities().first().unwrap() {
-                        if engine
-                            .user_interfaces
-                            .first_mut()
-                            .keyboard_modifiers()
-                            .shift
-                            && !self.drag_context.as_ref().unwrap().is_edge_duplication()
-                        {
-                            let new_begin = navmesh.vertices()[edge.a as usize];
-                            let new_end = navmesh.vertices()[edge.b as usize];
+                let new_begin = navmesh.vertices()[edge.a as usize];
+                let new_end = navmesh.vertices()[edge.b as usize];
 
-                            self.drag_context = Some(DragContext::EdgeDuplication {
-                                vertices: [new_begin, new_end],
-                                opposite_edge: *edge,
-                            });
+                self.drag_context = Some(DragContext::EdgeDuplication {
+                    vertices: [new_begin, new_end],
+                    opposite_edge: *edge,
+                });
 
-                            // Discard selection.
-                            self.message_sender.do_command(ChangeSelectionCommand::new(
-                                Selection::new(NavmeshSelection::empty(selection.navmesh_node())),
-                            ));
+                // Discard selection.
+                self.message_sender
+                    .do_command(ChangeSelectionCommand::new(Selection::new(
+                        NavmeshSelection::empty(selection.navmesh_node()),
+                    )));
+            }
+
+            if let Some(drag_context) = self.drag_context.as_mut() {
+                match drag_context {
+                    DragContext::MoveSelection { .. } => {
+                        let mut ctx = navmesh.modify();
+                        for &vertex in &*selection.unique_vertices() {
+                            ctx.vertices_mut()[vertex] += offset;
                         }
                     }
-                }
-
-                if let Some(drag_context) = self.drag_context.as_mut() {
-                    match drag_context {
-                        DragContext::MoveSelection { .. } => {
-                            let mut ctx = navmesh.modify();
-                            for &vertex in &*selection.unique_vertices() {
-                                ctx.vertices_mut()[vertex] += offset;
-                            }
-                        }
-                        DragContext::EdgeDuplication { vertices, .. } => {
-                            for vertex in vertices.iter_mut() {
-                                *vertex += offset;
-                            }
+                    DragContext::EdgeDuplication { vertices, .. } => {
+                        for vertex in vertices.iter_mut() {
+                            *vertex += offset;
                         }
                     }
                 }
@@ -683,8 +677,7 @@ impl InteractionMode for EditNavmeshMode {
     }
 
     fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<Button> {
-        let navmesh_mode_tooltip =
-            "Edit Navmesh - Shortcut: [5]\n\nNavmesh edit mode allows you to modify selected \
+        let navmesh_mode_tooltip = "Edit Navmesh - Shortcut: [5]\n\nNavmesh edit mode allows you to modify selected \
         navigational mesh.";
 
         make_interaction_mode_button(

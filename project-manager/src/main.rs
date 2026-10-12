@@ -48,10 +48,10 @@ use fyrox::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
+        UserInterface,
         constructor::new_widget_constructor_container,
         font::{Font, FontResource, FontStyles},
         widget::WidgetMessage,
-        UserInterface,
     },
     utils::{translate_cursor_icon, translate_event},
     window::WindowAttributes,
@@ -158,13 +158,13 @@ fn main() {
                     let ui = engine.user_interfaces.first_mut();
 
                     if project_manager.is_active(ui) {
-                        if let Some(active_tooltip) = ui.active_tooltip() {
-                            if !active_tooltip.shown {
-                                // Keep the manager running until the current tooltip is not shown.
-                                project_manager
-                                    .update_loop_state
-                                    .request_update_in_next_frame();
-                            }
+                        if let Some(active_tooltip) = ui.active_tooltip()
+                            && !active_tooltip.shown
+                        {
+                            // Keep the manager running until the current tooltip is not shown.
+                            project_manager
+                                .update_loop_state
+                                .request_update_in_next_frame();
                         }
 
                         let elapsed = previous.elapsed();

@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    Engine, Message,
     fyrox::{
         core::{
             algebra::{Vector2, Vector3},
@@ -27,24 +28,23 @@ use crate::{
             uuid::Uuid,
         },
         gui::{
+            BuildContext, Thickness,
             border::BorderBuilder,
             button::ButtonBuilder,
             decorator::DecoratorBuilder,
             image::ImageBuilder,
             key::HotKey,
             message::{KeyCode, UiMessage},
-            style::{resource::StyleResourceExt, Style},
+            style::{Style, resource::StyleResourceExt},
             utils::make_simple_tooltip,
             widget::WidgetBuilder,
-            BuildContext, Thickness,
         },
         scene::{camera::Projection, graph::Graph, node::Node},
     },
     load_image_internal,
     message::MessageSender,
-    scene::{controller::SceneController, Selection},
+    scene::{Selection, controller::SceneController},
     settings::Settings,
-    Engine, Message,
 };
 use fyrox::core::define_as_any_trait;
 use fyrox::core::pool::ObjectOrVariant;

@@ -19,22 +19,22 @@
 // SOFTWARE.
 
 use crate::{
+    Engine,
     fyrox::{
         core::{
             algebra::Vector2,
             pool::Handle,
             reflect::prelude::*,
-            uuid::{uuid, Uuid},
+            uuid::{Uuid, uuid},
         },
         gui::BuildContext,
         scene::node::Node,
     },
-    interaction::{make_interaction_mode_button, InteractionMode},
+    interaction::{InteractionMode, make_interaction_mode_button},
     message::MessageSender,
-    scene::{commands::ChangeSelectionCommand, controller::SceneController, GameScene, Selection},
+    scene::{GameScene, Selection, commands::ChangeSelectionCommand, controller::SceneController},
     settings::Settings,
     world::selection::GraphSelection,
-    Engine,
 };
 use fyrox::gui::border::Border;
 use fyrox::gui::button::Button;

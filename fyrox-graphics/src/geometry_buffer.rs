@@ -24,9 +24,10 @@
 #![warn(missing_docs)]
 
 use crate::{
+    ElementKind,
     buffer::BufferUsage,
     core::{array_as_u8_slice, math::TriangleDefinition},
-    define_shared_wrapper, ElementKind,
+    define_shared_wrapper,
 };
 use bytemuck::Pod;
 use fyrox_core::define_as_any_trait;

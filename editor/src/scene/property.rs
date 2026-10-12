@@ -26,6 +26,7 @@ use crate::fyrox::{
     fxhash::FxHashSet,
     graph::SceneGraph,
     gui::{
+        BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
         border::BorderBuilder,
         button::{ButtonBuilder, ButtonMessage},
         define_widget_deref,
@@ -38,7 +39,6 @@ use crate::fyrox::{
         tree::{Tree, TreeBuilder, TreeRootBuilder, TreeRootMessage},
         widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{Window, WindowBuilder, WindowMessage},
-        BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     },
 };
 use fyrox::gui::button::Button;
@@ -46,8 +46,8 @@ use fyrox::gui::control_trait_proxy_impls;
 use fyrox::gui::message::MessageData;
 use fyrox::gui::scroll_viewer::ScrollViewer;
 use fyrox::gui::searchbar::SearchBar;
-use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::text_box::EmptyTextPlaceholder;
 use fyrox::gui::tree::TreeRoot;
 use fyrox::gui::widget::UserData;
@@ -88,11 +88,7 @@ fn make_views_for_property_descriptor_collection(
         .iter()
         .filter_map(|p| {
             let view = p.make_view(ctx, allowed_types);
-            if view.is_some() {
-                Some(view)
-            } else {
-                None
-            }
+            if view.is_some() { Some(view) } else { None }
         })
         .collect()
 }
@@ -315,16 +311,16 @@ impl PropertySelector {
         while let Some(node_handle) = stack.pop() {
             let node = ui.node(node_handle);
 
-            if let Some(tree) = node.self_or_field_ref::<Tree>() {
-                if self.selected_property_paths.iter().any(|path| {
+            if let Some(tree) = node.self_or_field_ref::<Tree>()
+                && self.selected_property_paths.iter().any(|path| {
                     path.path
                         == tree
                             .user_data_cloned::<PropertyDescriptorData>()
                             .unwrap()
                             .path
-                }) {
-                    selected_trees.push(node_handle.to_variant());
-                }
+                })
+            {
+                selected_trees.push(node_handle.to_variant());
             }
 
             stack.extend_from_slice(node.children());
@@ -547,11 +543,10 @@ impl Control for PropertySelectorWindow {
             ui.send(self.selector, PropertySelectorMessage::ChooseFocus);
         } else if let Some(WidgetMessage::KeyDown(KeyCode::Enter | KeyCode::NumpadEnter)) =
             message.data()
+            && !message.handled()
         {
-            if !message.handled() {
-                self.confirm(ui);
-                message.set_handled(true);
-            }
+            self.confirm(ui);
+            message.set_handled(true);
         }
     }
 }

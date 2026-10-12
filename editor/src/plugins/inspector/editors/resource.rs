@@ -19,48 +19,49 @@
 // SOFTWARE.
 
 use crate::{
+    Message,
     asset::{
         item::AssetItem, item::AssetItemMessage, preview::cache::IconRequest,
         selector::AssetSelectorMixin,
     },
     fyrox::{
-        asset::{manager::ResourceManager, state::LoadError, Resource, TypedResourceData},
+        asset::{Resource, TypedResourceData, manager::ResourceManager, state::LoadError},
         core::{
-            color::Color, log::Log, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
-            uuid::uuid, visitor::prelude::*, PhantomDataSendSync,
+            PhantomDataSendSync, color::Color, log::Log, parking_lot::Mutex, pool::Handle,
+            reflect::prelude::*, uuid::uuid, visitor::prelude::*,
         },
         graph::SceneGraph,
         gui::{
+            BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
             brush::Brush,
             button::{Button, ButtonMessage},
             draw::{CommandTexture, Draw, DrawingContext},
             grid::{Column, GridBuilder, Row},
             image::{Image, ImageBuilder, ImageMessage},
             inspector::{
+                FieldAction, InspectorError, PropertyChanged,
                 editors::{
                     PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
                     PropertyEditorMessageContext, PropertyEditorTranslationContext,
                 },
-                FieldAction, InspectorError, PropertyChanged,
             },
             message::{MessageData, MessageDirection, UiMessage},
             text::{Text, TextBuilder, TextMessage},
-            utils::{make_asset_preview_tooltip, ImageButtonBuilder},
+            utils::{ImageButtonBuilder, make_asset_preview_tooltip},
             widget::{Widget, WidgetBuilder, WidgetMessage},
-            BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
     },
     load_image,
     message::MessageSender,
     plugins::inspector::EditorEnvironment,
-    utils, Message,
+    utils,
 };
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     path::Path,
-    sync::{mpsc::Sender, Arc},
+    sync::{Arc, mpsc::Sender},
 };
 
 fn resource_path<T>(resource_manager: &ResourceManager, resource: &Option<Resource<T>>) -> String
@@ -206,12 +207,11 @@ where
         self.widget.handle_routed_message(ui, message);
 
         if let Some(WidgetMessage::Drop(dropped)) = message.data::<WidgetMessage>() {
-            if message.destination() == self.handle() {
-                if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
-                    if let Some(value) = item.resource::<T>() {
-                        ui.send(self.handle(), ResourceFieldMessage::Value(Some(value)));
-                    }
-                }
+            if message.destination() == self.handle()
+                && let Some(item) = ui.node(*dropped).cast::<AssetItem>()
+                && let Some(value) = item.resource::<T>()
+            {
+                ui.send(self.handle(), ResourceFieldMessage::Value(Some(value)));
             }
         } else if let Some(ResourceFieldMessage::Value(resource)) = message.data() {
             if &self.resource != resource && message.is_for(self.handle()) {
@@ -228,16 +228,14 @@ where
                 ui.try_send_response(message);
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
-            if message.destination() == self.locate {
-                if let Some(resource) = self.resource.as_ref() {
-                    if let Some(path) = self
-                        .selector_mixin
-                        .resource_manager
-                        .resource_path(resource.as_ref())
-                    {
-                        self.sender.send(Message::ShowInAssetBrowser(path));
-                    }
-                }
+            if message.destination() == self.locate
+                && let Some(resource) = self.resource.as_ref()
+                && let Some(path) = self
+                    .selector_mixin
+                    .resource_manager
+                    .resource_path(resource.as_ref())
+            {
+                self.sender.send(Message::ShowInAssetBrowser(path));
             }
         } else if let Some(AssetItemMessage::Icon {
             texture,
@@ -457,15 +455,14 @@ where
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(ResourceFieldMessage::Value(value)) =
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(ResourceFieldMessage::Value(value)) =
                 ctx.message.data::<ResourceFieldMessage<T>>()
-            {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
-                    action: FieldAction::object(value.clone()),
-                });
-            }
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
+                action: FieldAction::object(value.clone()),
+            });
         }
         None
     }
@@ -478,8 +475,8 @@ mod test {
     use fyrox::asset::manager::ResourceManager;
     use fyrox::resource::model::Model;
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
-    use std::sync::mpsc::channel;
     use std::sync::Arc;
+    use std::sync::mpsc::channel;
 
     #[test]
     fn test_deletion() {

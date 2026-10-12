@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    Command,
     command::make_command,
     fyrox::{
         core::pool::Handle,
@@ -27,10 +28,9 @@ use crate::{
         scene::{node::Node, terrain::Terrain},
     },
     scene::commands::{
-        terrain::{AddTerrainLayerCommand, DeleteTerrainLayerCommand},
         GameSceneContext, RevertSceneNodePropertyCommand,
+        terrain::{AddTerrainLayerCommand, DeleteTerrainLayerCommand},
     },
-    Command,
 };
 
 pub struct SceneNodePropertyChangedHandler;

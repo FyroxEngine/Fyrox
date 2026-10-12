@@ -26,12 +26,12 @@ use crate::{
         generic_animation::machine::{Machine, State, Transition},
         graph::SceneGraph,
         gui::{
+            BuildContext, RcUiNodeHandle, UiNode, UserInterface,
             menu::MenuItemMessage,
             message::UiMessage,
             popup::{Placement, PopupBuilder, PopupMessage},
             stack_panel::StackPanelBuilder,
             widget::WidgetBuilder,
-            BuildContext, RcUiNodeHandle, UiNode, UserInterface,
         },
     },
     menu::create_menu_item,
@@ -46,12 +46,12 @@ use crate::{
         selection::SelectedEntity,
         transition::TransitionView,
     },
-    scene::{commands::ChangeSelectionCommand, Selection},
+    scene::{Selection, commands::ChangeSelectionCommand},
 };
 
 use fyrox::core::pool::HandlesArrayExtension;
 use fyrox::core::reflect::Reflect;
-use fyrox::core::uuid::{uuid, Uuid};
+use fyrox::core::uuid::{Uuid, uuid};
 use fyrox::gui::menu::{ContextMenuBuilder, MenuItem};
 
 pub struct CanvasContextMenu {
@@ -356,10 +356,10 @@ impl NodeContextMenu {
                     },
                 );
             }
-        } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == self.menu.handle() {
-                self.placement_target = *target;
-            }
+        } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data()
+            && message.destination() == self.menu.handle()
+        {
+            self.placement_target = *target;
         }
     }
 }
@@ -411,32 +411,32 @@ impl TransitionContextMenu {
         editor_selection: &Selection,
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
-            if message.destination == self.remove {
-                if let Some(selection) = editor_selection.as_absm::<N>() {
-                    let mut new_selection = selection.clone();
-                    new_selection.entities.clear();
+            if message.destination == self.remove
+                && let Some(selection) = editor_selection.as_absm::<N>()
+            {
+                let mut new_selection = selection.clone();
+                new_selection.entities.clear();
 
-                    let transition_ref = ui
-                        .node(self.placement_target)
-                        .self_or_field_ref::<TransitionView>()
-                        .unwrap();
+                let transition_ref = ui
+                    .node(self.placement_target)
+                    .self_or_field_ref::<TransitionView>()
+                    .unwrap();
 
-                    let group = vec![
-                        Command::new(ChangeSelectionCommand::new(Selection::new(new_selection))),
-                        Command::new(DeleteTransitionCommand::new(
-                            absm_node_handle,
-                            layer_index,
-                            transition_ref.model_handle.into(),
-                        )),
-                    ];
+                let group = vec![
+                    Command::new(ChangeSelectionCommand::new(Selection::new(new_selection))),
+                    Command::new(DeleteTransitionCommand::new(
+                        absm_node_handle,
+                        layer_index,
+                        transition_ref.model_handle.into(),
+                    )),
+                ];
 
-                    sender.do_command(CommandGroup::from(group));
-                }
+                sender.do_command(CommandGroup::from(group));
             }
-        } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == self.menu.handle() {
-                self.placement_target = *target;
-            }
+        } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data()
+            && message.destination() == self.menu.handle()
+        {
+            self.placement_target = *target;
         }
     }
 }

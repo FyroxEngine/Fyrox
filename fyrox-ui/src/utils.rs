@@ -20,6 +20,7 @@
 
 use crate::widget::UserData;
 use crate::{
+    Brush, BuildContext, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode, VerticalAlignment,
     border::BorderBuilder,
     button::{Button, ButtonBuilder},
     core::{algebra::Vector2, color::Color, pool::Handle},
@@ -27,12 +28,11 @@ use crate::{
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
     image::{Image, ImageBuilder},
-    style::{resource::StyleResourceExt, Style, StyledProperty},
+    style::{Style, StyledProperty, resource::StyleResourceExt},
     text::TextBuilder,
     toggle::{ToggleButton, ToggleButtonBuilder},
     vector_image::{Primitive, VectorImage, VectorImageBuilder},
     widget::WidgetBuilder,
-    Brush, BuildContext, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode, VerticalAlignment,
 };
 use fyrox_texture::{
     CompressionOptions, TextureImportOptions, TextureMinificationFilter, TextureResource,

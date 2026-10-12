@@ -19,24 +19,24 @@
 // SOFTWARE.
 
 use crate::{
+    Editor,
     fyrox::{
         core::pool::Handle,
         engine::ApplicationLoopController,
         gui::{
+            HorizontalAlignment, Thickness, VerticalAlignment,
             menu::{MenuItem, MenuItemMessage},
             message::UiMessage,
             stack_panel::StackPanelBuilder,
             text::{Text, TextBuilder, TextMessage},
             widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-            HorizontalAlignment, Thickness, VerticalAlignment,
         },
     },
     menu::create_menu_item,
     plugin::EditorPlugin,
-    Editor,
 };
-use fyrox::core::uuid::{uuid, Uuid};
+use fyrox::core::uuid::{Uuid, uuid};
 
 /// Editor statistics, useful to track number of active widgets, memory consumption, and other
 /// various useful information.
@@ -67,43 +67,43 @@ impl EditorPlugin for EditorStatisticsPlugin {
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first_mut();
 
-        if let Some(MenuItemMessage::Click) = message.data() {
-            if message.destination() == self.open_ui_stats && self.window.is_none() {
-                let ctx = &mut ui.build_ctx();
-                self.text =
-                    TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
-                        .build(ctx);
-                self.window =
-                    WindowBuilder::new(WidgetBuilder::new().with_width(200.0).with_height(130.0))
-                        .with_title(WindowTitle::text("Editor Statistics"))
-                        .with_content(
-                            StackPanelBuilder::new(WidgetBuilder::new().with_child(self.text))
-                                .build(ctx),
-                        )
-                        .open(false)
-                        .build(ctx);
+        if let Some(MenuItemMessage::Click) = message.data()
+            && message.destination() == self.open_ui_stats
+            && self.window.is_none()
+        {
+            let ctx = &mut ui.build_ctx();
+            self.text = TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                .build(ctx);
+            self.window =
+                WindowBuilder::new(WidgetBuilder::new().with_width(200.0).with_height(130.0))
+                    .with_title(WindowTitle::text("Editor Statistics"))
+                    .with_content(
+                        StackPanelBuilder::new(WidgetBuilder::new().with_child(self.text))
+                            .build(ctx),
+                    )
+                    .open(false)
+                    .build(ctx);
 
-                ui.send(
-                    self.window,
-                    WindowMessage::Open {
-                        alignment: WindowAlignment::Relative {
-                            relative_to: editor.scene_viewer.frame().to_base(),
-                            horizontal_alignment: HorizontalAlignment::Right,
-                            vertical_alignment: VerticalAlignment::Bottom,
-                            margin: Thickness::uniform(1.0),
-                        },
-                        modal: false,
-                        focus_content: true,
+            ui.send(
+                self.window,
+                WindowMessage::Open {
+                    alignment: WindowAlignment::Relative {
+                        relative_to: editor.scene_viewer.frame().to_base(),
+                        horizontal_alignment: HorizontalAlignment::Right,
+                        vertical_alignment: VerticalAlignment::Bottom,
+                        margin: Thickness::uniform(1.0),
                     },
-                );
-            }
+                    modal: false,
+                    focus_content: true,
+                },
+            );
         }
 
-        if let Some(WindowMessage::Close) = message.data() {
-            if message.destination() == self.window {
-                ui.send(self.window, WidgetMessage::Remove);
-                self.window = Handle::NONE;
-            }
+        if let Some(WindowMessage::Close) = message.data()
+            && message.destination() == self.window
+        {
+            ui.send(self.window, WidgetMessage::Remove);
+            self.window = Handle::NONE;
         }
     }
 

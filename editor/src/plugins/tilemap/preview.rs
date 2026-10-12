@@ -24,7 +24,7 @@ use crate::{
         asset::{manager::ResourceManager, untyped::UntypedResource},
         core::pool::Handle,
         engine::Engine,
-        scene::{node::Node, tilemap::tileset::TileSet, Scene},
+        scene::{Scene, node::Node, tilemap::tileset::TileSet},
     },
     load_image,
 };

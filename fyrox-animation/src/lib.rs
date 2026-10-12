@@ -28,13 +28,13 @@
 use crate::track::{HintContainer, TrackBinding};
 use crate::{
     core::{
+        ImmutableString, NameProvider,
         algebra::{UnitQuaternion, Vector3},
         math::wrapf,
         pool::{ErasedHandle, Handle, Pool, Ticket},
         reflect::prelude::*,
-        uuid::{uuid, Uuid},
+        uuid::{Uuid, uuid},
         visitor::prelude::*,
-        ImmutableString, NameProvider,
     },
     track::Track,
 };
@@ -53,7 +53,7 @@ use std::{
     ops::{Index, IndexMut, Range},
     path::Path,
 };
-use value::{nlerp, TrackValue, ValueBinding};
+use value::{TrackValue, ValueBinding, nlerp};
 
 pub mod container;
 pub mod machine;
@@ -621,35 +621,33 @@ impl<T: EntityId> Animation<T> {
                             }
                         }
                         ValueBinding::Rotation => {
-                            if let TrackValue::UnitQuaternion(pose_rotation) = bound_value.value {
-                                if !root_motion_settings.ignore_rotations {
-                                    if new_loop_cycle_started {
-                                        root_motion.prev_rotation =
-                                            fetch_rotation_at_time(tracks, cycle_start_time);
-                                        root_motion.rotation_remainder = Some(
-                                            fetch_rotation_at_time(tracks, cycle_end_time)
-                                                .inverse()
-                                                * pose_rotation,
-                                        );
-                                    } else {
-                                        root_motion.prev_rotation = pose_rotation;
-                                    }
-
-                                    // Compute relative rotation that can be used to "turn" a node later on.
-                                    let remainder = prev_root_motion
-                                        .rotation_remainder
-                                        .take()
-                                        .unwrap_or_else(UnitQuaternion::identity);
-                                    let current_relative_rotation =
-                                        prev_root_motion.prev_rotation.inverse() * pose_rotation;
-                                    root_motion.delta_rotation =
-                                        remainder * current_relative_rotation;
-
-                                    // Reset rotation so the root won't rotate.
-                                    bound_value.value = TrackValue::UnitQuaternion(
-                                        fetch_rotation_at_time(tracks, self.time_slice.start),
+                            if let TrackValue::UnitQuaternion(pose_rotation) = bound_value.value
+                                && !root_motion_settings.ignore_rotations
+                            {
+                                if new_loop_cycle_started {
+                                    root_motion.prev_rotation =
+                                        fetch_rotation_at_time(tracks, cycle_start_time);
+                                    root_motion.rotation_remainder = Some(
+                                        fetch_rotation_at_time(tracks, cycle_end_time).inverse()
+                                            * pose_rotation,
                                     );
+                                } else {
+                                    root_motion.prev_rotation = pose_rotation;
                                 }
+
+                                // Compute relative rotation that can be used to "turn" a node later on.
+                                let remainder = prev_root_motion
+                                    .rotation_remainder
+                                    .take()
+                                    .unwrap_or_else(UnitQuaternion::identity);
+                                let current_relative_rotation =
+                                    prev_root_motion.prev_rotation.inverse() * pose_rotation;
+                                root_motion.delta_rotation = remainder * current_relative_rotation;
+
+                                // Reset rotation so the root won't rotate.
+                                bound_value.value = TrackValue::UnitQuaternion(
+                                    fetch_rotation_at_time(tracks, self.time_slice.start),
+                                );
                             }
                         }
                         _ => (),
@@ -904,11 +902,10 @@ impl<T: EntityId> Animation<T> {
                 continue;
             };
 
-            if binding.is_enabled() {
-                if let Some(bound_value) = track.fetch(self.time_position, &mut binding.fetch_hints)
-                {
-                    self.pose.add_to_node_pose(binding.target(), bound_value);
-                }
+            if binding.is_enabled()
+                && let Some(bound_value) = track.fetch(self.time_position, &mut binding.fetch_hints)
+            {
+                self.pose.add_to_node_pose(binding.target(), bound_value);
             }
         }
     }

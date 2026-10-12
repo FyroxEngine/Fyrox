@@ -22,6 +22,7 @@
 //! more info.
 
 use crate::{
+    Animation, AnimationContainer, AnimationEvent, AnimationPose, EntityId,
     core::{
         algebra::Vector2,
         pool::{Handle, Pool},
@@ -29,10 +30,9 @@ use crate::{
         visitor::prelude::*,
     },
     machine::{
-        node::{blend::BlendAnimations, blendspace::BlendSpace, play::PlayAnimation},
         BlendAnimationsByIndex, BlendPose, IndexedBlendInput, ParameterContainer, State,
+        node::{blend::BlendAnimations, blendspace::BlendSpace, play::PlayAnimation},
     },
-    Animation, AnimationContainer, AnimationEvent, AnimationPose, EntityId,
 };
 use fxhash::FxHashSet;
 use std::{

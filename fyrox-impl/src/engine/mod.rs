@@ -40,82 +40,83 @@ use crate::{
         untyped::ResourceKind,
     },
     core::{
+        SafeLock,
         algebra::Vector2,
         err,
         futures::{executor::block_on, future::join_all},
         instant,
         log::Log,
         pool::Handle,
-        reflect::prelude::*,
         reflect::Reflect,
+        reflect::prelude::*,
         task::TaskPool,
-        warn, SafeLock,
+        warn,
     },
     engine::{error::EngineError, input::InputState, task::TaskPoolHandler},
     event::Event,
     graph::SceneGraph,
     graphics::error::FrameworkError,
     gui::{
+        RenderMode, UiContainer, UiUpdateSwitches, UserInterface,
         constructor::WidgetConstructorContainer,
         font::{
-            loader::FontLoader, Font, BOLD_ITALIC, BUILT_IN_BOLD, BUILT_IN_FONT, BUILT_IN_ITALIC,
+            BOLD_ITALIC, BUILT_IN_BOLD, BUILT_IN_FONT, BUILT_IN_ITALIC, Font, loader::FontLoader,
         },
         loader::UserInterfaceLoader,
-        style::{self, resource::StyleLoader, Style},
-        RenderMode, UiContainer, UiUpdateSwitches, UserInterface,
+        style::{self, Style, resource::StyleLoader},
     },
     material::{
-        self,
+        self, Material,
         loader::MaterialLoader,
-        shader::{loader::ShaderLoader, Shader, ShaderResource, ShaderResourceExtension},
-        Material,
+        shader::{Shader, ShaderResource, ShaderResourceExtension, loader::ShaderLoader},
     },
     plugin::{
-        dylib::DyLibDynamicPlugin, DynamicPlugin, Plugin, PluginContainer, PluginContext,
-        PluginRegistrationContext,
+        DynamicPlugin, Plugin, PluginContainer, PluginContext, PluginRegistrationContext,
+        dylib::DyLibDynamicPlugin,
     },
-    renderer::{ui_renderer::UiRenderInfo, Renderer},
+    renderer::{Renderer, ui_renderer::UiRenderInfo},
     resource::{
-        curve::{loader::CurveLoader, CurveResourceState},
+        curve::{CurveResourceState, loader::CurveLoader},
         gltf::material::GLTF_SHADER,
-        model::{loader::ModelLoader, Model, ModelResource},
+        model::{Model, ModelResource, loader::ModelLoader},
         texture::{
-            self, loader::TextureLoader, CompressionOptions, Texture, TextureImportOptions,
-            TextureKind, TextureMinificationFilter, TextureResource, TextureResourceExtension,
+            self, CompressionOptions, Texture, TextureImportOptions, TextureKind,
+            TextureMinificationFilter, TextureResource, TextureResourceExtension,
+            loader::TextureLoader,
         },
     },
     scene::{
+        Scene, SceneContainer,
         base::NodeScriptMessage,
         graph::GraphUpdateSwitches,
         mesh::surface::{self, SurfaceData, SurfaceDataLoader},
         node::{
-            constructor::{new_node_constructor_container, NodeConstructorContainer},
             Node,
+            constructor::{NodeConstructorContainer, new_node_constructor_container},
         },
         skybox::SkyBoxKind,
         sound::SoundEngine,
         tilemap::{
+            CustomTileCollider, TileMapData,
             brush::{TileMapBrush, TileMapBrushLoader},
             tileset::{TileSet, TileSetLoader},
-            CustomTileCollider, TileMapData,
         },
-        Scene, SceneContainer,
     },
     script::{
-        constructor::ScriptConstructorContainer, DynamicTypeId, PluginsRefMut, RoutingStrategy,
-        Script, ScriptContext, ScriptDeinitContext, ScriptMessage, ScriptMessageContext,
-        ScriptMessageKind, ScriptMessageSender, UniversalScriptContext,
+        DynamicTypeId, PluginsRefMut, RoutingStrategy, Script, ScriptContext, ScriptDeinitContext,
+        ScriptMessage, ScriptMessageContext, ScriptMessageKind, ScriptMessageSender,
+        UniversalScriptContext, constructor::ScriptConstructorContainer,
     },
     window::Window,
 };
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_animation::AnimationTracksData;
-use fyrox_core::dyntype::DynTypeConstructorContainer;
 use fyrox_core::NameProvider;
+use fyrox_core::dyntype::DynTypeConstructorContainer;
 use fyrox_graphics::server::SharedGraphicsServer;
 
 use fyrox_sound::{
-    buffer::{loader::SoundBufferLoader, SoundBuffer},
+    buffer::{SoundBuffer, loader::SoundBufferLoader},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
 };
 use std::fmt::Debug;
@@ -129,8 +130,8 @@ use std::{
     path::Path,
     rc::Rc,
     sync::{
-        mpsc::{channel, Receiver},
         Arc,
+        mpsc::{Receiver, channel},
     },
     time::Duration,
 };
@@ -241,10 +242,10 @@ impl InitializedGraphicsContext {
     /// Tries to set a new icon for the window using the given texture.
     pub fn set_window_icon_from_texture(&mut self, texture: &TextureResource) {
         let data = texture.data_ref();
-        if let TextureKind::Rectangle { width, height } = data.kind() {
-            if let Ok(img) = Icon::from_rgba(data.data().to_vec(), width, height) {
-                self.window.set_window_icon(Some(img));
-            }
+        if let TextureKind::Rectangle { width, height } = data.kind()
+            && let Ok(img) = Icon::from_rgba(data.data().to_vec(), width, height)
+        {
+            self.window.set_window_icon(Some(img));
         }
     }
 }
@@ -945,15 +946,14 @@ impl ResourceGraphVertex {
         for resource in resource_manager.state().iter() {
             if let Some(other_model) = resource.try_cast::<Model>() {
                 let mut state = other_model.state();
-                if let Some(model_data) = state.data() {
-                    if model_data
+                if let Some(model_data) = state.data()
+                    && model_data
                         .get_scene()
                         .graph
                         .linear_iter()
                         .any(|n| n.resource.as_ref() == Some(&model))
-                    {
-                        dependent_resources.insert(other_model.clone());
-                    }
+                {
+                    dependent_resources.insert(other_model.clone());
                 }
             }
         }
@@ -1843,60 +1843,51 @@ impl Engine {
                     .find(|e| e.handle == node_task_handler.scene_handle)
                 {
                     let payload = result.payload;
-                    if let Ok(scene) = self.scenes.try_get_mut(node_task_handler.scene_handle) {
+                    if let Ok(scene) = self.scenes.try_get_mut(node_task_handler.scene_handle)
+                        && let Ok(node) =
+                            scene.graph.try_get_node_mut(node_task_handler.node_handle)
+                        && let Some(mut script) = node
+                            .scripts
+                            .get_mut(node_task_handler.script_index)
+                            .and_then(|e| e.script.take())
+                    {
+                        let mut ctx = ScriptContext {
+                            dt,
+                            elapsed_time: self.elapsed_time,
+                            plugins: PluginsRefMut(&mut self.plugins),
+                            handle: node_task_handler.node_handle,
+                            scene,
+                            scene_handle: scripted_scene.handle,
+                            resource_manager: &self.resource_manager,
+                            message_sender: &scripted_scene.message_sender,
+                            message_dispatcher: &mut scripted_scene.message_dispatcher,
+                            task_pool: &mut self.task_pool,
+                            graphics_context: &mut self.graphics_context,
+                            user_interfaces: &mut self.user_interfaces,
+                            script_index: node_task_handler.script_index,
+                            input_state: &self.input_state,
+                        };
+                        try_enqueue_plugin_error(
+                            "handle_async_tasks",
+                            (node_task_handler.closure)(payload, script.deref_mut(), &mut ctx),
+                            &mut self.error_queue,
+                        );
+
                         if let Ok(node) =
                             scene.graph.try_get_node_mut(node_task_handler.node_handle)
+                            && let Some(entry) =
+                                node.scripts.get_mut(node_task_handler.script_index)
                         {
-                            if let Some(mut script) = node
-                                .scripts
-                                .get_mut(node_task_handler.script_index)
-                                .and_then(|e| e.script.take())
-                            {
-                                let mut ctx = ScriptContext {
-                                    dt,
-                                    elapsed_time: self.elapsed_time,
-                                    plugins: PluginsRefMut(&mut self.plugins),
-                                    handle: node_task_handler.node_handle,
-                                    scene,
-                                    scene_handle: scripted_scene.handle,
-                                    resource_manager: &self.resource_manager,
-                                    message_sender: &scripted_scene.message_sender,
-                                    message_dispatcher: &mut scripted_scene.message_dispatcher,
-                                    task_pool: &mut self.task_pool,
-                                    graphics_context: &mut self.graphics_context,
-                                    user_interfaces: &mut self.user_interfaces,
-                                    script_index: node_task_handler.script_index,
-                                    input_state: &self.input_state,
-                                };
-                                try_enqueue_plugin_error(
-                                    "handle_async_tasks",
-                                    (node_task_handler.closure)(
-                                        payload,
-                                        script.deref_mut(),
-                                        &mut ctx,
-                                    ),
-                                    &mut self.error_queue,
-                                );
-
-                                if let Ok(node) =
-                                    scene.graph.try_get_node_mut(node_task_handler.node_handle)
-                                {
-                                    if let Some(entry) =
-                                        node.scripts.get_mut(node_task_handler.script_index)
-                                    {
-                                        if entry.should_be_deleted {
-                                            Log::verify(scene.graph.script_message_sender.send(
-                                                NodeScriptMessage::DestroyScript {
-                                                    script,
-                                                    handle: node_task_handler.node_handle,
-                                                    script_index: node_task_handler.script_index,
-                                                },
-                                            ));
-                                        } else {
-                                            entry.script = Some(script);
-                                        }
-                                    }
-                                }
+                            if entry.should_be_deleted {
+                                Log::verify(scene.graph.script_message_sender.send(
+                                    NodeScriptMessage::DestroyScript {
+                                        script,
+                                        handle: node_task_handler.node_handle,
+                                        script_index: node_task_handler.script_index,
+                                    },
+                                ));
+                            } else {
+                                entry.script = Some(script);
                             }
                         }
                     }
@@ -2337,24 +2328,24 @@ impl Engine {
     /// You should only call this manually if you don't use that method.
     pub fn handle_model_events(&mut self) {
         while let Ok(event) = self.model_events_receiver.try_recv() {
-            if let ResourceEvent::Reloaded(resource) = event {
-                if let Some(model) = resource.try_cast::<Model>() {
-                    Log::info(format!(
-                        "A model resource {} was reloaded, propagating changes...",
-                        model.resource_uuid()
-                    ));
+            if let ResourceEvent::Reloaded(resource) = event
+                && let Some(model) = resource.try_cast::<Model>()
+            {
+                Log::info(format!(
+                    "A model resource {} was reloaded, propagating changes...",
+                    model.resource_uuid()
+                ));
 
-                    // Build resource dependency graph and resolve it first.
-                    ResourceDependencyGraph::new(model, self.resource_manager.clone()).resolve();
+                // Build resource dependency graph and resolve it first.
+                ResourceDependencyGraph::new(model, self.resource_manager.clone()).resolve();
 
-                    Log::info("Propagating changes to active scenes...");
+                Log::info("Propagating changes to active scenes...");
 
-                    // Resolve all scenes.
-                    // TODO: This might be inefficient if there is bunch of scenes loaded,
-                    // however this seems to be very rare case so it should be ok.
-                    for scene in self.scenes.iter_mut() {
-                        scene.resolve();
-                    }
+                // Resolve all scenes.
+                // TODO: This might be inefficient if there is bunch of scenes loaded,
+                // however this seems to be very rare case so it should be ok.
+                for scene in self.scenes.iter_mut() {
+                    scene.resolve();
                 }
             }
         }
@@ -2596,15 +2587,15 @@ impl Engine {
         for resource in rm_state.resources().iter() {
             if let Some(model) = resource.try_cast::<Model>() {
                 let mut model_state = model.state();
-                if let Some(data) = model_state.data() {
-                    if let Some(scene_state) = hotreload::SceneState::try_create_from_plugin(
+                if let Some(data) = model_state.data()
+                    && let Some(scene_state) = hotreload::SceneState::try_create_from_plugin(
                         Handle::NONE,
                         &mut data.scene,
                         &self.serialization_context,
                         plugin.as_loaded_ref(),
-                    )? {
-                        prefab_scenes.push((model.clone(), scene_state));
-                    }
+                    )?
+                {
+                    prefab_scenes.push((model.clone(), scene_state));
                 }
             }
         }
@@ -2665,10 +2656,10 @@ impl Engine {
             let mut state = self.resource_manager.state();
             for resource in state.resources().iter() {
                 let data = resource.lock();
-                if let ResourceState::Ok { ref data, .. } = data.state {
-                    if data.type_info_ref().assembly_name == plugin_assembly_name {
-                        resources_to_reload.insert(resource.clone());
-                    }
+                if let ResourceState::Ok { ref data, .. } = data.state
+                    && data.type_info_ref().assembly_name == plugin_assembly_name
+                {
+                    resources_to_reload.insert(resource.clone());
                 }
             }
 
@@ -2829,12 +2820,12 @@ impl Engine {
         F: FnMut(&dyn Plugin),
     {
         for plugin_index in 0..self.plugins.len() {
-            if let PluginContainer::Dynamic(plugin) = &self.plugins[plugin_index] {
-                if plugin.is_reload_needed_now() {
-                    self.reload_plugin(plugin_index, dt, controller, lag)?;
+            if let PluginContainer::Dynamic(plugin) = &self.plugins[plugin_index]
+                && plugin.is_reload_needed_now()
+            {
+                self.reload_plugin(plugin_index, dt, controller, lag)?;
 
-                    on_reloaded(self.plugins[plugin_index].deref_mut());
-                }
+                on_reloaded(self.plugins[plugin_index].deref_mut());
             }
         }
 
@@ -2891,9 +2882,9 @@ mod test {
     use crate::{
         asset::manager::ResourceManager,
         core::{pool::Handle, reflect::prelude::*, task::TaskPool, visitor::prelude::*},
-        engine::{task::TaskPoolHandler, GraphicsContext, ScriptProcessor},
+        engine::{GraphicsContext, ScriptProcessor, task::TaskPoolHandler},
         graph::SceneGraph,
-        scene::{base::BaseBuilder, node::Node, pivot::PivotBuilder, Scene, SceneContainer},
+        scene::{Scene, SceneContainer, base::BaseBuilder, node::Node, pivot::PivotBuilder},
         script::{
             ScriptContext, ScriptDeinitContext, ScriptMessageContext, ScriptMessagePayload,
             ScriptTrait,
@@ -2903,8 +2894,8 @@ mod test {
     use fyrox_ui::UiContainer;
     use std::cell::Cell;
     use std::sync::{
-        mpsc::{self, Sender, TryRecvError},
         Arc,
+        mpsc::{self, Sender, TryRecvError},
     };
 
     #[derive(PartialEq, Eq, Copy, Clone, Debug)]

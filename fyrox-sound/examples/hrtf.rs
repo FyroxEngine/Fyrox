@@ -30,7 +30,7 @@ use fyrox_sound::{
     engine::SoundEngine,
     futures::executor::block_on,
     hrtf::HrirSphere,
-    renderer::{hrtf::HrtfRenderer, Renderer},
+    renderer::{Renderer, hrtf::HrtfRenderer},
     source::{SoundSourceBuilder, Status},
 };
 use std::path::PathBuf;

@@ -30,15 +30,15 @@ pub mod prelude {
 
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_core::{
+    NameProvider,
     log::{Log, MessageKind},
     ok_or_return,
     pool::{Handle, ObjectOrVariant, PoolError},
-    reflect::{prelude::*, ReflectHandle},
+    reflect::{ReflectHandle, prelude::*},
     uuid::Uuid,
     variable::{self, InheritableVariable},
-    NameProvider,
 };
-use fyrox_resource::{untyped::UntypedResource, Resource, TypedResourceData};
+use fyrox_resource::{Resource, TypedResourceData, untyped::UntypedResource};
 use std::{
     any::TypeId,
     cmp::Ordering,
@@ -580,31 +580,29 @@ pub trait NodeWrapper: Reflect + NameProvider + Clone {
                 });
 
             // Try to apply it to the child.
-            if need_revert {
-                if let Some(parent_value) = parent_value {
-                    let mut was_set = false;
+            if need_revert && let Some(parent_value) = parent_value {
+                let mut was_set = false;
 
-                    let mut parent_value = Some(parent_value);
+                let mut parent_value = Some(parent_value);
 
-                    self.inner_mut().set_field_by_path(
-                        path,
-                        parent_value.take().unwrap(),
-                        &mut |result| match result {
-                            Ok(old_value) => {
-                                previous_value = Some(old_value);
+                self.inner_mut().set_field_by_path(
+                    path,
+                    parent_value.take().unwrap(),
+                    &mut |result| match result {
+                        Ok(old_value) => {
+                            previous_value = Some(old_value);
 
-                                was_set = true;
-                            }
-                            Err(_) => Log::err(format!(
-                                "Failed to revert property {path}. Reason: no such property!"
-                            )),
-                        },
-                    );
+                            was_set = true;
+                        }
+                        Err(_) => Log::err(format!(
+                            "Failed to revert property {path}. Reason: no such property!"
+                        )),
+                    },
+                );
 
-                    if was_set {
-                        // Reset modified flag.
-                        reset_property_modified_flag(self.inner_mut(), path);
-                    }
+                if was_set {
+                    // Reset modified flag.
+                    reset_property_modified_flag(self.inner_mut(), path);
                 }
             }
         }
@@ -1506,15 +1504,14 @@ pub trait SceneGraph: 'static {
         for (node_handle, node) in self.pair_iter() {
             (node as &dyn Reflect).apply_recursively(
                 &mut |object| {
-                    if let Some(handle) = object.as_handle() {
-                        if handle.reflect_as_erased() == target.into()
-                            && handle
-                                .type_info_ref()
-                                .derived_types
-                                .contains(&TypeId::of::<Self::NodeWrapper>())
-                        {
-                            references.push(node_handle);
-                        }
+                    if let Some(handle) = object.as_handle()
+                        && handle.reflect_as_erased() == target.into()
+                        && handle
+                            .type_info_ref()
+                            .derived_types
+                            .contains(&TypeId::of::<Self::NodeWrapper>())
+                    {
+                        references.push(node_handle);
                     }
                 },
                 &[TypeId::of::<UntypedResource>()],
@@ -1741,13 +1738,12 @@ mod test {
     use fyrox_core::pool::{ObjectOrVariant, ObjectOrVariantHelper, PoolError};
     use fyrox_core::uuid::Uuid;
     use fyrox_core::{
-        define_as_any_trait,
+        NameProvider, define_as_any_trait,
         pool::{Handle, PayloadContainer, Pool},
         reflect::prelude::*,
         visitor::prelude::*,
-        NameProvider,
     };
-    use fyrox_resource::{untyped::UntypedResource, Resource, ResourceData};
+    use fyrox_resource::{Resource, ResourceData, untyped::UntypedResource};
     use std::marker::PhantomData;
     use std::{
         any::{Any, TypeId},
@@ -2107,10 +2103,10 @@ mod test {
             let parent_handle =
                 std::mem::replace(&mut self.nodes[node_handle].parent, Handle::NONE);
 
-            if let Ok(parent) = self.nodes.try_borrow_mut(parent_handle) {
-                if let Some(i) = parent.children().iter().position(|h| *h == node_handle) {
-                    parent.children.remove(i);
-                }
+            if let Ok(parent) = self.nodes.try_borrow_mut(parent_handle)
+                && let Some(i) = parent.children().iter().position(|h| *h == node_handle)
+            {
+                parent.children.remove(i);
             }
         }
 

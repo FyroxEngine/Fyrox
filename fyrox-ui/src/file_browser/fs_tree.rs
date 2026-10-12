@@ -20,6 +20,7 @@
 
 use crate::file_browser::PathFilter;
 use crate::{
+    BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
     core::{err, pool::Handle},
     grid::{Column, GridBuilder, Row},
     image::ImageBuilder,
@@ -27,7 +28,6 @@ use crate::{
     text::TextBuilder,
     tree::{Tree, TreeBuilder, TreeMessage, TreeRoot, TreeRootMessage},
     widget::WidgetBuilder,
-    BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox_core::pool::ObjectOrVariant;
 use fyrox_graph::SceneGraph;
@@ -206,7 +206,7 @@ pub(super) fn sanitize_path(path: &Path) -> std::io::Result<PathBuf> {
                 Prefix::VerbatimUNC(_, _) | Prefix::UNC(_, _) => {
                     return Err(std::io::Error::other(
                         "paths with UNC prefix aren't supported!",
-                    ))
+                    ));
                 }
                 Prefix::VerbatimDisk(letter) | Prefix::Disk(letter) => {
                     sanitized_path.push(format!("{}:", char::from(letter)))
@@ -214,7 +214,7 @@ pub(super) fn sanitize_path(path: &Path) -> std::io::Result<PathBuf> {
                 Prefix::DeviceNS(_) => {
                     return Err(std::io::Error::other(
                         "paths with device prefix aren't supported!",
-                    ))
+                    ));
                 }
             }
         } else {
@@ -333,12 +333,11 @@ impl RootsCollection {
     ) -> Self {
         if root.is_none() {
             fn disk_letter(components: &[Component]) -> Option<u8> {
-                if let Some(Component::Prefix(prefix)) = components.first() {
-                    if let Prefix::Disk(disk_letter) | Prefix::VerbatimDisk(disk_letter) =
+                if let Some(Component::Prefix(prefix)) = components.first()
+                    && let Prefix::Disk(disk_letter) | Prefix::VerbatimDisk(disk_letter) =
                         prefix.kind()
-                    {
-                        return Some(disk_letter);
-                    }
+                {
+                    return Some(disk_letter);
                 }
                 None
             }
@@ -463,12 +462,11 @@ impl FsTree {
 
             let next_component = dest_path_components.get(i + 1);
 
-            if let Some(next_component) = next_component {
-                if matches!(component, Component::Prefix(_))
-                    && matches!(next_component, Component::RootDir)
-                {
-                    continue;
-                }
+            if let Some(next_component) = next_component
+                && matches!(component, Component::Prefix(_))
+                && matches!(next_component, Component::RootDir)
+            {
+                continue;
             }
 
             let next = next_component.map(|p| full_path.join(p));

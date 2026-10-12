@@ -20,18 +20,18 @@
 
 //! A module for untyped resources. See [`UntypedResource`] docs for more info.
 
-use crate::state::ResourceDataWrapper;
 use crate::ResourceHeaderGuard;
+use crate::state::ResourceDataWrapper;
 use crate::{
+    Resource, ResourceData, ResourceLoadError, TypedResourceData,
     core::{parking_lot::Mutex, reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
     manager::ResourceManager,
     state::{LoadError, ResourceState},
-    Resource, ResourceData, ResourceLoadError, TypedResourceData,
 };
 use fxhash::FxHasher64;
+use fyrox_core::SafeLock;
 use fyrox_core::log::Log;
 use fyrox_core::parking_lot::MutexGuard;
-use fyrox_core::SafeLock;
 use serde::{Deserialize, Serialize};
 use std::fmt::Write;
 use std::{
@@ -377,15 +377,15 @@ impl UntypedResource {
         } else if visitor.has_region("Embedded") {
             self.0.visit("Embedded", visitor)?;
             self.lock().uuid = resource_uuid;
-            if let (Some(expected), Some(actual)) = (type_uuid, self.lock().type_uuid()) {
-                if expected != actual {
-                    return Err(format!(
-                        "Unable to deserialize untyped resource into its typed \
+            if let (Some(expected), Some(actual)) = (type_uuid, self.lock().type_uuid())
+                && expected != actual
+            {
+                return Err(format!(
+                    "Unable to deserialize untyped resource into its typed \
                     version, because types do not match! Untyped resource has \
                     {actual} type, but the required type is {expected}.",
-                    )
-                    .into());
-                }
+                )
+                .into());
             }
             Ok(())
         } else {

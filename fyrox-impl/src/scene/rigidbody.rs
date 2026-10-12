@@ -37,22 +37,22 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         pool::Handle,
         reflect::prelude::*,
-        uuid::{uuid, Uuid},
+        uuid::{Uuid, uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
     },
     scene::{
+        Scene,
         base::{Base, BaseBuilder},
         collider::Collider,
         graph::Graph,
         node::{Node, NodeTrait, SyncContext, UpdateContext},
-        Scene,
     },
 };
 
 use crate::utils::ThreadSafeQueue;
-use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::SceneGraph;
+use fyrox_graph::constructor::ConstructorProvider;
 use rapier3d::{dynamics, prelude::RigidBodyHandle};
 use std::{
     cell::Cell,
@@ -666,7 +666,7 @@ impl NodeTrait for RigidBody {
                             "The 3D rigid body is marked as dynamic, but uses the collider \
                         that cannot be dynamic. Consider making the rigid body static."
                                 .to_string(),
-                        )
+                        );
                     }
                     _ => (),
                 }

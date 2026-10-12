@@ -25,6 +25,8 @@
 #![warn(missing_docs)]
 
 use crate::{
+    BuildContext, Control, HorizontalAlignment, Orientation, RestrictionEntry, Thickness, UiNode,
+    UserInterface,
     button::{ButtonBuilder, ButtonMessage},
     control_trait_proxy_impls,
     core::{algebra::Vector2, pool::Handle, reflect::prelude::*, visitor::prelude::*},
@@ -35,8 +37,6 @@ use crate::{
     text::{TextBuilder, TextMessage},
     widget::{Widget, WidgetBuilder},
     window::{Window, WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, Control, HorizontalAlignment, Orientation, RestrictionEntry, Thickness, UiNode,
-    UserInterface,
 };
 
 use crate::button::Button;

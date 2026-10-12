@@ -22,13 +22,13 @@ use crate::{
     core::{algebra::Vector2, math::Rect, sstorage::ImmutableString},
     graphics::{error::FrameworkError, framebuffer::GpuFrameBuffer, gpu_texture::GpuTexture},
     renderer::{
+        RenderPassStatistics,
         cache::{
-            shader::{binding, property, PropertyGroup, RenderMaterial},
+            shader::{PropertyGroup, RenderMaterial, binding, property},
             uniform::UniformBufferCache,
         },
         make_viewport_matrix,
         resources::RendererResources,
-        RenderPassStatistics,
     },
 };
 use fyrox_graphics::server::GraphicsServer;

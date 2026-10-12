@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    Editor,
     command::{Command, CommandGroup},
     fyrox::{
         core::{
@@ -31,11 +32,12 @@ use crate::{
         },
         graph::SceneGraph,
         gui::{
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
             button::{ButtonBuilder, ButtonMessage},
             grid::{Column, GridBuilder, Row},
             inspector::{
-                editors::PropertyEditorDefinitionContainer, Inspector, InspectorBuilder,
-                InspectorContext, InspectorContextArgs, InspectorMessage, PropertyAction,
+                Inspector, InspectorBuilder, InspectorContext, InspectorContextArgs,
+                InspectorMessage, PropertyAction, editors::PropertyEditorDefinitionContainer,
             },
             menu::MenuItemMessage,
             message::UiMessage,
@@ -44,7 +46,6 @@ use crate::{
             utils::make_simple_tooltip,
             widget::WidgetBuilder,
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
         },
         scene::{
             base::BaseBuilder,
@@ -61,11 +62,10 @@ use crate::{
     message::MessageSender,
     plugin::EditorPlugin,
     scene::{
-        commands::{graph::AddModelCommand, ChangeSelectionCommand},
         GameScene, Selection,
+        commands::{ChangeSelectionCommand, graph::AddModelCommand},
     },
     world::selection::GraphSelection,
-    Editor,
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::menu::MenuItem;
@@ -1261,10 +1261,10 @@ impl EditorPlugin for RagdollPlugin {
     }
 
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
-        if let Some(MenuItemMessage::Click) = message.data() {
-            if message.destination() == self.open_ragdoll_wizard {
-                self.on_open_ragdoll_wizard_clicked(editor)
-            }
+        if let Some(MenuItemMessage::Click) = message.data()
+            && message.destination() == self.open_ragdoll_wizard
+        {
+            self.on_open_ragdoll_wizard_clicked(editor)
         }
 
         let ui = editor.engine.user_interfaces.first_mut();

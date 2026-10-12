@@ -26,7 +26,7 @@ use crate::{
     core::{
         algebra::{Vector2, Vector3, Vector4},
         math::curve::Curve,
-        math::{quat_from_euler, RotationOrder},
+        math::{RotationOrder, quat_from_euler},
         reflect::prelude::*,
         visitor::prelude::*,
     },

@@ -28,8 +28,8 @@ use crate::{
         document::{FbxNode, FbxNodeContainer},
         error::FbxError,
         scene::{
-            self, attributes_to_vec3_array, FbxBlendShapeChannel, FbxComponent, FbxLayerElement,
-            FbxScene,
+            self, FbxBlendShapeChannel, FbxComponent, FbxLayerElement, FbxScene,
+            attributes_to_vec3_array,
         },
     },
     scene::mesh::surface::{VertexWeight, VertexWeightSet},

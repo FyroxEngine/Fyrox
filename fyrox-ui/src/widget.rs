@@ -25,24 +25,24 @@
 
 use crate::draw::RenderData;
 use crate::{
+    BuildContext, HorizontalAlignment, LayoutEvent, LayoutEventsSender, MouseButton, MouseState,
+    RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
     brush::Brush,
     core::{
+        ImmutableString, SafeLock,
         algebra::{Matrix3, Point2, Vector2},
         math::Rect,
         pool::Handle,
         reflect::prelude::*,
         uuid::Uuid,
         visitor::prelude::*,
-        ImmutableString, SafeLock,
     },
     core::{parking_lot::Mutex, variable::InheritableVariable},
     message::{CursorIcon, Force, KeyCode, MessageData, UiMessage},
     style::{
+        DEFAULT_STYLE, Style, StyledProperty,
         resource::{StyleResource, StyleResourceExt},
-        Style, StyledProperty, DEFAULT_STYLE,
     },
-    BuildContext, HorizontalAlignment, LayoutEvent, LayoutEventsSender, MouseButton, MouseState,
-    RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox_core::parking_lot::{MappedMutexGuard, MutexGuard};
 use fyrox_core::pool::ObjectOrVariant;

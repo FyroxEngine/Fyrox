@@ -21,15 +21,18 @@
 use fyrox::core::log::Log;
 
 use crate::{
+    Message,
     asset::open_in_explorer,
     fyrox::{
-        asset::{manager::ResourceManager, untyped::UntypedResource, Resource, TypedResourceData},
+        asset::{Resource, TypedResourceData, manager::ResourceManager, untyped::UntypedResource},
         core::{
             algebra::Vector2, color::Color, futures::executor::block_on, make_relative_path,
             pool::Handle, reflect::prelude::*, visitor::prelude::*,
         },
         graph::SceneGraph,
         gui::{
+            BuildContext, Control, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode,
+            UserInterface, VerticalAlignment,
             border::BorderBuilder,
             brush::Brush,
             draw::{CommandTexture, Draw, DrawingContext},
@@ -37,18 +40,15 @@ use crate::{
             grid::{Column, GridBuilder, Row},
             image::{ImageBuilder, ImageMessage},
             message::{MouseButton, UiMessage},
-            style::{resource::StyleResourceExt, Style},
+            style::{Style, resource::StyleResourceExt},
             text::TextBuilder,
             widget::{Widget, WidgetBuilder, WidgetMessage},
-            BuildContext, Control, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode,
-            UserInterface, VerticalAlignment,
         },
         material::Material,
         resource::texture::TextureResource,
         scene::tilemap::{brush::TileMapBrush, tileset::TileSet},
     },
     message::MessageSender,
-    Message,
 };
 use fyrox::core::ok_or_return;
 use fyrox::gui::border::Border;
@@ -156,10 +156,10 @@ impl AssetItem {
         {
             sender.send(Message::LoadScene(self.path.clone()));
         } else if self.path.extension().is_some_and(|ext| ext == "material") {
-            if let Ok(path) = make_relative_path(&self.path) {
-                if let Ok(material) = block_on(resource_manager.request::<Material>(path)) {
-                    sender.send(Message::OpenMaterialEditor(material));
-                }
+            if let Ok(path) = make_relative_path(&self.path)
+                && let Ok(material) = block_on(resource_manager.request::<Material>(path))
+            {
+                sender.send(Message::OpenMaterialEditor(material));
             }
         } else if self.path.extension().is_some_and(|ext| ext == "tileset") {
             if let Ok(path) = make_relative_path(&self.path) {

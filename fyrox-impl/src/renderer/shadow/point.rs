@@ -32,17 +32,17 @@ use crate::{
         server::GraphicsServer,
     },
     renderer::{
+        GeometryCache, POINT_SHADOW_PASS_NAME, RenderPassStatistics,
         bundle::{BundleRenderContext, RenderDataBundleStorage, RenderDataBundleStorageOptions},
         cache::{
-            shader::ShaderCache, texture::TextureCache, uniform::UniformMemoryAllocator,
-            DynamicSurfaceCache,
+            DynamicSurfaceCache, shader::ShaderCache, texture::TextureCache,
+            uniform::UniformMemoryAllocator,
         },
         observer::ObserverPosition,
         resources::RendererResources,
         settings::ShadowMapPrecision,
         shadow::cascade_size,
         utils::CubeMapFaceDescriptor,
-        GeometryCache, RenderPassStatistics, POINT_SHADOW_PASS_NAME,
     },
     scene::{collider::BitMask, graph::Graph},
 };

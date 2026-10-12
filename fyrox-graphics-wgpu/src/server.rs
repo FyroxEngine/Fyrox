@@ -26,7 +26,7 @@ use crate::program::{WgpuProgram, WgpuShader};
 use crate::query::WgpuQuery;
 use crate::read_buffer::WgpuAsyncReadBuffer;
 use crate::sampler::WgpuSampler;
-use crate::texture::{texture_size, WgpuTexture};
+use crate::texture::{WgpuTexture, texture_size};
 use fyrox_core::futures::executor::block_on;
 use fyrox_core::log::Log;
 use fyrox_core::math::Rect;

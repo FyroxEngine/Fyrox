@@ -23,7 +23,7 @@ use crate::command::{Command, CommandContext, CommandGroup, CommandTrait};
 use fyrox::gui::check_box::CheckBox;
 use fyrox::gui::dropdown_list::DropdownList;
 use fyrox::{
-    asset::{untyped::UntypedResource, Resource, ResourceData},
+    asset::{Resource, ResourceData, untyped::UntypedResource},
     autotile::{ConstraintFillRules, NeededTerrain, TerrainSource},
     core::{log::MessageKind, swap_hash_map_entry},
     fxhash::FxHashMap,
@@ -35,23 +35,27 @@ use fyrox::{
     },
     rand::thread_rng,
     scene::tilemap::{
+        MacroTilesUpdate, TileSetAutoTileConstraint, TileSetAutoTileContext, TileSetAutoTiler,
+        TileSetConstraintMap, TileSetPatternSource, TileTerrainId,
         brush::TileMapBrushResource,
         tileset::{
             TileSetPropertyF32, TileSetPropertyId, TileSetPropertyNine, TileSetPropertyType,
             TileSetPropertyValueElement,
         },
-        MacroTilesUpdate, TileSetAutoTileConstraint, TileSetAutoTileContext, TileSetAutoTiler,
-        TileSetConstraintMap, TileSetPatternSource, TileTerrainId,
     },
 };
 
-const PATTERN_PROP_DESC: &str = concat!("Choose a nine-slice property from the tile set. ",
+const PATTERN_PROP_DESC: &str = concat!(
+    "Choose a nine-slice property from the tile set. ",
     "This property will provide the pattern that the autotiler uses to know whether two tiles match along each edge. ",
-    "The central value of the nine is used to determine which tiles are permited in particular cell and how tiles are prioritized.");
+    "The central value of the nine is used to determine which tiles are permited in particular cell and how tiles are prioritized."
+);
 
-const FREQUENCY_PROP_DESC: &str = concat!("Choose a float property from the tile set. ",
+const FREQUENCY_PROP_DESC: &str = concat!(
+    "Choose a float property from the tile set. ",
     "This property will provide the frequency that the autotiler uses to know know often to choose a tile when there is more than one ",
-    "tile with the same pattern.");
+    "tile with the same pattern."
+);
 
 const PROPERTY_LABEL_WIDTH: f32 = 150.0;
 
@@ -238,16 +242,15 @@ impl BrushMacro for AutoTileMacro {
                 });
             }
         } else {
-            if let Some(DropdownListMessage::Selection(Some(index))) = message.data() {
-                if message.destination() == self.failure_log_list
-                    && message.direction() == MessageDirection::FromWidget
-                {
-                    editor.message_sender.do_command(SetFailureKindCommand {
-                        brush: context.brush.clone(),
-                        instance: context.settings().unwrap(),
-                        data: index_to_log_kind(*index),
-                    });
-                }
+            if let Some(DropdownListMessage::Selection(Some(index))) = message.data()
+                && message.destination() == self.failure_log_list
+                && message.direction() == MessageDirection::FromWidget
+            {
+                editor.message_sender.do_command(SetFailureKindCommand {
+                    brush: context.brush.clone(),
+                    instance: context.settings().unwrap(),
+                    data: index_to_log_kind(*index),
+                });
             }
             self.pattern_list
                 .on_ui_message(&tile_set.data_ref(), message, ui);

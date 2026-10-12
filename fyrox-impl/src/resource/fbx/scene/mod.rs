@@ -25,7 +25,7 @@ use crate::{
         pool::{Handle, Pool},
     },
     resource::fbx::{
-        document::{attribute::FbxAttribute, FbxDocument, FbxNode, FbxNodeContainer},
+        document::{FbxDocument, FbxNode, FbxNodeContainer, attribute::FbxAttribute},
         error::FbxError,
         fix_index,
         scene::{
@@ -161,12 +161,11 @@ impl FbxScene {
                 Ok(attrib) => attrib.as_string(),
                 Err(_) => String::from(""),
             };
-            if let Some(parent_handle) = index_to_component.get(&parent_index) {
-                if let Some(child_handle) = index_to_component.get(&child_index) {
-                    let (child, parent) =
-                        components.borrow_two_mut((*child_handle, *parent_handle));
-                    link_child_with_parent_component(parent, child, *child_handle, property);
-                }
+            if let Some(parent_handle) = index_to_component.get(&parent_index)
+                && let Some(child_handle) = index_to_component.get(&child_index)
+            {
+                let (child, parent) = components.borrow_two_mut((*child_handle, *parent_handle));
+                link_child_with_parent_component(parent, child, *child_handle, property);
             }
         }
 

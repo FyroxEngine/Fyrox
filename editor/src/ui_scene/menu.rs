@@ -19,32 +19,32 @@
 // SOFTWARE.
 
 use crate::{
+    Engine, Message,
     fyrox::{
         asset::manager::ResourceManager,
         core::{
             pool::Handle,
-            uuid::{uuid, Uuid},
+            uuid::{Uuid, uuid},
         },
         graph::{NodeWrapper, SceneGraph},
         gui::{
-            menu::{make_menu_splitter, ContextMenuBuilder, MenuItem, MenuItemMessage},
+            BuildContext, RcUiNodeHandle, UiNode,
+            menu::{ContextMenuBuilder, MenuItem, MenuItemMessage, make_menu_splitter},
             message::UiMessage,
             popup::{Placement, PopupBuilder, PopupMessage},
             stack_panel::StackPanelBuilder,
             widget::{WidgetBuilder, WidgetMessage},
-            BuildContext, RcUiNodeHandle, UiNode,
         },
     },
     menu::{create_menu_item, create_menu_item_shortcut},
     message::MessageSender,
-    scene::{controller::SceneController, Selection},
+    scene::{Selection, controller::SceneController},
     ui_scene::{
-        commands::graph::{PasteWidgetCommand, SetUiRootCommand},
         UiScene,
+        commands::graph::{PasteWidgetCommand, SetUiRootCommand},
     },
     utils,
-    world::{create::EntityCreatorMode, WorldViewerItemContextMenu},
-    Engine, Message,
+    world::{WorldViewerItemContextMenu, create::EntityCreatorMode},
 };
 use std::path::PathBuf;
 
@@ -70,17 +70,15 @@ fn resource_path_of_first_selected_node(
     ui_scene: &UiScene,
     resource_manager: &ResourceManager,
 ) -> Option<PathBuf> {
-    if let Some(ui_selection) = editor_selection.as_ui() {
-        if let Some(first) = ui_selection.widgets.first() {
-            if let Some(resource) = ui_scene
-                .ui
-                .try_get_node(*first)
-                .ok()
-                .and_then(|n| n.resource())
-            {
-                return resource_manager.resource_path(resource.as_ref());
-            }
-        }
+    if let Some(ui_selection) = editor_selection.as_ui()
+        && let Some(first) = ui_selection.widgets.first()
+        && let Some(resource) = ui_scene
+            .ui
+            .try_get_node(*first)
+            .ok()
+            .and_then(|n| n.resource())
+    {
+        return resource_manager.resource_path(resource.as_ref());
     }
     None
 }
@@ -202,46 +200,43 @@ impl WidgetContextMenu {
                             .fill_from_selection(ui_selection, &ui_scene.ui);
                     }
                 } else if message.destination() == self.paste {
-                    if let Some(ui_selection) = editor_selection.as_ui() {
-                        if let Some(first) = ui_selection.widgets.first() {
-                            if !ui_scene.clipboard.is_empty() {
-                                sender.do_command(PasteWidgetCommand::new(*first));
-                            }
-                        }
+                    if let Some(ui_selection) = editor_selection.as_ui()
+                        && let Some(first) = ui_selection.widgets.first()
+                        && !ui_scene.clipboard.is_empty()
+                    {
+                        sender.do_command(PasteWidgetCommand::new(*first));
                     }
                 } else if message.destination() == self.make_root {
-                    if let Some(selection) = editor_selection.as_ui() {
-                        if let Some(first) = selection.widgets.first() {
-                            sender.do_command(SetUiRootCommand {
-                                root: *first,
-                                link_scheme: Default::default(),
-                            });
-                        }
+                    if let Some(selection) = editor_selection.as_ui()
+                        && let Some(first) = selection.widgets.first()
+                    {
+                        sender.do_command(SetUiRootCommand {
+                            root: *first,
+                            link_scheme: Default::default(),
+                        });
                     }
                 } else if message.destination() == self.open_asset {
                     if let Some(path) = resource_path_of_first_selected_node(
                         editor_selection,
                         ui_scene,
                         &engine.resource_manager,
-                    ) {
-                        if utils::is_native_scene(&path) {
-                            sender.send(Message::LoadScene(path));
-                        }
+                    ) && utils::is_native_scene(&path)
+                    {
+                        sender.send(Message::LoadScene(path));
                     }
                 } else if message.destination() == self.create_child {
                     sender.send(Message::OpenEntityCreator(EntityCreatorMode::CreateChild));
                 }
             } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data()
+                && message.destination() == self.menu.handle()
             {
-                if message.destination() == self.menu.handle() {
-                    self.placement_target = *target;
+                self.placement_target = *target;
 
-                    // Check if there's something to paste and deactivate "Paste" if nothing.
-                    engine.user_interfaces.first_mut().send(
-                        self.paste,
-                        WidgetMessage::Enabled(!ui_scene.clipboard.is_empty()),
-                    );
-                }
+                // Check if there's something to paste and deactivate "Paste" if nothing.
+                engine.user_interfaces.first_mut().send(
+                    self.paste,
+                    WidgetMessage::Enabled(!ui_scene.clipboard.is_empty()),
+                );
             }
         }
     }

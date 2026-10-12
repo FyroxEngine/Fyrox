@@ -19,18 +19,18 @@
 // SOFTWARE.
 
 use crate::{
+    Thickness, VerticalAlignment,
     core::uuid::Uuid,
     inspector::{
+        FieldAction, InspectorError, PropertyChanged,
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldAction, InspectorError, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
     uuid::{UuidEditorBuilder, UuidEditorMessage},
     widget::WidgetBuilder,
-    Thickness, VerticalAlignment,
 };
 use std::any::TypeId;
 
@@ -70,14 +70,14 @@ impl PropertyEditorDefinition for UuidPropertyEditorDefinition {
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(UuidEditorMessage::Value(value)) = ctx.message.data() {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(UuidEditorMessage::Value(value)) = ctx.message.data()
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
 
-                    action: FieldAction::object(*value),
-                });
-            }
+                action: FieldAction::object(*value),
+            });
         }
         None
     }

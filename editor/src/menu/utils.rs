@@ -21,12 +21,12 @@
 use crate::{
     fyrox::{
         asset::core::pool::Handle,
-        gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UserInterface},
+        gui::{BuildContext, UserInterface, menu::MenuItemMessage, message::UiMessage},
     },
-    menu::{create_menu_item, create_root_menu_item, Panels},
+    menu::{Panels, create_menu_item, create_root_menu_item},
     stats::StatisticsWindow,
 };
-use fyrox::core::uuid::{uuid, Uuid};
+use fyrox::core::uuid::{Uuid, uuid};
 use fyrox::gui::menu::MenuItem;
 
 pub struct UtilsMenu {
@@ -67,13 +67,13 @@ impl UtilsMenu {
         panels: &mut Panels,
         ui: &mut UserInterface,
     ) {
-        if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
-            if message.destination() == self.rendering_statistics {
-                *panels.statistics_window = Some(StatisticsWindow::new(
-                    &mut ui.build_ctx(),
-                    panels.scene_frame,
-                ))
-            }
+        if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>()
+            && message.destination() == self.rendering_statistics
+        {
+            *panels.statistics_window = Some(StatisticsWindow::new(
+                &mut ui.build_ctx(),
+                panels.scene_frame,
+            ))
         }
     }
 }

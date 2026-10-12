@@ -19,8 +19,8 @@
 // SOFTWARE.
 
 use crate::{
-    server::{GlGraphicsServer, GlKind},
     ToGlConstant,
+    server::{GlGraphicsServer, GlKind},
 };
 use fyrox_graphics::gpu_program::GpuShader;
 use fyrox_graphics::{
@@ -550,7 +550,7 @@ impl Drop for GlProgram {
 
 #[cfg(test)]
 mod test {
-    use crate::program::{patch_error_message, Vendor};
+    use crate::program::{Vendor, patch_error_message};
 
     #[test]
     fn test_line_correction() {

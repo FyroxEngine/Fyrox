@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    Editor, Message,
     fyrox::{
         core::{
             pool::{ErasedHandle, Handle},
@@ -29,14 +30,15 @@ use crate::{
         engine::ApplicationLoopController,
         fxhash::FxHashSet,
         generic_animation::{
-            machine::{
-                event::Event, node::blendspace::BlendSpacePoint, BlendPose, IndexedBlendInput,
-                Machine, PoseNode, State,
-            },
             AnimationContainer,
+            machine::{
+                BlendPose, IndexedBlendInput, Machine, PoseNode, State, event::Event,
+                node::blendspace::BlendSpacePoint,
+            },
         },
         graph::{NodeWrapper, PrefabData, SceneGraph},
         gui::{
+            BuildContext, UserInterface,
             check_box::CheckBoxMessage,
             dock::{
                 DockingManager, DockingManagerBuilder, DockingManagerMessage, TileBuilder,
@@ -48,7 +50,6 @@ use crate::{
             message::UiMessage,
             widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, UserInterface,
         },
     },
     menu::create_menu_item,
@@ -66,11 +67,10 @@ use crate::{
     },
     scene::{GameScene, Selection},
     ui_scene::UiScene,
-    Editor, Message,
 };
 use fyrox::core::err;
 use fyrox::core::pool::ObjectOrVariantHelper;
-use fyrox::core::uuid::{uuid, Uuid};
+use fyrox::core::uuid::{Uuid, uuid};
 use fyrox::gui::UiNode;
 use fyrox::resource::model::Model;
 use fyrox::scene::graph::Graph;
@@ -479,26 +479,22 @@ impl AbsmEditor {
         if let Some(machine) = machine {
             self.parameter_panel.sync_to_model(ui, machine.parameters());
             self.toolbar.sync_to_model(machine, ui, &selection);
-            if let Some(layer_index) = selection.layer {
-                if let Some(layer) = machine.layers().get(layer_index) {
-                    self.state_graph_viewer.sync_to_model(layer, ui, &selection);
-                    self.state_viewer.sync_to_model(
-                        ui,
-                        layer,
-                        &selection,
-                        animation_container_ref::<G, N, AnimationPlayer>(
-                            graph,
-                            selection.absm_node_handle,
-                        )
-                        .map(|(_, c)| c),
-                    );
-                    self.blend_space_editor.sync_to_model(
-                        machine.parameters(),
-                        layer,
-                        &selection,
-                        ui,
-                    );
-                }
+            if let Some(layer_index) = selection.layer
+                && let Some(layer) = machine.layers().get(layer_index)
+            {
+                self.state_graph_viewer.sync_to_model(layer, ui, &selection);
+                self.state_viewer.sync_to_model(
+                    ui,
+                    layer,
+                    &selection,
+                    animation_container_ref::<G, N, AnimationPlayer>(
+                        graph,
+                        selection.absm_node_handle,
+                    )
+                    .map(|(_, c)| c),
+                );
+                self.blend_space_editor
+                    .sync_to_model(machine.parameters(), layer, &selection, ui);
             }
         } else {
             self.clear(ui);
@@ -563,20 +559,19 @@ impl AbsmEditor {
     {
         let selection = self.fetch_selection(graph, editor_selection);
 
-        if let Some(machine) = machine_container(graph, selection.absm_node_handle) {
-            if let Some(layer_index) = selection.layer {
-                if let Some(layer) = machine.layers_mut().get_mut(layer_index) {
-                    while let Some(event) = layer.pop_event() {
-                        match event {
-                            Event::ActiveStateChanged { new: state, .. } => {
-                                self.state_graph_viewer.activate_state(ui, state);
-                            }
-                            Event::ActiveTransitionChanged(transition) => {
-                                self.state_graph_viewer.activate_transition(ui, transition);
-                            }
-                            _ => (),
-                        }
+        if let Some(machine) = machine_container(graph, selection.absm_node_handle)
+            && let Some(layer_index) = selection.layer
+            && let Some(layer) = machine.layers_mut().get_mut(layer_index)
+        {
+            while let Some(event) = layer.pop_event() {
+                match event {
+                    Event::ActiveStateChanged { new: state, .. } => {
+                        self.state_graph_viewer.activate_state(ui, state);
                     }
+                    Event::ActiveTransitionChanged(transition) => {
+                        self.state_graph_viewer.activate_transition(ui, transition);
+                    }
+                    _ => (),
                 }
             }
         }
@@ -700,83 +695,74 @@ impl AbsmEditor {
             }
         }
 
-        if let Some(msg) = message.data::<AbsmNodeMessage>() {
-            if let Some(machine) = machine_container(graph, selection.absm_node_handle) {
-                match msg {
-                    AbsmNodeMessage::Enter => {
-                        if let Some(node) = ui
-                            .node(message.destination())
-                            .self_or_field_ref::<AbsmNode<State<Handle<N>>>>()
-                        {
-                            if let Some(layer_index) = selection.layer {
-                                self.state_viewer.set_state(
-                                    node.model_handle,
-                                    machine,
-                                    layer_index,
-                                    ui,
-                                );
-                                sender.send(Message::ForceSync);
-                            }
-                        }
+        if let Some(msg) = message.data::<AbsmNodeMessage>()
+            && let Some(machine) = machine_container(graph, selection.absm_node_handle)
+        {
+            match msg {
+                AbsmNodeMessage::Enter => {
+                    if let Some(node) = ui
+                        .node(message.destination())
+                        .self_or_field_ref::<AbsmNode<State<Handle<N>>>>()
+                        && let Some(layer_index) = selection.layer
+                    {
+                        self.state_viewer
+                            .set_state(node.model_handle, machine, layer_index, ui);
+                        sender.send(Message::ForceSync);
                     }
-                    AbsmNodeMessage::Edit => {
-                        if let Some(node) = ui
-                            .node(message.destination())
-                            .self_or_field_ref::<AbsmNode<PoseNode<Handle<N>>>>()
-                        {
-                            if let Some(layer_index) = selection.layer {
-                                let model_ref =
-                                    &machine.layers()[layer_index].nodes()[node.model_handle];
-
-                                if let PoseNode::BlendSpace(_) = model_ref {
-                                    self.blend_space_editor.open(ui);
-                                }
-                            }
-                        }
-                    }
-                    AbsmNodeMessage::AddInput => {
-                        if let Some(node) = ui
-                            .node(message.destination())
-                            .self_or_field_ref::<AbsmNode<PoseNode<Handle<N>>>>()
-                        {
-                            if let Some(layer_index) = selection.layer {
-                                let model_ref =
-                                    &machine.layers()[layer_index].nodes()[node.model_handle];
-
-                                match model_ref {
-                                    PoseNode::PlayAnimation(_) => {
-                                        // No input sockets
-                                    }
-                                    PoseNode::BlendAnimations(_) => {
-                                        sender.do_command(AddPoseSourceCommand::new(
-                                            selection.absm_node_handle,
-                                            node.model_handle,
-                                            layer_index,
-                                            BlendPose::default(),
-                                        ));
-                                    }
-                                    PoseNode::BlendAnimationsByIndex(_) => {
-                                        sender.do_command(AddInputCommand::new(
-                                            selection.absm_node_handle,
-                                            node.model_handle,
-                                            layer_index,
-                                            IndexedBlendInput::default(),
-                                        ));
-                                    }
-                                    PoseNode::BlendSpace(_) => {
-                                        sender.do_command(AddBlendSpacePointCommand::new(
-                                            selection.absm_node_handle,
-                                            node.model_handle,
-                                            layer_index,
-                                            BlendSpacePoint::default(),
-                                        ));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    _ => (),
                 }
+                AbsmNodeMessage::Edit => {
+                    if let Some(node) = ui
+                        .node(message.destination())
+                        .self_or_field_ref::<AbsmNode<PoseNode<Handle<N>>>>()
+                        && let Some(layer_index) = selection.layer
+                    {
+                        let model_ref = &machine.layers()[layer_index].nodes()[node.model_handle];
+
+                        if let PoseNode::BlendSpace(_) = model_ref {
+                            self.blend_space_editor.open(ui);
+                        }
+                    }
+                }
+                AbsmNodeMessage::AddInput => {
+                    if let Some(node) = ui
+                        .node(message.destination())
+                        .self_or_field_ref::<AbsmNode<PoseNode<Handle<N>>>>()
+                        && let Some(layer_index) = selection.layer
+                    {
+                        let model_ref = &machine.layers()[layer_index].nodes()[node.model_handle];
+
+                        match model_ref {
+                            PoseNode::PlayAnimation(_) => {
+                                // No input sockets
+                            }
+                            PoseNode::BlendAnimations(_) => {
+                                sender.do_command(AddPoseSourceCommand::new(
+                                    selection.absm_node_handle,
+                                    node.model_handle,
+                                    layer_index,
+                                    BlendPose::default(),
+                                ));
+                            }
+                            PoseNode::BlendAnimationsByIndex(_) => {
+                                sender.do_command(AddInputCommand::new(
+                                    selection.absm_node_handle,
+                                    node.model_handle,
+                                    layer_index,
+                                    IndexedBlendInput::default(),
+                                ));
+                            }
+                            PoseNode::BlendSpace(_) => {
+                                sender.do_command(AddBlendSpacePointCommand::new(
+                                    selection.absm_node_handle,
+                                    node.model_handle,
+                                    layer_index,
+                                    BlendSpacePoint::default(),
+                                ));
+                            }
+                        }
+                    }
+                }
+                _ => (),
             }
         }
     }
@@ -805,10 +791,10 @@ impl EditorPlugin for AbsmEditorPlugin {
     fn on_start(&mut self, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first_mut();
 
-        if let Some(layout) = editor.settings.windows.layout.as_ref() {
-            if layout.has_window(AbsmEditor::WINDOW_NAME) {
-                self.get_or_create_absm_editor(ui, editor.property_editors.clone());
-            }
+        if let Some(layout) = editor.settings.windows.layout.as_ref()
+            && layout.has_window(AbsmEditor::WINDOW_NAME)
+        {
+            self.get_or_create_absm_editor(ui, editor.property_editors.clone());
         }
 
         let ctx = &mut ui.build_ctx();
@@ -842,27 +828,27 @@ impl EditorPlugin for AbsmEditorPlugin {
     }
 
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
-        if let Some(MenuItemMessage::Click) = message.data() {
-            if message.destination() == self.open_absm_editor {
-                editor.message_sender.send(Message::OpenAbsmEditor);
-            }
+        if let Some(MenuItemMessage::Click) = message.data()
+            && message.destination() == self.open_absm_editor
+        {
+            editor.message_sender.send(Message::OpenAbsmEditor);
         }
 
         let absm_editor = some_or_return!(self.absm_editor.as_mut());
 
-        if let Some(WindowMessage::Close) = message.data() {
-            if message.destination() == absm_editor.window {
-                self.on_leave_preview_mode(editor);
+        if let Some(WindowMessage::Close) = message.data()
+            && message.destination() == absm_editor.window
+        {
+            self.on_leave_preview_mode(editor);
 
-                let absm_editor = some_or_return!(self.absm_editor.take());
+            let absm_editor = some_or_return!(self.absm_editor.take());
 
-                absm_editor.destroy(
-                    editor.engine.user_interfaces.first(),
-                    editor.docking_manager,
-                );
+            absm_editor.destroy(
+                editor.engine.user_interfaces.first(),
+                editor.docking_manager,
+            );
 
-                return;
-            }
+            return;
         }
 
         let entry = editor.scenes.current_scene_entry_mut();

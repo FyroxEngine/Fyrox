@@ -22,6 +22,7 @@ use crate::fyrox::core::pool::ErasedHandle;
 use crate::fyrox::{
     core::{algebra::Vector2, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     gui::{
+        BuildContext, Control, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
         define_widget_deref,
         grid::{Column, GridBuilder, Row},
         message::{MouseButton, UiMessage},
@@ -29,13 +30,12 @@ use crate::fyrox::{
         text::TextBuilder,
         vector_image::{Primitive, VectorImageBuilder},
         widget::{Widget, WidgetBuilder, WidgetMessage},
-        BuildContext, Control, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
 };
 
 use fyrox::gui::message::MessageData;
-use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::vector_image::VectorImage;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -96,11 +96,11 @@ impl Control for Socket {
                     message.set_handled(true);
                 }
                 WidgetMessage::MouseMove { pos, .. } => {
-                    if let Some(click_position) = self.click_position {
-                        if click_position.metric_distance(pos) >= 5.0 {
-                            ui.post(self.handle(), SocketMessage::StartDragging);
-                            self.click_position = None;
-                        }
+                    if let Some(click_position) = self.click_position
+                        && click_position.metric_distance(pos) >= 5.0
+                    {
+                        ui.post(self.handle(), SocketMessage::StartDragging);
+                        self.click_position = None;
                     }
                 }
                 WidgetMessage::MouseLeave => {

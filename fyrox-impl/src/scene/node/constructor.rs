@@ -24,7 +24,7 @@ use crate::{
     graph::constructor::{GraphNodeConstructor, GraphNodeConstructorContainer},
     scene::{
         self,
-        animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
+        animation::{AnimationPlayer, absm::AnimationBlendingStateMachine},
         camera::Camera,
         decal::Decal,
         dim2::{self, rectangle::Rectangle},
@@ -37,7 +37,7 @@ use crate::{
         pivot::Pivot,
         probe::ReflectionProbe,
         ragdoll::Ragdoll,
-        sound::{listener::Listener, Sound},
+        sound::{Sound, listener::Listener},
         sprite::Sprite,
         terrain::Terrain,
         tilemap::TileMap,

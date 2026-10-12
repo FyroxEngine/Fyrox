@@ -19,9 +19,11 @@
 // SOFTWARE.
 
 use crate::{
+    Engine, Message,
     fyrox::{
         core::{algebra::Vector2, pool::Handle, visitor::prelude::*},
         gui::{
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, VerticalAlignment,
             border::BorderBuilder,
             button::{ButtonBuilder, ButtonMessage},
             decorator::DecoratorBuilder,
@@ -37,11 +39,9 @@ use crate::{
             widget::{WidgetBuilder, WidgetMessage},
             window::WindowAlignment,
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, VerticalAlignment,
         },
     },
     message::MessageSender,
-    Engine, Message,
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::file_browser::FileSelector;
@@ -299,16 +299,16 @@ impl Configurator {
         } else if let Some(FileSelectorMessage::Commit(path)) =
             message.data::<FileSelectorMessage>()
         {
-            if message.destination() == self.work_dir_selector {
-                if let Ok(work_dir) = path.clone().canonicalize() {
-                    self.work_dir = work_dir;
-                    engine.user_interfaces.first().send(
-                        self.tb_work_dir,
-                        TextMessage::Text(self.work_dir.to_string_lossy().to_string()),
-                    );
+            if message.destination() == self.work_dir_selector
+                && let Ok(work_dir) = path.clone().canonicalize()
+            {
+                self.work_dir = work_dir;
+                engine.user_interfaces.first().send(
+                    self.tb_work_dir,
+                    TextMessage::Text(self.work_dir.to_string_lossy().to_string()),
+                );
 
-                    self.validate(engine);
-                }
+                self.validate(engine);
             }
         } else if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.ok {

@@ -22,7 +22,7 @@ use crate::{
     core::pool::Handle,
     resource::fbx::{
         document::{FbxNode, FbxNodeContainer},
-        scene::{FbxComponent, FBX_TIME_UNIT},
+        scene::{FBX_TIME_UNIT, FbxComponent},
     },
 };
 use fxhash::FxHashMap;

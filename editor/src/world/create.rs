@@ -22,17 +22,18 @@ use crate::{
     command::{Command, CommandGroup},
     fyrox::{
         core::{
+            ImmutableString,
             algebra::Vector3,
             pool::{Handle, ObjectOrVariant},
-            ImmutableString,
         },
         engine::Engine,
         fxhash::FxHashMap,
         graph::{
-            constructor::{ConstructorVariantId, GraphNodeConstructorContainer, VariantResult},
             SceneGraph,
+            constructor::{ConstructorVariantId, GraphNodeConstructorContainer, VariantResult},
         },
         gui::{
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
             border::BorderBuilder,
             button::{Button, ButtonBuilder, ButtonMessage},
             formatted_text::WrapMode,
@@ -42,7 +43,7 @@ use crate::{
             scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
             searchbar::{SearchBar, SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
-            style::{resource::StyleResourceExt, Style},
+            style::{Style, resource::StyleResourceExt},
             text::{Text, TextBuilder, TextMessage},
             text_box::EmptyTextPlaceholder,
             tree::{
@@ -52,20 +53,19 @@ use crate::{
             utils,
             widget::{UserData, WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
         },
         scene::{graph::Graph, node::Node},
     },
     message::MessageSender,
     scene::{
+        GameScene, Selection,
         commands::graph::{
             AddNodeCommand, LinkNodesCommand, MoveNodeCommand, ReplaceNodeCommand,
             SetGraphRootCommand,
         },
-        GameScene, Selection,
     },
-    settings::{scene::SceneSettings, Settings},
-    ui_scene::{commands::graph::AddWidgetCommand, UiScene},
+    settings::{Settings, scene::SceneSettings},
+    ui_scene::{UiScene, commands::graph::AddWidgetCommand},
 };
 use fyrox::gui::message::KeyCode;
 use std::{collections::BTreeMap, path::PathBuf};
@@ -349,12 +349,11 @@ impl EntityCreator {
     fn has_recent_item(&self, ui: &UserInterface, name: &str) -> bool {
         if let Ok(recent_list) = ui.try_get(self.recent_list) {
             for item in recent_list.items.iter() {
-                if let Ok(item_ref) = ui.try_get(*item) {
-                    if let Some(existing_name) = item_ref.user_data_cloned::<VariantName>() {
-                        if existing_name.as_str() == name {
-                            return true;
-                        }
-                    }
+                if let Ok(item_ref) = ui.try_get(*item)
+                    && let Some(existing_name) = item_ref.user_data_cloned::<VariantName>()
+                    && existing_name.as_str() == name
+                {
+                    return true;
                 }
             }
         }
@@ -624,16 +623,15 @@ impl EntityCreator {
                 settings,
                 scene_path,
             )
+            && let EntityCreatorMode::CreateChild = self.mode
         {
-            if let EntityCreatorMode::CreateChild = self.mode {
-                let sub_graph = ui_scene.ui.take_reserve_sub_graph(ui_node_handle);
-                let parent = if let Some(selection) = editor_selection.as_ui() {
-                    selection.widgets.first().cloned().unwrap_or_default()
-                } else {
-                    Handle::NONE
-                };
-                sender.do_command(AddWidgetCommand::new(sub_graph, parent, true));
-            }
+            let sub_graph = ui_scene.ui.take_reserve_sub_graph(ui_node_handle);
+            let parent = if let Some(selection) = editor_selection.as_ui() {
+                selection.widgets.first().cloned().unwrap_or_default()
+            } else {
+                Handle::NONE
+            };
+            sender.do_command(AddWidgetCommand::new(sub_graph, parent, true));
         }
     }
 }

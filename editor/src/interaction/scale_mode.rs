@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    Engine,
     camera::PickingOptions,
     command::{Command, CommandGroup},
     fyrox::{
@@ -27,20 +28,19 @@ use crate::{
             pool::Handle,
             reflect::prelude::*,
             some_or_return,
-            uuid::{uuid, Uuid},
+            uuid::{Uuid, uuid},
         },
         gui::BuildContext,
     },
-    interaction::{gizmo::scale_gizmo::ScaleGizmo, make_interaction_mode_button, InteractionMode},
+    interaction::{InteractionMode, gizmo::scale_gizmo::ScaleGizmo, make_interaction_mode_button},
     message::MessageSender,
     scene::{
-        commands::{graph::ScaleNodeCommand, ChangeSelectionCommand},
-        controller::SceneController,
         GameScene, Selection, SelectionContainer,
+        commands::{ChangeSelectionCommand, graph::ScaleNodeCommand},
+        controller::SceneController,
     },
     settings::Settings,
     world::selection::GraphSelection,
-    Engine,
 };
 use fyrox::gui::button::Button;
 
@@ -93,11 +93,10 @@ impl InteractionMode for ScaleInteractionMode {
                     method: Default::default(),
                     settings: &settings.selection,
                 },
-            ) {
-                if self.scale_gizmo.handle_pick(result.node, graph) {
-                    self.interacting = true;
-                    self.initial_scales = selection.local_scales(graph);
-                }
+            ) && self.scale_gizmo.handle_pick(result.node, graph)
+            {
+                self.interacting = true;
+                self.initial_scales = selection.local_scales(graph);
             }
         }
     }
@@ -120,24 +119,24 @@ impl InteractionMode for ScaleInteractionMode {
         self.scale_gizmo.reset_state(graph);
 
         if self.interacting {
-            if let Some(selection) = editor_selection.as_graph() {
-                if !selection.is_empty() {
-                    self.interacting = false;
-                    let current_scales = selection.local_scales(graph);
-                    if current_scales != self.initial_scales {
-                        // Commit changes.
-                        let commands = CommandGroup::from(
-                            selection
-                                .nodes()
-                                .iter()
-                                .zip(self.initial_scales.iter().zip(current_scales.iter()))
-                                .map(|(&node, (&old_scale, &new_scale))| {
-                                    Command::new(ScaleNodeCommand::new(node, old_scale, new_scale))
-                                })
-                                .collect::<Vec<_>>(),
-                        );
-                        self.message_sender.do_command(commands);
-                    }
+            if let Some(selection) = editor_selection.as_graph()
+                && !selection.is_empty()
+            {
+                self.interacting = false;
+                let current_scales = selection.local_scales(graph);
+                if current_scales != self.initial_scales {
+                    // Commit changes.
+                    let commands = CommandGroup::from(
+                        selection
+                            .nodes()
+                            .iter()
+                            .zip(self.initial_scales.iter().zip(current_scales.iter()))
+                            .map(|(&node, (&old_scale, &new_scale))| {
+                                Command::new(ScaleNodeCommand::new(node, old_scale, new_scale))
+                            })
+                            .collect::<Vec<_>>(),
+                    );
+                    self.message_sender.do_command(commands);
                 }
             }
         } else {
@@ -261,8 +260,7 @@ impl InteractionMode for ScaleInteractionMode {
     }
 
     fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<Button> {
-        let scale_mode_tooltip =
-            "Scale Object(s) - Shortcut: [4]\n\nScaling interaction mode allows you to scale selected \
+        let scale_mode_tooltip = "Scale Object(s) - Shortcut: [4]\n\nScaling interaction mode allows you to scale selected \
         objects. Keep in mind that scaling always works in local coordinates!\n\n\
         This also allows you to select an object or add an object to current selection using Ctrl+Click";
 

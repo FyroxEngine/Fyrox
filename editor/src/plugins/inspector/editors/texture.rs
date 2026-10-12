@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    Message,
     asset::{item::AssetItem, preview::cache::IconRequest, selector::AssetSelectorMixin},
     fyrox::{
         asset::{manager::ResourceManager, untyped::UntypedResource},
@@ -28,28 +29,28 @@ use crate::{
         },
         graph::SceneGraph,
         gui::{
+            BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
             button::{Button, ButtonMessage},
             grid::{Column, GridBuilder, Row},
             image::{Image, ImageBuilder, ImageMessage},
             inspector::{
+                FieldAction, InspectorError, PropertyChanged,
                 editors::{
                     PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
                     PropertyEditorMessageContext, PropertyEditorTranslationContext,
                 },
-                FieldAction, InspectorError, PropertyChanged,
             },
             message::{MessageData, MessageDirection, UiMessage},
             text::{Text, TextBuilder, TextMessage},
-            utils::{make_asset_preview_tooltip, ImageButtonBuilder},
+            utils::{ImageButtonBuilder, make_asset_preview_tooltip},
             widget::{Widget, WidgetBuilder, WidgetMessage},
-            BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
         resource::texture::{Texture, TextureResource},
     },
     load_image,
     message::MessageSender,
     plugins::inspector::EditorEnvironment,
-    utils, Message,
+    utils,
 };
 use std::{
     any::TypeId,
@@ -115,19 +116,18 @@ impl Control for TextureEditor {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(WidgetMessage::Drop(dropped)) = message.data::<WidgetMessage>() {
-            if message.destination() == self.image {
-                if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
-                    if let Ok(relative_path) = make_relative_path(&item.path) {
-                        ui.send(
-                            self.handle(),
-                            TextureEditorMessage::Texture(
-                                self.selector_mixin
-                                    .resource_manager
-                                    .try_request::<Texture>(relative_path),
-                            ),
-                        );
-                    }
-                }
+            if message.destination() == self.image
+                && let Some(item) = ui.node(*dropped).cast::<AssetItem>()
+                && let Ok(relative_path) = make_relative_path(&item.path)
+            {
+                ui.send(
+                    self.handle(),
+                    TextureEditorMessage::Texture(
+                        self.selector_mixin
+                            .resource_manager
+                            .try_request::<Texture>(relative_path),
+                    ),
+                );
             }
         } else if let Some(TextureEditorMessage::Texture(texture)) = message.data_for(self.handle) {
             if &self.texture != texture {
@@ -341,19 +341,18 @@ impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(TextureEditorMessage::Texture(value)) =
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(TextureEditorMessage::Texture(value)) =
                 ctx.message.data::<TextureEditorMessage>()
-            {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
-                    action: if self.untyped {
-                        FieldAction::object(value.clone().map(|r| r.into_untyped()))
-                    } else {
-                        FieldAction::object(value.clone())
-                    },
-                });
-            }
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
+                action: if self.untyped {
+                    FieldAction::object(value.clone().map(|r| r.into_untyped()))
+                } else {
+                    FieldAction::object(value.clone())
+                },
+            });
         }
         None
     }

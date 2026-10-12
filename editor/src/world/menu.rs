@@ -20,6 +20,7 @@
 
 use crate::world::create::EntityCreatorMode;
 use crate::{
+    Engine, Message, PasteCommand,
     command::{Command, CommandGroup},
     fyrox::{
         asset::untyped::UntypedResource,
@@ -27,10 +28,11 @@ use crate::{
             algebra::Vector2,
             pool::Handle,
             reflect::Reflect,
-            uuid::{uuid, Uuid},
+            uuid::{Uuid, uuid},
         },
         graph::SceneGraph,
         gui::{
+            BuildContext, RcUiNodeHandle, UiNode,
             file_browser::{FileSelector, FileSelectorMessage, FileType},
             menu::{
                 self, ContextMenuBuilder, MenuItem, MenuItemBuilder, MenuItemContent,
@@ -41,24 +43,22 @@ use crate::{
             stack_panel::StackPanelBuilder,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowAlignment, WindowMessage},
-            BuildContext, RcUiNodeHandle, UiNode,
         },
     },
     make_save_file_selector,
     menu::{create_menu_item, create_menu_item_shortcut},
     message::MessageSender,
     scene::{
+        GameScene, Selection,
         commands::{
-            graph::{SetGraphRootCommand, SetNodeTransformCommand},
             RevertSceneNodePropertyCommand,
+            graph::{SetGraphRootCommand, SetNodeTransformCommand},
         },
         controller::SceneController,
-        GameScene, Selection,
     },
     settings::Settings,
     utils,
     world::WorldViewerItemContextMenu,
-    Engine, Message, PasteCommand,
 };
 use std::{any::TypeId, path::PathBuf};
 
@@ -89,17 +89,17 @@ fn resource_path_of_first_selected_node(
     game_scene: &GameScene,
     engine: &Engine,
 ) -> Option<PathBuf> {
-    if let Some(graph_selection) = editor_selection.as_graph() {
-        if let Some(first) = graph_selection.nodes.first() {
-            let scene = &engine.scenes[game_scene.scene];
-            if let Some(resource) = scene
-                .graph
-                .try_get_node(*first)
-                .ok()
-                .and_then(|n| n.resource())
-            {
-                return engine.resource_manager.resource_path(resource.as_ref());
-            }
+    if let Some(graph_selection) = editor_selection.as_graph()
+        && let Some(first) = graph_selection.nodes.first()
+    {
+        let scene = &engine.scenes[game_scene.scene];
+        if let Some(resource) = scene
+            .graph
+            .try_get_node(*first)
+            .ok()
+            .and_then(|n| n.resource())
+        {
+            return engine.resource_manager.resource_path(resource.as_ref());
         }
     }
     None
@@ -296,12 +296,11 @@ impl SceneNodeContextMenu {
                         );
                     }
                 } else if message.destination() == self.paste {
-                    if let Some(graph_selection) = editor_selection.as_graph() {
-                        if let Some(first) = graph_selection.nodes.first() {
-                            if !game_scene.clipboard.is_empty() {
-                                sender.do_command(PasteCommand::new(*first));
-                            }
-                        }
+                    if let Some(graph_selection) = editor_selection.as_graph()
+                        && let Some(first) = graph_selection.nodes.first()
+                        && !game_scene.clipboard.is_empty()
+                    {
+                        sender.do_command(PasteCommand::new(*first));
                     }
                 } else if message.destination() == self.save_as_prefab {
                     let ui = engine.user_interfaces.first_mut();
@@ -329,32 +328,31 @@ impl SceneNodeContextMenu {
                         FileSelectorMessage::Root(Some(engine.resource_manager.registry_folder())),
                     );
                 } else if message.destination() == self.make_root {
-                    if let Some(graph_selection) = editor_selection.as_graph() {
-                        if let Some(first) = graph_selection.nodes.first() {
-                            let commands = CommandGroup::from(vec![
-                                Command::new(SetNodeTransformCommand::new(
-                                    *first,
-                                    engine.scenes[game_scene.scene].graph[*first]
-                                        .local_transform()
-                                        .clone(),
-                                    Default::default(),
-                                )),
-                                Command::new(SetGraphRootCommand {
-                                    root: *first,
-                                    link_scheme: Default::default(),
-                                }),
-                            ]);
+                    if let Some(graph_selection) = editor_selection.as_graph()
+                        && let Some(first) = graph_selection.nodes.first()
+                    {
+                        let commands = CommandGroup::from(vec![
+                            Command::new(SetNodeTransformCommand::new(
+                                *first,
+                                engine.scenes[game_scene.scene].graph[*first]
+                                    .local_transform()
+                                    .clone(),
+                                Default::default(),
+                            )),
+                            Command::new(SetGraphRootCommand {
+                                root: *first,
+                                link_scheme: Default::default(),
+                            }),
+                        ]);
 
-                            sender.do_command(commands);
-                        }
+                        sender.do_command(commands);
                     }
                 } else if message.destination() == self.open_asset {
                     if let Some(path) =
                         resource_path_of_first_selected_node(editor_selection, game_scene, engine)
+                        && utils::is_native_scene(&path)
                     {
-                        if utils::is_native_scene(&path) {
-                            sender.send(Message::LoadScene(path));
-                        }
+                        sender.send(Message::LoadScene(path));
                     }
                 } else if message.destination() == self.reset_inheritable_properties {
                     if let Some(graph_selection) = editor_selection.as_graph() {
@@ -411,10 +409,10 @@ impl SceneNodeContextMenu {
                         ),
                     );
                 }
-            } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
-                if message.destination() == self.save_as_prefab_dialog {
-                    sender.send(Message::SaveSelectionAsPrefab(path.clone()));
-                }
+            } else if let Some(FileSelectorMessage::Commit(path)) = message.data()
+                && message.destination() == self.save_as_prefab_dialog
+            {
+                sender.send(Message::SaveSelectionAsPrefab(path.clone()));
             }
         }
     }

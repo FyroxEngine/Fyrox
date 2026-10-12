@@ -20,23 +20,23 @@
 
 use crate::vec::Vec3Editor;
 use crate::{
+    Thickness,
     core::{
         algebra::{RealField, SimdRealField, SimdValue, UnitQuaternion, Vector3},
-        math::{quat_from_euler, RotationOrder},
+        math::{RotationOrder, quat_from_euler},
         num_traits::real::Real,
     },
     inspector::{
+        FieldAction, InspectorError, PropertyChanged,
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldAction, InspectorError, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
     numeric::NumericType,
     vec::{VecEditorBuilder, VecEditorMessage},
     widget::WidgetBuilder,
-    Thickness,
 };
 use fyrox_graph::SceneGraph;
 use std::{any::TypeId, marker::PhantomData};
@@ -126,16 +126,15 @@ where
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(VecEditorMessage::Value(value)) =
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(VecEditorMessage::Value(value)) =
                 ctx.message.data::<VecEditorMessage<T, 3>>()
-            {
-                let rotation = euler_to_quat(*value);
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
-                    action: FieldAction::object(rotation),
-                });
-            }
+        {
+            let rotation = euler_to_quat(*value);
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
+                action: FieldAction::object(rotation),
+            });
         }
 
         None

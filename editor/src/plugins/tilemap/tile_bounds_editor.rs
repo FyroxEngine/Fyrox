@@ -25,6 +25,7 @@ use fyrox::gui::vec::VecEditor;
 use fyrox::{
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     gui::{
+        BuildContext, Control, UiNode, UserInterface,
         button::ButtonMessage,
         define_widget_deref,
         grid::{Column, GridBuilder, Row},
@@ -32,9 +33,8 @@ use fyrox::{
         stack_panel::StackPanelBuilder,
         vec::{Vec2EditorMessage, VecEditorBuilder},
         widget::{Widget, WidgetBuilder, WidgetMessage},
-        BuildContext, Control, UiNode, UserInterface,
     },
-    scene::tilemap::{tileset::TileBounds, OrthoTransform},
+    scene::tilemap::{OrthoTransform, tileset::TileBounds},
 };
 
 #[derive(Debug, PartialEq, Clone)]

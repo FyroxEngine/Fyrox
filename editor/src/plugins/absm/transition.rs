@@ -29,12 +29,12 @@ use crate::fyrox::{
         visitor::prelude::*,
     },
     gui::{
+        BuildContext, Control, UiNode, UserInterface,
         brush::Brush,
         define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
         message::UiMessage,
         widget::{Widget, WidgetBuilder, WidgetMessage},
-        BuildContext, Control, UiNode, UserInterface,
     },
 };
 use crate::plugins::absm::{
@@ -44,8 +44,8 @@ use crate::plugins::absm::{
 use crate::utils::fetch_node_center;
 
 use fyrox::gui::message::MessageData;
-use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::material::MaterialResource;
 
 #[derive(Debug, Clone, PartialEq, Eq)]

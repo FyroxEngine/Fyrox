@@ -22,9 +22,9 @@
 //! needed to works with such events.
 
 use crate::{
+    EntityId,
     core::pool::Handle,
     machine::{State, Transition},
-    EntityId,
 };
 use std::collections::VecDeque;
 

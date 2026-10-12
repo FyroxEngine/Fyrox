@@ -21,10 +21,10 @@
 //! Track is responsible in animating a property of a single scene node. See [`Track`] docs for more info.
 
 use crate::{
+    EntityId,
     container::{TrackDataContainer, TrackValueKind},
     core::{reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
     value::{BoundValue, ValueBinding},
-    EntityId,
 };
 use std::fmt::Debug;
 

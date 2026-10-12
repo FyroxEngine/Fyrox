@@ -19,18 +19,18 @@
 // SOFTWARE.
 
 use crate::{
+    ToGlConstant,
     buffer::GlBuffer,
     framebuffer::GlFrameBuffer,
     server::{FrameBufferBindingPoint, GlGraphicsServer},
     texture::PixelDescriptor,
-    ToGlConstant,
 };
 use fyrox_graphics::{
     buffer::{BufferKind, BufferUsage, GpuBufferDescriptor, GpuBufferTrait},
     core::{algebra::Vector2, math::Rect},
     error::FrameworkError,
     framebuffer::GpuFrameBufferTrait,
-    gpu_texture::{image_2d_size_bytes, GpuTextureKind},
+    gpu_texture::{GpuTextureKind, image_2d_size_bytes},
     read_buffer::GpuAsyncReadBufferTrait,
 };
 use glow::{HasContext, PixelPackData};

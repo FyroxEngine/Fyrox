@@ -27,6 +27,7 @@ pub mod selection;
 pub mod utils;
 
 use crate::{
+    Message,
     asset::item::AssetItem,
     command::{Command, CommandGroup, CommandStack},
     fyrox::{
@@ -43,11 +44,11 @@ use crate::{
         fxhash::FxHashSet,
         graph::SceneGraph,
         gui::{
+            UiNode, UiUpdateSwitches, UserInterface, UserInterfaceResourceExtension,
             brush::Brush,
             draw::{CommandTexture, Draw},
             file_browser::FileType,
             message::{KeyCode, MessageDirection, MouseButton, UiMessage},
-            UiNode, UiUpdateSwitches, UserInterface, UserInterfaceResourceExtension,
         },
         renderer::ui_renderer::UiRenderInfo,
         resource::texture::{TextureKind, TextureResource, TextureResourceExtension},
@@ -58,17 +59,16 @@ use crate::{
         HandlePropertyEditorHierarchyMessage, HandlePropertyEditorNameMessage,
     },
     scene::{
-        commands::ChangeSelectionCommand, controller::SceneController, selector::HierarchyNode,
-        Selection,
+        Selection, commands::ChangeSelectionCommand, controller::SceneController,
+        selector::HierarchyNode,
     },
-    settings::{keys::KeyBindings, Settings},
+    settings::{Settings, keys::KeyBindings},
     ui_scene::{
         clipboard::Clipboard,
-        commands::{graph::AddUiPrefabCommand, UiSceneContext},
+        commands::{UiSceneContext, graph::AddUiPrefabCommand},
         selection::UiSelection,
         utils::make_widget_name,
     },
-    Message,
 };
 use std::{fs::File, io::Write, path::Path};
 

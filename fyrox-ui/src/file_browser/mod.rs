@@ -24,32 +24,32 @@
 //! OS file selector.
 
 use crate::{
+    BuildContext, Control, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode, UserInterface,
+    VerticalAlignment,
     button::{ButtonBuilder, ButtonMessage},
     core::{
         err, log::Log, ok_or_continue, ok_or_return, pool::Handle, reflect::prelude::*,
         some_or_return, visitor::prelude::*,
     },
     file_browser::{
-        fs_tree::{sanitize_path, TreeItemPath},
+        fs_tree::{TreeItemPath, sanitize_path},
         menu::ItemContextMenu,
     },
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
     message::{MessageData, UiMessage},
     scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
-    style::{resource::StyleResourceExt, Style},
+    style::{Style, resource::StyleResourceExt},
     text::{TextBuilder, TextMessage},
     text_box::{TextBoxBuilder, TextCommitMode},
     tree::{Tree, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
     utils::make_simple_tooltip,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode, UserInterface,
-    VerticalAlignment,
 };
 use core::time;
 use fyrox_graph::{
-    constructor::{ConstructorProvider, GraphNodeConstructor},
     SceneGraph,
+    constructor::{ConstructorProvider, GraphNodeConstructor},
 };
 use notify::{Event, Watcher};
 use std::ops::{Deref, DerefMut};
@@ -571,11 +571,12 @@ impl Control for FileBrowser {
             self.on_home_dir_clicked(ui)
         } else if let Some(TreeRootMessage::ItemsChanged) = message.data_from(self.tree_root) {
             self.on_items_changed(ui)
-        } else if let Some(WidgetMessage::MouseDown { .. }) = message.data() {
-            if self.root.is_some() && !message.handled() {
-                ui.send(self.tree_root, TreeRootMessage::Select(vec![]));
-                message.set_handled(true);
-            }
+        } else if let Some(WidgetMessage::MouseDown { .. }) = message.data()
+            && self.root.is_some()
+            && !message.handled()
+        {
+            ui.send(self.tree_root, TreeRootMessage::Select(vec![]));
+            message.set_handled(true);
         }
     }
 

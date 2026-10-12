@@ -28,17 +28,18 @@ use crate::{
     command::{Command, CommandGroup},
     fyrox::{
         core::{
+            SafeLock,
             algebra::{Matrix3, Point2, Vector2},
             color::Color,
             math::Rect,
             pool::Handle,
             reflect::prelude::*,
             visitor::prelude::*,
-            SafeLock,
         },
         fxhash::{FxHashMap, FxHashSet},
         graph::SceneGraph,
         gui::{
+            BuildContext, Control, UiNode, UserInterface,
             brush::Brush,
             define_widget_deref,
             draw::{CommandTexture, Draw, DrawingContext},
@@ -46,15 +47,14 @@ use crate::{
             message::CursorIcon,
             message::{KeyCode, MessageDirection, MouseButton, UiMessage},
             widget::{Widget, WidgetBuilder, WidgetMessage},
-            BuildContext, Control, UiNode, UserInterface,
         },
         material::{Material, MaterialResource},
         resource::texture::TextureKind,
         scene::tilemap::{
-            brush::TileMapBrushResource,
-            tileset::{OptionTileSet, TileSetPageSource, TileSetRef},
             OrthoTransformation, ResourceTilePosition, RotTileHandle, TileBook, TilePaletteStage,
             TileRect, TileRenderData, TileSetUpdate, TileSource, TransTilesUpdate,
+            brush::TileMapBrushResource,
+            tileset::{OptionTileSet, TileSetPageSource, TileSetRef},
         },
     },
 };
@@ -584,17 +584,17 @@ fn make_commands_to_erase_brush_page(
     if let Some(macro_list) = macro_list {
         let macro_list = macro_list.lock();
         for instance in brush.data_ref().macros.iter() {
-            if let Some(m) = macro_list.get_by_uuid(&instance.macro_id) {
-                if let Some(command) = m.copy_page(
+            if let Some(m) = macro_list.get_by_uuid(&instance.macro_id)
+                && let Some(command) = m.copy_page(
                     None,
                     page,
                     &BrushMacroInstance {
                         brush: brush.clone(),
                         settings: instance.settings.clone(),
                     },
-                ) {
-                    commands.push_command(command);
-                }
+                )
+            {
+                commands.push_command(command);
             }
         }
     }
@@ -615,17 +615,17 @@ fn make_commands_to_copy_brush_page(
     if let Some(macro_list) = macro_list {
         let macro_list = macro_list.lock();
         for instance in brush.data_ref().macros.iter() {
-            if let Some(m) = macro_list.get_by_uuid(&instance.macro_id) {
-                if let Some(command) = m.copy_page(
+            if let Some(m) = macro_list.get_by_uuid(&instance.macro_id)
+                && let Some(command) = m.copy_page(
                     Some(from),
                     to,
                     &BrushMacroInstance {
                         brush: brush.clone(),
                         settings: instance.settings.clone(),
                     },
-                ) {
-                    commands.push_command(command);
-                }
+                )
+            {
+                commands.push_command(command);
             }
         }
     }
@@ -641,17 +641,17 @@ fn make_commands_to_copy_brush_tile(
     if let Some(macro_list) = macro_list {
         let macro_list = macro_list.lock();
         for instance in brush.data_ref().macros.iter() {
-            if let Some(m) = macro_list.get_by_uuid(&instance.macro_id) {
-                if let Some(command) = m.copy_cell(
+            if let Some(m) = macro_list.get_by_uuid(&instance.macro_id)
+                && let Some(command) = m.copy_cell(
                     from,
                     to,
                     &BrushMacroInstance {
                         brush: brush.clone(),
                         settings: instance.settings.clone(),
                     },
-                ) {
-                    commands.push_command(command);
-                }
+                )
+            {
+                commands.push_command(command);
             }
         }
     }
@@ -702,20 +702,18 @@ impl PaletteWidget {
             false
         };
         self.colliders.clear();
-        if let Some(page) = self.page {
-            if self.kind == TilePaletteStage::Tiles && !state.visible_colliders.is_empty() {
-                self.content
-                    .tile_collider_loop(page, |pos, uuid, color, tile_collider| {
-                        if !state.visible_colliders.contains(&uuid) {
-                            return;
-                        }
-                        self.colliders.push(ColliderHighlight::new(
-                            pos,
-                            color,
-                            tile_collider.clone(),
-                        ));
-                    });
-            }
+        if let Some(page) = self.page
+            && self.kind == TilePaletteStage::Tiles
+            && !state.visible_colliders.is_empty()
+        {
+            self.content
+                .tile_collider_loop(page, |pos, uuid, color, tile_collider| {
+                    if !state.visible_colliders.contains(&uuid) {
+                        return;
+                    }
+                    self.colliders
+                        .push(ColliderHighlight::new(pos, color, tile_collider.clone()));
+                });
         }
         if self.editable {
             self.overlay.clear();
@@ -728,15 +726,15 @@ impl PaletteWidget {
                     }
                 }
                 DrawingMode::Editor => {
-                    if let Some(editor) = &state.active_editor {
-                        if let &Some(page) = &self.page {
-                            editor.safe_lock().highlight(
-                                &mut self.highlight,
-                                page,
-                                &self.content,
-                                &self.tile_set_update,
-                            );
-                        }
+                    if let Some(editor) = &state.active_editor
+                        && let &Some(page) = &self.page
+                    {
+                        editor.safe_lock().highlight(
+                            &mut self.highlight,
+                            page,
+                            &self.content,
+                            &self.tile_set_update,
+                        );
                     }
                 }
                 _ => (),
@@ -1097,14 +1095,14 @@ impl PaletteWidget {
                 _ => (),
             },
             mode => {
-                if let MouseMode::Drawing { start_tile, end } = self.mode.clone() {
-                    if end.grid != pos.grid || self.slice_mode && end.subgrid != pos.subgrid {
-                        self.draw(mode, start_tile, pos.grid, pos.subgrid, ui);
-                        self.mode = MouseMode::Drawing {
-                            start_tile,
-                            end: pos,
-                        };
-                    }
+                if let MouseMode::Drawing { start_tile, end } = self.mode.clone()
+                    && (end.grid != pos.grid || self.slice_mode && end.subgrid != pos.subgrid)
+                {
+                    self.draw(mode, start_tile, pos.grid, pos.subgrid, ui);
+                    self.mode = MouseMode::Drawing {
+                        start_tile,
+                        end: pos,
+                    };
                 }
             }
         }
@@ -1202,17 +1200,17 @@ impl PaletteWidget {
                 if let Some(macro_list) = self.macro_list.as_ref() {
                     let macro_list = macro_list.lock();
                     for instance in brush.data_ref().macros.iter() {
-                        if let Some(m) = macro_list.get_by_uuid(&instance.macro_id) {
-                            if let Some(command) = m.move_pages(
+                        if let Some(m) = macro_list.get_by_uuid(&instance.macro_id)
+                            && let Some(command) = m.move_pages(
                                 from.clone(),
                                 to.clone(),
                                 &BrushMacroInstance {
                                     brush: brush.clone(),
                                     settings: instance.settings.clone(),
                                 },
-                            ) {
-                                commands.push_command(command)
-                            }
+                            )
+                        {
+                            commands.push_command(command)
                         }
                     }
                 }
@@ -1259,17 +1257,17 @@ impl PaletteWidget {
                 if let Some(macro_list) = self.macro_list.as_ref() {
                     let macro_list = macro_list.lock();
                     for instance in data.macros.iter() {
-                        if let Some(m) = macro_list.get_by_uuid(&instance.macro_id) {
-                            if let Some(command) = m.move_cells(
+                        if let Some(m) = macro_list.get_by_uuid(&instance.macro_id)
+                            && let Some(command) = m.move_cells(
                                 from.clone(),
                                 to.clone(),
                                 &BrushMacroInstance {
                                     brush: brush.clone(),
                                     settings: instance.settings.clone(),
                                 },
-                            ) {
-                                commands.push_command(command)
-                            }
+                            )
+                        {
+                            commands.push_command(command)
                         }
                     }
                 }
@@ -1329,23 +1327,23 @@ impl PaletteWidget {
                 }
             }
             DrawingMode::Editor => {
-                if let Some(editor) = &state.active_editor {
-                    if let Some(handle) = TileDefinitionHandle::try_new(page, end) {
-                        let editor = editor.safe_lock();
-                        editor.draw_tile(
-                            handle,
-                            sub_pos,
-                            &state,
-                            &mut self.tile_set_update,
-                            &self.content,
-                        );
-                        editor.highlight(
-                            &mut self.highlight,
-                            page,
-                            &self.content,
-                            &self.tile_set_update,
-                        );
-                    }
+                if let Some(editor) = &state.active_editor
+                    && let Some(handle) = TileDefinitionHandle::try_new(page, end)
+                {
+                    let editor = editor.safe_lock();
+                    editor.draw_tile(
+                        handle,
+                        sub_pos,
+                        &state,
+                        &mut self.tile_set_update,
+                        &self.content,
+                    );
+                    editor.highlight(
+                        &mut self.highlight,
+                        page,
+                        &self.content,
+                        &self.tile_set_update,
+                    );
                 }
             }
         }
@@ -1850,23 +1848,21 @@ impl Control for PaletteWidget {
         }
 
         // Selection highlight
-        if stage == TilePaletteStage::Pages {
-            if let Some(active) = self.page {
-                self.push_cell_rect(active, line_thickness * 3.0, ctx);
-                self.commit_color(Color::GREEN_YELLOW, ctx);
-            }
+        if stage == TilePaletteStage::Pages
+            && let Some(active) = self.page
+        {
+            self.push_cell_rect(active, line_thickness * 3.0, ctx);
+            self.commit_color(Color::GREEN_YELLOW, ctx);
         }
-        if stage == TilePaletteStage::Tiles {
-            if let Some(page) = self.page {
-                if let Some(cell_set_list) = &self.macro_cells {
-                    if let Some(cells_on_page) = cell_set_list.lock().cells_on_page(page) {
-                        for position in cells_on_page.iter() {
-                            self.push_cell_rect(*position, line_thickness * 6.0, ctx);
-                        }
-                        self.commit_color(MACRO_CELL_HIGHLIGHT_COLOR, ctx);
-                    }
-                }
+        if stage == TilePaletteStage::Tiles
+            && let Some(page) = self.page
+            && let Some(cell_set_list) = &self.macro_cells
+            && let Some(cells_on_page) = cell_set_list.lock().cells_on_page(page)
+        {
+            for position in cells_on_page.iter() {
+                self.push_cell_rect(*position, line_thickness * 6.0, ctx);
             }
+            self.commit_color(MACRO_CELL_HIGHLIGHT_COLOR, ctx);
         }
         let state = self.state.lock();
         if state.selection_palette() == self.handle {
@@ -1936,10 +1932,10 @@ impl Control for PaletteWidget {
             self.view_position += pos - new_pos;
             self.invalidate_visual();
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
-            if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
-                if let Some(material) = item.resource::<Material>() {
-                    self.accept_material_drop(material, ui);
-                }
+            if let Some(item) = ui.node(*dropped).cast::<AssetItem>()
+                && let Some(material) = item.resource::<Material>()
+            {
+                self.accept_material_drop(material, ui);
             }
         } else if let Some(msg) = message.data::<PaletteMessage>() {
             if message.direction() == MessageDirection::ToWidget {
@@ -1967,11 +1963,13 @@ impl Control for PaletteWidget {
                     }
                 }
             }
-        } else if let Some(WidgetMessage::KeyDown(key)) = message.data() {
-            if *key == KeyCode::Delete && !message.handled() && self.delete_tiles(ui) {
-                message.set_handled(true);
-                self.invalidate_visual();
-            }
+        } else if let Some(WidgetMessage::KeyDown(key)) = message.data()
+            && *key == KeyCode::Delete
+            && !message.handled()
+            && self.delete_tiles(ui)
+        {
+            message.set_handled(true);
+            self.invalidate_visual();
         }
     }
 }

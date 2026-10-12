@@ -33,6 +33,6 @@ pub type SpriteSheetFramesContainer =
 pub mod prelude {
     pub use super::{SpriteSheetAnimation, SpriteSheetFramesContainer};
     pub use crate::generic_animation::spritesheet::{
-        signal::Signal, Event, ImageParameters, Status,
+        Event, ImageParameters, Status, signal::Signal,
     };
 }

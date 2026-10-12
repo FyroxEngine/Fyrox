@@ -27,22 +27,22 @@ use crate::{
 use fyrox::core::uuid::Uuid;
 use fyrox::{
     core::{
-        algebra::Vector2, color::Color, log::Log, pool::Handle, swap_hash_map_entry,
-        ImmutableString,
+        ImmutableString, algebra::Vector2, color::Color, log::Log, pool::Handle,
+        swap_hash_map_entry,
     },
     fxhash::FxHashMap,
     material::MaterialResource,
     scene::{
         node::Node,
         tilemap::{
+            OrthoTransform, OrthoTransformation, TileCollider, TileDefinitionHandle, TileMap,
+            TileSetUpdate, TilesUpdate,
             brush::{TileMapBrushPage, TileMapBrushResource},
             tileset::{
                 AbstractTile, NamableValue, NamedValue, TileSetColliderLayer, TileSetPage,
                 TileSetPageSource, TileSetPropertyLayer, TileSetPropertyType, TileSetPropertyValue,
                 TileSetResource,
             },
-            OrthoTransform, OrthoTransformation, TileCollider, TileDefinitionHandle, TileMap,
-            TileSetUpdate, TilesUpdate,
         },
     },
 };

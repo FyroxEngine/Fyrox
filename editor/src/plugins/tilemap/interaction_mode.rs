@@ -30,15 +30,15 @@ use fyrox::gui::button::Button;
 use fyrox::scene::tilemap::{TileMapEffectRef, TileMapEffectRefContainer};
 use fyrox::{
     asset::untyped::UntypedResource,
-    core::reflect::prelude::*,
     core::SafeLock,
+    core::reflect::prelude::*,
     fxhash::FxHashMap,
     scene::tilemap::{
-        brush::TileMapBrushResource,
-        tileset::{OptionTileSet, TileSetRef},
         MacroTilesUpdate, OptionTileRect, TileCursorEffect, TileEraseEffect, TileMapData,
         TileOverlayEffect, TileSelectionEffect, TileSource, TileUpdateEffect, TilesUpdate,
         TransTilesUpdate,
+        brush::TileMapBrushResource,
+        tileset::{OptionTileSet, TileSetRef},
     },
 };
 use std::fmt::Formatter;

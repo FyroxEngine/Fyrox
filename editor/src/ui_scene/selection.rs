@@ -20,22 +20,22 @@
 
 use crate::scene::EntityInfo;
 use crate::{
-    command::{make_command, Command, CommandGroup, SetPropertyCommand},
+    command::{Command, CommandGroup, SetPropertyCommand, make_command},
     fyrox::{
         core::{pool::Handle, reflect::Reflect, some_or_return},
         engine::Engine,
         graph::{NodeWrapper, SceneGraph},
-        gui::{inspector::PropertyChanged, UiNode, UserInterface},
+        gui::{UiNode, UserInterface, inspector::PropertyChanged},
         scene::SceneContainer,
     },
     message::MessageSender,
-    scene::{commands::ChangeSelectionCommand, controller::SceneController, SelectionContainer},
+    scene::{SelectionContainer, commands::ChangeSelectionCommand, controller::SceneController},
     ui_scene::{
-        commands::{
-            graph::DeleteWidgetsSubGraphCommand, widget::RevertWidgetPropertyCommand,
-            UiSceneContext,
-        },
         UiScene,
+        commands::{
+            UiSceneContext, graph::DeleteWidgetsSubGraphCommand,
+            widget::RevertWidgetPropertyCommand,
+        },
     },
 };
 
@@ -56,14 +56,14 @@ impl SelectionContainer for UiSelection {
         callback: &mut dyn FnMut(EntityInfo),
     ) {
         let ui_scene = some_or_return!(controller.downcast_ref::<UiScene>());
-        if let Some(first) = self.widgets.first() {
-            if let Ok(widget) = ui_scene.ui.try_get_node(*first) {
-                (callback)(EntityInfo {
-                    entity: widget.inner_ref(),
-                    has_inheritance_parent: widget.has_inheritance_parent(),
-                    read_only: false,
-                })
-            }
+        if let Some(first) = self.widgets.first()
+            && let Ok(widget) = ui_scene.ui.try_get_node(*first)
+        {
+            (callback)(EntityInfo {
+                entity: widget.inner_ref(),
+                has_inheritance_parent: widget.has_inheritance_parent(),
+                read_only: false,
+            })
         }
     }
 

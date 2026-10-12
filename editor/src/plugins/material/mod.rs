@@ -637,34 +637,32 @@ impl MaterialEditor {
 
         self.preview.handle_message(message, engine);
 
-        if let Some(msg) = message.data::<ResourceFieldMessage<Shader>>() {
-            if message.destination() == self.shader
-                && message.direction() == MessageDirection::FromWidget
-            {
-                if let ResourceFieldMessage::Value(Some(value)) = msg {
-                    sender.do_command(SetMaterialShaderCommand::new(
-                        material.clone(),
-                        value.clone(),
-                        engine.resource_manager.resource_path(material.as_ref()),
-                    ));
-                }
-            }
+        if let Some(msg) = message.data::<ResourceFieldMessage<Shader>>()
+            && message.destination() == self.shader
+            && message.direction() == MessageDirection::FromWidget
+            && let ResourceFieldMessage::Value(Some(value)) = msg
+        {
+            sender.do_command(SetMaterialShaderCommand::new(
+                material.clone(),
+                value.clone(),
+                engine.resource_manager.resource_path(material.as_ref()),
+            ));
         }
 
         for resource_view in self.resource_views.iter() {
             match resource_view.kind {
                 ResourceViewKind::Sampler => {
-                    if let Some(TextureEditorMessage::Texture(texture)) = message.data() {
-                        if resource_view.editor == message.destination() {
-                            sender.do_command(SetMaterialBindingCommand::new(
-                                material.clone(),
-                                resource_view.name.clone(),
-                                MaterialResourceBinding::Texture(MaterialTextureBinding {
-                                    value: texture.clone(),
-                                }),
-                                engine.resource_manager.resource_path(material.as_ref()),
-                            ));
-                        }
+                    if let Some(TextureEditorMessage::Texture(texture)) = message.data()
+                        && resource_view.editor == message.destination()
+                    {
+                        sender.do_command(SetMaterialBindingCommand::new(
+                            material.clone(),
+                            resource_view.name.clone(),
+                            MaterialResourceBinding::Texture(MaterialTextureBinding {
+                                value: texture.clone(),
+                            }),
+                            engine.resource_manager.resource_path(material.as_ref()),
+                        ));
                     }
                 }
                 ResourceViewKind::PropertyGroup { ref property_views } => {
@@ -786,11 +784,11 @@ impl EditorPlugin for MaterialPlugin {
 
         material_editor.handle_ui_message(message, &mut editor.engine, &editor.message_sender);
 
-        if let Some(WindowMessage::Close) = message.data() {
-            if message.destination() == material_editor.window {
-                material_editor.destroy(editor.docking_manager, &mut editor.engine);
-                return;
-            }
+        if let Some(WindowMessage::Close) = message.data()
+            && message.destination() == material_editor.window
+        {
+            material_editor.destroy(editor.docking_manager, &mut editor.engine);
+            return;
         }
 
         self.material_editor = Some(material_editor);

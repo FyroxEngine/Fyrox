@@ -24,11 +24,11 @@
 use crate::{
     core::{reflect::prelude::*, visitor::prelude::*},
     scene::particle_system::{
+        Particle, ParticleSystemRng,
         emitter::{
             base::BaseEmitter, cuboid::CuboidEmitter, cylinder::CylinderEmitter,
             sphere::SphereEmitter,
         },
-        Particle, ParticleSystemRng,
     },
 };
 

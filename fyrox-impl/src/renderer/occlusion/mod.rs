@@ -25,12 +25,12 @@ mod optimizer;
 
 use crate::{
     core::{
+        ImmutableString,
         algebra::{Matrix4, Vector2, Vector3},
         array_as_u8_slice,
         color::Color,
-        math::{aabb::AxisAlignedBoundingBox, Rect, Vector3Ext},
+        math::{Rect, Vector3Ext, aabb::AxisAlignedBoundingBox},
         pool::Handle,
-        ImmutableString,
     },
     graph::SceneGraph,
     graphics::{
@@ -44,7 +44,7 @@ use crate::{
     },
     renderer::resources::RendererResources,
     renderer::{
-        cache::shader::{binding, property, PropertyGroup, RenderMaterial},
+        cache::shader::{PropertyGroup, RenderMaterial, binding, property},
         cache::uniform::UniformBufferCache,
         debug_renderer::{self, DebugRenderer},
         occlusion::{

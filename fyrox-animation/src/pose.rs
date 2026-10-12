@@ -20,7 +20,7 @@
 
 //! Pose is a set of property values of a node ([`NodePose`]) or a set of nodes ([`AnimationPose`]).
 
-use crate::{value::BoundValue, value::BoundValueCollection, EntityId, RootMotion};
+use crate::{EntityId, RootMotion, value::BoundValue, value::BoundValueCollection};
 use fxhash::FxHashMap;
 use std::collections::hash_map::Entry;
 

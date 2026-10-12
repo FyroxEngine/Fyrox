@@ -38,7 +38,7 @@ use crate::{
         instant::Instant,
         log::{Log, MessageKind},
         math::curve::{CurveKey, CurveKeyKind},
-        math::{self, triangulator::triangulate, RotationOrder},
+        math::{self, RotationOrder, triangulator::triangulate},
         pool::Handle,
     },
     graph::SceneGraph,
@@ -49,40 +49,40 @@ use crate::{
             document::FbxDocument,
             error::FbxError,
             scene::{
+                FbxComponent, FbxMapping, FbxScene,
                 animation::{FbxAnimationCurveNode, FbxAnimationCurveNodeType},
                 geometry::FbxMeshGeometry,
                 model::FbxModel,
-                FbxComponent, FbxMapping, FbxScene,
             },
         },
         model::{MaterialSearchOptions, ModelImportOptions},
         texture::{Texture, TextureImportOptions, TextureResource, TextureResourceExtension},
     },
     scene::{
+        Scene,
         animation::{Animation, AnimationContainer, AnimationPlayerBuilder, Track},
         base::BaseBuilder,
         graph::Graph,
         mesh::{
+            Mesh, MeshBuilder,
             buffer::{VertexAttributeUsage, VertexBuffer, VertexWriteTrait},
             surface::{
                 BlendShape, BlendShapesContainer, InputBlendShapeData, Surface, SurfaceData,
                 SurfaceResource, VertexWeightSet,
             },
             vertex::{AnimatedVertex, StaticVertex},
-            Mesh, MeshBuilder,
         },
         node::Node,
         pivot::PivotBuilder,
         transform::TransformBuilder,
-        Scene,
     },
     utils::{self, raw_mesh::RawMeshBuilder},
 };
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_animation::track::TrackBinding;
 use fyrox_core::err;
-use fyrox_material::shader::{ShaderResource, ShaderResourceExtension};
 use fyrox_material::MaterialResource;
+use fyrox_material::shader::{ShaderResource, ShaderResourceExtension};
 use fyrox_resource::io::ResourceIo;
 use fyrox_resource::untyped::ResourceKind;
 use std::{cmp::Ordering, path::Path};
@@ -579,10 +579,8 @@ fn convert_mesh(
                             builder.insert(vertex.clone().into())
                         }
                     };
-                    if is_unique_vertex {
-                        if let Some(skin_data) = weights {
-                            data.skin_data.push(skin_data);
-                        }
+                    if is_unique_vertex && let Some(skin_data) = weights {
+                        data.skin_data.push(skin_data);
                     }
 
                     // Fill each blend shape, but modify the vertex first using the "offsets" from blend shapes.
@@ -621,10 +619,10 @@ fn convert_mesh(
                     }
                 }
             }
-            if let Some(materials) = geom.materials.as_ref() {
-                if materials.mapping == FbxMapping::ByPolygon {
-                    material_index += 1;
-                }
+            if let Some(materials) = geom.materials.as_ref()
+                && materials.mapping == FbxMapping::ByPolygon
+            {
+                material_index += 1;
             }
         }
 
@@ -730,22 +728,22 @@ fn convert_model(
                     _ => None,
                 };
 
-                if let Some(index) = index {
-                    if let FbxComponent::AnimationCurve(fbx_curve) = fbx_scene.get(*curve_handle) {
-                        if fbx_curve.keys.is_empty() {
+                if let Some(index) = index
+                    && let FbxComponent::AnimationCurve(fbx_curve) = fbx_scene.get(*curve_handle)
+                {
+                    if fbx_curve.keys.is_empty() {
+                        curves[index].add_key(CurveKey::new(
+                            0.0,
+                            default[index],
+                            CurveKeyKind::Constant,
+                        ));
+                    } else {
+                        for pair in fbx_curve.keys.iter() {
                             curves[index].add_key(CurveKey::new(
-                                0.0,
-                                default[index],
-                                CurveKeyKind::Constant,
-                            ));
-                        } else {
-                            for pair in fbx_curve.keys.iter() {
-                                curves[index].add_key(CurveKey::new(
-                                    pair.time,
-                                    transform_value(pair.value),
-                                    CurveKeyKind::Linear,
-                                ))
-                            }
+                                pair.time,
+                                transform_value(pair.value),
+                                CurveKeyKind::Linear,
+                            ))
                         }
                     }
                 }
@@ -953,9 +951,17 @@ pub async fn load_to_scene<P: AsRef<Path>>(
     .await?;
     let conversion_time = now.elapsed().as_millis();
 
-    Log::writeln(MessageKind::Information,
-                 format!("FBX {:?} loaded in {} ms\n\t- Parsing - {} ms\n\t- DOM Prepare - {} ms\n\t- Conversion - {} ms",
-                         path.as_ref(), start_time.elapsed().as_millis(), parsing_time, dom_prepare_time, conversion_time));
+    Log::writeln(
+        MessageKind::Information,
+        format!(
+            "FBX {:?} loaded in {} ms\n\t- Parsing - {} ms\n\t- DOM Prepare - {} ms\n\t- Conversion - {} ms",
+            path.as_ref(),
+            start_time.elapsed().as_millis(),
+            parsing_time,
+            dom_prepare_time,
+            conversion_time
+        ),
+    );
 
     // Check for multiple nodes with same name and throw a warning if any.
     // It seems that FBX was designed using ass, not brains. It has no unique **persistent**

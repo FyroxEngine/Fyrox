@@ -24,6 +24,7 @@
 #![warn(missing_docs)]
 
 use crate::{
+    BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
     core::{algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
@@ -31,7 +32,6 @@ use crate::{
     text::TextBuilder,
     vec::{VecEditorBuilder, VecEditorMessage},
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 
 use crate::grid::Grid;
@@ -186,31 +186,30 @@ where
             }
         } else if let Some(VecEditorMessage::Value(value)) =
             message.data::<VecEditorMessage<T, 2>>()
+            && message.direction() == MessageDirection::FromWidget
         {
-            if message.direction() == MessageDirection::FromWidget {
-                if message.destination() == *self.position {
-                    if self.value.position != *value {
-                        ui.send(
-                            self.handle,
-                            RectEditorMessage::Value(Rect::new(
-                                value.x,
-                                value.y,
-                                self.value.size.x,
-                                self.value.size.y,
-                            )),
-                        );
-                    }
-                } else if message.destination() == *self.size && self.value.size != *value {
+            if message.destination() == *self.position {
+                if self.value.position != *value {
                     ui.send(
                         self.handle,
                         RectEditorMessage::Value(Rect::new(
-                            self.value.position.x,
-                            self.value.position.y,
                             value.x,
                             value.y,
+                            self.value.size.x,
+                            self.value.size.y,
                         )),
                     );
                 }
+            } else if message.destination() == *self.size && self.value.size != *value {
+                ui.send(
+                    self.handle,
+                    RectEditorMessage::Value(Rect::new(
+                        self.value.position.x,
+                        self.value.position.y,
+                        value.x,
+                        value.y,
+                    )),
+                );
             }
         }
     }

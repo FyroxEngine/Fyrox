@@ -27,7 +27,7 @@ use crate::fyrox::{
         pool::{Handle, Ticket},
     },
     generic_animation::machine::{
-        layer::MachineLayer, mask::LayerMask, Machine, PoseNode, State, Transition,
+        Machine, PoseNode, State, Transition, layer::MachineLayer, mask::LayerMask,
     },
 };
 use crate::{

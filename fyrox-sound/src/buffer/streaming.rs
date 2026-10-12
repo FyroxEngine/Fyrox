@@ -49,7 +49,7 @@
 
 use crate::buffer::generic::Samples;
 use crate::{
-    buffer::{generic::GenericBuffer, DataSource, RawStreamingDataSource},
+    buffer::{DataSource, RawStreamingDataSource, generic::GenericBuffer},
     decoder::Decoder,
     error::SoundError,
 };

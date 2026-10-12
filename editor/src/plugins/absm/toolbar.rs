@@ -23,19 +23,19 @@ use crate::{
     fyrox::{
         core::{color::Color, pool::Handle, pool::ObjectOrVariantHelper, reflect::Reflect},
         fxhash::FxHashSet,
-        generic_animation::machine::{mask::LayerMask, Machine, MachineLayer},
+        generic_animation::machine::{Machine, MachineLayer, mask::LayerMask},
         graph::{NodeWrapper, PrefabData, SceneGraph},
         gui::{
+            BuildContext, Orientation, Thickness, UserInterface,
             button::{Button, ButtonMessage},
             dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
             input::{InputBox, InputBoxBuilder, InputBoxMessage, InputBoxResult},
             message::UiMessage,
             stack_panel::{StackPanel, StackPanelBuilder},
             toggle::{ToggleButton, ToggleButtonMessage},
-            utils::{make_dropdown_list_option, ImageButtonBuilder},
+            utils::{ImageButtonBuilder, make_dropdown_list_option},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, Orientation, Thickness, UserInterface,
         },
     },
     load_image,
@@ -47,12 +47,12 @@ use crate::{
         selection::AbsmSelection,
     },
     scene::{
+        Selection,
         commands::ChangeSelectionCommand,
         selector::{
             AllowedType, HierarchyNode, NodeSelectorMessage, NodeSelectorWindow,
             NodeSelectorWindowBuilder, SelectedHandle,
         },
-        Selection,
     },
 };
 use std::{any::TypeId, marker::PhantomData};
@@ -278,48 +278,47 @@ impl Toolbar {
                         },
                     );
 
-                    if let Some(layer_index) = selection.layer {
-                        if let Some(layer) = machine.layers().get(layer_index) {
-                            let selection = layer
-                                .mask()
-                                .inner()
-                                .iter()
-                                .cloned()
-                                .map(SelectedHandle::from)
-                                .collect::<Vec<_>>();
+                    if let Some(layer_index) = selection.layer
+                        && let Some(layer) = machine.layers().get(layer_index)
+                    {
+                        let selection = layer
+                            .mask()
+                            .inner()
+                            .iter()
+                            .cloned()
+                            .map(SelectedHandle::from)
+                            .collect::<Vec<_>>();
 
-                            ui.send(
-                                self.node_selector,
-                                NodeSelectorMessage::Selection(selection),
-                            );
-                        }
+                        ui.send(
+                            self.node_selector,
+                            NodeSelectorMessage::Selection(selection),
+                        );
                     }
                 }
-            } else if message.destination() == self.remove_layer {
-                if let Some(machine) = machine_container_ref(graph, selection.absm_node_handle) {
-                    if let Some(layer_index) = selection.layer {
-                        let mut commands = Vec::new();
+            } else if message.destination() == self.remove_layer
+                && let Some(machine) = machine_container_ref(graph, selection.absm_node_handle)
+                && let Some(layer_index) = selection.layer
+            {
+                let mut commands = Vec::new();
 
-                        commands.push(Command::new(ChangeSelectionCommand::new(Selection::new(
-                            AbsmSelection {
-                                absm_node_handle: selection.absm_node_handle,
-                                layer: if machine.layers().len() > 1 {
-                                    Some(0)
-                                } else {
-                                    None
-                                },
-                                entities: vec![],
-                            },
-                        ))));
+                commands.push(Command::new(ChangeSelectionCommand::new(Selection::new(
+                    AbsmSelection {
+                        absm_node_handle: selection.absm_node_handle,
+                        layer: if machine.layers().len() > 1 {
+                            Some(0)
+                        } else {
+                            None
+                        },
+                        entities: vec![],
+                    },
+                ))));
 
-                        commands.push(Command::new(RemoveLayerCommand::new(
-                            selection.absm_node_handle,
-                            layer_index,
-                        )));
+                commands.push(Command::new(RemoveLayerCommand::new(
+                    selection.absm_node_handle,
+                    layer_index,
+                )));
 
-                        sender.do_command(CommandGroup::from(commands));
-                    }
-                }
+                sender.do_command(CommandGroup::from(commands));
             }
         } else if let Some(NodeSelectorMessage::Selection(mask_selection)) =
             message.data_from(self.node_selector)
@@ -354,14 +353,13 @@ impl Toolbar {
             });
         } else if let Some(InputBoxMessage::Close(InputBoxResult::Ok(name))) =
             message.data_from(self.rename_layer_input_box)
+            && let Some(layer_index) = selection.layer
         {
-            if let Some(layer_index) = selection.layer {
-                sender.do_command(SetLayerNameCommand {
-                    absm_node_handle: selection.absm_node_handle,
-                    layer_index,
-                    name: name.clone(),
-                });
-            }
+            sender.do_command(SetLayerNameCommand {
+                absm_node_handle: selection.absm_node_handle,
+                layer_index,
+                name: name.clone(),
+            });
         }
 
         ToolbarAction::None

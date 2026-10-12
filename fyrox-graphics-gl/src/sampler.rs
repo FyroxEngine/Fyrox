@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::{server::GlGraphicsServer, ToGlConstant};
+use crate::{ToGlConstant, server::GlGraphicsServer};
 use fyrox_graphics::{
     error::FrameworkError,
     sampler::{

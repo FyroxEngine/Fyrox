@@ -49,7 +49,7 @@ use crate::{
         dyntype::DynTypeContainer,
         instant,
         log::{Log, MessageKind},
-        math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
+        math::{Matrix4Ext, aabb::AxisAlignedBoundingBox},
         pool::{Handle, MultiBorrowContext, ObjectOrVariant, Pool, PoolError, Ticket},
         reflect::prelude::*,
         visitor::prelude::*,
@@ -66,7 +66,7 @@ use crate::{
         },
         mesh::Mesh,
         navmesh,
-        node::{container::NodeContainer, Node, SyncContext, UpdateContext},
+        node::{Node, SyncContext, UpdateContext, container::NodeContainer},
         pivot::Pivot,
         sound::context::SoundContext,
         transform::TransformBuilder,
@@ -81,7 +81,7 @@ use std::{
     any::TypeId,
     fmt::{Debug, Display, Formatter, Write},
     ops::{Index, IndexMut},
-    sync::mpsc::{channel, Receiver, Sender},
+    sync::mpsc::{Receiver, Sender, channel},
     time::Duration,
 };
 
@@ -1292,16 +1292,16 @@ impl Graph {
         let mut roots = FxHashMap::default();
 
         while let Ok(message) = self.message_receiver.try_recv() {
-            if let NodeMessageKind::TransformChanged = message.kind {
-                if let Ok(node) = self.pool.try_borrow(message.node) {
-                    node.on_local_transform_changed(&mut SyncContext {
-                        nodes: &self.pool,
-                        physics: &mut self.physics,
-                        physics2d: &mut self.physics2d,
-                        sound_context: &mut self.sound_context,
-                        switches,
-                    })
-                }
+            if let NodeMessageKind::TransformChanged = message.kind
+                && let Ok(node) = self.pool.try_borrow(message.node)
+            {
+                node.on_local_transform_changed(&mut SyncContext {
+                    nodes: &self.pool,
+                    physics: &mut self.physics,
+                    physics2d: &mut self.physics2d,
+                    sound_context: &mut self.sound_context,
+                    switches,
+                })
             }
 
             // Prepare for hierarchy propagation.
@@ -1342,13 +1342,13 @@ impl Graph {
                 visited_flags[h.index() as usize].insert(message_flag);
 
                 // Remove a descendant from the list of potential roots.
-                if h != message.node {
-                    if let Some(flags) = roots.get_mut(&h) {
-                        flags.remove(message_flag);
+                if h != message.node
+                    && let Some(flags) = roots.get_mut(&h)
+                {
+                    flags.remove(message_flag);
 
-                        if flags.is_empty() {
-                            roots.remove(&h);
-                        }
+                    if flags.is_empty() {
+                        roots.remove(&h);
                     }
                 }
             })
@@ -1409,12 +1409,12 @@ impl Graph {
                     sound_context: &mut self.sound_context,
                 });
 
-                if delete_dead_nodes {
-                    if let Some(lifetime) = node.lifetime.get_value_mut_silent().as_mut() {
-                        *lifetime -= dt;
-                        if *lifetime <= 0.0 {
-                            is_alive = false;
-                        }
+                if delete_dead_nodes
+                    && let Some(lifetime) = node.lifetime.get_value_mut_silent().as_mut()
+                {
+                    *lifetime -= dt;
+                    if *lifetime <= 0.0 {
+                        is_alive = false;
                     }
                 }
             }
@@ -2123,10 +2123,10 @@ impl SceneGraph for Graph {
         let parent_handle = std::mem::replace(&mut self.pool[node_handle].parent, Handle::NONE);
 
         // Remove child from parent's children list
-        if let Ok(parent) = self.pool.try_borrow_mut(parent_handle) {
-            if let Some(i) = parent.children().iter().position(|h| *h == node_handle) {
-                parent.children.remove(i);
-            }
+        if let Ok(parent) = self.pool.try_borrow_mut(parent_handle)
+            && let Some(i) = parent.children().iter().position(|h| *h == node_handle)
+        {
+            parent.children.remove(i);
         }
 
         let (ticket, mut node) = self.pool.take_reserve(node_handle);
@@ -2193,16 +2193,16 @@ mod test {
         graph::SceneGraph,
         resource::model::{Model, ModelResourceExtension},
         scene::{
+            Scene, SceneLoader,
             base::BaseBuilder,
             graph::Graph,
             mesh::{
-                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
                 MeshBuilder,
+                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
             },
             node::Node,
             pivot::{Pivot, PivotBuilder},
             transform::TransformBuilder,
-            Scene, SceneLoader,
         },
         script::ScriptTrait,
     };
@@ -2440,12 +2440,14 @@ mod test {
                         .build(),
                 ),
             )
-            .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
-                Uuid::new_v4(),
-                ResourceKind::Embedded,
-                SurfaceData::make_cone(16, 1.0, 1.0, &Matrix4::identity()),
-            ))
-            .build()])
+            .with_surfaces(vec![
+                SurfaceBuilder::new(SurfaceResource::new_ok(
+                    Uuid::new_v4(),
+                    ResourceKind::Embedded,
+                    SurfaceData::make_cone(16, 1.0, 1.0, &Matrix4::identity()),
+                ))
+                .build(),
+            ])
             .build(&mut scene.graph)
         }))
         .build(&mut scene.graph);
@@ -2726,10 +2728,12 @@ mod test {
         assert!(graph.pool.try_get(pivot.transmute::<RigidBody>()).is_err());
 
         assert!(graph.pool.try_get(rigid_body).is_ok());
-        assert!(graph
-            .pool
-            .try_get(rigid_body.transmute::<RigidBody>())
-            .is_ok());
+        assert!(
+            graph
+                .pool
+                .try_get(rigid_body.transmute::<RigidBody>())
+                .is_ok()
+        );
         assert!(graph.pool.try_get(rigid_body.transmute::<Pivot>()).is_err());
     }
 }

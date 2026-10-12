@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    Message,
     fyrox::{
         core::{
             algebra::Vector2, color::Color, pool::ErasedHandle, pool::Handle, reflect::prelude::*,
@@ -26,23 +27,22 @@ use crate::{
         },
         graph::SceneGraph,
         gui::{
+            BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
             brush::Brush,
             draw::{CommandTexture, Draw, DrawingContext},
             grid::{Column, GridBuilder, Row},
             image::ImageBuilder,
             message::{OsEvent, UiMessage},
-            style::{resource::StyleResourceExt, Style, StyledProperty},
+            style::{Style, StyledProperty, resource::StyleResourceExt},
             text::{TextBuilder, TextMessage},
             tree::{Tree, TreeBuilder},
             utils::make_simple_tooltip,
             widget::{Widget, WidgetBuilder, WidgetMessage},
-            BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
     },
     load_image,
     message::MessageSender,
     utils::make_node_name,
-    Message,
 };
 
 use crate::world::SceneItemIcon;

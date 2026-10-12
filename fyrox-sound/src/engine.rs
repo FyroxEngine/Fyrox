@@ -25,8 +25,8 @@
 //! Sound engine manages contexts, feeds output device with data.
 
 use crate::context::SoundContext;
-use fyrox_core::visitor::prelude::*;
 use fyrox_core::SafeLock;
+use fyrox_core::visitor::prelude::*;
 use std::error::Error;
 use std::sync::{Arc, Mutex, MutexGuard};
 

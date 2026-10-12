@@ -28,21 +28,21 @@ use crate::{
         },
         graph::{NodeWrapper, SceneGraph},
         gui::{
-            border::Border, button::Button, canvas::Canvas, check_box::CheckBox,
-            file_browser::FileBrowser, grid::Grid, image::Image, inspector::Inspector,
-            list_view::ListView, menu::Menu, messagebox::MessageBox, popup::Popup, screen::Screen,
-            stack_panel::StackPanel, text::Text, window::Window, UiNode, UserInterface,
-            UserInterfaceResourceExtension,
+            UiNode, UserInterface, UserInterfaceResourceExtension, border::Border, button::Button,
+            canvas::Canvas, check_box::CheckBox, file_browser::FileBrowser, grid::Grid,
+            image::Image, inspector::Inspector, list_view::ListView, menu::Menu,
+            messagebox::MessageBox, popup::Popup, screen::Screen, stack_panel::StackPanel,
+            text::Text, window::Window,
         },
     },
     message::MessageSender,
-    scene::{commands::ChangeSelectionCommand, Selection},
+    scene::{Selection, commands::ChangeSelectionCommand},
     scene_item_icon,
     ui_scene::{
         commands::graph::{AddUiPrefabCommand, LinkWidgetsCommand, SetWidgetChildPosition},
         selection::UiSelection,
     },
-    world::{item::DropAnchor, SceneItemIcon, WorldViewerDataProvider},
+    world::{SceneItemIcon, WorldViewerDataProvider, item::DropAnchor},
 };
 use std::{borrow::Cow, path::Path, path::PathBuf};
 
@@ -200,51 +200,49 @@ impl WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'_> {
         let child: Handle<UiNode> = child.into();
         let parent: Handle<UiNode> = parent.into();
 
-        if let Some(selection) = self.selection.as_ui() {
-            if selection.widgets.contains(&child) {
-                let mut commands = CommandGroup::default();
+        if let Some(selection) = self.selection.as_ui()
+            && selection.widgets.contains(&child)
+        {
+            let mut commands = CommandGroup::default();
 
-                'selection_loop: for &widget_handle in selection.widgets.iter() {
-                    // Make sure we won't create any loops - child must not have parent in its
-                    // descendants.
-                    let mut p = parent;
-                    while p.is_some() {
-                        if p == widget_handle {
-                            continue 'selection_loop;
-                        }
-                        p = self.ui.node(p).parent();
+            'selection_loop: for &widget_handle in selection.widgets.iter() {
+                // Make sure we won't create any loops - child must not have parent in its
+                // descendants.
+                let mut p = parent;
+                while p.is_some() {
+                    if p == widget_handle {
+                        continue 'selection_loop;
                     }
+                    p = self.ui.node(p).parent();
+                }
 
-                    match anchor {
-                        DropAnchor::Side { index_offset, .. } => {
-                            if let Some((parents_parent, position)) =
-                                self.ui.relative_position(parent, index_offset)
+                match anchor {
+                    DropAnchor::Side { index_offset, .. } => {
+                        if let Some((parents_parent, position)) =
+                            self.ui.relative_position(parent, index_offset)
+                        {
+                            if let Ok(node) = self.ui.try_get_node(widget_handle)
+                                && node.parent() != parents_parent
                             {
-                                if let Ok(node) = self.ui.try_get_node(widget_handle) {
-                                    if node.parent() != parents_parent {
-                                        commands.push(LinkWidgetsCommand::new(
-                                            widget_handle,
-                                            parents_parent,
-                                        ));
-                                    }
-                                }
-
-                                commands.push(SetWidgetChildPosition {
-                                    node: parents_parent,
-                                    child: widget_handle,
-                                    position,
-                                });
+                                commands
+                                    .push(LinkWidgetsCommand::new(widget_handle, parents_parent));
                             }
-                        }
-                        DropAnchor::OnTop => {
-                            commands.push(LinkWidgetsCommand::new(widget_handle, parent));
+
+                            commands.push(SetWidgetChildPosition {
+                                node: parents_parent,
+                                child: widget_handle,
+                                position,
+                            });
                         }
                     }
+                    DropAnchor::OnTop => {
+                        commands.push(LinkWidgetsCommand::new(widget_handle, parent));
+                    }
                 }
+            }
 
-                if !commands.is_empty() {
-                    self.sender.do_command(commands);
-                }
+            if !commands.is_empty() {
+                self.sender.do_command(commands);
             }
         }
     }

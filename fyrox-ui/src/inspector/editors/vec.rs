@@ -19,19 +19,19 @@
 // SOFTWARE.
 
 use crate::{
+    Thickness,
     core::{algebra::SVector, num_traits::NumCast},
     inspector::{
+        FieldAction, InspectorError, PropertyChanged,
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldAction, InspectorError, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
     numeric::NumericType,
     vec::{VecEditorBuilder, VecEditorMessage},
     widget::WidgetBuilder,
-    Thickness,
 };
 use std::{any::TypeId, marker::PhantomData};
 
@@ -96,15 +96,14 @@ impl<T: NumericType, const D: usize> PropertyEditorDefinition
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(VecEditorMessage::Value(value)) =
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(VecEditorMessage::Value(value)) =
                 ctx.message.data::<VecEditorMessage<T, D>>()
-            {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
-                    action: FieldAction::object(*value),
-                });
-            }
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
+                action: FieldAction::object(*value),
+            });
         }
         None
     }

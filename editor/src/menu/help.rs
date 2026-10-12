@@ -20,10 +20,10 @@
 
 use crate::fyrox::{
     core::{log::Log, pool::Handle},
-    gui::{menu::MenuItemMessage, message::UiMessage, BuildContext},
+    gui::{BuildContext, menu::MenuItemMessage, message::UiMessage},
 };
 use crate::menu::{create_menu_item, create_root_menu_item};
-use fyrox::core::uuid::{uuid, Uuid};
+use fyrox::core::uuid::{Uuid, uuid};
 use fyrox::gui::menu::MenuItem;
 
 pub struct HelpMenu {

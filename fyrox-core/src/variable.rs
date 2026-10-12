@@ -24,7 +24,7 @@
 
 use crate::{
     reflect::prelude::*,
-    visitor::{prelude::*, VisitorFlags},
+    visitor::{VisitorFlags, prelude::*},
 };
 use bitflags::bitflags;
 use std::any::type_name;
@@ -631,42 +631,37 @@ pub fn try_inherit_properties(
 
     let mut result = None;
 
-    if let Some(inheritable_child) = child.as_inheritable_variable_mut() {
-        if let Some(inheritable_parent) = parent.as_inheritable_variable() {
-            if let Err(e) = inheritable_child.try_inherit(inheritable_parent, ignored_types) {
-                result = Some(Err(e));
-            }
+    if let Some(inheritable_child) = child.as_inheritable_variable_mut()
+        && let Some(inheritable_parent) = parent.as_inheritable_variable()
+    {
+        if let Err(e) = inheritable_child.try_inherit(inheritable_parent, ignored_types) {
+            result = Some(Err(e));
+        }
 
-            if !matches!(result, Some(Err(_))) {
-                result = Some(try_inherit_properties(
-                    inheritable_child.inner_value_mut(),
-                    inheritable_parent.inner_value_ref(),
-                    ignored_types,
-                ));
-            }
+        if !matches!(result, Some(Err(_))) {
+            result = Some(try_inherit_properties(
+                inheritable_child.inner_value_mut(),
+                inheritable_parent.inner_value_ref(),
+                ignored_types,
+            ));
         }
     }
 
-    if result.is_none() {
-        if let Some(child_collection) = child.as_array_mut() {
-            if let Some(parent_collection) = parent.as_array() {
-                if child_collection.reflect_len() == parent_collection.reflect_len() {
-                    for i in 0..child_collection.reflect_len() {
-                        // Sparse arrays (like Pool) could have empty entries.
-                        if let (Some(child_item), Some(parent_item)) = (
-                            child_collection.reflect_index_mut(i),
-                            parent_collection.reflect_index(i),
-                        ) {
-                            if let Err(e) =
-                                try_inherit_properties(child_item, parent_item, ignored_types)
-                            {
-                                result = Some(Err(e));
+    if result.is_none()
+        && let Some(child_collection) = child.as_array_mut()
+        && let Some(parent_collection) = parent.as_array()
+        && child_collection.reflect_len() == parent_collection.reflect_len()
+    {
+        for i in 0..child_collection.reflect_len() {
+            // Sparse arrays (like Pool) could have empty entries.
+            if let (Some(child_item), Some(parent_item)) = (
+                child_collection.reflect_index_mut(i),
+                parent_collection.reflect_index(i),
+            ) && let Err(e) = try_inherit_properties(child_item, parent_item, ignored_types)
+            {
+                result = Some(Err(e));
 
-                                break;
-                            }
-                        }
-                    }
-                }
+                break;
             }
         }
     }
@@ -733,8 +728,8 @@ pub fn mark_inheritable_properties_modified(object: &mut dyn Reflect, ignored_ty
 #[cfg(test)]
 mod test {
     use crate::{
-        reflect::{prelude::*, ReflectInheritableVariable},
-        variable::{try_inherit_properties, InheritableVariable, VariableFlags},
+        reflect::{ReflectInheritableVariable, prelude::*},
+        variable::{InheritableVariable, VariableFlags, try_inherit_properties},
         visitor::{Visit, Visitor},
     };
     use std::any::Any;

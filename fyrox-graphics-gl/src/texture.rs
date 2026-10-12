@@ -18,15 +18,15 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::{server::GlGraphicsServer, ToGlConstant};
+use crate::{ToGlConstant, server::GlGraphicsServer};
 use fyrox_graphics::{
     error::FrameworkError,
     gpu_texture::{
-        image_1d_size_bytes, image_2d_size_bytes, image_3d_size_bytes, CubeMapFace,
-        GpuTextureDescriptor, GpuTextureKind, GpuTextureTrait, PixelKind,
+        CubeMapFace, GpuTextureDescriptor, GpuTextureKind, GpuTextureTrait, PixelKind,
+        image_1d_size_bytes, image_2d_size_bytes, image_3d_size_bytes,
     },
 };
-use glow::{HasContext, PixelUnpackData, COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
+use glow::{COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2, HasContext, PixelUnpackData};
 use std::cell::Cell;
 use std::{
     marker::PhantomData,
@@ -441,19 +441,18 @@ impl GpuTextureTrait for GlTexture {
                     .pixel_store_i32(glow::UNPACK_ALIGNMENT, alignment);
             }
 
-            if let Some(swizzle_mask) = swizzle_mask {
-                if temp_binding
+            if let Some(swizzle_mask) = swizzle_mask
+                && temp_binding
                     .server
                     .gl
                     .supported_extensions()
                     .contains("GL_ARB_texture_swizzle")
-                {
-                    temp_binding.server.gl.tex_parameter_i32_slice(
-                        target,
-                        glow::TEXTURE_SWIZZLE_RGBA,
-                        &swizzle_mask,
-                    );
-                }
+            {
+                temp_binding.server.gl.tex_parameter_i32_slice(
+                    target,
+                    glow::TEXTURE_SWIZZLE_RGBA,
+                    &swizzle_mask,
+                );
             }
 
             let mut mip_byte_offset = 0;

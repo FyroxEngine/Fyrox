@@ -33,22 +33,22 @@ use crate::{
         math::{Matrix4Ext, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
-        visitor::{prelude::*, BinaryBlob},
+        visitor::{BinaryBlob, prelude::*},
     },
     graph::SceneGraph,
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource},
     scene::{
+        Scene,
         light::{directional::DirectionalLight, point::PointLight, spot::SpotLight},
         mesh::{
+            Mesh,
             buffer::{
                 VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
                 VertexFetchError, VertexReadTrait, VertexWriteTrait,
             },
             surface::{SurfaceData, SurfaceResource},
-            Mesh,
         },
         node::Node,
-        Scene,
     },
     utils::{uvgen, uvgen::SurfaceDataPatch},
 };
@@ -66,8 +66,8 @@ use std::{
     ops::Deref,
     path::Path,
     sync::{
-        atomic::{self, AtomicBool, AtomicU32},
         Arc,
+        atomic::{self, AtomicBool, AtomicU32},
     },
 };
 
@@ -784,15 +784,15 @@ mod test {
         asset::ResourceData,
         core::algebra::{Matrix4, Vector3},
         scene::{
+            Scene,
             base::BaseBuilder,
-            light::{point::PointLightBuilder, BaseLightBuilder},
+            light::{BaseLightBuilder, point::PointLightBuilder},
             mesh::{
+                MeshBuilder,
                 surface::SurfaceResource,
                 surface::{SurfaceBuilder, SurfaceData},
-                MeshBuilder,
             },
             transform::TransformBuilder,
-            Scene,
         },
         utils::lightmap::{Lightmap, LightmapInputData},
     };
@@ -812,12 +812,14 @@ mod test {
         );
 
         MeshBuilder::new(BaseBuilder::new())
-            .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
-                Uuid::new_v4(),
-                ResourceKind::Embedded,
-                data,
-            ))
-            .build()])
+            .with_surfaces(vec![
+                SurfaceBuilder::new(SurfaceResource::new_ok(
+                    Uuid::new_v4(),
+                    ResourceKind::Embedded,
+                    data,
+                ))
+                .build(),
+            ])
             .build(&mut scene.graph);
 
         PointLightBuilder::new(BaseLightBuilder::new(

@@ -89,7 +89,7 @@ mod test {
     use super::*;
     use std::{
         any::Any,
-        panic::{catch_unwind, AssertUnwindSafe},
+        panic::{AssertUnwindSafe, catch_unwind},
     };
     fn panic_to_string(message: Box<dyn Any>) -> Option<String> {
         match message.downcast_ref::<&str>() {

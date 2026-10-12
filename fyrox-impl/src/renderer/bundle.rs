@@ -30,12 +30,13 @@ use crate::{
         color::{self, Color},
         err_once,
         log::Log,
-        math::{frustum::Frustum, Matrix4Ext, Rect},
+        math::{Matrix4Ext, Rect, frustum::Frustum},
         pool::Handle,
         sstorage::ImmutableString,
     },
     graph::SceneGraph,
     graphics::{
+        ElementRange,
         error::FrameworkError,
         framebuffer::{GpuFrameBuffer, ResourceBindGroup, ResourceBinding},
         gpu_program::{
@@ -45,34 +46,33 @@ use crate::{
         gpu_texture::GpuTexture,
         server::GraphicsServer,
         uniform::{ByteStorage, StaticUniformBuffer, UniformBuffer},
-        ElementRange,
     },
-    material::{self, shader::ShaderDefinition, Material, MaterialPropertyRef, MaterialResource},
+    material::{self, Material, MaterialPropertyRef, MaterialResource, shader::ShaderDefinition},
     renderer::{
+        RenderPassStatistics,
         cache::{
+            DynamicSurfaceCache, TimeToLive,
             geometry::GeometryCache,
             shader::ShaderCache,
             texture::TextureCache,
             uniform::{UniformBlockLocation, UniformMemoryAllocator},
-            DynamicSurfaceCache, TimeToLive,
         },
         observer::ObserverPosition,
-        RenderPassStatistics,
     },
     resource::texture::TextureResource,
     scene::{
         collider::BitMask,
         graph::Graph,
         light::{
+            BaseLight,
             directional::{CsmOptions, DirectionalLight},
             point::PointLight,
             spot::SpotLight,
-            BaseLight,
         },
         mesh::{
+            RenderPath,
             buffer::{TriangleBufferRefMut, VertexAttributeDescriptor, VertexBufferRefMut},
             surface::SurfaceResource,
-            RenderPath,
         },
         node::{Node, NodeTrait, RdcControlFlow},
         probe::ReflectionProbe,
@@ -558,21 +558,20 @@ impl RenderDataBundle {
             .get(render_context.render_pass_name)
         else {
             let shader_state = material.shader().state();
-            if let Some(shader_data) = shader_state.data_ref() {
-                if !shader_data
+            if let Some(shader_data) = shader_state.data_ref()
+                && !shader_data
                     .definition
                     .disabled_passes
                     .iter()
                     .any(|pass_name| pass_name.as_str() == render_context.render_pass_name.as_str())
-                {
-                    err_once!(
-                        self.data.key() as usize,
-                        "There's no render pass {} in {:?} shader! \
+            {
+                err_once!(
+                    self.data.key() as usize,
+                    "There's no render pass {} in {:?} shader! \
                         If it is not needed, add it to disabled passes.",
-                        render_context.render_pass_name,
-                        shader_data.definition.name,
-                    );
-                }
+                    render_context.render_pass_name,
+                    shader_data.definition.name,
+                );
             }
             return Ok(stats);
         };
@@ -915,61 +914,58 @@ impl RenderDataBundleStorage {
                 }
             }
 
-            if let Some(reflection_probe) = node.self_or_field_ref::<ReflectionProbe>() {
-                if (reflection_probe as &dyn NodeTrait)
+            if let Some(reflection_probe) = node.self_or_field_ref::<ReflectionProbe>()
+                && (reflection_probe as &dyn NodeTrait)
                     .world_bounding_box()
                     .is_contains_point(observer_position.translation)
-                {
-                    storage.environment_map = Some(reflection_probe.render_target().clone());
-                }
+            {
+                storage.environment_map = Some(reflection_probe.render_target().clone());
             }
 
-            if options.collect_lights {
-                if let Some(base_light) = node.self_or_field_ref::<BaseLight>() {
-                    if frustum.is_intersects_aabb(&node.world_bounding_box())
-                        && base_light.global_visibility()
-                        && base_light.is_globally_enabled()
-                    {
-                        let kind = if let Some(spot_light) = node.cast::<SpotLight>() {
-                            LightSourceKind::Spot {
-                                full_cone_angle: spot_light.full_cone_angle(),
-                                hotspot_cone_angle: spot_light.hotspot_cone_angle(),
-                                distance: spot_light.distance(),
-                                shadow_bias: spot_light.shadow_bias(),
-                                cookie_texture: spot_light.cookie_texture(),
-                            }
-                        } else if let Some(point_light) = node.cast::<PointLight>() {
-                            LightSourceKind::Point {
-                                radius: point_light.radius(),
-                                shadow_bias: point_light.shadow_bias(),
-                            }
-                        } else if let Some(directional_light) = node.cast::<DirectionalLight>() {
-                            LightSourceKind::Directional {
-                                csm_options: (*directional_light.csm_options).clone(),
-                            }
-                        } else {
-                            LightSourceKind::Unknown
-                        };
-
-                        let source = LightSource {
-                            handle: node_handle,
-                            global_transform: base_light.global_transform(),
-                            kind,
-                            position: base_light.global_position(),
-                            up_vector: base_light.up_vector(),
-                            side_vector: base_light.side_vector(),
-                            look_vector: base_light.look_vector(),
-                            cast_shadows: base_light.cast_shadows(),
-                            local_scale: **base_light.local_transform().scale(),
-                            color: base_light.color(),
-                            intensity: base_light.intensity(),
-                            scatter_enabled: base_light.is_scatter_enabled(),
-                            scatter: base_light.scatter(),
-                        };
-
-                        storage.light_sources.push(source);
+            if options.collect_lights
+                && let Some(base_light) = node.self_or_field_ref::<BaseLight>()
+                && frustum.is_intersects_aabb(&node.world_bounding_box())
+                && base_light.global_visibility()
+                && base_light.is_globally_enabled()
+            {
+                let kind = if let Some(spot_light) = node.cast::<SpotLight>() {
+                    LightSourceKind::Spot {
+                        full_cone_angle: spot_light.full_cone_angle(),
+                        hotspot_cone_angle: spot_light.hotspot_cone_angle(),
+                        distance: spot_light.distance(),
+                        shadow_bias: spot_light.shadow_bias(),
+                        cookie_texture: spot_light.cookie_texture(),
                     }
-                }
+                } else if let Some(point_light) = node.cast::<PointLight>() {
+                    LightSourceKind::Point {
+                        radius: point_light.radius(),
+                        shadow_bias: point_light.shadow_bias(),
+                    }
+                } else if let Some(directional_light) = node.cast::<DirectionalLight>() {
+                    LightSourceKind::Directional {
+                        csm_options: (*directional_light.csm_options).clone(),
+                    }
+                } else {
+                    LightSourceKind::Unknown
+                };
+
+                let source = LightSource {
+                    handle: node_handle,
+                    global_transform: base_light.global_transform(),
+                    kind,
+                    position: base_light.global_position(),
+                    up_vector: base_light.up_vector(),
+                    side_vector: base_light.side_vector(),
+                    look_vector: base_light.look_vector(),
+                    cast_shadows: base_light.cast_shadows(),
+                    local_scale: **base_light.local_transform().scale(),
+                    color: base_light.color(),
+                    intensity: base_light.intensity(),
+                    scatter_enabled: base_light.is_scatter_enabled(),
+                    scatter: base_light.scatter(),
+                };
+
+                storage.light_sources.push(source);
             }
         }
 

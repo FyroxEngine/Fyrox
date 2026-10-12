@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    Editor,
     fyrox::{
         asset::untyped::ResourceKind,
         core::{algebra::Matrix4, math::Matrix4Ext, pool::Handle, sstorage::ImmutableString},
@@ -27,19 +28,18 @@ use crate::{
             server::GraphicsServer,
         },
         renderer::{
+            RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
             cache::shader::{
-                binding, property, PropertyGroup, RenderMaterial, RenderPassContainer,
+                PropertyGroup, RenderMaterial, RenderPassContainer, binding, property,
             },
             framework::GeometryBufferExt,
-            RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
         },
         resource::texture::{
             CompressionOptions, TextureImportOptions, TextureMinificationFilter, TextureResource,
             TextureResourceExtension,
         },
-        scene::{mesh::surface::SurfaceData, Scene},
+        scene::{Scene, mesh::surface::SurfaceData},
     },
-    Editor,
 };
 use fyrox::core::uuid::Uuid;
 use std::{any::TypeId, cell::RefCell, rc::Rc};

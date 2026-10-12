@@ -38,8 +38,8 @@ use crate::{
     },
     keyboard::{KeyCode, ModifiersState},
 };
-use fyrox_core::parking_lot::{Mutex, MutexGuard};
 use fyrox_core::SafeLock;
+use fyrox_core::parking_lot::{Mutex, MutexGuard};
 use fyrox_ui::message::CursorIcon;
 use half::f16;
 use std::collections::VecDeque;

@@ -26,8 +26,9 @@
 
 use super::collider::BitMask;
 use crate::{
-    asset::{untyped::UntypedResource, Resource},
+    asset::{Resource, untyped::UntypedResource},
     core::{
+        NameProvider,
         algebra::{Matrix4, Vector2},
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum},
         pool::Handle,
@@ -36,14 +37,13 @@ use crate::{
         variable,
         variable::mark_inheritable_properties_non_modified,
         visitor::prelude::*,
-        NameProvider,
     },
     graph::NodeWrapper,
     renderer::bundle::RenderContext,
     resource::model::{Model, ModelResource},
     scene::{
-        self,
-        animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
+        self, Scene,
+        animation::{AnimationPlayer, absm::AnimationBlendingStateMachine},
         base::Base,
         camera::Camera,
         debug::SceneDrawingContext,
@@ -56,10 +56,9 @@ use crate::{
         particle_system::ParticleSystem,
         pivot::Pivot,
         ragdoll::Ragdoll,
-        sound::{context::SoundContext, listener::Listener, Sound},
+        sound::{Sound, context::SoundContext, listener::Listener},
         sprite::Sprite,
         terrain::Terrain,
-        Scene,
     },
 };
 use fyrox_core::{define_as_any_trait, pool::ObjectOrVariantHelper};
@@ -244,12 +243,11 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
             return false;
         }
 
-        if self.frustum_culling() {
-            if let Some(frustum) = frustum {
-                if !frustum.is_intersects_aabb(&self.world_bounding_box()) {
-                    return false;
-                }
-            }
+        if self.frustum_culling()
+            && let Some(frustum) = frustum
+            && !frustum.is_intersects_aabb(&self.world_bounding_box())
+        {
+            return false;
         }
 
         true
@@ -587,25 +585,25 @@ mod test {
     use crate::{
         asset::manager::ResourceManager,
         core::{
+            SafeLock,
             algebra::{Matrix4, Vector3},
             futures::executor::block_on,
             reflect::prelude::*,
-            uuid::{uuid, Uuid},
+            uuid::{Uuid, uuid},
             variable::InheritableVariable,
-            visitor::{prelude::*, Visitor},
-            SafeLock,
+            visitor::{Visitor, prelude::*},
         },
         engine::{self, SerializationContext},
         resource::model::{Model, ModelResourceExtension},
         scene::{
+            Scene,
             base::BaseBuilder,
             mesh::{
-                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
                 MeshBuilder,
+                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
             },
             pivot::PivotBuilder,
             transform::TransformBuilder,
-            Scene,
         },
         script::ScriptTrait,
     };
@@ -642,12 +640,14 @@ mod test {
                                 .build(),
                         ),
                     )
-                    .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_ok(
-                        Uuid::new_v4(),
-                        ResourceKind::Embedded,
-                        SurfaceData::make_cone(16, 1.0, 1.0, &Matrix4::identity()),
-                    ))
-                    .build()])
+                    .with_surfaces(vec![
+                        SurfaceBuilder::new(SurfaceResource::new_ok(
+                            Uuid::new_v4(),
+                            ResourceKind::Embedded,
+                            SurfaceData::make_cone(16, 1.0, 1.0, &Matrix4::identity()),
+                        ))
+                        .build(),
+                    ])
                     .build(&mut scene.graph);
                     mesh
                 }),
@@ -699,11 +699,13 @@ mod test {
             .script_constructors
             .add::<MyScript>("MyScript");
 
-        assert!(serialization_context
-            .script_constructors
-            .map()
-            .iter()
-            .any(|s| s.1.source_path == file!()));
+        assert!(
+            serialization_context
+                .script_constructors
+                .map()
+                .iter()
+                .any(|s| s.1.source_path == file!())
+        );
 
         engine::initialize_resource_manager_loaders(
             &resource_manager,

@@ -19,22 +19,22 @@
 // SOFTWARE.
 
 use crate::{
+    Message,
     fyrox::{
         core::{algebra::Vector2, pool::Handle},
         engine::Engine,
         graph::SceneGraph,
         gui::{
+            BuildContext, HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
             image::{Image, ImageBuilder, ImageMessage},
             stack_panel::StackPanelBuilder,
             widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
         },
         resource::texture::{TextureResource, TextureResourceExtension},
         scene::{camera::Camera, collider::BitMask},
     },
     scene::{GameScene, Selection},
-    Message,
 };
 
 pub struct CameraPreviewControlPanel {

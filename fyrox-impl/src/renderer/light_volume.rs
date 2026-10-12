@@ -29,16 +29,16 @@ use crate::{
         geometry_buffer::GpuGeometryBuffer, server::GraphicsServer,
     },
     renderer::{
+        RenderPassStatistics,
         bundle::{LightSource, LightSourceKind},
         cache::{
-            shader::{binding, property, PropertyGroup, RenderMaterial},
+            shader::{PropertyGroup, RenderMaterial, binding, property},
             uniform::UniformBufferCache,
         },
         framework::GeometryBufferExt,
         gbuffer::GBuffer,
         make_viewport_matrix,
         resources::RendererResources,
-        RenderPassStatistics,
     },
     scene::{graph::Graph, mesh::surface::SurfaceData},
 };

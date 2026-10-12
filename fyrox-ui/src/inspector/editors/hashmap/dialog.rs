@@ -19,22 +19,22 @@
 // SOFTWARE.
 
 use crate::{
+    BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     button::{Button, ButtonBuilder, ButtonMessage},
     control_trait_proxy_impls,
     core::{log::Log, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     grid::{Column, GridBuilder, Row},
     inspector::{
-        editors::{
-            hashmap::HashMapKey, PropertyEditorBuildContext, PropertyEditorDefinitionContainer,
-            PropertyEditorTranslationContext,
-        },
         InspectorEnvironmentContainer, PropertyAction,
+        editors::{
+            PropertyEditorBuildContext, PropertyEditorDefinitionContainer,
+            PropertyEditorTranslationContext, hashmap::HashMapKey,
+        },
     },
     message::{MessageData, UiMessage},
     stack_panel::StackPanelBuilder,
     widget::{Widget, WidgetBuilder},
     window::{Window, WindowBuilder, WindowMessage},
-    BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
 };
 use fxhash::FxHashSet;
 use std::{
@@ -93,26 +93,24 @@ impl<K: HashMapKey> Control for SelectHashMapKeyDialogWindow<K> {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.window.handle_routed_message(ui, message);
 
-        if message.destination() == self.key_editor {
-            if let Some(definition) = self.property_editors.get::<K>() {
-                if let Some(change) =
-                    definition
-                        .property_editor
-                        .translate_message(PropertyEditorTranslationContext {
-                            environment: self.environment.clone(),
-                            name: "",
-                            message,
-                            definition_container: self.property_editors.clone(),
-                        })
-                {
-                    PropertyAction::from_field_action(&change.action).apply_on_result(
-                        Ok(&mut self.key),
-                        &mut |result| {
-                            Log::verify(result);
-                        },
-                    );
-                }
-            }
+        if message.destination() == self.key_editor
+            && let Some(definition) = self.property_editors.get::<K>()
+            && let Some(change) =
+                definition
+                    .property_editor
+                    .translate_message(PropertyEditorTranslationContext {
+                        environment: self.environment.clone(),
+                        name: "",
+                        message,
+                        definition_container: self.property_editors.clone(),
+                    })
+        {
+            PropertyAction::from_field_action(&change.action).apply_on_result(
+                Ok(&mut self.key),
+                &mut |result| {
+                    Log::verify(result);
+                },
+            );
         }
 
         if let Some(ButtonMessage::Click) = message.data_from(self.ok) {

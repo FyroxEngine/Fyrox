@@ -23,6 +23,7 @@
 
 use crate::message::MessageData;
 use crate::{
+    BuildContext, Control, UiNode, UserInterface,
     core::{
         log::{Log, MessageKind},
         pool::Handle,
@@ -34,7 +35,6 @@ use crate::{
     generic_animation::value::{BoundValueCollection, TrackValue, ValueBinding},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 
@@ -65,10 +65,10 @@ pub mod prelude {
         Track,
     };
     pub use crate::generic_animation::{
+        AnimationEvent,
         container::{TrackDataContainer, TrackValueKind},
         signal::AnimationSignal,
         value::{BoundValueCollection, TrackValue, ValueBinding, ValueType},
-        AnimationEvent,
     };
 }
 
@@ -98,7 +98,10 @@ impl AnimationPoseExt for AnimationPose {
     fn apply(&self, ui: &mut UserInterface) {
         for (node, local_pose) in self.poses() {
             if node.is_none() {
-                Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
+                Log::writeln(
+                    MessageKind::Error,
+                    "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!",
+                );
             } else if let Ok(node) = ui.try_get_node_mut(*node) {
                 node.invalidate_layout();
 

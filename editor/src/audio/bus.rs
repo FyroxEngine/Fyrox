@@ -21,6 +21,8 @@
 use crate::fyrox::{
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     gui::{
+        BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
+        VerticalAlignment,
         border::BorderBuilder,
         decorator::DecoratorBuilder,
         define_widget_deref,
@@ -28,12 +30,10 @@ use crate::fyrox::{
         grid::{Column, GridBuilder, Row},
         list_view::{ListView, ListViewBuilder, ListViewMessage},
         message::{MessageData, UiMessage},
-        style::{resource::StyleResourceExt, Style},
+        style::{Style, resource::StyleResourceExt},
         text::{Text, TextBuilder, TextMessage},
         utils::{make_dropdown_list_option, make_simple_tooltip},
         widget::{Widget, WidgetBuilder},
-        BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
-        VerticalAlignment,
     },
     scene::sound::{AudioBus, AudioBusGraph},
 };
@@ -108,13 +108,15 @@ fn make_items(buses: &[(Handle<AudioBus>, String)], ctx: &mut BuildContext) -> V
 
 fn make_effect_names(names: &[String], ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
     if names.is_empty() {
-        vec![TextBuilder::new(
-            WidgetBuilder::new().with_foreground(ctx.style.property(Style::BRUSH_LIGHTER)),
-        )
-        .with_text("No Effects")
-        .with_horizontal_text_alignment(HorizontalAlignment::Center)
-        .build(ctx)
-        .to_base()]
+        vec![
+            TextBuilder::new(
+                WidgetBuilder::new().with_foreground(ctx.style.property(Style::BRUSH_LIGHTER)),
+            )
+            .with_text("No Effects")
+            .with_horizontal_text_alignment(HorizontalAlignment::Center)
+            .build(ctx)
+            .to_base(),
+        ]
     } else {
         names
             .iter()

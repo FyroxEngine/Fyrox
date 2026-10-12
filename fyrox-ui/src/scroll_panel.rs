@@ -23,6 +23,7 @@
 //! info and usage examples.
 
 use crate::{
+    BuildContext, Control, UiNode, UserInterface,
     brush::Brush,
     core::{
         algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
@@ -31,13 +32,12 @@ use crate::{
     draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, UiNode, UserInterface,
 };
 
 use crate::message::MessageData;
 use fyrox_core::ok_or_return;
-use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 
 /// A set of messages, that is used to modify the state of a scroll panel.
 #[derive(Debug, Clone, PartialEq)]
@@ -299,38 +299,38 @@ impl Control for ScrollPanel {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.destination() == self.handle() {
-            if let Some(msg) = message.data::<ScrollPanelMessage>() {
-                match *msg {
-                    ScrollPanelMessage::VerticalScroll(scroll) => {
-                        self.scroll.y = scroll;
-                        self.invalidate_arrange();
+        if message.destination() == self.handle()
+            && let Some(msg) = message.data::<ScrollPanelMessage>()
+        {
+            match *msg {
+                ScrollPanelMessage::VerticalScroll(scroll) => {
+                    self.scroll.y = scroll;
+                    self.invalidate_arrange();
+                }
+                ScrollPanelMessage::HorizontalScroll(scroll) => {
+                    self.scroll.x = scroll;
+                    self.invalidate_arrange();
+                }
+                ScrollPanelMessage::BringIntoView(handle) => {
+                    self.bring_into_view(ui, handle);
+                }
+                ScrollPanelMessage::ScrollToEnd => {
+                    let max_size = self.children_size(ui);
+                    if self.vertical_scroll_allowed {
+                        ui.send(
+                            self.handle,
+                            ScrollPanelMessage::VerticalScroll(
+                                (max_size.y - self.actual_local_size().y).max(0.0),
+                            ),
+                        );
                     }
-                    ScrollPanelMessage::HorizontalScroll(scroll) => {
-                        self.scroll.x = scroll;
-                        self.invalidate_arrange();
-                    }
-                    ScrollPanelMessage::BringIntoView(handle) => {
-                        self.bring_into_view(ui, handle);
-                    }
-                    ScrollPanelMessage::ScrollToEnd => {
-                        let max_size = self.children_size(ui);
-                        if self.vertical_scroll_allowed {
-                            ui.send(
-                                self.handle,
-                                ScrollPanelMessage::VerticalScroll(
-                                    (max_size.y - self.actual_local_size().y).max(0.0),
-                                ),
-                            );
-                        }
-                        if self.horizontal_scroll_allowed {
-                            ui.send(
-                                self.handle,
-                                ScrollPanelMessage::HorizontalScroll(
-                                    (max_size.x - self.actual_local_size().x).max(0.0),
-                                ),
-                            );
-                        }
+                    if self.horizontal_scroll_allowed {
+                        ui.send(
+                            self.handle,
+                            ScrollPanelMessage::HorizontalScroll(
+                                (max_size.x - self.actual_local_size().x).max(0.0),
+                            ),
+                        );
                     }
                 }
             }

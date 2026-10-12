@@ -20,32 +20,32 @@
 
 use crate::ui_scene::commands::UiSceneContext;
 use crate::{
+    GameScene, Message,
     asset::preview::cache::IconRequest,
     command::make_command,
     fyrox::{
         core::{color::Color, pool::Handle, reflect::Reflect},
         engine::Engine,
         gui::{
+            BuildContext, WidgetPool,
             inspector::{
-                editors::{
-                    enumeration::EnumPropertyEditorDefinition, PropertyEditorDefinitionContainer,
-                },
                 InspectorBuilder, InspectorContext, InspectorContextArgs, InspectorMessage,
                 PropertyFilter,
+                editors::{
+                    PropertyEditorDefinitionContainer, enumeration::EnumPropertyEditorDefinition,
+                },
             },
             message::UiMessage,
             scroll_viewer::ScrollViewerBuilder,
             widget::WidgetBuilder,
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, WidgetPool,
         },
         scene::{
-            dim2,
+            SceneRenderingOptions, dim2,
             graph::{
-                physics::{IntegrationParameters, PhysicsWorld},
                 Graph, NodePool,
+                physics::{IntegrationParameters, PhysicsWorld},
             },
-            SceneRenderingOptions,
         },
         utils::lightmap::Lightmap,
     },
@@ -53,11 +53,10 @@ use crate::{
     plugins::inspector::EditorEnvironment,
     scene::{commands::GameSceneContext, controller::SceneController},
     ui_scene::UiScene,
-    GameScene, Message,
 };
 use fyrox::gui::inspector::editors::inspectable::InspectablePropertyEditorDefinition;
 use fyrox::gui::inspector::{Inspector, InspectorEnvironmentContainer};
-use std::sync::{mpsc::Sender, Arc};
+use std::sync::{Arc, mpsc::Sender};
 
 pub struct SceneSettingsWindow {
     pub window: Handle<Window>,
@@ -183,21 +182,21 @@ impl SceneSettingsWindow {
         message: &UiMessage,
         sender: &MessageSender,
     ) {
-        if let Some(InspectorMessage::PropertyChanged(property_changed)) = message.data() {
-            if message.destination() == self.inspector {
-                if controller.downcast_ref::<GameScene>().is_some() {
-                    if let Some(command) = make_command(property_changed, |ctx| {
-                        Some(ctx.get_mut::<GameSceneContext>().scene as &mut dyn Reflect)
-                    }) {
-                        sender.send(Message::DoCommand(command));
-                    }
-                } else if controller.downcast_ref::<UiScene>().is_some() {
-                    if let Some(command) = make_command(property_changed, |ctx| {
-                        Some(ctx.get_mut::<UiSceneContext>().ui as &mut dyn Reflect)
-                    }) {
-                        sender.send(Message::DoCommand(command));
-                    }
+        if let Some(InspectorMessage::PropertyChanged(property_changed)) = message.data()
+            && message.destination() == self.inspector
+        {
+            if controller.downcast_ref::<GameScene>().is_some() {
+                if let Some(command) = make_command(property_changed, |ctx| {
+                    Some(ctx.get_mut::<GameSceneContext>().scene as &mut dyn Reflect)
+                }) {
+                    sender.send(Message::DoCommand(command));
                 }
+            } else if controller.downcast_ref::<UiScene>().is_some()
+                && let Some(command) = make_command(property_changed, |ctx| {
+                    Some(ctx.get_mut::<UiSceneContext>().ui as &mut dyn Reflect)
+                })
+            {
+                sender.send(Message::DoCommand(command));
             }
         }
     }

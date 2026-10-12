@@ -33,12 +33,12 @@ use crate::fyrox::{
     },
     gui::formatted_text::{FormattedText, FormattedTextBuilder},
     gui::{
+        BuildContext, Control, UiNode, UserInterface,
         brush::Brush,
         define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
         message::UiMessage,
         widget::{Widget, WidgetBuilder},
-        BuildContext, Control, UiNode, UserInterface,
     },
     resource::texture::TextureKind,
     scene::tilemap::{TileRenderData, TileSource},

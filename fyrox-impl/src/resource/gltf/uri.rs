@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use base64::engine::general_purpose::URL_SAFE_NO_PAD as Base64Engine;
 use base64::engine::Engine as _;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD as Base64Engine;
 
 /// A breakdown of the data contained within a URI.
 #[derive(Copy, Clone, Debug)]

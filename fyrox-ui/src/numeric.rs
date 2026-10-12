@@ -22,15 +22,17 @@
 
 #![warn(missing_docs)]
 
-use crate::style::resource::StyleResourceExt;
 use crate::style::Style;
+use crate::style::resource::StyleResourceExt;
 use crate::{
+    BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
+    VerticalAlignment,
     border::BorderBuilder,
     button::{ButtonBuilder, ButtonMessage},
     core::{
-        num_traits::{clamp, Bounded, NumAssign, NumCast, NumOps},
+        num_traits::{Bounded, NumAssign, NumCast, NumOps, clamp},
         pool::Handle,
-        reflect::{prelude::*, Reflect},
+        reflect::{Reflect, prelude::*},
         visitor::prelude::*,
     },
     decorator::DecoratorBuilder,
@@ -38,17 +40,15 @@ use crate::{
     message::{KeyCode, MessageDirection, MouseButton, UiMessage},
     text::TextMessage,
     text_box::{TextBox, TextBoxBuilder, TextCommitMode},
-    utils::{make_arrow, ArrowDirection},
+    utils::{ArrowDirection, make_arrow},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
-    VerticalAlignment,
 };
 
 use crate::button::Button;
 use crate::message::MessageData;
 use fyrox_core::variable::InheritableVariable;
-use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
     cmp::Ordering,
     fmt::{Debug, Display},
@@ -531,31 +531,31 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                     }
                 }
             }
-        } else if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
-            if message.destination() == *self.decrease || message.destination() == *self.increase {
-                if let Some(DragContext::Dragging {
-                    start_value,
-                    start_mouse_pos,
-                }) = self.drag_context.take()
-                {
-                    ui.send(
-                        self.handle,
-                        NumericUpDownMessage::Value(calculate_value_by_offset(
-                            start_value,
-                            ((start_mouse_pos - ui.cursor_position().y) * *self.drag_value_scaling)
-                                as i32,
-                            *self.step,
-                            *self.min_value,
-                            *self.max_value,
-                        )),
-                    );
-                } else if message.destination() == *self.decrease {
-                    let value = self.clamp_value(saturating_sub(*self.value, *self.step));
-                    ui.send(self.handle(), NumericUpDownMessage::Value(value));
-                } else if message.destination() == *self.increase {
-                    let value = self.clamp_value(saturating_add(*self.value, *self.step));
-                    ui.send(self.handle(), NumericUpDownMessage::Value(value));
-                }
+        } else if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>()
+            && (message.destination() == *self.decrease || message.destination() == *self.increase)
+        {
+            if let Some(DragContext::Dragging {
+                start_value,
+                start_mouse_pos,
+            }) = self.drag_context.take()
+            {
+                ui.send(
+                    self.handle,
+                    NumericUpDownMessage::Value(calculate_value_by_offset(
+                        start_value,
+                        ((start_mouse_pos - ui.cursor_position().y) * *self.drag_value_scaling)
+                            as i32,
+                        *self.step,
+                        *self.min_value,
+                        *self.max_value,
+                    )),
+                );
+            } else if message.destination() == *self.decrease {
+                let value = self.clamp_value(saturating_sub(*self.value, *self.step));
+                ui.send(self.handle(), NumericUpDownMessage::Value(value));
+            } else if message.destination() == *self.increase {
+                let value = self.clamp_value(saturating_add(*self.value, *self.step));
+                ui.send(self.handle(), NumericUpDownMessage::Value(value));
             }
         }
     }

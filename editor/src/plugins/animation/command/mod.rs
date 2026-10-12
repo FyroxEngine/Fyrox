@@ -27,15 +27,15 @@ use crate::fyrox::{
         variable::InheritableVariable,
     },
     generic_animation::{
-        signal::AnimationSignal, track::Track, value::ValueBinding, Animation, AnimationContainer,
-        RootMotionSettings,
+        Animation, AnimationContainer, RootMotionSettings, signal::AnimationSignal, track::Track,
+        value::ValueBinding,
     },
     graph::{NodeWrapper, SceneGraph},
 };
 use crate::plugins::animation::selection::AnimationSelection;
 use crate::{
     command::{CommandContext, CommandTrait},
-    scene::{commands::GameSceneContext, Selection},
+    scene::{Selection, commands::GameSceneContext},
     ui_scene::commands::UiSceneContext,
 };
 

@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    Engine,
     fyrox::{
         core::{
             algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
@@ -28,16 +29,16 @@ use crate::{
         },
         graph::SceneGraph,
         scene::{
+            Scene,
             base::BaseBuilder,
             graph::Graph,
             mesh::{
-                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
                 MeshBuilder, RenderPath,
+                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
             },
             node::Node,
             pivot::PivotBuilder,
             transform::{Transform, TransformBuilder},
-            Scene,
         },
     },
     interaction::{gizmo::utils, plane::PlaneKind},
@@ -45,7 +46,6 @@ use crate::{
     scene::{GameScene, Selection},
     set_mesh_diffuse_color,
     settings::Settings,
-    Engine,
 };
 use fyrox::core::reflect::prelude::*;
 use fyrox::scene::camera::Camera;
@@ -99,49 +99,53 @@ fn make_move_axis(
     const ARROW_THICKNESS: f32 = 0.015;
 
     let arrow;
-    let axis = MeshBuilder::new(
-        BaseBuilder::new()
-            .with_cast_shadows(false)
-            .with_child({
-                arrow = MeshBuilder::new(
-                    BaseBuilder::new()
-                        .with_cast_shadows(false)
-                        .with_name(name_prefix.to_owned() + "Arrow")
-                        .with_local_transform(
-                            TransformBuilder::new()
-                                .with_local_position(Vector3::new(0.0, ARROW_LENGTH, 0.0))
-                                .build(),
-                        ),
-                )
-                .with_render_path(RenderPath::Forward)
-                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
-                    SurfaceData::make_cone(10, 0.05, 0.1, &Matrix4::identity()),
-                ))
-                .with_material(make_color_material(color))
-                .build()])
-                .build(graph);
-                arrow
-            })
-            .with_name(name_prefix.to_owned() + "Axis")
-            .with_local_transform(
-                TransformBuilder::new()
-                    .with_local_rotation(rotation)
-                    .build(),
-            ),
-    )
-    .with_render_path(RenderPath::Forward)
-    .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
-        SurfaceData::make_cylinder(
-            10,
-            ARROW_THICKNESS,
-            ARROW_LENGTH,
-            true,
-            &Matrix4::identity(),
-        ),
-    ))
-    .with_material(make_color_material(color))
-    .build()])
-    .build(graph);
+    let axis =
+        MeshBuilder::new(
+            BaseBuilder::new()
+                .with_cast_shadows(false)
+                .with_child({
+                    arrow =
+                        MeshBuilder::new(
+                            BaseBuilder::new()
+                                .with_cast_shadows(false)
+                                .with_name(name_prefix.to_owned() + "Arrow")
+                                .with_local_transform(
+                                    TransformBuilder::new()
+                                        .with_local_position(Vector3::new(0.0, ARROW_LENGTH, 0.0))
+                                        .build(),
+                                ),
+                        )
+                        .with_render_path(RenderPath::Forward)
+                        .with_surfaces(vec![
+                            SurfaceBuilder::new(SurfaceResource::new_embedded(
+                                SurfaceData::make_cone(10, 0.05, 0.1, &Matrix4::identity()),
+                            ))
+                            .with_material(make_color_material(color))
+                            .build(),
+                        ])
+                        .build(graph);
+                    arrow
+                })
+                .with_name(name_prefix.to_owned() + "Axis")
+                .with_local_transform(
+                    TransformBuilder::new()
+                        .with_local_rotation(rotation)
+                        .build(),
+                ),
+        )
+        .with_render_path(RenderPath::Forward)
+        .with_surfaces(vec![
+            SurfaceBuilder::new(SurfaceResource::new_embedded(SurfaceData::make_cylinder(
+                10,
+                ARROW_THICKNESS,
+                ARROW_LENGTH,
+                true,
+                &Matrix4::identity(),
+            )))
+            .with_material(make_color_material(color))
+            .build(),
+        ])
+        .build(graph);
 
     (axis, arrow)
 }
@@ -357,13 +361,13 @@ impl MoveGizmo {
         let plane = plane_kind.make_plane_from_view(dlook);
         if let Some(plane) = plane {
             // Get two intersection points with plane and use delta between them to calculate offset.
-            if let Some(initial_point) = initial_ray.plane_intersection_point(&plane) {
-                if let Some(next_point) = offset_ray.plane_intersection_point(&plane) {
-                    let delta = next_point - initial_point;
-                    let offset = plane_kind.project_point(delta);
-                    // Make sure offset will be in local coordinates.
-                    return node_local_transform.transform_vector(&offset);
-                }
+            if let Some(initial_point) = initial_ray.plane_intersection_point(&plane)
+                && let Some(next_point) = offset_ray.plane_intersection_point(&plane)
+            {
+                let delta = next_point - initial_point;
+                let offset = plane_kind.project_point(delta);
+                // Make sure offset will be in local coordinates.
+                return node_local_transform.transform_vector(&offset);
             }
         }
         Vector3::default()

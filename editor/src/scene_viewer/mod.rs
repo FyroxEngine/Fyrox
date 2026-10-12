@@ -19,6 +19,8 @@
 // SOFTWARE.
 
 use crate::{
+    DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
+    SceneContainer, Settings,
     fyrox::{
         core::{algebra::Vector2, color::Color, math::Rect, pool::Handle, uuid::Uuid},
         engine::Engine,
@@ -26,6 +28,8 @@ use crate::{
         graph::SceneGraph,
         graphics::PolygonFillMode,
         gui::{
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
+            VerticalAlignment,
             border::{Border, BorderBuilder},
             brush::Brush,
             button::{Button, ButtonBuilder, ButtonMessage},
@@ -40,17 +44,15 @@ use crate::{
             message::{MessageDirection, MouseButton, UiMessage},
             numeric::{NumericUpDown, NumericUpDownBuilder, NumericUpDownMessage},
             stack_panel::{StackPanel, StackPanelBuilder},
-            style::{resource::StyleResourceExt, Style},
+            style::{Style, resource::StyleResourceExt},
             tab_control::{TabControl, TabControlBuilder, TabControlMessage, TabDefinition},
             text::{Text, TextBuilder, TextMessage},
             utils::{
-                make_dropdown_list_option, make_dropdown_list_option_universal,
-                make_dropdown_list_option_with_height, make_simple_tooltip, ImageButtonBuilder,
+                ImageButtonBuilder, make_dropdown_list_option, make_dropdown_list_option_universal,
+                make_dropdown_list_option_with_height, make_simple_tooltip,
             },
             widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
-            VerticalAlignment,
         },
         resource::texture::TextureResource,
         scene::camera::Projection,
@@ -64,8 +66,6 @@ use crate::{
     },
     settings::SettingsMessage,
     utils::{self, enable_widget},
-    DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
-    SceneContainer, Settings,
 };
 use fyrox::scene;
 use std::{
@@ -595,15 +595,15 @@ impl SceneViewer {
     }
 
     pub fn handle_message(&mut self, message: &Message, engine: &mut Engine) {
-        if let Message::SetInteractionMode(mode) = message {
-            if let Some(&active_button) = self.interaction_modes.get(mode) {
-                for &mode_button in self.interaction_modes.values() {
-                    let decorator = *engine.user_interfaces.first_mut()[mode_button].decorator;
-                    engine.user_interfaces.first().send(
-                        decorator,
-                        DecoratorMessage::Select(mode_button == active_button),
-                    );
-                }
+        if let Message::SetInteractionMode(mode) = message
+            && let Some(&active_button) = self.interaction_modes.get(mode)
+        {
+            for &mode_button in self.interaction_modes.values() {
+                let decorator = *engine.user_interfaces.first_mut()[mode_button].decorator;
+                engine.user_interfaces.first().send(
+                    decorator,
+                    DecoratorMessage::Select(mode_button == active_button),
+                );
             }
         }
     }
@@ -705,28 +705,27 @@ impl SceneViewer {
             SceneItemAction::None => {}
             SceneItemAction::Close(scene_id) => self.close_scene(scenes, &scene_id),
             SceneItemAction::ShowInExplorer(scene_id) => {
-                if let Some(entry) = scenes.entry_by_scene_id(scene_id) {
-                    if let Some(entry_path) = entry.path.as_ref() {
-                        if let Ok(canonical_path) = entry_path.canonicalize() {
-                            utils::show_in_explorer(canonical_path);
-                        }
-                    }
+                if let Some(entry) = scenes.entry_by_scene_id(scene_id)
+                    && let Some(entry_path) = entry.path.as_ref()
+                    && let Ok(canonical_path) = entry_path.canonicalize()
+                {
+                    utils::show_in_explorer(canonical_path);
                 }
             }
             SceneItemAction::MarkAsStartup(scene_id) => {
-                if let Some(entry) = scenes.entry_by_scene_id(scene_id) {
-                    if let Some(entry_path) = entry.path.as_ref() {
-                        settings.general.add_startup_scene(entry_path);
-                        self.sender.send(Message::ForceSync);
-                    }
+                if let Some(entry) = scenes.entry_by_scene_id(scene_id)
+                    && let Some(entry_path) = entry.path.as_ref()
+                {
+                    settings.general.add_startup_scene(entry_path);
+                    self.sender.send(Message::ForceSync);
                 }
             }
             SceneItemAction::UnmarkAsStartup(scene_id) => {
-                if let Some(entry) = scenes.entry_by_scene_id(scene_id) {
-                    if let Some(entry_path) = entry.path.as_ref() {
-                        settings.general.remove_startup_scene(entry_path);
-                        self.sender.send(Message::ForceSync);
-                    }
+                if let Some(entry) = scenes.entry_by_scene_id(scene_id)
+                    && let Some(entry_path) = entry.path.as_ref()
+                {
+                    settings.general.remove_startup_scene(entry_path);
+                    self.sender.send(Message::ForceSync);
                 }
             }
         }
@@ -765,41 +764,39 @@ impl SceneViewer {
                     settings.build.selected_profile = *index;
                 } else if message.destination() == self.debug_switches {
                     let items = ui[self.debug_switches].items.deref();
-                    if let Some(item) = items.get(*index) {
-                        if let Some(variant) =
+                    if let Some(item) = items.get(*index)
+                        && let Some(variant) =
                             ui.node(*item).user_data_cloned::<GraphicsDebugSwitches>()
-                        {
-                            let entry = scenes.current_scene_entry_mut();
-                            if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
-                                let scene = &mut engine.scenes[game_scene.scene];
-                                match variant {
-                                    GraphicsDebugSwitches::Shaded => {
-                                        scene.rendering_options.polygon_rasterization_mode =
-                                            PolygonFillMode::Fill;
-                                    }
-                                    GraphicsDebugSwitches::Wireframe => {
-                                        scene.rendering_options.polygon_rasterization_mode =
-                                            PolygonFillMode::Line;
-                                    }
+                    {
+                        let entry = scenes.current_scene_entry_mut();
+                        if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
+                            let scene = &mut engine.scenes[game_scene.scene];
+                            match variant {
+                                GraphicsDebugSwitches::Shaded => {
+                                    scene.rendering_options.polygon_rasterization_mode =
+                                        PolygonFillMode::Fill;
+                                }
+                                GraphicsDebugSwitches::Wireframe => {
+                                    scene.rendering_options.polygon_rasterization_mode =
+                                        PolygonFillMode::Line;
                                 }
                             }
                         }
                     }
                 }
             }
-        } else if let Some(msg) = message.data::<TabControlMessage>() {
-            if message.destination() == self.tab_control
-                && message.direction() == MessageDirection::FromWidget
-            {
-                match msg {
-                    TabControlMessage::CloseTab(uuid) => self.close_scene(scenes, uuid),
-                    TabControlMessage::ActiveTab(Some(uuid)) => {
-                        if let Some(entry) = scenes.entry_by_scene_id(*uuid) {
-                            self.sender.send(Message::SetCurrentScene(entry.id));
-                        }
+        } else if let Some(msg) = message.data::<TabControlMessage>()
+            && message.destination() == self.tab_control
+            && message.direction() == MessageDirection::FromWidget
+        {
+            match msg {
+                TabControlMessage::CloseTab(uuid) => self.close_scene(scenes, uuid),
+                TabControlMessage::ActiveTab(Some(uuid)) => {
+                    if let Some(entry) = scenes.entry_by_scene_id(*uuid) {
+                        self.sender.send(Message::SetCurrentScene(entry.id));
                     }
-                    _ => (),
                 }
+                _ => (),
             }
         }
 
@@ -850,71 +847,68 @@ impl SceneViewer {
                     }
                     _ => {}
                 }
-            } else if message.destination() == self.scene_gizmo_image {
-                if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
-                    match *msg {
-                        WidgetMessage::MouseDown {
-                            button: MouseButton::Left,
-                            pos,
-                            ..
-                        } => {
-                            let rel_pos = pos - ui[self.scene_gizmo_image].screen_position();
-                            self.scene_gizmo.drag_context = Some(gizmo::DragContext {
-                                initial_click_pos: rel_pos,
-                                initial_rotation: gizmo::CameraRotation {
-                                    pitch: game_scene.camera_controller.pitch(),
-                                    yaw: game_scene.camera_controller.yaw(),
-                                },
-                            });
-                            ui.capture_mouse(self.scene_gizmo_image);
+            } else if message.destination() == self.scene_gizmo_image
+                && let Some(game_scene) = entry.controller.downcast_mut::<GameScene>()
+            {
+                match *msg {
+                    WidgetMessage::MouseDown {
+                        button: MouseButton::Left,
+                        pos,
+                        ..
+                    } => {
+                        let rel_pos = pos - ui[self.scene_gizmo_image].screen_position();
+                        self.scene_gizmo.drag_context = Some(gizmo::DragContext {
+                            initial_click_pos: rel_pos,
+                            initial_rotation: gizmo::CameraRotation {
+                                pitch: game_scene.camera_controller.pitch(),
+                                yaw: game_scene.camera_controller.yaw(),
+                            },
+                        });
+                        ui.capture_mouse(self.scene_gizmo_image);
+                    }
+                    WidgetMessage::MouseUp { pos, button } => {
+                        if button == MouseButton::Left {
+                            self.scene_gizmo.drag_context = None;
+                            ui.release_mouse_capture();
                         }
-                        WidgetMessage::MouseUp { pos, button } => {
-                            if button == MouseButton::Left {
-                                self.scene_gizmo.drag_context = None;
-                                ui.release_mouse_capture();
-                            }
-                            let rel_pos = pos - ui[self.scene_gizmo_image].screen_position();
-                            if let Some(action) = self.scene_gizmo.on_click(rel_pos, &engine.scenes)
-                            {
-                                match action {
-                                    SceneGizmoAction::Rotate(rotation) => {
-                                        game_scene.camera_controller.set_pitch(rotation.pitch);
-                                        game_scene.camera_controller.set_yaw(rotation.yaw);
-                                    }
-                                    SceneGizmoAction::SwitchProjection => {
-                                        let graph = &engine.scenes[game_scene.scene].graph;
-                                        match graph[game_scene.camera_controller.camera]
-                                            .projection()
-                                        {
-                                            Projection::Perspective(_) => {
-                                                ui.send(
-                                                    self.camera_projection,
-                                                    DropdownListMessage::Selection(Some(1)),
-                                                );
-                                            }
-                                            Projection::Orthographic(_) => {
-                                                ui.send(
-                                                    self.camera_projection,
-                                                    DropdownListMessage::Selection(Some(0)),
-                                                );
-                                            }
+                        let rel_pos = pos - ui[self.scene_gizmo_image].screen_position();
+                        if let Some(action) = self.scene_gizmo.on_click(rel_pos, &engine.scenes) {
+                            match action {
+                                SceneGizmoAction::Rotate(rotation) => {
+                                    game_scene.camera_controller.set_pitch(rotation.pitch);
+                                    game_scene.camera_controller.set_yaw(rotation.yaw);
+                                }
+                                SceneGizmoAction::SwitchProjection => {
+                                    let graph = &engine.scenes[game_scene.scene].graph;
+                                    match graph[game_scene.camera_controller.camera].projection() {
+                                        Projection::Perspective(_) => {
+                                            ui.send(
+                                                self.camera_projection,
+                                                DropdownListMessage::Selection(Some(1)),
+                                            );
+                                        }
+                                        Projection::Orthographic(_) => {
+                                            ui.send(
+                                                self.camera_projection,
+                                                DropdownListMessage::Selection(Some(0)),
+                                            );
                                         }
                                     }
                                 }
                             }
                         }
-                        WidgetMessage::MouseMove { pos, .. } => {
-                            let rel_pos = pos
-                                - engine.user_interfaces.first()[self.scene_gizmo_image]
-                                    .screen_position();
-                            self.scene_gizmo.on_mouse_move(
-                                rel_pos,
-                                engine,
-                                &mut game_scene.camera_controller,
-                            );
-                        }
-                        _ => (),
                     }
+                    WidgetMessage::MouseMove { pos, .. } => {
+                        let rel_pos = pos
+                            - engine.user_interfaces.first()[self.scene_gizmo_image]
+                                .screen_position();
+                        self.scene_gizmo.on_mouse_move(
+                            rel_pos,
+                            engine,
+                            &mut game_scene.camera_controller,
+                        );
+                    }
+                    _ => (),
                 }
             }
         }
