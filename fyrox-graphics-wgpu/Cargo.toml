@@ -1,7 +1,7 @@
 [package]
 name = "fyrox-graphics-wgpu"
 version = "2.0.0-rc.1"
-edition = "2021"
+edition = "2024"
 license = "MIT"
 description = "Wgpu-based graphics server for Fyrox Game Engine"
 keywords = ["graphics", "gapi"]

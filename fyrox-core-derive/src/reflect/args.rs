@@ -272,11 +272,11 @@ pub fn fetch_doc_comment(attrs: &[Attribute]) -> String {
     let mut doc = String::new();
 
     for attr in attrs.iter() {
-        if let Ok(Meta::NameValue(name_value)) = attr.parse_meta() {
-            if let Lit::Str(doc_comment) = name_value.lit {
-                doc += doc_comment.value().as_str();
-                doc += "\n";
-            }
+        if let Ok(Meta::NameValue(name_value)) = attr.parse_meta()
+            && let Lit::Str(doc_comment) = name_value.lit
+        {
+            doc += doc_comment.value().as_str();
+            doc += "\n";
         }
     }
 

@@ -20,6 +20,7 @@
 
 use crate::plugins::inspector::editors::resource::ResourceField;
 use crate::{
+    Editor, Engine, Message,
     asset::preview::cache::IconRequest,
     fyrox::{
         asset::{event::ResourceEvent, manager::ResourceManager},
@@ -36,6 +37,7 @@ use crate::{
         graph::SceneGraph,
         graphics::gpu_program::{ShaderProperty, ShaderPropertyKind},
         gui::{
+            BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
             border::BorderBuilder,
             check_box::{CheckBoxBuilder, CheckBoxMessage},
             color::{ColorFieldBuilder, ColorFieldMessage},
@@ -60,17 +62,16 @@ use crate::{
             widget::{WidgetBuilder, WidgetMaterial, WidgetMessage},
             window::WindowAlignment,
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
         material::{
-            shader::{Shader, ShaderResourceKind},
             MaterialProperty, MaterialResource, MaterialResourceBinding, MaterialTextureBinding,
+            shader::{Shader, ShaderResourceKind},
         },
         scene::{
             base::BaseBuilder,
             mesh::{
-                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
                 MeshBuilder,
+                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
             },
         },
     },
@@ -88,7 +89,6 @@ use crate::{
         SetMaterialBindingCommand, SetMaterialPropertyGroupPropertyValueCommand,
         SetMaterialShaderCommand,
     },
-    Editor, Engine, Message,
 };
 use fyrox::gui::dock::DockingManager;
 use fyrox::gui::stack_panel::StackPanel;
@@ -273,10 +273,15 @@ impl MaterialEditor {
 
         let graph = &mut engine.scenes[preview.scene()].graph;
         let sphere = MeshBuilder::new(BaseBuilder::new())
-            .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
-                SurfaceData::make_sphere(30, 30, 1.0, &Matrix4::identity()),
-            ))
-            .build()])
+            .with_surfaces(vec![
+                SurfaceBuilder::new(SurfaceResource::new_embedded(SurfaceData::make_sphere(
+                    30,
+                    30,
+                    1.0,
+                    &Matrix4::identity(),
+                )))
+                .build(),
+            ])
             .build(graph);
         preview.set_model(sphere, engine);
 
@@ -579,11 +584,11 @@ impl MaterialEditor {
         for (binding_name, binding_value) in material.bindings() {
             let view = some_or_continue!(self.find_resource_view(binding_name));
             match binding_value {
-                MaterialResourceBinding::Texture(ref binding) => ui.send_sync(
+                MaterialResourceBinding::Texture(binding) => ui.send_sync(
                     view.editor,
                     TextureEditorMessage::Texture(binding.value.clone()),
                 ),
-                MaterialResourceBinding::PropertyGroup(ref group) => {
+                MaterialResourceBinding::PropertyGroup(group) => {
                     let ResourceViewKind::PropertyGroup { ref property_views } = view.kind else {
                         continue;
                     };

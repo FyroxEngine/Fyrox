@@ -30,8 +30,8 @@ use syn::*;
 pub fn impl_visit(ast: DeriveInput) -> TokenStream2 {
     let ty_args = args::TypeArgs::from_derive_input(&ast).unwrap();
     match &ty_args.data {
-        ast::Data::Struct(ref field_args) => self::impl_visit_struct(&ty_args, field_args),
-        ast::Data::Enum(ref variants) => self::impl_visit_enum(&ty_args, variants),
+        ast::Data::Struct(field_args) => self::impl_visit_struct(&ty_args, field_args),
+        ast::Data::Enum(variants) => self::impl_visit_enum(&ty_args, variants),
     }
 }
 

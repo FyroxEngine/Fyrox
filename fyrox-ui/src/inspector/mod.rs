@@ -26,6 +26,7 @@ use crate::brush::Brush;
 use crate::style::resource::StyleResourceExt;
 use crate::style::{Style, StyledProperty};
 use crate::{
+    BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
     border::BorderBuilder,
     check_box::{CheckBox, CheckBoxBuilder},
     core::{
@@ -33,7 +34,7 @@ use crate::{
         err,
         log::Log,
         pool::{Handle, ObjectOrVariant},
-        reflect::{self, prelude::*, CastError, Reflect, ReflectPathError},
+        reflect::{self, CastError, Reflect, ReflectPathError, prelude::*},
         visitor::prelude::*,
     },
     expander::ExpanderBuilder,
@@ -48,15 +49,14 @@ use crate::{
     popup::{Popup, PopupBuilder, PopupMessage},
     stack_panel::{StackPanel, StackPanelBuilder},
     text::{Text, TextBuilder},
-    utils::{make_arrow, make_simple_tooltip, ArrowDirection},
+    utils::{ArrowDirection, make_arrow, make_simple_tooltip},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use copypasta::ClipboardProvider;
 use fyrox_core::ok_or_return;
 use fyrox_graph::{
-    constructor::{ConstructorProvider, GraphNodeConstructor},
     SceneGraph,
+    constructor::{ConstructorProvider, GraphNodeConstructor},
 };
 use std::{
     any::{Any, TypeId},
@@ -133,7 +133,7 @@ pub enum FieldAction {
 impl FieldAction {
     fn path(&self) -> String {
         match self {
-            FieldAction::CollectionAction(ref collection_changed) => {
+            FieldAction::CollectionAction(collection_changed) => {
                 if let CollectionAction::ItemChanged {
                     action: ref property,
                     index,
@@ -141,17 +141,17 @@ impl FieldAction {
                 {
                     match property {
                         FieldAction::InspectableAction(inspectable) => {
-                            return format!("[{}].{}", index, inspectable.path())
+                            return format!("[{}].{}", index, inspectable.path());
                         }
                         _ => return format!("[{index}]"),
                     }
                 }
             }
-            FieldAction::InspectableAction(ref inspectable) => {
-                return format!(".{}", inspectable.path())
+            FieldAction::InspectableAction(inspectable) => {
+                return format!(".{}", inspectable.path());
             }
             FieldAction::ObjectAction(_) | FieldAction::InheritableAction { .. } => {}
-            FieldAction::HashMapAction(ref action) => match **action {
+            FieldAction::HashMapAction(action) => match **action {
                 HashMapAction::KeyChanged { .. }
                 | HashMapAction::Remove { .. }
                 | HashMapAction::Insert { .. } => {}
@@ -246,10 +246,10 @@ impl PropertyAction {
     /// forces new iteration.
     pub fn from_field_action(field_action: &FieldAction) -> Self {
         match field_action {
-            FieldAction::ObjectAction(ref value) => Self::Modify {
+            FieldAction::ObjectAction(value) => Self::Modify {
                 value: value.clone().value,
             },
-            FieldAction::CollectionAction(ref collection_changed) => match **collection_changed {
+            FieldAction::CollectionAction(collection_changed) => match **collection_changed {
                 CollectionAction::Add(ref value) => Self::AddItem {
                     value: value.clone().value,
                 },
@@ -259,11 +259,11 @@ impl PropertyAction {
                     ..
                 } => Self::from_field_action(property),
             },
-            FieldAction::InspectableAction(ref inspectable) => {
+            FieldAction::InspectableAction(inspectable) => {
                 Self::from_field_action(&inspectable.action)
             }
             FieldAction::InheritableAction { .. } => Self::Revert,
-            FieldAction::HashMapAction(ref action) => match **action {
+            FieldAction::HashMapAction(action) => match **action {
                 HashMapAction::Insert { ref key, ref value } => Self::InsertItemByKey {
                     key: key.clone().value,
                     value: value.clone().value,

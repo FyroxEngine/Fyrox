@@ -19,11 +19,12 @@
 // SOFTWARE.
 
 pub use crate::{
-    buffer::GlBuffer, geometry_buffer::GlGeometryBuffer, program::GlProgram, sampler::GlSampler,
-    server::GlGraphicsServer, texture::GlTexture, ToGlConstant,
+    ToGlConstant, buffer::GlBuffer, geometry_buffer::GlGeometryBuffer, program::GlProgram,
+    sampler::GlSampler, server::GlGraphicsServer, texture::GlTexture,
 };
 use crate::{server::FrameBufferBindingPoint, texture::PixelDescriptor};
 use fyrox_graphics::{
+    ColorMask, DrawParameters, ElementRange,
     buffer::GpuBufferTrait,
     core::{color::Color, math::Rect},
     error::FrameworkError,
@@ -36,7 +37,6 @@ use fyrox_graphics::{
     gpu_program::GpuProgram,
     gpu_texture::image_2d_size_bytes,
     gpu_texture::{CubeMapFace, GpuTextureKind, GpuTextureTrait, PixelElementKind},
-    ColorMask, DrawParameters, ElementRange,
 };
 use glow::{HasContext, PixelPackData};
 use std::rc::Weak;
@@ -55,42 +55,44 @@ unsafe fn set_attachment(
     level: i32,
     cube_map_face: Option<CubeMapFace>,
 ) {
-    match texture.kind() {
-        GpuTextureKind::Line { .. } => {
-            server.gl.framebuffer_texture(
-                glow::FRAMEBUFFER,
-                gl_attachment_kind,
-                Some(texture.id()),
-                level,
-            );
-        }
-        GpuTextureKind::Rectangle { .. } => {
-            server.gl.framebuffer_texture_2d(
-                glow::FRAMEBUFFER,
-                gl_attachment_kind,
-                glow::TEXTURE_2D,
-                Some(texture.id()),
-                level,
-            );
-        }
-        GpuTextureKind::Cube { .. } => {
-            server.gl.framebuffer_texture_2d(
-                glow::FRAMEBUFFER,
-                gl_attachment_kind,
-                cube_map_face.map_or(glow::TEXTURE_CUBE_MAP_POSITIVE_X, |face| face.into_gl()),
-                Some(texture.id()),
-                level,
-            );
-        }
-        GpuTextureKind::Volume { .. } => {
-            server.gl.framebuffer_texture_3d(
-                glow::FRAMEBUFFER,
-                gl_attachment_kind,
-                glow::TEXTURE_3D,
-                Some(texture.id()),
-                level,
-                0,
-            );
+    unsafe {
+        match texture.kind() {
+            GpuTextureKind::Line { .. } => {
+                server.gl.framebuffer_texture(
+                    glow::FRAMEBUFFER,
+                    gl_attachment_kind,
+                    Some(texture.id()),
+                    level,
+                );
+            }
+            GpuTextureKind::Rectangle { .. } => {
+                server.gl.framebuffer_texture_2d(
+                    glow::FRAMEBUFFER,
+                    gl_attachment_kind,
+                    glow::TEXTURE_2D,
+                    Some(texture.id()),
+                    level,
+                );
+            }
+            GpuTextureKind::Cube { .. } => {
+                server.gl.framebuffer_texture_2d(
+                    glow::FRAMEBUFFER,
+                    gl_attachment_kind,
+                    cube_map_face.map_or(glow::TEXTURE_CUBE_MAP_POSITIVE_X, |face| face.into_gl()),
+                    Some(texture.id()),
+                    level,
+                );
+            }
+            GpuTextureKind::Volume { .. } => {
+                server.gl.framebuffer_texture_3d(
+                    glow::FRAMEBUFFER,
+                    gl_attachment_kind,
+                    glow::TEXTURE_3D,
+                    Some(texture.id()),
+                    level,
+                    0,
+                );
+            }
         }
     }
 }

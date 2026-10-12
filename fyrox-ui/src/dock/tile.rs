@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    BuildContext, Control, Thickness, UiNode, UserInterface,
     border::BorderBuilder,
     brush::Brush,
     core::{
@@ -32,14 +33,13 @@ use crate::{
     text::TextBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     window::{Window, WindowMessage},
-    BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 
 use crate::border::Border;
 use crate::message::MessageData;
 use fyrox_core::pool::{HandlesVecExtension, ObjectOrVariant};
-use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::cell::Cell;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -309,10 +309,7 @@ impl Control for Tile {
             // - Every content's child uses specific available measure size.
             // This is a bit weird, but it is how it works.
             let available_size = match &self.content {
-                TileContent::VerticalTiles {
-                    splitter,
-                    ref tiles,
-                } => {
+                TileContent::VerticalTiles { splitter, tiles } => {
                     if child_handle == tiles[0] {
                         Vector2::new(available_size.x, available_size.y * splitter)
                     } else if child_handle == tiles[1] {
@@ -321,10 +318,7 @@ impl Control for Tile {
                         available_size
                     }
                 }
-                TileContent::HorizontalTiles {
-                    splitter,
-                    ref tiles,
-                } => {
+                TileContent::HorizontalTiles { splitter, tiles } => {
                     if child_handle == tiles[0] {
                         Vector2::new(available_size.x * splitter, available_size.y)
                     } else if child_handle == tiles[1] {
@@ -390,10 +384,7 @@ impl Control for Tile {
                 continue;
             }
             let bounds = match &self.content {
-                TileContent::VerticalTiles {
-                    splitter,
-                    ref tiles,
-                } => {
+                TileContent::VerticalTiles { splitter, tiles } => {
                     if child_handle == tiles[0] {
                         Rect::new(
                             0.0,
@@ -419,10 +410,7 @@ impl Control for Tile {
                         full_bounds
                     }
                 }
-                TileContent::HorizontalTiles {
-                    splitter,
-                    ref tiles,
-                } => {
+                TileContent::HorizontalTiles { splitter, tiles } => {
                     if child_handle == tiles[0] {
                         Rect::new(
                             0.0,

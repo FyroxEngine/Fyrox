@@ -62,14 +62,16 @@ impl UiSceneContext {
         // SAFETY: Temporarily extend lifetime to 'static and execute external closure with it.
         // The closure accepts this extended context by reference, so there's no way it escapes to
         // outer world. The initial lifetime is still preserved by this function call.
-        func(unsafe {
-            &mut Self {
+        let mut ctx = unsafe {
+            Self {
                 ui: std::mem::transmute::<&'a mut _, &'static mut _>(ui),
                 selection: std::mem::transmute::<&'a mut _, &'static mut _>(selection),
                 message_sender,
                 clipboard: std::mem::transmute::<&'a mut _, &'static mut _>(clipboard),
             }
-        });
+        };
+
+        func(&mut ctx);
     }
 
     pub fn widget_mut(&mut self, handle: Handle<UiNode>) -> Option<&mut dyn Reflect> {

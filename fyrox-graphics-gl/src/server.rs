@@ -21,6 +21,7 @@
 #![allow(deprecated)] // TODO
 
 use crate::{
+    ToGlConstant,
     buffer::GlBuffer,
     framebuffer::GlFrameBuffer,
     geometry_buffer::GlGeometryBuffer,
@@ -29,9 +30,11 @@ use crate::{
     read_buffer::GlAsyncReadBuffer,
     sampler::GlSampler,
     texture::GlTexture,
-    ToGlConstant,
 };
 use fyrox_graphics::{
+    BlendEquation, BlendFactor, BlendFunc, BlendMode, ColorMask, CompareFunc, CullFace,
+    DrawParameters, PolygonFace, PolygonFillMode, ScissorBox, StencilAction, StencilFunc,
+    StencilOp,
     buffer::{GpuBuffer, GpuBufferDescriptor},
     core::{color::Color, log::Log, math::Rect},
     error::FrameworkError,
@@ -44,9 +47,6 @@ use fyrox_graphics::{
     sampler::{GpuSampler, GpuSamplerDescriptor},
     server::{GraphicsServer, ServerCapabilities, ServerMemoryUsage, SharedGraphicsServer},
     stats::PipelineStatistics,
-    BlendEquation, BlendFactor, BlendFunc, BlendMode, ColorMask, CompareFunc, CullFace,
-    DrawParameters, PolygonFace, PolygonFillMode, ScissorBox, StencilAction, StencilFunc,
-    StencilOp,
 };
 use glow::HasContext;
 #[cfg(not(target_arch = "wasm32"))]
@@ -424,11 +424,13 @@ impl InnerState {
             unit_index: u32,
             active_unit: &mut u32,
         ) {
-            if *active_unit != unit_index {
-                *active_unit = unit_index;
-                gl.active_texture(glow::TEXTURE0 + unit_index);
+            unsafe {
+                if *active_unit != unit_index {
+                    *active_unit = unit_index;
+                    gl.active_texture(glow::TEXTURE0 + unit_index);
+                }
+                gl.bind_texture(target, texture);
             }
-            gl.bind_texture(target, texture);
         }
 
         unsafe {
@@ -1275,7 +1277,7 @@ impl GlGraphicsServer {
             scissor_box,
         } = draw_params;
 
-        if let Some(ref blend_params) = blend {
+        if let Some(blend_params) = blend {
             self.set_blend_func(blend_params.func);
             self.set_blend_equation(blend_params.equation);
             self.set_blend(true);

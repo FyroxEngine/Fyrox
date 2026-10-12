@@ -33,10 +33,10 @@ use crate::scene::mesh::Mesh;
 use crate::scene::node::Node;
 use fyrox_animation::track::TrackBinding;
 use fyrox_graph::SceneGraph;
-use gltf::animation::util::ReadOutputs;
-use gltf::animation::Channel;
-use gltf::animation::{Interpolation, Property};
 use gltf::Buffer;
+use gltf::animation::Channel;
+use gltf::animation::util::ReadOutputs;
+use gltf::animation::{Interpolation, Property};
 
 type Result<T> = std::result::Result<T, ()>;
 
@@ -233,7 +233,7 @@ impl ImportedAnimation {
     }
 }
 
-fn all_targets(source: &[ImportedAnimation]) -> impl Iterator<Item = ImportedTarget> {
+fn all_targets(source: &[ImportedAnimation]) -> impl Iterator<Item = ImportedTarget> + use<> {
     let mut set: FxHashSet<ImportedTarget> = FxHashSet::default();
     for anim in source {
         set.extend(anim.targets());

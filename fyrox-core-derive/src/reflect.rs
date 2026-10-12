@@ -44,8 +44,8 @@ pub fn impl_reflect(ty_args: &args::TypeArgs) -> TokenStream2 {
     }
 
     match &ty_args.data {
-        ast::Data::Struct(ref field_args) => self::impl_reflect_struct(ty_args, field_args),
-        ast::Data::Enum(ref variant_args) => self::impl_reflect_enum(ty_args, variant_args),
+        ast::Data::Struct(field_args) => self::impl_reflect_struct(ty_args, field_args),
+        ast::Data::Enum(variant_args) => self::impl_reflect_enum(ty_args, variant_args),
     }
 }
 

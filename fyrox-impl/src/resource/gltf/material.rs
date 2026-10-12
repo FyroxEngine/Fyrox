@@ -27,18 +27,18 @@ use std::{
 };
 
 use crate::{
-    asset::{manager::ResourceManager, state::LoadError, untyped::ResourceKind, Resource},
+    asset::{Resource, manager::ResourceManager, state::LoadError, untyped::ResourceKind},
     core::{algebra::Vector4, color::Color, log::Log},
     material::{
-        shader::{Shader, ShaderResource},
         Material, MaterialProperty, MaterialResource,
+        shader::{Shader, ShaderResource},
     },
     resource::{
         model::MaterialSearchOptions,
         texture::{Texture, TextureError, TextureImportOptions, TextureResource},
     },
 };
-use gltf::{buffer::View, image, Document};
+use gltf::{Document, buffer::View, image};
 
 use super::uri;
 
@@ -100,7 +100,7 @@ use crate::resource::texture::TextureWrapMode as FyroxWrapMode;
 use fyrox_resource::builtin::BuiltInResource;
 use fyrox_resource::embedded_data_source;
 use gltf::texture::WrappingMode as GltfWrapMode;
-use uuid::{uuid, Uuid};
+use uuid::{Uuid, uuid};
 
 fn convert_wrap(mode: GltfWrapMode) -> FyroxWrapMode {
     match mode {
@@ -410,7 +410,7 @@ async fn import_external_texture(
 
 async fn search_for_path(filename: &str, context: &TextureContext<'_>) -> Option<PathBuf> {
     match context.search_options {
-        MaterialSearchOptions::MaterialsDirectory(ref directory) => Some(directory.join(filename)),
+        MaterialSearchOptions::MaterialsDirectory(directory) => Some(directory.join(filename)),
         MaterialSearchOptions::RecursiveUp => {
             let io = context.resource_manager.resource_io();
             let mut texture_path = None;

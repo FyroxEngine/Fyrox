@@ -23,16 +23,16 @@ use crate::fyrox::{
     core::{log::Log, pool::Handle, reflect::prelude::*},
     engine::SerializationContext,
     graph::{NodeWrapper, SceneGraph},
-    scene::{graph::SubGraph, node::Node, Scene},
+    scene::{Scene, graph::SubGraph, node::Node},
 };
 use crate::{
+    Message,
     command::{CommandContext, CommandTrait},
     message::MessageSender,
     scene::{
-        clipboard::{Clipboard, DeepCloneResult},
         GraphSelection, Selection,
+        clipboard::{Clipboard, DeepCloneResult},
     },
-    Message,
 };
 use std::sync::Arc;
 
@@ -78,8 +78,8 @@ impl GameSceneContext {
         // SAFETY: Temporarily extend lifetime to 'static and execute external closure with it.
         // The closure accepts this extended context by reference, so there's no way it escapes to
         // outer world. The initial lifetime is still preserved by this function call.
-        func(unsafe {
-            &mut Self {
+        let mut ctx = unsafe {
+            Self {
                 selection: std::mem::transmute::<&'a mut _, &'static mut _>(selection),
                 scene: std::mem::transmute::<&'a mut _, &'static mut _>(scene),
                 scene_content_root: std::mem::transmute::<&'a mut _, &'static mut _>(
@@ -90,7 +90,9 @@ impl GameSceneContext {
                 resource_manager,
                 serialization_context,
             }
-        });
+        };
+
+        func(&mut ctx);
     }
 }
 

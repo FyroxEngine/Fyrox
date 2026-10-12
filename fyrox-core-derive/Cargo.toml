@@ -2,7 +2,7 @@
 name = "fyrox-core-derive"
 version = "2.0.0-rc.1"
 authors = ["toyboot4e <toyboot4e@gmail.com>, Dmitry Stepanov <d1maxa@yandex.ru>"]
-edition = "2021"
+edition = "2024"
 license = "MIT"
 description = "Proc-macro for the Visit trait"
 repository = "https://github.com/FyroxEngine/Fyrox"

@@ -1,7 +1,7 @@
 [package]
 name = "fyrox-graphics-gl"
 version = "2.0.0-rc.1"
-edition = "2021"
+edition = "2024"
 license = "MIT"
 description = "OpenGL-based graphics server for Fyrox Game Engine"
 keywords = ["graphics", "gapi"]
