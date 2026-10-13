@@ -24,7 +24,7 @@ use crate::{
         asset::core::algebra::Vector3,
         core::{
             algebra::UnitQuaternion, math::Matrix4Ext, pool::Handle, reflect::Reflect,
-            some_or_return,
+            some_or_return, warn,
         },
         engine::Engine,
         graph::{NodeWrapper, SceneGraph},
@@ -132,9 +132,13 @@ impl SelectionContainer for GraphSelection {
 
         let game_scene = controller.downcast_ref::<GameScene>()?;
 
-        let selection = self.selection_to_delete(game_scene);
-
         let graph = &engine.scenes[game_scene.scene].graph;
+
+        let selection = self.selection_to_delete(game_scene, graph);
+
+        if selection.is_empty() {
+            return None;
+        }
 
         // Change selection first.
         let mut command_group = CommandGroup::from(vec![Command::new(
@@ -303,17 +307,28 @@ impl GraphSelection {
         scales
     }
 
-    pub fn selection_to_delete(&self, game_scene: &GameScene) -> GraphSelection {
-        // Graph's root is non-deletable.
+    fn selection_to_delete(&self, game_scene: &GameScene, graph: &Graph) -> GraphSelection {
         let mut selection = self.clone();
 
-        if let Some(root_position) = selection
-            .nodes
-            .iter()
-            .position(|&n| n == game_scene.scene_content_root)
-        {
-            selection.nodes.remove(root_position);
-        }
+        selection.nodes.retain(|n| {
+            if *n == game_scene.scene_content_root {
+                warn!("Graph's root node cannot be deleted!");
+                false
+            } else if let Ok(node) = graph.try_get_node(*n) {
+                if node.resource().is_some() {
+                    if node.is_resource_instance_root() {
+                        true
+                    } else {
+                        warn!("Only instances of root prefab nodes can be deleted!");
+                        false
+                    }
+                } else {
+                    true
+                }
+            } else {
+                false
+            }
+        });
 
         selection
     }
