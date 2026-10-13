@@ -39,12 +39,13 @@ use crate::{
             formatted_text::WrapMode,
             grid::{Column, Grid, GridBuilder, Row},
             list_view::{ListView, ListViewBuilder, ListViewMessage},
-            message::UiMessage,
+            markdown,
+            message::{KeyCode, UiMessage},
             scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
             searchbar::{SearchBar, SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
             style::{Style, resource::StyleResourceExt},
-            text::{Text, TextBuilder, TextMessage},
+            text::TextBuilder,
             text_box::EmptyTextPlaceholder,
             tree::{
                 Tree, TreeBuilder, TreeExpansionStrategy, TreeMessage, TreeRoot, TreeRootBuilder,
@@ -67,7 +68,6 @@ use crate::{
     settings::{Settings, scene::SceneSettings},
     ui_scene::{UiScene, commands::graph::AddWidgetCommand},
 };
-use fyrox::gui::message::KeyCode;
 use std::{collections::BTreeMap, path::PathBuf};
 
 #[derive(Default, Eq, PartialEq, Copy, Clone, Debug)]
@@ -89,7 +89,6 @@ pub struct EntityCreator {
     mode: EntityCreatorMode,
     search_bar: Handle<SearchBar>,
     groups_scroll_viewer: Handle<ScrollViewer>,
-    description: Handle<Text>,
     description_scroll_viewer: Handle<ScrollViewer>,
 }
 
@@ -264,7 +263,6 @@ impl EntityCreator {
             mode: EntityCreatorMode::default(),
             search_bar,
             groups_scroll_viewer,
-            description,
             description_scroll_viewer,
         }
     }
@@ -471,7 +469,7 @@ impl EntityCreator {
         &mut self,
         constructors: &GraphNodeConstructorContainer<N, Ctx>,
         selection: &[Handle<Tree>],
-        ui: &UserInterface,
+        ui: &mut UserInterface,
     ) {
         if let Some(first) = selection.first() {
             let constructor_id = self.items_map.get(first);
@@ -480,9 +478,10 @@ impl EntityCreator {
                 if let Some(constructor) =
                     constructors.try_get_constructor(&constructor_id.type_uuid)
                 {
+                    let content = markdown::markdown_to_visual_tree(ui, constructor.description);
                     ui.send(
-                        self.description,
-                        TextMessage::Text(constructor.description.to_string()),
+                        self.description_scroll_viewer,
+                        ScrollViewerMessage::Content(content),
                     );
                     ui.send(
                         self.description_scroll_viewer,
