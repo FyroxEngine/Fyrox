@@ -130,7 +130,15 @@ impl SelectionContainer for UiSelection {
 
         let ui_scene = controller.downcast_ref::<UiScene>()?;
 
-        let selection = self.selection_to_delete(&ui_scene.ui);
+        let mut selection = self.clone();
+
+        selection
+            .widgets
+            .retain(|n| ui_scene.ui.can_be_deleted(*n, ui_scene.ui.root()));
+
+        if selection.is_empty() {
+            return None;
+        }
 
         // Change selection first.
         let mut command_group = CommandGroup::from(vec![Command::new(
@@ -175,16 +183,6 @@ impl UiSelection {
         } else {
             self.widgets.push(handle);
         }
-    }
-
-    pub fn selection_to_delete(&self, ui: &UserInterface) -> UiSelection {
-        let mut selection = self.clone();
-        // UI's root is non-deletable.
-        if let Some(root_position) = selection.widgets.iter().position(|&n| n == ui.root()) {
-            selection.widgets.remove(root_position);
-        }
-
-        selection
     }
 
     pub fn root_widgets(&self, ui: &UserInterface) -> Vec<Handle<UiNode>> {

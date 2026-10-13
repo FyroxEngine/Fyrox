@@ -24,7 +24,7 @@ use crate::{
         asset::core::algebra::Vector3,
         core::{
             algebra::UnitQuaternion, math::Matrix4Ext, pool::Handle, reflect::Reflect,
-            some_or_return, warn,
+            some_or_return,
         },
         engine::Engine,
         graph::{NodeWrapper, SceneGraph},
@@ -130,11 +130,13 @@ impl SelectionContainer for GraphSelection {
             return None;
         }
 
+        let mut selection = self.clone();
+
         let game_scene = controller.downcast_ref::<GameScene>()?;
-
         let graph = &engine.scenes[game_scene.scene].graph;
-
-        let selection = self.selection_to_delete(game_scene, graph);
+        selection
+            .nodes
+            .retain(|n| graph.can_be_deleted(*n, game_scene.scene_content_root));
 
         if selection.is_empty() {
             return None;
@@ -145,19 +147,7 @@ impl SelectionContainer for GraphSelection {
             ChangeSelectionCommand::new(Default::default()),
         )]);
 
-        // Find sub-graphs to delete - we need to do this because we can end up in situation like this:
-        // A_
-        //   B_      <-
-        //   | C       | these are selected
-        //   | D_    <-
-        //   |   E
-        //   F
-        // In this case we must delete only node B, there is no need to delete node D separately because
-        // by engine's design when we delete a node, we also delete all its children. So we have to keep
-        // this behaviour in editor too.
-
         let root_nodes = graph.root_nodes(selection.nodes());
-
         for root_node in root_nodes {
             command_group.push(DeleteSubGraphCommand::new(root_node));
         }
@@ -305,31 +295,5 @@ impl GraphSelection {
             scales.push(**graph[handle].local_transform().scale());
         }
         scales
-    }
-
-    fn selection_to_delete(&self, game_scene: &GameScene, graph: &Graph) -> GraphSelection {
-        let mut selection = self.clone();
-
-        selection.nodes.retain(|n| {
-            if *n == game_scene.scene_content_root {
-                warn!("Graph's root node cannot be deleted!");
-                false
-            } else if let Ok(node) = graph.try_get_node(*n) {
-                if node.resource().is_some() {
-                    if node.is_resource_instance_root() {
-                        true
-                    } else {
-                        warn!("Only instances of root prefab nodes can be deleted!");
-                        false
-                    }
-                } else {
-                    true
-                }
-            } else {
-                false
-            }
-        });
-
-        selection
     }
 }

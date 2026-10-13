@@ -37,6 +37,7 @@ use fyrox_core::{
     reflect::{ReflectHandle, prelude::*},
     uuid::Uuid,
     variable::{self, InheritableVariable},
+    warn,
 };
 use fyrox_resource::{Resource, TypedResourceData, untyped::UntypedResource};
 use std::{
@@ -1633,6 +1634,30 @@ pub trait SceneGraph: 'static {
                 }
             }
             Some(summary)
+        }
+    }
+
+    fn can_be_deleted(
+        &self,
+        node: Handle<Self::NodeWrapper>,
+        root: Handle<Self::NodeWrapper>,
+    ) -> bool {
+        if node == root {
+            warn!("Graph's root node cannot be deleted!");
+            false
+        } else if let Ok(node) = self.try_get_node(node) {
+            if node.resource().is_some() {
+                if node.is_resource_instance_root() {
+                    true
+                } else {
+                    warn!("Only instances of root prefab nodes can be deleted!");
+                    false
+                }
+            } else {
+                true
+            }
+        } else {
+            false
         }
     }
 }
