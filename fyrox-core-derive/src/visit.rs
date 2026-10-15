@@ -120,7 +120,8 @@ fn impl_visit_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs])
                 }
             });
 
-        let (impl_generics, ty_generics, where_clause) = ty_args.generics.split_for_impl();
+        let generics = ty_args.impl_generics();
+        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
         quote! {
             fn id #impl_generics (me: &#ty_ident #ty_generics) -> #id_type #where_clause {
@@ -178,7 +179,8 @@ fn impl_visit_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs])
                 }
             });
 
-        let (impl_generics, ty_generics, where_clause) = ty_args.generics.split_for_impl();
+        let generics = ty_args.impl_generics();
+        let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
         quote! {
             fn from_id #impl_generics (

@@ -33,6 +33,23 @@ pub struct TypeArgs {
     pub pre_visit_method: Option<Ident>,
     #[darling(default)]
     pub post_visit_method: Option<Ident>,
+    /// Custom `Visit` impl type boundary.
+    #[darling(default)]
+    pub bounds: Option<Vec<WherePredicate>>,
+}
+
+impl TypeArgs {
+    pub fn impl_generics(&self) -> Generics {
+        let mut generics = self.generics.clone();
+
+        let clause = generics.make_where_clause();
+
+        if let Some(bounds) = &self.bounds {
+            clause.predicates.extend(bounds.iter().cloned());
+        }
+
+        generics
+    }
 }
 
 /// Parsed from struct's or enum variant's field
