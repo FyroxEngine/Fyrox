@@ -46,12 +46,16 @@ use crate::{
 };
 use std::{borrow::Cow, path::Path, path::PathBuf};
 
-pub fn make_widget_name(node: &UiNode) -> String {
-    format!(
-        "{} [{}]",
-        node.name(),
-        make_pretty_type_name(node.inner_ref().type_info_ref().type_name)
-    )
+pub fn make_widget_name(node: &UiNode, resource_manager: &ResourceManager) -> String {
+    let type_name = make_pretty_type_name(node.inner_ref().type_info_ref().type_name);
+    if let Some(resource) = node.resource()
+        && let Some(path) = resource_manager.resource_path(resource)
+        && let Some(file_name) = path.file_name()
+    {
+        format!("{} [{}] <{}>", node.name(), type_name, file_name.display())
+    } else {
+        format!("{} [{}]", node.name(), type_name)
+    }
 }
 
 pub struct UiSceneWorldViewerDataProvider<'a> {
@@ -114,7 +118,7 @@ impl WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'_> {
         self.ui
             .try_get_node(node.into())
             .ok()
-            .map(|n| Cow::Owned(make_widget_name(n)))
+            .map(|n| Cow::Owned(make_widget_name(n, self.resource_manager)))
     }
 
     fn is_valid_handle(&self, node: ErasedHandle) -> bool {

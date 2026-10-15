@@ -45,6 +45,7 @@ use crate::{
     scene_item_icon,
     world::{WorldViewerDataProvider, item::DropAnchor, selection::GraphSelection},
 };
+use fyrox::core::NameProvider;
 use fyrox::core::color::Color;
 use std::{borrow::Cow, path::Path, path::PathBuf};
 
@@ -115,11 +116,16 @@ impl WorldViewerDataProvider for EditorSceneWrapper<'_> {
     }
 
     fn name_of(&self, node: ErasedHandle) -> Option<Cow<str>> {
-        self.scene
-            .graph
-            .try_get_node(node.into())
-            .ok()
-            .map(|n| Cow::Borrowed(n.name()))
+        self.scene.graph.try_get_node(node.into()).ok().map(|n| {
+            if let Some(resource) = n.resource()
+                && let Some(path) = self.resource_manager.resource_path(resource)
+                && let Some(file_name) = path.file_name()
+            {
+                let name = format!("{} <{}>", n.name(), file_name.display());
+                return Cow::Owned(name);
+            }
+            Cow::Borrowed(n.name())
+        })
     }
 
     fn is_valid_handle(&self, node: ErasedHandle) -> bool {
