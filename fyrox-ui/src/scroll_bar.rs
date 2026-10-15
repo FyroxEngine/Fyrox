@@ -168,8 +168,16 @@ pub struct ScrollBar {
 impl ConstructorProvider<UiNode, UserInterface> for ScrollBar {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()
-            .with_variant("Scroll Bar", |ui| {
-                ScrollBarBuilder::new(WidgetBuilder::new().with_name("Scroll Bar"))
+            .with_variant("Horizontal Scroll Bar", |ui| {
+                ScrollBarBuilder::new(WidgetBuilder::new().with_name("Horizontal Scroll Bar"))
+                    .with_orientation(Orientation::Horizontal)
+                    .build(&mut ui.build_ctx())
+                    .to_base()
+                    .into()
+            })
+            .with_variant("Vertical Scroll Bar", |ui| {
+                ScrollBarBuilder::new(WidgetBuilder::new().with_name("Vertical Scroll Bar"))
+                    .with_orientation(Orientation::Vertical)
                     .build(&mut ui.build_ctx())
                     .to_base()
                     .into()
