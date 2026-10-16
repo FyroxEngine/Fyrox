@@ -42,6 +42,8 @@ use fyrox_resource::{
     manager::{BuiltInResource, ResourceManager},
 };
 use fyrox_texture::TextureResource;
+use std::ops::{Deref, DerefMut};
+use std::str::FromStr;
 use std::{
     any::{Any, TypeId},
     sync::LazyLock,
@@ -142,11 +144,35 @@ pub static LIGHT_STYLE: LazyLock<BuiltInResource<Style>> = LazyLock::new(|| {
     )
 });
 
+#[derive(Clone, Debug, Default, PartialEq, Hash, Reflect)]
+#[reflect(type_uuid = "c4aed405-4999-4381-bd74-2fd08eec2785")]
+pub struct StyledPropertyName(pub ImmutableString);
+
+impl Visit for StyledPropertyName {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.0.visit(name, visitor)
+    }
+}
+
+impl Deref for StyledPropertyName {
+    type Target = ImmutableString;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for StyledPropertyName {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 /// A property, that can bind its value to a style. Why can't we just fetch the actual value from
 /// the style and why do we need to store the value as well? The answer is flexibility. In this
 /// approach, style becomes not necessary and the value can be hardcoded. Also, the values of such
 /// properties can be updated individually.
-#[derive(Clone, Debug, Reflect, Visit)]
+#[derive(Clone, Debug, Reflect, Visit, AsRefStr, VariantNames)]
 #[reflect(
     bounds = "T: Reflect + Clone + PartialEq",
     type_uuid = "71e84137-2832-42a1-bcb5-f8ee95784997"
@@ -155,10 +181,24 @@ pub static LIGHT_STYLE: LazyLock<BuiltInResource<Style>> = LazyLock::new(|| {
 pub enum StyledProperty<T> {
     External {
         /// Name of the property in a style table.
-        #[reflect(read_only, display_name = "Property Name")]
-        name: ImmutableString,
+        #[reflect(display_name = "Property Name")]
+        name: StyledPropertyName,
     },
     Value(T),
+}
+
+impl<T: Default> FromStr for StyledProperty<T> {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "External" => Ok(Self::External {
+                name: Default::default(),
+            }),
+            "Value" => Ok(Self::Value(T::default())),
+            _ => Err(()),
+        }
+    }
 }
 
 impl<T: Default> Default for StyledProperty<T> {
@@ -191,7 +231,9 @@ impl<T> StyledProperty<T> {
 
     /// Creates a new styled property whose value is stored in a style.
     pub fn new_external(name: impl Into<ImmutableString>) -> Self {
-        Self::External { name: name.into() }
+        Self::External {
+            name: StyledPropertyName(name.into()),
+        }
     }
 
     pub fn get(&self, style: &Option<StyleResource>) -> Option<T>
@@ -203,9 +245,9 @@ impl<T> StyledProperty<T> {
             StyledProperty::External { name } => match style {
                 Some(style_resource) => {
                     let style_data = style_resource.data_ref();
-                    style_data.as_loaded_ref()?.get(name.clone())
+                    style_data.as_loaded_ref()?.get(name.0.clone())
                 }
-                None => DEFAULT_STYLE.resource.data_ref().get(name.clone()),
+                None => DEFAULT_STYLE.resource.data_ref().get(name.0.clone()),
             },
             StyledProperty::Value(value) => Some(value.clone()),
         }

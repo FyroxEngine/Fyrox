@@ -76,7 +76,7 @@ use crate::{
             rect::RectPropertyEditorDefinition,
             refcell::RefCellPropertyEditorDefinition,
             string::StringPropertyEditorDefinition,
-            style::StyledPropertyEditorDefinition,
+            style::StyledPropertyNameEditorDefinition,
             texture_slice::TextureSlicePropertyEditorDefinition,
             utf32::Utf32StringPropertyEditorDefinition,
             uuid::UuidPropertyEditorDefinition,
@@ -705,20 +705,17 @@ impl PropertyEditorDefinitionContainer {
 
         // Styled.
         container.insert(InheritablePropertyEditorDefinition::<StyledProperty<f32>>::new());
-        container.insert(StyledPropertyEditorDefinition::<f32>::new());
+        container.insert(StyledPropertyNameEditorDefinition);
 
         container.insert(InheritablePropertyEditorDefinition::<StyledProperty<Color>>::new());
-        container.insert(StyledPropertyEditorDefinition::<Color>::new());
 
         container.insert(InheritablePropertyEditorDefinition::<
             StyledProperty<Thickness>,
         >::new());
-        container.insert(StyledPropertyEditorDefinition::<Thickness>::new());
 
         container.insert(InheritablePropertyEditorDefinition::<
             StyledProperty<TextureResource>,
         >::new());
-        container.insert(StyledPropertyEditorDefinition::<TextureResource>::new());
         container.insert(VecCollectionPropertyEditorDefinition::<
             StylePropertyContainer,
         >::new());
@@ -939,7 +936,7 @@ impl PropertyEditorDefinitionContainer {
 
     pub fn register_inheritable_styleable_inspectable<T>(&self)
     where
-        T: Reflect + Clone + PartialEq,
+        T: Reflect + Clone + PartialEq + Default + Send,
     {
         assert!(
             self.insert(InspectablePropertyEditorDefinition::<T>::new())
@@ -954,7 +951,7 @@ impl PropertyEditorDefinitionContainer {
                 .is_none()
         );
         assert!(
-            self.insert(StyledPropertyEditorDefinition::<T>::new())
+            self.insert(EnumPropertyEditorDefinition::<StyledProperty<T>>::new())
                 .is_none()
         );
     }
@@ -989,7 +986,14 @@ impl PropertyEditorDefinitionContainer {
 
     pub fn register_inheritable_styleable_enum<T, E: Debug>(&self)
     where
-        T: InspectableEnum + VariantNames + AsRef<str> + FromStr<Err = E> + Debug + PartialEq,
+        T: InspectableEnum
+            + VariantNames
+            + AsRef<str>
+            + FromStr<Err = E>
+            + Debug
+            + PartialEq
+            + Default
+            + Send,
     {
         assert!(
             self.insert(EnumPropertyEditorDefinition::<T>::new())
@@ -1004,7 +1008,7 @@ impl PropertyEditorDefinitionContainer {
                 .is_none()
         );
         assert!(
-            self.insert(StyledPropertyEditorDefinition::<T>::new())
+            self.insert(EnumPropertyEditorDefinition::<StyledProperty<T>>::new())
                 .is_none()
         );
     }

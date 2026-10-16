@@ -21,23 +21,23 @@
 //! Property editor for [`StyledProperty`]. It acts like a proxy to inner property, but also
 //! adds a special "bind" button used to change style binding of the property.
 
-use crate::button::Button;
-use crate::list_view::ListView;
-use crate::message::MessageData;
-use crate::text::TextBuilder;
-use crate::window::WindowAlignment;
+use crate::style::StyledPropertyName;
+use crate::text::{Text, TextMessage};
 use crate::{
     BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     VerticalAlignment, Widget,
-    button::{ButtonBuilder, ButtonMessage},
+    button::{Button, ButtonBuilder, ButtonMessage},
     core::{
-        ImmutableString, PhantomDataSendSync, pool::Handle, reflect::prelude::*,
+        ImmutableString,
+        algebra::{Matrix3, Vector2},
+        color::Color,
+        pool::Handle,
+        reflect::prelude::*,
         visitor::prelude::*,
     },
     define_widget_deref,
     draw::DrawingContext,
     grid::{Column, GridBuilder, Row},
-    image::ImageBuilder,
     inspector::{
         FieldAction, InspectorError, PropertyChanged,
         editors::{
@@ -45,23 +45,19 @@ use crate::{
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
     },
-    list_view::{ListViewBuilder, ListViewMessage},
-    message::{OsEvent, UiMessage},
+    list_view::{ListView, ListViewBuilder, ListViewMessage},
+    message::{MessageData, OsEvent, UiMessage},
     resources::BIND_ICON,
     stack_panel::StackPanelBuilder,
-    style::{
-        Style, StyledProperty,
-        resource::{StyleResource, StyleResourceExt},
-    },
-    utils::{make_dropdown_list_option, make_simple_tooltip},
+    style::resource::StyleResource,
+    text::TextBuilder,
+    utils::{ImageButtonBuilder, make_dropdown_list_option},
     widget::WidgetBuilder,
-    window::{Window, WindowBuilder, WindowMessage, WindowTitle},
+    window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
 };
-use fyrox_core::algebra::{Matrix3, Vector2};
-use fyrox_graph::SceneGraph;
 use std::{
     any::{Any, TypeId},
-    fmt::{Debug, Formatter},
+    fmt::Debug,
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
@@ -75,6 +71,7 @@ impl MessageData for StyledPropertySelectorMessage {}
 #[derive(Debug, Clone, PartialEq)]
 pub enum StyledPropertyEditorMessage {
     BindProperty(ImmutableString),
+    PropertyName(ImmutableString),
 }
 impl MessageData for StyledPropertyEditorMessage {}
 
@@ -188,7 +185,6 @@ impl StyledPropertySelectorBuilder {
     pub fn build(
         self,
         target_style: &StyleResource,
-        target_type: TypeId,
         style_property_name: ImmutableString,
         ctx: &mut BuildContext,
     ) -> Handle<StyledPropertySelector> {
@@ -197,15 +193,11 @@ impl StyledPropertySelectorBuilder {
             .all_properties()
             .inner()
             .iter()
-            .filter_map(|container| {
-                if container.value.value_type_id() == target_type {
-                    Some((
-                        make_dropdown_list_option(ctx, &container.name),
-                        container.name.clone(),
-                    ))
-                } else {
-                    None
-                }
+            .map(|container| {
+                (
+                    make_dropdown_list_option(ctx, &container.name),
+                    container.name.clone(),
+                )
             })
             .unzip();
         let selection = property_list
@@ -284,7 +276,6 @@ impl StyledPropertySelectorBuilder {
 
     pub fn build_and_open_window(
         target_style: &StyleResource,
-        target_type: TypeId,
         style_property_name: ImmutableString,
         ctx: &mut BuildContext,
     ) -> Handle<StyledPropertySelector> {
@@ -294,7 +285,7 @@ impl StyledPropertySelectorBuilder {
                 .with_remove_on_close(true)
                 .open(false),
         )
-        .build(target_style, target_type, style_property_name, ctx);
+        .build(target_style, style_property_name, ctx);
 
         ctx.inner().send(
             window,
@@ -312,21 +303,18 @@ impl StyledPropertySelectorBuilder {
 #[derive(Debug, Clone, Visit, PartialEq, Reflect)]
 #[reflect(type_uuid = "1b8fb74a-3911-4b44-bb71-1a0382ebb9a7")]
 #[reflect(derived_type = "UiNode")]
-pub struct StyledPropertyEditor {
+pub struct StyledPropertyNameEditor {
     widget: Widget,
     bind: Handle<Button>,
-    inner_editor: Handle<UiNode>,
+    name_text: Handle<Text>,
     selector: Handle<StyledPropertySelector>,
     target_style: Option<StyleResource>,
     style_property_name: ImmutableString,
-    #[visit(skip)]
-    #[reflect(hidden)]
-    target_type_id: TypeId,
 }
 
-define_widget_deref!(StyledPropertyEditor);
+define_widget_deref!(StyledPropertyNameEditor);
 
-impl Control for StyledPropertyEditor {
+impl Control for StyledPropertyNameEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
@@ -336,21 +324,14 @@ impl Control for StyledPropertyEditor {
         {
             self.selector = StyledPropertySelectorBuilder::build_and_open_window(
                 target_style,
-                self.target_type_id,
                 self.style_property_name.clone(),
                 &mut ui.build_ctx(),
             );
         }
 
-        // Re-cast messages from inner editor as message from this editor.
-        // If anything is listening to messages from this editor, let them hear the messages from the inner
-        // editor as if they were coming from this editor, but *do not* re-cast messages to the inner editor
-        // to this editor. Particularly, when the inner editor is made invisible, that does not mean that
-        // this editor should be invisible.
-        if message.is_from(self.inner_editor) {
-            let mut clone = message.clone();
-            clone.destination = self.handle;
-            ui.send_message(clone);
+        if let Some(StyledPropertyEditorMessage::PropertyName(name)) = message.data_for(self.handle)
+        {
+            ui.send(self.name_text, TextMessage::Text(name.to_string()));
         }
     }
 
@@ -366,35 +347,19 @@ impl Control for StyledPropertyEditor {
     }
 }
 
-struct StyledPropertyEditorBuilder {
+struct StyledPropertyNameEditorBuilder {
     widget_builder: WidgetBuilder,
-    inner_editor: Handle<UiNode>,
-    container: Handle<UiNode>,
     style_property_name: ImmutableString,
     target_style: Option<StyleResource>,
-    target_type_id: TypeId,
 }
 
-impl StyledPropertyEditorBuilder {
+impl StyledPropertyNameEditorBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
-            inner_editor: Handle::NONE,
-            container: Handle::NONE,
             style_property_name: Default::default(),
             target_style: None,
-            target_type_id: ().type_id(),
         }
-    }
-
-    pub fn with_inner_editor(mut self, inner_editor: Handle<UiNode>) -> Self {
-        self.inner_editor = inner_editor;
-        self
-    }
-
-    pub fn with_container(mut self, container: Handle<UiNode>) -> Self {
-        self.container = container;
-        self
     }
 
     pub fn with_style_property_name(mut self, style_property_name: ImmutableString) -> Self {
@@ -407,285 +372,91 @@ impl StyledPropertyEditorBuilder {
         self
     }
 
-    pub fn with_target_type_id(mut self, type_id: TypeId) -> Self {
-        self.target_type_id = type_id;
-        self
-    }
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<StyledPropertyNameEditor> {
+        let bind = ImageButtonBuilder::default()
+            .on_column(1)
+            .with_tooltip("Bind")
+            .with_margin(Thickness::uniform(1.0))
+            .with_image_color(Color::opaque(0, 200, 0))
+            .with_vertical_alignment(VerticalAlignment::Top)
+            .with_width(20.0)
+            .with_height(20.0)
+            .with_margin(Thickness::uniform(1.0))
+            .with_vertical_alignment(VerticalAlignment::Top)
+            .with_image_size(14.0)
+            .with_image(BIND_ICON.clone())
+            .build_button(ctx);
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<StyledPropertyEditor> {
-        let is_bound = !self.style_property_name.is_empty();
-        let brush = if is_bound {
-            ctx.style.property(Style::BRUSH_BRIGHT_BLUE)
-        } else {
-            ctx.style.property(Style::BRUSH_BRIGHTEST)
-        };
-
-        let tooltip = if is_bound {
-            &format!("Bound To `{}` Property", self.style_property_name)
-        } else {
-            "Bind To Style Property"
-        };
-
-        let bind;
-        let grid = GridBuilder::new(WidgetBuilder::new().with_child(self.container).with_child({
-            bind = ButtonBuilder::new(
-                WidgetBuilder::new()
-                    .on_column(1)
-                    .with_tooltip(make_simple_tooltip(ctx, tooltip))
-                    .with_margin(Thickness::uniform(1.0))
-                    .with_vertical_alignment(VerticalAlignment::Top)
-                    .with_width(18.0)
-                    .with_height(18.0),
-            )
-            .with_content(
-                ImageBuilder::new(
-                    WidgetBuilder::new()
-                        .with_background(brush)
-                        .with_margin(Thickness::uniform(2.0))
-                        .with_width(16.0)
-                        .with_height(16.0),
-                )
-                .with_opt_texture(BIND_ICON.clone())
-                .build(ctx),
-            )
+        let name_text = TextBuilder::new(WidgetBuilder::new())
+            .with_vertical_text_alignment(VerticalAlignment::Center)
+            .with_text(self.style_property_name.clone())
             .build(ctx);
-            bind
-        }))
-        .add_row(Row::auto())
-        .add_column(Column::stretch())
-        .add_column(Column::auto())
-        .build(ctx);
 
-        ctx.add(StyledPropertyEditor {
+        let grid = GridBuilder::new(WidgetBuilder::new().with_child(name_text).with_child(bind))
+            .add_row(Row::auto())
+            .add_column(Column::stretch())
+            .add_column(Column::auto())
+            .build(ctx);
+
+        ctx.add(StyledPropertyNameEditor {
             widget: self
                 .widget_builder
                 .with_preview_messages(true)
                 .with_child(grid)
                 .build(ctx),
             bind,
-            inner_editor: self.inner_editor,
+            name_text,
             selector: Default::default(),
             target_style: self.target_style,
             style_property_name: self.style_property_name,
-            target_type_id: self.target_type_id,
         })
     }
 }
 
-pub struct StyledPropertyEditorDefinition<T>
-where
-    T: Reflect + Clone,
-{
-    #[allow(dead_code)]
-    phantom: PhantomDataSendSync<T>,
-}
+#[derive(Debug)]
+pub struct StyledPropertyNameEditorDefinition;
 
-impl<T> StyledPropertyEditorDefinition<T>
-where
-    T: Reflect + Clone,
-{
-    pub fn new() -> Self {
-        Self {
-            phantom: Default::default(),
-        }
-    }
-}
-
-impl<T> Debug for StyledPropertyEditorDefinition<T>
-where
-    T: Reflect + Clone,
-{
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "StyledPropertyEditorDefinition")
-    }
-}
-
-impl<T> PropertyEditorDefinition for StyledPropertyEditorDefinition<T>
-where
-    T: Reflect + Clone + PartialEq,
-{
+impl PropertyEditorDefinition for StyledPropertyNameEditorDefinition {
     fn value_type_id(&self) -> TypeId {
-        TypeId::of::<StyledProperty<T>>()
+        TypeId::of::<StyledPropertyName>()
     }
 
     fn create_instance(
         &self,
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
-        let value = ctx.property_info.cast_value::<StyledProperty<T>>()?;
+        let value = ctx.property_info.cast_value::<StyledPropertyName>()?;
 
-        if let Some(definition) = ctx.definition_container.get::<T>() {
-            let property_info = ctx.property_info;
+        let editor = StyledPropertyNameEditorBuilder::new(WidgetBuilder::new())
+            .with_style_property_name(value.0.clone())
+            .with_style_resource(ctx.environment.as_ref().and_then(|env| {
+                (&**env as &dyn Reflect)
+                    .first_field_ref::<Option<StyleResource>>()
+                    .cloned()
+                    .flatten()
+            }))
+            .build(ctx.build_context);
 
-            let wrapper_builder = StyledPropertyEditorBuilder::new(WidgetBuilder::new())
-                .with_target_type_id(TypeId::of::<T>())
-                .with_style_resource(ctx.environment.as_ref().and_then(|env| {
-                    (&**env as &dyn Reflect)
-                        .first_field_ref::<Option<StyleResource>>()
-                        .cloned()
-                        .flatten()
-                }));
-
-            match value {
-                StyledProperty::External { name } => {
-                    let text = TextBuilder::new(WidgetBuilder::new())
-                        .with_text(format!("Bound to {}", name))
-                        .build(ctx.build_context)
-                        .to_base();
-
-                    let wrapper = wrapper_builder
-                        .with_container(text)
-                        .with_inner_editor(text)
-                        .with_style_property_name(name.clone())
-                        .build(ctx.build_context)
-                        .to_base();
-
-                    Ok(PropertyEditorInstance::Simple { editor: wrapper })
-                }
-                StyledProperty::Value(value) => {
-                    let proxy_property_info = FieldRef {
-                        metadata: &FieldMetadata {
-                            name: property_info.name,
-                            display_name: property_info.display_name,
-                            read_only: property_info.read_only,
-                            immutable_collection: property_info.immutable_collection,
-                            min_value: property_info.min_value,
-                            max_value: property_info.max_value,
-                            step: property_info.step,
-                            precision: property_info.precision,
-                            tag: property_info.tag,
-                            doc: property_info.doc,
-                        },
-                        value,
-                    };
-
-                    let instance =
-                        definition
-                            .property_editor
-                            .create_instance(PropertyEditorBuildContext {
-                                build_context: ctx.build_context,
-                                property_info: &proxy_property_info,
-                                environment: ctx.environment.clone(),
-                                definition_container: ctx.definition_container.clone(),
-                                layer_index: ctx.layer_index,
-                                generate_property_string_values: ctx
-                                    .generate_property_string_values,
-                                filter: ctx.filter,
-                                name_column_width: ctx.name_column_width,
-                                hide_name_column: ctx.hide_name_column,
-                                base_path: format!(
-                                    "{}.{}",
-                                    ctx.base_path,
-                                    StyledProperty::<T>::VALUE_F_0
-                                ),
-                                has_parent_object: ctx.has_parent_object,
-                            })?;
-
-                    let wrapper = wrapper_builder
-                        .with_container(instance.container())
-                        .with_inner_editor(instance.editor())
-                        .build(ctx.build_context)
-                        .to_base();
-
-                    Ok(match instance {
-                        PropertyEditorInstance::Simple { .. } => {
-                            PropertyEditorInstance::Simple { editor: wrapper }
-                        }
-                        PropertyEditorInstance::Custom { .. } => PropertyEditorInstance::Custom {
-                            container: wrapper,
-                            editor: wrapper,
-                        },
-                    })
-                }
-            }
-        } else {
-            Err(InspectorError::Custom("No editor!".to_string()))
-        }
+        Ok(PropertyEditorInstance::simple(editor))
     }
 
     fn create_message(
         &self,
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
-        if let Some(definition) = ctx.definition_container.get::<T>() {
-            let instance = ctx
-                .ui
-                .node(ctx.instance)
-                .cast::<StyledPropertyEditor>()
-                .unwrap();
-
-            let property_info = ctx.property_info;
-
-            let value = property_info.cast_value::<StyledProperty<T>>()?;
-
-            match value {
-                StyledProperty::External { .. } => {
-                    return Ok(None);
-                }
-                StyledProperty::Value(value) => {
-                    let proxy_property_info = FieldRef {
-                        metadata: &FieldMetadata {
-                            name: property_info.name,
-                            display_name: property_info.display_name,
-                            read_only: property_info.read_only,
-                            immutable_collection: property_info.immutable_collection,
-                            min_value: property_info.min_value,
-                            max_value: property_info.max_value,
-                            step: property_info.step,
-                            precision: property_info.precision,
-                            tag: property_info.tag,
-                            doc: property_info.doc,
-                        },
-                        value,
-                    };
-
-                    return definition.property_editor.create_message(
-                        PropertyEditorMessageContext {
-                            property_info: &proxy_property_info,
-                            environment: ctx.environment.clone(),
-                            definition_container: ctx.definition_container.clone(),
-                            instance: instance.inner_editor,
-                            layer_index: ctx.layer_index,
-                            ui: ctx.ui,
-                            generate_property_string_values: ctx.generate_property_string_values,
-                            filter: ctx.filter,
-                            name_column_width: ctx.name_column_width,
-                            hide_name_column: ctx.hide_name_column,
-                            base_path: ctx.base_path.clone(),
-                            has_parent_object: ctx.has_parent_object,
-                        },
-                    );
-                }
-            }
-        }
-
-        Err(InspectorError::Custom("No editor!".to_string()))
+        let value = ctx.property_info.cast_value::<StyledPropertyName>()?;
+        Ok(Some(UiMessage::for_widget(
+            ctx.instance,
+            StyledPropertyEditorMessage::PropertyName(value.0.clone()),
+        )))
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
         if let Some(StyledPropertyEditorMessage::BindProperty(name)) = ctx.message.data() {
             return Some(PropertyChanged {
-                name: format!("{}.{}", ctx.name, StyledProperty::<T>::EXTERNAL_NAME),
-                action: FieldAction::object(name.clone()),
+                name: ctx.name.to_string(),
+                action: FieldAction::object(StyledPropertyName(name.clone())),
             });
-        }
-
-        // Try to translate other messages using inner property editor.
-        if let Some(definition) = ctx.definition_container.get::<T>() {
-            let mut property_change =
-                definition
-                    .property_editor
-                    .translate_message(PropertyEditorTranslationContext {
-                        environment: ctx.environment.clone(),
-                        name: ctx.name,
-                        message: ctx.message,
-                        definition_container: ctx.definition_container.clone(),
-                    })?;
-
-            property_change.name += ".";
-            property_change.name += StyledProperty::<T>::VALUE_F_0;
-
-            return Some(property_change);
         }
 
         None
