@@ -30,7 +30,8 @@ use crate::visit::args;
 
 pub fn create_impl(ty_args: &args::TypeArgs, impl_body: TokenStream2) -> TokenStream2 {
     let ty_ident = &ty_args.ident;
-    let (impl_generics, ty_generics, where_clause) = ty_args.generics.split_for_impl();
+    let generics = ty_args.impl_generics();
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     quote! {
         #[allow(clippy::question_mark)]

@@ -24,6 +24,7 @@
 use crate::button::Button;
 use crate::list_view::ListView;
 use crate::message::MessageData;
+use crate::text::TextBuilder;
 use crate::window::WindowAlignment;
 use crate::{
     BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
@@ -512,71 +513,91 @@ where
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<StyledProperty<T>>()?;
+
         if let Some(definition) = ctx.definition_container.get::<T>() {
             let property_info = ctx.property_info;
 
-            let proxy_property_info = FieldRef {
-                metadata: &FieldMetadata {
-                    name: property_info.name,
-                    display_name: property_info.display_name,
-                    read_only: property_info.read_only,
-                    immutable_collection: property_info.immutable_collection,
-                    min_value: property_info.min_value,
-                    max_value: property_info.max_value,
-                    step: property_info.step,
-                    precision: property_info.precision,
-                    tag: property_info.tag,
-                    doc: property_info.doc,
-                },
-                value: &**value,
-            };
-
-            let instance =
-                definition
-                    .property_editor
-                    .create_instance(PropertyEditorBuildContext {
-                        build_context: ctx.build_context,
-                        property_info: &proxy_property_info,
-                        environment: ctx.environment.clone(),
-                        definition_container: ctx.definition_container.clone(),
-                        layer_index: ctx.layer_index,
-                        generate_property_string_values: ctx.generate_property_string_values,
-                        filter: ctx.filter,
-                        name_column_width: ctx.name_column_width,
-                        hide_name_column: ctx.hide_name_column,
-                        base_path: format!("{}.{}", ctx.base_path, StyledProperty::<T>::PROPERTY),
-                        has_parent_object: ctx.has_parent_object,
-                    })?;
-
-            let wrapper = StyledPropertyEditorBuilder::new(WidgetBuilder::new())
-                .with_container(match instance {
-                    PropertyEditorInstance::Simple { editor } => editor,
-                    PropertyEditorInstance::Custom { container, .. } => container,
-                })
-                .with_inner_editor(match instance {
-                    PropertyEditorInstance::Simple { editor } => editor,
-                    PropertyEditorInstance::Custom { editor, .. } => editor,
-                })
+            let wrapper_builder = StyledPropertyEditorBuilder::new(WidgetBuilder::new())
                 .with_target_type_id(TypeId::of::<T>())
                 .with_style_resource(ctx.environment.as_ref().and_then(|env| {
                     (&**env as &dyn Reflect)
                         .first_field_ref::<Option<StyleResource>>()
                         .cloned()
                         .flatten()
-                }))
-                .with_style_property_name(value.name.clone())
-                .build(ctx.build_context)
-                .to_base();
+                }));
 
-            Ok(match instance {
-                PropertyEditorInstance::Simple { .. } => {
-                    PropertyEditorInstance::Simple { editor: wrapper }
+            match value {
+                StyledProperty::External { name } => {
+                    let text = TextBuilder::new(WidgetBuilder::new())
+                        .with_text(format!("Bound to {}", name))
+                        .build(ctx.build_context)
+                        .to_base();
+
+                    let wrapper = wrapper_builder
+                        .with_container(text)
+                        .with_inner_editor(text)
+                        .with_style_property_name(name.clone())
+                        .build(ctx.build_context)
+                        .to_base();
+
+                    Ok(PropertyEditorInstance::Simple { editor: wrapper })
                 }
-                PropertyEditorInstance::Custom { .. } => PropertyEditorInstance::Custom {
-                    container: wrapper,
-                    editor: wrapper,
-                },
-            })
+                StyledProperty::Value(value) => {
+                    let proxy_property_info = FieldRef {
+                        metadata: &FieldMetadata {
+                            name: property_info.name,
+                            display_name: property_info.display_name,
+                            read_only: property_info.read_only,
+                            immutable_collection: property_info.immutable_collection,
+                            min_value: property_info.min_value,
+                            max_value: property_info.max_value,
+                            step: property_info.step,
+                            precision: property_info.precision,
+                            tag: property_info.tag,
+                            doc: property_info.doc,
+                        },
+                        value,
+                    };
+
+                    let instance =
+                        definition
+                            .property_editor
+                            .create_instance(PropertyEditorBuildContext {
+                                build_context: ctx.build_context,
+                                property_info: &proxy_property_info,
+                                environment: ctx.environment.clone(),
+                                definition_container: ctx.definition_container.clone(),
+                                layer_index: ctx.layer_index,
+                                generate_property_string_values: ctx
+                                    .generate_property_string_values,
+                                filter: ctx.filter,
+                                name_column_width: ctx.name_column_width,
+                                hide_name_column: ctx.hide_name_column,
+                                base_path: format!(
+                                    "{}.{}",
+                                    ctx.base_path,
+                                    StyledProperty::<T>::VALUE_F_0
+                                ),
+                                has_parent_object: ctx.has_parent_object,
+                            })?;
+
+                    let wrapper = wrapper_builder
+                        .with_container(instance.container())
+                        .with_inner_editor(instance.editor())
+                        .build(ctx.build_context)
+                        .to_base();
+
+                    Ok(match instance {
+                        PropertyEditorInstance::Simple { .. } => {
+                            PropertyEditorInstance::Simple { editor: wrapper }
+                        }
+                        PropertyEditorInstance::Custom { .. } => PropertyEditorInstance::Custom {
+                            container: wrapper,
+                            editor: wrapper,
+                        },
+                    })
+                }
+            }
         } else {
             Err(InspectorError::Custom("No editor!".to_string()))
         }
@@ -597,38 +618,45 @@ where
 
             let value = property_info.cast_value::<StyledProperty<T>>()?;
 
-            let proxy_property_info = FieldRef {
-                metadata: &FieldMetadata {
-                    name: property_info.name,
-                    display_name: property_info.display_name,
-                    read_only: property_info.read_only,
-                    immutable_collection: property_info.immutable_collection,
-                    min_value: property_info.min_value,
-                    max_value: property_info.max_value,
-                    step: property_info.step,
-                    precision: property_info.precision,
-                    tag: property_info.tag,
-                    doc: property_info.doc,
-                },
-                value: &**value,
-            };
+            match value {
+                StyledProperty::External { .. } => {
+                    return Ok(None);
+                }
+                StyledProperty::Value(value) => {
+                    let proxy_property_info = FieldRef {
+                        metadata: &FieldMetadata {
+                            name: property_info.name,
+                            display_name: property_info.display_name,
+                            read_only: property_info.read_only,
+                            immutable_collection: property_info.immutable_collection,
+                            min_value: property_info.min_value,
+                            max_value: property_info.max_value,
+                            step: property_info.step,
+                            precision: property_info.precision,
+                            tag: property_info.tag,
+                            doc: property_info.doc,
+                        },
+                        value,
+                    };
 
-            return definition
-                .property_editor
-                .create_message(PropertyEditorMessageContext {
-                    property_info: &proxy_property_info,
-                    environment: ctx.environment.clone(),
-                    definition_container: ctx.definition_container.clone(),
-                    instance: instance.inner_editor,
-                    layer_index: ctx.layer_index,
-                    ui: ctx.ui,
-                    generate_property_string_values: ctx.generate_property_string_values,
-                    filter: ctx.filter,
-                    name_column_width: ctx.name_column_width,
-                    hide_name_column: ctx.hide_name_column,
-                    base_path: ctx.base_path.clone(),
-                    has_parent_object: ctx.has_parent_object,
-                });
+                    return definition.property_editor.create_message(
+                        PropertyEditorMessageContext {
+                            property_info: &proxy_property_info,
+                            environment: ctx.environment.clone(),
+                            definition_container: ctx.definition_container.clone(),
+                            instance: instance.inner_editor,
+                            layer_index: ctx.layer_index,
+                            ui: ctx.ui,
+                            generate_property_string_values: ctx.generate_property_string_values,
+                            filter: ctx.filter,
+                            name_column_width: ctx.name_column_width,
+                            hide_name_column: ctx.hide_name_column,
+                            base_path: ctx.base_path.clone(),
+                            has_parent_object: ctx.has_parent_object,
+                        },
+                    );
+                }
+            }
         }
 
         Err(InspectorError::Custom("No editor!".to_string()))
@@ -637,7 +665,7 @@ where
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
         if let Some(StyledPropertyEditorMessage::BindProperty(name)) = ctx.message.data() {
             return Some(PropertyChanged {
-                name: format!("{}.{}", ctx.name, StyledProperty::<T>::NAME),
+                name: format!("{}.{}", ctx.name, StyledProperty::<T>::EXTERNAL_NAME),
                 action: FieldAction::object(name.clone()),
             });
         }
@@ -655,7 +683,7 @@ where
                     })?;
 
             property_change.name += ".";
-            property_change.name += StyledProperty::<T>::PROPERTY;
+            property_change.name += StyledProperty::<T>::VALUE_F_0;
 
             return Some(property_change);
         }

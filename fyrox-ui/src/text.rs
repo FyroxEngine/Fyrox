@@ -374,10 +374,13 @@ impl Control for Text {
             .borrow_mut()
             .set_super_sampling_scale(self.visual_max_scaling())
             .set_constraint(available_size)
-            .measure(Some(InlineContext {
-                children: &self.children,
-                ui,
-            }))
+            .measure(
+                Some(InlineContext {
+                    children: &self.children,
+                    ui,
+                }),
+                &self.style,
+            )
     }
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
@@ -387,6 +390,7 @@ impl Control for Text {
                 children: &self.children,
                 ui,
             }),
+            &self.style,
         );
         final_size
     }
@@ -401,6 +405,7 @@ impl Control for Text {
             bounds.position,
             &self.material,
             &self.formatted_text.borrow(),
+            &self.style,
         );
     }
 
@@ -413,7 +418,7 @@ impl Control for Text {
         let new_super_sampling_scale = self.visual_max_scaling();
         if new_super_sampling_scale != text.super_sampling_scale() {
             text.set_super_sampling_scale(new_super_sampling_scale)
-                .measure_and_arrange();
+                .measure_and_arrange(&self.style);
         }
     }
 
@@ -422,8 +427,7 @@ impl Control for Text {
 
         if message.destination() == self.handle() {
             if let Some(msg) = message.data::<WidgetMessage>() {
-                if let WidgetMessage::Style(style) = msg {
-                    self.formatted_text.borrow_mut().set_style(style);
+                if matches!(msg, WidgetMessage::Style(_)) {
                     self.invalidate_layout();
                 }
             } else if let Some(msg) = message.data::<TextMessage>() {

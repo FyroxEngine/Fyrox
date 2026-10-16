@@ -1087,6 +1087,7 @@ impl DrawingContext {
         position: Vector2<f32>,
         material: &MaterialResource,
         formatted_text: &FormattedText,
+        style: &Option<StyleResource>,
     ) {
         #[inline(always)]
         fn draw(
@@ -1096,6 +1097,7 @@ impl DrawingContext {
             clip_bounds: Rect<f32>,
             position: Vector2<f32>,
             material: &MaterialResource,
+            style: &Option<StyleResource>,
         ) {
             let mut current_draw_values = None;
             for element in formatted_text.get_glyphs() {
@@ -1104,7 +1106,8 @@ impl DrawingContext {
                 {
                     continue;
                 }
-                let draw_values = formatted_text.get_glyph_draw_values(layer, element);
+                let font_size = formatted_text.font_size().get_or_default(style);
+                let draw_values = formatted_text.get_glyph_draw_values(layer, element, font_size);
                 if current_draw_values.is_none() {
                     current_draw_values = Some(draw_values)
                 } else if current_draw_values.as_ref() != Some(&draw_values) {
@@ -1175,6 +1178,7 @@ impl DrawingContext {
                 clip_bounds,
                 position,
                 material,
+                style,
             );
         }
 
@@ -1185,6 +1189,7 @@ impl DrawingContext {
             clip_bounds,
             position,
             material,
+            style,
         );
     }
 }

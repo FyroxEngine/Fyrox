@@ -251,13 +251,15 @@ impl Control for Ruler {
         let mut text = self.text.borrow_mut();
 
         for x in self.transform.x_step_iter(STANDARD_GRID_SIZE) {
-            text.set_text(format!("{x:.1}s")).measure_and_arrange();
+            text.set_text(format!("{x:.1}s"))
+                .measure_and_arrange(&self.style);
             let vx = self.local_to_view(x);
             ctx.draw_text(
                 self.clip_bounds(),
                 Vector2::new(vx + 1.0, 0.0),
                 &self.material,
                 &text,
+                &self.style,
             );
         }
 

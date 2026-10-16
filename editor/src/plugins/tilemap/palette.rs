@@ -795,7 +795,8 @@ impl PaletteWidget {
             "".into()
         };
         self.position_text.set_text(text);
-        self.position_text.measure_and_arrange();
+        let style = self.style.clone();
+        self.position_text.measure_and_arrange(&style);
     }
 
     fn tile_point_to_grid_pos(&self, pos: Vector2<f32>) -> Vector2<i32> {
@@ -1879,6 +1880,7 @@ impl Control for PaletteWidget {
             Vector2::new(2.0, 2.0),
             &self.material,
             &self.position_text,
+            &self.style,
         );
     }
 

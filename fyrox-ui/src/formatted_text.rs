@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::style::resource::StyleResource;
 use crate::{
     HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
     brush::Brush,
@@ -26,7 +27,7 @@ use crate::{
         variable::InheritableVariable, visitor::prelude::*,
     },
     font::{BUILT_IN_FONT, Font, FontGlyph, FontHeight, FontResource},
-    style::{StyledProperty, resource::StyleResource},
+    style::StyledProperty,
 };
 use fxhash::FxHashMap;
 use fyrox_core::pool::Handle;
@@ -327,10 +328,8 @@ impl FormattedText {
     pub fn font_at(&self, index: usize) -> FontResource {
         self.runs.font_at(index).unwrap_or_else(|| self.get_font())
     }
-    pub fn font_size_at(&self, index: usize) -> f32 {
-        self.runs
-            .font_size_at(index)
-            .unwrap_or_else(|| self.font_size().property)
+    pub fn font_size_at(&self, index: usize, font_size: f32) -> f32 {
+        self.runs.font_size_at(index).unwrap_or_else(|| font_size)
     }
     pub fn brush_at(&self, index: usize) -> Brush {
         self.runs.brush_at(index).unwrap_or_else(|| self.brush())
@@ -491,7 +490,11 @@ impl FormattedText {
             .or(Some(self.end_position()))
     }
 
-    pub fn position_to_local(&self, position: Position) -> Vector2<f32> {
+    pub fn position_to_local(
+        &self,
+        position: Position,
+        style: &Option<StyleResource>,
+    ) -> Vector2<f32> {
         if self.get_font().state().data().is_none() {
             return Default::default();
         }
@@ -499,10 +502,14 @@ impl FormattedText {
         let line = &self.lines[position.line];
         let caret_pos = Vector2::new(line.x_offset, line.y_offset);
         let range = line.begin..line.begin + position.offset;
-        caret_pos + Vector2::new(self.get_range_width(range), 0.0)
+        caret_pos + Vector2::new(self.get_range_width(range, style), 0.0)
     }
 
-    pub fn local_to_position(&self, point: Vector2<f32>) -> Position {
+    pub fn local_to_position(
+        &self,
+        point: Vector2<f32>,
+        style: &Option<StyleResource>,
+    ) -> Position {
         if self.get_font().state().data().is_none() {
             return Position::default();
         }
@@ -523,8 +530,11 @@ impl FormattedText {
         let mut glyph_x: f32 = 0.0;
         let mut min_dist: f32 = x.abs();
         let mut min_index: usize = 0;
+        let font_size = self.font_size.get_or_default(style);
         for (offset, char_index) in (line.begin..line.end).enumerate() {
-            glyph_x += self.get_char_width(char_index).unwrap_or_default();
+            glyph_x += self
+                .get_char_width(char_index, font_size)
+                .unwrap_or_default();
             let dist = (x - glyph_x).abs();
             if dist < min_dist {
                 min_dist = dist;
@@ -545,11 +555,12 @@ impl FormattedText {
         &self,
         layer: DrawValueLayer,
         glyph: &TextGlyph,
+        font_size: f32,
     ) -> GlyphDrawValues {
         let atlas_page_index = glyph.atlas_page_index;
         let i = glyph.source_char_index;
         let font = self.font_at(i);
-        let height = FontHeight::from(self.font_size_at(i) * self.super_sampling_scale);
+        let height = FontHeight::from(self.font_size_at(i, font_size) * self.super_sampling_scale);
         match layer {
             DrawValueLayer::Main => GlyphDrawValues {
                 atlas_page_index,
@@ -579,8 +590,8 @@ impl FormattedText {
         &self.font_size
     }
 
-    pub fn super_sampled_font_size(&self) -> f32 {
-        **self.font_size * self.super_sampling_scale
+    pub fn super_sampled_font_size(&self, style: &Option<StyleResource>) -> f32 {
+        self.font_size.get_or_default(style) * self.super_sampling_scale
     }
 
     pub fn set_font_size(&mut self, font_size: StyledProperty<f32>) -> &mut Self {
@@ -651,12 +662,12 @@ impl FormattedText {
     }
 
     /// The width of the character at the given index.
-    pub fn get_char_width(&self, index: usize) -> Option<f32> {
+    pub fn get_char_width(&self, index: usize, font_size: f32) -> Option<f32> {
         let glyph = self.text.get(index)?;
         Some(
             GlyphMetrics {
                 font: &mut self.font_at(index).data_ref(),
-                size: self.font_size_at(index),
+                size: self.font_size_at(index, font_size),
             }
             .advance(*glyph),
         )
@@ -664,10 +675,15 @@ impl FormattedText {
 
     /// The width of the characters at the indices in the given iterator.
     /// This is equivalent to calling [`get_char_width`](Self::get_char_width) repeatedly and summing the results.
-    pub fn get_range_width<T: IntoIterator<Item = usize>>(&self, range: T) -> f32 {
+    pub fn get_range_width<T: IntoIterator<Item = usize>>(
+        &self,
+        range: T,
+        style: &Option<StyleResource>,
+    ) -> f32 {
         let mut width = 0.0;
+        let font_size = self.font_size.get_or_default(style);
         for index in range {
-            width += self.get_char_width(index).unwrap_or_default();
+            width += self.get_char_width(index, font_size).unwrap_or_default();
         }
         width
     }
@@ -679,7 +695,12 @@ impl FormattedText {
     ///
     /// This rect is appropriate for drawing a selection or highlight for the text,
     /// and the lower edge of the rectangle can be used to draw an underline.
-    pub fn text_rect<R: RangeBounds<usize>>(&self, line: usize, range: R) -> Option<Rect<f32>> {
+    pub fn text_rect<R: RangeBounds<usize>>(
+        &self,
+        line: usize,
+        range: R,
+        style: &Option<StyleResource>,
+    ) -> Option<Rect<f32>> {
         let line = self.lines.get(line)?;
         let x = line.x_offset;
         let y = line.y_offset;
@@ -697,8 +718,8 @@ impl FormattedText {
         };
         let start = line.begin + start;
         let end = line.begin + end;
-        let offset = self.get_range_width(line.begin..start);
-        let w = self.get_range_width(start..end);
+        let offset = self.get_range_width(line.begin..start, style);
+        let w = self.get_range_width(start..end, style);
         Some(Rect::new(offset + x, y, w, h))
     }
 
@@ -740,12 +761,6 @@ impl FormattedText {
     /// Sets desired shadow offset in units.
     pub fn set_shadow_offset(&mut self, offset: Vector2<f32>) -> &mut Self {
         self.shadow_offset.set_value_and_mark_modified(offset);
-        self
-    }
-
-    /// Sets desired style.
-    pub fn set_style(&mut self, style: &StyleResource) -> &mut Self {
-        self.font_size.update(style);
         self
     }
 
@@ -899,9 +914,9 @@ impl FormattedText {
         result
     }
 
-    pub fn measure_and_arrange(&mut self) -> Vector2<f32> {
-        let size = self.measure(None);
-        self.arrange(self.constraint, None);
+    pub fn measure_and_arrange(&mut self, style: &Option<StyleResource>) -> Vector2<f32> {
+        let size = self.measure(None, style);
+        self.arrange(self.constraint, None, style);
         size
     }
 
@@ -910,7 +925,9 @@ impl FormattedText {
         mut wrapper: impl TextWrapper,
         inline_bounds: &FxHashMap<usize, Vector2<f32>>,
         text: &[char],
+        style: &Option<StyleResource>,
     ) {
+        let font_size = self.font_size.get_or_default(style);
         for (i, c) in text.iter().enumerate() {
             // Try wrap an inline first.
             if let Some(inline_bounds) = inline_bounds.get(&i) {
@@ -920,7 +937,7 @@ impl FormattedText {
             // Then wrap the character.
             let advance = GlyphMetrics {
                 font: &mut self.font_at(i).data_ref(),
-                size: self.font_size_at(i),
+                size: self.font_size_at(i, font_size),
             }
             .advance(*c);
 
@@ -929,7 +946,11 @@ impl FormattedText {
         wrapper.finish();
     }
 
-    pub fn measure(&mut self, inline_ctx: Option<InlineContext>) -> Vector2<f32> {
+    pub fn measure(
+        &mut self,
+        inline_ctx: Option<InlineContext>,
+        style: &Option<StyleResource>,
+    ) -> Vector2<f32> {
         let mut inline_bounds = FxHashMap::default();
         if let Some(ref inline_ctx) = inline_ctx {
             for &inline in inline_ctx.children {
@@ -944,6 +965,7 @@ impl FormattedText {
                 *measured_inline = measured_inline.sup(&desired_size);
             }
         }
+        let font_size = self.font_size.get_or_default(style);
 
         let mut lines = std::mem::take(&mut self.lines);
         lines.clear();
@@ -970,24 +992,23 @@ impl FormattedText {
         if let Some(mask) = *self.mask_char {
             let advance = GlyphMetrics {
                 font: &mut self.get_font().data_ref(),
-                size: **self.font_size,
+                size: font_size,
             }
             .advance(mask);
             match *self.wrap {
                 WrapMode::NoWrap => wrap_mask(NoWrap::new(sink), self.text.len(), mask, advance),
-                WrapMode::Letter => wrap_mask(
-                    LetterWrap::new(sink),
-                    self.text.len(),
-                    mask,
-                    **self.font_size,
-                ),
+                WrapMode::Letter => {
+                    wrap_mask(LetterWrap::new(sink), self.text.len(), mask, font_size)
+                }
                 WrapMode::Word => wrap_mask(WordWrap::new(sink), self.text.len(), mask, advance),
             }
         } else {
             match *self.wrap {
-                WrapMode::NoWrap => self.wrap(NoWrap::new(sink), &inline_bounds, &self.text),
-                WrapMode::Letter => self.wrap(LetterWrap::new(sink), &inline_bounds, &self.text),
-                WrapMode::Word => self.wrap(WordWrap::new(sink), &inline_bounds, &self.text),
+                WrapMode::NoWrap => self.wrap(NoWrap::new(sink), &inline_bounds, &self.text, style),
+                WrapMode::Letter => {
+                    self.wrap(LetterWrap::new(sink), &inline_bounds, &self.text, style)
+                }
+                WrapMode::Word => self.wrap(WordWrap::new(sink), &inline_bounds, &self.text, style),
             }
         }
 
@@ -1004,7 +1025,7 @@ impl FormattedText {
             if self.mask_char.is_some() || self.runs.is_empty() {
                 let ascender = GlyphMetrics {
                     font: &mut self.get_font().data_ref(),
-                    size: **self.font_size,
+                    size: font_size,
                 }
                 .ascender();
                 line.height = line.height.max(ascender);
@@ -1012,7 +1033,7 @@ impl FormattedText {
                 for i in line.begin..line.end {
                     let ascender = GlyphMetrics {
                         font: &mut self.font_at(i).data_ref(),
-                        size: self.font_size_at(i),
+                        size: self.font_size_at(i, font_size),
                     }
                     .ascender();
                     line.height = line.height.max(ascender);
@@ -1037,7 +1058,7 @@ impl FormattedText {
             let descender = if self.mask_char.is_some() || self.runs.is_empty() {
                 GlyphMetrics {
                     font: &mut self.get_font().data_ref(),
-                    size: **self.font_size,
+                    size: font_size,
                 }
                 .descender()
             } else if let Some(line) = lines.last() {
@@ -1045,7 +1066,7 @@ impl FormattedText {
                     .map(|i| {
                         GlyphMetrics {
                             font: &mut self.font_at(i).data_ref(),
-                            size: self.font_size_at(i),
+                            size: self.font_size_at(i, font_size),
                         }
                         .descender()
                     })
@@ -1064,7 +1085,12 @@ impl FormattedText {
         )
     }
 
-    pub fn arrange(&mut self, constraint: Vector2<f32>, inline_ctx: Option<InlineContext>) {
+    pub fn arrange(
+        &mut self,
+        constraint: Vector2<f32>,
+        inline_ctx: Option<InlineContext>,
+        style: &Option<StyleResource>,
+    ) {
         let mut inlines = FxHashMap::default();
         if let Some(ref inline_ctx) = inline_ctx {
             for &inline in inline_ctx.children {
@@ -1075,6 +1101,7 @@ impl FormattedText {
                     .push(inline);
             }
         }
+        let font_size = self.font_size.get_or_default(style);
 
         self.constraint = constraint;
         let constraint = Vector2::new(
@@ -1143,7 +1170,7 @@ impl FormattedText {
                 let font = self.get_font();
                 let mut metrics = GlyphMetrics {
                     font: &mut font.data_ref(),
-                    size: **self.font_size,
+                    size: font_size,
                 };
                 for c in std::iter::repeat_n(mask, line.len()) {
                     let (glyph, advance) =
@@ -1177,7 +1204,7 @@ impl FormattedText {
 
                     let font = self.font_at(i);
                     let font = &mut font.data_ref();
-                    let size = self.font_size_at(i);
+                    let size = self.font_size_at(i, font_size);
                     let mut metrics = GlyphMetrics { font, size };
                     match c {
                         '\n' => {
