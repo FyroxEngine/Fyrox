@@ -761,5 +761,8 @@ mod test {
             styled_prop.get_or_default(&style),
             Brush::Solid(Color::WHITE)
         );
+        let styled_prop = StyledProperty::<f32>::new_external("E");
+        assert_eq!(styled_prop.get(&style), None);
+        assert_eq!(styled_prop.get_or_default(&style), 0.0f32);
     }
 }
