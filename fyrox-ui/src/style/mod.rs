@@ -716,21 +716,50 @@ impl Style {
 #[cfg(test)]
 mod test {
     use crate::brush::Brush;
-    use crate::style::Style;
+    use crate::style::resource::StyleResource;
+    use crate::style::{Style, StyledProperty};
     use fyrox_core::ImmutableString;
     use fyrox_core::color::Color;
 
-    #[test]
-    fn test_style() {
+    fn make_test_style() -> Style {
         let mut style = Style::default();
         style
             .set("A", 0.2f32)
             .set("D", 0.1f32)
             .set("B", Brush::Solid(Color::WHITE))
             .set("C", Brush::Solid(Color::WHITE));
+        style
+    }
+
+    fn make_test_style_resource() -> StyleResource {
+        StyleResource::new_embedded(make_test_style())
+    }
+
+    #[test]
+    fn test_style() {
+        let style = make_test_style();
         assert_eq!(style.index_of(&ImmutableString::new("A")), Some(3));
         assert_eq!(style.index_of(&ImmutableString::new("B")), Some(2));
         assert_eq!(style.index_of(&ImmutableString::new("C")), Some(1));
         assert_eq!(style.index_of(&ImmutableString::new("D")), Some(0));
+    }
+
+    #[test]
+    fn test_styled_property() {
+        let style = Some(make_test_style_resource());
+        let styled_prop = StyledProperty::<f32>::new_external("A");
+        assert_eq!(styled_prop.get_or_default(&style), 0.2f32);
+        let styled_prop = StyledProperty::<f32>::new_external("D");
+        assert_eq!(styled_prop.get_or_default(&style), 0.1f32);
+        let styled_prop = StyledProperty::<Brush>::new_external("B");
+        assert_eq!(
+            styled_prop.get_or_default(&style),
+            Brush::Solid(Color::WHITE)
+        );
+        let styled_prop = StyledProperty::<Brush>::new_external("C");
+        assert_eq!(
+            styled_prop.get_or_default(&style),
+            Brush::Solid(Color::WHITE)
+        );
     }
 }
