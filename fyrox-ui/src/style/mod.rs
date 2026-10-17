@@ -169,10 +169,16 @@ impl DerefMut for StyledPropertyName {
     }
 }
 
-/// A property, that can bind its value to a style. Why can't we just fetch the actual value from
-/// the style and why do we need to store the value as well? The answer is flexibility. In this
-/// approach, style becomes not necessary and the value can be hardcoded. Also, the values of such
-/// properties can be updated individually.
+/// A property, that can be bound to a style table. There are two kinds of styled properties:
+///
+/// 1) [`StyledProperty::External`] - the value of the property is stored in a style table and can be fetched
+/// by a certain name. This kind of property forces the UI system to fetch the actual value from a
+/// style resource. Style resource is stored in a widget in which the property is located. External
+/// properties are a bit slower than the direct ones (see below), but that's the price of flexibility.
+/// 2) [`StyledProperty::Value`] - the value of the property itself.
+///
+/// To get the value of the property, use [`Self::get`] or [`Self::get_or_default`] methods. See their
+/// documentation for more info.
 #[derive(Clone, Debug, Reflect, Visit, AsRefStr, VariantNames)]
 #[reflect(
     bounds = "T: Reflect + Clone + PartialEq",
@@ -240,7 +246,7 @@ impl<T> StyledProperty<T> {
     }
 
     /// Tries to fetch the value of this property. `style` arg is mandatory for [`Self::External`]
-    /// properties to be correctly resolved.
+    /// properties to be correctly resolved. See [`Style::get`] documentation for more info.
     pub fn get(&self, style: &Option<StyleResource>) -> Option<T>
     where
         T: Clone,
@@ -347,6 +353,12 @@ pub struct StylePropertyContainer {
 ///     ui.set_style(StyleResource::new_embedded(style));
 /// }
 /// ```
+///
+/// ## Limitations
+///
+/// Style cannot change widget's hierarchy nor add or remove widgets, use prefabs to do that instead.
+/// Style can be used only to change properties of widgets in a visual tree. The set of property types
+/// is limited to those that listed in [`StyleProperty`].
 #[derive(Visit, PartialEq, Reflect, Clone, Default, Debug)]
 #[reflect(type_uuid = "38a63b49-d765-4c01-8fb5-202cc43d607e")]
 pub struct Style {
@@ -647,7 +659,7 @@ impl Style {
 
     /// Tries to fetch a property with the given name. If the property is not found, this method will
     /// try to search in the parent style (the search is recursive). If there's no such property at
-    /// all, this method will return its default value (define by [`Default`] trait).
+    /// all, this method will return its default value (defined by [`Default`] trait implementation).
     pub fn get_or_default<P>(&self, name: impl Into<ImmutableString>) -> P
     where
         P: Default,
