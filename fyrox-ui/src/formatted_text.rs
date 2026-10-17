@@ -329,7 +329,7 @@ impl FormattedText {
         self.runs.font_at(index).unwrap_or_else(|| self.get_font())
     }
     pub fn font_size_at(&self, index: usize, font_size: f32) -> f32 {
-        self.runs.font_size_at(index).unwrap_or_else(|| font_size)
+        self.runs.font_size_at(index).unwrap_or(font_size)
     }
     pub fn brush_at(&self, index: usize) -> Brush {
         self.runs.brush_at(index).unwrap_or_else(|| self.brush())

@@ -144,6 +144,7 @@ pub static LIGHT_STYLE: LazyLock<BuiltInResource<Style>> = LazyLock::new(|| {
     )
 });
 
+/// Name of a property in a style table.
 #[derive(Clone, Debug, Default, PartialEq, Hash, Reflect)]
 #[reflect(type_uuid = "c4aed405-4999-4381-bd74-2fd08eec2785")]
 pub struct StyledPropertyName(pub ImmutableString);
@@ -179,11 +180,13 @@ impl DerefMut for StyledPropertyName {
 )]
 #[visit(bounds = "T: Visit + Default")]
 pub enum StyledProperty<T> {
+    /// A value stored in a style table with the specified name.
     External {
         /// Name of the property in a style table.
         #[reflect(display_name = "Property Name")]
         name: StyledPropertyName,
     },
+    /// The value itself, not bound to a style table.
     Value(T),
 }
 
@@ -236,6 +239,8 @@ impl<T> StyledProperty<T> {
         }
     }
 
+    /// Tries to fetch the value of this property. `style` arg is mandatory for [`Self::External`]
+    /// properties to be correctly resolved.
     pub fn get(&self, style: &Option<StyleResource>) -> Option<T>
     where
         T: Clone,
@@ -253,6 +258,7 @@ impl<T> StyledProperty<T> {
         }
     }
 
+    /// Same as [`Self::get`], but returns default value if there's no value set for the property.
     pub fn get_or_default(&self, style: &Option<StyleResource>) -> T
     where
         T: Default + Clone,
