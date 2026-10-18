@@ -179,12 +179,11 @@ impl DerefMut for StyledPropertyName {
 ///
 /// To get the value of the property, use [`Self::get`] or [`Self::get_or_default`] methods. See their
 /// documentation for more info.
-#[derive(Clone, Debug, Reflect, Visit, AsRefStr, VariantNames)]
+#[derive(Clone, Debug, Reflect, AsRefStr, VariantNames)]
 #[reflect(
     bounds = "T: Reflect + Clone + PartialEq",
     type_uuid = "71e84137-2832-42a1-bcb5-f8ee95784997"
 )]
-#[visit(bounds = "T: Visit + Default")]
 pub enum StyledProperty<T> {
     /// A value stored in a style table with the specified name.
     External {
@@ -194,6 +193,71 @@ pub enum StyledProperty<T> {
     },
     /// The value itself, not bound to a style table.
     Value(T),
+}
+
+// TODO: Replace this with derived impl in Fyrox 2.0 and remove backward compatibility.
+impl<T> Visit for StyledProperty<T>
+where
+    T: Visit + Default,
+{
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        // Backward compatibility.
+        if visitor.is_reading() {
+            let mut value = T::default();
+            if value.visit(name, visitor).is_ok() {
+                *self = Self::Value(value);
+                return Ok(());
+            }
+        }
+
+        fn id<T>(me: &StyledProperty<T>) -> u32
+        where
+            T: Visit + Default,
+        {
+            match me {
+                StyledProperty::External { .. } => 0u32,
+                StyledProperty::Value(_) => 1u32,
+                _ => unreachable!("Unable to get ID from enum variant"),
+            }
+        }
+        fn from_id<T>(id: u32) -> Result<StyledProperty<T>, String>
+        where
+            T: Visit + Default,
+        {
+            match id {
+                id if id == 0u32 => Ok(StyledProperty::External {
+                    name: Default::default(),
+                }),
+                id if id == 1u32 => Ok(StyledProperty::Value(Default::default())),
+                _ => Err(format!(
+                    "Unknown ID for type `{0}`: `{1}`",
+                    "StyledProperty", id
+                )),
+            }
+        }
+
+        let mut region = visitor.enter_region(name)?;
+
+        let mut id = id(self);
+        id.visit("Id", &mut region)?;
+
+        if region.is_reading() {
+            *self = match from_id(id) {
+                Ok(x) => x,
+                Err(s) => return Err(s.into()),
+            };
+        }
+        match self {
+            StyledProperty::External { name } => {
+                name.visit("Name", &mut region)?;
+            }
+            StyledProperty::Value(f0) => {
+                f0.visit("0", &mut region)?;
+            }
+            _ => return Err(VisitError::UnhandledEnumVariant),
+        }
+        Ok(())
+    }
 }
 
 impl<T: Default> FromStr for StyledProperty<T> {
