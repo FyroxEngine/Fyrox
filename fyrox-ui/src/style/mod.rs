@@ -217,7 +217,6 @@ where
             match me {
                 StyledProperty::External { .. } => 0u32,
                 StyledProperty::Value(_) => 1u32,
-                _ => unreachable!("Unable to get ID from enum variant"),
             }
         }
         fn from_id<T>(id: u32) -> Result<StyledProperty<T>, String>
@@ -225,10 +224,10 @@ where
             T: Visit + Default,
         {
             match id {
-                id if id == 0u32 => Ok(StyledProperty::External {
+                0u32 => Ok(StyledProperty::External {
                     name: Default::default(),
                 }),
-                id if id == 1u32 => Ok(StyledProperty::Value(Default::default())),
+                1u32 => Ok(StyledProperty::Value(Default::default())),
                 _ => Err(format!(
                     "Unknown ID for type `{0}`: `{1}`",
                     "StyledProperty", id
@@ -242,10 +241,7 @@ where
         id.visit("Id", &mut region)?;
 
         if region.is_reading() {
-            *self = match from_id(id) {
-                Ok(x) => x,
-                Err(s) => return Err(s.into()),
-            };
+            *self = from_id(id)?;
         }
         match self {
             StyledProperty::External { name } => {
@@ -254,7 +250,6 @@ where
             StyledProperty::Value(f0) => {
                 f0.visit("0", &mut region)?;
             }
-            _ => return Err(VisitError::UnhandledEnumVariant),
         }
         Ok(())
     }
