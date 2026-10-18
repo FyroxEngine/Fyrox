@@ -33,6 +33,7 @@ use crate::{
     message::MessageSender,
     scene::{EntityInfo, SelectionContainer, controller::SceneController},
 };
+use fyrox::core::some_or_continue;
 use std::{
     cell::{RefCell, RefMut},
     path::{Path, PathBuf},
@@ -242,56 +243,58 @@ impl SelectionContainer for AssetSelection {
     }
 
     fn paste_property(&mut self, path: &str, value: &dyn Reflect, sender: &MessageSender) {
-        let group = self
-            .resources
-            .iter()
-            .filter_map(|selected_resource| {
-                let value = value.try_clone_box()?;
+        let mut group = Vec::new();
 
-                if let Some(import_options) = selected_resource.import_options.as_ref().cloned() {
-                    return Some(Command::new(SetPropertyCommand::new(
-                        path.to_string(),
-                        value,
-                        move |_| {
-                            let mut options = import_options.borrow_mut();
-                            let options = &mut **options as &mut dyn Reflect;
-                            // SAFETY: This is safe, because the closure owns its own copy of
-                            // import_options, and the entity getter is used only once per
-                            // do/undo/redo calls.
-                            unsafe {
-                                Some(std::mem::transmute::<
-                                    &'_ mut dyn Reflect,
-                                    &'static mut dyn Reflect,
-                                >(options))
-                            }
-                        },
-                    )));
-                } else if let Ok(resource) = block_on(
-                    self.resource_manager
-                        .request_untyped(&selected_resource.path),
-                ) && !self.resource_manager.is_built_in_resource(&resource)
-                {
-                    return Some(Command::new(SetPropertyCommand::new(
-                        path.to_string(),
-                        value,
-                        move |_| {
-                            let mut guard = resource.lock();
-                            let data = guard.state.data_mut()?.inner_mut();
-                            // SAFETY: This is safe, because the closure owns its own copy of
-                            // resource strong ref, and the entity getter is used only once per
-                            // do/undo/redo calls.
-                            unsafe {
-                                Some(std::mem::transmute::<
-                                    &'_ mut dyn ResourceData,
-                                    &'static mut dyn ResourceData,
-                                >(data))
-                            }
-                        },
-                    )));
-                }
-                None
-            })
-            .collect::<Vec<_>>();
+        for selected_resource in self.resources.iter() {
+            let value = some_or_continue!(value.try_clone_box());
+
+            if let Some(import_options) = selected_resource.import_options.as_ref().cloned() {
+                group.push(Command::new(SetPropertyCommand::new(
+                    path.to_string(),
+                    value,
+                    move |_| {
+                        let mut options = import_options.borrow_mut();
+                        let options = &mut **options as &mut dyn Reflect;
+                        // SAFETY: This is safe, because the closure owns its own copy of
+                        // import_options, and the entity getter is used only once per
+                        // do/undo/redo calls.
+                        unsafe {
+                            Some(std::mem::transmute::<
+                                &'_ mut dyn Reflect,
+                                &'static mut dyn Reflect,
+                            >(options))
+                        }
+                    },
+                )));
+            } else if let Ok(resource) = block_on(
+                self.resource_manager
+                    .request_untyped(&selected_resource.path),
+            ) && !self.resource_manager.is_built_in_resource(&resource)
+            {
+                let resource2 = resource.clone();
+                group.push(Command::new(SetPropertyCommand::new(
+                    path.to_string(),
+                    value,
+                    move |_| {
+                        let mut guard = resource.lock();
+                        let data = guard.state.data_mut()?.inner_mut();
+                        // SAFETY: This is safe, because the closure owns its own copy of
+                        // resource strong ref, and the entity getter is used only once per
+                        // do/undo/redo calls.
+                        unsafe {
+                            Some(std::mem::transmute::<
+                                &'_ mut dyn ResourceData,
+                                &'static mut dyn ResourceData,
+                            >(data))
+                        }
+                    },
+                )));
+                group.push(Command::new(SaveResourceCommand {
+                    resource: resource2,
+                    path: selected_resource.path.clone(),
+                }));
+            }
+        }
 
         sender.do_command_group(group);
     }
