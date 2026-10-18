@@ -420,6 +420,7 @@ pub struct StylePropertyContainer {
 /// is limited to those that listed in [`StyleProperty`].
 #[derive(Visit, PartialEq, Reflect, Clone, Default, Debug)]
 #[reflect(type_uuid = "38a63b49-d765-4c01-8fb5-202cc43d607e")]
+#[visit(post_visit_method = "on_visited")]
 pub struct Style {
     parent: Option<StyleResource>,
     properties: Vec<StylePropertyContainer>,
@@ -478,6 +479,16 @@ impl Style {
     pub const BRUSH_CANCEL_PRESSED: &'static str = "Global.Brush.Cancel.Pressed";
     /// The name of the hover state brush of the `cancel` context action.
     pub const BRUSH_CANCEL_HOVER: &'static str = "Global.Brush.Cancel.Hover";
+
+    fn on_visited(&mut self, visitor: &mut Visitor) {
+        if visitor.is_reading() {
+            self.sort();
+    }
+        }
+
+    fn sort(&mut self) {
+        self.properties.sort_by_key(|a| a.name.cached_hash())
+    }
 
     fn base_style() -> Style {
         let mut style = Self::default();
