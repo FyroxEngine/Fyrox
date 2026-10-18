@@ -1492,24 +1492,28 @@ impl CurveEditor {
 
         if self.show_y_values {
             for y in self.curve_transform.y_step_iter(self.grid_size.y) {
-                text.set_text(format!("{y:.1}")).measure_and_arrange();
+                text.set_text(format!("{y:.1}"))
+                    .measure_and_arrange(&self.style);
                 ctx.draw_text(
                     self.clip_bounds(),
                     self.point_to_local_space(Vector2::new(local_left_bottom_n.x, y)),
                     &self.material,
                     &text,
+                    &self.style,
                 );
             }
         }
 
         if self.show_x_values {
             for x in self.curve_transform.x_step_iter(self.grid_size.x) {
-                text.set_text(format!("{x:.1}")).measure_and_arrange();
+                text.set_text(format!("{x:.1}"))
+                    .measure_and_arrange(&self.style);
                 ctx.draw_text(
                     self.clip_bounds(),
                     self.point_to_local_space(Vector2::new(x, local_left_bottom_n.y)),
                     &self.material,
                     &text,
+                    &self.style,
                 );
             }
         }

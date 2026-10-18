@@ -206,68 +206,58 @@ impl Control for Decorator {
                     }
                 }
             }
-        } else if let Some(msg) = message.data::<WidgetMessage>() {
-            if message.destination() == self.handle()
-                || self.has_descendant(message.destination(), ui)
-            {
-                match msg {
-                    WidgetMessage::MouseLeave => {
-                        ui.send(
-                            self.handle(),
-                            WidgetMessage::Background(if *self.is_selected {
-                                (*self.selected_brush).clone()
-                            } else {
-                                (*self.normal_brush).clone()
-                            }),
-                        );
-                    }
-                    WidgetMessage::MouseEnter => {
-                        ui.send(
-                            self.handle(),
-                            WidgetMessage::Background(if *self.is_selected {
-                                (*self.selected_brush).clone()
-                            } else {
-                                (*self.hover_brush).clone()
-                            }),
-                        );
-                    }
-                    WidgetMessage::MouseDown { .. } if *self.is_pressable => {
-                        ui.send(
-                            self.handle(),
-                            WidgetMessage::Background((*self.pressed_brush).clone()),
-                        );
-                    }
-                    WidgetMessage::MouseUp { .. } => {
-                        if *self.is_selected {
-                            ui.send(
-                                self.handle(),
-                                WidgetMessage::Background((*self.selected_brush).clone()),
-                            );
+        } else if let Some(msg) = message.data::<WidgetMessage>()
+            && (message.destination() == self.handle()
+                || self.has_descendant(message.destination(), ui))
+        {
+            match msg {
+                WidgetMessage::MouseLeave => {
+                    ui.send(
+                        self.handle(),
+                        WidgetMessage::Background(if *self.is_selected {
+                            (*self.selected_brush).clone()
                         } else {
-                            ui.send(
-                                self.handle(),
-                                WidgetMessage::Background((*self.normal_brush).clone()),
-                            );
-                        }
-                    }
-                    WidgetMessage::ResetVisual => {
-                        self.is_selected.set_value_and_mark_modified(false);
+                            (*self.normal_brush).clone()
+                        }),
+                    );
+                }
+                WidgetMessage::MouseEnter => {
+                    ui.send(
+                        self.handle(),
+                        WidgetMessage::Background(if *self.is_selected {
+                            (*self.selected_brush).clone()
+                        } else {
+                            (*self.hover_brush).clone()
+                        }),
+                    );
+                }
+                WidgetMessage::MouseDown { .. } if *self.is_pressable => {
+                    ui.send(
+                        self.handle(),
+                        WidgetMessage::Background((*self.pressed_brush).clone()),
+                    );
+                }
+                WidgetMessage::MouseUp { .. } => {
+                    if *self.is_selected {
+                        ui.send(
+                            self.handle(),
+                            WidgetMessage::Background((*self.selected_brush).clone()),
+                        );
+                    } else {
                         ui.send(
                             self.handle(),
                             WidgetMessage::Background((*self.normal_brush).clone()),
                         );
                     }
-                    _ => {}
                 }
-            }
-
-            if message.destination() == self.handle()
-                && let WidgetMessage::Style(style) = msg
-            {
-                self.normal_brush.update(style);
-                self.hover_brush.update(style);
-                self.pressed_brush.update(style);
-                self.selected_brush.update(style);
+                WidgetMessage::ResetVisual => {
+                    self.is_selected.set_value_and_mark_modified(false);
+                    ui.send(
+                        self.handle(),
+                        WidgetMessage::Background((*self.normal_brush).clone()),
+                    );
+                }
+                _ => {}
             }
         }
     }

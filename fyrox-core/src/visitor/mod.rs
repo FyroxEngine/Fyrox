@@ -399,6 +399,8 @@ impl Debug for Visitor {
 /// before the generated body.
 /// - `#[visit(post_visit_method = "function_name")]` - name of a function, that will be called
 /// after the generated body.
+/// - `#[visit(bounds)]` - add type boundary for `Visit` impl, for example
+/// `#[visit(bounds = "T: Visit + Default")]`.
 ///
 /// ### Field Attributes
 ///

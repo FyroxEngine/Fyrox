@@ -679,7 +679,7 @@ impl TextBox {
         self.formatted_text
             .borrow_mut()
             .insert_char(c, position)
-            .measure_and_arrange();
+            .measure_and_arrange(&self.style);
         self.set_caret_position(
             self.char_index_to_position(position + 1)
                 .unwrap_or_default(),
@@ -704,10 +704,13 @@ impl TextBox {
             .unwrap_or_default();
         let mut text = self.formatted_text.borrow_mut();
         text.insert_str(&str, position);
-        text.measure(Some(InlineContext {
-            children: &self.children,
-            ui,
-        }));
+        text.measure(
+            Some(InlineContext {
+                children: &self.children,
+                ui,
+            }),
+            &self.style,
+        );
         drop(text);
         self.set_caret_position(
             self.char_index_to_position(position + str.chars().count())
@@ -743,7 +746,7 @@ impl TextBox {
     pub fn caret_local_position(&self) -> Vector2<f32> {
         self.formatted_text
             .borrow()
-            .position_to_local(*self.caret_position)
+            .position_to_local(*self.caret_position, &self.style)
     }
 
     fn point_to_view_pos(&self, position: Vector2<f32>) -> Vector2<f32> {
@@ -816,7 +819,7 @@ impl TextBox {
 
             let mut text = self.formatted_text.borrow_mut();
             text.remove_at(position);
-            text.measure_and_arrange();
+            text.measure_and_arrange(&self.style);
             drop(text);
             self.invalidate_layout();
             self.on_text_changed(ui);
@@ -833,7 +836,9 @@ impl TextBox {
             return;
         }
         self.formatted_text.borrow_mut().remove_range(range);
-        self.formatted_text.borrow_mut().measure_and_arrange();
+        self.formatted_text
+            .borrow_mut()
+            .measure_and_arrange(&self.style);
         self.set_caret_position(selection.left());
         self.selection_range.set_value_and_mark_modified(None);
         self.invalidate_layout();
@@ -873,7 +878,7 @@ impl TextBox {
         Some(
             self.formatted_text
                 .borrow()
-                .local_to_position(point_to_check),
+                .local_to_position(point_to_check, &self.style),
         )
     }
 
@@ -967,10 +972,13 @@ impl Control for TextBox {
             .borrow_mut()
             .set_super_sampling_scale(self.visual_max_scaling())
             .set_constraint(available_size)
-            .measure(Some(InlineContext {
-                children: &self.children,
-                ui,
-            }));
+            .measure(
+                Some(InlineContext {
+                    children: &self.children,
+                    ui,
+                }),
+                &self.style,
+            );
         let children_size = self.widget.measure_override(ui, available_size);
         text_size.sup(&children_size)
     }
@@ -982,6 +990,7 @@ impl Control for TextBox {
                 children: &self.children,
                 ui,
             }),
+            &self.style,
         );
         self.widget.arrange_override(ui, final_size)
     }
@@ -1008,11 +1017,14 @@ impl Control for TextBox {
             if selection_range.begin.line == selection_range.end.line {
                 if let Some(line) = lines.get(selection_range.begin.line) {
                     // Begin line
-                    let offset = text
-                        .get_range_width(line.begin..(line.begin + selection_range.begin.offset));
+                    let offset = text.get_range_width(
+                        line.begin..(line.begin + selection_range.begin.offset),
+                        &self.style,
+                    );
                     let width = text.get_range_width(
                         (line.begin + selection_range.begin.offset)
                             ..(line.begin + selection_range.end.offset),
+                        &self.style,
                     );
                     let selection_bounds = Rect::new(
                         view_bounds.x() + line.x_offset + offset,
@@ -1029,9 +1041,11 @@ impl Control for TextBox {
                             // Begin line
                             let offset = text.get_range_width(
                                 line.begin..(line.begin + selection_range.begin.offset),
+                                &self.style,
                             );
                             let width = text.get_range_width(
                                 (line.begin + selection_range.begin.offset)..line.end,
+                                &self.style,
                             );
                             Rect::new(
                                 view_bounds.x() + line.x_offset + offset,
@@ -1043,6 +1057,7 @@ impl Control for TextBox {
                             // End line
                             let width = text.get_range_width(
                                 line.begin..(line.begin + selection_range.end.offset),
+                                &self.style,
                             );
                             Rect::new(
                                 view_bounds.x() + line.x_offset,
@@ -1078,6 +1093,7 @@ impl Control for TextBox {
             local_position,
             &self.material,
             &self.formatted_text.borrow(),
+            &self.style,
         );
 
         if *self.caret_visible {
@@ -1086,7 +1102,10 @@ impl Control for TextBox {
                 caret_pos.x,
                 caret_pos.y,
                 2.0,
-                **self.formatted_text.borrow().font_size(),
+                self.formatted_text
+                    .borrow()
+                    .font_size()
+                    .get_or_default(&self.style),
             );
             drawing_context.push_rect_filled(&caret_bounds, None);
             drawing_context.commit(
@@ -1108,7 +1127,7 @@ impl Control for TextBox {
         let new_super_sampling_scale = self.visual_max_scaling();
         if new_super_sampling_scale != text.super_sampling_scale() {
             text.set_super_sampling_scale(new_super_sampling_scale)
-                .measure_and_arrange();
+                .measure_and_arrange(&self.style);
         }
     }
 
@@ -1357,8 +1376,7 @@ impl Control for TextBox {
                         self.selecting = false;
                         ui.release_mouse_capture();
                     }
-                    WidgetMessage::Style(style) => {
-                        self.formatted_text.borrow_mut().set_style(style);
+                    WidgetMessage::Style(_) => {
                         self.invalidate_layout();
                     }
                     _ => {}
@@ -1396,7 +1414,9 @@ impl Control for TextBox {
                                 text.set_text(new_text);
                                 drop(text);
                                 self.invalidate_layout();
-                                self.formatted_text.borrow_mut().measure_and_arrange();
+                                self.formatted_text
+                                    .borrow_mut()
+                                    .measure_and_arrange(&self.style);
                                 self.on_text_changed(ui);
                             }
                         }

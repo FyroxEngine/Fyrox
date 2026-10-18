@@ -150,16 +150,15 @@ fn corner_offset(radius: f32) -> f32 {
 impl Control for Border {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         let corner_offset = if *self.pad_by_corner_radius {
-            corner_offset(**self.corner_radius)
+            corner_offset(self.corner_radius.get_or_default(&self.style))
         } else {
             0.0
         };
         let double_corner_offset = 2.0 * corner_offset;
 
-        let margin_x =
-            self.stroke_thickness.left + self.stroke_thickness.right + double_corner_offset;
-        let margin_y =
-            self.stroke_thickness.top + self.stroke_thickness.bottom + double_corner_offset;
+        let stroke_thickness = self.stroke_thickness.get_or_default(&self.style);
+        let margin_x = stroke_thickness.left + stroke_thickness.right + double_corner_offset;
+        let margin_y = stroke_thickness.top + stroke_thickness.bottom + double_corner_offset;
 
         let size_for_child = Vector2::new(available_size.x - margin_x, available_size.y - margin_y);
         let mut desired_size = Vector2::default();
@@ -184,19 +183,18 @@ impl Control for Border {
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let corner_offset = if *self.pad_by_corner_radius {
-            corner_offset(**self.corner_radius)
+            corner_offset(self.corner_radius.get_or_default(&self.style))
         } else {
             0.0
         };
         let double_corner_offset = 2.0 * corner_offset;
 
+        let stroke_thickness = self.stroke_thickness.get_or_default(&self.style);
         let rect_for_child = Rect::new(
-            self.stroke_thickness.left + corner_offset,
-            self.stroke_thickness.top + corner_offset,
-            final_size.x
-                - (self.stroke_thickness.right + self.stroke_thickness.left + double_corner_offset),
-            final_size.y
-                - (self.stroke_thickness.bottom + self.stroke_thickness.top + double_corner_offset),
+            stroke_thickness.left + corner_offset,
+            stroke_thickness.top + corner_offset,
+            final_size.x - (stroke_thickness.right + stroke_thickness.left + double_corner_offset),
+            final_size.y - (stroke_thickness.bottom + stroke_thickness.top + double_corner_offset),
         );
 
         for child_handle in self.widget.children() {
@@ -208,8 +206,10 @@ impl Control for Border {
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.bounding_rect();
+        let corner_radius = self.corner_radius.get_or_default(&self.style);
+        let stroke_thickness = self.stroke_thickness.get_or_default(&self.style);
 
-        if (**self.corner_radius).eq(&0.0) {
+        if corner_radius.eq(&0.0) {
             DrawingContext::push_rect_filled(drawing_context, &bounds, None);
             drawing_context.commit(
                 self.clip_bounds(),
@@ -219,7 +219,7 @@ impl Control for Border {
                 None,
             );
 
-            drawing_context.push_rect_vary(&bounds, **self.stroke_thickness);
+            drawing_context.push_rect_vary(&bounds, stroke_thickness);
             drawing_context.commit(
                 self.clip_bounds(),
                 self.widget.foreground(),
@@ -228,16 +228,16 @@ impl Control for Border {
                 None,
             );
         } else {
-            let corner_arc_length = std::f32::consts::TAU * **self.corner_radius * (90.0 / 360.0);
+            let corner_arc_length = std::f32::consts::TAU * corner_radius * (90.0 / 360.0);
             let corner_subdivisions = ((corner_arc_length as usize) / 2).min(4);
 
-            let thickness = self.stroke_thickness.left;
+            let thickness = stroke_thickness.left;
             let half_thickness = thickness / 2.0;
 
             DrawingContext::push_rounded_rect_filled(
                 drawing_context,
                 &bounds.deflate(half_thickness, half_thickness),
-                **self.corner_radius,
+                corner_radius,
                 corner_subdivisions,
             );
             drawing_context.commit(
@@ -251,7 +251,7 @@ impl Control for Border {
             drawing_context.push_rounded_rect(
                 &bounds,
                 thickness,
-                **self.corner_radius,
+                corner_radius,
                 corner_subdivisions,
             );
             drawing_context.commit(
@@ -266,7 +266,6 @@ impl Control for Border {
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
-
         if let Some(msg) = message.data_for::<BorderMessage>(self.handle()) {
             match msg {
                 BorderMessage::StrokeThickness(thickness) => {
@@ -278,7 +277,7 @@ impl Control for Border {
                     }
                 }
                 BorderMessage::CornerRadius(radius) => {
-                    if *radius != *self.corner_radius {
+                    if radius != &*self.corner_radius {
                         self.corner_radius
                             .set_value_and_mark_modified(radius.clone());
                         ui.try_send_response(message);

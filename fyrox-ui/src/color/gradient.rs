@@ -564,7 +564,7 @@ impl Control for ColorPoint {
 
 impl ColorPoint {
     fn color(&self) -> Color {
-        if let Brush::Solid(color) = self.foreground.property {
+        if let Brush::Solid(color) = self.widget.foreground() {
             color
         } else {
             unreachable!()

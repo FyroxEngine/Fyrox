@@ -991,27 +991,29 @@ impl Widget {
     /// Sets the new background of the widget.
     #[inline]
     pub fn set_background(&mut self, brush: Brush) -> &mut Self {
-        self.background.property = brush;
+        self.background
+            .set_value_and_mark_modified(StyledProperty::new_value(brush));
         self
     }
 
     /// Returns current background of the widget.
     #[inline]
     pub fn background(&self) -> Brush {
-        self.background.property.clone()
+        self.background.get_or_default(&self.style)
     }
 
     /// Sets new foreground of the widget.
     #[inline]
     pub fn set_foreground(&mut self, brush: Brush) -> &mut Self {
-        self.foreground.property = brush;
+        self.foreground
+            .set_value_and_mark_modified(StyledProperty::new_value(brush));
         self
     }
 
     /// Returns current foreground of the widget.
     #[inline]
     pub fn foreground(&self) -> Brush {
-        self.foreground.property.clone()
+        self.foreground.get_or_default(&self.style)
     }
 
     /// Sets new width of the widget.
@@ -1349,8 +1351,6 @@ impl Widget {
                 }
                 WidgetMessage::Style(style) => {
                     self.invalidate_visual();
-                    self.background.update(style);
-                    self.foreground.update(style);
                     self.style = Some(style.clone());
                 }
                 _ => (),

@@ -33,7 +33,7 @@ use crate::{
     check_box::CheckBox,
     core::{ImmutableString, color::Color, reflect::prelude::*, visitor::prelude::*},
     dropdown_list::DropdownList,
-    style::resource::{StyleResource, StyleResourceError, StyleResourceExt},
+    style::resource::{StyleResource, StyleResourceError},
     toggle::ToggleButton,
 };
 use fyrox_resource::untyped::ResourceKind;
@@ -42,15 +42,13 @@ use fyrox_resource::{
     manager::{BuiltInResource, ResourceManager},
 };
 use fyrox_texture::TextureResource;
+use std::ops::{Deref, DerefMut};
+use std::str::FromStr;
 use std::{
     any::{Any, TypeId},
     sync::LazyLock,
 };
-use std::{
-    ops::{Deref, DerefMut},
-    path::Path,
-    sync::Arc,
-};
+use std::{path::Path, sync::Arc};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// A set of potential values for styled properties.
@@ -146,94 +144,197 @@ pub static LIGHT_STYLE: LazyLock<BuiltInResource<Style>> = LazyLock::new(|| {
     )
 });
 
-/// A property, that can bind its value to a style. Why can't we just fetch the actual value from
-/// the style and why do we need to store the value as well? The answer is flexibility. In this
-/// approach, style becomes not necessary and the value can be hardcoded. Also, the values of such
-/// properties can be updated individually.
-#[derive(Clone, Debug, Reflect, Default)]
+/// Name of a property in a style table.
+#[derive(Clone, Debug, Default, PartialEq, Hash, Reflect)]
+#[reflect(type_uuid = "c4aed405-4999-4381-bd74-2fd08eec2785")]
+pub struct StyledPropertyName(pub ImmutableString);
+
+impl Visit for StyledPropertyName {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.0.visit(name, visitor)
+    }
+}
+
+impl Deref for StyledPropertyName {
+    type Target = ImmutableString;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for StyledPropertyName {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+/// A property, that can be bound to a style table. There are two kinds of styled properties:
+///
+/// 1) [`StyledProperty::External`] - the value of the property is stored in a style table and can be fetched
+/// by a certain name. This kind of property forces the UI system to fetch the actual value from a
+/// style resource. Style resource is stored in a widget in which the property is located. External
+/// properties are a bit slower than the direct ones (see below), but that's the price of flexibility.
+/// 2) [`StyledProperty::Value`] - the value of the property itself.
+///
+/// To get the value of the property, use [`Self::get`] or [`Self::get_or_default`] methods. See their
+/// documentation for more info.
+#[derive(Clone, Debug, Reflect, AsRefStr, VariantNames)]
 #[reflect(
     bounds = "T: Reflect + Clone + PartialEq",
     type_uuid = "71e84137-2832-42a1-bcb5-f8ee95784997"
 )]
-pub struct StyledProperty<T> {
-    /// Property value.
-    pub property: T,
-    /// Name of the property in a style table.
-    #[reflect(read_only, display_name = "Property Name")]
-    pub name: ImmutableString,
+pub enum StyledProperty<T> {
+    /// A value stored in a style table with the specified name.
+    External {
+        /// Name of the property in a style table.
+        #[reflect(display_name = "Property Name")]
+        name: StyledPropertyName,
+    },
+    /// The value itself, not bound to a style table.
+    Value(T),
+}
+
+// TODO: Replace this with derived impl in Fyrox 2.0 and remove backward compatibility.
+impl<T> Visit for StyledProperty<T>
+where
+    T: Visit + Default,
+{
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        // Backward compatibility.
+        if visitor.is_reading() {
+            let mut value = T::default();
+            if value.visit(name, visitor).is_ok() {
+                *self = Self::Value(value);
+                return Ok(());
+            }
+        }
+
+        fn id<T>(me: &StyledProperty<T>) -> u32
+        where
+            T: Visit + Default,
+        {
+            match me {
+                StyledProperty::External { .. } => 0u32,
+                StyledProperty::Value(_) => 1u32,
+                _ => unreachable!("Unable to get ID from enum variant"),
+            }
+        }
+        fn from_id<T>(id: u32) -> Result<StyledProperty<T>, String>
+        where
+            T: Visit + Default,
+        {
+            match id {
+                id if id == 0u32 => Ok(StyledProperty::External {
+                    name: Default::default(),
+                }),
+                id if id == 1u32 => Ok(StyledProperty::Value(Default::default())),
+                _ => Err(format!(
+                    "Unknown ID for type `{0}`: `{1}`",
+                    "StyledProperty", id
+                )),
+            }
+        }
+
+        let mut region = visitor.enter_region(name)?;
+
+        let mut id = id(self);
+        id.visit("Id", &mut region)?;
+
+        if region.is_reading() {
+            *self = match from_id(id) {
+                Ok(x) => x,
+                Err(s) => return Err(s.into()),
+            };
+        }
+        match self {
+            StyledProperty::External { name } => {
+                name.visit("Name", &mut region)?;
+            }
+            StyledProperty::Value(f0) => {
+                f0.visit("0", &mut region)?;
+            }
+            _ => return Err(VisitError::UnhandledEnumVariant),
+        }
+        Ok(())
+    }
+}
+
+impl<T: Default> FromStr for StyledProperty<T> {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "External" => Ok(Self::External {
+                name: Default::default(),
+            }),
+            "Value" => Ok(Self::Value(T::default())),
+            _ => Err(()),
+        }
+    }
+}
+
+impl<T: Default> Default for StyledProperty<T> {
+    fn default() -> Self {
+        Self::Value(T::default())
+    }
 }
 
 impl<T> From<T> for StyledProperty<T> {
-    fn from(property: T) -> Self {
-        Self {
-            property,
-            name: Default::default(),
-        }
+    fn from(value: T) -> Self {
+        Self::Value(value)
     }
 }
 
 impl<T: PartialEq> PartialEq for StyledProperty<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.property == other.property
+        match (self, other) {
+            (Self::Value(a), Self::Value(b)) => a.eq(b),
+            (Self::External { name: name_a }, Self::External { name: name_b }) => name_a == name_b,
+            _ => false,
+        }
     }
 }
 
 impl<T> StyledProperty<T> {
-    /// Creates a new styled property with the given value and the name.
-    pub fn new(property: T, name: impl Into<ImmutableString>) -> Self {
-        Self {
-            property,
-            name: name.into(),
+    /// Creates a new styled property with the given value.
+    pub fn new_value(property: T) -> Self {
+        Self::Value(property)
+    }
+
+    /// Creates a new styled property whose value is stored in a style.
+    pub fn new_external(name: impl Into<ImmutableString>) -> Self {
+        Self::External {
+            name: StyledPropertyName(name.into()),
         }
     }
 
-    /// Tries to sync the property value with its respective value in the given style. This method
-    /// will fail if the given style does not contain the property.
-    pub fn update(&mut self, style: &StyleResource)
+    /// Tries to fetch the value of this property. `style` arg is mandatory for [`Self::External`]
+    /// properties to be correctly resolved. See [`Style::get`] documentation for more info.
+    pub fn get(&self, style: &Option<StyleResource>) -> Option<T>
     where
+        T: Clone,
         StyleProperty: IntoPrimitive<T>,
     {
-        if let Some(property) = style.get(self.name.clone()) {
-            self.property = property;
+        match self {
+            StyledProperty::External { name } => match style {
+                Some(style_resource) => {
+                    let style_data = style_resource.data_ref();
+                    style_data.as_loaded_ref()?.get(name.0.clone())
+                }
+                None => DEFAULT_STYLE.resource.data_ref().get(name.0.clone()),
+            },
+            StyledProperty::Value(value) => Some(value.clone()),
         }
     }
 
-    fn visit_new(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult
+    /// Same as [`Self::get`], but returns default value if there's no value set for the property.
+    pub fn get_or_default(&self, style: &Option<StyleResource>) -> T
     where
-        T: Visit,
+        T: Default + Clone,
+        StyleProperty: IntoPrimitive<T>,
     {
-        let mut region = visitor.enter_region(name)?;
-        self.property.visit("Property", &mut region)?;
-        self.name.visit("Name", &mut region)?;
-        Ok(())
-    }
-}
-
-impl<T> Deref for StyledProperty<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.property
-    }
-}
-
-impl<T> DerefMut for StyledProperty<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.property
-    }
-}
-
-impl<T: Visit> Visit for StyledProperty<T> {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        // Backward compatibility with old version.
-        if visitor.is_reading() {
-            if self.property.visit(name, visitor).is_err() {
-                self.visit_new(name, visitor)?;
-            }
-        } else {
-            self.visit_new(name, visitor)?;
-        }
-        Ok(())
+        self.get(style).unwrap_or_default()
     }
 }
 
@@ -316,6 +417,12 @@ pub struct StylePropertyContainer {
 ///     ui.set_style(StyleResource::new_embedded(style));
 /// }
 /// ```
+///
+/// ## Limitations
+///
+/// Style cannot change widget's hierarchy nor add or remove widgets, use prefabs to do that instead.
+/// Style can be used only to change properties of widgets in a visual tree. The set of property types
+/// is limited to those that listed in [`StyleProperty`].
 #[derive(Visit, PartialEq, Reflect, Clone, Default, Debug)]
 #[reflect(type_uuid = "38a63b49-d765-4c01-8fb5-202cc43d607e")]
 pub struct Style {
@@ -616,7 +723,7 @@ impl Style {
 
     /// Tries to fetch a property with the given name. If the property is not found, this method will
     /// try to search in the parent style (the search is recursive). If there's no such property at
-    /// all, this method will return its default value (define by [`Default`] trait).
+    /// all, this method will return its default value (defined by [`Default`] trait implementation).
     pub fn get_or_default<P>(&self, name: impl Into<ImmutableString>) -> P
     where
         P: Default,
@@ -642,8 +749,7 @@ impl Style {
         P: Default,
         StyleProperty: IntoPrimitive<P>,
     {
-        let name = name.into();
-        StyledProperty::new(self.get_or_default(name.clone()), name)
+        StyledProperty::new_external(name)
     }
 
     /// Tries to load a style from the given path.
@@ -686,21 +792,53 @@ impl Style {
 #[cfg(test)]
 mod test {
     use crate::brush::Brush;
-    use crate::style::Style;
+    use crate::style::resource::StyleResource;
+    use crate::style::{Style, StyledProperty};
     use fyrox_core::ImmutableString;
     use fyrox_core::color::Color;
 
-    #[test]
-    fn test_style() {
+    fn make_test_style() -> Style {
         let mut style = Style::default();
         style
             .set("A", 0.2f32)
             .set("D", 0.1f32)
             .set("B", Brush::Solid(Color::WHITE))
             .set("C", Brush::Solid(Color::WHITE));
+        style
+    }
+
+    fn make_test_style_resource() -> StyleResource {
+        StyleResource::new_embedded(make_test_style())
+    }
+
+    #[test]
+    fn test_style() {
+        let style = make_test_style();
         assert_eq!(style.index_of(&ImmutableString::new("A")), Some(3));
         assert_eq!(style.index_of(&ImmutableString::new("B")), Some(2));
         assert_eq!(style.index_of(&ImmutableString::new("C")), Some(1));
         assert_eq!(style.index_of(&ImmutableString::new("D")), Some(0));
+    }
+
+    #[test]
+    fn test_styled_property() {
+        let style = Some(make_test_style_resource());
+        let styled_prop = StyledProperty::<f32>::new_external("A");
+        assert_eq!(styled_prop.get_or_default(&style), 0.2f32);
+        let styled_prop = StyledProperty::<f32>::new_external("D");
+        assert_eq!(styled_prop.get_or_default(&style), 0.1f32);
+        let styled_prop = StyledProperty::<Brush>::new_external("B");
+        assert_eq!(
+            styled_prop.get_or_default(&style),
+            Brush::Solid(Color::WHITE)
+        );
+        let styled_prop = StyledProperty::<Brush>::new_external("C");
+        assert_eq!(
+            styled_prop.get_or_default(&style),
+            Brush::Solid(Color::WHITE)
+        );
+        let styled_prop = StyledProperty::<f32>::new_external("E");
+        assert_eq!(styled_prop.get(&style), None);
+        assert_eq!(styled_prop.get_or_default(&style), 0.0f32);
     }
 }

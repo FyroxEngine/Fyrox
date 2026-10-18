@@ -336,7 +336,7 @@ impl CheckBoxBuilder {
     /// Finishes check box building and adds it to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<CheckBox> {
         let check_mark = self.check_mark.unwrap_or_else(|| {
-            let size = *ctx.style.property(CheckBox::CHECK_MARK_SIZE);
+            let size = ctx.style.get_or_default(CheckBox::CHECK_MARK_SIZE);
             BorderBuilder::new(
                 WidgetBuilder::new()
                     .with_background(ctx.style.property(Style::BRUSH_BRIGHT_BLUE))
