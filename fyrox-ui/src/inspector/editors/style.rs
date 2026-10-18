@@ -21,7 +21,7 @@
 //! Property editor for [`StyledProperty`]. It acts like a proxy to inner property, but also
 //! adds a special "bind" button used to change style binding of the property.
 
-use crate::style::StyledPropertyName;
+use crate::style::{StyledProperty, StyledPropertyName};
 use crate::text::{Text, TextMessage};
 use crate::{
     BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
