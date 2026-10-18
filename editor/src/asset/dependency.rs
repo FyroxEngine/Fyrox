@@ -21,28 +21,25 @@
 use crate::fyrox::{
     asset::{
         graph::{ResourceDependencyGraph, ResourceGraphNode},
+        manager::ResourceManager,
         untyped::UntypedResource,
     },
     core::{log::Log, pool::Handle},
     gui::{
         BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
         VerticalAlignment,
-        button::{ButtonBuilder, ButtonMessage},
+        button::{Button, ButtonBuilder, ButtonMessage},
         copypasta::ClipboardProvider,
         grid::{Column, GridBuilder, Row},
         message::UiMessage,
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
-        tree::{TreeBuilder, TreeRootBuilder, TreeRootMessage},
+        tree::{Tree, TreeBuilder, TreeRoot, TreeRootBuilder, TreeRootMessage},
         widget::WidgetBuilder,
-        window::{WindowBuilder, WindowMessage, WindowTitle},
+        window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
     },
 };
-use fyrox::asset::manager::ResourceManager;
-use fyrox::gui::button::Button;
-use fyrox::gui::tree::{Tree, TreeRoot};
-use fyrox::gui::window::{Window, WindowAlignment};
 
 pub struct DependencyViewer {
     pub window: Handle<Window>,
@@ -60,7 +57,13 @@ fn build_tree_recursively(
     let children = node
         .children
         .iter()
-        .map(|c| build_tree_recursively(c, resource_manager, ctx))
+        .filter_map(|c| {
+            if c.resource.is_embedded() {
+                None
+            } else {
+                Some(build_tree_recursively(c, resource_manager, ctx))
+            }
+        })
         .collect();
 
     let data_type = node.resource.data_type_name_or_unknown();
@@ -136,7 +139,7 @@ impl DependencyViewer {
                         ),
                 )
                 .add_row(Row::stretch())
-                .add_row(Row::strict(24.0))
+                .add_row(Row::strict(28.0))
                 .add_column(Column::stretch())
                 .build(ctx),
             )
