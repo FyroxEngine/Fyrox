@@ -44,7 +44,10 @@ use fyrox_ui::message::CursorIcon;
 use half::f16;
 use std::collections::VecDeque;
 use std::{any::Any, sync::Arc};
-use winit::{event::Touch, keyboard::PhysicalKey};
+use winit::{
+    event::{Ime, Touch},
+    keyboard::PhysicalKey,
+};
 
 /// Translates `winit`'s key code to `fyrox-ui`'s key code.
 pub fn translate_key_to_ui(key: KeyCode) -> message::KeyCode {
@@ -511,21 +514,28 @@ pub fn translate_state(state: ElementState) -> ButtonState {
 /// Translates window event to fyrox-ui event.
 pub fn translate_event(event: &WindowEvent) -> Option<OsEvent> {
     match event {
-        WindowEvent::KeyboardInput { event, .. } => {
-            if let PhysicalKey::Code(key) = event.physical_key {
-                Some(OsEvent::KeyboardInput {
-                    button: translate_key_to_ui(key),
-                    state: translate_state(event.state),
-                    text: event
-                        .text
-                        .as_ref()
-                        .map(|s| s.to_string())
-                        .unwrap_or_default(),
-                })
-            } else {
-                None
-            }
-        }
+        WindowEvent::KeyboardInput { event, .. } => Some(OsEvent::KeyboardInput {
+            // IME and some virtual keyboards can report an unidentified physical
+            // key while still supplying committed text. Keep the text event alive;
+            // dropping it here makes those input methods appear completely inert.
+            button: match event.physical_key {
+                PhysicalKey::Code(key) => translate_key_to_ui(key),
+                PhysicalKey::Unidentified(_) => message::KeyCode::Unknown,
+            },
+            state: translate_state(event.state),
+            text: event
+                .text
+                .as_ref()
+                .map(|s| s.to_string())
+                .unwrap_or_default(),
+        }),
+        WindowEvent::Ime(event) => Some(OsEvent::Ime(match event {
+            Ime::Enabled => message::ImeEvent::Enabled,
+            Ime::Preedit(text, cursor) => message::ImeEvent::Preedit(text.clone(), *cursor),
+            Ime::Commit(text) => message::ImeEvent::Commit(text.clone()),
+            Ime::Disabled => message::ImeEvent::Disabled,
+        })),
+        WindowEvent::Focused(focused) => Some(OsEvent::Focused(*focused)),
         WindowEvent::CursorMoved { position, .. } => Some(OsEvent::CursorMoved {
             position: Vector2::new(position.x as f32, position.y as f32),
         }),
@@ -853,5 +863,66 @@ impl<T> ThreadSafeQueue<T> {
 impl<T: PartialEq> PartialEq for ThreadSafeQueue<T> {
     fn eq(&self, other: &Self) -> bool {
         *self.0.safe_lock() == *other.0.safe_lock()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::translate_event;
+    #[cfg(target_os = "windows")]
+    use fyrox_ui::message::ImeEvent;
+    use fyrox_ui::message::OsEvent;
+    use winit::event::{Ime, WindowEvent};
+
+    #[test]
+    fn translates_committed_ime_text() {
+        let event = WindowEvent::Ime(Ime::Commit("中文".to_string()));
+        #[cfg(target_os = "windows")]
+        assert!(matches!(
+            translate_event(&event),
+            Some(OsEvent::Ime(ImeEvent::Commit(text))) if text == "中文"
+        ));
+        #[cfg(not(target_os = "windows"))]
+        assert!(
+            matches!(translate_event(&event), Some(OsEvent::TextInput(text)) if text == "中文")
+        );
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn translates_ime_lifecycle_and_utf8_preedit_selection() {
+        let cases = [
+            (Ime::Enabled, ImeEvent::Enabled),
+            (
+                Ime::Preedit("中文🙂".into(), Some((6, 10))),
+                ImeEvent::Preedit("中文🙂".into(), Some((6, 10))),
+            ),
+            (
+                Ime::Preedit(String::new(), None),
+                ImeEvent::Preedit(String::new(), None),
+            ),
+            (Ime::Disabled, ImeEvent::Disabled),
+        ];
+        for (input, expected) in cases {
+            assert!(matches!(translate_event(&WindowEvent::Ime(input)),
+                Some(OsEvent::Ime(actual)) if actual == expected));
+        }
+        assert!(matches!(
+            translate_event(&WindowEvent::Focused(false)),
+            Some(OsEvent::Focused(false))
+        ));
+    }
+
+    #[test]
+    #[cfg(not(target_os = "windows"))]
+    fn preserves_non_windows_ime_event_routing() {
+        for event in [
+            Ime::Enabled,
+            Ime::Preedit("nihao".into(), Some((5, 5))),
+            Ime::Disabled,
+        ] {
+            assert!(translate_event(&WindowEvent::Ime(event)).is_none());
+        }
+        assert!(translate_event(&WindowEvent::Focused(false)).is_none());
     }
 }

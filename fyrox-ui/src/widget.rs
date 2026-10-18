@@ -146,6 +146,9 @@ pub enum WidgetMessage {
     /// Direction: **From/To UI**.
     Text(String),
 
+    /// Input method composition for the focused text editor. Direction: **From UI**.
+    Ime(crate::message::ImeEvent),
+
     /// Initiated when widget is in focus and user presses a button on a keyboard.
     ///
     /// Direction: **From UI**.

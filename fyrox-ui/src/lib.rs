@@ -317,8 +317,8 @@ use crate::{
     draw::{CommandTexture, Draw, DrawingContext},
     font::{BUILT_IN_FONT, FontResource},
     message::{
-        ButtonState, CursorIcon, KeyboardModifiers, MessageDirection, MouseButton, OsEvent,
-        UiMessage,
+        ButtonState, CursorIcon, ImeEvent, KeyboardModifiers, MessageDirection, MouseButton,
+        OsEvent, UiMessage,
     },
     message::{DeliveryMode, MessageData, RoutingStrategy},
     popup::{Placement, PopupMessage},
@@ -744,6 +744,10 @@ pub struct UserInterface {
     prev_picked_node: Handle<UiNode>,
     captured_node: Handle<UiNode>,
     keyboard_focus_node: Handle<UiNode>,
+    #[reflect(hidden)]
+    ime_target: Handle<UiNode>,
+    #[reflect(hidden)]
+    ime_composing: bool,
     cursor_position: Vector2<f32>,
     pub style: StyleResource,
     #[reflect(hidden)]
@@ -842,6 +846,8 @@ impl Visit for UserInterface {
             self.nodes.clear();
             self.root_canvas = Handle::NONE;
             self.methods_registry = Default::default();
+            self.ime_target = Handle::NONE;
+            self.ime_composing = false;
         }
 
         self.screen_size.visit("ScreenSize", &mut region)?;
@@ -936,6 +942,8 @@ impl Clone for UserInterface {
             prev_picked_node: self.prev_picked_node,
             captured_node: self.captured_node,
             keyboard_focus_node: self.keyboard_focus_node,
+            ime_target: Handle::NONE,
+            ime_composing: false,
             cursor_position: self.cursor_position,
             style: DEFAULT_STYLE.resource.clone(),
             ui_message_channel,
@@ -1255,6 +1263,8 @@ impl UserInterface {
             prev_picked_node: Handle::NONE,
             style,
             keyboard_focus_node: Handle::NONE,
+            ime_target: Handle::NONE,
+            ime_composing: false,
             stack: Default::default(),
             picking_stack: Default::default(),
             bubble_queue: Default::default(),
@@ -1316,6 +1326,25 @@ impl UserInterface {
 
     pub fn keyboard_modifiers(&self) -> KeyboardModifiers {
         self.keyboard_modifiers
+    }
+
+    /// The widget that currently receives keyboard input.
+    pub fn keyboard_focus_node(&self) -> Handle<UiNode> {
+        self.keyboard_focus_node
+    }
+
+    /// The focused text editor's caret rectangle in window client (physical pixel) coordinates.
+    /// Returns `None` for read-only, disabled, hidden, or clipped text editors.
+    pub fn ime_cursor_area(&self) -> Option<Rect<f32>> {
+        let node = self.try_get_node(self.keyboard_focus_node).ok()?;
+        if !node.is_globally_visible() || !self.is_node_enabled(self.keyboard_focus_node) {
+            return None;
+        }
+        let text_box = node.cast::<text_box::TextBox>()?;
+        if !*text_box.editable {
+            return None;
+        }
+        text_box.ime_cursor_area()
     }
 
     pub fn build_ctx(&mut self) -> BuildContext<'_> {
@@ -2759,6 +2788,7 @@ impl UserInterface {
 
     fn request_focus(&mut self, new_focused: Handle<UiNode>) {
         if self.keyboard_focus_node != new_focused {
+            self.ime_composing = false;
             if self.keyboard_focus_node.is_some() {
                 self.post(self.keyboard_focus_node, WidgetMessage::Unfocus);
             }
@@ -2989,6 +3019,11 @@ impl UserInterface {
                 state,
                 text,
             } => {
+                // Candidate selection keys belong to the IME, not to editor shortcuts or
+                // text editing (Enter must not commit an Inspector property mid-composition).
+                if self.ime_composing {
+                    return true;
+                }
                 if let Ok(keyboard_focus_node) = self.try_get_node(self.keyboard_focus_node)
                     && keyboard_focus_node.is_globally_visible()
                 {
@@ -3009,6 +3044,60 @@ impl UserInterface {
                     }
 
                     event_processed = true;
+                }
+            }
+            OsEvent::Ime(event) => {
+                match event {
+                    ImeEvent::Enabled => {
+                        self.ime_target = self.keyboard_focus_node;
+                        self.ime_composing = false;
+                    }
+                    ImeEvent::Preedit(text, _) => {
+                        if self.ime_target.is_none() {
+                            self.ime_target = self.keyboard_focus_node;
+                        }
+                        self.ime_composing = !text.is_empty()
+                            && self.ime_target == self.keyboard_focus_node
+                            && self.ime_cursor_area().is_some();
+                    }
+                    ImeEvent::Commit(_) => self.ime_composing = false,
+                    ImeEvent::Disabled => {
+                        self.ime_composing = false;
+                        if self.ime_target.is_some() {
+                            self.post(self.ime_target, WidgetMessage::Ime(ImeEvent::Disabled));
+                        }
+                        self.ime_target = Handle::NONE;
+                        return true;
+                    }
+                }
+                // A commit queued by the OS after a click must not enter the newly focused field.
+                if (self.ime_target.is_none() || self.ime_target == self.keyboard_focus_node)
+                    && self.ime_cursor_area().is_some()
+                {
+                    self.post(self.keyboard_focus_node, WidgetMessage::Ime(event.clone()));
+                    event_processed = true;
+                }
+            }
+            OsEvent::Focused(focused) => {
+                if !focused {
+                    // Key releases can go to another application after Alt+Tab or a language switch.
+                    self.keyboard_modifiers = Default::default();
+                    self.ime_composing = false;
+                    self.ime_target = Handle::NONE;
+                    self.post(
+                        self.keyboard_focus_node,
+                        WidgetMessage::Ime(ImeEvent::Disabled),
+                    );
+                }
+            }
+            OsEvent::TextInput(text) => {
+                if !text.is_empty() {
+                    if let Ok(keyboard_focus_node) = self.try_get_node(self.keyboard_focus_node) {
+                        if keyboard_focus_node.is_globally_visible() {
+                            self.post(self.keyboard_focus_node, WidgetMessage::Text(text.clone()));
+                            event_processed = true;
+                        }
+                    }
                 }
             }
             &OsEvent::KeyboardModifiers(modifiers) => {
@@ -4121,6 +4210,15 @@ mod test_inner {
             Some(UiMessage::from_widget(
                 text_box,
                 WidgetMessage::Text('A'.to_string())
+            ))
+        );
+
+        ui.process_os_event(&OsEvent::TextInput("中文".to_string()));
+        assert_eq!(
+            ui.poll_message(),
+            Some(UiMessage::from_widget(
+                text_box,
+                WidgetMessage::Text("中文".to_string())
             ))
         );
 

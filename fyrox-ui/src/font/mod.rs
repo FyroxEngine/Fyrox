@@ -417,6 +417,23 @@ impl Hash for FontHeight {
 /// A resource that allows a font to be loaded.
 pub type FontResource = Resource<Font>;
 
+/// CJK fallback used by the built-in UI font. Keeping this as a fallback preserves
+/// the existing Latin font metrics while allowing text entered through IMEs to render.
+pub static BUILT_IN_CJK: LazyLock<BuiltInResource<Font>> = LazyLock::new(|| {
+    BuiltInResource::new(
+        "Noto Sans SC",
+        embedded_data_source!("./noto_sans_sc/NotoSansSC[wght].ttf"),
+        |data| {
+            FontResource::new_ok(
+                uuid!("a7b53f05-4d8b-4b55-9d0f-ec16d37b1ee1"),
+                ResourceKind::External,
+                Font::from_memory(data.to_vec(), 1024, FontStyles::default(), Vec::default())
+                    .unwrap(),
+            )
+        },
+    )
+});
+
 /// Fyrox's default build-in font for rendering bold italic text when no other font is specified.
 pub static BOLD_ITALIC: LazyLock<BuiltInResource<Font>> = LazyLock::new(|| {
     BuiltInResource::new(
@@ -426,8 +443,13 @@ pub static BOLD_ITALIC: LazyLock<BuiltInResource<Font>> = LazyLock::new(|| {
             FontResource::new_ok(
                 uuid!("f5b02124-9601-452a-9368-3fa2a9703ecd"),
                 ResourceKind::External,
-                Font::from_memory(data.to_vec(), 1024, FontStyles::default(), Vec::default())
-                    .unwrap(),
+                Font::from_memory(
+                    data.to_vec(),
+                    1024,
+                    FontStyles::default(),
+                    vec![Some(BUILT_IN_CJK.resource())],
+                )
+                .unwrap(),
             )
         },
     )
@@ -447,7 +469,13 @@ pub static BUILT_IN_ITALIC: LazyLock<BuiltInResource<Font>> = LazyLock::new(|| {
             FontResource::new_ok(
                 uuid!("1cd79487-6c76-4370-91c2-e6e1e728950a"),
                 ResourceKind::External,
-                Font::from_memory(data.to_vec(), 1024, styles, Vec::default()).unwrap(),
+                Font::from_memory(
+                    data.to_vec(),
+                    1024,
+                    styles,
+                    vec![Some(BUILT_IN_CJK.resource())],
+                )
+                .unwrap(),
             )
         },
     )
@@ -467,7 +495,13 @@ pub static BUILT_IN_BOLD: LazyLock<BuiltInResource<Font>> = LazyLock::new(|| {
             FontResource::new_ok(
                 uuid!("8a471243-2466-4241-a4cb-c341ce8e844a"),
                 ResourceKind::External,
-                Font::from_memory(data.to_vec(), 1024, styles, Vec::default()).unwrap(),
+                Font::from_memory(
+                    data.to_vec(),
+                    1024,
+                    styles,
+                    vec![Some(BUILT_IN_CJK.resource())],
+                )
+                .unwrap(),
             )
         },
     )
@@ -487,7 +521,13 @@ pub static BUILT_IN_FONT: LazyLock<BuiltInResource<Font>> = LazyLock::new(|| {
             FontResource::new_ok(
                 uuid!("77260e8e-f6fa-429c-8009-13dda2673925"),
                 ResourceKind::External,
-                Font::from_memory(data.to_vec(), 1024, styles, Vec::default()).unwrap(),
+                Font::from_memory(
+                    data.to_vec(),
+                    1024,
+                    styles,
+                    vec![Some(BUILT_IN_CJK.resource())],
+                )
+                .unwrap(),
             )
         },
     )

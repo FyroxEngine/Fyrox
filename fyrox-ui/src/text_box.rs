@@ -43,7 +43,9 @@ use crate::{
     draw::{CommandTexture, Draw, DrawingContext},
     font::FontResource,
     formatted_text::{FormattedText, FormattedTextBuilder, WrapMode},
-    message::{CursorIcon, KeyCode, MessageData, MessageDirection, MouseButton, UiMessage},
+    message::{
+        CursorIcon, ImeEvent, KeyCode, MessageData, MessageDirection, MouseButton, UiMessage,
+    },
     style::{Style, StyledProperty, resource::StyleResourceExt},
     text::TextBuilder,
     text::TextMessage,
@@ -479,6 +481,10 @@ pub struct TextBox {
     /// Corner radius of the text box.
     #[visit(optional)]
     pub corner_radius: InheritableVariable<f32>,
+    // Native IME composition is transient: never serialize it or expose it as a property value.
+    #[visit(skip)]
+    #[reflect(hidden)]
+    ime_preedit: Option<(String, Option<(usize, usize)>)>,
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for TextBox {
@@ -698,6 +704,9 @@ impl TextBox {
         } else {
             self.filter_paste_str_single_line(str)
         };
+        if str.is_empty() {
+            return;
+        }
         self.remove_before_insert();
         let position = self
             .position_to_char_index_unclamped(*self.caret_position)
@@ -746,6 +755,79 @@ impl TextBox {
             .position_to_local(*self.caret_position)
     }
 
+    // Lay out composition in a copy so Inspector listeners see only committed text.
+    fn ime_preview(&self) -> Option<(FormattedText, std::ops::Range<usize>, Option<Position>)> {
+        let (preedit, cursor) = self.ime_preedit.as_ref()?;
+        let mut text = self.formatted_text.borrow().clone();
+        let selection = self
+            .selection_range
+            .map(|selection| text.position_range_to_char_index_range(selection.range()));
+        let start = selection.as_ref().map_or_else(
+            || {
+                self.position_to_char_index_clamped(*self.caret_position)
+                    .unwrap_or_default()
+            },
+            |range| range.start,
+        );
+        if let Some(selection) = selection {
+            text.remove_range(selection);
+        }
+        text.insert_str(preedit, start).measure_and_arrange();
+        let caret = cursor.and_then(|(_, end)| {
+            let offset = preedit.get(..end)?.chars().count();
+            text.char_index_to_position(start + offset)
+        });
+        Some((text, start..start + preedit.chars().count(), caret))
+    }
+
+    /// The IME caret rectangle in window client coordinates, including text scrolling and UI scaling.
+    pub fn ime_cursor_area(&self) -> Option<Rect<f32>> {
+        let preview = self.ime_preview();
+        let text = self.formatted_text.borrow();
+        let (position, height) = if let Some((preview, range, caret)) = preview.as_ref() {
+            let caret = caret.unwrap_or_else(|| {
+                preview
+                    .char_index_to_position(range.start)
+                    .unwrap_or_default()
+            });
+            (preview.position_to_local(caret), **preview.font_size())
+        } else {
+            (
+                text.position_to_local(*self.caret_position),
+                **text.font_size(),
+            )
+        };
+        let position = self.point_to_view_pos(position);
+        let mut area = Rect::new(position.x, position.y, 2.0, height.max(1.0))
+            .transform(&self.visual_transform);
+        let visible = (*self.screen_bounds().clip_by(self.clip_bounds()))?;
+        if visible.w() <= 0.0 || visible.h() <= 0.0 {
+            return None;
+        }
+        // A long line can leave the caret just outside the clipping rectangle before layout catches up.
+        area.position.x = area.x().clamp(visible.x(), visible.right_bottom_corner().x);
+        area.position.y = area.y().clamp(visible.y(), visible.right_bottom_corner().y);
+        Some(area)
+    }
+
+    fn clear_ime_preedit(&mut self, ui: &UserInterface) {
+        self.ime_preedit = None;
+        self.ensure_caret_visible();
+        self.sync_placeholder(ui);
+        self.invalidate_visual();
+    }
+
+    fn sync_placeholder(&self, ui: &UserInterface) {
+        if self.placeholder.is_some() {
+            ui.send(
+                self.placeholder,
+                WidgetMessage::Visibility(
+                    self.ime_preedit.is_none() && self.formatted_text.borrow().text.is_empty(),
+                ),
+            );
+        }
+    }
+
     fn point_to_view_pos(&self, position: Vector2<f32>) -> Vector2<f32> {
         position - *self.view_position
     }
@@ -757,7 +839,11 @@ impl TextBox {
 
     fn ensure_caret_visible(&mut self) {
         let local_bounds = self.bounding_rect();
-        let caret_view_position = self.point_to_view_pos(self.caret_local_position());
+        let position = self
+            .ime_preview()
+            .and_then(|(text, _, caret)| caret.map(|caret| text.position_to_local(caret)))
+            .unwrap_or_else(|| self.caret_local_position());
+        let caret_view_position = self.point_to_view_pos(position);
         // Move view position to contain the caret + add some spacing.
         let spacing_step = self
             .formatted_text
@@ -945,12 +1031,7 @@ impl TextBox {
     }
 
     fn on_text_changed(&self, ui: &UserInterface) {
-        if self.placeholder.is_some() {
-            ui.send(
-                self.placeholder,
-                WidgetMessage::Visibility(self.formatted_text.borrow().text.is_empty()),
-            );
-        }
+        self.sync_placeholder(ui);
         if *self.commit_mode == TextCommitMode::Immediate {
             ui.post(
                 self.handle,
@@ -1001,8 +1082,11 @@ impl Control for TextBox {
             .borrow_mut()
             .set_brush(self.widget.foreground());
 
+        let preview = self.ime_preview();
         let view_bounds = self.rect_to_view_pos(bounds);
-        if let Some(ref selection_range) = self.selection_range.map(|r| r.normalized()) {
+        if preview.is_none()
+            && let Some(ref selection_range) = self.selection_range.map(|r| r.normalized())
+        {
             let text = self.formatted_text.borrow();
             let lines = text.get_lines();
             if selection_range.begin.line == selection_range.end.line {
@@ -1073,21 +1157,45 @@ impl Control for TextBox {
         );
 
         let local_position = self.point_to_view_pos(bounds.position);
-        drawing_context.draw_text(
-            self.clip_bounds(),
-            local_position,
-            &self.material,
-            &self.formatted_text.borrow(),
-        );
+        let committed = self.formatted_text.borrow();
+        let text = preview.as_ref().map_or(&*committed, |(text, _, _)| text);
+        drawing_context.draw_text(self.clip_bounds(), local_position, &self.material, text);
 
-        if *self.caret_visible {
-            let caret_pos = self.point_to_view_pos(self.caret_local_position());
-            let caret_bounds = Rect::new(
-                caret_pos.x,
-                caret_pos.y,
-                2.0,
-                **self.formatted_text.borrow().font_size(),
+        if let Some((_, range, _)) = preview.as_ref() {
+            for line in text.get_lines() {
+                let start = range.start.max(line.begin);
+                let end = range.end.min(line.end);
+                if start < end {
+                    drawing_context.push_rect_filled(
+                        &Rect::new(
+                            view_bounds.x()
+                                + line.x_offset
+                                + text.get_range_width(line.begin..start),
+                            view_bounds.y() + line.y_offset + line.height - 1.0,
+                            text.get_range_width(start..end),
+                            1.0,
+                        ),
+                        None,
+                    );
+                }
+            }
+            drawing_context.commit(
+                self.clip_bounds(),
+                (*self.caret_brush).clone(),
+                CommandTexture::None,
+                &self.material,
+                None,
             );
+        }
+
+        let caret = preview
+            .as_ref()
+            .map_or(Some(*self.caret_position), |(_, _, caret)| *caret);
+        if (*self.caret_visible || preview.is_some())
+            && let Some(caret) = caret
+        {
+            let caret_pos = self.point_to_view_pos(text.position_to_local(caret));
+            let caret_bounds = Rect::new(caret_pos.x, caret_pos.y, 2.0, **text.font_size());
             drawing_context.push_rect_filled(&caret_bounds, None);
             drawing_context.commit(
                 self.clip_bounds(),
@@ -1131,6 +1239,23 @@ impl Control for TextBox {
         if message.destination() == self.handle() {
             if let Some(msg) = message.data::<WidgetMessage>() {
                 match msg {
+                    WidgetMessage::Ime(event) => match event {
+                        ImeEvent::Preedit(text, cursor) if *self.editable && self.has_focus => {
+                            self.ime_preedit = (!text.is_empty()).then(|| (text.clone(), *cursor));
+                            self.ensure_caret_visible();
+                            self.sync_placeholder(ui);
+                            self.reset_blink();
+                            self.invalidate_visual();
+                        }
+                        ImeEvent::Commit(text) if *self.editable && self.has_focus => {
+                            self.clear_ime_preedit(ui);
+                            // IME commits are already interpreted by the OS; Ctrl/Alt state must
+                            // not turn them into shortcuts. Insert the entire commit atomically.
+                            self.insert_str(text, ui);
+                        }
+                        ImeEvent::Disabled => self.clear_ime_preedit(ui),
+                        _ => (),
+                    },
                     WidgetMessage::Text(text)
                         if !ui.keyboard_modifiers().control
                             && !ui.keyboard_modifiers().alt
@@ -1304,6 +1429,7 @@ impl Control for TextBox {
                     WidgetMessage::Unfocus
                         if message.direction() == MessageDirection::FromWidget =>
                     {
+                        self.clear_ime_preedit(ui);
                         self.selection_range.set_value_and_mark_modified(None);
                         self.invalidate_visual();
                         self.has_focus = false;
@@ -1511,6 +1637,9 @@ impl Control for TextBox {
                     TextBoxMessage::Editable(editable) => {
                         if &*self.editable != editable {
                             self.editable.set_value_and_mark_modified(*editable);
+                            if !editable {
+                                self.clear_ime_preedit(ui);
+                            }
                             ui.try_send_response(message);
                         }
                     }
@@ -1838,6 +1967,7 @@ impl<'a> TextBoxBuilder<'a> {
             recent: Default::default(),
             placeholder,
             corner_radius: self.corner_radius.into(),
+            ime_preedit: None,
         };
 
         ctx.add(text_box)
@@ -1848,6 +1978,237 @@ impl<'a> TextBoxBuilder<'a> {
 mod test {
     use crate::text_box::TextBoxBuilder;
     use crate::{test::test_widget_deletion, widget::WidgetBuilder};
+
+    #[cfg(target_os = "windows")]
+    use super::*;
+    #[cfg(target_os = "windows")]
+    use crate::core::algebra::Matrix3;
+    #[cfg(target_os = "windows")]
+    use crate::message::{ButtonState, KeyboardModifiers, OsEvent};
+    #[cfg(target_os = "windows")]
+    use crate::test::UserInterfaceTestingExtension;
+
+    #[cfg(target_os = "windows")]
+    fn focused_box(text: &str, mode: TextCommitMode) -> (UserInterface, Handle<TextBox>) {
+        let mut ui = UserInterface::new(Vector2::new(1200.0, 800.0));
+        let handle = TextBoxBuilder::new(
+            WidgetBuilder::new()
+                .with_width(300.0)
+                .with_height(30.0)
+                .with_desired_position(Vector2::new(40.0, 40.0)),
+        )
+        .with_text(text)
+        .with_text_commit_mode(mode)
+        .build(&mut ui.build_ctx());
+        ui.update(ui.screen_size(), 0.0, &Default::default());
+        ui.send(handle, WidgetMessage::Focus);
+        ui.poll_all_messages();
+        (ui, handle)
+    }
+
+    #[cfg(target_os = "windows")]
+    fn ime(ui: &mut UserInterface, event: ImeEvent) -> usize {
+        ui.process_os_event(&OsEvent::Ime(event));
+        ui.poll_and_count(|message| {
+            message.direction() == MessageDirection::FromWidget
+                && message.data::<TextMessage>().is_some()
+        })
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn ime_preedit_does_not_commit_inspector_values_or_enter() {
+        let (mut ui, handle) = focused_box("Original", TextCommitMode::LostFocusPlusEnter);
+        ime(&mut ui, ImeEvent::Enabled);
+        assert_eq!(
+            ime(&mut ui, ImeEvent::Preedit("nihao".into(), Some((5, 5)))),
+            0
+        );
+        assert_eq!(ui[handle].text(), "Original");
+        assert_eq!(ui[handle].ime_preview().unwrap().0.text(), "nihao");
+        ui.process_os_event(&OsEvent::KeyboardInput {
+            button: KeyCode::Enter,
+            state: ButtonState::Pressed,
+            text: "\r".into(),
+        });
+        assert_eq!(
+            ui.poll_and_count(|message| message.data::<TextMessage>().is_some()),
+            0
+        );
+        assert_eq!(ui[handle].text(), "Original");
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn ime_commit_is_atomic_and_ignores_shortcut_modifiers() {
+        let (mut ui, handle) = focused_box("Original", TextCommitMode::Immediate);
+        ime(&mut ui, ImeEvent::Enabled);
+        ime(&mut ui, ImeEvent::Preedit("nihao".into(), Some((5, 5))));
+        ui.process_os_event(&OsEvent::KeyboardModifiers(KeyboardModifiers {
+            control: true,
+            alt: true,
+            ..Default::default()
+        }));
+        // winit sends an empty preedit immediately before Commit on Windows.
+        assert_eq!(ime(&mut ui, ImeEvent::Preedit(String::new(), None)), 0);
+        assert_eq!(ime(&mut ui, ImeEvent::Commit("中文🙂".into())), 1);
+        assert_eq!(ui[handle].text(), "中文🙂");
+        assert!(ui[handle].ime_preedit.is_none());
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn ime_cancel_preserves_value_and_selection_and_handles_utf8_offsets() {
+        let (mut ui, handle) = focused_box("Original", TextCommitMode::Immediate);
+        let selection = *ui[handle].selection_range;
+        ime(&mut ui, ImeEvent::Enabled);
+        assert_eq!(
+            ime(&mut ui, ImeEvent::Preedit("中文🙂".into(), Some((6, 10)))),
+            0
+        );
+        let (_, range, caret) = ui[handle].ime_preview().unwrap();
+        assert_eq!(range, 0..3);
+        assert_eq!(caret.unwrap().offset, 3);
+        assert_eq!(ime(&mut ui, ImeEvent::Disabled), 0);
+        assert_eq!(ui[handle].text(), "Original");
+        assert_eq!(*ui[handle].selection_range, selection);
+        assert!(ui[handle].ime_preedit.is_none());
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn ime_focus_change_discards_late_commit() {
+        let (mut ui, first) = focused_box("First", TextCommitMode::Immediate);
+        let second = TextBoxBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(30.0))
+            .with_text("Second")
+            .build(&mut ui.build_ctx());
+        ui.update(ui.screen_size(), 0.0, &Default::default());
+        ime(&mut ui, ImeEvent::Enabled);
+        ime(&mut ui, ImeEvent::Preedit("nihao".into(), Some((5, 5))));
+        ui.send(second, WidgetMessage::Focus);
+        ui.poll_all_messages();
+        ime(&mut ui, ImeEvent::Commit("中文".into()));
+        assert_eq!(ui[first].text(), "First");
+        assert!(ui[first].ime_preedit.is_none());
+        assert_eq!(ui[second].text(), "Second");
+        ime(&mut ui, ImeEvent::Disabled);
+        ime(&mut ui, ImeEvent::Enabled);
+        ime(&mut ui, ImeEvent::Commit("新的中文".into()));
+        assert_eq!(ui[second].text(), "新的中文");
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn ime_window_blur_clears_composition_and_stuck_modifiers() {
+        let (mut ui, handle) = focused_box("Original", TextCommitMode::Immediate);
+        ime(&mut ui, ImeEvent::Enabled);
+        ime(&mut ui, ImeEvent::Preedit("nihao".into(), Some((5, 5))));
+        ui.process_os_event(&OsEvent::KeyboardModifiers(KeyboardModifiers {
+            alt: true,
+            control: true,
+            shift: true,
+            ..Default::default()
+        }));
+        ui.process_os_event(&OsEvent::Focused(false));
+        ui.poll_all_messages();
+        assert_eq!(ui.keyboard_modifiers(), KeyboardModifiers::default());
+        assert!(ui[handle].ime_preedit.is_none());
+        assert_eq!(ui[handle].text(), "Original");
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn ime_cursor_area_tracks_dpi_and_text_scroll() {
+        let (mut ui, handle) = focused_box("Some long text", TextCommitMode::Immediate);
+        let original = ui.ime_cursor_area().unwrap();
+        ui.send(
+            ui.root(),
+            WidgetMessage::LayoutTransform(Matrix3::new_scaling(1.5)),
+        );
+        ui.poll_all_messages();
+        ui.update(ui.screen_size(), 0.0, &Default::default());
+        let scaled = ui.ime_cursor_area().unwrap();
+        assert!((scaled.x() - original.x() * 1.5).abs() < 0.01);
+        let local_caret = ui[handle].caret_local_position() - *ui[handle].view_position;
+        let expected = ui[handle]
+            .visual_transform
+            .transform_point(&Point2::from(local_caret));
+        // Font supersampling can change vertical glyph metrics during relayout. The anchor
+        // must follow the newly laid-out caret, rather than scaling stale glyph coordinates.
+        assert!((scaled.y() - expected.y).abs() < 0.01);
+        assert!((scaled.h() - original.h() * 1.5).abs() < 0.01);
+        ui[handle].view_position.x += 10.0;
+        let scrolled = ui.ime_cursor_area().unwrap();
+        assert!((scrolled.x() - (scaled.x() - 15.0)).abs() < 0.01);
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn ime_is_unavailable_for_readonly_disabled_or_hidden_fields() {
+        let (mut ui, handle) = focused_box("Original", TextCommitMode::Immediate);
+        assert!(ui.ime_cursor_area().is_some());
+        ui.send(handle, TextBoxMessage::Editable(false));
+        ui.poll_all_messages();
+        assert!(ui.ime_cursor_area().is_none());
+        ime(&mut ui, ImeEvent::Commit("中文".into()));
+        assert_eq!(ui[handle].text(), "Original");
+        ui.send(handle, TextBoxMessage::Editable(true));
+        ui.send(handle, WidgetMessage::Enabled(false));
+        ui.poll_all_messages();
+        assert!(ui.ime_cursor_area().is_none());
+        ui.send(handle, WidgetMessage::Enabled(true));
+        ui.send(handle, WidgetMessage::Visibility(false));
+        ui.poll_all_messages();
+        ui.update(ui.screen_size(), 0.0, &Default::default());
+        assert!(ui.ime_cursor_area().is_none());
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn ime_rejected_commit_keeps_filtered_selection() {
+        let (mut ui, handle) = focused_box("123", TextCommitMode::Immediate);
+        ui[handle].filter = Some(TextBoxFilter(Arc::new(Mutex::new(|c: char| {
+            c.is_ascii_digit()
+        }))));
+        ime(&mut ui, ImeEvent::Enabled);
+        assert_eq!(ime(&mut ui, ImeEvent::Commit("中文".into())), 0);
+        assert_eq!(ui[handle].text(), "123");
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn ime_cancel_restores_scrolled_caret_and_normal_keyboard_input() {
+        let (mut ui, handle) = focused_box("Original", TextCommitMode::Immediate);
+        ime(&mut ui, ImeEvent::Enabled);
+        let composition = "nihao".repeat(20);
+        let cursor = composition.len();
+        ime(
+            &mut ui,
+            ImeEvent::Preedit(composition, Some((cursor, cursor))),
+        );
+        assert!(ui[handle].view_position.x > 0.0);
+        ime(&mut ui, ImeEvent::Disabled);
+        assert_eq!(ui[handle].view_position.x, 0.0);
+        ui.process_os_event(&OsEvent::KeyboardInput {
+            button: KeyCode::KeyA,
+            state: ButtonState::Pressed,
+            text: "A".into(),
+        });
+        ui.poll_all_messages();
+        assert_eq!(ui[handle].text(), "A");
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn ime_multiline_commit_preserves_line_breaks() {
+        let (mut ui, handle) = focused_box("Original", TextCommitMode::Immediate);
+        ui.send(handle, TextBoxMessage::Multiline(true));
+        ui.poll_all_messages();
+        ime(&mut ui, ImeEvent::Enabled);
+        assert_eq!(ime(&mut ui, ImeEvent::Commit("第一行\n第二行".into())), 1);
+        assert_eq!(ui[handle].text(), "第一行\n第二行");
+        assert_eq!(ui[handle].caret_position.line, 1);
+    }
 
     #[test]
     fn test_deletion() {

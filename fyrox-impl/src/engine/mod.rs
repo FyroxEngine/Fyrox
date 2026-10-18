@@ -109,11 +109,15 @@ use crate::{
     },
     window::Window,
 };
+#[cfg(target_os = "windows")]
+use crate::{core::math::Rect, gui::UiNode};
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_animation::AnimationTracksData;
 use fyrox_core::NameProvider;
 use fyrox_core::dyntype::DynTypeConstructorContainer;
 use fyrox_graphics::server::SharedGraphicsServer;
+#[cfg(target_os = "windows")]
+use winit::dpi::{PhysicalPosition, PhysicalSize};
 
 use fyrox_sound::{
     buffer::{SoundBuffer, loader::SoundBufferLoader},
@@ -348,6 +352,10 @@ pub struct Engine {
     elapsed_time: f32,
 
     input_state: InputState,
+
+    // The native input context belongs only to the currently focused on-screen text editor.
+    #[cfg(target_os = "windows")]
+    ime_target: Option<(Handle<UserInterface>, Handle<UiNode>, Rect<f32>)>,
 
     /// A special container that is able to create nodes by their type UUID. Use a copy of this
     /// value whenever you need it as a parameter in other parts of the engine.
@@ -1489,6 +1497,8 @@ impl Engine {
             elapsed_time: 0.0,
             task_pool: TaskPoolHandler::new(task_pool),
             input_state: Default::default(),
+            #[cfg(target_os = "windows")]
+            ime_target: None,
             error_queue: Default::default(),
         })
     }
@@ -1511,6 +1521,12 @@ impl Engine {
                 params.window_attributes.clone(),
                 params.named_objects,
             )?;
+            #[cfg(target_os = "windows")]
+            {
+                // Enable IME only while an editable Windows text widget has focus.
+                window.set_ime_allowed(false);
+                self.ime_target = None;
+            }
             let frame_size = (window.inner_size().width, window.inner_size().height);
 
             let renderer = Renderer::new(server, frame_size, &self.resource_manager)?;
@@ -1758,6 +1774,8 @@ impl Engine {
             let screen_size = screen_size.unwrap_or_else(|| ui.screen_size());
             ui.update(screen_size, dt, ui_update_switches);
         }
+        #[cfg(target_os = "windows")]
+        self.sync_ime();
         self.performance_statistics.ui_time = instant::Instant::now() - time;
         self.elapsed_time += dt;
 
@@ -2355,6 +2373,9 @@ impl Engine {
     /// see anything.
     #[inline]
     pub fn render(&mut self) -> Result<(), FrameworkError> {
+        // The editor can process focus/layout messages after post_update.
+        #[cfg(target_os = "windows")]
+        self.sync_ime();
         for ui in self.user_interfaces.iter_mut() {
             ui.set_time(self.elapsed_time);
         }
@@ -2384,6 +2405,52 @@ impl Engine {
         }
 
         Ok(())
+    }
+
+    #[cfg(target_os = "windows")]
+    fn sync_ime(&mut self) {
+        let GraphicsContext::Initialized(ctx) = &self.graphics_context else {
+            self.ime_target = None;
+            return;
+        };
+        let target = ctx
+            .window
+            .has_focus()
+            .then(|| {
+                self.user_interfaces.pair_iter().find_map(|(handle, ui)| {
+                    // Scene UI previews rendered to textures must not change the native window's IME.
+                    if ui.render_target.is_some() {
+                        return None;
+                    }
+                    Some((handle, ui.keyboard_focus_node(), ui.ime_cursor_area()?))
+                })
+            })
+            .flatten();
+        let identity = |target: &Option<(Handle<UserInterface>, Handle<UiNode>, Rect<f32>)>| {
+            target.as_ref().map(|(ui, widget, _)| (*ui, *widget))
+        };
+        if identity(&self.ime_target) != identity(&target) {
+            if self.ime_target.is_some() {
+                ctx.window.set_ime_allowed(false);
+            }
+            if target.is_some() {
+                ctx.window.set_ime_allowed(true);
+            }
+        }
+        if self.ime_target != target
+            && let Some((_, _, area)) = &target
+        {
+            // Fyrox's visual transform already includes the root DPI scaling. Passing logical
+            // coordinates here would apply it twice and displace the candidate window.
+            ctx.window.set_ime_cursor_area(
+                PhysicalPosition::new(area.x() as i32, area.y() as i32),
+                PhysicalSize::new(
+                    area.w().ceil().max(1.0) as u32,
+                    area.h().ceil().max(1.0) as u32,
+                ),
+            );
+        }
+        self.ime_target = target;
     }
 
     /// Enables or disables registered plugins.
