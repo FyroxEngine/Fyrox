@@ -483,8 +483,8 @@ impl Style {
     fn on_visited(&mut self, visitor: &mut Visitor) {
         if visitor.is_reading() {
             self.sort();
-    }
         }
+    }
 
     fn sort(&mut self) {
         self.properties.sort_by_key(|a| a.name.cached_hash())

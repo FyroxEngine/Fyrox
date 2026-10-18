@@ -64,6 +64,7 @@ use crate::{
     ui_scene::UiScene,
     utils::window_content,
 };
+use std::ops::Deref;
 use std::{any::Any, sync::Arc, sync::mpsc::Sender};
 
 pub mod editors;
@@ -186,7 +187,7 @@ fn current_widget_style(
             .ui
             .try_get_node(ui_selection.widgets[0])
             .ok()
-            .and_then(|n| n.style.clone());
+            .and_then(|n| n.style.deref().clone());
     }
     None
 }

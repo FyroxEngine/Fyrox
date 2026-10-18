@@ -642,7 +642,7 @@ pub struct Widget {
     /// A flag, that defines whether the drop from drag'n'drop functionality can be accepted by the widget or not.
     pub allow_drop: InheritableVariable<bool>,
     /// Style of the widget.
-    pub style: Option<StyleResource>,
+    pub style: InheritableVariable<Option<StyleResource>>,
     /// Optional, user-defined data.
     #[reflect(hidden)]
     #[visit(skip)]
@@ -1351,7 +1351,7 @@ impl Widget {
                 }
                 WidgetMessage::Style(style) => {
                     self.invalidate_visual();
-                    self.style = Some(style.clone());
+                    self.style.set_value_and_mark_modified(Some(style.clone()));
                 }
                 _ => (),
             }
@@ -2173,7 +2173,7 @@ impl WidgetBuilder {
             resource: None,
             material: self.material.into(),
             original_handle_in_resource: Default::default(),
-            style: Some(ctx.style.clone()),
+            style: Some(ctx.style.clone()).into(),
             visual_valid: Cell::new(false),
         }
     }
