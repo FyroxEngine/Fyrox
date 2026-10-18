@@ -703,15 +703,17 @@ impl PropertyEditorDefinitionContainer {
         container.insert(EnumPropertyEditorDefinition::<char>::new_optional());
         container.insert(CharPropertyEditorDefinition);
 
-        // Styled.
-        container.insert(InheritablePropertyEditorDefinition::<StyledProperty<f32>>::new());
         container.insert(StyledPropertyNameEditorDefinition);
 
+        // Styled.
+        container.insert(InheritablePropertyEditorDefinition::<StyledProperty<f32>>::new());
+        container.insert(EnumPropertyEditorDefinition::<StyledProperty<f32>>::new());
         container.insert(InheritablePropertyEditorDefinition::<StyledProperty<Color>>::new());
-
+        container.insert(EnumPropertyEditorDefinition::<StyledProperty<Color>>::new());
         container.insert(InheritablePropertyEditorDefinition::<
             StyledProperty<Thickness>,
         >::new());
+        container.insert(EnumPropertyEditorDefinition::<StyledProperty<Thickness>>::new());
 
         container.insert(InheritablePropertyEditorDefinition::<
             StyledProperty<TextureResource>,
