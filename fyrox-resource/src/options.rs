@@ -27,7 +27,7 @@ use crate::{
 use fyrox_core::io::FileError;
 use fyrox_core::reflect::Reflect;
 use ron::ser::PrettyConfig;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use std::io::{ErrorKind, Write};
 use std::{fs::File, path::Path};
 
@@ -94,10 +94,10 @@ where
             // Missing options file is a normal situation, the engine will use default import options
             // instead. Any other error indicates a real issue that needs to be highlighted to the
             // user.
-            if let FileError::Io(ref err) = e {
-                if err.kind() == ErrorKind::NotFound {
-                    return None;
-                }
+            if let FileError::Io(ref err) = e
+                && err.kind() == ErrorKind::NotFound
+            {
+                return None;
             }
 
             Log::warn(format!(

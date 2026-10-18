@@ -28,21 +28,21 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         pool::Handle,
         reflect::prelude::*,
-        uuid::{uuid, Uuid},
+        uuid::{Uuid, uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
     },
     scene::{
+        Scene,
         base::{Base, BaseBuilder},
         dim2::rigidbody::RigidBody,
         graph::Graph,
         node::{Node, NodeTrait, SyncContext},
-        Scene,
     },
 };
 
-use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::SceneGraph;
+use fyrox_graph::constructor::ConstructorProvider;
 use rapier2d::dynamics::ImpulseJointHandle;
 use std::{
     cell::{Cell, RefCell},

@@ -18,22 +18,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::command::{CommandContext, CommandTrait};
-use crate::scene::EntityInfo;
 use crate::{
-    command::{make_command, Command, SetPropertyCommand},
+    command::{Command, CommandContext, CommandTrait, SetPropertyCommand, make_command},
     fyrox::{
-        asset::{manager::ResourceManager, options::BaseImportOptions, ResourceData},
-        core::{futures::executor::block_on, reflect::Reflect, SafeLock},
+        asset::{
+            ResourceData, manager::ResourceManager, options::BaseImportOptions,
+            untyped::UntypedResource,
+        },
+        core::{SafeLock, futures::executor::block_on, log::Log, reflect::Reflect},
         engine::Engine,
         gui::inspector::PropertyChanged,
         scene::SceneContainer,
     },
     message::MessageSender,
-    scene::{controller::SceneController, SelectionContainer},
+    scene::{EntityInfo, SelectionContainer, controller::SceneController},
 };
-use fyrox::asset::untyped::UntypedResource;
-use fyrox::core::log::Log;
 use std::{
     cell::{RefCell, RefMut},
     path::{Path, PathBuf},
@@ -270,35 +269,30 @@ impl SelectionContainer for AssetSelection {
                 } else if let Ok(resource) = block_on(
                     self.resource_manager
                         .request_untyped(&selected_resource.path),
-                ) {
-                    if !self.resource_manager.is_built_in_resource(&resource) {
-                        return Some(Command::new(SetPropertyCommand::new(
-                            path.to_string(),
-                            value,
-                            move |_| {
-                                let mut guard = resource.lock();
-                                let data = guard.state.data_mut()?.inner_mut();
-                                // SAFETY: This is safe, because the closure owns its own copy of
-                                // resource strong ref, and the entity getter is used only once per
-                                // do/undo/redo calls.
-                                unsafe {
-                                    Some(std::mem::transmute::<
-                                        &'_ mut dyn ResourceData,
-                                        &'static mut dyn ResourceData,
-                                    >(data))
-                                }
-                            },
-                        )));
-                    }
+                ) && !self.resource_manager.is_built_in_resource(&resource)
+                {
+                    return Some(Command::new(SetPropertyCommand::new(
+                        path.to_string(),
+                        value,
+                        move |_| {
+                            let mut guard = resource.lock();
+                            let data = guard.state.data_mut()?.inner_mut();
+                            // SAFETY: This is safe, because the closure owns its own copy of
+                            // resource strong ref, and the entity getter is used only once per
+                            // do/undo/redo calls.
+                            unsafe {
+                                Some(std::mem::transmute::<
+                                    &'_ mut dyn ResourceData,
+                                    &'static mut dyn ResourceData,
+                                >(data))
+                            }
+                        },
+                    )));
                 }
                 None
             })
             .collect::<Vec<_>>();
 
         sender.do_command_group(group);
-    }
-
-    fn provide_docs(&self, _controller: &dyn SceneController, _engine: &Engine) -> Option<String> {
-        None
     }
 }

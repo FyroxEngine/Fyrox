@@ -44,8 +44,8 @@ pub fn impl_reflect(ty_args: &args::TypeArgs) -> TokenStream2 {
     }
 
     match &ty_args.data {
-        ast::Data::Struct(ref field_args) => self::impl_reflect_struct(ty_args, field_args),
-        ast::Data::Enum(ref variant_args) => self::impl_reflect_enum(ty_args, variant_args),
+        ast::Data::Struct(field_args) => self::impl_reflect_struct(ty_args, field_args),
+        ast::Data::Enum(variant_args) => self::impl_reflect_enum(ty_args, variant_args),
     }
 }
 
@@ -86,8 +86,8 @@ pub fn gen_fields_getter_body(
     let props = field_args
         .fields
         .iter()
+        .filter(|f| !f.hidden)
         .enumerate()
-        .filter(|(_i, f)| !f.hidden)
         .zip(props.iter().zip(field_getters))
         .map(|((i, field), (prop, field_getter))| {
             let field_definition = self::quote_field_prop(

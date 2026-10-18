@@ -19,11 +19,14 @@
 // SOFTWARE.
 
 use crate::{
+    Mode, Settings,
     asset::item::AssetItem,
     fyrox::{
         core::pool::{ErasedHandle, Handle},
         graph::SceneGraph,
         gui::{
+            BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
+            UserInterface, VerticalAlignment,
             border::BorderBuilder,
             button::{ButtonBuilder, ButtonMessage},
             decorator::{Decorator, DecoratorBuilder, DecoratorMessage},
@@ -33,7 +36,7 @@ use crate::{
             scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
             searchbar::{SearchBarBuilder, SearchBarMessage},
             stack_panel::StackPanelBuilder,
-            style::{resource::StyleResourceExt, Style},
+            style::{Style, resource::StyleResourceExt},
             text::TextBuilder,
             toggle::{ToggleButtonBuilder, ToggleButtonMessage},
             tree::{
@@ -44,8 +47,6 @@ use crate::{
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowTitle},
             wrap_panel::WrapPanelBuilder,
-            BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
-            UserInterface, VerticalAlignment,
         },
         resource::texture::TextureResource,
     },
@@ -53,7 +54,6 @@ use crate::{
     message::MessageSender,
     utils::window_content,
     world::item::{DropAnchor, SceneItem, SceneItemBuilder, SceneItemMessage},
-    Mode, Settings,
 };
 use fyrox::core::color::Color;
 use fyrox::core::pool::HandlesVecExtension;
@@ -198,20 +198,20 @@ fn tree_node(ui: &UserInterface, tree: Handle<SceneItem>) -> ErasedHandle {
 fn colorize(handle: Handle<UiNode>, ui: &UserInterface, index: &mut usize) {
     let node = ui.node(handle);
 
-    if let Some(decorator) = node.cast::<Decorator>() {
-        if node.parent().is_some() {
-            let new_brush = if (*index).is_multiple_of(2) {
-                ui.style.property(Style::BRUSH_PRIMARY)
-            } else {
-                ui.style.property(Style::BRUSH_LIGHTER_PRIMARY)
-            };
+    if let Some(decorator) = node.cast::<Decorator>()
+        && node.parent().is_some()
+    {
+        let new_brush = if (*index).is_multiple_of(2) {
+            ui.style.property(Style::BRUSH_PRIMARY)
+        } else {
+            ui.style.property(Style::BRUSH_LIGHTER_PRIMARY)
+        };
 
-            if *decorator.normal_brush != new_brush {
-                ui.send(handle, DecoratorMessage::NormalBrush(new_brush));
-            }
-
-            *index += 1;
+        if *decorator.normal_brush != new_brush {
+            ui.send(handle, DecoratorMessage::NormalBrush(new_brush));
         }
+
+        *index += 1;
     }
 
     for &item in node.children() {
@@ -499,10 +499,10 @@ impl WorldViewer {
                     let child_node = tree_node(ui, item);
                     if !data_provider.is_node_has_child(node_handle, child_node) {
                         ui.send_sync(tree_handle, TreeMessage::RemoveItem(item.transmute()));
-                        if let Some(existing_view) = self.node_to_view_map.get(&child_node) {
-                            if *existing_view == item {
-                                self.node_to_view_map.remove(&child_node);
-                            }
+                        if let Some(existing_view) = self.node_to_view_map.get(&child_node)
+                            && *existing_view == item
+                        {
+                            self.node_to_view_map.remove(&child_node);
                         }
                         items.remove(i);
                     } else {
@@ -658,15 +658,14 @@ impl WorldViewer {
 
         apply_filter_recursive(self.tree_root.to_base(), &self.filter.to_lowercase(), ui);
 
-        if self.filter.is_empty() {
-            if let Some(first) = data_provider.selection().first() {
-                if let Some(view) = self.node_to_view_map.get(first) {
-                    ui.send(
-                        self.scroll_view,
-                        ScrollViewerMessage::BringIntoView(view.to_base()),
-                    );
-                }
-            }
+        if self.filter.is_empty()
+            && let Some(first) = data_provider.selection().first()
+            && let Some(view) = self.node_to_view_map.get(first)
+        {
+            ui.send(
+                self.scroll_view,
+                ScrollViewerMessage::BringIntoView(view.to_base()),
+            );
         }
     }
 
@@ -720,22 +719,20 @@ impl WorldViewer {
             {
                 self.set_filter(text.clone(), data_provider, ui);
             }
-        } else if let Some(TreeMessage::Expand { expand, .. }) = message.data() {
-            if let Some(scene_view_item) = ui
+        } else if let Some(TreeMessage::Expand { expand, .. }) = message.data()
+            && let Some(scene_view_item) = ui
                 .node(message.destination())
                 .self_or_field_ref::<SceneItem>()
-            {
-                if let Some(path) = data_provider.path() {
-                    settings
-                        .scene_settings
-                        .entry(path.to_owned())
-                        .or_default()
-                        .node_infos
-                        .entry(scene_view_item.entity_handle)
-                        .or_default()
-                        .is_expanded = *expand;
-                }
-            }
+            && let Some(path) = data_provider.path()
+        {
+            settings
+                .scene_settings
+                .entry(path.to_owned())
+                .or_default()
+                .node_infos
+                .entry(scene_view_item.entity_handle)
+                .or_default()
+                .is_expanded = *expand;
         }
     }
 
@@ -792,17 +789,16 @@ impl WorldViewer {
         } else if ui.is_node_child_of(dropped, self.tree_root)
             && ui.is_node_child_of(target, self.tree_root)
             && dropped != target
-        {
-            if let (Some(child), Some(parent)) = (
+            && let (Some(child), Some(parent)) = (
                 ui.node(dropped).cast::<SceneItem>(),
                 ui.node(target).cast::<SceneItem>(),
-            ) {
-                data_provider.on_change_hierarchy_request(
-                    child.entity_handle,
-                    parent.entity_handle,
-                    parent.drop_anchor,
-                )
-            }
+            )
+        {
+            data_provider.on_change_hierarchy_request(
+                child.entity_handle,
+                parent.entity_handle,
+                parent.drop_anchor,
+            )
         }
     }
 
@@ -881,11 +877,7 @@ fn map_selection(
                         .is_some_and(|n| n.entity_handle == handle)
                 })
                 .to_variant();
-            if item.is_some() {
-                Some(item)
-            } else {
-                None
-            }
+            if item.is_some() { Some(item) } else { None }
         })
         .collect()
 }

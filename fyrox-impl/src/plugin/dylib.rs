@@ -33,8 +33,8 @@ use std::{
     io::Read,
     path::{Path, PathBuf},
     sync::{
-        atomic::{self, AtomicBool},
         Arc,
+        atomic::{self, AtomicBool},
     },
 };
 
@@ -175,15 +175,15 @@ impl DyLibDynamicPlugin {
 
             let mut watcher =
                 notify::recommended_watcher(move |event: notify::Result<notify::Event>| {
-                    if let Ok(event) = event {
-                        if let EventKind::Modify(_) | EventKind::Create(_) = event.kind {
-                            need_reload_clone.store(true, atomic::Ordering::Relaxed);
+                    if let Ok(event) = event
+                        && let EventKind::Modify(_) | EventKind::Create(_) = event.kind
+                    {
+                        need_reload_clone.store(true, atomic::Ordering::Relaxed);
 
-                            warn!(
-                                "Plugin {} was changed. Performing hot reloading...",
-                                source_lib_path_clone.display()
-                            )
-                        }
+                        warn!(
+                            "Plugin {} was changed. Performing hot reloading...",
+                            source_lib_path_clone.display()
+                        )
                     }
                 })
                 .map_err(|e| e.to_string())?;

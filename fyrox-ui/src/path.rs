@@ -27,6 +27,7 @@ use crate::button::Button;
 use crate::file_browser::{FileSelector, PathFilter};
 use crate::text_box::TextBox;
 use crate::{
+    BuildContext, Control, Thickness, UiNode, UserInterface,
     button::{ButtonBuilder, ButtonMessage},
     core::{pool::Handle, reflect::prelude::*, variable::InheritableVariable, visitor::prelude::*},
     file_browser::{FileSelectorBuilder, FileSelectorMessage},
@@ -36,7 +37,6 @@ use crate::{
     text_box::TextBoxBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{path::Path, path::PathBuf};
@@ -138,25 +138,26 @@ impl Control for PathEditor {
                 );
                 ui.send(*self.selector, FileSelectorMessage::FocusCurrentPath);
             }
-        } else if let Some(PathEditorMessage::Path(path)) = message.data_for(self.handle) {
-            if &*self.path != path {
-                self.path.set_value_and_mark_modified(path.clone());
+        } else if let Some(PathEditorMessage::Path(path)) = message.data_for(self.handle)
+            && &*self.path != path
+        {
+            self.path.set_value_and_mark_modified(path.clone());
 
-                ui.send(
-                    *self.text_field,
-                    TextMessage::Text(path.to_string_lossy().to_string()),
-                );
-                ui.try_send_response(message);
-            }
+            ui.send(
+                *self.text_field,
+                TextMessage::Text(path.to_string_lossy().to_string()),
+            );
+            ui.try_send_response(message);
         }
     }
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        if let Some(FileSelectorMessage::Commit(path)) = message.data() {
-            if message.destination() == *self.selector && &*self.path != path {
-                ui.send(*self.selector, WidgetMessage::Remove);
-                ui.send(self.handle, PathEditorMessage::Path(path.clone()));
-            }
+        if let Some(FileSelectorMessage::Commit(path)) = message.data()
+            && message.destination() == *self.selector
+            && &*self.path != path
+        {
+            ui.send(*self.selector, WidgetMessage::Remove);
+            ui.send(self.handle, PathEditorMessage::Path(path.clone()));
         }
     }
 }

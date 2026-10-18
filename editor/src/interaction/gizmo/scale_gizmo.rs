@@ -19,11 +19,12 @@
 // SOFTWARE.
 
 use crate::{
+    Engine,
     fyrox::{
         core::{
             algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
             color::Color,
-            math::{plane::Plane, Matrix4Ext},
+            math::{Matrix4Ext, plane::Plane},
             pool::Handle,
         },
         graph::SceneGraph,
@@ -31,8 +32,8 @@ use crate::{
             base::BaseBuilder,
             graph::Graph,
             mesh::{
-                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
                 MeshBuilder, RenderPath,
+                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
             },
             node::Node,
             transform::TransformBuilder,
@@ -43,7 +44,6 @@ use crate::{
     scene::{GameScene, Selection},
     set_mesh_diffuse_color,
     settings::Settings,
-    Engine,
 };
 use fyrox::core::reflect::prelude::*;
 use fyrox::scene::camera::Camera;
@@ -97,13 +97,13 @@ fn make_scale_axis(
                         ),
                 )
                 .with_render_path(RenderPath::Forward)
-                .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
-                    SurfaceData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
-                        0.1, 0.1, 0.1,
-                    ))),
-                ))
-                .with_material(make_color_material(color))
-                .build()])
+                .with_surfaces(vec![
+                    SurfaceBuilder::new(SurfaceResource::new_embedded(SurfaceData::make_cube(
+                        Matrix4::new_nonuniform_scaling(&Vector3::new(0.1, 0.1, 0.1)),
+                    )))
+                    .with_material(make_color_material(color))
+                    .build(),
+                ])
                 .build(graph);
                 arrow
             })
@@ -115,17 +115,17 @@ fn make_scale_axis(
             ),
     )
     .with_render_path(RenderPath::Forward)
-    .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
-        SurfaceData::make_cylinder(
+    .with_surfaces(vec![
+        SurfaceBuilder::new(SurfaceResource::new_embedded(SurfaceData::make_cylinder(
             10,
             ARROW_THICKNESS,
             ARROW_LENGTH,
             true,
             &Matrix4::identity(),
-        ),
-    ))
-    .with_material(make_color_material(color))
-    .build()])
+        )))
+        .with_material(make_color_material(color))
+        .build(),
+    ])
     .build(graph);
 
     (axis, arrow)
@@ -143,13 +143,13 @@ impl ScaleGizmo {
                 .with_visibility(false),
         )
         .with_render_path(RenderPath::Forward)
-        .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
-            SurfaceData::make_cube(Matrix4::new_nonuniform_scaling(&Vector3::new(
-                0.1, 0.1, 0.1,
-            ))),
-        ))
-        .with_material(make_color_material(Color::opaque(0, 255, 255)))
-        .build()])
+        .with_surfaces(vec![
+            SurfaceBuilder::new(SurfaceResource::new_embedded(SurfaceData::make_cube(
+                Matrix4::new_nonuniform_scaling(&Vector3::new(0.1, 0.1, 0.1)),
+            )))
+            .with_material(make_color_material(Color::opaque(0, 255, 255)))
+            .build(),
+        ])
         .build(graph);
 
         graph.link_nodes(origin, game_scene.editor_objects_root);
@@ -288,21 +288,21 @@ impl ScaleGizmo {
         .unwrap_or_default();
 
         // Get two intersection points with plane and use delta between them to calculate scale delta.
-        if let Some(initial_point) = initial_ray.plane_intersection_point(&plane) {
-            if let Some(next_point) = offset_ray.plane_intersection_point(&plane) {
-                let delta = next_point - initial_point;
-                return match self.mode {
-                    ScaleGizmoMode::None => unreachable!(),
-                    ScaleGizmoMode::X => Vector3::new(delta.x, 0.0, 0.0),
-                    ScaleGizmoMode::Y => Vector3::new(0.0, delta.y, 0.0),
-                    ScaleGizmoMode::Z => Vector3::new(0.0, 0.0, delta.z),
-                    ScaleGizmoMode::Uniform => {
-                        // TODO: Still may behave weird.
-                        let amount = delta.norm() * (delta.y + delta.x + delta.z).signum();
-                        Vector3::new(amount, amount, amount)
-                    }
-                };
-            }
+        if let Some(initial_point) = initial_ray.plane_intersection_point(&plane)
+            && let Some(next_point) = offset_ray.plane_intersection_point(&plane)
+        {
+            let delta = next_point - initial_point;
+            return match self.mode {
+                ScaleGizmoMode::None => unreachable!(),
+                ScaleGizmoMode::X => Vector3::new(delta.x, 0.0, 0.0),
+                ScaleGizmoMode::Y => Vector3::new(0.0, delta.y, 0.0),
+                ScaleGizmoMode::Z => Vector3::new(0.0, 0.0, delta.z),
+                ScaleGizmoMode::Uniform => {
+                    // TODO: Still may behave weird.
+                    let amount = delta.norm() * (delta.y + delta.x + delta.z).signum();
+                    Vector3::new(amount, amount, amount)
+                }
+            };
         }
 
         Vector3::default()

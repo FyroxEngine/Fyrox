@@ -25,14 +25,14 @@
 use super::collider::BitMask;
 use crate::{
     core::{
+        ImmutableString,
         algebra::{Matrix4, Vector3},
         log::Log,
-        math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
+        math::{Matrix4Ext, aabb::AxisAlignedBoundingBox},
         pool::{ErasedHandle, Handle},
         reflect::prelude::*,
         variable::InheritableVariable,
         visitor::prelude::*,
-        ImmutableString,
     },
     engine::SerializationContext,
     graph::SceneGraph,
@@ -920,15 +920,15 @@ impl Base {
 
         if let Some(entry) = self.scripts.get_mut(index) {
             entry.script = script;
-            if let Some(senders) = self.senders.as_ref() {
-                if entry.script.is_some() {
-                    Log::verify(senders.script_message_sender.send(
-                        NodeScriptMessage::InitializeScript {
-                            handle: self.self_handle,
-                            script_index: index,
-                        },
-                    ));
-                }
+            if let Some(senders) = self.senders.as_ref()
+                && entry.script.is_some()
+            {
+                Log::verify(senders.script_message_sender.send(
+                    NodeScriptMessage::InitializeScript {
+                        handle: self.self_handle,
+                        script_index: index,
+                    },
+                ));
             }
         }
     }
@@ -1123,18 +1123,17 @@ impl Base {
     pub fn root_resource(&self) -> Option<ModelResource> {
         if let Some(resource) = self.resource.as_ref() {
             let mut state = resource.state();
-            if let Some(model) = state.data() {
-                if let Ok(ancestor_node) = model
+            if let Some(model) = state.data()
+                && let Ok(ancestor_node) = model
                     .get_scene()
                     .graph
                     .try_get_node(self.original_handle_in_resource)
-                {
-                    return if ancestor_node.resource.is_none() {
-                        Some(resource.clone())
-                    } else {
-                        ancestor_node.root_resource()
-                    };
-                }
+            {
+                return if ancestor_node.resource.is_none() {
+                    Some(resource.clone())
+                } else {
+                    ancestor_node.root_resource()
+                };
             }
         }
         None

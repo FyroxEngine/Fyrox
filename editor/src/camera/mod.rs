@@ -22,10 +22,10 @@ use crate::settings::selection::SelectionSettings;
 use crate::{
     fyrox::{
         core::{
-            algebra::{clamp, Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
+            algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3, clamp},
             math::{
-                aabb::AxisAlignedBoundingBox, plane::Plane, ray::Ray, Matrix4Ext,
-                TriangleDefinition, Vector3Ext,
+                Matrix4Ext, TriangleDefinition, Vector3Ext, aabb::AxisAlignedBoundingBox,
+                plane::Plane, ray::Ray,
             },
             pool::Handle,
         },
@@ -33,6 +33,7 @@ use crate::{
         gui::message::{KeyCode, KeyboardModifiers, MouseButton},
         renderer::bundle::{RenderContext, RenderDataBundleStorage},
         scene::{
+            Scene,
             base::BaseBuilder,
             camera::{Camera, CameraBuilder, FitParameters, Projection},
             collider::BitMask,
@@ -45,13 +46,12 @@ use crate::{
             pivot::PivotBuilder,
             sound::listener::ListenerBuilder,
             transform::TransformBuilder,
-            Scene,
         },
     },
     settings::{
+        Settings,
         keys::KeyBindings,
         scene::{SceneCameraSettings, SceneSettings},
-        Settings,
     },
 };
 use bitflags::bitflags;
@@ -711,17 +711,16 @@ impl CameraController {
                 // Special case for prefab roots.
                 if let Some(prefab_pick_result) =
                     probe_hierarchy_precise(handle, graph, camera, ray, options.ignore_back_faces)
+                    && let Some(position) = prefab_pick_result.pick_position
                 {
-                    if let Some(position) = prefab_pick_result.pick_position {
-                        picked_meshes.push(CameraPickResult {
-                            position: position.closest_point,
-                            node: handle,
-                            toi: position.closest_distance.max(toi_limit),
-                        });
-                        // Limit selection toi for descendants to always prefer the
-                        // prefab root in selection.
-                        toi_limit = toi_limit.max(position.closest_distance) + f32::EPSILON;
-                    }
+                    picked_meshes.push(CameraPickResult {
+                        position: position.closest_point,
+                        node: handle,
+                        toi: position.closest_distance.max(toi_limit),
+                    });
+                    // Limit selection toi for descendants to always prefer the
+                    // prefab root in selection.
+                    toi_limit = toi_limit.max(position.closest_distance) + f32::EPSILON;
                 }
             } else {
                 let aabb = node
@@ -735,15 +734,14 @@ impl CameraController {
                     let mut added = false;
                     if options.method.contains(PickMethod::PRECISE_HULL_RAY_TEST)
                         && result.has_hull()
+                        && let Some(position) = result.pick_position
                     {
-                        if let Some(position) = result.pick_position {
-                            picked_meshes.push(CameraPickResult {
-                                position: position.closest_point,
-                                node: handle,
-                                toi: position.closest_distance.max(toi_limit),
-                            });
-                            added = true;
-                        }
+                        picked_meshes.push(CameraPickResult {
+                            position: position.closest_point,
+                            node: handle,
+                            toi: position.closest_distance.max(toi_limit),
+                        });
+                        added = true;
                     }
 
                     if !added && options.method.contains(PickMethod::COARSE_AABB_RAY_TEST) {
@@ -851,10 +849,10 @@ impl CameraController {
         }
         context.old_cursor_pos = options.cursor_pos;
 
-        if !context.pick_list.is_empty() {
-            if let Some(result) = context.pick_list.get(context.pick_index) {
-                return Some(result.clone());
-            }
+        if !context.pick_list.is_empty()
+            && let Some(result) = context.pick_list.get(context.pick_index)
+        {
+            return Some(result.clone());
         }
 
         None

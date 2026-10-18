@@ -29,12 +29,12 @@ use crate::fyrox::{
     },
     graph::SceneGraph,
     gui::{
+        BuildContext, Control, UiNode, UserInterface,
         brush::Brush,
         define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
         message::{MessageDirection, MouseButton, UiMessage},
         widget::{Widget, WidgetBuilder, WidgetMessage},
-        BuildContext, Control, UiNode, UserInterface,
     },
 };
 use crate::plugins::absm::{
@@ -276,29 +276,29 @@ impl AbsmCanvas {
                     })
                     .enumerate()
                 {
-                    if transition_handle == transition.handle() {
-                        if let (Ok(source_state), Ok(dest_state)) = (
+                    if transition_handle == transition.handle()
+                        && let (Ok(source_state), Ok(dest_state)) = (
                             ui.try_get_node(transition.segment.source),
                             ui.try_get_node(transition.segment.dest),
-                        ) {
-                            let source_pos = source_state.center();
-                            let dest_pos = dest_state.center();
+                        )
+                    {
+                        let source_pos = source_state.center();
+                        let dest_pos = dest_state.center();
 
-                            let delta = dest_pos - source_pos;
-                            let offset = Vector2::new(delta.y, -delta.x)
-                                .normalize()
-                                .scale(15.0 * i as f32);
+                        let delta = dest_pos - source_pos;
+                        let offset = Vector2::new(delta.y, -delta.x)
+                            .normalize()
+                            .scale(15.0 * i as f32);
 
-                            ui.send(
-                                transition.handle(),
-                                SegmentMessage::SourcePosition(source_pos + offset),
-                            );
+                        ui.send(
+                            transition.handle(),
+                            SegmentMessage::SourcePosition(source_pos + offset),
+                        );
 
-                            ui.send(
-                                transition.handle(),
-                                SegmentMessage::DestPosition(dest_pos + offset),
-                            );
-                        }
+                        ui.send(
+                            transition.handle(),
+                            SegmentMessage::DestPosition(dest_pos + offset),
+                        );
                     }
                 }
             }
@@ -648,23 +648,22 @@ impl Control for AbsmCanvas {
                     }),
                 )
             }
-        } else if let Some(WidgetMessage::DesiredPosition(_)) = message.data() {
-            if ui
+        } else if let Some(WidgetMessage::DesiredPosition(_)) = message.data()
+            && ui
                 .node(message.destination())
                 .is_or_has_field::<AbsmBaseNode>()
-            {
-                let moved_node = message.destination();
-                self.sync_connections_ends(moved_node, ui, false);
-                self.sync_transitions_ends(moved_node, ui, false);
-            }
+        {
+            let moved_node = message.destination();
+            self.sync_connections_ends(moved_node, ui, false);
+            self.sync_transitions_ends(moved_node, ui, false);
         }
     }
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        if let Some(WidgetMessage::MouseUp { button, pos }) = message.data() {
-            if *button == MouseButton::Left {
-                self.lmb_released_node.set(ui.hit_test_unrestricted(*pos));
-            }
+        if let Some(WidgetMessage::MouseUp { button, pos }) = message.data()
+            && *button == MouseButton::Left
+        {
+            self.lmb_released_node.set(ui.hit_test_unrestricted(*pos));
         }
     }
 }

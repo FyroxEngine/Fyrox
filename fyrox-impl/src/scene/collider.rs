@@ -30,25 +30,25 @@ use crate::{
         num_traits::{NumCast, One, ToPrimitive, Zero},
         pool::Handle,
         reflect::prelude::*,
-        uuid::{uuid, Uuid},
+        uuid::{Uuid, uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
     },
     scene::{
+        Scene,
         base::{Base, BaseBuilder},
         graph::{
-            physics::{CoefficientCombineRule, ContactPair, IntersectionPair, PhysicsWorld},
             Graph,
+            physics::{CoefficientCombineRule, ContactPair, IntersectionPair, PhysicsWorld},
         },
         node::{Node, NodeTrait, SyncContext},
         rigidbody::RigidBody,
-        Scene,
     },
 };
 use fyrox_core::algebra::{Isometry3, Translation3};
 
-use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::SceneGraph;
+use fyrox_graph::constructor::ConstructorProvider;
 use rapier3d::geometry::{self, ColliderHandle};
 use std::fmt::Write;
 use std::{
@@ -1024,18 +1024,18 @@ impl NodeTrait for Collider {
     }
 
     fn on_local_transform_changed(&self, context: &mut SyncContext) {
-        if self.native.get() != ColliderHandle::invalid() {
-            if let Some(native) = context.physics.colliders.get_mut(self.native.get()) {
-                native.set_position_wrt_parent(
-                    Isometry3 {
-                        rotation: **self.local_transform().rotation(),
-                        translation: Translation3 {
-                            vector: **self.local_transform().position(),
-                        },
-                    }
-                    .into(),
-                );
-            }
+        if self.native.get() != ColliderHandle::invalid()
+            && let Some(native) = context.physics.colliders.get_mut(self.native.get())
+        {
+            native.set_position_wrt_parent(
+                Isometry3 {
+                    rotation: **self.local_transform().rotation(),
+                    translation: Translation3 {
+                        vector: **self.local_transform().position(),
+                    },
+                }
+                .into(),
+            );
         }
     }
 

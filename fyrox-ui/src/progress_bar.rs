@@ -23,15 +23,15 @@
 
 #![warn(missing_docs)]
 
-use crate::style::resource::StyleResourceExt;
 use crate::style::Style;
+use crate::style::resource::StyleResourceExt;
 use crate::{
+    BuildContext, Control, UiNode, UserInterface,
     border::BorderBuilder,
     canvas::CanvasBuilder,
     core::{algebra::Vector2, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     message::UiMessage,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, UiNode, UserInterface,
 };
 
 use crate::message::MessageData;
@@ -132,15 +132,13 @@ impl Control for ProgressBar {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.destination() == self.handle {
-            if let Some(&ProgressBarMessage::Progress(progress)) =
+        if message.destination() == self.handle
+            && let Some(&ProgressBarMessage::Progress(progress)) =
                 message.data::<ProgressBarMessage>()
-            {
-                if progress != *self.progress {
-                    self.set_progress(progress);
-                    self.invalidate_layout();
-                }
-            }
+            && progress != *self.progress
+        {
+            self.set_progress(progress);
+            self.invalidate_layout();
         }
     }
 }

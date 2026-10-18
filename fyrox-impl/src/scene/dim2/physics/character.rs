@@ -29,11 +29,11 @@ use crate::{
     scene::{
         dim2::{
             self,
-            physics::{filter_by_predicate, QueryFilter},
+            physics::{QueryFilter, filter_by_predicate},
         },
         graph::{
-            physics::character::{CharacterAutostep, CharacterLength},
             Graph,
+            physics::character::{CharacterAutostep, CharacterLength},
         },
     },
 };

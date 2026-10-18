@@ -21,7 +21,7 @@
 //! Curve resource holds a [`Curve`]
 
 use crate::{
-    asset::{io::ResourceIo, Resource, ResourceData},
+    asset::{Resource, ResourceData, io::ResourceIo},
     core::{io::FileError, math::curve::Curve, reflect::prelude::*, visitor::prelude::*},
 };
 use std::error::Error;

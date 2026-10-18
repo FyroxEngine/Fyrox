@@ -23,12 +23,12 @@
 use crate::{
     core::{algebra::Vector3, numeric_range::RangeExt, reflect::prelude::*, visitor::prelude::*},
     scene::particle_system::{
+        ParticleSystemRng,
         emitter::{
-            base::{BaseEmitter, BaseEmitterBuilder},
             Emit, Emitter,
+            base::{BaseEmitter, BaseEmitterBuilder},
         },
         particle::Particle,
-        ParticleSystemRng,
     },
 };
 use std::ops::{Deref, DerefMut};

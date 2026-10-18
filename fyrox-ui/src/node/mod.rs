@@ -21,13 +21,13 @@
 //! UI node is a type-agnostic wrapper for any widget type. See [`UiNode`] docs for more info.
 
 use crate::{
-    core::{pool::Handle, reflect::prelude::*, variable, visitor::prelude::*, NameProvider},
-    widget::Widget,
     Control, ControlAsAny, UserInterface,
+    core::{NameProvider, pool::Handle, reflect::prelude::*, variable, visitor::prelude::*},
+    widget::Widget,
 };
 
 use fyrox_graph::NodeWrapper;
-use fyrox_resource::{untyped::UntypedResource, Resource};
+use fyrox_resource::{Resource, untyped::UntypedResource};
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},

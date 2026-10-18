@@ -20,7 +20,7 @@
 
 use crate::{
     project::ProjectWizard,
-    settings::{Project, Settings, SettingsWindow, MANIFEST_DIR_VAR, MANIFEST_PATH_VAR},
+    settings::{MANIFEST_DIR_VAR, MANIFEST_PATH_VAR, Project, Settings, SettingsWindow},
     upgrade::UpgradeTool,
     utils::{self, is_production_ready},
 };
@@ -33,6 +33,8 @@ use fyrox::{
     },
     event_loop::ActiveEventLoop,
     gui::{
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        VerticalAlignment,
         border::BorderBuilder,
         brush::Brush,
         button::{Button, ButtonBuilder, ButtonMessage},
@@ -53,25 +55,23 @@ use fyrox::{
         navigation::NavigationLayerBuilder,
         searchbar::{SearchBar, SearchBarBuilder, SearchBarMessage},
         stack_panel::{StackPanel, StackPanelBuilder},
-        style::{resource::StyleResourceExt, Style},
+        style::{Style, resource::StyleResourceExt},
         text::{Text, TextBuilder, TextMessage},
         text_box::EmptyTextPlaceholder,
         utils::{
-            load_image, make_simple_tooltip, make_text_and_image_button_with_tooltip,
-            ImageButtonBuilder,
+            ImageButtonBuilder, load_image, make_simple_tooltip,
+            make_text_and_image_button_with_tooltip,
         },
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-        VerticalAlignment,
     },
 };
-use fyrox_build_tools::{build::BuildWindow, BuildProfile, CommandDescriptor};
+use fyrox_build_tools::{BuildProfile, CommandDescriptor, build::BuildWindow};
 use std::{
     collections::VecDeque,
     path::{Path, PathBuf},
     process::Stdio,
-    sync::mpsc::{channel, Receiver, Sender},
+    sync::mpsc::{Receiver, Sender, channel},
 };
 
 pub enum Mode {
@@ -1211,9 +1211,10 @@ impl ProjectManager {
     }
 
     fn on_hot_reload_changed(&mut self, value: bool, ui: &mut UserInterface) {
-        let project = some_or_return!(self
-            .selection
-            .and_then(|i| self.settings.projects.get_mut(i)));
+        let project = some_or_return!(
+            self.selection
+                .and_then(|i| self.settings.projects.get_mut(i))
+        );
         if project.hot_reload != value {
             project.hot_reload = value;
             self.refresh(ui);
@@ -1251,10 +1252,10 @@ impl ProjectManager {
         ui: &mut UserInterface,
         active_event_loop: &ActiveEventLoop,
     ) {
-        if let Some(project_wizard) = self.project_wizard.as_mut() {
-            if project_wizard.handle_ui_message(message, ui, &mut self.settings) {
-                self.refresh(ui);
-            }
+        if let Some(project_wizard) = self.project_wizard.as_mut()
+            && project_wizard.handle_ui_message(message, ui, &mut self.settings)
+        {
+            self.refresh(ui);
         }
 
         self.log.handle_ui_message(message, ui);
@@ -1268,16 +1269,15 @@ impl ProjectManager {
                 settings_window.handle_ui_message(&mut self.settings, message, ui);
         }
 
-        if let Some(upgrade_tool) = self.upgrade_tool.take() {
-            if let Some(index) = self.selection {
-                if let Some(project) = self.settings.projects.get(index) {
-                    let mut need_refresh = false;
-                    self.upgrade_tool =
-                        upgrade_tool.handle_ui_message(message, ui, project, &mut need_refresh);
-                    if need_refresh {
-                        self.refresh(ui);
-                    }
-                }
+        if let Some(upgrade_tool) = self.upgrade_tool.take()
+            && let Some(index) = self.selection
+            && let Some(project) = self.settings.projects.get(index)
+        {
+            let mut need_refresh = false;
+            self.upgrade_tool =
+                upgrade_tool.handle_ui_message(message, ui, project, &mut need_refresh);
+            if need_refresh {
+                self.refresh(ui);
             }
         }
 
@@ -1311,14 +1311,14 @@ impl ProjectManager {
         } else if let Some(MessageBoxMessage::Close(MessageBoxResult::Yes)) =
             message.data_from(self.deletion_confirmation_dialog)
         {
-            if let Some(index) = self.selection {
-                if let Some(project) = self.settings.projects.get(index) {
-                    if let Some(dir) = project.manifest_path.parent() {
-                        let _ = std::fs::remove_dir_all(dir);
-                    }
-                    self.settings.projects.remove(index);
-                    self.refresh(ui);
+            if let Some(index) = self.selection
+                && let Some(project) = self.settings.projects.get(index)
+            {
+                if let Some(dir) = project.manifest_path.parent() {
+                    let _ = std::fs::remove_dir_all(dir);
                 }
+                self.settings.projects.remove(index);
+                self.refresh(ui);
             }
         } else if let Some(WidgetMessage::KeyDown(key)) = message.data() {
             if !message.handled() {

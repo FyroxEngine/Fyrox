@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    Message,
     command::make_command,
     fyrox::{
         core::{log::Log, pool::Handle},
@@ -27,30 +28,29 @@ use crate::{
         },
         graph::{NodeWrapper, PrefabData, SceneGraph},
         gui::{
+            BuildContext, UserInterface,
             inspector::{
+                InspectorBuilder, InspectorContext, InspectorContextArgs, InspectorMessage,
+                PropertyAction,
                 editors::{
+                    PropertyEditorDefinitionContainer,
                     collection::VecCollectionPropertyEditorDefinition,
                     enumeration::EnumPropertyEditorDefinition,
                     inspectable::InspectablePropertyEditorDefinition,
-                    PropertyEditorDefinitionContainer,
                 },
-                InspectorBuilder, InspectorContext, InspectorContextArgs, InspectorMessage,
-                PropertyAction,
             },
             message::UiMessage,
             scroll_viewer::ScrollViewerBuilder,
             widget::WidgetBuilder,
             window::{WindowBuilder, WindowTitle},
-            BuildContext, UserInterface,
         },
     },
     message::MessageSender,
     plugins::absm::command::fetch_machine,
-    Message,
 };
+use fyrox::gui::Thickness;
 use fyrox::gui::inspector::Inspector;
 use fyrox::gui::window::Window;
-use fyrox::gui::Thickness;
 use std::sync::Arc;
 
 pub struct ParameterPanel {

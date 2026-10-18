@@ -21,7 +21,8 @@
 use fyrox::{
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     gui::{
-        control_trait_proxy_impls, define_widget_deref_proxy,
+        BuildContext, Control, Thickness, UiNode, UserInterface, control_trait_proxy_impls,
+        define_widget_deref_proxy,
         formatted_text::WrapMode,
         message::{MessageData, UiMessage},
         scroll_viewer::ScrollViewerBuilder,
@@ -29,7 +30,6 @@ use fyrox::{
         text_box::{TextBox, TextBoxBuilder, TextCommitMode},
         widget::WidgetBuilder,
         window::{Window, WindowAlignment, WindowBuilder, WindowMessage},
-        BuildContext, Control, Thickness, UiNode, UserInterface,
     },
     material::shader::ShaderSourceCode,
 };

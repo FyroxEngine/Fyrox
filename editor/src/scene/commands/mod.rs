@@ -23,17 +23,16 @@ use crate::fyrox::{
     core::{log::Log, pool::Handle, reflect::prelude::*},
     engine::SerializationContext,
     graph::{NodeWrapper, SceneGraph},
-    scene::{graph::SubGraph, node::Node, Scene},
+    scene::{Scene, graph::SubGraph, node::Node},
 };
 use crate::{
-    command::{Command, CommandContext, CommandGroup, CommandTrait},
+    Message,
+    command::{CommandContext, CommandTrait},
     message::MessageSender,
     scene::{
+        GraphSelection, Selection,
         clipboard::{Clipboard, DeepCloneResult},
-        commands::graph::DeleteSubGraphCommand,
-        GameScene, GraphSelection, Selection,
     },
-    Engine, Message,
 };
 use std::sync::Arc;
 
@@ -79,8 +78,8 @@ impl GameSceneContext {
         // SAFETY: Temporarily extend lifetime to 'static and execute external closure with it.
         // The closure accepts this extended context by reference, so there's no way it escapes to
         // outer world. The initial lifetime is still preserved by this function call.
-        func(unsafe {
-            &mut Self {
+        let mut ctx = unsafe {
+            Self {
                 selection: std::mem::transmute::<&'a mut _, &'static mut _>(selection),
                 scene: std::mem::transmute::<&'a mut _, &'static mut _>(scene),
                 scene_content_root: std::mem::transmute::<&'a mut _, &'static mut _>(
@@ -91,66 +90,13 @@ impl GameSceneContext {
                 resource_manager,
                 serialization_context,
             }
-        });
+        };
+
+        func(&mut ctx);
     }
 }
 
 impl CommandContext for GameSceneContext {}
-
-pub fn selection_to_delete(editor_selection: &Selection, game_scene: &GameScene) -> GraphSelection {
-    // Graph's root is non-deletable.
-    let mut selection = if let Some(selection) = editor_selection.as_graph() {
-        selection.clone()
-    } else {
-        Default::default()
-    };
-    if let Some(root_position) = selection
-        .nodes
-        .iter()
-        .position(|&n| n == game_scene.scene_content_root)
-    {
-        selection.nodes.remove(root_position);
-    }
-
-    selection
-}
-
-/// Creates scene command (command group) which removes current selection in editor's scene.
-/// This is **not** trivial because each node has multiple connections inside engine and
-/// in editor's data model, so we have to thoroughly build command using simple commands.
-pub fn make_delete_selection_command(
-    editor_selection: &Selection,
-    game_scene: &GameScene,
-    engine: &Engine,
-) -> Command {
-    let selection = selection_to_delete(editor_selection, game_scene);
-
-    let graph = &engine.scenes[game_scene.scene].graph;
-
-    // Change selection first.
-    let mut command_group = CommandGroup::from(vec![Command::new(ChangeSelectionCommand::new(
-        Default::default(),
-    ))]);
-
-    // Find sub-graphs to delete - we need to do this because we can end up in situation like this:
-    // A_
-    //   B_      <-
-    //   | C       | these are selected
-    //   | D_    <-
-    //   |   E
-    //   F
-    // In this case we must deleted only node B, there is no need to delete node D separately because
-    // by engine's design when we delete a node, we also delete all its children. So we have to keep
-    // this behaviour in editor too.
-
-    let root_nodes = selection.root_nodes(graph);
-
-    for root_node in root_nodes {
-        command_group.push(DeleteSubGraphCommand::new(root_node));
-    }
-
-    Command::new(command_group)
-}
 
 #[derive(Debug)]
 pub struct ChangeSelectionCommand {

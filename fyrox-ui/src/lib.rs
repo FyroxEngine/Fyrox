@@ -257,6 +257,7 @@ pub mod key;
 pub mod list_view;
 pub mod loader;
 pub mod log;
+pub mod markdown;
 pub mod matrix;
 pub mod menu;
 pub mod message;
@@ -301,6 +302,7 @@ use crate::{
     constructor::WidgetConstructorContainer,
     container::WidgetContainer,
     core::{
+        SafeLock,
         algebra::{Matrix3, Vector2},
         color::Color,
         futures::future::join_all,
@@ -309,12 +311,11 @@ use crate::{
         parking_lot::Mutex,
         pool::{Handle, ObjectOrVariant, Pool, Ticket},
         reflect::prelude::*,
-        uuid::{uuid, Uuid},
+        uuid::{Uuid, uuid},
         visitor::prelude::*,
-        SafeLock,
     },
     draw::{CommandTexture, Draw, DrawingContext},
-    font::{FontResource, BUILT_IN_FONT},
+    font::{BUILT_IN_FONT, FontResource},
     message::{
         ButtonState, CursorIcon, KeyboardModifiers, MessageDirection, MouseButton, OsEvent,
         UiMessage,
@@ -322,8 +323,8 @@ use crate::{
     message::{DeliveryMode, MessageData, RoutingStrategy},
     popup::{Placement, PopupMessage},
     style::{
+        DEFAULT_STYLE, Style,
         resource::{StyleResource, StyleResourceExt},
-        Style, DEFAULT_STYLE,
     },
     widget::{Widget, WidgetBuilder, WidgetMaterial, WidgetMessage},
 };
@@ -332,24 +333,24 @@ use fxhash::{FxHashMap, FxHashSet};
 pub use fyrox_animation as generic_animation;
 use fyrox_graph::{NodeHandleMap, NodeMapping, NodeWrapper, PrefabData, SceneGraph};
 use fyrox_resource::{
+    Resource, ResourceData,
     io::{FsResourceIo, ResourceIo},
     manager::ResourceManager,
     untyped::UntypedResource,
-    Resource, ResourceData,
 };
 use fyrox_texture::TextureResource;
 use serde::{Deserialize, Serialize};
 use std::{
     any::TypeId,
     cell::{Ref, RefCell, RefMut},
-    collections::{btree_set::BTreeSet, hash_map::Entry, VecDeque},
+    collections::{VecDeque, btree_set::BTreeSet, hash_map::Entry},
     error::Error,
     fmt::{Debug, Formatter, Write},
     ops::{Deref, DerefMut, Index, IndexMut},
     path::Path,
     sync::{
-        mpsc::{self, Receiver, Sender},
         Arc,
+        mpsc::{self, Receiver, Sender},
     },
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};
@@ -1389,26 +1390,26 @@ impl UserInterface {
                 .nodes
                 .try_borrow_dependant_mut(node_handle, |n| n.parent());
 
-            if let Ok(widget) = widget {
-                if widget.is_globally_visible() {
-                    self.stack.extend_from_slice(widget.children());
+            if let Ok(widget) = widget
+                && widget.is_globally_visible()
+            {
+                self.stack.extend_from_slice(widget.children());
 
-                    let mut layout_transform = *widget.layout_transform();
+                let mut layout_transform = *widget.layout_transform();
 
-                    layout_transform[6] = widget.actual_local_position().x;
-                    layout_transform[7] = widget.actual_local_position().y;
+                layout_transform[6] = widget.actual_local_position().x;
+                layout_transform[7] = widget.actual_local_position().y;
 
-                    let visual_transform = if let Ok(parent) = parent {
-                        parent.visual_transform() * layout_transform * widget.render_transform()
-                    } else {
-                        layout_transform * widget.render_transform()
-                    };
+                let visual_transform = if let Ok(parent) = parent {
+                    parent.visual_transform() * layout_transform * widget.render_transform()
+                } else {
+                    layout_transform * widget.render_transform()
+                };
 
-                    let old_transform =
-                        std::mem::replace(&mut widget.visual_transform, visual_transform);
-                    widget.on_visual_transform_changed(&old_transform, &visual_transform);
-                    widget.visual_valid.set(false);
-                }
+                let old_transform =
+                    std::mem::replace(&mut widget.visual_transform, visual_transform);
+                widget.on_visual_transform_changed(&old_transform, &visual_transform);
+                widget.visual_valid.set(false);
             }
         }
     }
@@ -1716,25 +1717,24 @@ impl UserInterface {
             }
         }
 
-        if let Ok(keyboard_focus_node) = self.nodes.try_borrow(self.keyboard_focus_node) {
-            if keyboard_focus_node.global_visibility
-                && keyboard_focus_node.accepts_input
-                && is_on_screen(keyboard_focus_node, &self.nodes)
-            {
-                let bounds = keyboard_focus_node
-                    .screen_bounds()
-                    .clip_by(keyboard_focus_node.clip_bounds())
-                    .unwrap_or_default()
-                    .inflate(1.0, 1.0);
-                self.drawing_context.push_rounded_rect(&bounds, 1.0, 2.0, 6);
-                self.drawing_context.commit(
-                    bounds,
-                    self.style.get_or_default(Style::BRUSH_HIGHLIGHT),
-                    CommandTexture::None,
-                    &self.standard_material,
-                    None,
-                );
-            }
+        if let Ok(keyboard_focus_node) = self.nodes.try_borrow(self.keyboard_focus_node)
+            && keyboard_focus_node.global_visibility
+            && keyboard_focus_node.accepts_input
+            && is_on_screen(keyboard_focus_node, &self.nodes)
+        {
+            let bounds = keyboard_focus_node
+                .screen_bounds()
+                .clip_by(keyboard_focus_node.clip_bounds())
+                .unwrap_or_default()
+                .inflate(1.0, 1.0);
+            self.drawing_context.push_rounded_rect(&bounds, 1.0, 2.0, 6);
+            self.drawing_context.commit(
+                bounds,
+                self.style.get_or_default(Style::BRUSH_HIGHLIGHT),
+                CommandTexture::None,
+                &self.standard_material,
+                None,
+            );
         }
     }
 
@@ -1919,11 +1919,11 @@ impl UserInterface {
             if !clipped {
                 // TODO: Use post draw as well.
                 for command in render_data_set.draw_result.command_buffer.iter() {
-                    if let Some(geometry) = command.clipping_geometry.as_ref() {
-                        if geometry.is_contains_point(pt) {
-                            clipped = false;
-                            break;
-                        }
+                    if let Some(geometry) = command.clipping_geometry.as_ref()
+                        && geometry.is_contains_point(pt)
+                    {
+                        clipped = false;
+                        break;
                     }
                 }
             }
@@ -2689,11 +2689,11 @@ impl UserInterface {
                 let mut tooltip_owner_hovered = false;
                 let mut handle = self.picked_node;
                 while let Ok(node) = self.nodes.try_borrow(handle) {
-                    if let Some(tooltip) = node.tooltip.as_ref() {
-                        if &entry.tooltip == tooltip {
-                            tooltip_owner_hovered = true;
-                            break;
-                        }
+                    if let Some(tooltip) = node.tooltip.as_ref()
+                        && &entry.tooltip == tooltip
+                    {
+                        tooltip_owner_hovered = true;
+                        break;
                     }
                     handle = node.parent();
                 }
@@ -2721,13 +2721,13 @@ impl UserInterface {
                 let disappear_timeout = node.tooltip_time();
                 self.replace_or_update_tooltip(tooltip, disappear_timeout);
                 break;
-            } else if let Some(entry) = self.active_tooltip.as_mut() {
-                if entry.tooltip.handle() == handle {
-                    // The current node was a tooltip.
-                    // We refresh the timer back to the stored max time.
-                    entry.disappear_timer = entry.max_time;
-                    break;
-                }
+            } else if let Some(entry) = self.active_tooltip.as_mut()
+                && entry.tooltip.handle() == handle
+            {
+                // The current node was a tooltip.
+                // We refresh the timer back to the stored max time.
+                entry.disappear_timer = entry.max_time;
+                break;
             }
 
             handle = parent;
@@ -2989,29 +2989,26 @@ impl UserInterface {
                 state,
                 text,
             } => {
-                if let Ok(keyboard_focus_node) = self.try_get_node(self.keyboard_focus_node) {
-                    if keyboard_focus_node.is_globally_visible() {
-                        match state {
-                            ButtonState::Pressed => {
+                if let Ok(keyboard_focus_node) = self.try_get_node(self.keyboard_focus_node)
+                    && keyboard_focus_node.is_globally_visible()
+                {
+                    match state {
+                        ButtonState::Pressed => {
+                            self.post(self.keyboard_focus_node, WidgetMessage::KeyDown(*button));
+
+                            if !text.is_empty() {
                                 self.post(
                                     self.keyboard_focus_node,
-                                    WidgetMessage::KeyDown(*button),
+                                    WidgetMessage::Text(text.clone()),
                                 );
-
-                                if !text.is_empty() {
-                                    self.post(
-                                        self.keyboard_focus_node,
-                                        WidgetMessage::Text(text.clone()),
-                                    );
-                                }
-                            }
-                            ButtonState::Released => {
-                                self.post(self.keyboard_focus_node, WidgetMessage::KeyUp(*button))
                             }
                         }
-
-                        event_processed = true;
+                        ButtonState::Released => {
+                            self.post(self.keyboard_focus_node, WidgetMessage::KeyUp(*button))
+                        }
                     }
+
+                    event_processed = true;
                 }
             }
             OsEvent::TextInput(text) => {
@@ -3481,10 +3478,10 @@ impl UserInterface {
         limit: Option<usize>,
         counter: &mut usize,
     ) -> Handle<UiNode> {
-        if let Some(limit) = limit {
-            if *counter >= limit {
-                return Default::default();
-            }
+        if let Some(limit) = limit
+            && *counter >= limit
+        {
+            return Default::default();
         }
 
         let Ok(node) = self.nodes.try_borrow(node_handle) else {
@@ -3722,7 +3719,7 @@ impl SceneGraph for UserInterface {
                 self.captured_node = Handle::NONE;
             }
             if self.keyboard_focus_node == handle {
-                self.keyboard_focus_node = Handle::NONE;
+                self.request_focus(self.root_canvas);
             }
             self.remove_picking_restriction(handle);
 
@@ -4050,13 +4047,13 @@ impl ResourceData for UserInterface {
 mod test_inner {
     use crate::message::UiMessage;
     use crate::{
+        OsEvent, UserInterface,
         border::BorderBuilder,
         core::algebra::{Rotation2, UnitComplex, Vector2},
         message::{ButtonState, KeyCode},
         text_box::TextBoxBuilder,
         transform_size,
         widget::{WidgetBuilder, WidgetMessage},
-        OsEvent, UserInterface,
     };
 
     #[test]

@@ -24,10 +24,12 @@
 
 #![warn(missing_docs)]
 
-use crate::style::resource::StyleResourceExt;
 use crate::style::Style;
+use crate::style::resource::StyleResourceExt;
 use crate::widget::WidgetMessage;
 use crate::{
+    BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
+    VerticalAlignment,
     border::BorderBuilder,
     brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
@@ -44,8 +46,6 @@ use crate::{
     utils::make_cross_primitive,
     vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
-    VerticalAlignment,
 };
 
 use crate::button::Button;
@@ -138,18 +138,17 @@ impl Control for SearchBar {
             }
         }
 
-        if message.destination() == *self.clear {
-            if let Some(ButtonMessage::Click) = message.data() {
-                ui.send(self.handle, SearchBarMessage::Text(String::new()));
-            }
+        if message.destination() == *self.clear
+            && let Some(ButtonMessage::Click) = message.data()
+        {
+            ui.send(self.handle, SearchBarMessage::Text(String::new()));
         }
 
         if message.destination() == *self.text_box
             && message.direction() == MessageDirection::FromWidget
+            && let Some(TextMessage::Text(text)) = message.data()
         {
-            if let Some(TextMessage::Text(text)) = message.data() {
-                ui.post(self.handle, SearchBarMessage::Text(text.clone()));
-            }
+            ui.post(self.handle, SearchBarMessage::Text(text.clone()));
         }
     }
 }

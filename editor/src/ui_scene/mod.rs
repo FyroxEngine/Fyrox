@@ -27,6 +27,7 @@ pub mod selection;
 pub mod utils;
 
 use crate::{
+    Message,
     asset::item::AssetItem,
     command::{Command, CommandGroup, CommandStack},
     fyrox::{
@@ -43,11 +44,11 @@ use crate::{
         fxhash::FxHashSet,
         graph::SceneGraph,
         gui::{
+            UiNode, UiUpdateSwitches, UserInterface, UserInterfaceResourceExtension,
             brush::Brush,
             draw::{CommandTexture, Draw},
             file_browser::FileType,
             message::{KeyCode, MessageDirection, MouseButton, UiMessage},
-            UiNode, UiUpdateSwitches, UserInterface, UserInterfaceResourceExtension,
         },
         renderer::ui_renderer::UiRenderInfo,
         resource::texture::{TextureKind, TextureResource, TextureResourceExtension},
@@ -58,17 +59,16 @@ use crate::{
         HandlePropertyEditorHierarchyMessage, HandlePropertyEditorNameMessage,
     },
     scene::{
-        commands::ChangeSelectionCommand, controller::SceneController, selector::HierarchyNode,
-        Selection,
+        Selection, commands::ChangeSelectionCommand, controller::SceneController,
+        selector::HierarchyNode,
     },
-    settings::{keys::KeyBindings, Settings},
+    settings::{Settings, keys::KeyBindings},
     ui_scene::{
         clipboard::Clipboard,
-        commands::{graph::AddUiPrefabCommand, UiSceneContext},
+        commands::{UiSceneContext, graph::AddUiPrefabCommand},
         selection::UiSelection,
         utils::make_widget_name,
     },
-    Message,
 };
 use std::{fs::File, io::Write, path::Path};
 
@@ -461,7 +461,7 @@ impl SceneController for UiScene {
                         self.ui
                             .try_get_node((*handle).into())
                             .ok()
-                            .map(make_widget_name),
+                            .map(|n| make_widget_name(n, &engine.resource_manager)),
                     ))
                     .with_destination(*view)
                     .with_direction(MessageDirection::ToWidget),
@@ -505,5 +505,15 @@ impl SceneController for UiScene {
                 name
             })
             .collect::<Vec<_>>()
+    }
+
+    fn selection_external_refs(
+        &self,
+        editor_selection: &Selection,
+        _engine: &Engine,
+    ) -> Option<String> {
+        editor_selection
+            .as_ui()
+            .and_then(|s| self.ui.external_refs_summary(&s.widgets))
     }
 }

@@ -21,11 +21,11 @@
 use crate::{
     core::math::Rect,
     inspector::{
+        FieldAction, InspectorError, PropertyChanged,
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldAction, InspectorError, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
     numeric::NumericType,
@@ -95,16 +95,15 @@ where
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(RectEditorMessage::Value(value)) =
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(RectEditorMessage::Value(value)) =
                 ctx.message.data::<RectEditorMessage<T>>()
-            {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
 
-                    action: FieldAction::object(*value),
-                });
-            }
+                action: FieldAction::object(*value),
+            });
         }
         None
     }

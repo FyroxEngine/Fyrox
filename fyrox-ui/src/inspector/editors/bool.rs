@@ -20,17 +20,17 @@
 
 use crate::inspector::editors::PropertyEditorTranslationContext;
 use crate::{
+    Thickness, VerticalAlignment,
     check_box::{CheckBoxBuilder, CheckBoxMessage},
     inspector::{
+        FieldAction, InspectorError, PropertyChanged,
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext,
         },
-        FieldAction, InspectorError, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
     widget::WidgetBuilder,
-    Thickness, VerticalAlignment,
 };
 use std::any::TypeId;
 
@@ -70,14 +70,13 @@ impl PropertyEditorDefinition for BoolPropertyEditorDefinition {
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(CheckBoxMessage::Check(Some(value))) = ctx.message.data::<CheckBoxMessage>()
-            {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
-                    action: FieldAction::object(*value),
-                });
-            }
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(CheckBoxMessage::Check(Some(value))) = ctx.message.data::<CheckBoxMessage>()
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
+                action: FieldAction::object(*value),
+            });
         }
         None
     }

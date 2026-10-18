@@ -45,7 +45,7 @@ use crate::{
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
-        uuid::{uuid, Uuid},
+        uuid::{Uuid, uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
     },
@@ -57,8 +57,8 @@ use crate::{
         node::{Node, NodeTrait},
     },
 };
-use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::SceneGraph;
+use fyrox_graph::constructor::ConstructorProvider;
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.

@@ -20,7 +20,7 @@
 
 use crate::renderer::QualitySettings;
 use crate::{
-    core::{math::Rect, ImmutableString},
+    core::{ImmutableString, math::Rect},
     graphics::{
         error::FrameworkError,
         framebuffer::{Attachment, GpuFrameBuffer},
@@ -28,14 +28,14 @@ use crate::{
         server::GraphicsServer,
     },
     renderer::{
+        RenderPassStatistics,
         bloom::blur::GaussianBlur,
         cache::{
-            shader::{binding, property, PropertyGroup, RenderMaterial},
+            shader::{PropertyGroup, RenderMaterial, binding, property},
             uniform::UniformBufferCache,
         },
         make_viewport_matrix,
         resources::RendererResources,
-        RenderPassStatistics,
     },
 };
 

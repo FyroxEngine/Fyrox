@@ -52,32 +52,32 @@ pub use update::*;
 
 use super::{dim2::rectangle::RectangleVertex, node::constructor::NodeConstructor};
 use crate::{
-    asset::{untyped::ResourceKind, ResourceDataRef},
+    asset::{ResourceDataRef, untyped::ResourceKind},
     core::{
+        ImmutableString, SafeLock,
         algebra::{Matrix4, Vector2, Vector3},
         color::Color,
-        math::{aabb::AxisAlignedBoundingBox, Matrix4Ext, TriangleDefinition},
+        math::{Matrix4Ext, TriangleDefinition, aabb::AxisAlignedBoundingBox},
         pool::Handle,
         reflect::prelude::*,
         variable::InheritableVariable,
         visitor::prelude::*,
-        ImmutableString, SafeLock,
     },
-    graph::{constructor::ConstructorProvider, SceneGraph},
+    graph::{SceneGraph, constructor::ConstructorProvider},
     material::{Material, MaterialResource, STANDARD_2D},
     renderer::{self, bundle::RenderContext},
     scene::{
+        Scene,
         base::{Base, BaseBuilder},
         graph::Graph,
         mesh::{
+            RenderPath,
             buffer::{
                 VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
                 VertexTrait,
             },
-            RenderPath,
         },
         node::{Node, NodeTrait, RdcControlFlow},
-        Scene,
     },
 };
 use bytemuck::{Pod, Zeroable};

@@ -28,28 +28,28 @@ use crate::{
     core::{
         algebra::{Point3, Vector2, Vector3},
         color::Color,
-        math::{aabb::AxisAlignedBoundingBox, Rect, TriangleDefinition},
+        math::{Rect, TriangleDefinition, aabb::AxisAlignedBoundingBox},
         pool::Handle,
         reflect::prelude::*,
-        uuid::{uuid, Uuid},
+        uuid::{Uuid, uuid},
         value_as_u8_slice,
         variable::InheritableVariable,
         visitor::prelude::*,
     },
-    graph::{constructor::ConstructorProvider, SceneGraph},
+    graph::{SceneGraph, constructor::ConstructorProvider},
     material::{Material, MaterialResource},
     renderer::{self, bundle::RenderContext},
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
         mesh::{
+            RenderPath,
             buffer::{
                 VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
                 VertexTrait,
             },
-            RenderPath,
         },
-        node::{constructor::NodeConstructor, Node, NodeTrait, RdcControlFlow},
+        node::{Node, NodeTrait, RdcControlFlow, constructor::NodeConstructor},
     },
 };
 use bytemuck::{Pod, Zeroable};

@@ -26,6 +26,7 @@ use crate::brush::Brush;
 use crate::style::resource::StyleResourceExt;
 use crate::style::{Style, StyledProperty};
 use crate::{
+    BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
     border::BorderBuilder,
     check_box::{CheckBox, CheckBoxBuilder},
     core::{
@@ -33,7 +34,7 @@ use crate::{
         err,
         log::Log,
         pool::{Handle, ObjectOrVariant},
-        reflect::{self, prelude::*, CastError, Reflect, ReflectPathError},
+        reflect::{self, CastError, Reflect, ReflectPathError, prelude::*},
         visitor::prelude::*,
     },
     expander::ExpanderBuilder,
@@ -48,15 +49,14 @@ use crate::{
     popup::{Popup, PopupBuilder, PopupMessage},
     stack_panel::{StackPanel, StackPanelBuilder},
     text::{Text, TextBuilder},
-    utils::{make_arrow, make_simple_tooltip, ArrowDirection},
+    utils::{ArrowDirection, make_arrow, make_simple_tooltip},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use copypasta::ClipboardProvider;
 use fyrox_core::ok_or_return;
 use fyrox_graph::{
-    constructor::{ConstructorProvider, GraphNodeConstructor},
     SceneGraph,
+    constructor::{ConstructorProvider, GraphNodeConstructor},
 };
 use std::{
     any::{Any, TypeId},
@@ -133,7 +133,7 @@ pub enum FieldAction {
 impl FieldAction {
     fn path(&self) -> String {
         match self {
-            FieldAction::CollectionAction(ref collection_changed) => {
+            FieldAction::CollectionAction(collection_changed) => {
                 if let CollectionAction::ItemChanged {
                     action: ref property,
                     index,
@@ -141,17 +141,17 @@ impl FieldAction {
                 {
                     match property {
                         FieldAction::InspectableAction(inspectable) => {
-                            return format!("[{}].{}", index, inspectable.path())
+                            return format!("[{}].{}", index, inspectable.path());
                         }
                         _ => return format!("[{index}]"),
                     }
                 }
             }
-            FieldAction::InspectableAction(ref inspectable) => {
-                return format!(".{}", inspectable.path())
+            FieldAction::InspectableAction(inspectable) => {
+                return format!(".{}", inspectable.path());
             }
             FieldAction::ObjectAction(_) | FieldAction::InheritableAction { .. } => {}
-            FieldAction::HashMapAction(ref action) => match **action {
+            FieldAction::HashMapAction(action) => match **action {
                 HashMapAction::KeyChanged { .. }
                 | HashMapAction::Remove { .. }
                 | HashMapAction::Insert { .. } => {}
@@ -246,10 +246,10 @@ impl PropertyAction {
     /// forces new iteration.
     pub fn from_field_action(field_action: &FieldAction) -> Self {
         match field_action {
-            FieldAction::ObjectAction(ref value) => Self::Modify {
+            FieldAction::ObjectAction(value) => Self::Modify {
                 value: value.clone().value,
             },
-            FieldAction::CollectionAction(ref collection_changed) => match **collection_changed {
+            FieldAction::CollectionAction(collection_changed) => match **collection_changed {
                 CollectionAction::Add(ref value) => Self::AddItem {
                     value: value.clone().value,
                 },
@@ -259,11 +259,11 @@ impl PropertyAction {
                     ..
                 } => Self::from_field_action(property),
             },
-            FieldAction::InspectableAction(ref inspectable) => {
+            FieldAction::InspectableAction(inspectable) => {
                 Self::from_field_action(&inspectable.action)
             }
             FieldAction::InheritableAction { .. } => Self::Revert,
-            FieldAction::HashMapAction(ref action) => match **action {
+            FieldAction::HashMapAction(action) => match **action {
                 HashMapAction::Insert { ref key, ref value } => Self::InsertItemByKey {
                     key: key.clone().value,
                     value: value.clone().value,
@@ -575,6 +575,8 @@ pub enum InspectorMessage {
         /// A path of the property to which the cloned value should be pasted.
         dest: String,
     },
+    /// Inspector context was changed.
+    ContextChanged,
 }
 impl MessageData for InspectorMessage {}
 
@@ -779,16 +781,16 @@ impl Inspector {
         object: &mut dyn Reflect,
         clipboard_value: &mut Option<Box<dyn Reflect>>,
     ) {
-        if let Some(inspector_message) = message.data::<InspectorMessage>() {
-            if ui.has_descendant_or_equal(message.destination(), inspector) {
-                Inspector::handle_context_menu_message_ex(
-                    inspector,
-                    inspector_message,
-                    ui,
-                    object,
-                    clipboard_value,
-                );
-            }
+        if let Some(inspector_message) = message.data::<InspectorMessage>()
+            && ui.has_descendant_or_equal(message.destination(), inspector)
+        {
+            Inspector::handle_context_menu_message_ex(
+                inspector,
+                inspector_message,
+                ui,
+                object,
+                clipboard_value,
+            );
         }
     }
 
@@ -883,16 +885,14 @@ impl Inspector {
                     err!("Nothing to paste!");
                 }
 
-                if pasted {
-                    if let Ok(inspector) = ui.try_get(inspector) {
-                        let ctx = inspector.context.clone();
+                if pasted && let Ok(inspector) = ui.try_get(inspector) {
+                    let ctx = inspector.context.clone();
 
-                        if let Err(errs) =
-                            ctx.sync(object, ui, 0, true, Default::default(), Default::default())
-                        {
-                            for err in errs {
-                                Log::err(err.to_string());
-                            }
+                    if let Err(errs) =
+                        ctx.sync(object, ui, 0, true, Default::default(), Default::default())
+                    {
+                        for err in errs {
+                            Log::err(err.to_string());
                         }
                     }
                 }
@@ -1677,6 +1677,8 @@ impl Control for Inspector {
                     ui.send(ctx.stack_panel, WidgetMessage::LinkWith(self.handle));
 
                     self.context = ctx.clone();
+
+                    ui.post(self.handle, InspectorMessage::ContextChanged);
                 }
                 InspectorMessage::PropertyContextMenuStatus {
                     can_clone,
@@ -1695,38 +1697,32 @@ impl Control for Inspector {
             }
         }
 
-        if let Some(PopupMessage::RelayedMessage(popup_message)) = message.data() {
-            if let Some(mut clipboard) = ui.clipboard_mut() {
-                if let Some(MenuItemMessage::Click) = popup_message.data() {
-                    if popup_message.destination() == self.context.menu.copy_value_as_string {
-                        if let Some(entry) = self.find_property_container(message.destination(), ui)
-                        {
-                            Log::verify(
-                                clipboard.set_contents(entry.property_debug_output.clone()),
-                            );
-                        }
-                    } else if popup_message.destination() == self.context.menu.copy_value {
-                        if let Some(entry) = self.find_property_container(message.destination(), ui)
-                        {
-                            ui.post(
-                                self.handle,
-                                InspectorMessage::CopyValue {
-                                    path: entry.property_path.clone(),
-                                },
-                            );
-                        }
-                    } else if popup_message.destination() == self.context.menu.paste_value {
-                        if let Some(entry) = self.find_property_container(message.destination(), ui)
-                        {
-                            ui.post(
-                                self.handle,
-                                InspectorMessage::PasteValue {
-                                    dest: entry.property_path.clone(),
-                                },
-                            );
-                        }
-                    }
+        if let Some(PopupMessage::RelayedMessage(popup_message)) = message.data()
+            && let Some(mut clipboard) = ui.clipboard_mut()
+            && let Some(MenuItemMessage::Click) = popup_message.data()
+        {
+            if popup_message.destination() == self.context.menu.copy_value_as_string {
+                if let Some(entry) = self.find_property_container(message.destination(), ui) {
+                    Log::verify(clipboard.set_contents(entry.property_debug_output.clone()));
                 }
+            } else if popup_message.destination() == self.context.menu.copy_value {
+                if let Some(entry) = self.find_property_container(message.destination(), ui) {
+                    ui.post(
+                        self.handle,
+                        InspectorMessage::CopyValue {
+                            path: entry.property_path.clone(),
+                        },
+                    );
+                }
+            } else if popup_message.destination() == self.context.menu.paste_value
+                && let Some(entry) = self.find_property_container(message.destination(), ui)
+            {
+                ui.post(
+                    self.handle,
+                    InspectorMessage::PasteValue {
+                        dest: entry.property_path.clone(),
+                    },
+                );
             }
         }
 
@@ -1735,8 +1731,8 @@ impl Control for Inspector {
         if message.delivery_mode != DeliveryMode::SyncOnly {
             let env = self.context.environment.clone();
             for entry in self.context.entries.iter() {
-                if message.destination() == entry.property_editor {
-                    if let Some(args) = entry
+                if message.destination() == entry.property_editor
+                    && let Some(args) = entry
                         .property_editor_definition_container
                         .definitions()
                         .get(&entry.property_value_type_id)
@@ -1749,32 +1745,27 @@ impl Control for Inspector {
                                     definition_container: self.context.property_definitions.clone(),
                                 })
                         })
-                    {
-                        ui.post(self.handle, InspectorMessage::PropertyChanged(args));
-                    }
+                {
+                    ui.post(self.handle, InspectorMessage::PropertyChanged(args));
                 }
             }
         }
     }
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        if let Some(PopupMessage::Open) = message.data() {
-            if let Some(menu) = self.context.menu.menu.clone() {
-                if message.direction() == MessageDirection::FromWidget
-                    && menu.handle() == message.destination()
-                {
-                    if let Ok(popup) = ui.try_get_of_type::<Popup>(menu.handle()) {
-                        if let Some(entry) = self.find_property_container(popup.owner, ui) {
-                            ui.post(
-                                self.handle,
-                                InspectorMessage::PropertyContextMenuOpened {
-                                    path: entry.property_path.clone(),
-                                },
-                            );
-                        }
-                    }
-                }
-            }
+        if let Some(PopupMessage::Open) = message.data()
+            && let Some(menu) = self.context.menu.menu.clone()
+            && message.direction() == MessageDirection::FromWidget
+            && menu.handle() == message.destination()
+            && let Ok(popup) = ui.try_get_of_type::<Popup>(menu.handle())
+            && let Some(entry) = self.find_property_container(popup.owner, ui)
+        {
+            ui.post(
+                self.handle,
+                InspectorMessage::PropertyContextMenuOpened {
+                    path: entry.property_path.clone(),
+                },
+            );
         }
     }
 }

@@ -19,33 +19,33 @@
 // SOFTWARE.
 
 use crate::{
+    Message, Mode,
     fyrox::{
         core::pool::Handle,
         gui::{
+            BuildContext, Thickness, UserInterface,
             button::ButtonMessage,
             grid::{Column, GridBuilder, Row},
             list_view::{ListViewBuilder, ListViewMessage},
             message::UiMessage,
             scroll_viewer::ScrollViewerBuilder,
             stack_panel::StackPanelBuilder,
-            style::{resource::StyleResourceExt, Style},
+            style::{Style, resource::StyleResourceExt},
             text::TextBuilder,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowTitle},
-            BuildContext, Thickness, UserInterface,
         },
     },
     load_image,
     message::MessageSender,
     utils::window_content,
-    Message, Mode,
 };
 use fyrox::core::color::Color;
+use fyrox::gui::Orientation;
 use fyrox::gui::button::Button;
 use fyrox::gui::list_view::ListView;
 use fyrox::gui::utils::ImageButtonBuilder;
 use fyrox::gui::window::Window;
-use fyrox::gui::Orientation;
 
 pub struct CommandStackViewer {
     pub window: Handle<Window>,

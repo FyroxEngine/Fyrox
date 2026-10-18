@@ -19,18 +19,19 @@
 // SOFTWARE.
 
 use crate::{
+    Message,
     command::{Command, CommandGroup, SetPropertyCommand},
     fyrox::{
         core::{algebra::Vector3, pool::Handle, reflect::Reflect},
         engine::Engine,
         graph::SceneGraph,
         gui::{
+            BuildContext, HorizontalAlignment, Orientation, UserInterface,
             button::{ButtonBuilder, ButtonMessage},
             message::UiMessage,
             stack_panel::StackPanelBuilder,
             utils::make_simple_tooltip,
             widget::{WidgetBuilder, WidgetMessage},
-            BuildContext, HorizontalAlignment, Orientation, UserInterface,
         },
         scene::{
             collider::{Collider, ColliderShape},
@@ -39,8 +40,7 @@ use crate::{
     },
     message::MessageSender,
     plugins::collider::ColliderShapeInteractionMode,
-    scene::{commands::GameSceneContext, GameScene, Selection},
-    Message,
+    scene::{GameScene, Selection, commands::GameSceneContext},
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::stack_panel::StackPanel;

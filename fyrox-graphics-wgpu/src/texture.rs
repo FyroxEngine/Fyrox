@@ -22,8 +22,8 @@ use crate::server::WgpuGraphicsServer;
 use fyrox_graphics::{
     error::FrameworkError,
     gpu_texture::{
-        image_1d_size_bytes, image_2d_size_bytes, image_3d_size_bytes, GpuTextureDescriptor,
-        GpuTextureKind, GpuTextureTrait, PixelKind,
+        GpuTextureDescriptor, GpuTextureKind, GpuTextureTrait, PixelKind, image_1d_size_bytes,
+        image_2d_size_bytes, image_3d_size_bytes,
     },
 };
 use std::cell::Cell;

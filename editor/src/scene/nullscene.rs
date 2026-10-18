@@ -52,13 +52,15 @@ impl NullSceneContext {
         // SAFETY: Temporarily extend lifetime to 'static and execute external closure with it.
         // The closure accepts this extended context by reference, so there's no way it escapes to
         // outer world. The initial lifetime is still preserved by this function call.
-        func(unsafe {
-            &mut Self {
+        let mut ctx = unsafe {
+            Self {
                 selection: std::mem::transmute::<&'a mut _, &'static mut _>(selection),
                 message_sender,
                 resource_manager,
             }
-        });
+        };
+
+        func(&mut ctx);
     }
 }
 
@@ -272,5 +274,13 @@ impl SceneController for NullSceneController {
                 name
             })
             .collect::<Vec<_>>()
+    }
+
+    fn selection_external_refs(
+        &self,
+        editor_selection: &Selection,
+        engine: &Engine,
+    ) -> Option<String> {
+        None
     }
 }

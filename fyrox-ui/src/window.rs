@@ -26,6 +26,8 @@ use crate::grid::Grid;
 use crate::message::MessageData;
 use crate::vector_image::VectorImage;
 use crate::{
+    BuildContext, Control, HorizontalAlignment, RestrictionEntry, Thickness, UiNode, UserInterface,
+    VerticalAlignment,
     border::BorderBuilder,
     brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
@@ -38,17 +40,15 @@ use crate::{
     grid::{Column, GridBuilder, Row},
     message::{CursorIcon, KeyCode, UiMessage},
     navigation::NavigationLayerBuilder,
-    style::{resource::StyleResourceExt, Style, StyledProperty},
+    style::{Style, StyledProperty, resource::StyleResourceExt},
     text::{Text, TextBuilder, TextMessage},
     vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, HorizontalAlignment, RestrictionEntry, Thickness, UiNode, UserInterface,
-    VerticalAlignment,
 };
 use fyrox_core::pool::ObjectOrVariant;
 use fyrox_graph::{
-    constructor::{ConstructorProvider, GraphNodeConstructor},
     SceneGraph,
+    constructor::{ConstructorProvider, GraphNodeConstructor},
 };
 use std::cell::RefCell;
 

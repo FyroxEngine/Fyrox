@@ -35,8 +35,8 @@ use fyrox_resource::manager::ResourceManager;
 use fyrox_resource::state::LoadError;
 use fyrox_resource::untyped::ResourceKind;
 use fyrox_resource::{
-    embedded_data_source, io::ResourceIo, manager::BuiltInResource, untyped::UntypedResource,
-    Resource, ResourceData,
+    Resource, ResourceData, embedded_data_source, io::ResourceIo, manager::BuiltInResource,
+    untyped::UntypedResource,
 };
 use std::sync::LazyLock;
 use std::{

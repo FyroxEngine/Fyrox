@@ -19,12 +19,14 @@
 // SOFTWARE.
 
 use crate::{
+    Message,
     command::{Command, CommandGroup},
     fyrox::{
         core::pool::Handle,
         engine::Engine,
         graph::SceneGraph,
         gui::{
+            BuildContext, Thickness,
             button::Button,
             button::{ButtonBuilder, ButtonMessage},
             grid::{Column, GridBuilder, Row},
@@ -38,29 +40,27 @@ use crate::{
             widget::WidgetMessage,
             window::{Window, WindowAlignment},
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, Thickness,
         },
         scene::mesh::surface::SurfaceData,
         scene::{
+            Scene,
             base::BaseBuilder,
             collider::{ColliderBuilder, ColliderShape, ConvexPolyhedronShape, GeometrySource},
             mesh::{
-                surface::{SurfaceBuilder, SurfaceResource},
                 Mesh, MeshBuilder,
+                surface::{SurfaceBuilder, SurfaceResource},
             },
             node::Node,
             rigidbody::{RigidBody, RigidBodyBuilder, RigidBodyType},
-            Scene,
         },
     },
     message::MessageSender,
     preview::PreviewPanel,
     scene::{
-        commands::graph::{AddNodeCommand, LinkNodesCommand},
         GameScene, Selection,
+        commands::graph::{AddNodeCommand, LinkNodesCommand},
     },
     world::selection::GraphSelection,
-    Message,
 };
 use fyrox::core::math::TriangleDefinition;
 use fyrox::gui::VerticalAlignment;
@@ -390,11 +390,11 @@ impl SurfaceDataViewer {
     pub fn handle_ui_message(mut self, message: &UiMessage, engine: &mut Engine) -> Option<Self> {
         self.preview_panel.handle_message(message, engine);
 
-        if let Some(WindowMessage::Close) = message.data() {
-            if message.destination() == self.window {
-                self.preview_panel.destroy(engine);
-                return None;
-            }
+        if let Some(WindowMessage::Close) = message.data()
+            && message.destination() == self.window
+        {
+            self.preview_panel.destroy(engine);
+            return None;
         }
 
         Some(self)

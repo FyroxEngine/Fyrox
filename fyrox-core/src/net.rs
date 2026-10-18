@@ -20,7 +20,7 @@
 
 use crate::log::Log;
 use byteorder::{LittleEndian, WriteBytesExt};
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use std::{
     io::{self, ErrorKind, Read, Write},
     net::{SocketAddr, TcpListener, TcpStream, ToSocketAddrs},

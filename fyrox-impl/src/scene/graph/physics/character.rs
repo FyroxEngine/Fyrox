@@ -25,8 +25,8 @@ use crate::scene::collider;
 use crate::{
     core::{algebra::Vector3, num_traits::FloatConst, reflect::prelude::*, visitor::prelude::*},
     scene::graph::{
-        physics::{filter_by_predicate, QueryFilter},
         Graph,
+        physics::{QueryFilter, filter_by_predicate},
     },
 };
 use fyrox_core::pool::Handle;

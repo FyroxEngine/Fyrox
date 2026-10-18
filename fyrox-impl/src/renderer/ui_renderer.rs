@@ -31,6 +31,8 @@ use crate::{
         sstorage::ImmutableString,
     },
     graphics::{
+        BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
+        ElementRange, ScissorBox, StencilFunc,
         buffer::BufferUsage,
         error::FrameworkError,
         framebuffer::{GpuFrameBuffer, ResourceBindGroup, ResourceBinding},
@@ -41,8 +43,6 @@ use crate::{
         gpu_program::ShaderResourceKind,
         server::GraphicsServer,
         uniform::StaticUniformBuffer,
-        BlendFactor, BlendFunc, BlendParameters, ColorMask, CompareFunc, DrawParameters,
-        ElementRange, ScissorBox, StencilFunc,
     },
     gui::{
         brush::Brush,
@@ -50,13 +50,13 @@ use crate::{
         draw::{CommandTexture, DrawingContext},
     },
     renderer::{
+        RenderPassStatistics, TextureCache,
         bundle::{self, make_texture_binding},
         cache::{
-            shader::{binding, property, PropertyGroup, RenderMaterial, ShaderCache},
+            shader::{PropertyGroup, RenderMaterial, ShaderCache, binding, property},
             uniform::{UniformBlockLocation, UniformBufferCache, UniformMemoryAllocator},
         },
         resources::RendererResources,
-        RenderPassStatistics, TextureCache,
     },
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource},
 };
@@ -431,25 +431,25 @@ impl UiRenderer {
                                                 .get_mut(height)
                                                 .and_then(|atlas| atlas.pages.get_mut(*page_index))
                                             {
-                                                if page.texture.is_none() || page.modified {
-                                                    if let Some(details) = Texture::from_bytes(
+                                                if (page.texture.is_none() || page.modified)
+                                                    && let Some(details) = Texture::from_bytes(
                                                         TextureKind::Rectangle {
                                                             width: page_size,
                                                             height: page_size,
                                                         },
                                                         TexturePixelKind::R8,
                                                         page.pixels.clone(),
-                                                    ) {
-                                                        page.texture = Some(
-                                                            TextureResource::new_ok(
-                                                                Uuid::new_v4(),
-                                                                ResourceKind::Embedded,
-                                                                details,
-                                                            )
-                                                            .into(),
-                                                        );
-                                                        page.modified = false;
-                                                    }
+                                                    )
+                                                {
+                                                    page.texture = Some(
+                                                        TextureResource::new_ok(
+                                                            Uuid::new_v4(),
+                                                            ResourceKind::Embedded,
+                                                            details,
+                                                        )
+                                                        .into(),
+                                                    );
+                                                    page.modified = false;
                                                 }
                                                 if let Some(texture) = texture_cache.get(
                                                     server,

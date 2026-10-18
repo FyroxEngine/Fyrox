@@ -19,23 +19,22 @@
 // SOFTWARE.
 
 use crate::{
+    Message,
     command::{Command, CommandStack},
     fyrox::{
-        core::{algebra::Vector2, math::Rect, pool::Handle},
+        core::{algebra::Vector2, define_as_any_trait, math::Rect, pool::Handle},
         engine::Engine,
         gui::{
-            message::{KeyCode, MouseButton},
             UiNode,
+            file_browser::FileType,
+            message::{KeyCode, MouseButton},
         },
         resource::texture::TextureResource,
         scene::SceneContainer,
     },
     scene::Selection,
-    settings::{keys::KeyBindings, Settings},
-    Message,
+    settings::{Settings, keys::KeyBindings},
 };
-use fyrox::core::define_as_any_trait;
-use fyrox::gui::file_browser::FileType;
 use std::path::Path;
 
 define_as_any_trait!(SceneControllerAsAny => SceneController);
@@ -161,7 +160,7 @@ pub trait SceneController: SceneControllerAsAny {
     );
 
     fn on_message(&mut self, message: &Message, selection: &Selection, engine: &mut Engine)
-        -> bool;
+    -> bool;
 
     fn command_names(
         &mut self,
@@ -169,6 +168,13 @@ pub trait SceneController: SceneControllerAsAny {
         selection: &mut Selection,
         engine: &mut Engine,
     ) -> Vec<String>;
+
+    /// Checks whether the current selection has references to the nodes outside of the selection.
+    fn selection_external_refs(
+        &self,
+        editor_selection: &Selection,
+        engine: &Engine,
+    ) -> Option<String>;
 }
 
 impl dyn SceneController {

@@ -27,23 +27,24 @@ use crate::{
         },
         graph::SceneGraph,
         gui::{
+            BuildContext, Control, UiNode, UserInterface,
             core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
             dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
             grid::{GridBuilder, GridDimension},
             inspector::{
+                FieldAction, Inspector, InspectorBuilder, InspectorContext, InspectorContextArgs,
+                InspectorEnvironmentContainer, InspectorError, InspectorMessage, PropertyChanged,
+                PropertyFilter,
                 editors::{
                     PropertyEditorBuildContext, PropertyEditorDefinition,
                     PropertyEditorDefinitionContainer, PropertyEditorInstance,
                     PropertyEditorMessageContext, PropertyEditorTranslationContext,
                 },
-                make_expander_container, FieldAction, Inspector, InspectorBuilder,
-                InspectorContext, InspectorContextArgs, InspectorEnvironmentContainer,
-                InspectorError, InspectorMessage, PropertyChanged, PropertyFilter,
+                make_expander_container,
             },
             message::{MessageData, MessageDirection, UiMessage},
             utils::make_dropdown_list_option,
             widget::{UserData, Widget, WidgetBuilder},
-            BuildContext, Control, UiNode, UserInterface,
         },
     },
     plugins::inspector::EditorEnvironment,
@@ -396,29 +397,27 @@ impl PropertyEditorDefinition for DynTypePropertyEditorDefinition {
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(message) = ctx.message.data::<DynTypePropertyEditorMessage>() {
-                match message {
-                    DynTypePropertyEditorMessage::Value(value) => {
-                        if let Ok(env) = EditorEnvironment::try_get_from(&ctx.environment) {
-                            let dyn_type = value
-                                .and_then(|uuid| env.dyn_type_constructors.try_create(&uuid))
-                                .map(DynTypeWrapper);
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(message) = ctx.message.data::<DynTypePropertyEditorMessage>()
+        {
+            match message {
+                DynTypePropertyEditorMessage::Value(value) => {
+                    if let Ok(env) = EditorEnvironment::try_get_from(&ctx.environment) {
+                        let dyn_type = value
+                            .and_then(|uuid| env.dyn_type_constructors.try_create(&uuid))
+                            .map(DynTypeWrapper);
 
-                            return Some(PropertyChanged {
-                                name: ctx.name.to_string(),
-                                action: FieldAction::object(DynTypeContainer(dyn_type)),
-                            });
-                        }
-                    }
-                    DynTypePropertyEditorMessage::PropertyChanged(property_changed) => {
                         return Some(PropertyChanged {
-                            name: ctx.name.to_string() + "." + INTERNALS_PATH,
-                            action: FieldAction::InspectableAction(Box::new(
-                                property_changed.clone(),
-                            )),
+                            name: ctx.name.to_string(),
+                            action: FieldAction::object(DynTypeContainer(dyn_type)),
                         });
                     }
+                }
+                DynTypePropertyEditorMessage::PropertyChanged(property_changed) => {
+                    return Some(PropertyChanged {
+                        name: ctx.name.to_string() + "." + INTERNALS_PATH,
+                        action: FieldAction::InspectableAction(Box::new(property_changed.clone())),
+                    });
                 }
             }
         }

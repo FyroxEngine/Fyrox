@@ -24,10 +24,10 @@
 #![warn(missing_docs)]
 
 use crate::{
+    BuildContext, Control, UiNode, UserInterface,
     core::{algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, UiNode, UserInterface,
 };
 
 use fyrox_core::algebra::Matrix3;

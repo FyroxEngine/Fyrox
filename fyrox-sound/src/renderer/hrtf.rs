@@ -83,15 +83,15 @@ use crate::{
 use fyrox_core::{
     log::Log,
     reflect::prelude::*,
-    uuid::{uuid, Uuid},
+    uuid::{Uuid, uuid},
     visitor::prelude::*,
 };
 use fyrox_resource::untyped::ResourceKind;
 use fyrox_resource::{
+    Resource, ResourceData,
     io::ResourceIo,
     loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
     state::LoadError,
-    Resource, ResourceData,
 };
 use hrtf::HrirSphere;
 use std::io::Cursor;
@@ -199,12 +199,12 @@ impl HrtfRenderer {
     ) {
         // Re-create HRTF processor on the fly only when a respective HRIR sphere resource is fully loaded.
         // This is a poor-man's async support for crippled OSes such as WebAssembly.
-        if self.processor.is_none() {
-            if let Some(resource) = self.hrir_resource.as_ref() {
-                let mut header = resource.state();
-                if let Some(hrir) = header.data() {
-                    self.processor = hrir.make_hrtf_processor(sample_rate);
-                }
+        if self.processor.is_none()
+            && let Some(resource) = self.hrir_resource.as_ref()
+        {
+            let mut header = resource.state();
+            if let Some(hrir) = header.data() {
+                self.processor = hrir.make_hrtf_processor(sample_rate);
             }
         }
 

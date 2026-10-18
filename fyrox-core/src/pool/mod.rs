@@ -256,15 +256,19 @@ unsafe impl Send for RefCounter {}
 
 impl RefCounter {
     unsafe fn get(&self) -> isize {
-        *self.0.get()
+        unsafe { *self.0.get() }
     }
 
     unsafe fn increment(&self) {
-        *self.0.get() += 1;
+        unsafe {
+            *self.0.get() += 1;
+        }
     }
 
     unsafe fn decrement(&self) {
-        *self.0.get() -= 1;
+        unsafe {
+            *self.0.get() -= 1;
+        }
     }
 }
 
@@ -1140,10 +1144,10 @@ where
     #[inline]
     #[must_use]
     pub fn handle_from_index(&self, n: u32) -> Handle<T> {
-        if let Ok(record) = self.records_get(n) {
-            if record.generation != INVALID_GENERATION {
-                return Handle::new(n, record.generation);
-            }
+        if let Ok(record) = self.records_get(n)
+            && record.generation != INVALID_GENERATION
+        {
+            return Handle::new(n, record.generation);
         }
         Handle::NONE
     }
@@ -1200,7 +1204,10 @@ where
 
                 record.payload.replace(payload)
             } else {
-                panic!("Attempt to replace object in pool using dangling handle! Handle is {:?}, but pool record has {} generation", handle, record.generation);
+                panic!(
+                    "Attempt to replace object in pool using dangling handle! Handle is {:?}, but pool record has {} generation",
+                    handle, record.generation
+                );
             }
         } else {
             None
@@ -1611,7 +1618,7 @@ where
 mod test {
     use crate::pool::PoolError;
     use crate::{
-        pool::{AtomicHandle, Handle, Pool, PoolRecord, INVALID_GENERATION},
+        pool::{AtomicHandle, Handle, INVALID_GENERATION, Pool, PoolRecord},
         visitor::{Visit, Visitor},
     };
 

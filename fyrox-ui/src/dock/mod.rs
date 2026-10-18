@@ -26,17 +26,17 @@
 //! for windows.
 
 use crate::{
+    BuildContext, Control, UiNode, UserInterface,
     core::{log::Log, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     dock::config::{DockingManagerLayoutDescriptor, FloatingWindowDescriptor, TileDescriptor},
     message::UiMessage,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     window::WindowMessage,
-    BuildContext, Control, UiNode, UserInterface,
 };
 
 use fyrox_core::pool::HandlesArrayExtension;
-use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::cell::RefCell;
 
 pub mod config;

@@ -20,21 +20,22 @@
 
 use crate::inspector::InspectorEnvironmentContainer;
 use crate::{
+    BuildContext, Control, Thickness, UiNode, UserInterface,
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
     inspector::{
+        FieldAction, Inspector, InspectorBuilder, InspectorContext, InspectorContextArgs,
+        InspectorError, InspectorMessage, PropertyChanged, PropertyFilter,
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition,
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        make_expander_container, FieldAction, Inspector, InspectorBuilder, InspectorContext,
-        InspectorContextArgs, InspectorError, InspectorMessage, PropertyChanged, PropertyFilter,
+        make_expander_container,
     },
     message::{MessageData, UiMessage},
     utils::make_dropdown_list_option,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 use fyrox_graph::SceneGraph;
 use std::{
@@ -170,12 +171,11 @@ impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
     }
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        if message.flags != LOCAL_SYNC_FLAG {
-            if let Some(DropdownListMessage::Selection(Some(index))) =
+        if message.flags != LOCAL_SYNC_FLAG
+            && let Some(DropdownListMessage::Selection(Some(index))) =
                 message.data_from(self.variant_selector)
-            {
-                ui.send(self.handle, EnumPropertyEditorMessage::Variant(*index));
-            }
+        {
+            ui.send(self.handle, EnumPropertyEditorMessage::Variant(*index));
         }
     }
 }

@@ -19,11 +19,11 @@
 // SOFTWARE.
 
 use crate::{
+    UiNode, UserInterface,
     core::{algebra::Vector2, pool::Handle, reflect::Reflect, uuid::Uuid, visitor::Visit},
     draw::DrawingContext,
     message::{OsEvent, UiMessage},
     widget::Widget,
-    UiNode, UserInterface,
 };
 use fyrox_core::{define_as_any_trait, pool::ObjectOrVariantHelper};
 

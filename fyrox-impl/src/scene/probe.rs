@@ -28,16 +28,16 @@ use crate::{
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
-        uuid::{uuid, Uuid},
+        uuid::{Uuid, uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
     },
-    graph::{constructor::ConstructorProvider, SceneGraph},
+    graph::{SceneGraph, constructor::ConstructorProvider},
     scene::EnvironmentLightingSource,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::{constructor::NodeConstructor, Node, NodeTrait, UpdateContext},
+        node::{Node, NodeTrait, UpdateContext, constructor::NodeConstructor},
     },
 };
 use fyrox_core::color::Color;

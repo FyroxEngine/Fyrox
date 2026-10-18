@@ -25,6 +25,7 @@
 #![warn(missing_docs)]
 
 use crate::{
+    BuildContext, Control, UiNode, UserInterface,
     core::{
         algebra::Vector2, color::Color, math::Rect, math::Vector2Ext, pool::Handle,
         reflect::prelude::*, visitor::prelude::*,
@@ -32,7 +33,6 @@ use crate::{
     draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, UiNode, UserInterface,
 };
 
 use fyrox_core::variable::InheritableVariable;

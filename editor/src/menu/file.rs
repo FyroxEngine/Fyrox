@@ -19,29 +19,29 @@
 // SOFTWARE.
 
 use crate::{
+    Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
     asset::preview::cache::IconRequest,
     export::ExportWindow,
     fyrox::{
         asset::manager::ResourceManager,
         core::pool::Handle,
         gui::{
+            BuildContext, UserInterface,
             file_browser::{FileSelectorBuilder, FileSelectorMessage, FileType, PathFilter},
             menu::{self, MenuItemMessage},
             message::UiMessage,
             messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, UserInterface,
         },
     },
     load_image, make_save_file_selector,
     menu::{create_menu_item, create_menu_item_shortcut, create_root_menu_item},
     message::MessageSender,
     scene::container::EditorSceneEntry,
-    settings::{recent::RecentFiles, Settings},
-    Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
+    settings::{Settings, recent::RecentFiles},
 };
-use fyrox::core::uuid::{uuid, Uuid};
+use fyrox::core::uuid::{Uuid, uuid};
 use fyrox::graph::SceneGraph;
 use fyrox::gui::file_browser::FileSelector;
 use fyrox::gui::menu::MenuItem;

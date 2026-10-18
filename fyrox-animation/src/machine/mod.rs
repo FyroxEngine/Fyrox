@@ -26,8 +26,8 @@
 #![warn(missing_docs)]
 
 use crate::{
-    core::{reflect::prelude::*, visitor::prelude::*},
     Animation, AnimationContainer, AnimationPose, EntityId,
+    core::{reflect::prelude::*, visitor::prelude::*},
 };
 use fxhash::FxHashSet;
 
@@ -38,9 +38,9 @@ use fyrox_core::{find_by_name_mut, find_by_name_ref};
 pub use layer::MachineLayer;
 pub use mask::LayerMask;
 pub use node::{
+    AnimationPoseSource, PoseNode,
     blend::{BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput},
     play::PlayAnimation,
-    AnimationPoseSource, PoseNode,
 };
 pub use parameter::{Parameter, ParameterContainer, PoseWeight};
 pub use state::State;
@@ -364,10 +364,10 @@ impl<T: EntityId> Machine<T> {
         }
 
         for animation_handle in self.animations_cache.iter() {
-            if let Ok(animation) = animations.try_get_mut(*animation_handle) {
-                if animation.is_enabled() {
-                    animation.tick(dt);
-                }
+            if let Ok(animation) = animations.try_get_mut(*animation_handle)
+                && animation.is_enabled()
+            {
+                animation.tick(dt);
             }
         }
 

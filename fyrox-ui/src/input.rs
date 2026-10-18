@@ -23,6 +23,8 @@
 //! [`InputBox`] docs for more info and usage examples.
 
 use crate::{
+    BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+    VerticalAlignment,
     button::{Button, ButtonBuilder, ButtonMessage},
     control_trait_proxy_impls,
     core::{
@@ -37,8 +39,6 @@ use crate::{
     text_box::{TextBox, TextBoxBuilder, TextCommitMode},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-    VerticalAlignment,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::ops::{Deref, DerefMut};
@@ -195,10 +195,10 @@ impl Control for InputBox {
             }
         } else if let Some(TextMessage::Text(text)) = message.data_from(*self.value_box) {
             self.value = text.clone();
-        } else if let Some(WidgetMessage::KeyDown(code)) = message.data() {
-            if matches!(*code, KeyCode::Enter | KeyCode::NumpadEnter) {
-                self.close_ok(ui);
-            }
+        } else if let Some(WidgetMessage::KeyDown(code)) = message.data()
+            && matches!(*code, KeyCode::Enter | KeyCode::NumpadEnter)
+        {
+            self.close_ok(ui);
         }
     }
 }

@@ -25,16 +25,16 @@
 use crate::message::{MessageData, MouseButton};
 use crate::style::StyledProperty;
 use crate::{
+    BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
+    VerticalAlignment,
     border::BorderBuilder,
     core::{pool::Handle, reflect::prelude::*, variable::InheritableVariable, visitor::prelude::*},
     decorator::DecoratorBuilder,
     font::FontResource,
     message::{KeyCode, UiMessage},
-    style::{resource::StyleResourceExt, Style},
+    style::{Style, resource::StyleResourceExt},
     text::TextBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
-    VerticalAlignment,
 };
 use fyrox_core::pool::ObjectOrVariant;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};

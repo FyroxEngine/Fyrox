@@ -320,11 +320,7 @@ impl<Count, Pat> WaveCell<Count, Pat> {
     pub fn single_pattern(&self) -> Option<&Pat> {
         let mut keys = self.pattern_possibilities.keys();
         let pat = keys.next();
-        if keys.next().is_none() {
-            pat
-        } else {
-            None
-        }
+        if keys.next().is_none() { pat } else { None }
     }
 }
 

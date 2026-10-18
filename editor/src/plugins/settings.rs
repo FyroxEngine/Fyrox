@@ -22,17 +22,19 @@
 
 use crate::menu::create_menu_item_shortcut;
 use crate::{
+    Editor,
     fyrox::{
         core::{log::Log, pool::Handle, reflect::Reflect, some_or_return},
         engine::Engine,
         graph::SceneGraph,
         gui::{
+            HorizontalAlignment, Orientation, Thickness, UserInterface,
             button::{ButtonBuilder, ButtonMessage},
             dock::DockingManagerMessage,
             grid::{Column, GridBuilder, Row},
             inspector::{
-                editors::PropertyEditorDefinitionContainer, Inspector, InspectorBuilder,
-                InspectorContext, InspectorContextArgs, InspectorMessage, PropertyAction,
+                Inspector, InspectorBuilder, InspectorContext, InspectorContextArgs,
+                InspectorMessage, PropertyAction, editors::PropertyEditorDefinitionContainer,
             },
             menu::MenuItemMessage,
             message::UiMessage,
@@ -41,15 +43,13 @@ use crate::{
             stack_panel::StackPanelBuilder,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            HorizontalAlignment, Orientation, Thickness, UserInterface,
         },
     },
     load_image,
     plugin::EditorPlugin,
     settings::Settings,
-    Editor,
 };
-use fyrox::core::uuid::{uuid, Uuid};
+use fyrox::core::uuid::{Uuid, uuid};
 use fyrox::engine::GraphicsContext;
 use fyrox::gui::button::Button;
 use fyrox::gui::dock::DockingManager;
@@ -270,16 +270,15 @@ impl SettingsWindow {
                 self.sync_to_model(ui, settings, property_editors);
             }
 
-            if let Ok(node) = ui.try_get_node(message.destination()) {
-                if let Some(user_data) = node.user_data_cloned::<GroupName>() {
-                    let inspector = &ui[self.inspector];
-                    if let Some(entry) = inspector.context.find_property_editor_by_tag(&user_data.0)
-                    {
-                        ui.send(
-                            self.scroll_viewer,
-                            ScrollViewerMessage::BringIntoView(entry.property_container),
-                        );
-                    }
+            if let Ok(node) = ui.try_get_node(message.destination())
+                && let Some(user_data) = node.user_data_cloned::<GroupName>()
+            {
+                let inspector = &ui[self.inspector];
+                if let Some(entry) = inspector.context.find_property_editor_by_tag(&user_data.0) {
+                    ui.send(
+                        self.scroll_viewer,
+                        ScrollViewerMessage::BringIntoView(entry.property_container),
+                    );
                 }
             }
         } else if let Some(InspectorMessage::PropertyChanged(property_changed)) = message.data() {
@@ -306,18 +305,18 @@ impl SettingsWindow {
             ui[self.inspector].apply_filter(&filter, ui);
         }
 
-        if let GraphicsContext::Initialized(ref mut graphics_context) = engine.graphics_context {
-            if settings.graphics.quality != graphics_context.renderer.get_quality_settings() {
-                if let Err(e) = graphics_context
-                    .renderer
-                    .set_quality_settings(&settings.graphics.quality)
-                {
-                    Log::err(format!(
-                        "An error occurred at attempt to set new graphics settings: {e:?}"
-                    ));
-                } else {
-                    Log::info("New graphics quality settings were successfully set!");
-                }
+        if let GraphicsContext::Initialized(ref mut graphics_context) = engine.graphics_context
+            && settings.graphics.quality != graphics_context.renderer.get_quality_settings()
+        {
+            if let Err(e) = graphics_context
+                .renderer
+                .set_quality_settings(&settings.graphics.quality)
+            {
+                Log::err(format!(
+                    "An error occurred at attempt to set new graphics settings: {e:?}"
+                ));
+            } else {
+                Log::info("New graphics quality settings were successfully set!");
             }
         }
 
@@ -366,10 +365,10 @@ impl EditorPlugin for SettingsPlugin {
     }
 
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
-        if let Some(MenuItemMessage::Click) = message.data() {
-            if message.destination() == self.open_settings {
-                self.on_open_settings_clicked(editor);
-            }
+        if let Some(MenuItemMessage::Click) = message.data()
+            && message.destination() == self.open_settings
+        {
+            self.on_open_settings_clicked(editor);
         }
 
         let window = some_or_return!(self.window.take());

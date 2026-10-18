@@ -30,6 +30,7 @@ use crate::fyrox::{
     core::pool::Handle,
     engine::Engine,
     gui::{
+        BuildContext, Thickness, VerticalAlignment,
         button::{ButtonBuilder, ButtonMessage},
         check_box::{CheckBoxBuilder, CheckBoxMessage},
         grid::{Column, GridBuilder, Row},
@@ -37,13 +38,12 @@ use crate::fyrox::{
         numeric::{NumericUpDownBuilder, NumericUpDownMessage},
         text::TextBuilder,
         widget::WidgetBuilder,
-        BuildContext, Thickness, VerticalAlignment,
     },
     scene::{node::Node, particle_system::ParticleSystem},
 };
 use crate::{
+    FIXED_TIMESTEP, Message,
     scene::{GameScene, Selection},
-    Message, FIXED_TIMESTEP,
 };
 
 pub struct ParticleSystemPreviewControlPanel {
@@ -223,13 +223,12 @@ impl ParticleSystemPreviewControlPanel {
         mut game_scene: Option<&mut GameScene>,
         engine: &mut Engine,
     ) {
-        if let Some(game_scene) = game_scene.as_mut() {
-            if let Message::DoCommand(_)
+        if let Some(game_scene) = game_scene.as_mut()
+            && let Message::DoCommand(_)
             | Message::UndoCurrentSceneCommand
             | Message::RedoCurrentSceneCommand = message
-            {
-                self.leave_preview_mode(game_scene, engine);
-            }
+        {
+            self.leave_preview_mode(game_scene, engine);
         }
 
         if let Message::SelectionChanged { .. } = message {

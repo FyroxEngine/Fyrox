@@ -23,8 +23,8 @@
 //! on deserialization to create a default instance of corresponding resource.
 
 use crate::{
-    core::{parking_lot::Mutex, uuid::Uuid, SafeLock},
     ResourceData,
+    core::{SafeLock, parking_lot::Mutex, uuid::Uuid},
 };
 use fxhash::FxHashMap;
 use fyrox_core::reflect::Reflect;

@@ -21,10 +21,11 @@
 use crate::fyrox::{
     core::pool::Handle,
     core::reflect::prelude::*,
-    scene::{graph::Graph, node::Node, Scene},
+    scene::{Scene, graph::Graph, node::Node},
 };
-use crate::{scene::GraphSelection, Engine};
+use crate::{Engine, scene::GraphSelection};
 use fyrox::core::blank_reflect_ref;
+use fyrox::graph::SceneGraph;
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -94,7 +95,7 @@ impl Clipboard {
 
         let scene = &engine.scenes[scene_handle];
 
-        let root_nodes = selection.root_nodes(&scene.graph);
+        let root_nodes = scene.graph.root_nodes(selection.nodes());
 
         deep_clone_nodes(&root_nodes, &scene.graph, &mut self.graph);
 

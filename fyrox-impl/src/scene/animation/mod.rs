@@ -27,7 +27,7 @@ use crate::{
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
-        uuid::{uuid, Uuid},
+        uuid::{Uuid, uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
     },
@@ -39,8 +39,8 @@ use crate::{
     },
 };
 use fyrox_core::err;
-use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::SceneGraph;
+use fyrox_graph::constructor::ConstructorProvider;
 use std::ops::{Deref, DerefMut};
 
 pub mod absm;
@@ -65,10 +65,10 @@ pub mod prelude {
         Track,
     };
     pub use crate::generic_animation::{
+        AnimationEvent,
         container::{TrackDataContainer, TrackValueKind},
         signal::AnimationSignal,
         value::{BoundValueCollection, TrackValue, ValueBinding, ValueType},
-        AnimationEvent,
     };
 }
 
@@ -166,7 +166,9 @@ impl BoundValueCollectionExt for BoundValueCollection {
                     if let TrackValue::UnitQuaternion(v) = bound_value.value {
                         node_ref.local_transform_mut().set_rotation(v);
                     } else {
-                        err!("Unable to apply rotation, because underlying type is not UnitQuaternion!")
+                        err!(
+                            "Unable to apply rotation, because underlying type is not UnitQuaternion!"
+                        )
                     }
                 }
                 ValueBinding::Property {

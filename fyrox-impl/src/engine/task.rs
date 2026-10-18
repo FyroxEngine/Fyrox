@@ -20,8 +20,8 @@
 
 //! Asynchronous task handler. See [`TaskPoolHandler`] for more info and usage examples.
 
-use crate::plugin::error::GameResult;
 use crate::plugin::PluginContainer;
+use crate::plugin::error::GameResult;
 use crate::{
     core::{
         pool::Handle,
@@ -29,7 +29,7 @@ use crate::{
         uuid::Uuid,
     },
     plugin::{Plugin, PluginContext},
-    scene::{node::Node, Scene},
+    scene::{Scene, node::Node},
     script::{ScriptContext, ScriptTrait},
 };
 use fxhash::FxHashMap;

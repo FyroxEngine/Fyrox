@@ -25,17 +25,19 @@
 use crate::{
     asset::{item::AssetItemMessage, preview::cache::IconRequest},
     fyrox::{
-        asset::{manager::ResourceManager, untyped::UntypedResource, Resource, TypedResourceData},
+        asset::{Resource, TypedResourceData, manager::ResourceManager, untyped::UntypedResource},
         core::{
+            PhantomDataSendSync, SafeLock,
             log::Log,
             pool::{Handle, HandlesVecExtension},
             reflect::prelude::*,
             some_or_continue,
             visitor::prelude::*,
-            PhantomDataSendSync, SafeLock,
         },
         graph::SceneGraph,
         gui::{
+            BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode,
+            UserInterface, VerticalAlignment,
             border::BorderBuilder,
             brush::Brush,
             button::{Button, ButtonBuilder, ButtonMessage},
@@ -56,13 +58,11 @@ use crate::{
             window::WindowAlignment,
             window::{Window, WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
-            BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode,
-            UserInterface, VerticalAlignment,
         },
     },
 };
-use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::style::resource::StyleResourceExt;
 use rust_fuzzy_search::fuzzy_compare;
 use std::{
     borrow::Cow,
@@ -101,20 +101,19 @@ impl Control for Item {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if message.destination() == self.handle {
-            if let Some(AssetItemMessage::Icon {
+        if message.destination() == self.handle
+            && let Some(AssetItemMessage::Icon {
                 texture,
                 flip_y,
                 color,
             }) = message.data()
-            {
-                ui.send(self.image, ImageMessage::Texture(texture.clone()));
-                ui.send(self.image, ImageMessage::Flip(*flip_y));
-                ui.send(
-                    self.image,
-                    WidgetMessage::Background(Brush::Solid(*color).into()),
-                )
-            }
+        {
+            ui.send(self.image, ImageMessage::Texture(texture.clone()));
+            ui.send(self.image, ImageMessage::Flip(*flip_y));
+            ui.send(
+                self.image,
+                WidgetMessage::Background(Brush::Solid(*color).into()),
+            )
         }
     }
 
@@ -639,16 +638,16 @@ impl<T: TypedResourceData> AssetSelectorMixin<T> {
         ui: &mut UserInterface,
         message: &UiMessage,
     ) {
-        if let Some(ButtonMessage::Click) = message.data() {
-            if message.destination() == self.select {
-                self.selector
-                    .set(AssetSelectorWindowBuilder::build_for_type_and_open::<T>(
-                        resource,
-                        self.icon_request_sender.clone(),
-                        self.resource_manager.clone(),
-                        ui,
-                    ));
-            }
+        if let Some(ButtonMessage::Click) = message.data()
+            && message.destination() == self.select
+        {
+            self.selector
+                .set(AssetSelectorWindowBuilder::build_for_type_and_open::<T>(
+                    resource,
+                    self.icon_request_sender.clone(),
+                    self.resource_manager.clone(),
+                    ui,
+                ));
         }
     }
 

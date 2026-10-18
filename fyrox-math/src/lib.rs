@@ -880,12 +880,12 @@ mod test {
     use num_traits::Zero;
 
     use super::{
-        barycentric_is_inside, barycentric_to_world, cubicf_derivative, get_barycentric_coords,
-        get_barycentric_coords_2d, get_closest_point, get_closest_point_triangle_set,
-        get_closest_point_triangles, get_farthest_point, get_signed_triangle_area, ieee_remainder,
-        inf_sup_cubicf, quat_from_euler, round_to_step, spherical_to_cartesian, triangle_area,
-        wrap_angle, wrapf, Matrix3Ext, Matrix4Ext, PositionProvider, Rect, RotationOrder,
-        SmoothAngle, TriangleDefinition, TriangleEdge, Vector2Ext, Vector3Ext,
+        Matrix3Ext, Matrix4Ext, PositionProvider, Rect, RotationOrder, SmoothAngle,
+        TriangleDefinition, TriangleEdge, Vector2Ext, Vector3Ext, barycentric_is_inside,
+        barycentric_to_world, cubicf_derivative, get_barycentric_coords, get_barycentric_coords_2d,
+        get_closest_point, get_closest_point_triangle_set, get_closest_point_triangles,
+        get_farthest_point, get_signed_triangle_area, ieee_remainder, inf_sup_cubicf,
+        quat_from_euler, round_to_step, spherical_to_cartesian, triangle_area, wrap_angle, wrapf,
     };
     use nalgebra::Vector2;
 
@@ -894,20 +894,16 @@ mod test {
         let rect = Rect::new(0.0, 0.0, 10.0, 10.0);
 
         // Edge-case: Horizontal ray.
-        assert!(super::ray_rect_intersection(
-            rect,
-            Vector2::new(-1.0, 5.0),
-            Vector2::new(1.0, 0.0)
-        )
-        .is_some());
+        assert!(
+            super::ray_rect_intersection(rect, Vector2::new(-1.0, 5.0), Vector2::new(1.0, 0.0))
+                .is_some()
+        );
 
         // Edge-case: Vertical ray.
-        assert!(super::ray_rect_intersection(
-            rect,
-            Vector2::new(5.0, -1.0),
-            Vector2::new(0.0, 1.0)
-        )
-        .is_some());
+        assert!(
+            super::ray_rect_intersection(rect, Vector2::new(5.0, -1.0), Vector2::new(0.0, 1.0))
+                .is_some()
+        );
     }
 
     #[test]

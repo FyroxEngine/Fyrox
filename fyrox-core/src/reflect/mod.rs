@@ -50,11 +50,11 @@ use uuid::Uuid;
 
 pub mod prelude {
     pub use super::{
-        combine_uuids, FieldMetadata, FieldMut, FieldRef, Reflect, ReflectArray, ReflectHashMap,
+        FieldMetadata, FieldMut, FieldRef, Reflect, ReflectArray, ReflectHashMap,
         ReflectInheritableVariable, ReflectList, ResolvePath, SetFieldByPathError, SetFieldError,
-        TypeInfo,
+        TypeInfo, combine_uuids,
     };
-    pub use crate::uuid::{uuid, Uuid};
+    pub use crate::uuid::{Uuid, uuid};
     pub use std::any::Any;
 }
 
@@ -409,10 +409,10 @@ impl dyn Reflect {
         let count = self.fields_count();
 
         for i in 0..count {
-            if let Some(field) = self.field_direct_ref(i) {
-                if let Some(typed_field) = (field.value as &dyn Any).downcast_ref::<T>() {
-                    return Some(typed_field);
-                }
+            if let Some(field) = self.field_direct_ref(i)
+                && let Some(typed_field) = (field.value as &dyn Any).downcast_ref::<T>()
+            {
+                return Some(typed_field);
             }
         }
 
@@ -432,10 +432,10 @@ impl dyn Reflect {
             // The following unsafe block reborrows self with the correct lifetime, while the initial
             // reference is not used so this is absolutely safe.
             let this = unsafe { &mut *(self as *mut Self) };
-            if let Some(field) = this.field_direct_mut(i) {
-                if let Some(typed_field) = (field.value as &mut dyn Any).downcast_mut::<T>() {
-                    return Some(typed_field);
-                }
+            if let Some(field) = this.field_direct_mut(i)
+                && let Some(typed_field) = (field.value as &mut dyn Any).downcast_mut::<T>()
+            {
+                return Some(typed_field);
             }
         }
 
@@ -797,11 +797,12 @@ pub fn path_to_components(path: &str) -> Vec<Component> {
     let mut components = Vec::new();
     let mut current_path = path;
     while let Ok((component, sub_path)) = Component::next(current_path) {
-        if let Component::Field(field) = component {
-            if field.is_empty() {
-                break;
-            }
+        if let Component::Field(field) = component
+            && field.is_empty()
+        {
+            break;
         }
+
         current_path = sub_path;
         components.push(component);
     }
@@ -838,11 +839,13 @@ impl<R: Reflect> GetField for R {
 // SAFETY: String usage is safe in immutable contexts only. Calling `ManuallyDrop::drop`
 // (running strings destructor) on the returned value will cause crash!
 unsafe fn make_fake_string_from_slice(string: &str) -> ManuallyDrop<String> {
-    ManuallyDrop::new(String::from_utf8_unchecked(Vec::from_raw_parts(
-        string.as_bytes().as_ptr() as *mut _,
-        string.len(),
-        string.len(),
-    )))
+    unsafe {
+        ManuallyDrop::new(String::from_utf8_unchecked(Vec::from_raw_parts(
+            string.as_bytes().as_ptr() as *mut _,
+            string.len(),
+            string.len(),
+        )))
+    }
 }
 
 fn try_fetch_by_str_path_ref<'a>(

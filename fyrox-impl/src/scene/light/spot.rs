@@ -48,10 +48,10 @@ use crate::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
         color::Color,
-        math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
+        math::{Matrix4Ext, aabb::AxisAlignedBoundingBox},
         pool::Handle,
         reflect::prelude::*,
-        uuid::{uuid, Uuid},
+        uuid::{Uuid, uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
     },
@@ -64,8 +64,8 @@ use crate::{
         node::{Node, NodeTrait},
     },
 };
-use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::SceneGraph;
+use fyrox_graph::constructor::ConstructorProvider;
 use std::ops::{Deref, DerefMut};
 
 /// See module docs.

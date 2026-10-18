@@ -63,7 +63,10 @@ impl Display for ReflectPathError<'_> {
                 )
             }
             ReflectPathError::NotAnArray => {
-                write!(f, "tried to resolve index access, but the reflect type does not implement list API")
+                write!(
+                    f,
+                    "tried to resolve index access, but the reflect type does not implement list API"
+                )
             }
         }
     }

@@ -26,11 +26,11 @@ use crate::fyrox::{
 };
 use crate::{
     command::{Command, CommandGroup},
-    interaction::{make_interaction_mode_button, InteractionMode},
+    interaction::{InteractionMode, make_interaction_mode_button},
     message::MessageSender,
-    scene::{commands::ChangeSelectionCommand, controller::SceneController, Selection},
+    scene::{Selection, commands::ChangeSelectionCommand, controller::SceneController},
     settings::Settings,
-    ui_scene::{commands::widget::MoveWidgetCommand, UiScene},
+    ui_scene::{UiScene, commands::widget::MoveWidgetCommand},
 };
 use fyrox::gui::button::Button;
 
@@ -170,7 +170,7 @@ impl InteractionMode for MoveWidgetsInteractionMode {
         controller: &mut dyn SceneController,
         _engine: &mut Engine,
         _frame_size: Vector2<f32>,
-        _settings: &Settings,
+        settings: &Settings,
     ) {
         let Some(ui_scene) = controller.downcast_mut::<UiScene>() else {
             return;
@@ -189,19 +189,22 @@ impl InteractionMode for MoveWidgetsInteractionMode {
                     new_screen_space_position.x,
                     new_screen_space_position.y,
                 ));
+                let snapped_coords = settings
+                    .move_mode_settings
+                    .try_snap_vector_to_grid(new_local_position.coords.to_homogeneous())
+                    .xy();
                 ui_scene
                     .ui
                     .node_mut(entry.widget)
-                    .set_desired_local_position(new_local_position.coords);
+                    .set_desired_local_position(snapped_coords);
                 ui_scene.ui.invalidate_layout();
-                entry.new_local_position = new_local_position.coords;
+                entry.new_local_position = snapped_coords;
             }
         }
     }
 
     fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<Button> {
-        let move_mode_tooltip =
-            "Move Object(s) - Shortcut: [2]\n\nMovement interaction mode allows you to move selected \
+        let move_mode_tooltip = "Move Object(s) - Shortcut: [2]\n\nMovement interaction mode allows you to move selected \
         objects. Keep in mind that movement always works in local coordinates!\n\n\
         This also allows you to select an object or add an object to current selection using Ctrl+Click";
 

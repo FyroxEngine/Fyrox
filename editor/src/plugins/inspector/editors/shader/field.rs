@@ -22,19 +22,19 @@ use crate::{
     fyrox::{
         core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
         gui::{
+            BuildContext, Control, UiNode, UserInterface,
             button::{ButtonBuilder, ButtonMessage},
             define_widget_deref_proxy,
             inspector::{
+                FieldAction, InspectorError, PropertyChanged,
                 editors::{
                     PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
                     PropertyEditorMessageContext, PropertyEditorTranslationContext,
                 },
-                FieldAction, InspectorError, PropertyChanged,
             },
             message::{MessageDirection, UiMessage},
             widget::{Widget, WidgetBuilder},
             window::{WindowBuilder, WindowTitle},
-            BuildContext, Control, UiNode, UserInterface,
         },
         material::shader::ShaderSourceCode,
     },
@@ -155,13 +155,13 @@ impl PropertyEditorDefinition for ShaderSourceCodeEditorDefinition {
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(ShaderSourceCodeEditorMessage::Code(value)) = ctx.message.data() {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
-                    action: FieldAction::object(value.clone()),
-                });
-            }
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(ShaderSourceCodeEditorMessage::Code(value)) = ctx.message.data()
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
+                action: FieldAction::object(value.clone()),
+            });
         }
         None
     }

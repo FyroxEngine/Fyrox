@@ -21,17 +21,17 @@
 //! A simplest pose node that extracts pose from a specific animation and prepares it for further use.
 
 use crate::{
+    Animation, AnimationContainer, AnimationEvent, AnimationPose, EntityId,
     core::{
         pool::{Handle, Pool},
         reflect::prelude::*,
         visitor::prelude::*,
     },
     machine::{
+        ParameterContainer, PoseNode,
         node::AnimationEventCollectionStrategy,
         node::{AnimationPoseSource, BasePoseNode},
-        ParameterContainer, PoseNode,
     },
-    Animation, AnimationContainer, AnimationEvent, AnimationPose, EntityId,
 };
 use std::{
     cell::{Ref, RefCell},

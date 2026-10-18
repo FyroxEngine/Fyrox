@@ -18,42 +18,35 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::graph::SceneGraph;
-use crate::fyrox::{
-    core::pool::Handle,
-    engine::Engine,
-    gui::{
-        button::{ButtonBuilder, ButtonMessage},
-        formatted_text::WrapMode,
-        grid::{Column, GridBuilder, Row},
-        message::UiMessage,
-        scroll_viewer::ScrollViewerBuilder,
-        stack_panel::StackPanelBuilder,
-        text::{TextBuilder, TextMessage},
-        text_box::TextBoxBuilder,
-        widget::WidgetBuilder,
-        window::{WindowBuilder, WindowMessage},
-        BuildContext, HorizontalAlignment, Orientation, Thickness,
-    },
-};
-use crate::scene::Selection;
+use crate::command::Command;
 use crate::{
-    message::MessageSender,
-    scene::{
-        commands::{make_delete_selection_command, selection_to_delete},
-        GameScene,
-    },
     Message,
+    fyrox::{
+        core::pool::Handle,
+        engine::Engine,
+        gui::{
+            BuildContext, HorizontalAlignment, Orientation, Thickness,
+            button::{Button, ButtonBuilder, ButtonMessage},
+            formatted_text::WrapMode,
+            grid::{Column, GridBuilder, Row},
+            message::UiMessage,
+            scroll_viewer::ScrollViewerBuilder,
+            stack_panel::StackPanelBuilder,
+            text::{TextBuilder, TextMessage},
+            text_box::{TextBox, TextBoxBuilder},
+            widget::WidgetBuilder,
+            window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
+        },
+    },
+    message::MessageSender,
 };
-use fyrox::gui::button::Button;
-use fyrox::gui::text_box::TextBox;
-use fyrox::gui::window::{Window, WindowAlignment};
 
 pub struct NodeRemovalDialog {
     pub window: Handle<Window>,
     info_text: Handle<TextBox>,
     ok: Handle<Button>,
     cancel: Handle<Button>,
+    command: Option<Command>,
 }
 
 impl NodeRemovalDialog {
@@ -68,6 +61,7 @@ impl NodeRemovalDialog {
             The full list of reference pairs is listed below:";
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(500.0))
             .open(false)
+            .with_title(WindowTitle::text("Node References"))
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
@@ -75,7 +69,7 @@ impl NodeRemovalDialog {
                             TextBuilder::new(
                                 WidgetBuilder::new()
                                     .on_row(0)
-                                    .with_margin(Thickness::uniform(1.0)),
+                                    .with_margin(Thickness::uniform(4.0)),
                             )
                             .with_wrap(WrapMode::Word)
                             .with_text(text)
@@ -107,19 +101,19 @@ impl NodeRemovalDialog {
                                     .with_child({
                                         ok = ButtonBuilder::new(
                                             WidgetBuilder::new()
-                                                .with_width(100.0)
-                                                .with_height(20.0)
+                                                .with_width(120.0)
+                                                .with_height(24.0)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
-                                        .with_text("OK")
+                                        .with_text("Delete Anyway")
                                         .build(ctx);
                                         ok
                                     })
                                     .with_child({
                                         cancel = ButtonBuilder::new(
                                             WidgetBuilder::new()
-                                                .with_width(100.0)
-                                                .with_height(20.0)
+                                                .with_width(120.0)
+                                                .with_height(24.0)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
                                         .with_text("Cancel")
@@ -144,12 +138,12 @@ impl NodeRemovalDialog {
             window,
             ok,
             cancel,
+            command: None,
         }
     }
 
-    pub fn open(&mut self, editor_selection: &Selection, game_scene: &GameScene, engine: &Engine) {
+    pub fn open(&mut self, delete_command: Command, refs: String, engine: &Engine) {
         let ui = &engine.user_interfaces.first();
-        let graph = &engine.scenes[game_scene.scene].graph;
 
         ui.send(
             self.window,
@@ -160,33 +154,13 @@ impl NodeRemovalDialog {
             },
         );
 
-        let mut text = String::new();
+        ui.send(self.info_text, TextMessage::Text(refs));
 
-        let selection = selection_to_delete(editor_selection, game_scene);
-        for root in selection.nodes.iter() {
-            for (node_handle, node) in graph.traverse_iter(*root) {
-                for reference_handle in graph.find_references_to(node_handle) {
-                    let reference = &graph[reference_handle];
-                    text += &format!(
-                        "Scene node `{}`({}:{}) referenced in `{}`({}:{}) scene node.\n",
-                        node.name(),
-                        node_handle.index(),
-                        node_handle.generation(),
-                        reference.name(),
-                        reference_handle.index(),
-                        reference_handle.generation()
-                    );
-                }
-            }
-        }
-
-        ui.send(self.info_text, TextMessage::Text(text));
+        self.command = Some(delete_command);
     }
 
     pub fn handle_ui_message(
         &mut self,
-        editor_selection: &Selection,
-        game_scene: &GameScene,
         message: &UiMessage,
         engine: &Engine,
         sender: &MessageSender,
@@ -196,11 +170,9 @@ impl NodeRemovalDialog {
             if message.destination() == self.ok {
                 ui.send(self.window, WindowMessage::Close);
 
-                sender.send(Message::DoCommand(make_delete_selection_command(
-                    editor_selection,
-                    game_scene,
-                    engine,
-                )));
+                if let Some(command) = self.command.take() {
+                    sender.send(Message::DoCommand(command));
+                }
             } else if message.destination() == self.cancel {
                 ui.send(self.window, WindowMessage::Close);
             }

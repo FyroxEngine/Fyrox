@@ -37,37 +37,38 @@ mod triangle2d;
 
 use super::inspector::InspectorPlugin;
 use crate::{
+    Editor, Message,
     camera::PickingOptions,
     command::SetPropertyCommand,
     fyrox::{
         core::{
             algebra::{UnitQuaternion, Vector2, Vector3},
             color::Color,
-            math::{plane::Plane, Matrix4Ext},
+            math::{Matrix4Ext, plane::Plane},
             pool::Handle,
             reflect::prelude::*,
             some_or_return,
         },
         engine::Engine,
         graph::{NodeWrapper, SceneGraph},
-        gui::{message::UiMessage, BuildContext},
+        gui::{BuildContext, message::UiMessage},
         material::{
-            shader::{ShaderResource, ShaderResourceExtension},
             Material, MaterialResource,
+            shader::{ShaderResource, ShaderResourceExtension},
         },
         scene::{
+            Scene,
             base::BaseBuilder,
             collider::{Collider, ColliderShape},
             dim2,
             node::Node,
             sprite::Sprite,
             sprite::SpriteBuilder,
-            Scene,
         },
     },
     interaction::{
-        calculate_gizmo_distance_scaling, gizmo::move_gizmo::MoveGizmo,
-        make_interaction_mode_button, plane::PlaneKind, InteractionMode,
+        InteractionMode, calculate_gizmo_distance_scaling, gizmo::move_gizmo::MoveGizmo,
+        make_interaction_mode_button, plane::PlaneKind,
     },
     load_texture,
     message::MessageSender,
@@ -79,9 +80,8 @@ use crate::{
         panel::ColliderControlPanel, segment::SegmentShapeGizmo, segment2d::Segment2DShapeGizmo,
         triangle::TriangleShapeGizmo, triangle2d::Triangle2DShapeGizmo,
     },
-    scene::{commands::GameSceneContext, controller::SceneController, GameScene, Selection},
+    scene::{GameScene, Selection, commands::GameSceneContext, controller::SceneController},
     settings::Settings,
-    Editor, Message,
 };
 use fyrox::core::uuid::Uuid;
 use fyrox::gui::button::Button;
@@ -464,21 +464,19 @@ impl InteractionMode for ColliderShapeInteractionMode {
                 })
             } else if let Some(plane_kind) =
                 self.move_gizmo.handle_pick(result.node, &mut scene.graph)
-            {
-                if let Some(handle_value) =
+                && let Some(handle_value) =
                     self.shape_gizmo
                         .value_by_handle(self.selected_handle, self.collider, scene)
-                {
-                    self.drag_context = Some(DragContext {
-                        handle: self.selected_handle,
-                        initial_handle_position: initial_position,
-                        plane,
-                        handle_major_axis: None,
-                        initial_value: handle_value,
-                        plane_kind: Some(plane_kind),
-                        initial_shape,
-                    })
-                }
+            {
+                self.drag_context = Some(DragContext {
+                    handle: self.selected_handle,
+                    initial_handle_position: initial_position,
+                    plane,
+                    handle_major_axis: None,
+                    initial_value: handle_value,
+                    plane_kind: Some(plane_kind),
+                    initial_shape,
+                })
             }
         }
     }
@@ -779,11 +777,9 @@ impl EditorPlugin for ColliderPlugin {
             let panel = ColliderControlPanel::new(&mut ui.build_ctx());
             ui.send(panel.root_widget, WidgetMessage::link_with(inspector.head));
             self.panel = Some(panel);
-        } else if !needs_panel {
-            if let Some(panel) = self.panel.take() {
-                let ui = editor.engine.user_interfaces.first();
-                panel.destroy(ui);
-            }
+        } else if !needs_panel && let Some(panel) = self.panel.take() {
+            let ui = editor.engine.user_interfaces.first();
+            panel.destroy(ui);
         }
     }
 }

@@ -464,10 +464,10 @@ use fyrox_core::{
 pub use fyrox_graphics::gpu_program::{
     SamplerFallback, ShaderResourceDefinition, ShaderResourceKind,
 };
-use fyrox_graphics::{gpu_program::ShaderProperty, DrawParameters};
+use fyrox_graphics::{DrawParameters, gpu_program::ShaderProperty};
 use fyrox_resource::{
-    embedded_data_source, io::ResourceIo, manager::BuiltInResource, untyped::ResourceKind,
-    Resource, ResourceData,
+    Resource, ResourceData, embedded_data_source, io::ResourceIo, manager::BuiltInResource,
+    untyped::ResourceKind,
 };
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};

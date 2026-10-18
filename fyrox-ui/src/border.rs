@@ -25,15 +25,15 @@
 
 use crate::message::MessageData;
 use crate::{
+    BuildContext, Control, Thickness, UiNode, UserInterface,
     core::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*,
         variable::InheritableVariable, visitor::prelude::*,
     },
     draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
-    style::{resource::StyleResourceExt, Style, StyledProperty},
+    style::{Style, StyledProperty, resource::StyleResourceExt},
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 

@@ -27,15 +27,16 @@ use fyrox_ui::scroll_viewer::ScrollViewer;
 use fyrox_ui::text::Text;
 use fyrox_ui::window::{Window, WindowAlignment};
 use fyrox_ui::{
+    BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
     border::BorderBuilder,
     button::{ButtonBuilder, ButtonMessage},
-    core::{parking_lot::Mutex, pool::Handle, SafeLock},
+    core::{SafeLock, parking_lot::Mutex, pool::Handle},
     grid::{Column, GridBuilder, Row},
     image::ImageBuilder,
     message::UiMessage,
     scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
     stack_panel::StackPanelBuilder,
-    style::{resource::StyleResourceExt, Style},
+    style::{Style, resource::StyleResourceExt},
     text::{TextBuilder, TextMessage},
     texture::{
         TextureImportOptions, TextureMagnificationFilter, TextureMinificationFilter,
@@ -43,14 +44,13 @@ use fyrox_ui::{
     },
     widget::{WidgetBuilder, WidgetMessage},
     window::{WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
 };
 use std::{
     io::{BufRead, BufReader, Read},
     process::{ChildStderr, ChildStdout},
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
 };
 
@@ -285,12 +285,12 @@ impl BuildWindow {
         ui: &UserInterface,
         on_stop: impl FnOnce(),
     ) -> Option<Self> {
-        if let Some(ButtonMessage::Click) = message.data() {
-            if message.destination() == self.stop {
-                on_stop();
-                self.destroy(ui);
-                return None;
-            }
+        if let Some(ButtonMessage::Click) = message.data()
+            && message.destination() == self.stop
+        {
+            on_stop();
+            self.destroy(ui);
+            return None;
         }
         Some(self)
     }

@@ -1,3 +1,278 @@
+# 2.0.0-rc.1 (WIP)
+
+- Use markdown in entity creator for selected entity description.
+- Improve validation of widget deletion.
+- Do not allow to delete internal nodes of prefab instances.
+- Fixed node deletion dialog for ui scenes.
+- Checked borrow for scroll bar external handles.
+- Check for cross-refs when deleting widgets.
+- Migrate to edition 2024.
+- Always focus root node when deleting currently focused node.
+- Moved `is_current_selection_has_external_refs` to SceneController.
+- Moved more useful methods from editor to fyrox-graph.
+- Unify selection deletion for game/ui scenes.
+- Style improvements for node removal dialog.
+- Fixed `is_current_selection_has_external_refs`.
+- Universal `find_references_to` + support derived handles + tests.
+- Added missing vec array property editors.
+- Apply current filter in inspector on new selection.
+- `InspectorMessage::ContextChanged`.
+- Added missing property editor.
+- Commit selected entity creation by hitting enter.
+- Fixed potential crash in `remove_range`.
+- Usability fixes for entity creator.
+- Ability to add list view items in front of the list.
+- Added missing property editor.
+- Use markdown visualizer in doc viewer.
+- Improved markdown support.
+- Support links in markdown.
+- Support list items in markdown.
+- Added rest of baseline alignment options.
+- Autoconfigure the editor if startup scenes non empty.
+- Text baseline vertical alignment.
+- Fixed inline widgets position in markdown.
+- Replace newline chars in markdown paragraphs with space.
+- Update `content` field in scroll viewer when changing it via message.
+- Use text inline widgets in markdown.
+- Fixed mutex timeout crash when using text as inline widget of some text.
+- Docs for inline text elements.
+- Fixed alignment of inline text elements.
+- Fixed incorrect line height calculation for inline text elements.
+- Fixed crash when running standalone editor without startup data.
+- Fixed incorrect arrangement of text inline elements.
+- Experimental ability to insert inline elements in text.
+- Fixed crash when adding/removing audio bus + fixed crashes in undo/redo.
+- Experimental markdown support.
+- Do not format doc comments in reflection.
+- Remove shadow from asset item title.
+- Fixed doc provider.
+- Add placeholder for inspector search bar.
+- Prevent scene duplication on editor start.
+- Expose some of the hidden fields of `Widget` in inspector.
+- Improved performance for editor's inspector message handling.
+- Fixed `field_direct_ref/mut` for structs with hidden fields.
+- Support grid snapping for ui widgets.
+- Hide unused toolbar items for ui scenes.
+- Highlight scene title for startup scenes.
+- Expand collapsed tree items when searching in entity creator.
+- Improved context menu for widgets.
+- Hint for search bar in entity creator.
+- Highlight "create" button in entity creator.
+- Sections for entity creator.
+- Sort groups by name in entity creator.
+- Show selected entity description.
+- GraphNodeConstructor api improvements.
+- Use smallvec optimization to reduce memory allocation count on heap.
+- Added "recently created" header.
+- Save recently created entities in editor settings.
+- Improved ux for entity creator.
+- `GraphNodeConstructorContainer::try_get_variant`.
+- Simplified code, removed duplicated blocks.
+- Adjust entity creator title depending on the mode.
+- Searching for entity creator.
+- Entity creator window.
+- `GraphNodeConstructorContainer::try_create_variant` helper.
+- Fixed default widget state created via `define_widget_constructor`.
+- Update list of entities to create when adding a plugin to the editor.
+- `define_widget_constructor` helper macro for custom widgets.
+- Fixed filtering in inspector.
+- Ability to search by property name in inspector.
+- Ability to remove startup scenes from context menu.
+- Ability to mark scene to load at editor startup from context menu.
+- Context menu for scene tabs.
+- Context menu support for tab control headers.
+- Ability to specify click button for button widget.
+- Do not close menu items on click that has sub-items.
+- Added missing property editors for ui.
+- Fixed dyn type editor + tests.
+- Fixed crash when cancelling prefab instantiation in ui scene.
+- `DynType::try_take_or_default`.
+- Fixed collection items naming.
+- Return collection items alignment.
+- Include type name of fields in inspector tooltips.
+- Do not compact fields in the inspector + always show `revert` button.
+- Show structs with single field with name column hidden in inspectables.
+- Default to `backend_opengl` for `fyrox_impl`.
+- Fixed incorrect impl of derived `fields_count`.
+- Improved performance of editor inspector.
+- Remove a bunch of redundant clone.
+- `TabControl::has_tab`.
+- Ability to specify startup scenes in the editor settings.
+- Fixed editor settings not visualizing some changes.
+- Less bright default color for text in inspector.
+- Include widget type in its name in the handle property editor.
+- Fixed incorrect zoom when no curves in curve editor.
+- Min width for key editor for hash map property editor.
+- Fixed style for hash map property editor.
+- Fixed layout of inheritable property editor + styling.
+- Fixed tuple elements naming.
+- Remove unused code.
+- Fixed indentation for collection elements + inheritable var in inspector.
+- Fixed "stuck" mouse buttons in `input_state`.
+- Moved editor automated test to integration tests folder.
+- Reduced horizontal shift for array items in collection editors.
+- Allow "remove" button of collection item to be the same size as the item.
+- Wgpu support.
+- Fixed incorrect sub editors attachment for hash map editor.
+- Fixed path for hash map entries.
+- Drop `PartialEq` bound for `HashMapState` trait.
+- `register_resource_type` helper method.
+- `impl_simple_resource` macro improvements + fixes.
+- Visit + Reflect impls for KeyCode of winit.
+- Handle non-exhaustive enums in `Visit` proc-macro correctly.
+- Use latest hrtf.
+- `impl_simple_resource` helper macro.
+- Added missing `save` method impl.
+- Hash set reflection.
+- Improved error handling in hash map commands.
+- Adjust visual style of hash map property editor a bit.
+- Sync stage for hash map property editor.
+- Refactored hash map property editor.
+- Ability to ignore type uuid of generics in reflect proc-macro.
+- Reduced boilerplate code.
+- Ability to add hash map key-value pair in inspector.
+- Draft key value selection dialog for hash map editor.
+- Ability to remove hash map entries from inspector.
+- Ability to change hash map key from inspector.
+- Support value editing for hash maps.
+- Tests for hash map action.
+- Basic support for reflection-based inspector commands for hash maps.
+- Ability to replace hash map key via reflection + refactoring.
+- Draft support for hash maps in Inspector.
+- `Visit` trait impls for quality settings structs.
+- Keep previous absm selected in the editor.
+- Fixed incorrect index.
+- Curve fetching optimization for animation system.
+- Improved animation system performance.
+- Fixed absm layer mask bug.
+- Fix trimmed text in blendspace editor.
+- Removed redundant methods.
+- Fixed current selection highlighting in node selector.
+- Improved error handling in animation.
+- Fixed incorrect implementation of graph depth traversal iterator.
+- Attempt to fix random crash in physics step.
+- Fixed compilation errors for doc tests.
+- Fixed batching in `push_triangles`.
+- Fixed incorrect usage of dynamic surface cache.
+- Remove dependency on `memoffset`.
+- Print dynamic surface cache stats.
+- Increased msrv.
+- Fixed uncontrollable growth of dynamic surface cache.
+- Removed redundant memory allocations for skybox cube map.
+- Multiselection for box selection.
+- Fixed box selection for absm canvas.
+- Ability to do rect intersection test with widgets.
+- Box selection for absm canvas.
+- Fixed inability to do actions on multiple selection in absm editor.
+- Fixed confusing naming.
+- Fixed multiselection for transitions in absm editor.
+- Fixed reflection for `NotNode`.
+- Fixed incorrect reflection for logic nodes for absm.
+- Added missing property editor.
+- Property editors for kcc.
+- Added missing `PartialEq` impls for kinematic character controller.
+- 2d kinematic character controller.
+- Fixed default impl for CharacterAutostep.
+- Kinematic character controller.
+- Preserve rigid body type in ragdoll.
+- Make `isometry_from_global_transform` public.
+- Typed handles for shape casting.
+- `Physics::cast_collider_shape`.
+- Fixed re-export issues.
+- Helper methods.
+- Update to rapier 0.33.
+- Improved docs for `Reflect` trait.
+- Use `Arc::ptr_eq` instead of manual impl.
+- Removed redundant method.
+- Fixed incorrect comparison.
+- Removed `ReflectInheriableVariable::clone_value_box`.
+- Removed redundant method.
+- Template fixes + more `PartialEq` impls.
+- Finished with `PartialEq` impls.
+- `PartialEq` impls + improvements for ui.
+- Continue with `PartialEq` impls.
+- More `PartialEq` impls.
+- `Reflect::try_compare` impls.
+- `Reflect::try_compare` draft.
+- More precise naming.
+- Fixed property revertion.
+- Renamed `SceneGraphNode` trait to `NodeWrapper`.
+- Removed unused associated type.
+- Merged `TypeUuidProvider` trait into `Reflect`.
+- Fixed editing of `RefCell<T>`.
+- Fixed name column hiding in inspector.
+- Fixed editing of inheritable vars.
+- Use inner value of node/widget wrapper in the inspector.
+- Fixed downcasting for widgets and scene nodes.
+- Fixed `is_out_of_sync` to recursively check for out of sync.
+- Register ui widgets in inspector.
+- Register scene nodes in inspector.
+- Doc improvements + corrections.
+- Refactored `Reflect::as_xxx` methods to return value itself.
+- Use Reflect auto impl for trait object wrappers.
+- Use derived impls of Reflect for Script + Node.
+- Ability to specify custom clone function for reflect trait.
+- Refactored `Reflect` trait to remove unnecessary proxying.
+- Renamed methods with confusing naming + docs.
+- Mark inheritable variable as modified when accessing fields by `_direct`.
+- Cleaned up type info fetching from `Reflect` + put type info in a struct.
+- Fixed doc test.
+- `Reflect::into_any` -> `Reflect::into_inner_reflect` + docs.
+- Fix read_pixels_of_type UB: use bytemuck::cast_slice (#918).
+- Removed `Reflect::as_any/as_any_mut`.
+- Fixed crash when closing a scene with a camera selected on other scene.
+- Fixed animation player fetching in absm editor.
+- Fixed doc comments + fixed misleading docs.
+- Unified naming for field fetching via reflection.
+- Count fields in proc macro.
+- Improved docs.
+- Fixed failing test.
+- Removed `ComponentProvider`, merged its functionality into `Reflect`.
+- `Reflect::self_or_field_ref/mut_of_type`.
+- `Reflect::first_field_ref/mut_of_type`.
+- `Reflect::get_field_direct_ref/mut`.
+- `Reflect::fields_count`.
+- Removed redundant `allow` switch.
+- Renamed `field` -> `find_field` + `field_mut` -> `find_field_mut`.
+- Merge modules.
+- Continue splitting `reflect` module.
+- Split `reflect` mod into smaller modules.
+- Moved reflect impl macros to separate mod + fix `delegate_reflect` macro.
+- Fixed `newtype_reflect` macro + added full paths to types.
+- Use full paths to types in `blank_reflect` macro.
+- Moved `ReflectHashMap` into a separate module.
+- Removed `ReflectBase` trait + use trait upcasting instead.
+- Docs for dyntype.
+- Removed `DynType::into_any` and replaced it with trait upcasting.
+- Add `UI_FONT_SIZE` const in editor (#914).
+- Type handle of absm for `AbsmEventProvider` widget.
+- Fixed incorrect condition in check box widget.
+- Fixed inspector errors from `StyledProperty`.
+- Fixed `enumerate_fields_recursively` for `InheritableVariable`.
+- Improved logging of errors in inspector context menu.
+- Fixed coordinate space issues in gradient rendering in ui.
+- Fixed crash on exit when using the engine in hot reloading mode.
+- Hide runtime variables from inspector for `GridDimension`.
+- Catch and report infinite message loops in ui message handling.
+- Improved logging for hot reloading failures.
+- Shortcuts for `Machine::set_parameter`.
+- Improved editor stats window to show loaded asset count.
+- Correctly close menus when there's no parent menu item.
+- Correctly end stderr + stdout capturing processes on force-stopping game.
+- `traverse_iter_mut`.
+- Optimized performance of graph depth traversal iterator.
+- Non-allocating graph traversal iterator.
+- Fixed `copy_node_inplace` implementation.
+- Fix relative path resolution for symlinked asset directories (#912).
+- Remove unused features.
+- Test for `Graph::copy_node_inplace`.
+- Added `output` feature for `fyrox-sound`.
+- Correctly deselect nested menu items of orphaned menus.
+- Update nix flakes (#909).
+- Pass sample rate explicitly to `SoundEngine` constructors.
+- Configurable sample rate for fyrox-sound.
+- Removed incorrect impl of Visit for TextureBytes.
+
 # 1.0.1
 
 - Fixed unaligned read in the renderer on WebAssembly, that in some cases led to black screen on startup (#906).
@@ -2825,8 +3100,8 @@ flexible.
 - 2D games support (with 2D physics as well)
 - Three new scene nodes was added: RigidBody, Collider, Joint. Since rigid body, collider and joint are graph nodes
   now, it is possible to have complex hierarchies built with them.
-- It is possible to attach rigid body to any node in scene graph, its position now will be correct in this case (
-  previously it was possible to have rigid bodies attached only on root scene nodes).
+- It is possible to attach rigid body to any node in scene graph, its position now will be correct in this case
+  (previously it was possible to have rigid bodies attached only on root scene nodes).
 - New `Inspector` widget + tons of built-in property editors (with the ability to add custom editors)
 - `Inspect` trait + proc macro for lightweight reflection
 - UI now using dynamic dispatch allowing you to add custom nodes and messages easily
@@ -2954,8 +3229,8 @@ do the conversion).
 
 Now there are two ways of adding a rigid body to a scene node:
 
-- If you want your object to have a rigid body (for example a crate with box rigid body), your object must be
-  **child** object of a rigid body. Graphically it can be represented like this:
+- If you want your object to have a rigid body (for example a crate with box rigid body), your object must be **child**
+  object of a rigid body. Graphically it can be represented like this:
 
 ```text
 - Rigid Body

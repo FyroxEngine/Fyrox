@@ -77,12 +77,11 @@ impl Decoder {
         let mut hint = Hint::new();
 
         // If pulling audio from a file, give the probe the extension
-        if let DataSource::File { ref path, data: _ } = source {
-            if let Some(osstr) = path.extension() {
-                if let Some(ext) = osstr.to_str() {
-                    hint.with_extension(ext);
-                }
-            }
+        if let DataSource::File { ref path, data: _ } = source
+            && let Some(osstr) = path.extension()
+            && let Some(ext) = osstr.to_str()
+        {
+            hint.with_extension(ext);
         };
 
         let media_source_stream =

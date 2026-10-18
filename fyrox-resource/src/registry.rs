@@ -29,7 +29,7 @@ use crate::{
 };
 use fxhash::FxHashSet;
 use fyrox_core::uuid::Uuid;
-use fyrox_core::{futures::executor::block_on, SafeLock};
+use fyrox_core::{SafeLock, futures::executor::block_on};
 use ron::ser::PrettyConfig;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
@@ -356,10 +356,10 @@ impl ResourceRegistry {
     pub fn save_sync(&self) {
         #[cfg(not(target_arch = "wasm32"))]
         if self.io.can_write() {
-            if let Some(folder) = self.path.parent() {
-                if !self.io.exists_sync(folder) {
-                    fyrox_core::log::Log::verify(self.io.create_dir_all_sync(folder));
-                }
+            if let Some(folder) = self.path.parent()
+                && !self.io.exists_sync(folder)
+            {
+                fyrox_core::log::Log::verify(self.io.create_dir_all_sync(folder));
             }
 
             match self.paths.save_sync(&self.path, &*self.io) {

@@ -20,6 +20,7 @@
 
 use crate::world::create::EntityCreatorMode;
 use crate::{
+    SaveSceneConfirmationDialogAction,
     command::{Command, CommandGroup, CommandTrait},
     fyrox::{
         core::{
@@ -28,7 +29,7 @@ use crate::{
             reflect::prelude::*,
             uuid::Uuid,
         },
-        gui::{inspector::PropertyChanged, UiNode},
+        gui::{UiNode, inspector::PropertyChanged},
         material::MaterialResource,
         scene::{
             camera::Projection,
@@ -38,12 +39,11 @@ use crate::{
         },
     },
     scene::Selection,
-    SaveSceneConfirmationDialogAction,
 };
-use fyrox::gui::file_browser::FileType;
 use fyrox::gui::UserInterface;
+use fyrox::gui::file_browser::FileType;
 use fyrox::scene::Scene;
-use std::{path::PathBuf, sync::mpsc::channel, sync::mpsc::Sender};
+use std::{path::PathBuf, sync::mpsc::Sender, sync::mpsc::channel};
 
 #[derive(Debug)]
 pub enum Message {
@@ -83,7 +83,10 @@ pub enum Message {
     OpenMaterialEditor(MaterialResource),
     OpenTileSetEditor(TileSetResource),
     OpenTileMapBrushEditor(TileMapBrushResource),
-    OpenNodeRemovalDialog,
+    OpenNodeRemovalDialog {
+        delete_command: Command,
+        refs: String,
+    },
     ShowInAssetBrowser(PathBuf),
     LocateObject {
         handle: ErasedHandle,

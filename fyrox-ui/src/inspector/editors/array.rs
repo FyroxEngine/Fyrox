@@ -19,23 +19,24 @@
 // SOFTWARE.
 
 use crate::{
-    core::{pool::Handle, reflect::prelude::*, visitor::prelude::*, PhantomDataSendSync},
+    BuildContext, Control, Thickness, UiNode, UserInterface,
+    core::{PhantomDataSendSync, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     inspector::{
+        CollectionAction, FieldAction, InspectorError, PropertyChanged,
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition,
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        make_expander_container, CollectionAction, FieldAction, InspectorError, PropertyChanged,
+        make_expander_container,
     },
-    inspector::{make_property_margin, PropertyFilter},
+    inspector::{PropertyFilter, make_property_margin},
     message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 
-use crate::inspector::{InspectorEnvironmentContainer, HEADER_MARGIN, LAYER_OFFSET};
+use crate::inspector::{HEADER_MARGIN, InspectorEnvironmentContainer, LAYER_OFFSET};
 use crate::message::{DeliveryMode, MessageData};
 use fyrox_graph::SceneGraph;
 use std::sync::Arc;
@@ -455,29 +456,26 @@ where
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(ArrayEditorMessage::ItemChanged { index, message }) = ctx.message.data() {
-                if let Some(definition) = ctx.definition_container.get::<T>() {
-                    return Some(PropertyChanged {
-                        name: ctx.name.to_string(),
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(ArrayEditorMessage::ItemChanged { index, message }) = ctx.message.data()
+            && let Some(definition) = ctx.definition_container.get::<T>()
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
 
-                        action: FieldAction::CollectionAction(Box::new(
-                            CollectionAction::ItemChanged {
-                                index: *index,
-                                action: definition
-                                    .property_editor
-                                    .translate_message(PropertyEditorTranslationContext {
-                                        environment: ctx.environment.clone(),
-                                        name: "",
-                                        message,
-                                        definition_container: ctx.definition_container.clone(),
-                                    })?
-                                    .action,
-                            },
-                        )),
-                    });
-                }
-            }
+                action: FieldAction::CollectionAction(Box::new(CollectionAction::ItemChanged {
+                    index: *index,
+                    action: definition
+                        .property_editor
+                        .translate_message(PropertyEditorTranslationContext {
+                            environment: ctx.environment.clone(),
+                            name: "",
+                            message,
+                            definition_container: ctx.definition_container.clone(),
+                        })?
+                        .action,
+                })),
+            });
         }
         None
     }

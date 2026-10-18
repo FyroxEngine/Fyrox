@@ -61,11 +61,11 @@ impl GpuQueryTrait for GlQuery {
     }
 
     fn end(&self) {
-        if let Some(active_query) = self.active_query.get() {
-            if let Some(pipeline_state) = self.pipeline_state.upgrade() {
-                unsafe {
-                    pipeline_state.gl.end_query(active_query as u32);
-                }
+        if let Some(active_query) = self.active_query.get()
+            && let Some(pipeline_state) = self.pipeline_state.upgrade()
+        {
+            unsafe {
+                pipeline_state.gl.end_query(active_query as u32);
             }
         }
     }

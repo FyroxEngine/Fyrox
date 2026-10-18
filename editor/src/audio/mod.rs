@@ -21,14 +21,17 @@
 use crate::plugins::inspector::editors::resource::ResourceField;
 use crate::scene::EntityInfo;
 use crate::{
+    ChangeSelectionCommand, Command, GameScene, GridBuilder, MessageDirection, Mode, Selection,
+    UserInterface,
     asset::preview::cache::IconRequest,
     audio::bus::{AudioBusView, AudioBusViewBuilder, AudioBusViewMessage},
-    command::{make_command, CommandGroup, SetPropertyCommand},
+    command::{CommandGroup, SetPropertyCommand, make_command},
     fyrox::{
         core::{pool::Handle, reflect::Reflect, some_or_return},
         engine::Engine,
         graph::SceneGraph,
         gui::{
+            Orientation, Thickness, UiNode, VerticalAlignment,
             button::{ButtonBuilder, ButtonMessage},
             dropdown_list::{DropdownListBuilder, DropdownListMessage},
             grid::{Column, Row},
@@ -40,29 +43,26 @@ use crate::{
             utils::{make_dropdown_list_option, make_simple_tooltip},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowTitle},
-            Orientation, Thickness, UiNode, VerticalAlignment,
         },
         scene::{
-            sound::{AudioBus, AudioBusGraph, DistanceModel, HrirSphereResourceData, Renderer},
             SceneContainer,
+            sound::{AudioBus, AudioBusGraph, DistanceModel, HrirSphereResourceData, Renderer},
         },
     },
     message::MessageSender,
     plugins::inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
     scene::{
+        SelectionContainer,
         commands::{
-            effect::{AddAudioBusCommand, LinkAudioBuses, RemoveAudioBusCommand},
+            GameSceneContext,
+            effect::{AddOrRemoveAudioBusCommand, LinkAudioBuses},
             sound_context::{
                 SetDistanceModelCommand, SetHrtfRendererHrirSphereResource, SetRendererCommand,
             },
-            GameSceneContext,
         },
         controller::SceneController,
-        SelectionContainer,
     },
     utils::window_content,
-    ChangeSelectionCommand, Command, GameScene, GridBuilder, MessageDirection, Mode, Selection,
-    UserInterface,
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::dropdown_list::DropdownList;
@@ -163,21 +163,6 @@ impl SelectionContainer for AudioBusSelection {
 
         sender.do_command_group(group);
     }
-
-    fn provide_docs(&self, controller: &dyn SceneController, engine: &Engine) -> Option<String> {
-        let game_scene = controller.downcast_ref::<GameScene>()?;
-        let scene = &engine.scenes[game_scene.scene];
-        self.buses.first().and_then(|h| {
-            scene
-                .graph
-                .sound_context
-                .state()
-                .bus_graph_ref()
-                .try_get_bus_ref(*h)
-                .ok()
-                .map(|bus| bus.type_info_ref().doc_comment.to_string())
-        })
-    }
 }
 
 pub struct AudioPanel {
@@ -204,8 +189,9 @@ fn fetch_possible_parent_buses(
     let mut stack = vec![graph.primary_bus_handle()];
     let mut result = Vec::new();
     while let Some(other_bus) = stack.pop() {
-        let other_bus_ref = graph.try_get_bus_ref(other_bus).expect("Malformed graph!");
-        if other_bus != bus {
+        if let Ok(other_bus_ref) = graph.try_get_bus_ref(other_bus)
+            && other_bus != bus
+        {
             result.push((other_bus, other_bus_ref.name().to_owned()));
             stack.extend_from_slice(other_bus_ref.children());
         }
@@ -390,21 +376,21 @@ impl AudioPanel {
     ) {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.add_bus {
-                sender.do_command(AddAudioBusCommand::new(AudioBus::new(
+                sender.do_command(AddOrRemoveAudioBusCommand::new_add(AudioBus::new(
                     "AudioBus".to_string(),
                 )))
-            } else if message.destination() == self.remove_bus {
-                if let Some(selection) = editor_selection.as_audio_bus() {
-                    let mut commands = vec![Command::new(ChangeSelectionCommand::new(
-                        Selection::new_empty(),
-                    ))];
+            } else if message.destination() == self.remove_bus
+                && let Some(selection) = editor_selection.as_audio_bus()
+            {
+                let mut commands = vec![Command::new(ChangeSelectionCommand::new(
+                    Selection::new_empty(),
+                ))];
 
-                    for &bus in &selection.buses {
-                        commands.push(Command::new(RemoveAudioBusCommand::new(bus)));
-                    }
-
-                    sender.do_command(CommandGroup::from(commands));
+                for &bus in &selection.buses {
+                    commands.push(Command::new(AddOrRemoveAudioBusCommand::new_remove(bus)));
                 }
+
+                sender.do_command(CommandGroup::from(commands));
             }
         } else if let Some(ListViewMessage::Selection(selected_indices)) =
             message.data_from(self.audio_buses)
@@ -512,7 +498,13 @@ impl AudioPanel {
                         .with_audio_bus(audio_bus_handle)
                         .build(&mut ui.build_ctx());
 
-                        ui.send_sync(self.audio_buses, ListViewMessage::add_item(item));
+                        ui.send_sync(
+                            self.audio_buses,
+                            ListViewMessage::AddItem {
+                                node: item.to_base(),
+                                in_front: false,
+                            },
+                        );
                     }
                 }
             }

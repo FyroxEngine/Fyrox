@@ -25,6 +25,8 @@
 
 use crate::message::DeliveryMode;
 use crate::{
+    BuildContext, Control, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
+    UserInterface, VerticalAlignment,
     border::BorderBuilder,
     brush::Brush,
     button::{Button, ButtonBuilder, ButtonMessage},
@@ -34,13 +36,11 @@ use crate::{
     decorator::{Decorator, DecoratorBuilder, DecoratorMessage},
     grid::{Column, Grid, GridBuilder, Row},
     message::{ButtonState, MessageData, MouseButton, UiMessage},
-    style::{resource::StyleResourceExt, Style, StyledProperty},
+    style::{Style, StyledProperty, resource::StyleResourceExt},
     utils::make_cross_primitive,
     vector_image::VectorImageBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     wrap_panel::{WrapPanel, WrapPanelBuilder},
-    BuildContext, Control, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
-    UserInterface, VerticalAlignment,
 };
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -307,10 +307,10 @@ impl TabControl {
         flags: u64,
         delivery_mode: DeliveryMode,
     ) {
-        if let Some(index) = active_tab {
-            if self.tabs.len() <= index {
-                return;
-            }
+        if let Some(index) = active_tab
+            && self.tabs.len() <= index
+        {
+            return;
         }
         // Send messages to update the state of each tab.
         for (existing_tab_index, tab) in self.tabs.iter().enumerate() {
@@ -405,15 +405,15 @@ impl Control for TabControl {
             match msg {
                 TabControlMessage::ActiveTab(uuid) => match uuid {
                     Some(uuid) => {
-                        if let Some(active_tab) = self.tabs.iter().position(|t| t.uuid == *uuid) {
-                            if self.active_tab != Some(active_tab) {
-                                self.set_active_tab(
-                                    Some(active_tab),
-                                    ui,
-                                    message.flags,
-                                    message.delivery_mode,
-                                );
-                            }
+                        if let Some(active_tab) = self.tabs.iter().position(|t| t.uuid == *uuid)
+                            && self.active_tab != Some(active_tab)
+                        {
+                            self.set_active_tab(
+                                Some(active_tab),
+                                ui,
+                                message.flags,
+                                message.delivery_mode,
+                            );
                         }
                     }
                     None if self.active_tab.is_some() => {
@@ -429,10 +429,10 @@ impl Control for TabControl {
                     let index = self.tabs.iter().position(|t| t.uuid == *uuid);
                     // Users that remove tabs using the UUID-based message only get the UUID-based message in reponse,
                     // since presumably their application is not using tab indices.
-                    if let Some(index) = index {
-                        if self.remove_tab(index, ui) {
-                            ui.try_send_response(message);
-                        }
+                    if let Some(index) = index
+                        && self.remove_tab(index, ui)
+                    {
+                        ui.try_send_response(message);
                     }
                 }
                 TabControlMessage::AddTab(definition) => {

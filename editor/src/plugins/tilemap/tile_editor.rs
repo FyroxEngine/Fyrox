@@ -632,11 +632,11 @@ impl TileEditor for TileHandleEditor {
         if message.direction() == MessageDirection::ToWidget {
             return;
         }
-        if let Some(&TileHandleEditorMessage::Value(value)) = message.data() {
-            if message.destination() == self.handle {
-                self.value = value;
-                Self::apply_value(value, state, tile_book, sender);
-            }
+        if let Some(&TileHandleEditorMessage::Value(value)) = message.data()
+            && message.destination() == self.handle
+        {
+            self.value = value;
+            Self::apply_value(value, state, tile_book, sender);
         }
     }
 }

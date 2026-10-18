@@ -22,7 +22,7 @@
 //! mechanism when you need to bundle all game resources and put them in the executable file. See
 //! [`BuiltInResource`] docs for more info.
 
-use crate::{untyped::UntypedResource, Resource, TypedResourceData};
+use crate::{Resource, TypedResourceData, untyped::UntypedResource};
 use fxhash::FxHashMap;
 use fyrox_core::uuid::Uuid;
 use std::{

@@ -23,12 +23,12 @@ use crate::{
         core::{algebra::Vector3, pool::Handle},
         graph::SceneGraph,
         scene::{
+            Scene,
             collider::{Collider, ColliderShape},
             node::Node,
-            Scene,
         },
     },
-    plugins::collider::{make_handle, try_get_collider_shape, ShapeGizmoTrait, ShapeHandleValue},
+    plugins::collider::{ShapeGizmoTrait, ShapeHandleValue, make_handle, try_get_collider_shape},
 };
 use fyrox::scene::pivot::Pivot;
 use fyrox::scene::sprite::Sprite;

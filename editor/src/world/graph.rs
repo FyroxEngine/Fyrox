@@ -31,20 +31,21 @@ use crate::{
         },
         graph::{NodeWrapper, SceneGraph},
         resource::model::{Model, ModelResourceExtension},
-        scene::{node::Node, Scene},
+        scene::{Scene, node::Node},
     },
     message::MessageSender,
     scene::{
+        GameScene, Selection,
         commands::{
+            ChangeSelectionCommand,
             graph::SetGraphNodeChildPosition,
             graph::{AddModelCommand, LinkNodesCommand},
-            ChangeSelectionCommand,
         },
-        GameScene, Selection,
     },
     scene_item_icon,
-    world::{item::DropAnchor, selection::GraphSelection, WorldViewerDataProvider},
+    world::{WorldViewerDataProvider, item::DropAnchor, selection::GraphSelection},
 };
+use fyrox::core::NameProvider;
 use fyrox::core::color::Color;
 use std::{borrow::Cow, path::Path, path::PathBuf};
 
@@ -115,11 +116,16 @@ impl WorldViewerDataProvider for EditorSceneWrapper<'_> {
     }
 
     fn name_of(&self, node: ErasedHandle) -> Option<Cow<str>> {
-        self.scene
-            .graph
-            .try_get_node(node.into())
-            .ok()
-            .map(|n| Cow::Borrowed(n.name()))
+        self.scene.graph.try_get_node(node.into()).ok().map(|n| {
+            if let Some(resource) = n.resource()
+                && let Some(path) = self.resource_manager.resource_path(resource)
+                && let Some(file_name) = path.file_name()
+            {
+                let name = format!("{} <{}>", n.name(), file_name.display());
+                return Cow::Owned(name);
+            }
+            Cow::Borrowed(n.name())
+        })
     }
 
     fn is_valid_handle(&self, node: ErasedHandle) -> bool {
@@ -172,81 +178,77 @@ impl WorldViewerDataProvider for EditorSceneWrapper<'_> {
         let child: Handle<Node> = child.into();
         let parent: Handle<Node> = parent.into();
 
-        if let Some(selection) = self.selection.as_graph() {
-            if selection.nodes.contains(&child) {
-                let mut commands = CommandGroup::default();
+        if let Some(selection) = self.selection.as_graph()
+            && selection.nodes.contains(&child)
+        {
+            let mut commands = CommandGroup::default();
 
-                'selection_loop: for &node_handle in selection.nodes.iter() {
-                    // Make sure we won't create any loops - child must not have parent in its
-                    // descendants.
-                    let mut p = parent;
-                    while p.is_some() {
-                        if p == node_handle {
-                            continue 'selection_loop;
-                        }
-                        p = self.scene.graph[p].parent();
+            'selection_loop: for &node_handle in selection.nodes.iter() {
+                // Make sure we won't create any loops - child must not have parent in its
+                // descendants.
+                let mut p = parent;
+                while p.is_some() {
+                    if p == node_handle {
+                        continue 'selection_loop;
                     }
+                    p = self.scene.graph[p].parent();
+                }
 
-                    match anchor {
-                        DropAnchor::Side { index_offset, .. } => {
-                            if let Some((parents_parent, position)) =
-                                self.scene.graph.relative_position(parent, index_offset)
+                match anchor {
+                    DropAnchor::Side { index_offset, .. } => {
+                        if let Some((parents_parent, position)) =
+                            self.scene.graph.relative_position(parent, index_offset)
+                        {
+                            if let Ok(node) = self.scene.graph.try_get_node(node_handle)
+                                && node.parent() != parents_parent
                             {
-                                if let Ok(node) = self.scene.graph.try_get_node(node_handle) {
-                                    if node.parent() != parents_parent {
-                                        commands.push(LinkNodesCommand::new(
-                                            node_handle,
-                                            parents_parent,
-                                        ));
-                                    }
-                                }
-
-                                commands.push(SetGraphNodeChildPosition {
-                                    node: parents_parent,
-                                    child: node_handle,
-                                    position,
-                                });
+                                commands.push(LinkNodesCommand::new(node_handle, parents_parent));
                             }
-                        }
-                        DropAnchor::OnTop => {
-                            commands.push(LinkNodesCommand::new(node_handle, parent));
+
+                            commands.push(SetGraphNodeChildPosition {
+                                node: parents_parent,
+                                child: node_handle,
+                                position,
+                            });
                         }
                     }
+                    DropAnchor::OnTop => {
+                        commands.push(LinkNodesCommand::new(node_handle, parent));
+                    }
                 }
+            }
 
-                if !commands.is_empty() {
-                    self.sender.do_command(commands);
-                }
+            if !commands.is_empty() {
+                self.sender.do_command(commands);
             }
         }
     }
 
     fn on_asset_dropped(&mut self, path: PathBuf, node: ErasedHandle) {
-        if let Ok(relative_path) = make_relative_path(path) {
-            if let Some(model) = self
+        if let Ok(relative_path) = make_relative_path(path)
+            && let Some(model) = self
                 .resource_manager
                 .try_request::<Model>(relative_path)
                 .and_then(|m| block_on(m).ok())
-            {
-                // Instantiate the model.
-                let instance = model.instantiate(self.scene);
+        {
+            // Instantiate the model.
+            let instance = model.instantiate(self.scene);
 
-                self.scene.graph[instance]
-                    .local_transform_mut()
-                    .set_scale(self.instantiation_scale);
+            self.scene.graph[instance]
+                .local_transform_mut()
+                .set_scale(self.instantiation_scale);
 
-                let sub_graph = self.scene.graph.take_reserve_sub_graph(instance);
+            let sub_graph = self.scene.graph.take_reserve_sub_graph(instance);
 
-                let group = vec![
-                    Command::new(AddModelCommand::new(sub_graph)),
-                    Command::new(LinkNodesCommand::new(instance, node.into())),
-                    Command::new(ChangeSelectionCommand::new(Selection::new(
-                        GraphSelection::single_or_empty(instance),
-                    ))),
-                ];
+            let group = vec![
+                Command::new(AddModelCommand::new(sub_graph)),
+                Command::new(LinkNodesCommand::new(instance, node.into())),
+                Command::new(ChangeSelectionCommand::new(Selection::new(
+                    GraphSelection::single_or_empty(instance),
+                ))),
+            ];
 
-                self.sender.do_command(CommandGroup::from(group));
-            }
+            self.sender.do_command(CommandGroup::from(group));
         }
     }
 

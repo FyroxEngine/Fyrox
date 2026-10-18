@@ -21,11 +21,11 @@
 use crate::{
     fyrox::{
         core::{algebra::Vector3, math, pool::Handle},
-        scene::{collider::ColliderShape, node::Node, Scene},
+        scene::{Scene, collider::ColliderShape, node::Node},
     },
     plugins::collider::{
-        make_handle, try_get_collider_shape, try_get_collider_shape_mut, ShapeGizmoTrait,
-        ShapeHandleValue,
+        ShapeGizmoTrait, ShapeHandleValue, make_handle, try_get_collider_shape,
+        try_get_collider_shape_mut,
     },
 };
 use fyrox::scene::pivot::Pivot;

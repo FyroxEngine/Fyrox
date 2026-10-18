@@ -28,13 +28,13 @@ use crate::{
         server::GraphicsServer,
     },
     renderer::{
+        RenderPassStatistics,
         cache::{
-            shader::{binding, property, PropertyGroup, RenderMaterial},
+            shader::{PropertyGroup, RenderMaterial, binding, property},
             uniform::UniformBufferCache,
         },
         make_viewport_matrix,
         resources::RendererResources,
-        RenderPassStatistics,
     },
 };
 

@@ -155,10 +155,10 @@ impl TileSetWfcConstraint {
         {
             return Err(FillPatternMapError::PatternInvalidId);
         }
-        if let Some(id) = frequency_property {
-            if tile_set.find_property(*id.property_uuid()).is_none() {
-                return Err(FillPatternMapError::FrequencyInvalidId);
-            }
+        if let Some(id) = frequency_property
+            && tile_set.find_property(*id.property_uuid()).is_none()
+        {
+            return Err(FillPatternMapError::FrequencyInvalidId);
         }
         for handle in tile_set.all_tiles() {
             let frequency = if let Some(id) = frequency_property {
@@ -175,10 +175,10 @@ impl TileSetWfcConstraint {
                 .map_err(|_| FillPatternMapError::PatternWrongType)?;
             let pattern: PatternBits = pattern.into();
             let center = pattern.center();
-            if center != 0 {
-                if let Some(terrain_frequency) = terrain_freq.get(&center) {
-                    self.add(pattern, frequency * terrain_frequency, handle);
-                }
+            if center != 0
+                && let Some(terrain_frequency) = terrain_freq.get(&center)
+            {
+                self.add(pattern, frequency * terrain_frequency, handle);
             }
         }
         self.finalize_with_terrain_normalization(PatternBits::center);
@@ -265,10 +265,10 @@ impl TileSetAutoTileContext {
         {
             return Err(FillPatternMapError::PatternInvalidId);
         }
-        if let Some(id) = frequency_property {
-            if tile_set.find_property(*id.property_uuid()).is_none() {
-                return Err(FillPatternMapError::FrequencyInvalidId);
-            }
+        if let Some(id) = frequency_property
+            && tile_set.find_property(*id.property_uuid()).is_none()
+        {
+            return Err(FillPatternMapError::FrequencyInvalidId);
         }
         for handle in tile_set.all_tiles() {
             let frequency = if let Some(id) = frequency_property {

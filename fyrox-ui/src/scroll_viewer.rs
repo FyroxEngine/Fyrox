@@ -25,21 +25,21 @@
 #![warn(missing_docs)]
 
 use crate::{
+    BuildContext, Control, Orientation, UiNode, UserInterface,
     core::{algebra::Vector2, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
     scroll_bar::{ScrollBar, ScrollBarBuilder, ScrollBarMessage},
     scroll_panel::{ScrollPanelBuilder, ScrollPanelMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, Orientation, UiNode, UserInterface,
 };
 use fyrox_core::pool::ObjectOrVariant;
 
 use crate::message::MessageData;
 use crate::scroll_panel::ScrollPanel;
 use fyrox_graph::{
-    constructor::{ConstructorProvider, GraphNodeConstructor},
     SceneGraph,
+    constructor::{ConstructorProvider, GraphNodeConstructor},
 };
 
 /// A set of messages that could be used to alternate the state of a [`ScrollViewer`] widget.
@@ -297,58 +297,58 @@ impl Control for ScrollViewer {
                             }
                         } else if message.destination() == self.h_scroll_bar
                             && self.h_scroll_bar.is_some()
+                            && let Ok(scroll_bar) = ui.try_get(self.h_scroll_bar)
                         {
-                            if let Ok(scroll_bar) = ui.try_get(self.h_scroll_bar) {
-                                let visibility =
-                                    (*scroll_bar.max - *scroll_bar.min).abs() >= f32::EPSILON;
-                                ui.send(self.h_scroll_bar, WidgetMessage::Visibility(visibility));
-                            }
+                            let visibility =
+                                (*scroll_bar.max - *scroll_bar.min).abs() >= f32::EPSILON;
+                            ui.send(self.h_scroll_bar, WidgetMessage::Visibility(visibility));
                         }
                     }
                     _ => (),
                 }
             }
-        } else if let Some(msg) = message.data::<ScrollViewerMessage>() {
-            if message.destination() == self.handle() {
-                match msg {
-                    ScrollViewerMessage::Content(content) => {
-                        for child in ui[self.scroll_panel].children() {
-                            ui.send(*child, WidgetMessage::Remove);
-                        }
-                        ui.send(*content, WidgetMessage::link_with(self.scroll_panel));
+        } else if let Some(msg) = message.data::<ScrollViewerMessage>()
+            && message.destination() == self.handle()
+        {
+            match msg {
+                ScrollViewerMessage::Content(content) => {
+                    self.content = *content;
+                    for child in ui[self.scroll_panel].children() {
+                        ui.send(*child, WidgetMessage::Remove);
                     }
-                    &ScrollViewerMessage::BringIntoView(handle) => {
-                        // Re-cast message to inner panel.
-                        ui.send(self.scroll_panel, ScrollPanelMessage::BringIntoView(handle));
-                    }
-                    &ScrollViewerMessage::HScrollSpeed(speed) => {
-                        if self.h_scroll_speed != speed
-                            && message.direction() == MessageDirection::ToWidget
-                        {
-                            self.h_scroll_speed = speed;
+                    ui.send(*content, WidgetMessage::link_with(self.scroll_panel));
+                }
+                &ScrollViewerMessage::BringIntoView(handle) => {
+                    // Re-cast message to inner panel.
+                    ui.send(self.scroll_panel, ScrollPanelMessage::BringIntoView(handle));
+                }
+                &ScrollViewerMessage::HScrollSpeed(speed) => {
+                    if self.h_scroll_speed != speed
+                        && message.direction() == MessageDirection::ToWidget
+                    {
+                        self.h_scroll_speed = speed;
 
-                            ui.try_send_response(message);
-                        }
+                        ui.try_send_response(message);
                     }
-                    &ScrollViewerMessage::VScrollSpeed(speed) => {
-                        if self.v_scroll_speed != speed
-                            && message.direction() == MessageDirection::ToWidget
-                        {
-                            self.v_scroll_speed = speed;
+                }
+                &ScrollViewerMessage::VScrollSpeed(speed) => {
+                    if self.v_scroll_speed != speed
+                        && message.direction() == MessageDirection::ToWidget
+                    {
+                        self.v_scroll_speed = speed;
 
-                            ui.try_send_response(message);
-                        }
+                        ui.try_send_response(message);
                     }
-                    ScrollViewerMessage::ScrollToEnd => {
-                        // Re-cast message to inner panel.
-                        ui.send(self.scroll_panel, ScrollPanelMessage::ScrollToEnd);
-                    }
-                    ScrollViewerMessage::HorizontalScroll(value) => {
-                        ui.send(self.h_scroll_bar, ScrollBarMessage::Value(*value));
-                    }
-                    ScrollViewerMessage::VerticalScroll(value) => {
-                        ui.send(self.v_scroll_bar, ScrollBarMessage::Value(*value));
-                    }
+                }
+                ScrollViewerMessage::ScrollToEnd => {
+                    // Re-cast message to inner panel.
+                    ui.send(self.scroll_panel, ScrollPanelMessage::ScrollToEnd);
+                }
+                ScrollViewerMessage::HorizontalScroll(value) => {
+                    ui.send(self.h_scroll_bar, ScrollBarMessage::Value(*value));
+                }
+                ScrollViewerMessage::VerticalScroll(value) => {
+                    ui.send(self.v_scroll_bar, ScrollBarMessage::Value(*value));
                 }
             }
         }

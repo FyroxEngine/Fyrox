@@ -38,16 +38,16 @@ use crate::{
         server::GraphicsServer,
     },
     renderer::{
+        GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
         bundle::{BundleRenderContext, RenderDataBundleStorage, SurfaceInstanceData},
         cache::{
-            shader::{binding, property, PropertyGroup, RenderMaterial, ShaderCache},
+            shader::{PropertyGroup, RenderMaterial, ShaderCache, binding, property},
             uniform::{UniformBufferCache, UniformMemoryAllocator},
         },
         debug_renderer::DebugRenderer,
         observer::Observer,
         occlusion::OcclusionTester,
         resources::RendererResources,
-        GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
     },
     scene::{decal::Decal, graph::Graph, mesh::RenderPath},
 };

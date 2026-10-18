@@ -30,8 +30,9 @@ use crate::{
 };
 use fyrox::{
     asset::ResourceDataRef,
-    core::{algebra::Vector2, pool::Handle, reflect::prelude::*, visitor::prelude::*, SafeLock},
+    core::{SafeLock, algebra::Vector2, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     gui::{
+        BuildContext, UiNode, UserInterface,
         button::{Button, ButtonMessage},
         decorator::DecoratorMessage,
         expander::ExpanderBuilder,
@@ -42,7 +43,6 @@ use fyrox::{
         text::TextBuilder,
         vec::{Vec2EditorBuilder, Vec2EditorMessage},
         widget::WidgetBuilder,
-        BuildContext, UiNode, UserInterface,
     },
     material::{MaterialResource, MaterialResourceExtension},
     scene::tilemap::{brush::*, tileset::*, *},
@@ -1160,10 +1160,10 @@ impl TileInspector {
             if message.destination() == self.animation_speed_inspector.field {
                 self.set_animation_speed(*speed, &tile_editor_state, sender);
             }
-        } else if let Some(TileHandleEditorMessage::Value(Some(handle))) = message.data() {
-            if message.destination() == self.page_icon_field {
-                self.apply_page_icon(*handle, &tile_editor_state, sender);
-            }
+        } else if let Some(TileHandleEditorMessage::Value(Some(handle))) = message.data()
+            && message.destination() == self.page_icon_field
+        {
+            self.apply_page_icon(*handle, &tile_editor_state, sender);
         }
     }
     fn apply_page_icon(

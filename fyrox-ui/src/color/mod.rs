@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    BuildContext, Control, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
     border::BorderBuilder,
     brush::Brush,
     core::{
@@ -36,7 +37,6 @@ use crate::{
     popup::{Placement, PopupBuilder, PopupMessage},
     text::TextBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 
 use crate::border::Border;
@@ -327,24 +327,24 @@ impl Control for AlphaBar {
                         _ => (),
                     }
                 }
-            } else if let Some(msg) = message.data::<AlphaBarMessage>() {
-                if message.direction() == MessageDirection::ToWidget {
-                    match *msg {
-                        AlphaBarMessage::Alpha(alpha) => {
-                            if self.alpha != alpha {
-                                self.alpha = alpha;
-                                ui.try_send_response(message);
+            } else if let Some(msg) = message.data::<AlphaBarMessage>()
+                && message.direction() == MessageDirection::ToWidget
+            {
+                match *msg {
+                    AlphaBarMessage::Alpha(alpha) => {
+                        if self.alpha != alpha {
+                            self.alpha = alpha;
+                            ui.try_send_response(message);
 
-                                self.invalidate_visual();
-                            }
+                            self.invalidate_visual();
                         }
-                        AlphaBarMessage::Orientation(orientation) => {
-                            if self.orientation != orientation {
-                                self.orientation = orientation;
-                                ui.try_send_response(message);
+                    }
+                    AlphaBarMessage::Orientation(orientation) => {
+                        if self.orientation != orientation {
+                            self.orientation = orientation;
+                            ui.try_send_response(message);
 
-                                self.invalidate_visual();
-                            }
+                            self.invalidate_visual();
                         }
                     }
                 }
@@ -489,20 +489,20 @@ impl Control for HueBar {
                         _ => (),
                     }
                 }
-            } else if let Some(msg) = message.data::<HueBarMessage>() {
-                if message.direction() == MessageDirection::ToWidget {
-                    match *msg {
-                        HueBarMessage::Hue(hue) => {
-                            if self.hue != hue {
-                                self.hue = hue;
-                                ui.try_send_response(message);
-                            }
+            } else if let Some(msg) = message.data::<HueBarMessage>()
+                && message.direction() == MessageDirection::ToWidget
+            {
+                match *msg {
+                    HueBarMessage::Hue(hue) => {
+                        if self.hue != hue {
+                            self.hue = hue;
+                            ui.try_send_response(message);
                         }
-                        HueBarMessage::Orientation(orientation) => {
-                            if self.orientation != orientation {
-                                self.orientation = orientation;
-                                ui.try_send_response(message);
-                            }
+                    }
+                    HueBarMessage::Orientation(orientation) => {
+                        if self.orientation != orientation {
+                            self.orientation = orientation;
+                            ui.try_send_response(message);
                         }
                     }
                 }
@@ -677,41 +677,38 @@ impl Control for SaturationBrightnessField {
                         _ => (),
                     }
                 }
-            } else if let Some(msg) = message.data::<SaturationBrightnessFieldMessage>() {
-                if message.direction() == MessageDirection::ToWidget {
-                    match *msg {
-                        SaturationBrightnessFieldMessage::Hue(hue) => {
-                            let clamped = hue.clamp(0.0, 360.0);
-                            if self.hue != clamped {
-                                self.hue = clamped;
-                                ui.post(
-                                    self.handle,
-                                    SaturationBrightnessFieldMessage::Hue(self.hue),
-                                );
-                                self.invalidate_visual();
-                            }
+            } else if let Some(msg) = message.data::<SaturationBrightnessFieldMessage>()
+                && message.direction() == MessageDirection::ToWidget
+            {
+                match *msg {
+                    SaturationBrightnessFieldMessage::Hue(hue) => {
+                        let clamped = hue.clamp(0.0, 360.0);
+                        if self.hue != clamped {
+                            self.hue = clamped;
+                            ui.post(self.handle, SaturationBrightnessFieldMessage::Hue(self.hue));
+                            self.invalidate_visual();
                         }
-                        SaturationBrightnessFieldMessage::Saturation(saturation) => {
-                            let clamped = saturation.clamp(0.0, 100.0);
-                            if self.saturation != clamped {
-                                self.saturation = clamped;
-                                ui.post(
-                                    self.handle,
-                                    SaturationBrightnessFieldMessage::Saturation(self.saturation),
-                                );
-                                self.invalidate_visual();
-                            }
+                    }
+                    SaturationBrightnessFieldMessage::Saturation(saturation) => {
+                        let clamped = saturation.clamp(0.0, 100.0);
+                        if self.saturation != clamped {
+                            self.saturation = clamped;
+                            ui.post(
+                                self.handle,
+                                SaturationBrightnessFieldMessage::Saturation(self.saturation),
+                            );
+                            self.invalidate_visual();
                         }
-                        SaturationBrightnessFieldMessage::Brightness(brightness) => {
-                            let clamped = brightness.clamp(0.0, 100.0);
-                            if self.brightness != clamped {
-                                self.brightness = clamped;
-                                ui.post(
-                                    self.handle,
-                                    SaturationBrightnessFieldMessage::Brightness(self.brightness),
-                                );
-                                self.invalidate_visual();
-                            }
+                    }
+                    SaturationBrightnessFieldMessage::Brightness(brightness) => {
+                        let clamped = brightness.clamp(0.0, 100.0);
+                        if self.brightness != clamped {
+                            self.brightness = clamped;
+                            ui.post(
+                                self.handle,
+                                SaturationBrightnessFieldMessage::Brightness(self.brightness),
+                            );
+                            self.invalidate_visual();
                         }
                     }
                 }
@@ -924,32 +921,30 @@ impl Control for ColorPicker {
                     );
                 }
             }
-        } else if let Some(msg) = message.data::<ColorPickerMessage>() {
-            if message.destination() == self.handle
-                && message.direction() == MessageDirection::ToWidget
-            {
-                match *msg {
-                    ColorPickerMessage::Color(color) => {
-                        if self.color != color {
-                            self.color = color;
-                            self.hsv = Hsv::from(color);
+        } else if let Some(msg) = message.data::<ColorPickerMessage>()
+            && message.destination() == self.handle
+            && message.direction() == MessageDirection::ToWidget
+        {
+            match *msg {
+                ColorPickerMessage::Color(color) => {
+                    if self.color != color {
+                        self.color = color;
+                        self.hsv = Hsv::from(color);
 
-                            self.sync_fields(ui, color, self.hsv);
+                        self.sync_fields(ui, color, self.hsv);
 
-                            ui.try_send_response(message);
-                        }
+                        ui.try_send_response(message);
                     }
-                    ColorPickerMessage::Hsv(hsv) => {
-                        if self.hsv != hsv {
-                            self.hsv = hsv;
-                            let opaque = Color::from(hsv);
-                            self.color =
-                                Color::from_rgba(opaque.r, opaque.g, opaque.b, self.color.a);
+                }
+                ColorPickerMessage::Hsv(hsv) => {
+                    if self.hsv != hsv {
+                        self.hsv = hsv;
+                        let opaque = Color::from(hsv);
+                        self.color = Color::from_rgba(opaque.r, opaque.g, opaque.b, self.color.a);
 
-                            self.sync_fields(ui, self.color, hsv);
+                        self.sync_fields(ui, self.color, hsv);
 
-                            ui.try_send_response(message);
-                        }
+                        ui.try_send_response(message);
                     }
                 }
             }
@@ -1221,30 +1216,28 @@ impl Control for ColorField {
 
                 message.set_handled(true);
             }
-        } else if let Some(&ColorFieldMessage::Color(color)) = message.data::<ColorFieldMessage>() {
-            if message.destination() == self.handle
-                && message.direction() == MessageDirection::ToWidget
-                && self.color != color
-            {
-                self.color = color;
-                ui.send(self.picker, ColorPickerMessage::Color(self.color));
-                ui.try_send_response(message);
+        } else if let Some(&ColorFieldMessage::Color(color)) = message.data::<ColorFieldMessage>()
+            && message.destination() == self.handle
+            && message.direction() == MessageDirection::ToWidget
+            && self.color != color
+        {
+            self.color = color;
+            ui.send(self.picker, ColorPickerMessage::Color(self.color));
+            ui.try_send_response(message);
 
-                self.invalidate_visual();
-            }
+            self.invalidate_visual();
         }
     }
 
     // We have to use preview message because popup it *not* in visual tree of our control and
     // handle_routed_message won't trigger because of it.
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        if let Some(PopupMessage::Close) = message.data::<PopupMessage>() {
-            if message.destination() == self.popup
-                && message.direction() == MessageDirection::ToWidget
-            {
-                let picker = &ui[self.picker];
-                ui.send(self.handle, ColorFieldMessage::Color(picker.color));
-            }
+        if let Some(PopupMessage::Close) = message.data::<PopupMessage>()
+            && message.destination() == self.popup
+            && message.direction() == MessageDirection::ToWidget
+        {
+            let picker = &ui[self.picker];
+            ui.send(self.handle, ColorFieldMessage::Color(picker.color));
         }
     }
 }

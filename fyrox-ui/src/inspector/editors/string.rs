@@ -19,20 +19,20 @@
 // SOFTWARE.
 
 use crate::{
+    Thickness, VerticalAlignment,
     core::algebra::Vector2,
     formatted_text::WrapMode,
     inspector::{
+        FieldAction, InspectorError, PropertyChanged,
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldAction, InspectorError, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
     text::TextMessage,
     text_box::{TextBoxBuilder, TextCommitMode},
     widget::WidgetBuilder,
-    Thickness, VerticalAlignment,
 };
 use std::any::TypeId;
 
@@ -75,13 +75,13 @@ impl PropertyEditorDefinition for StringPropertyEditorDefinition {
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(TextMessage::Text(value)) = ctx.message.data::<TextMessage>() {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
-                    action: FieldAction::object(value.clone()),
-                });
-            }
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(TextMessage::Text(value)) = ctx.message.data::<TextMessage>()
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
+                action: FieldAction::object(value.clone()),
+            });
         }
         None
     }

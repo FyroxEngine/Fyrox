@@ -26,6 +26,8 @@ use crate::{
         generic_animation::{Animation, AnimationContainer, RootMotionSettings},
         graph::{NodeWrapper, PrefabData, SceneGraph},
         gui::{
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+            VerticalAlignment,
             border::BorderBuilder,
             button::{Button, ButtonBuilder, ButtonMessage},
             check_box::{CheckBox, CheckBoxBuilder, CheckBoxMessage},
@@ -39,15 +41,13 @@ use crate::{
             message::{MessageDirection, UiMessage},
             numeric::{NumericUpDown, NumericUpDownBuilder, NumericUpDownMessage},
             popup::{Placement, Popup, PopupBuilder, PopupMessage},
-            style::{resource::StyleResourceExt, Style},
+            style::{Style, resource::StyleResourceExt},
             text::{Text, TextBuilder, TextMessage},
             toggle::{ToggleButton, ToggleButtonMessage},
             utils::{make_dropdown_list_option_universal, make_simple_tooltip},
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
-            BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-            VerticalAlignment,
         },
         resource::model::AnimationSource,
     },
@@ -63,10 +63,10 @@ use crate::{
         selection::AnimationSelection,
     },
     scene::{
+        Selection,
         commands::ChangeSelectionCommand,
         selector::NodeSelectorWindow,
         selector::{AllowedType, HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
-        Selection,
     },
 };
 use fyrox::core::color::Color;
@@ -254,62 +254,60 @@ impl RootMotionDropdownArea {
                             ..*settings
                         }));
                     }
-                } else if message.destination() == self.ignore_rotation {
-                    if let Some(settings) = animation.root_motion_settings_ref() {
-                        send_command(Some(RootMotionSettings {
-                            ignore_rotations: *value,
-                            ..*settings
-                        }));
-                    }
+                } else if message.destination() == self.ignore_rotation
+                    && let Some(settings) = animation.root_motion_settings_ref()
+                {
+                    send_command(Some(RootMotionSettings {
+                        ignore_rotations: *value,
+                        ..*settings
+                    }));
                 }
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
-            if let Some(settings) = animation.root_motion_settings_ref() {
-                if message.destination() == self.select_node {
-                    self.node_selector = NodeSelectorWindowBuilder::new(
-                        WindowBuilder::new(
-                            WidgetBuilder::new().with_width(300.0).with_height(400.0),
-                        )
+            if let Some(settings) = animation.root_motion_settings_ref()
+                && message.destination() == self.select_node
+            {
+                self.node_selector = NodeSelectorWindowBuilder::new(
+                    WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                         .with_title(WindowTitle::text("Select a Root Node"))
                         .open(false),
-                    )
-                    .with_allowed_types(
-                        [AllowedType {
-                            id: TypeId::of::<N>(),
-                            name: std::any::type_name::<N>().to_string(),
-                        }]
-                        .into_iter()
-                        .collect(),
-                    )
-                    .build(&mut ui.build_ctx());
+                )
+                .with_allowed_types(
+                    [AllowedType {
+                        id: TypeId::of::<N>(),
+                        name: std::any::type_name::<N>().to_string(),
+                    }]
+                    .into_iter()
+                    .collect(),
+                )
+                .build(&mut ui.build_ctx());
 
-                    ui.send(
-                        self.node_selector,
-                        NodeSelectorMessage::Hierarchy(HierarchyNode::from_scene_node(
-                            root,
-                            Handle::NONE,
-                            graph,
-                        )),
-                    );
+                ui.send(
+                    self.node_selector,
+                    NodeSelectorMessage::Hierarchy(HierarchyNode::from_scene_node(
+                        root,
+                        Handle::NONE,
+                        graph,
+                    )),
+                );
 
-                    ui.send(
-                        self.node_selector,
-                        NodeSelectorMessage::Selection(if settings.node.is_some() {
-                            vec![settings.node.into()]
-                        } else {
-                            vec![]
-                        }),
-                    );
+                ui.send(
+                    self.node_selector,
+                    NodeSelectorMessage::Selection(if settings.node.is_some() {
+                        vec![settings.node.into()]
+                    } else {
+                        vec![]
+                    }),
+                );
 
-                    ui.send(
-                        self.node_selector,
-                        WindowMessage::Open {
-                            alignment: WindowAlignment::Center,
-                            modal: true,
-                            focus_content: true,
-                        },
-                    );
-                }
+                ui.send(
+                    self.node_selector,
+                    WindowMessage::Open {
+                        alignment: WindowAlignment::Center,
+                        modal: true,
+                        focus_content: true,
+                    },
+                );
             }
         } else if let Some(NodeSelectorMessage::Selection(node_selection)) =
             message.data_from(self.node_selector)
@@ -328,11 +326,11 @@ impl RootMotionDropdownArea {
                     }),
                 });
             }
-        } else if let Some(WindowMessage::Close) = message.data() {
-            if message.destination() == self.node_selector {
-                ui.send(self.node_selector, WidgetMessage::Remove);
-                self.node_selector = Handle::NONE;
-            }
+        } else if let Some(WindowMessage::Close) = message.data()
+            && message.destination() == self.node_selector
+        {
+            ui.send(self.node_selector, WidgetMessage::Remove);
+            self.node_selector = Handle::NONE;
         }
     }
 
@@ -400,13 +398,11 @@ pub enum ToolbarAction {
 
 impl Toolbar {
     pub fn new(ctx: &mut BuildContext) -> Self {
-        let reimport_tooltip =
-            "Reimport Animation.\nImports an animation from external file (FBX/GLTF) and replaces \
+        let reimport_tooltip = "Reimport Animation.\nImports an animation from external file (FBX/GLTF) and replaces \
             content of the current animation. Use it if you need to keep references to the \
             animation valid in some animation blending state machine, but just replace animation \
             with some other.";
-        let import_tooltip =
-            "Import Animation.\nImports an animation from external file (FBX/GLTF) and adds it to \
+        let import_tooltip = "Import Animation.\nImports an animation from external file (FBX/GLTF) and adds it to \
             the animation player.";
         let rename_animation_tooltip = "Rename Selected Animation";
         let add_animation_tooltip = "Add New Animation";
@@ -820,16 +816,16 @@ impl Toolbar {
                 .with_value("Animation".to_string())
                 .build(&mut ui.build_ctx());
                 ui.send(self.animation_name_input_box, InputBoxMessage::open_as_is());
-            } else if message.destination() == self.clone_current_animation {
-                if let Ok(animation) = animations.try_get(selection.animation) {
-                    let mut animation_clone = animation.clone();
-                    animation_clone.set_name(format!("{} Copy", animation.name()));
+            } else if message.destination() == self.clone_current_animation
+                && let Ok(animation) = animations.try_get(selection.animation)
+            {
+                let mut animation_clone = animation.clone();
+                animation_clone.set_name(format!("{} Copy", animation.name()));
 
-                    sender.do_command(AddAnimationCommand::new(
-                        animation_player_handle,
-                        animation_clone,
-                    ));
-                }
+                sender.do_command(AddAnimationCommand::new(
+                    animation_player_handle,
+                    animation_clone,
+                ));
             }
         } else if let Some(CheckBoxMessage::Check(Some(checked))) = message.data_from(self.enabled)
         {
@@ -979,70 +975,72 @@ impl Toolbar {
                     FileSelectorMessage::Root(Some(resource_manager.registry_folder())),
                 );
             }
-        } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
-            if message.destination() == self.import_file_selector {
-                match block_on(resource_manager.request::<P>(path)) {
-                    Ok(model) => {
-                        let model_kind = model.kind();
-                        let data = model.data_ref();
-                        let mut animations = data.retarget_animations_directly(
-                            self.selected_import_root.into(),
-                            graph,
-                            model_kind,
-                        );
+        } else if let Some(FileSelectorMessage::Commit(path)) = message.data()
+            && message.destination() == self.import_file_selector
+        {
+            match block_on(resource_manager.request::<P>(path)) {
+                Ok(model) => {
+                    let model_kind = model.kind();
+                    let data = model.data_ref();
+                    let mut animations = data.retarget_animations_directly(
+                        self.selected_import_root.into(),
+                        graph,
+                        model_kind,
+                    );
 
-                        let file_stem = path
-                            .file_stem()
-                            .map(|p| p.to_string_lossy().to_string())
-                            .unwrap_or_else(|| "Unnamed".to_string());
+                    let file_stem = path
+                        .file_stem()
+                        .map(|p| p.to_string_lossy().to_string())
+                        .unwrap_or_else(|| "Unnamed".to_string());
 
-                        for (i, animation) in animations.iter_mut().enumerate() {
-                            animation.set_name(if i == 0 {
-                                file_stem.clone()
-                            } else {
-                                format!("{file_stem} {i}")
-                            });
+                    for (i, animation) in animations.iter_mut().enumerate() {
+                        animation.set_name(if i == 0 {
+                            file_stem.clone()
+                        } else {
+                            format!("{file_stem} {i}")
+                        });
+                    }
+
+                    match self.import_mode {
+                        ImportMode::Import => {
+                            let group = CommandGroup::from(
+                                animations
+                                    .into_iter()
+                                    .map(|a| {
+                                        Command::new(AddAnimationCommand::new(
+                                            animation_player_handle,
+                                            a,
+                                        ))
+                                    })
+                                    .collect::<Vec<_>>(),
+                            );
+
+                            sender.do_command(group);
                         }
+                        ImportMode::Reimport => {
+                            if let Some(selection) = editor_selection.as_animation() {
+                                if animations.len() > 1 {
+                                    Log::warn(
+                                        "More than one animation found! Only first will be used",
+                                    );
+                                }
 
-                        match self.import_mode {
-                            ImportMode::Import => {
-                                let group = CommandGroup::from(
-                                    animations
-                                        .into_iter()
-                                        .map(|a| {
-                                            Command::new(AddAnimationCommand::new(
-                                                animation_player_handle,
-                                                a,
-                                            ))
-                                        })
-                                        .collect::<Vec<_>>(),
-                                );
-
-                                sender.do_command(group);
-                            }
-                            ImportMode::Reimport => {
-                                if let Some(selection) = editor_selection.as_animation() {
-                                    if animations.len() > 1 {
-                                        Log::warn("More than one animation found! Only first will be used");
-                                    }
-
-                                    if !animations.is_empty() {
-                                        sender.do_command(ReplaceAnimationCommand {
-                                            animation_player: selection.animation_player,
-                                            animation_handle: selection.animation,
-                                            animation: animations.into_iter().next().unwrap(),
-                                        });
-                                    }
+                                if !animations.is_empty() {
+                                    sender.do_command(ReplaceAnimationCommand {
+                                        animation_player: selection.animation_player,
+                                        animation_handle: selection.animation,
+                                        animation: animations.into_iter().next().unwrap(),
+                                    });
                                 }
                             }
                         }
                     }
-                    Err(err) => Log::err(format!(
-                        "Failed to load {} animation file! Reason: {:?}",
-                        path.display(),
-                        err
-                    )),
                 }
+                Err(err) => Log::err(format!(
+                    "Failed to load {} animation file! Reason: {:?}",
+                    path.display(),
+                    err
+                )),
             }
         }
     }

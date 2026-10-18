@@ -20,7 +20,7 @@
 
 use crate::{
     core::pool::Handle,
-    resource::fbx::document::{attribute::FbxAttribute, FbxNode, FbxNodeContainer},
+    resource::fbx::document::{FbxNode, FbxNodeContainer, attribute::FbxAttribute},
 };
 use base64::Engine;
 

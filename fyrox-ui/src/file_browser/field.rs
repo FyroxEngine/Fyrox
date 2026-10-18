@@ -22,6 +22,7 @@ use crate::button::Button;
 use crate::file_browser::FileSelector;
 use crate::text_box::TextBox;
 use crate::{
+    BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
     button::{ButtonBuilder, ButtonMessage},
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     define_widget_deref,
@@ -32,7 +33,6 @@ use crate::{
     text_box::TextBoxBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     window::{WindowAlignment, WindowBuilder, WindowMessage},
-    BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::path::{Path, PathBuf};
@@ -107,16 +107,15 @@ impl Control for FileSelectorField {
                 );
             }
         } else if let Some(FileSelectorFieldMessage::Path(new_path)) = message.data_for(self.handle)
+            && &self.path != new_path
         {
-            if &self.path != new_path {
-                self.path.clone_from(new_path);
-                ui.send(
-                    self.path_field,
-                    TextMessage::Text(self.path.to_string_lossy().to_string()),
-                );
+            self.path.clone_from(new_path);
+            ui.send(
+                self.path_field,
+                TextMessage::Text(self.path.to_string_lossy().to_string()),
+            );
 
-                ui.try_send_response(message);
-            }
+            ui.try_send_response(message);
         }
     }
 
@@ -128,10 +127,10 @@ impl Control for FileSelectorField {
                     FileSelectorFieldMessage::Path(new_path.clone()),
                 );
             }
-        } else if let Some(WindowMessage::Close) = message.data() {
-            if message.destination() == self.file_selector {
-                ui.send(self.file_selector, WidgetMessage::Remove);
-            }
+        } else if let Some(WindowMessage::Close) = message.data()
+            && message.destination() == self.file_selector
+        {
+            ui.send(self.file_selector, WidgetMessage::Remove);
         }
     }
 }

@@ -19,26 +19,26 @@
 // SOFTWARE.
 
 use directories::ProjectDirs;
+use fyrox::gui::Thickness;
 use fyrox::gui::inspector::InspectorContextArgs;
 use fyrox::gui::window::{Window, WindowAlignment};
-use fyrox::gui::Thickness;
 use fyrox::{
     core::{log::Log, pool::Handle, reflect::prelude::*},
     fxhash::FxHashSet,
     gui::{
+        BuildContext, UserInterface,
         inspector::{
+            Inspector, InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction,
             editors::{
+                PropertyEditorDefinitionContainer,
                 collection::VecCollectionPropertyEditorDefinition,
                 inspectable::InspectablePropertyEditorDefinition,
-                PropertyEditorDefinitionContainer,
             },
-            Inspector, InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction,
         },
         message::UiMessage,
         scroll_viewer::ScrollViewerBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, UserInterface,
     },
 };
 use fyrox_build_tools::{CommandDescriptor, EnvironmentVariable};
@@ -66,10 +66,10 @@ pub static CONFIG_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
             eprintln!("Unable to fetch project dirs! Using current folder instead...");
             PathBuf::from("./")
         });
-    if !config_dir.exists() {
-        if let Err(err) = std::fs::create_dir_all(&config_dir) {
-            eprintln!("Unable to create config dir: {err:?}",);
-        }
+    if !config_dir.exists()
+        && let Err(err) = std::fs::create_dir_all(&config_dir)
+    {
+        eprintln!("Unable to create config dir: {err:?}",);
     }
     println!("Config dir: {config_dir:?}");
     config_dir
@@ -83,10 +83,10 @@ pub static DATA_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
             eprintln!("Unable to fetch project dirs! Using current folder instead...");
             PathBuf::from("./")
         });
-    if !data_dir.exists() {
-        if let Err(err) = std::fs::create_dir_all(&data_dir) {
-            eprintln!("Unable to create data dir: {err:?}",);
-        }
+    if !data_dir.exists()
+        && let Err(err) = std::fs::create_dir_all(&data_dir)
+    {
+        eprintln!("Unable to create data dir: {err:?}",);
     }
     println!("Data dir: {data_dir:?}");
     data_dir

@@ -24,11 +24,11 @@
 #![warn(missing_docs)]
 
 use crate::reflect::TypeInfo;
-use crate::{err, reflect::prelude::*, visitor::prelude::*, SafeLock};
+use crate::{SafeLock, err, reflect::prelude::*, visitor::prelude::*};
 use fxhash::FxHashMap;
 use parking_lot::{Mutex, MutexGuard};
 use std::{
-    any::{type_name, Any, TypeId},
+    any::{Any, TypeId, type_name},
     fmt::{Debug, Display, Formatter},
     ops::{Deref, DerefMut},
 };

@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::{
-    fyrox::engine::ApplicationLoopController, test::utils::EditorTestingExtension, Editor,
+    Editor, fyrox::engine::ApplicationLoopController, test::utils::EditorTestingExtension,
 };
 use fyrox::core::info;
 use fyrox::core::uuid::Uuid;

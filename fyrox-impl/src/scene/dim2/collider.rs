@@ -24,27 +24,27 @@
 use crate::scene::node::constructor::NodeConstructor;
 use crate::{
     core::{
+        ImmutableString,
         algebra::{Isometry2, Translation2, UnitComplex, Vector2},
         log::Log,
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
-        uuid::{uuid, Uuid},
+        uuid::{Uuid, uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
-        ImmutableString,
     },
     graph::SceneGraph,
     scene::{
+        Scene,
         base::{Base, BaseBuilder},
         collider::InteractionGroups,
         dim2::{
             physics::{ContactPair, IntersectionPair, PhysicsWorld},
             rigidbody::RigidBody,
         },
-        graph::{physics::CoefficientCombineRule, Graph},
+        graph::{Graph, physics::CoefficientCombineRule},
         node::{Node, NodeTrait, SyncContext},
-        Scene,
     },
 };
 
@@ -680,20 +680,20 @@ impl NodeTrait for Collider {
     }
 
     fn on_local_transform_changed(&self, context: &mut SyncContext) {
-        if self.native.get() != ColliderHandle::invalid() {
-            if let Some(native) = context.physics2d.colliders.get_mut(self.native.get()) {
-                native.set_position_wrt_parent(
-                    Isometry2 {
-                        rotation: UnitComplex::from_angle(
-                            self.local_transform().rotation().euler_angles().2,
-                        ),
-                        translation: Translation2 {
-                            vector: self.local_transform().position().xy(),
-                        },
-                    }
-                    .into(),
-                );
-            }
+        if self.native.get() != ColliderHandle::invalid()
+            && let Some(native) = context.physics2d.colliders.get_mut(self.native.get())
+        {
+            native.set_position_wrt_parent(
+                Isometry2 {
+                    rotation: UnitComplex::from_angle(
+                        self.local_transform().rotation().euler_angles().2,
+                    ),
+                    translation: Translation2 {
+                        vector: self.local_transform().position().xy(),
+                    },
+                }
+                .into(),
+            );
         }
     }
 

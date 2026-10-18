@@ -21,6 +21,7 @@
 //! A widget that shows numeric value as a set of individual bits allowing switching separate bits.
 
 use crate::{
+    BuildContext, Control, MessageDirection, MouseButton, UiNode, UserInterface, WidgetMessage,
     brush::Brush,
     core::{
         algebra::Vector2,
@@ -36,7 +37,6 @@ use crate::{
     message::{ButtonState, MessageData, UiMessage},
     resources::BITS_ICON,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, MessageDirection, MouseButton, UiNode, UserInterface, WidgetMessage,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::{
@@ -393,12 +393,12 @@ where
                 self.bit_state = BitState::Normal;
                 self.invalidate_visual();
             }
-        } else if let Some(BitFieldMessage::Value(value)) = message.data_for(self.handle) {
-            if *value != self.value {
-                self.value = *value;
-                ui.try_send_response(message);
-                self.invalidate_visual();
-            }
+        } else if let Some(BitFieldMessage::Value(value)) = message.data_for(self.handle)
+            && *value != self.value
+        {
+            self.value = *value;
+            ui.try_send_response(message);
+            self.invalidate_visual();
         }
     }
 }
@@ -476,7 +476,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::bit::{byte_width, BitFieldBuilder};
+    use crate::bit::{BitFieldBuilder, byte_width};
     use crate::{test::test_widget_deletion, widget::WidgetBuilder};
 
     #[test]

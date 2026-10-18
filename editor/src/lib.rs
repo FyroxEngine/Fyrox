@@ -59,16 +59,17 @@ pub use fyrox;
 
 use crate::world::create::EntityCreator;
 use crate::{
-    asset::{item::AssetItem, AssetBrowser},
-    audio::{preview::AudioPreviewPanel, AudioPanel},
+    asset::{AssetBrowser, item::AssetItem},
+    audio::{AudioPanel, preview::AudioPreviewPanel},
     camera::panel::CameraPreviewControlPanel,
-    command::{panel::CommandStackViewer, Command, CommandTrait},
+    command::{Command, CommandTrait, panel::CommandStackViewer},
     configurator::Configurator,
     export::ExportWindow,
     fyrox::{
         asset::{io::FsResourceIo, manager::ResourceManager, untyped::ResourceKind},
         core::info,
         core::{
+            SafeLock,
             algebra::{Matrix3, Vector2},
             color::Color,
             log::{Log, MessageKind},
@@ -79,7 +80,6 @@ use crate::{
             task::TaskPool,
             uuid::Uuid,
             watcher::FileSystemWatcher,
-            SafeLock,
         },
         dpi::{PhysicalPosition, PhysicalSize},
         engine::GraphicsContext,
@@ -92,13 +92,14 @@ use crate::{
         event_loop::EventLoop,
         fxhash::{FxHashMap, FxHashSet},
         gui::{
+            BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
             border::BorderBuilder,
             brush::Brush,
             button::ButtonBuilder,
             constructor::new_widget_constructor_container,
             dock::{
-                config::DockingManagerLayoutDescriptor, DockingManager, DockingManagerBuilder,
-                DockingManagerMessage, TileBuilder, TileContent,
+                DockingManager, DockingManagerBuilder, DockingManagerMessage, TileBuilder,
+                TileContent, config::DockingManagerLayoutDescriptor,
             },
             dropdown_list::DropdownListBuilder,
             file_browser::{
@@ -116,22 +117,21 @@ use crate::{
             },
             screen::ScreenBuilder,
             stack_panel::StackPanelBuilder,
-            style::{resource::StyleResource, Style},
+            style::{Style, resource::StyleResource},
             text::{Text, TextBuilder, TextMessage},
             widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
         material::{
-            shader::{ShaderResource, ShaderResourceExtension},
             Material, MaterialResource,
+            shader::{ShaderResource, ShaderResourceExtension},
         },
-        plugin::{dylib::DyLibDynamicPlugin, DynamicPlugin, Plugin, PluginContainer},
+        plugin::{DynamicPlugin, Plugin, PluginContainer, dylib::DyLibDynamicPlugin},
         resource::texture::{
             CompressionOptions, TextureImportOptions, TextureMinificationFilter, TextureResource,
             TextureResourceExtension,
         },
-        scene::{graph::GraphUpdateSwitches, mesh::Mesh, Scene, SceneLoader},
+        scene::{Scene, SceneLoader, graph::GraphUpdateSwitches, mesh::Mesh},
         utils::{translate_cursor_icon, translate_event},
         window::WindowAttributes,
     },
@@ -165,26 +165,24 @@ use crate::{
         tilemap::TileMapEditorPlugin,
     },
     scene::{
-        commands::{
-            make_delete_selection_command, ChangeSelectionCommand, GameSceneContext, PasteCommand,
-        },
+        GameScene, Selection,
+        commands::{ChangeSelectionCommand, GameSceneContext, PasteCommand},
         container::{EditorSceneEntry, SceneContainer},
         dialog::NodeRemovalDialog,
         settings::SceneSettingsWindow,
-        GameScene, Selection,
     },
     scene_viewer::SceneViewer,
-    settings::{general::EditorStyle, Settings},
+    settings::{Settings, general::EditorStyle},
     stats::{StatisticsWindow, StatisticsWindowAction},
     ui_scene::{
-        bbcode::BBCodePanel, commands::graph::PasteWidgetCommand, menu::WidgetContextMenu,
-        utils::UiSceneWorldViewerDataProvider, UiScene,
+        UiScene, bbcode::BBCodePanel, commands::graph::PasteWidgetCommand, menu::WidgetContextMenu,
+        utils::UiSceneWorldViewerDataProvider,
     },
     utils::doc::DocWindow,
-    world::{graph::EditorSceneWrapper, menu::SceneNodeContextMenu, WorldViewer},
+    world::{WorldViewer, graph::EditorSceneWrapper, menu::SceneNodeContextMenu},
 };
 use fyrox::core::uuid::uuid;
-use fyrox_build_tools::{build::BuildWindow, CommandDescriptor};
+use fyrox_build_tools::{CommandDescriptor, build::BuildWindow};
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
 use std::cell::Cell;
@@ -196,9 +194,9 @@ use std::{
     process::Stdio,
     rc::Rc,
     sync::{
-        atomic::{AtomicBool, Ordering},
-        mpsc::{self, channel, Receiver},
         Arc, LazyLock,
+        atomic::{AtomicBool, Ordering},
+        mpsc::{self, Receiver, channel},
     },
     time::{Duration, Instant},
 };
@@ -210,14 +208,12 @@ static EDITOR_VERSION: LazyLock<String> = LazyLock::new(|| {
     let manifest = include_bytes!("../Cargo.toml");
     let mut file = Cursor::new(&manifest);
     let mut toml = String::new();
-    if file.read_to_string(&mut toml).is_ok() {
-        if let Ok(document) = toml.parse::<DocumentMut>() {
-            if let Some(package) = document.get("package").and_then(|i| i.as_table()) {
-                if let Some(version) = package.get("version") {
-                    return version.to_string().replace('\"', "");
-                }
-            }
-        }
+    if file.read_to_string(&mut toml).is_ok()
+        && let Ok(document) = toml.parse::<DocumentMut>()
+        && let Some(package) = document.get("package").and_then(|i| i.as_table())
+        && let Some(version) = package.get("version")
+    {
+        return version.to_string().replace('\"', "");
     }
 
     "<unknown>".to_string()
@@ -505,24 +501,22 @@ impl SaveSceneConfirmationDialog {
     }
 
     fn handle_message(&mut self, message: &Message, sender: &MessageSender) {
-        if let Message::SaveScene { id: scene, .. } = message {
-            if *scene == self.id {
-                self.id = Default::default();
+        if let Message::SaveScene { id: scene, .. } = message
+            && *scene == self.id
+        {
+            self.id = Default::default();
 
-                match std::mem::replace(&mut self.action, SaveSceneConfirmationDialogAction::None) {
-                    SaveSceneConfirmationDialogAction::None => {}
-                    SaveSceneConfirmationDialogAction::OpenLoadSceneDialog => {
-                        sender.send(Message::OpenLoadSceneDialog);
-                    }
-                    SaveSceneConfirmationDialogAction::MakeNewScene => {
-                        sender.send(Message::NewScene)
-                    }
-                    SaveSceneConfirmationDialogAction::CloseScene(scene) => {
-                        sender.send(Message::CloseScene(scene));
-                    }
-                    SaveSceneConfirmationDialogAction::LoadScene(path) => {
-                        sender.send(Message::LoadScene(path))
-                    }
+            match std::mem::replace(&mut self.action, SaveSceneConfirmationDialogAction::None) {
+                SaveSceneConfirmationDialogAction::None => {}
+                SaveSceneConfirmationDialogAction::OpenLoadSceneDialog => {
+                    sender.send(Message::OpenLoadSceneDialog);
+                }
+                SaveSceneConfirmationDialogAction::MakeNewScene => sender.send(Message::NewScene),
+                SaveSceneConfirmationDialogAction::CloseScene(scene) => {
+                    sender.send(Message::CloseScene(scene));
+                }
+                SaveSceneConfirmationDialogAction::LoadScene(path) => {
+                    sender.send(Message::LoadScene(path))
                 }
             }
         }
@@ -1030,7 +1024,7 @@ impl Editor {
         }
 
         let scenes = SceneContainer::new(&mut engine, &mut settings, message_sender.clone());
-        let mut editor = Self {
+        let editor = Self {
             docking_manager,
             engine,
             navmesh_panel,
@@ -1104,14 +1098,13 @@ impl Editor {
             property_editors,
         };
 
-        editor
+        let mut startup_scenes = editor
             .settings
             .general
             .startup_scenes
-            .retain(|p| p.exists());
-        for path in editor.settings.general.startup_scenes.iter() {
-            editor.message_sender.send(Message::LoadScene(path.clone()));
-        }
+            .iter()
+            .cloned()
+            .collect::<FxHashSet<_>>();
 
         if let Some(data) = startup_data {
             editor.message_sender.send(Message::Configure {
@@ -1122,12 +1115,10 @@ impl Editor {
                 },
             });
 
-            for scene in data.scenes {
-                if scene != PathBuf::default() {
-                    editor.message_sender.send(Message::LoadScene(scene));
-                }
+            for path in data.scenes {
+                startup_scenes.insert(path);
             }
-        } else {
+        } else if startup_scenes.is_empty() {
             // Open configurator as usual.
             editor.engine.user_interfaces.first().send(
                 editor.configurator.window,
@@ -1137,6 +1128,16 @@ impl Editor {
                     focus_content: true,
                 },
             );
+        } else {
+            editor.message_sender.send(Message::Configure {
+                working_directory: std::env::current_dir().unwrap(),
+            });
+        }
+
+        for path in startup_scenes.iter() {
+            if path.exists() {
+                editor.message_sender.send(Message::LoadScene(path.clone()));
+            }
         }
 
         editor
@@ -1185,14 +1186,13 @@ impl Editor {
         self.sync_to_model();
         self.poll_ui_messages();
 
-        if let Some(path) = entry.path.as_ref() {
-            if !self.settings.recent.scenes.contains(path) {
-                self.settings.recent.scenes.push(path.clone());
-                self.menu.file_menu.update_recent_files_list(
-                    self.engine.user_interfaces.first_mut(),
-                    &self.settings,
-                );
-            }
+        if let Some(path) = entry.path.as_ref()
+            && !self.settings.recent.scenes.contains(path)
+        {
+            self.settings.recent.scenes.push(path.clone());
+            self.menu
+                .file_menu
+                .update_recent_files_list(self.engine.user_interfaces.first_mut(), &self.settings);
         }
 
         let old_selection = self.scenes.current_scene_entry_ref().selection.clone();
@@ -1303,12 +1303,12 @@ impl Editor {
                                 game_scene.scene,
                                 engine,
                             );
-                        } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
-                            if let Some(selection) = entry.selection.as_ui() {
-                                ui_scene
-                                    .clipboard
-                                    .fill_from_selection(selection, &ui_scene.ui);
-                            }
+                        } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>()
+                            && let Some(selection) = entry.selection.as_ui()
+                        {
+                            ui_scene
+                                .clipboard
+                                .fill_from_selection(selection, &ui_scene.ui);
                         }
                     }
                 } else if hot_key == key_bindings.paste {
@@ -1317,10 +1317,10 @@ impl Editor {
                         if !game_scene.clipboard.is_empty() {
                             sender.do_command(PasteCommand::new(game_scene.scene_content_root));
                         }
-                    } else if let Some(ui_scene) = controller.downcast_mut::<UiScene>() {
-                        if !ui_scene.clipboard.is_empty() {
-                            sender.do_command(PasteWidgetCommand::new(ui_scene.ui.root()));
-                        }
+                    } else if let Some(ui_scene) = controller.downcast_mut::<UiScene>()
+                        && !ui_scene.clipboard.is_empty()
+                    {
+                        sender.do_command(PasteWidgetCommand::new(ui_scene.ui.root()));
                     }
                 } else if hot_key == key_bindings.new_scene {
                     sender.send(Message::NewScene);
@@ -1329,38 +1329,29 @@ impl Editor {
                     sender.send(Message::CloseScene(entry.id));
                 } else if hot_key == key_bindings.remove_selection {
                     let entry = self.scenes.current_scene_entry_mut();
-                    if !entry.selection.is_empty() {
-                        if entry.selection.is_graph() {
-                            if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
-                                if self.settings.general.show_node_removal_dialog
-                                    && game_scene.is_current_selection_has_external_refs(
-                                        &entry.selection,
-                                        &engine.scenes[game_scene.scene].graph,
-                                    )
-                                {
-                                    sender.send(Message::OpenNodeRemovalDialog);
-                                } else {
-                                    sender.send(Message::DoCommand(make_delete_selection_command(
-                                        &entry.selection,
-                                        game_scene,
-                                        engine,
-                                    )));
-                                }
-                            }
-                        } else if let Some(selection) = entry.selection.as_ui() {
-                            if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
-                                sender.send(Message::DoCommand(
-                                    selection.make_deletion_command(&ui_scene.ui),
-                                ));
-                            }
+                    if let Some(delete_command) = entry
+                        .selection
+                        .make_delete_selection_command(&*entry.controller, engine)
+                    {
+                        if self.settings.general.show_node_removal_dialog
+                            && let Some(refs) = entry
+                                .controller
+                                .selection_external_refs(&entry.selection, engine)
+                        {
+                            sender.send(Message::OpenNodeRemovalDialog {
+                                delete_command,
+                                refs,
+                            });
+                        } else {
+                            sender.send(Message::DoCommand(delete_command));
                         }
                     }
                 } else if hot_key == key_bindings.focus {
                     let entry = self.scenes.current_scene_entry_mut();
-                    if let Some(selection) = entry.selection.as_graph() {
-                        if let Some(first) = selection.nodes.first() {
-                            sender.send(Message::FocusObject(*first));
-                        }
+                    if let Some(selection) = entry.selection.as_graph()
+                        && let Some(first) = selection.nodes.first()
+                    {
+                        sender.send(Message::FocusObject(*first));
                     }
                 }
             }
@@ -1431,10 +1422,10 @@ impl Editor {
             self.build_window = build_window.handle_ui_message(message, ui, || {
                 self.message_sender.send(Message::SwitchToEditMode)
             });
-            if self.build_window.is_none() {
-                if let Some((process, active)) = self.running_game_process.take() {
-                    self.mode = Mode::Play { process, active };
-                }
+            if self.build_window.is_none()
+                && let Some((process, active)) = self.running_game_process.take()
+            {
+                self.mode = Mode::Play { process, active };
             }
         }
         if let Some(export_window) = self.export_window.as_mut() {
@@ -1446,10 +1437,10 @@ impl Editor {
                 &self.settings.build,
             );
         }
-        if let Some(stats) = self.statistics_window.as_ref() {
-            if let StatisticsWindowAction::Remove = stats.handle_ui_message(message, ui) {
-                self.statistics_window.take();
-            }
+        if let Some(stats) = self.statistics_window.as_ref()
+            && let StatisticsWindowAction::Remove = stats.handle_ui_message(message, ui)
+        {
+            self.statistics_window.take();
         }
         self.log.handle_ui_message(message, ui);
 
@@ -1476,6 +1467,9 @@ impl Editor {
             message,
             &self.message_sender,
         );
+
+        self.node_removal_dialog
+            .handle_ui_message(message, engine, &self.message_sender);
 
         if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
             self.entity_creator.handle_ui_message_with_game_scene(
@@ -1512,13 +1506,6 @@ impl Editor {
                 &current_scene_entry.selection,
                 &self.message_sender,
                 engine,
-            );
-            self.node_removal_dialog.handle_ui_message(
-                &current_scene_entry.selection,
-                game_scene,
-                message,
-                engine,
-                &self.message_sender,
             );
 
             self.navmesh_panel
@@ -1610,25 +1597,25 @@ impl Editor {
                     self.message_sender.send(Message::Exit { force: true });
                 }
                 MessageBoxResult::Yes => {
-                    if let Some(first_unsaved) = self.scenes.first_unsaved_scene() {
-                        if first_unsaved.need_save() {
-                            if let Some(path) = first_unsaved.path.as_ref() {
-                                self.message_sender.send(Message::SaveScene {
-                                    id: first_unsaved.id,
-                                    path: path.clone(),
-                                });
+                    if let Some(first_unsaved) = self.scenes.first_unsaved_scene()
+                        && first_unsaved.need_save()
+                    {
+                        if let Some(path) = first_unsaved.path.as_ref() {
+                            self.message_sender.send(Message::SaveScene {
+                                id: first_unsaved.id,
+                                path: path.clone(),
+                            });
 
-                                self.message_sender
-                                    .send(Message::CloseScene(first_unsaved.id));
+                            self.message_sender
+                                .send(Message::CloseScene(first_unsaved.id));
 
-                                self.message_sender.send(Message::Exit {
-                                    force: self.scenes.unsaved_scene_count() == 1,
-                                });
-                            } else {
-                                self.message_sender.send(Message::OpenSaveSceneDialog {
-                                    default_file_info: first_unsaved.default_file_info(),
-                                });
-                            }
+                            self.message_sender.send(Message::Exit {
+                                force: self.scenes.unsaved_scene_count() == 1,
+                            });
+                        } else {
+                            self.message_sender.send(Message::OpenSaveSceneDialog {
+                                default_file_info: first_unsaved.default_file_info(),
+                            });
                         }
                     }
                 }
@@ -1814,7 +1801,8 @@ impl Editor {
             engine.user_interfaces.first_mut(),
         );
 
-        self.scene_viewer.sync_to_model(&self.scenes, engine);
+        self.scene_viewer
+            .sync_to_model(&self.scenes, &self.settings, engine);
         if let Some(exporter) = self.export_window.as_ref() {
             exporter.sync_to_model(engine.user_interfaces.first_mut());
         }
@@ -2518,11 +2506,11 @@ impl Editor {
             self.scene_loading_window = loading_window.update(&set, ui);
         }
 
-        if let Some(active_tooltip) = ui.active_tooltip() {
-            if !active_tooltip.shown {
-                // Keep the editor running until the current tooltip is not shown.
-                self.update_loop_state.request_update_in_next_frame();
-            }
+        if let Some(active_tooltip) = ui.active_tooltip()
+            && !active_tooltip.shown
+        {
+            // Keep the editor running until the current tooltip is not shown.
+            self.update_loop_state.request_update_in_next_frame();
         }
 
         if !self.loading_scenes.safe_lock().is_empty() {
@@ -2690,17 +2678,12 @@ impl Editor {
                         self.configure(working_directory);
                         needs_sync = true;
                     }
-                    Message::OpenNodeRemovalDialog => {
-                        let entry = self.scenes.current_scene_entry_ref();
-                        // TODO
-                        if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
-                            self.node_removal_dialog.open(
-                                &entry.selection,
-                                game_scene,
-                                &self.engine,
-                            )
-                        }
-                    }
+                    Message::OpenNodeRemovalDialog {
+                        delete_command,
+                        refs,
+                    } => self
+                        .node_removal_dialog
+                        .open(delete_command, refs, &self.engine),
                     Message::OpenEntityCreator(mode) => {
                         self.entity_creator
                             .open(mode, self.engine.user_interfaces.first());
@@ -2758,7 +2741,7 @@ impl Editor {
                     }
                     Message::ShowDocumentation(doc) => {
                         self.doc_window
-                            .open(doc, self.engine.user_interfaces.first());
+                            .open(doc, self.engine.user_interfaces.first_mut());
                     }
                     Message::SaveLayout => {
                         self.save_layout();
@@ -2831,10 +2814,10 @@ impl Editor {
 
         if self.settings.try_save() {
             let ui = self.engine.user_interfaces.first_mut();
-            if let Some(style) = self.styles.get(&self.settings.general.style) {
-                if style != ui.style() {
-                    ui.set_style(style.clone());
-                }
+            if let Some(style) = self.styles.get(&self.settings.general.style)
+                && style != ui.style()
+            {
+                ui.set_style(style.clone());
             }
         }
     }
@@ -2945,7 +2928,7 @@ impl Editor {
             // Keep the editor active if user holds any mouse button.
             || self.engine.user_interfaces.first().captured_node().is_some()
             // Keep the editor active until it fully loads all the queued scenes.
-            ||!self.loading_scenes.safe_lock().is_empty())
+            || !self.loading_scenes.safe_lock().is_empty())
     }
 
     fn on_resumed(&mut self, event_loop: &ActiveEventLoop) {
@@ -3082,12 +3065,12 @@ impl Editor {
                                 self.try_process_file_system_events();
                             }
                             WindowEvent::Moved(new_position)
-                                // Allow the window to go outside the screen bounds by a little. This
-                                // happens when the window is maximized.
-                                if new_position.x > -50 && new_position.y > -50 => {
-                                    self.settings.windows.window_position.x = new_position.x as f32;
-                                    self.settings.windows.window_position.y = new_position.y as f32;
-                                }
+                            // Allow the window to go outside the screen bounds by a little. This
+                            // happens when the window is maximized.
+                            if new_position.x > -50 && new_position.y > -50 => {
+                                self.settings.windows.window_position.x = new_position.x as f32;
+                                self.settings.windows.window_position.y = new_position.y as f32;
+                            }
                             WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                                 set_ui_scaling(
                                     self.engine.user_interfaces.first(),
@@ -3095,18 +3078,18 @@ impl Editor {
                                 );
                             }
                             WindowEvent::RedrawRequested
-                                if self.is_active() => {
-                                    let entry = self.scenes.current_scene_entry_mut();
-                                    entry
-                                        .controller
-                                        .on_before_render(&entry.selection, &mut self.engine);
+                            if self.is_active() => {
+                                let entry = self.scenes.current_scene_entry_mut();
+                                entry
+                                    .controller
+                                    .on_before_render(&entry.selection, &mut self.engine);
 
-                                    self.engine.render().unwrap();
+                                self.engine.render().unwrap();
 
-                                    self.scenes
-                                        .current_scene_controller_mut()
-                                        .on_after_render(&mut self.engine);
-                                }
+                                self.scenes
+                                    .current_scene_controller_mut()
+                                    .on_after_render(&mut self.engine);
+                            }
                             _ => (),
                         }
 

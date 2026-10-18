@@ -84,11 +84,11 @@ macro_rules! define_with {
 #[cfg(test)]
 mod test {
     use crate::scene::base::{Base, BaseBuilder};
-    use fyrox_core::reflect::Reflect;
     use fyrox_core::ImmutableString;
+    use fyrox_core::reflect::Reflect;
     use fyrox_sound::source::Status;
-    use fyrox_ui::widget::{Widget, WidgetBuilder};
     use fyrox_ui::UserInterface;
+    use fyrox_ui::widget::{Widget, WidgetBuilder};
 
     #[test]
     fn test_assembly_names() {

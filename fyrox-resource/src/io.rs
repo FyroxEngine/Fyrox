@@ -28,7 +28,7 @@ use std::path::Component;
 use std::{
     fmt::Debug,
     fs::File,
-    future::{ready, Future},
+    future::{Future, ready},
     io::{BufReader, Cursor, Read, Seek, Write},
     iter::empty,
     path::{Path, PathBuf},

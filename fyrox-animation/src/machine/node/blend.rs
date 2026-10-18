@@ -21,16 +21,16 @@
 //! Various animation blending nodes.
 
 use crate::{
+    Animation, AnimationContainer, AnimationEvent, AnimationPose, EntityId,
     core::{
         pool::{Handle, Pool},
         reflect::prelude::*,
         visitor::prelude::*,
     },
     machine::{
-        node::AnimationEventCollectionStrategy, node::BasePoseNode, AnimationPoseSource, Parameter,
-        ParameterContainer, PoseNode, PoseWeight,
+        AnimationPoseSource, Parameter, ParameterContainer, PoseNode, PoseWeight,
+        node::AnimationEventCollectionStrategy, node::BasePoseNode,
     },
-    Animation, AnimationContainer, AnimationEvent, AnimationPose, EntityId,
 };
 use fyrox_core::uuid::uuid;
 use std::cmp::Ordering;
@@ -194,11 +194,10 @@ impl<T: EntityId> AnimationPoseSource<T> for BlendAnimations<T> {
                     .iter()
                     .filter_map(|s| s.weight.value(params).map(|w| (s, w)))
                     .max_by(|(_, w1), (_, w2)| w1.partial_cmp(w2).unwrap_or(Ordering::Equal))
+                    && let Ok(pose_source) = nodes.try_borrow(pose.pose_source)
                 {
-                    if let Ok(pose_source) = nodes.try_borrow(pose.pose_source) {
-                        return pose_source
-                            .collect_animation_events(nodes, params, animations, strategy);
-                    }
+                    return pose_source
+                        .collect_animation_events(nodes, params, animations, strategy);
                 }
 
                 Default::default()
@@ -209,11 +208,10 @@ impl<T: EntityId> AnimationPoseSource<T> for BlendAnimations<T> {
                     .iter()
                     .filter_map(|s| s.weight.value(params).map(|w| (s, w)))
                     .min_by(|(_, w1), (_, w2)| w1.partial_cmp(w2).unwrap_or(Ordering::Equal))
+                    && let Ok(pose_source) = nodes.try_borrow(pose.pose_source)
                 {
-                    if let Ok(pose_source) = nodes.try_borrow(pose.pose_source) {
-                        return pose_source
-                            .collect_animation_events(nodes, params, animations, strategy);
-                    }
+                    return pose_source
+                        .collect_animation_events(nodes, params, animations, strategy);
                 }
 
                 Default::default()
@@ -316,33 +314,32 @@ impl<T: EntityId> AnimationPoseSource<T> for BlendAnimationsByIndex<T> {
             let mut applied = false;
 
             if let Some(prev_index) = self.prev_index.get() {
-                if prev_index != current_index {
-                    if let (Some(prev_input), Some(current_input)) = (
+                if prev_index != current_index
+                    && let (Some(prev_input), Some(current_input)) = (
                         self.inputs.get(prev_index as usize),
                         self.inputs.get(current_index as usize),
-                    ) {
-                        self.blend_time
-                            .set((self.blend_time.get() + dt).min(current_input.blend_time));
+                    )
+                {
+                    self.blend_time
+                        .set((self.blend_time.get() + dt).min(current_input.blend_time));
 
-                        let interpolator = self.blend_time.get() / current_input.blend_time;
+                    let interpolator = self.blend_time.get() / current_input.blend_time;
 
-                        self.output_pose.borrow_mut().blend_with(
-                            &nodes[prev_input.pose_source].eval_pose(nodes, params, animations, dt),
-                            1.0 - interpolator,
-                        );
-                        self.output_pose.borrow_mut().blend_with(
-                            &nodes[current_input.pose_source]
-                                .eval_pose(nodes, params, animations, dt),
-                            interpolator,
-                        );
+                    self.output_pose.borrow_mut().blend_with(
+                        &nodes[prev_input.pose_source].eval_pose(nodes, params, animations, dt),
+                        1.0 - interpolator,
+                    );
+                    self.output_pose.borrow_mut().blend_with(
+                        &nodes[current_input.pose_source].eval_pose(nodes, params, animations, dt),
+                        interpolator,
+                    );
 
-                        if interpolator >= 1.0 {
-                            self.prev_index.set(Some(current_index));
-                            self.blend_time.set(0.0);
-                        }
-
-                        applied = true;
+                    if interpolator >= 1.0 {
+                        self.prev_index.set(Some(current_index));
+                        self.blend_time.set(0.0);
                     }
+
+                    applied = true;
                 }
             } else {
                 self.prev_index.set(Some(current_index));
@@ -374,64 +371,62 @@ impl<T: EntityId> AnimationPoseSource<T> for BlendAnimationsByIndex<T> {
         animations: &AnimationContainer<T>,
         strategy: AnimationEventCollectionStrategy,
     ) -> Vec<(Handle<Animation<T>>, AnimationEvent)> {
-        if let Some(&Parameter::Index(current_index)) = params.get(&self.index_parameter) {
-            if let Some(prev_index) = self.prev_index.get() {
-                if prev_index != current_index {
-                    if let (Some(prev_input), Some(current_input)) = (
-                        self.inputs.get(prev_index as usize),
-                        self.inputs.get(current_index as usize),
-                    ) {
-                        let interpolator = self.blend_time.get() / current_input.blend_time;
+        if let Some(&Parameter::Index(current_index)) = params.get(&self.index_parameter)
+            && let Some(prev_index) = self.prev_index.get()
+        {
+            if prev_index != current_index {
+                if let (Some(prev_input), Some(current_input)) = (
+                    self.inputs.get(prev_index as usize),
+                    self.inputs.get(current_index as usize),
+                ) {
+                    let interpolator = self.blend_time.get() / current_input.blend_time;
 
-                        match strategy {
-                            AnimationEventCollectionStrategy::All => {
-                                let mut events = Vec::new();
-                                for input in [prev_input, current_input] {
-                                    if let Ok(source) = nodes.try_borrow(input.pose_source) {
-                                        events.extend(source.collect_animation_events(
-                                            nodes, params, animations, strategy,
-                                        ));
-                                    }
-                                }
-                                return events;
-                            }
-                            AnimationEventCollectionStrategy::MaxWeight => {
-                                let input = if interpolator < 0.5 {
-                                    prev_input
-                                } else {
-                                    current_input
-                                };
-
-                                if let Ok(pose_source) = nodes.try_borrow(input.pose_source) {
-                                    return pose_source.collect_animation_events(
+                    match strategy {
+                        AnimationEventCollectionStrategy::All => {
+                            let mut events = Vec::new();
+                            for input in [prev_input, current_input] {
+                                if let Ok(source) = nodes.try_borrow(input.pose_source) {
+                                    events.extend(source.collect_animation_events(
                                         nodes, params, animations, strategy,
-                                    );
+                                    ));
                                 }
                             }
-                            AnimationEventCollectionStrategy::MinWeight => {
-                                let input = if interpolator < 0.5 {
-                                    current_input
-                                } else {
-                                    prev_input
-                                };
+                            return events;
+                        }
+                        AnimationEventCollectionStrategy::MaxWeight => {
+                            let input = if interpolator < 0.5 {
+                                prev_input
+                            } else {
+                                current_input
+                            };
 
-                                if let Ok(pose_source) = nodes.try_borrow(input.pose_source) {
-                                    return pose_source.collect_animation_events(
-                                        nodes, params, animations, strategy,
-                                    );
-                                }
+                            if let Ok(pose_source) = nodes.try_borrow(input.pose_source) {
+                                return pose_source
+                                    .collect_animation_events(nodes, params, animations, strategy);
+                            }
+                        }
+                        AnimationEventCollectionStrategy::MinWeight => {
+                            let input = if interpolator < 0.5 {
+                                current_input
+                            } else {
+                                prev_input
+                            };
+
+                            if let Ok(pose_source) = nodes.try_borrow(input.pose_source) {
+                                return pose_source
+                                    .collect_animation_events(nodes, params, animations, strategy);
                             }
                         }
                     }
-                } else {
-                    // In case where the transition is done, all the strategies does the same - just collects events
-                    // from active pose node.
-                    if let Some(current_input) = self.inputs.get(current_index as usize) {
-                        if let Ok(pose_source) = nodes.try_borrow(current_input.pose_source) {
-                            return pose_source
-                                .collect_animation_events(nodes, params, animations, strategy);
-                        }
-                    }
+                }
+            } else {
+                // In case where the transition is done, all the strategies does the same - just collects events
+                // from active pose node.
+                if let Some(current_input) = self.inputs.get(current_index as usize)
+                    && let Ok(pose_source) = nodes.try_borrow(current_input.pose_source)
+                {
+                    return pose_source
+                        .collect_animation_events(nodes, params, animations, strategy);
                 }
             }
         }

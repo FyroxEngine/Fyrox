@@ -332,10 +332,10 @@ impl<T: VertexDataProvider> Graph<T> {
     /// Creates unidirectional link between vertex `a` and vertex `b`. Unidirectional
     /// means that there is no direct link between `b` to `a`, only from `a` to `b`.
     pub fn link_unidirect(&mut self, a: usize, b: usize) {
-        if let Some(vertex_a) = self.vertices.get_mut(a) {
-            if vertex_a.neighbours.iter().all(|n| *n != b as u32) {
-                vertex_a.neighbours.push(b as u32);
-            }
+        if let Some(vertex_a) = self.vertices.get_mut(a)
+            && vertex_a.neighbours.iter().all(|n| *n != b as u32)
+        {
+            vertex_a.neighbours.push(b as u32);
         }
     }
 
@@ -625,9 +625,11 @@ mod test {
         let mut pathfinder = Graph::<GraphVertex>::new();
 
         let mut path = Vec::new();
-        assert!(pathfinder
-            .build_positional_path(0, 0, &mut path)
-            .is_err_and(|e| matches!(e, PathError::Empty)));
+        assert!(
+            pathfinder
+                .build_positional_path(0, 0, &mut path)
+                .is_err_and(|e| matches!(e, PathError::Empty))
+        );
         assert!(path.is_empty());
 
         let size = 40;
@@ -641,9 +643,11 @@ mod test {
         }
         pathfinder.set_vertices(vertices);
 
-        assert!(pathfinder
-            .build_positional_path(100000, 99999, &mut path)
-            .is_err_and(|e| matches!(e, PathError::InvalidIndex(_))));
+        assert!(
+            pathfinder
+                .build_positional_path(100000, 99999, &mut path)
+                .is_err_and(|e| matches!(e, PathError::InvalidIndex(_)))
+        );
 
         // Link vertices as grid.
         for y in 0..(size - 1) {
@@ -665,9 +669,11 @@ mod test {
             let from = sy * size + sx;
             let to = ty * size + tx;
 
-            assert!(pathfinder
-                .build_positional_path(from, to, &mut path)
-                .is_ok());
+            assert!(
+                pathfinder
+                    .build_positional_path(from, to, &mut path)
+                    .is_ok()
+            );
             assert!(!path.is_empty());
 
             if path.len() > 1 {
@@ -796,9 +802,11 @@ mod test {
                 let from = sy * size + sx;
                 let to = ty * size + tx;
 
-                assert!(pathfinder
-                    .build_positional_path(from, to, &mut path)
-                    .is_ok());
+                assert!(
+                    pathfinder
+                        .build_positional_path(from, to, &mut path)
+                        .is_ok()
+                );
                 assert!(!path.is_empty());
 
                 if path.len() > 1 {
@@ -962,9 +970,11 @@ mod test {
             // a point on the center top edge
             let to = (size - 1) * size + (size / 2);
 
-            assert!(pathfinder
-                .build_positional_path(from, to, &mut path)
-                .is_ok());
+            assert!(
+                pathfinder
+                    .build_positional_path(from, to, &mut path)
+                    .is_ok()
+            );
             assert!(!path.is_empty());
 
             if path.len() > 1 {

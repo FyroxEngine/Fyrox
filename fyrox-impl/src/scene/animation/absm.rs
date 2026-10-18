@@ -27,20 +27,20 @@ use crate::{
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
-        uuid::{uuid, Uuid},
+        uuid::{Uuid, uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
     },
     scene::{
+        Scene,
         animation::prelude::*,
         base::{Base, BaseBuilder},
         graph::Graph,
         node::{Node, NodeTrait, UpdateContext},
-        Scene,
     },
 };
-use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::SceneGraph;
+use fyrox_graph::constructor::ConstructorProvider;
 use std::ops::{Deref, DerefMut};
 
 /// Scene specific root motion settings.

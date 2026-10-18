@@ -32,7 +32,7 @@ use crate::fyrox::{
 use crate::{
     command::CommandTrait,
     interaction::navmesh::selection::{NavmeshEntity, NavmeshSelection},
-    scene::{commands::GameSceneContext, Selection},
+    scene::{Selection, commands::GameSceneContext},
 };
 
 #[derive(Debug)]

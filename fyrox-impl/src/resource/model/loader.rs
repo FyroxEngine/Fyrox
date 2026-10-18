@@ -27,7 +27,7 @@ use crate::{
             BoxedImportOptionsLoaderFuture, BoxedLoaderFuture, LoaderPayload, ResourceLoader,
         },
         manager::ResourceManager,
-        options::{try_get_import_settings, try_get_import_settings_opaque, BaseImportOptions},
+        options::{BaseImportOptions, try_get_import_settings, try_get_import_settings_opaque},
     },
     core::uuid::Uuid,
     engine::SerializationContext,

@@ -40,10 +40,11 @@
 
 use crate::{
     asset::{
-        io::ResourceIo, manager::ResourceManager, options::ImportOptions, untyped::ResourceKind,
-        Resource, ResourceData,
+        Resource, ResourceData, io::ResourceIo, manager::ResourceManager, options::ImportOptions,
+        untyped::ResourceKind,
     },
     core::{
+        NameProvider,
         algebra::{Point3, UnitQuaternion, Vector3},
         dyntype::DynTypeConstructorContainer,
         log::{Log, MessageKind},
@@ -54,15 +55,14 @@ use crate::{
         variable::InheritableVariable,
         visitor::error::VisitError,
         visitor::prelude::*,
-        NameProvider,
     },
     engine::SerializationContext,
     generic_animation::AnimationContainer,
     graph::{NodeHandleMap, NodeMapping, NodeWrapper, PrefabData, SceneGraph},
     resource::fbx::{self, error::FbxError},
     scene::{
-        animation::Animation, base::SceneNodeId, graph::Graph, node::Node, transform::Transform,
-        Scene, SceneLoader,
+        Scene, SceneLoader, animation::Animation, base::SceneNodeId, graph::Graph, node::Node,
+        transform::Transform,
     },
 };
 use fxhash::FxHashMap;
@@ -168,10 +168,10 @@ impl<'a> InstantiationContext<'a> {
             resource_root,
             &mut self.dest_scene.graph,
             &mut |original_handle, node| {
-                if original_handle == resource_root {
-                    if let Some(transform) = self.local_transform.clone() {
-                        *node.local_transform_mut() = transform;
-                    }
+                if original_handle == resource_root
+                    && let Some(transform) = self.local_transform.clone()
+                {
+                    *node.local_transform_mut() = transform;
                 }
 
                 if let Some(ids) = self.ids.as_ref() {
@@ -833,7 +833,7 @@ impl Model {
             _ => {
                 return Err(ModelLoadError::NotSupported(format!(
                     "Unsupported model resource format: {extension}"
-                )))
+                )));
             }
         };
 

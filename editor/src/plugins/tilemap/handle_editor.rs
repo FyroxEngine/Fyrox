@@ -30,23 +30,23 @@ use fyrox::gui::text_box::TextBox;
 use fyrox::{
     core::{color::Color, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     gui::{
+        BuildContext, Control, Thickness, UiNode, UserInterface,
         brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
         define_widget_deref,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         inspector::{
+            InspectorError, PropertyChanged,
             editors::{
                 PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
                 PropertyEditorMessageContext, PropertyEditorTranslationContext,
             },
-            InspectorError, PropertyChanged,
         },
         message::{MessageDirection, UiMessage},
         text::TextMessage,
         text_box::{TextBoxBuilder, TextCommitMode},
         widget::{Widget, WidgetBuilder},
-        BuildContext, Control, Thickness, UiNode, UserInterface,
     },
     scene::tilemap::TileDefinitionHandle,
 };
@@ -119,13 +119,13 @@ impl Control for TileDefinitionHandleEditor {
                 TileDefinitionHandleEditorMessage::Value(self.value),
             );
             ui.send_sync(self.field, TextMessage::Text(self.text()));
-        } else if let Some(ButtonMessage::Click) = message.data_from(self.button) {
-            if let Some(handle) = self.value {
-                ui.post(
-                    self.handle(),
-                    TileDefinitionHandleEditorMessage::Goto(handle),
-                );
-            }
+        } else if let Some(ButtonMessage::Click) = message.data_from(self.button)
+            && let Some(handle) = self.value
+        {
+            ui.post(
+                self.handle(),
+                TileDefinitionHandleEditorMessage::Goto(handle),
+            );
         }
     }
 }
@@ -229,14 +229,13 @@ impl PropertyEditorDefinition for TileDefinitionHandlePropertyEditorDefinition {
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(&TileDefinitionHandleEditorMessage::Value(Some(value))) = ctx.message.data()
-            {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
-                    action: FieldAction::object(value),
-                });
-            }
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(&TileDefinitionHandleEditorMessage::Value(Some(value))) = ctx.message.data()
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
+                action: FieldAction::object(value),
+            });
         }
         None
     }
@@ -283,13 +282,13 @@ impl PropertyEditorDefinition for OptionTileDefinitionHandlePropertyEditorDefini
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(&TileDefinitionHandleEditorMessage::Value(value)) = ctx.message.data() {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
-                    action: FieldAction::object(value),
-                });
-            }
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(&TileDefinitionHandleEditorMessage::Value(value)) = ctx.message.data()
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
+                action: FieldAction::object(value),
+            });
         }
         None
     }

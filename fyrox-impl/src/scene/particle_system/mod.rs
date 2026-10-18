@@ -27,30 +27,30 @@ use crate::{
         algebra::{Point3, Vector2, Vector3},
         color::Color,
         color_gradient::ColorGradient,
-        math::{aabb::AxisAlignedBoundingBox, TriangleDefinition},
+        math::{TriangleDefinition, aabb::AxisAlignedBoundingBox},
         pool::Handle,
         reflect::prelude::*,
-        uuid::{uuid, Uuid},
+        uuid::{Uuid, uuid},
         value_as_u8_slice,
         variable::InheritableVariable,
         visitor::prelude::*,
     },
     material::{Material, MaterialResource},
-    rand::{prelude::StdRng, RngCore, SeedableRng},
+    rand::{RngCore, SeedableRng, prelude::StdRng},
     renderer::{self, bundle::RenderContext},
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        mesh::{buffer::VertexTrait, RenderPath},
-        node::{constructor::NodeConstructor, Node, NodeTrait, RdcControlFlow, UpdateContext},
+        mesh::{RenderPath, buffer::VertexTrait},
+        node::{Node, NodeTrait, RdcControlFlow, UpdateContext, constructor::NodeConstructor},
         particle_system::{
             draw::Vertex,
-            emitter::{base::BaseEmitterBuilder, sphere::SphereEmitterBuilder, Emit, Emitter},
+            emitter::{Emit, Emitter, base::BaseEmitterBuilder, sphere::SphereEmitterBuilder},
             particle::Particle,
         },
     },
 };
-use fyrox_graph::{constructor::ConstructorProvider, SceneGraph};
+use fyrox_graph::{SceneGraph, constructor::ConstructorProvider};
 use std::{
     cmp::Ordering,
     fmt::Debug,
@@ -519,13 +519,15 @@ impl ConstructorProvider<Node, Graph> for ParticleSystem {
     fn constructor() -> NodeConstructor {
         NodeConstructor::new::<Self>().with_variant("Particle System", |_| {
             ParticleSystemBuilder::new(BaseBuilder::new().with_name("ParticleSystem"))
-                .with_emitters(vec![SphereEmitterBuilder::new(
-                    BaseEmitterBuilder::new()
-                        .with_max_particles(100)
-                        .resurrect_particles(true),
-                )
-                .with_radius(1.0)
-                .build()])
+                .with_emitters(vec![
+                    SphereEmitterBuilder::new(
+                        BaseEmitterBuilder::new()
+                            .with_max_particles(100)
+                            .resurrect_particles(true),
+                    )
+                    .with_radius(1.0)
+                    .build(),
+                ])
                 .build_node()
                 .into()
         })

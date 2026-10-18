@@ -29,6 +29,7 @@ use fyrox::gui::border::Border;
 use fyrox::gui::button::Button;
 use fyrox::gui::text_box::TextBox;
 use fyrox::gui::{
+    HorizontalAlignment, VerticalAlignment,
     button::ButtonMessage,
     grid::*,
     list_view::{ListView, ListViewBuilder, ListViewMessage},
@@ -36,8 +37,7 @@ use fyrox::gui::{
     stack_panel::StackPanelBuilder,
     text::{TextBuilder, TextMessage},
     text_box::{TextBoxBuilder, TextCommitMode},
-    utils::{make_arrow, ArrowDirection},
-    HorizontalAlignment, VerticalAlignment,
+    utils::{ArrowDirection, make_arrow},
 };
 use fyrox::scene::tilemap::*;
 

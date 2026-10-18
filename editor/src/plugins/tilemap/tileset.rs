@@ -30,6 +30,7 @@ use crate::{
         asset::manager::ResourceManager,
         core::{algebra::Vector2, color::Color, log::Log, pool::Handle},
         gui::{
+            BuildContext, Thickness, UiNode, UserInterface,
             border::BorderBuilder,
             brush::Brush,
             button::{Button, ButtonMessage},
@@ -43,10 +44,9 @@ use crate::{
             text::{Text, TextBuilder, TextMessage},
             widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, Thickness, UiNode, UserInterface,
         },
         scene::tilemap::{
-            brush::TileMapBrushResource, tileset::TileSetRef, TileBook, TileDefinitionHandle,
+            TileBook, TileDefinitionHandle, brush::TileMapBrushResource, tileset::TileSetRef,
         },
     },
     message::MessageSender,
@@ -55,7 +55,7 @@ use crate::{
     },
 };
 use macro_tab::MacroTab;
-use palette::{PaletteWidgetBuilder, DEFAULT_MATERIAL_COLOR};
+use palette::{DEFAULT_MATERIAL_COLOR, PaletteWidgetBuilder};
 use std::sync::mpsc::Sender;
 
 const TAB_MARGIN: Thickness = Thickness {
@@ -662,13 +662,12 @@ impl TileSetEditor {
         } else if let Some(ResourceFieldMessage::<TileSet>::Value(tile_set)) = message.data() {
             if message.destination() == self.tile_set_field
                 && message.direction() == MessageDirection::FromWidget
+                && let TileBook::Brush(brush) = &self.tile_book
             {
-                if let TileBook::Brush(brush) = &self.tile_book {
-                    sender.do_command(ModifyBrushTileSetCommand {
-                        brush: brush.clone(),
-                        tile_set: tile_set.clone(),
-                    });
-                }
+                sender.do_command(ModifyBrushTileSetCommand {
+                    brush: brush.clone(),
+                    tile_set: tile_set.clone(),
+                });
             }
         } else if let Some(TileHandleEditorMessage::Goto(handle)) = message.data() {
             if let Some(tile_set) = self.tile_book.get_tile_set() {

@@ -407,7 +407,7 @@ fn cell_position_to_transform(position: Vector2<i32>) -> i8 {
 impl TransformSetCell {
     /// Convert this cell into the corresponding position within a TransformSet page.
     pub fn into_position(self) -> Vector2<i32> {
-        self.0 + transform_to_cell_position(self.1 .0)
+        self.0 + transform_to_cell_position(self.1.0)
     }
     /// Convert a position within a TransformSet into a transform set cell that specifies the corresponding orthogonal transformation.
     pub fn from_position(position: Vector2<i32>) -> Self {

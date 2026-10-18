@@ -19,19 +19,19 @@
 // SOFTWARE.
 
 use crate::{
+    Thickness,
     core::{algebra::SMatrix, num_traits::NumCast},
     inspector::{
+        FieldAction, InspectorError, PropertyChanged,
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldAction, InspectorError, PropertyChanged,
     },
     matrix::{MatrixEditorBuilder, MatrixEditorMessage},
     message::{MessageDirection, UiMessage},
     numeric::NumericType,
     widget::WidgetBuilder,
-    Thickness,
 };
 use std::{any::TypeId, marker::PhantomData};
 
@@ -99,15 +99,14 @@ impl<const R: usize, const C: usize, T: NumericType> PropertyEditorDefinition
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(MatrixEditorMessage::Value(value)) =
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(MatrixEditorMessage::Value(value)) =
                 ctx.message.data::<MatrixEditorMessage<R, C, T>>()
-            {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
-                    action: FieldAction::object(*value),
-                });
-            }
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
+                action: FieldAction::object(*value),
+            });
         }
         None
     }

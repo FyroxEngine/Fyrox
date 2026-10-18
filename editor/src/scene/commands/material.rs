@@ -24,8 +24,8 @@ use crate::{
         asset::ResourceData,
         core::{log::Log, sstorage::ImmutableString},
         material::{
-            shader::ShaderResource, Material, MaterialProperty, MaterialResource,
-            MaterialResourceBinding,
+            Material, MaterialProperty, MaterialResource, MaterialResourceBinding,
+            shader::ShaderResource,
         },
     },
 };

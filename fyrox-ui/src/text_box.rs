@@ -23,9 +23,13 @@
 
 #![warn(missing_docs)]
 
+use crate::formatted_text::InlineContext;
 use crate::{
+    BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
+    VerticalAlignment,
     brush::Brush,
     core::{
+        SafeLock,
         algebra::{Matrix3, Point2, Vector2},
         color::Color,
         math::Rect,
@@ -35,18 +39,15 @@ use crate::{
         some_or_return,
         variable::InheritableVariable,
         visitor::prelude::*,
-        SafeLock,
     },
     draw::{CommandTexture, Draw, DrawingContext},
     font::FontResource,
     formatted_text::{FormattedText, FormattedTextBuilder, WrapMode},
     message::{CursorIcon, KeyCode, MessageData, MessageDirection, MouseButton, UiMessage},
-    style::{resource::StyleResourceExt, Style, StyledProperty},
+    style::{Style, StyledProperty, resource::StyleResourceExt},
     text::TextBuilder,
     text::TextMessage,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
-    VerticalAlignment,
 };
 use copypasta::ClipboardProvider;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -414,6 +415,15 @@ impl Deref for TextBoxFilter {
 ///
 /// You can change brush of caret by using [`TextBoxBuilder::with_caret_brush`] and also selection brush by using
 /// [`TextBoxBuilder::with_selection_brush`], it could be useful if you don't like default colors.
+///
+/// ## Inline Elements
+///
+/// It is possible to put a child widget in the text at arbitrary position, such widgets are called
+/// inline widgets. It could be useful to create complex text layout. For example, this ability allows
+/// you to create text with embedded images. To add an inline element all you need to do is to put
+/// it as a direct child widget of the [`TextBox`] widget and set its column property to the desired
+/// character index. The inline widget will then be put at the specified position and the rest of the
+/// text will be put right next to it.
 #[derive(Default, Clone, Visit, PartialEq, Reflect)]
 #[reflect(
     derived_type = "UiNode",
@@ -556,20 +566,20 @@ impl TextBox {
 
         drop(text);
 
-        if let Some(selection_range) = self.selection_range.as_mut() {
-            if select {
-                if *self.caret_position != selection_range.end {
-                    if !selection_range.contains(position) {
-                        if position < selection_range.left() {
-                            selection_range.begin = selection_range.right();
-                        } else {
-                            selection_range.begin = selection_range.left();
-                        }
-                        selection_range.end = position;
+        if let Some(selection_range) = self.selection_range.as_mut()
+            && select
+        {
+            if *self.caret_position != selection_range.end {
+                if !selection_range.contains(position) {
+                    if position < selection_range.left() {
+                        selection_range.begin = selection_range.right();
+                    } else {
+                        selection_range.begin = selection_range.left();
                     }
-                } else {
                     selection_range.end = position;
                 }
+            } else {
+                selection_range.end = position;
             }
         }
 
@@ -694,7 +704,10 @@ impl TextBox {
             .unwrap_or_default();
         let mut text = self.formatted_text.borrow_mut();
         text.insert_str(&str, position);
-        text.measure();
+        text.measure(Some(InlineContext {
+            children: &self.children,
+            ui,
+        }));
         drop(text);
         self.set_caret_position(
             self.char_index_to_position(position + str.chars().count())
@@ -774,11 +787,11 @@ impl TextBox {
     }
 
     fn remove_char(&mut self, direction: HorizontalDirection, ui: &UserInterface) {
-        if let Some(selection) = *self.selection_range {
-            if !selection.is_collapsed() {
-                self.remove_range(ui, selection);
-                return;
-            }
+        if let Some(selection) = *self.selection_range
+            && !selection.is_collapsed()
+        {
+            self.remove_range(ui, selection);
+            return;
         }
         let Some(position) = self.position_to_char_index_unclamped(*self.caret_position) else {
             return;
@@ -954,13 +967,22 @@ impl Control for TextBox {
             .borrow_mut()
             .set_super_sampling_scale(self.visual_max_scaling())
             .set_constraint(available_size)
-            .measure();
+            .measure(Some(InlineContext {
+                children: &self.children,
+                ui,
+            }));
         let children_size = self.widget.measure_override(ui, available_size);
         text_size.sup(&children_size)
     }
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
-        self.formatted_text.borrow_mut().arrange(final_size);
+        self.formatted_text.borrow_mut().arrange(
+            final_size,
+            Some(InlineContext {
+                children: &self.children,
+                ui,
+            }),
+        );
         self.widget.arrange_override(ui, final_size)
     }
 
@@ -1211,44 +1233,44 @@ impl Control for TextBox {
                                 }
                             }
                             KeyCode::KeyC if ui.keyboard_modifiers().control => {
-                                if let Some(mut clipboard) = ui.clipboard_mut() {
-                                    if let Some(selection_range) = self.selection_range.as_ref() {
-                                        let range = self
-                                            .formatted_text
-                                            .borrow()
-                                            .position_range_to_char_index_range(
-                                                selection_range.range(),
-                                            );
-                                        if !range.is_empty() {
-                                            let _ = clipboard.set_contents(
-                                                self.formatted_text.borrow().text_range(range),
-                                            );
-                                        }
+                                if let Some(mut clipboard) = ui.clipboard_mut()
+                                    && let Some(selection_range) = self.selection_range.as_ref()
+                                {
+                                    let range = self
+                                        .formatted_text
+                                        .borrow()
+                                        .position_range_to_char_index_range(
+                                            selection_range.range(),
+                                        );
+                                    if !range.is_empty() {
+                                        let _ = clipboard.set_contents(
+                                            self.formatted_text.borrow().text_range(range),
+                                        );
                                     }
                                 }
                             }
                             KeyCode::KeyV if ui.keyboard_modifiers().control => {
-                                if let Some(mut clipboard) = ui.clipboard_mut() {
-                                    if let Ok(content) = clipboard.get_contents() {
-                                        self.insert_str(&content, ui);
-                                    }
+                                if let Some(mut clipboard) = ui.clipboard_mut()
+                                    && let Ok(content) = clipboard.get_contents()
+                                {
+                                    self.insert_str(&content, ui);
                                 }
                             }
                             KeyCode::KeyX if ui.keyboard_modifiers().control => {
-                                if let Some(mut clipboard) = ui.clipboard_mut() {
-                                    if let Some(selection_range) = self.selection_range.as_ref() {
-                                        let range = self
-                                            .formatted_text
-                                            .borrow()
-                                            .position_range_to_char_index_range(
-                                                selection_range.range(),
-                                            );
-                                        if !range.is_empty() {
-                                            let _ = clipboard.set_contents(
-                                                self.formatted_text.borrow().text_range(range),
-                                            );
-                                            self.remove_char(HorizontalDirection::Left, ui);
-                                        }
+                                if let Some(mut clipboard) = ui.clipboard_mut()
+                                    && let Some(selection_range) = self.selection_range.as_ref()
+                                {
+                                    let range = self
+                                        .formatted_text
+                                        .borrow()
+                                        .position_range_to_char_index_range(
+                                            selection_range.range(),
+                                        );
+                                    if !range.is_empty() {
+                                        let _ = clipboard.set_contents(
+                                            self.formatted_text.borrow().text_range(range),
+                                        );
+                                        self.remove_char(HorizontalDirection::Left, ui);
                                     }
                                 }
                             }
@@ -1320,10 +1342,10 @@ impl Control for TextBox {
                     WidgetMessage::DoubleClick {
                         button: MouseButton::Left,
                     } => {
-                        if let Some(position) = self.screen_pos_to_text_pos(ui.cursor_position) {
-                            if position == self.before_click_position {
-                                self.select_word(position);
-                            }
+                        if let Some(position) = self.screen_pos_to_text_pos(ui.cursor_position)
+                            && position == self.before_click_position
+                        {
+                            self.select_word(position);
                         }
                     }
                     WidgetMessage::MouseMove { pos, .. } if self.selecting => {
@@ -1457,54 +1479,54 @@ impl Control for TextBox {
                         }
                     }
                 }
-            } else if let Some(msg) = message.data::<TextBoxMessage>() {
-                if message.direction() == MessageDirection::ToWidget {
-                    match msg {
-                        TextBoxMessage::SelectionBrush(brush) => {
-                            if &*self.selection_brush != brush {
-                                self.selection_brush
-                                    .set_value_and_mark_modified(brush.clone());
-                                ui.try_send_response(message);
-                            }
+            } else if let Some(msg) = message.data::<TextBoxMessage>()
+                && message.direction() == MessageDirection::ToWidget
+            {
+                match msg {
+                    TextBoxMessage::SelectionBrush(brush) => {
+                        if &*self.selection_brush != brush {
+                            self.selection_brush
+                                .set_value_and_mark_modified(brush.clone());
+                            ui.try_send_response(message);
                         }
-                        TextBoxMessage::CaretBrush(brush) => {
-                            if &*self.caret_brush != brush {
-                                self.caret_brush.set_value_and_mark_modified(brush.clone());
-                                ui.try_send_response(message);
-                            }
+                    }
+                    TextBoxMessage::CaretBrush(brush) => {
+                        if &*self.caret_brush != brush {
+                            self.caret_brush.set_value_and_mark_modified(brush.clone());
+                            ui.try_send_response(message);
                         }
-                        TextBoxMessage::TextCommitMode(mode) => {
-                            if &*self.commit_mode != mode {
-                                self.commit_mode.set_value_and_mark_modified(*mode);
-                                ui.try_send_response(message);
-                            }
+                    }
+                    TextBoxMessage::TextCommitMode(mode) => {
+                        if &*self.commit_mode != mode {
+                            self.commit_mode.set_value_and_mark_modified(*mode);
+                            ui.try_send_response(message);
                         }
-                        TextBoxMessage::Multiline(multiline) => {
-                            if &*self.multiline != multiline {
-                                self.multiline.set_value_and_mark_modified(*multiline);
-                                ui.try_send_response(message);
-                            }
+                    }
+                    TextBoxMessage::Multiline(multiline) => {
+                        if &*self.multiline != multiline {
+                            self.multiline.set_value_and_mark_modified(*multiline);
+                            ui.try_send_response(message);
                         }
-                        TextBoxMessage::Editable(editable) => {
-                            if &*self.editable != editable {
-                                self.editable.set_value_and_mark_modified(*editable);
-                                ui.try_send_response(message);
-                            }
+                    }
+                    TextBoxMessage::Editable(editable) => {
+                        if &*self.editable != editable {
+                            self.editable.set_value_and_mark_modified(*editable);
+                            ui.try_send_response(message);
                         }
-                        TextBoxMessage::Padding(padding) => {
-                            let mut formatted_text = self.formatted_text.borrow_mut();
-                            if &*formatted_text.padding != padding {
-                                formatted_text.padding.set_value_and_mark_modified(*padding);
-                                ui.try_send_response(message);
-                            }
+                    }
+                    TextBoxMessage::Padding(padding) => {
+                        let mut formatted_text = self.formatted_text.borrow_mut();
+                        if &*formatted_text.padding != padding {
+                            formatted_text.padding.set_value_and_mark_modified(*padding);
+                            ui.try_send_response(message);
                         }
-                        TextBoxMessage::CornerRadius(corner_radius) => {
-                            if *self.corner_radius != *corner_radius {
-                                self.corner_radius
-                                    .set_value_and_mark_modified(*corner_radius);
-                                ui.try_send_response(message);
-                                self.invalidate_visual();
-                            }
+                    }
+                    TextBoxMessage::CornerRadius(corner_radius) => {
+                        if *self.corner_radius != *corner_radius {
+                            self.corner_radius
+                                .set_value_and_mark_modified(*corner_radius);
+                            ui.try_send_response(message);
+                            self.invalidate_visual();
                         }
                     }
                 }
@@ -1550,6 +1572,7 @@ pub struct TextBoxBuilder<'a> {
     selection_brush: Brush,
     filter: Option<TextBoxFilter>,
     vertical_alignment: VerticalAlignment,
+    baseline_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
     wrap: WrapMode,
     commit_mode: TextCommitMode,
@@ -1579,6 +1602,7 @@ impl<'a> TextBoxBuilder<'a> {
             selection_brush: Brush::Solid(Color::opaque(80, 118, 178)),
             filter: None,
             vertical_alignment: VerticalAlignment::Top,
+            baseline_alignment: VerticalAlignment::Bottom,
             horizontal_alignment: HorizontalAlignment::Left,
             wrap: WrapMode::NoWrap,
             commit_mode: TextCommitMode::LostFocusPlusEnter,
@@ -1642,6 +1666,13 @@ impl<'a> TextBoxBuilder<'a> {
     /// Sets the desired vertical text alignment of the text box.
     pub fn with_vertical_text_alignment(mut self, alignment: VerticalAlignment) -> Self {
         self.vertical_alignment = alignment;
+        self
+    }
+
+    /// Sets the desired baseline alignment. Baseline alignment defines how the glyphs will be aligned
+    /// in each line of the text.
+    pub fn with_baseline_alignment(mut self, baseline_alignment: VerticalAlignment) -> Self {
+        self.baseline_alignment = baseline_alignment;
         self
     }
 
@@ -1785,6 +1816,7 @@ impl<'a> TextBoxBuilder<'a> {
                     .with_shadow_offset(self.shadow_offset)
                     .with_padding(self.padding)
                     .with_trim_text(self.trim_text)
+                    .with_baseline_alignment(self.baseline_alignment)
                     .with_font_size(
                         self.font_size
                             .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),

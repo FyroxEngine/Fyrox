@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    Editor, Message,
     camera::PickingOptions,
     command::SetPropertyCommand,
     fyrox::{
@@ -31,24 +32,23 @@ use crate::{
         engine::Engine,
         graph::SceneGraph,
         gui::{
+            BuildContext, Thickness, UserInterface, VerticalAlignment,
             button::{ButtonBuilder, ButtonMessage},
             grid::{Column, GridBuilder, Row},
             message::UiMessage,
             widget::{WidgetBuilder, WidgetMessage},
-            BuildContext, Thickness, UserInterface, VerticalAlignment,
         },
-        scene::{probe::ReflectionProbe, Scene},
+        scene::{Scene, probe::ReflectionProbe},
     },
     interaction::{
-        calculate_gizmo_distance_scaling, gizmo::move_gizmo::MoveGizmo,
-        make_interaction_mode_button, plane::PlaneKind, InteractionMode,
+        InteractionMode, calculate_gizmo_distance_scaling, gizmo::move_gizmo::MoveGizmo,
+        make_interaction_mode_button, plane::PlaneKind,
     },
     message::MessageSender,
     plugin::EditorPlugin,
     plugins::inspector::InspectorPlugin,
-    scene::{commands::GameSceneContext, controller::SceneController, GameScene, Selection},
+    scene::{GameScene, Selection, commands::GameSceneContext, controller::SceneController},
     settings::Settings,
-    Editor, Message,
 };
 use fyrox::core::reflect::Reflect;
 use fyrox::core::uuid::Uuid;
@@ -112,23 +112,23 @@ impl ReflectionProbePreviewControlPanel {
         engine: &mut Engine,
         sender: &MessageSender,
     ) {
-        if let Some(selection) = editor_selection.as_graph() {
-            if let Some(ButtonMessage::Click) = message.data() {
-                if message.destination == self.update {
-                    let scene = &mut engine.scenes[game_scene.scene];
+        if let Some(selection) = editor_selection.as_graph()
+            && let Some(ButtonMessage::Click) = message.data()
+        {
+            if message.destination == self.update {
+                let scene = &mut engine.scenes[game_scene.scene];
 
-                    for &node in &selection.nodes {
-                        if let Ok(particle_system) =
-                            scene.graph.try_get_mut_of_type::<ReflectionProbe>(node)
-                        {
-                            particle_system.force_update();
-                        }
+                for &node in &selection.nodes {
+                    if let Ok(particle_system) =
+                        scene.graph.try_get_mut_of_type::<ReflectionProbe>(node)
+                    {
+                        particle_system.force_update();
                     }
-                } else if message.destination == self.adjust {
-                    sender.send(Message::SetInteractionMode(
-                        ReflectionProbeInteractionMode::type_info().type_uuid,
-                    ));
                 }
+            } else if message.destination == self.adjust {
+                sender.send(Message::SetInteractionMode(
+                    ReflectionProbeInteractionMode::type_info().type_uuid,
+                ));
             }
         }
     }
@@ -192,13 +192,12 @@ impl InteractionMode for ReflectionProbeInteractionMode {
                 method: Default::default(),
                 settings: &settings.selection,
             },
-        ) {
-            if let Some(plane_kind) = self.move_gizmo.handle_pick(result.node, &mut scene.graph) {
-                self.drag_context = Some(DragContext {
-                    new_position: *scene.graph[self.probe].rendering_position,
-                    plane_kind,
-                })
-            }
+        ) && let Some(plane_kind) = self.move_gizmo.handle_pick(result.node, &mut scene.graph)
+        {
+            self.drag_context = Some(DragContext {
+                new_position: *scene.graph[self.probe].rendering_position,
+                plane_kind,
+            })
         }
     }
 

@@ -30,9 +30,10 @@ use fyrox::gui::dropdown_list::DropdownList;
 use fyrox::gui::grid::Grid;
 use fyrox::gui::text::Text;
 use fyrox::{
-    core::{algebra::Vector2, color::Color, pool::Handle, ImmutableString},
+    core::{ImmutableString, algebra::Vector2, color::Color, pool::Handle},
     fxhash::FxHashMap,
     gui::{
+        BuildContext, Thickness, UiNode, UserInterface,
         border::BorderBuilder,
         brush::Brush,
         button::{Button, ButtonBuilder, ButtonMessage},
@@ -47,9 +48,8 @@ use fyrox::{
         text_box::TextBoxBuilder,
         utils::make_simple_tooltip,
         widget::WidgetBuilder,
-        BuildContext, Thickness, UiNode, UserInterface,
     },
-    scene::tilemap::{tileset::*, TileDataUpdate, TileSetUpdate},
+    scene::tilemap::{TileDataUpdate, TileSetUpdate, tileset::*},
 };
 use palette::Subposition;
 
@@ -611,10 +611,10 @@ impl TileEditor for TilePropertyEditor {
                 self.set_value_from_f32(v, state, ui);
                 self.send_value(state, sender, tile_book);
             }
-        } else if let Some(DropdownListMessage::Selection(Some(index))) = message.data() {
-            if message.destination() == self.list {
-                self.set_value_from_list(*index, state, ui, sender, tile_book);
-            }
+        } else if let Some(DropdownListMessage::Selection(Some(index))) = message.data()
+            && message.destination() == self.list
+        {
+            self.set_value_from_list(*index, state, ui, sender, tile_book);
         }
     }
 }

@@ -31,12 +31,12 @@ use fyrox_core::{futures::executor::block_on, log::Log};
 
 use crate::{
     asset::{
+        Resource, ResourceData,
         io::ResourceIo,
         loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
         manager::ResourceManager,
         state::LoadError,
         untyped::UntypedResource,
-        Resource, ResourceData,
     },
     core::{
         algebra::{Matrix4, Vector2, Vector3},

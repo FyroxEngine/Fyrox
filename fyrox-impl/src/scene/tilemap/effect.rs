@@ -80,10 +80,10 @@ pub struct TileCursorEffect {
 
 impl TileMapEffect for TileCursorEffect {
     fn render_special_tiles(&self, context: &mut TileMapRenderContext) {
-        if let Some(material) = self.material.as_ref() {
-            if let Some(position) = self.position {
-                push_cursor(position, material, context);
-            }
+        if let Some(material) = self.material.as_ref()
+            && let Some(position) = self.position
+        {
+            push_cursor(position, material, context);
         }
     }
 }

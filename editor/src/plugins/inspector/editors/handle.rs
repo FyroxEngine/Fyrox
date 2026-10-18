@@ -20,39 +20,39 @@
 
 use crate::scene::selector::{AllowedType, NodeSelectorWindow, SelectedHandle};
 use crate::{
+    Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
     fyrox::{
         core::{
-            color::Color, pool::ErasedHandle, pool::Handle, reflect::prelude::*,
-            visitor::prelude::*, SafeLock,
+            SafeLock, color::Color, pool::ErasedHandle, pool::Handle, reflect::prelude::*,
+            visitor::prelude::*,
         },
         graph::SceneGraph,
         gui::{
+            BuildContext, Control, Thickness,
             brush::Brush,
             button::{ButtonBuilder, ButtonMessage},
             draw::{CommandTexture, Draw, DrawingContext},
             grid::{Column, GridBuilder, Row},
             image::ImageBuilder,
             inspector::{
+                FieldAction, InspectorError, PropertyChanged,
                 editors::{
                     PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
                     PropertyEditorMessageContext, PropertyEditorTranslationContext,
                 },
-                FieldAction, InspectorError, PropertyChanged,
             },
             message::MessageDirection,
-            style::{resource::StyleResourceExt, Style},
+            style::{Style, resource::StyleResourceExt},
             text::{TextBuilder, TextMessage},
             utils::make_simple_tooltip,
             widget::{Widget, WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, Control, Thickness,
         },
     },
     load_image_internal,
     message::MessageSender,
     scene::selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
     world::item::SceneItem,
-    Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox::core::PhantomDataSendSync;
 use fyrox::gui::button::Button;
@@ -241,16 +241,16 @@ impl<T: Reflect> Control for HandlePropertyEditor<T> {
                 }
             }
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
-            if message.destination() == self.handle() {
-                if let Some(item) = ui.node(*dropped).cast::<SceneItem>() {
-                    ui.send(
-                        self.handle(),
-                        HandlePropertyEditorMessage::<T>::Value(
-                            // TODO: Do type check here.
-                            item.entity_handle.into(),
-                        ),
-                    )
-                }
+            if message.destination() == self.handle()
+                && let Some(item) = ui.node(*dropped).cast::<SceneItem>()
+            {
+                ui.send(
+                    self.handle(),
+                    HandlePropertyEditorMessage::<T>::Value(
+                        // TODO: Do type check here.
+                        item.entity_handle.into(),
+                    ),
+                )
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination == self.locate {
@@ -310,10 +310,10 @@ impl<T: Reflect> Control for HandlePropertyEditor<T> {
                     HandlePropertyEditorMessage::<T>::Value(suitable.handle.into()),
                 );
             }
-        } else if let Some(WindowMessage::Close) = message.data() {
-            if message.destination() == self.selector {
-                ui.send(self.selector, WidgetMessage::Remove);
-            }
+        } else if let Some(WindowMessage::Close) = message.data()
+            && message.destination() == self.selector
+        {
+            ui.send(self.selector, WidgetMessage::Remove);
         }
     }
 }
@@ -493,15 +493,14 @@ impl<T: Reflect> PropertyEditorDefinition for NodeHandlePropertyEditorDefinition
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(HandlePropertyEditorMessage::Value(value)) =
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(HandlePropertyEditorMessage::Value(value)) =
                 ctx.message.data::<HandlePropertyEditorMessage<T>>()
-            {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
-                    action: FieldAction::object(*value),
-                });
-            }
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
+                action: FieldAction::object(*value),
+            });
         }
         None
     }

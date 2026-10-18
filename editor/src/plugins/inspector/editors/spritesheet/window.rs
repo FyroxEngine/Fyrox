@@ -22,6 +22,8 @@ use crate::fyrox::graph::SceneGraph;
 use crate::fyrox::{
     core::{algebra::Vector2, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     gui::{
+        BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        VerticalAlignment,
         border::BorderBuilder,
         button::{ButtonBuilder, ButtonMessage},
         check_box::{CheckBoxBuilder, CheckBoxMessage},
@@ -35,8 +37,6 @@ use crate::fyrox::{
         utils::make_simple_tooltip,
         widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{Window, WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-        VerticalAlignment,
     },
     scene::animation::spritesheet::prelude::*,
 };
@@ -49,8 +49,8 @@ use fyrox::gui::check_box::CheckBox;
 use fyrox::gui::grid::Grid;
 use fyrox::gui::image::Image;
 use fyrox::gui::numeric::NumericUpDown;
-use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::widget::UserData;
 use std::{
     ops::{Deref, DerefMut},
@@ -144,30 +144,29 @@ impl Control for SpriteSheetFramesEditorWindow {
                 let width = self.animation.frames().size().x;
                 self.resize(Vector2::new(width, *value), ui);
             }
-        } else if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
-            if self.cells.contains(&message.destination().to_variant())
-                && message.direction == MessageDirection::FromWidget
-            {
-                let cell_position = ui
-                    .node(message.destination())
-                    .user_data_cloned::<Vector2<u32>>()
-                    .unwrap();
+        } else if let Some(CheckBoxMessage::Check(Some(value))) = message.data()
+            && self.cells.contains(&message.destination().to_variant())
+            && message.direction == MessageDirection::FromWidget
+        {
+            let cell_position = ui
+                .node(message.destination())
+                .user_data_cloned::<Vector2<u32>>()
+                .unwrap();
 
-                if *value {
-                    self.animation.frames_mut().push(cell_position);
-                } else {
-                    let position = self
-                        .animation
-                        .frames()
-                        .iter()
-                        .position(|p| p == &cell_position);
-                    if let Some(i) = position {
-                        self.animation.frames_mut().remove(i);
-                    }
+            if *value {
+                self.animation.frames_mut().push(cell_position);
+            } else {
+                let position = self
+                    .animation
+                    .frames()
+                    .iter()
+                    .position(|p| p == &cell_position);
+                if let Some(i) = position {
+                    self.animation.frames_mut().remove(i);
                 }
-
-                self.animation.frames_mut().sort_by_position();
             }
+
+            self.animation.frames_mut().sort_by_position();
         }
     }
 

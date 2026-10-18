@@ -22,21 +22,22 @@
 //! a nested inspector within an [Expander](crate::expander::Expander) widget.
 use crate::inspector::InspectorContextArgs;
 use crate::{
+    UiNode,
     core::reflect::prelude::*,
     inspector::{
+        FieldAction, Inspector, InspectorBuilder, InspectorContext, InspectorError,
+        InspectorMessage, PropertyChanged,
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        make_expander_container, FieldAction, Inspector, InspectorBuilder, InspectorContext,
-        InspectorError, InspectorMessage, PropertyChanged,
+        make_expander_container,
     },
     message::{MessageDirection, UiMessage},
     widget::WidgetBuilder,
-    UiNode,
 };
-use fyrox_core::pool::Handle;
 use fyrox_core::PhantomDataSendSync;
+use fyrox_core::pool::Handle;
 use fyrox_graph::SceneGraph;
 use std::{
     any::TypeId,
@@ -162,14 +163,13 @@ where
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
         if let Some(InspectorMessage::PropertyChanged(msg)) = ctx.message.data::<InspectorMessage>()
+            && ctx.message.direction() == MessageDirection::FromWidget
         {
-            if ctx.message.direction() == MessageDirection::FromWidget {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_owned(),
+            return Some(PropertyChanged {
+                name: ctx.name.to_owned(),
 
-                    action: FieldAction::InspectableAction(Box::new(msg.clone())),
-                });
-            }
+                action: FieldAction::InspectableAction(Box::new(msg.clone())),
+            });
         }
 
         None

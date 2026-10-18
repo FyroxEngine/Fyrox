@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    Message, MessageDirection,
     asset::{
         item::{AssetItem, AssetItemMessage},
         preview::cache::IconRequest,
@@ -27,28 +28,28 @@ use crate::{
     fyrox::{
         asset::{core::pool::Handle, manager::ResourceManager, state::ResourceState},
         core::{
-            color::Color, log::Log, parking_lot::Mutex, reflect::prelude::*, visitor::prelude::*,
-            SafeLock,
+            SafeLock, color::Color, log::Log, parking_lot::Mutex, reflect::prelude::*,
+            visitor::prelude::*,
         },
         graph::SceneGraph,
         gui::{
+            BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
             brush::Brush,
             button::{Button, ButtonBuilder, ButtonMessage},
             draw::{CommandTexture, Draw, DrawingContext},
             grid::{Column, GridBuilder, Row},
             image::{Image, ImageBuilder, ImageMessage},
             inspector::{
+                FieldAction, InspectorError, PropertyChanged,
                 editors::{
                     PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
                     PropertyEditorMessageContext, PropertyEditorTranslationContext,
                 },
-                FieldAction, InspectorError, PropertyChanged,
             },
             message::{MessageData, UiMessage},
             text::{Text, TextBuilder, TextMessage},
-            utils::{make_asset_preview_tooltip, make_simple_tooltip, ImageButtonBuilder},
+            utils::{ImageButtonBuilder, make_asset_preview_tooltip, make_simple_tooltip},
             widget::{Widget, WidgetBuilder, WidgetMessage},
-            BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
         material::{Material, MaterialResource, MaterialResourceExtension},
     },
@@ -56,7 +57,6 @@ use crate::{
     message::MessageSender,
     plugins::inspector::EditorEnvironment,
     utils::make_pick_button,
-    Message, MessageDirection,
 };
 use std::{
     any::TypeId,
@@ -138,14 +138,13 @@ impl Control for MaterialFieldEditor {
                     self.handle,
                     MaterialFieldMessage::Material(self.material.deep_copy_as_embedded()),
                 );
-            } else if message.destination() == self.locate {
-                if let Some(path) = self
+            } else if message.destination() == self.locate
+                && let Some(path) = self
                     .asset_selector_mixin
                     .resource_manager
                     .resource_path(&self.material)
-                {
-                    self.sender.send(Message::ShowInAssetBrowser(path));
-                }
+            {
+                self.sender.send(Message::ShowInAssetBrowser(path));
             }
         } else if let Some(MaterialFieldMessage::Material(material)) = message.data_for(self.handle)
         {
@@ -166,10 +165,10 @@ impl Control for MaterialFieldEditor {
                 ui.try_send_response(message);
             }
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
-            if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
-                if let Some(material) = item.resource::<Material>() {
-                    ui.send(self.handle(), MaterialFieldMessage::Material(material));
-                }
+            if let Some(item) = ui.node(*dropped).cast::<AssetItem>()
+                && let Some(material) = item.resource::<Material>()
+            {
+                ui.send(self.handle(), MaterialFieldMessage::Material(material));
             }
         } else if let Some(AssetItemMessage::Icon {
             texture,
@@ -412,13 +411,13 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(MaterialFieldMessage::Material(value)) = ctx.message.data() {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
-                    action: FieldAction::object(value.clone()),
-                });
-            }
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(MaterialFieldMessage::Material(value)) = ctx.message.data()
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
+                action: FieldAction::object(value.clone()),
+            });
         }
         None
     }
@@ -431,8 +430,8 @@ mod test {
     use fyrox::asset::manager::ResourceManager;
     use fyrox::core::task::TaskPool;
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
-    use std::sync::mpsc::channel;
     use std::sync::Arc;
+    use std::sync::mpsc::channel;
 
     #[test]
     fn test_deletion() {

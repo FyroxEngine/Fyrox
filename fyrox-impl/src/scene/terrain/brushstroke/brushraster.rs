@@ -38,11 +38,7 @@ fn apply_hardness(hardness: f32, strength: f32) -> f32 {
         return 0.0;
     }
     let h = 1.0 - hardness;
-    if strength < h {
-        strength / h
-    } else {
-        1.0
-    }
+    if strength < h { strength / h } else { 1.0 }
 }
 
 /// Trait for objects that are capable of assigning strengths to pixels.

@@ -21,6 +21,7 @@
 #![allow(missing_docs)] // TODO
 
 use crate::{
+    Animation, AnimationContainer, AnimationEvent, AnimationPose, EntityId,
     core::{
         algebra::Vector2,
         math::{self, TriangleDefinition},
@@ -29,10 +30,9 @@ use crate::{
         visitor::prelude::*,
     },
     machine::{
-        node::AnimationEventCollectionStrategy, node::BasePoseNode, AnimationPoseSource, Parameter,
-        ParameterContainer, PoseNode,
+        AnimationPoseSource, Parameter, ParameterContainer, PoseNode,
+        node::AnimationEventCollectionStrategy, node::BasePoseNode,
     },
-    Animation, AnimationContainer, AnimationEvent, AnimationPose, EntityId,
 };
 use fyrox_core::uuid::uuid;
 use spade::{DelaunayTriangulation, Point2, Triangulation};
@@ -127,21 +127,20 @@ impl<T: EntityId> AnimationPoseSource<T> for BlendSpace<T> {
         pose.reset();
 
         if let Some(Parameter::SamplingPoint(sampling_point)) = params.get(&self.sampling_parameter)
+            && let Some(weights) = self.fetch_weights(*sampling_point)
         {
-            if let Some(weights) = self.fetch_weights(*sampling_point) {
-                let (ia, wa) = weights[0];
-                let (ib, wb) = weights[1];
-                let (ic, wc) = weights[2];
+            let (ia, wa) = weights[0];
+            let (ib, wb) = weights[1];
+            let (ic, wc) = weights[2];
 
-                if let (Ok(pose_a), Ok(pose_b), Ok(pose_c)) = (
-                    nodes.try_borrow(self.points[ia].pose_source),
-                    nodes.try_borrow(self.points[ib].pose_source),
-                    nodes.try_borrow(self.points[ic].pose_source),
-                ) {
-                    pose.blend_with(&pose_a.eval_pose(nodes, params, animations, dt), wa);
-                    pose.blend_with(&pose_b.eval_pose(nodes, params, animations, dt), wb);
-                    pose.blend_with(&pose_c.eval_pose(nodes, params, animations, dt), wc);
-                }
+            if let (Ok(pose_a), Ok(pose_b), Ok(pose_c)) = (
+                nodes.try_borrow(self.points[ia].pose_source),
+                nodes.try_borrow(self.points[ib].pose_source),
+                nodes.try_borrow(self.points[ic].pose_source),
+            ) {
+                pose.blend_with(&pose_a.eval_pose(nodes, params, animations, dt), wa);
+                pose.blend_with(&pose_b.eval_pose(nodes, params, animations, dt), wb);
+                pose.blend_with(&pose_c.eval_pose(nodes, params, animations, dt), wc);
             }
         }
 
@@ -162,52 +161,45 @@ impl<T: EntityId> AnimationPoseSource<T> for BlendSpace<T> {
         strategy: AnimationEventCollectionStrategy,
     ) -> Vec<(Handle<Animation<T>>, AnimationEvent)> {
         if let Some(Parameter::SamplingPoint(sampling_point)) = params.get(&self.sampling_parameter)
+            && let Some(weights) = self.fetch_weights(*sampling_point)
         {
-            if let Some(weights) = self.fetch_weights(*sampling_point) {
-                let (ia, wa) = weights[0];
-                let (ib, wb) = weights[1];
-                let (ic, wc) = weights[2];
+            let (ia, wa) = weights[0];
+            let (ib, wb) = weights[1];
+            let (ic, wc) = weights[2];
 
-                if let (Ok(pose_a), Ok(pose_b), Ok(pose_c)) = (
-                    nodes.try_borrow(self.points[ia].pose_source),
-                    nodes.try_borrow(self.points[ib].pose_source),
-                    nodes.try_borrow(self.points[ic].pose_source),
-                ) {
-                    match strategy {
-                        AnimationEventCollectionStrategy::All => {
-                            let mut events = Vec::new();
-                            for pose in [pose_a, pose_b, pose_c] {
-                                events.extend(
-                                    pose.collect_animation_events(
-                                        nodes, params, animations, strategy,
-                                    ),
-                                );
-                            }
-                            return events;
+            if let (Ok(pose_a), Ok(pose_b), Ok(pose_c)) = (
+                nodes.try_borrow(self.points[ia].pose_source),
+                nodes.try_borrow(self.points[ib].pose_source),
+                nodes.try_borrow(self.points[ic].pose_source),
+            ) {
+                match strategy {
+                    AnimationEventCollectionStrategy::All => {
+                        let mut events = Vec::new();
+                        for pose in [pose_a, pose_b, pose_c] {
+                            events.extend(
+                                pose.collect_animation_events(nodes, params, animations, strategy),
+                            );
                         }
-                        AnimationEventCollectionStrategy::MaxWeight => {
-                            if let Some((max_weight_pose, _)) =
-                                [(pose_a, wa), (pose_b, wb), (pose_c, wc)].iter().max_by(
-                                    |(_, w1), (_, w2)| {
-                                        w1.partial_cmp(w2).unwrap_or(Ordering::Equal)
-                                    },
-                                )
-                            {
-                                return max_weight_pose
-                                    .collect_animation_events(nodes, params, animations, strategy);
-                            }
+                        return events;
+                    }
+                    AnimationEventCollectionStrategy::MaxWeight => {
+                        if let Some((max_weight_pose, _)) =
+                            [(pose_a, wa), (pose_b, wb), (pose_c, wc)].iter().max_by(
+                                |(_, w1), (_, w2)| w1.partial_cmp(w2).unwrap_or(Ordering::Equal),
+                            )
+                        {
+                            return max_weight_pose
+                                .collect_animation_events(nodes, params, animations, strategy);
                         }
-                        AnimationEventCollectionStrategy::MinWeight => {
-                            if let Some((min_weight_pose, _)) =
-                                [(pose_a, wa), (pose_b, wb), (pose_c, wc)].iter().min_by(
-                                    |(_, w1), (_, w2)| {
-                                        w1.partial_cmp(w2).unwrap_or(Ordering::Equal)
-                                    },
-                                )
-                            {
-                                return min_weight_pose
-                                    .collect_animation_events(nodes, params, animations, strategy);
-                            }
+                    }
+                    AnimationEventCollectionStrategy::MinWeight => {
+                        if let Some((min_weight_pose, _)) =
+                            [(pose_a, wa), (pose_b, wb), (pose_c, wc)].iter().min_by(
+                                |(_, w1), (_, w2)| w1.partial_cmp(w2).unwrap_or(Ordering::Equal),
+                            )
+                        {
+                            return min_weight_pose
+                                .collect_animation_events(nodes, params, animations, strategy);
                         }
                     }
                 }
@@ -485,9 +477,11 @@ mod test {
 
     #[test]
     fn test_empty_blend_space_sampling() {
-        assert!(BlendSpace::<ErasedHandle>::default()
-            .fetch_weights(Default::default())
-            .is_none())
+        assert!(
+            BlendSpace::<ErasedHandle>::default()
+                .fetch_weights(Default::default())
+                .is_none()
+        )
     }
 
     #[test]

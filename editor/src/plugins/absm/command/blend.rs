@@ -22,7 +22,7 @@ use crate::command::CommandContext;
 use crate::fyrox::{
     core::{algebra::Vector2, pool::Handle},
     generic_animation::machine::{
-        node::blendspace::BlendSpacePoint, BlendPose, IndexedBlendInput, PoseNode,
+        BlendPose, IndexedBlendInput, PoseNode, node::blendspace::BlendSpacePoint,
     },
 };
 use crate::plugins::absm::command::fetch_machine;

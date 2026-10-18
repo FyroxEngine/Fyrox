@@ -20,22 +20,22 @@
 
 use crate::scene::EntityInfo;
 use crate::{
-    command::{make_command, Command, CommandGroup, SetPropertyCommand},
+    command::{Command, CommandGroup, SetPropertyCommand, make_command},
     fyrox::{
         core::{pool::Handle, reflect::Reflect, some_or_return},
         engine::Engine,
         graph::{NodeWrapper, SceneGraph},
-        gui::{inspector::PropertyChanged, UiNode, UserInterface},
+        gui::{UiNode, UserInterface, inspector::PropertyChanged},
         scene::SceneContainer,
     },
     message::MessageSender,
-    scene::{commands::ChangeSelectionCommand, controller::SceneController, SelectionContainer},
+    scene::{SelectionContainer, commands::ChangeSelectionCommand, controller::SceneController},
     ui_scene::{
-        commands::{
-            graph::DeleteWidgetsSubGraphCommand, widget::RevertWidgetPropertyCommand,
-            UiSceneContext,
-        },
         UiScene,
+        commands::{
+            UiSceneContext, graph::DeleteWidgetsSubGraphCommand,
+            widget::RevertWidgetPropertyCommand,
+        },
     },
 };
 
@@ -56,14 +56,14 @@ impl SelectionContainer for UiSelection {
         callback: &mut dyn FnMut(EntityInfo),
     ) {
         let ui_scene = some_or_return!(controller.downcast_ref::<UiScene>());
-        if let Some(first) = self.widgets.first() {
-            if let Ok(widget) = ui_scene.ui.try_get_node(*first) {
-                (callback)(EntityInfo {
-                    entity: widget.inner_ref(),
-                    has_inheritance_parent: widget.has_inheritance_parent(),
-                    read_only: false,
-                })
-            }
+        if let Some(first) = self.widgets.first()
+            && let Ok(widget) = ui_scene.ui.try_get_node(*first)
+        {
+            (callback)(EntityInfo {
+                entity: widget.inner_ref(),
+                has_inheritance_parent: widget.has_inheritance_parent(),
+                read_only: false,
+            })
         }
     }
 
@@ -119,10 +119,39 @@ impl SelectionContainer for UiSelection {
         sender.do_command_group(group);
     }
 
-    fn provide_docs(&self, controller: &dyn SceneController, _engine: &Engine) -> Option<String> {
+    fn make_delete_selection_command(
+        &self,
+        controller: &dyn SceneController,
+        _engine: &Engine,
+    ) -> Option<Command> {
+        if self.is_empty() {
+            return None;
+        }
+
         let ui_scene = controller.downcast_ref::<UiScene>()?;
-        let widget = ui_scene.ui.try_get_node(*self.widgets.first()?).ok()?;
-        Some(widget.inner_ref().type_info_ref().doc_comment.to_string())
+
+        let mut selection = self.clone();
+
+        selection
+            .widgets
+            .retain(|n| ui_scene.ui.can_be_deleted(*n, ui_scene.ui.root()));
+
+        if selection.is_empty() {
+            return None;
+        }
+
+        // Change selection first.
+        let mut command_group = CommandGroup::from(vec![Command::new(
+            ChangeSelectionCommand::new(Default::default()),
+        )]);
+
+        let root_nodes = selection.root_widgets(&ui_scene.ui);
+
+        for root_node in root_nodes {
+            command_group.push(DeleteWidgetsSubGraphCommand::new(root_node));
+        }
+
+        Some(Command::new(command_group))
     }
 }
 
@@ -154,16 +183,6 @@ impl UiSelection {
         } else {
             self.widgets.push(handle);
         }
-    }
-
-    pub fn selection_to_delete(&self, ui: &UserInterface) -> UiSelection {
-        let mut selection = self.clone();
-        // UI's root is non-deletable.
-        if let Some(root_position) = selection.widgets.iter().position(|&n| n == ui.root()) {
-            selection.widgets.remove(root_position);
-        }
-
-        selection
     }
 
     pub fn root_widgets(&self, ui: &UserInterface) -> Vec<Handle<UiNode>> {
@@ -200,22 +219,5 @@ impl UiSelection {
             }
         }
         root_widgets
-    }
-
-    pub fn make_deletion_command(&self, ui: &UserInterface) -> Command {
-        let selection = self.selection_to_delete(ui);
-
-        // Change selection first.
-        let mut command_group = CommandGroup::from(vec![Command::new(
-            ChangeSelectionCommand::new(Default::default()),
-        )]);
-
-        let root_nodes = selection.root_widgets(ui);
-
-        for root_node in root_nodes {
-            command_group.push(DeleteWidgetsSubGraphCommand::new(root_node));
-        }
-
-        Command::new(command_group)
     }
 }

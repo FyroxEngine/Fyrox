@@ -21,7 +21,7 @@
 pub mod ascii;
 pub mod binary;
 
-use crate::visitor::{field::Field, VisitResult, Visitor, VisitorNode};
+use crate::visitor::{VisitResult, Visitor, VisitorNode, field::Field};
 use std::io::Write;
 
 pub trait Writer {

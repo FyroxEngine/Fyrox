@@ -23,30 +23,31 @@ use crate::fyrox::{
     engine::SerializationContext,
     graph::SceneGraph,
     gui::{
+        BuildContext, Control, UiNode, UserInterface,
         button::{ButtonBuilder, ButtonMessage},
         dropdown_list::{DropdownList, DropdownListMessage},
         grid::{GridBuilder, GridDimension},
         inspector::{
+            FieldAction, Inspector, InspectorBuilder, InspectorContext, InspectorError,
+            InspectorMessage, PropertyChanged, PropertyFilter,
             editors::{
                 PropertyEditorBuildContext, PropertyEditorDefinition,
                 PropertyEditorDefinitionContainer, PropertyEditorInstance,
                 PropertyEditorMessageContext, PropertyEditorTranslationContext,
             },
-            make_expander_container, FieldAction, Inspector, InspectorBuilder, InspectorContext,
-            InspectorError, InspectorMessage, PropertyChanged, PropertyFilter,
+            make_expander_container,
         },
         message::{MessageDirection, UiMessage},
         text::TextBuilder,
         utils::make_simple_tooltip,
         widget::{Widget, WidgetBuilder},
-        BuildContext, Control, UiNode, UserInterface,
     },
     script::Script,
 };
 use crate::plugins::inspector::EditorEnvironment;
 use crate::{
-    settings::{general::ScriptEditor, SettingsData},
     DropdownListBuilder,
+    settings::{SettingsData, general::ScriptEditor},
 };
 
 use fyrox::gui::button::Button;
@@ -118,64 +119,62 @@ impl Control for ScriptPropertyEditor {
     }
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        if let Some(ButtonMessage::Click) = message.data_from(self.open_in_ide_button) {
-            if let Some(uuid) = self.selected_script_uuid {
-                if let Some(selected_item) = ui
-                    .node(self.variant_selector)
-                    .cast::<DropdownList>()
-                    .expect("Must be DropdownList")
-                    .items
-                    .iter()
-                    .map(|el| {
-                        ui.node(*el)
-                            .user_data_cloned::<(Uuid, Option<String>)>()
-                            .expect("Must be script (UUID, Option<String>)")
-                    })
-                    .find(|el| el.0 == uuid)
-                {
-                    let (_, script_path) = selected_item;
+        if let Some(ButtonMessage::Click) = message.data_from(self.open_in_ide_button)
+            && let Some(uuid) = self.selected_script_uuid
+            && let Some(selected_item) = ui
+                .node(self.variant_selector)
+                .cast::<DropdownList>()
+                .expect("Must be DropdownList")
+                .items
+                .iter()
+                .map(|el| {
+                    ui.node(*el)
+                        .user_data_cloned::<(Uuid, Option<String>)>()
+                        .expect("Must be script (UUID, Option<String>)")
+                })
+                .find(|el| el.0 == uuid)
+        {
+            let (_, script_path) = selected_item;
 
-                    let cd = std::env::current_dir().expect("Must be current directory");
+            let cd = std::env::current_dir().expect("Must be current directory");
 
-                    if let (cd, Some(script_path)) = (cd, script_path) {
-                        if let Some(cd) = cd.to_str() {
-                            let script_full_path = format!("{cd}/{script_path}");
+            if let (cd, Some(script_path)) = (cd, script_path)
+                && let Some(cd) = cd.to_str()
+            {
+                let script_full_path = format!("{cd}/{script_path}");
 
-                            let settings = SettingsData::load();
+                let settings = SettingsData::load();
 
-                            let script_editor = settings
-                                .expect("Must be editor settings data")
-                                .general
-                                .script_editor;
+                let script_editor = settings
+                    .expect("Must be editor settings data")
+                    .general
+                    .script_editor;
 
-                            let script_editor = match &script_editor {
-                                ScriptEditor::VSCode => {
-                                    #[cfg(target_os = "macos")]
-                                    let app_name = "Visual Studio Code";
-                                    #[cfg(not(target_os = "macos"))]
-                                    let app_name = "code";
+                let script_editor = match &script_editor {
+                    ScriptEditor::VSCode => {
+                        #[cfg(target_os = "macos")]
+                        let app_name = "Visual Studio Code";
+                        #[cfg(not(target_os = "macos"))]
+                        let app_name = "code";
 
-                                    Some(app_name)
-                                }
-                                ScriptEditor::XCode => Some("xcode"),
-                                ScriptEditor::Emacs => Some("emacs"),
-                                ScriptEditor::Zed => Some("zed"),
-                                ScriptEditor::SystemDefault => None,
-                            };
-
-                            let open_result = if let Some(editor) = script_editor {
-                                open::with(&script_full_path, editor)
-                            } else {
-                                open::that(&script_full_path)
-                            };
-
-                            if let Err(e) = open_result {
-                                Log::err(format!(
-                                        "Error opening script {script_full_path} in external editor: {e}"
-                                    ))
-                            }
-                        }
+                        Some(app_name)
                     }
+                    ScriptEditor::XCode => Some("xcode"),
+                    ScriptEditor::Emacs => Some("emacs"),
+                    ScriptEditor::Zed => Some("zed"),
+                    ScriptEditor::SystemDefault => None,
+                };
+
+                let open_result = if let Some(editor) = script_editor {
+                    open::with(&script_full_path, editor)
+                } else {
+                    open::that(&script_full_path)
+                };
+
+                if let Err(e) = open_result {
+                    Log::err(format!(
+                        "Error opening script {script_full_path} in external editor: {e}"
+                    ))
                 }
             }
         }
@@ -494,34 +493,32 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(message) = ctx.message.data::<ScriptPropertyEditorMessage>() {
-                match message {
-                    ScriptPropertyEditorMessage::Value(value) => {
-                        if let Ok(env) = EditorEnvironment::try_get_from(&ctx.environment) {
-                            let script = value.and_then(|uuid| {
-                                env.serialization_context
-                                    .script_constructors
-                                    .try_create(&uuid)
-                            });
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(message) = ctx.message.data::<ScriptPropertyEditorMessage>()
+        {
+            match message {
+                ScriptPropertyEditorMessage::Value(value) => {
+                    if let Ok(env) = EditorEnvironment::try_get_from(&ctx.environment) {
+                        let script = value.and_then(|uuid| {
+                            env.serialization_context
+                                .script_constructors
+                                .try_create(&uuid)
+                        });
 
-                            return Some(PropertyChanged {
-                                name: ctx.name.to_string(),
-                                action: FieldAction::object(script),
-                            });
-                        }
-                    }
-                    ScriptPropertyEditorMessage::PropertyChanged(property_changed) => {
                         return Some(PropertyChanged {
-                            // Mimic Option<Script> path by adding `.Some@0` suffix to property path.
-                            // It is needed because we're editing compound type in this editor.
-                            name: ctx.name.to_string() + ".Some@0",
-
-                            action: FieldAction::InspectableAction(Box::new(
-                                property_changed.clone(),
-                            )),
+                            name: ctx.name.to_string(),
+                            action: FieldAction::object(script),
                         });
                     }
+                }
+                ScriptPropertyEditorMessage::PropertyChanged(property_changed) => {
+                    return Some(PropertyChanged {
+                        // Mimic Option<Script> path by adding `.Some@0` suffix to property path.
+                        // It is needed because we're editing compound type in this editor.
+                        name: ctx.name.to_string() + ".Some@0",
+
+                        action: FieldAction::InspectableAction(Box::new(property_changed.clone())),
+                    });
                 }
             }
         }

@@ -24,29 +24,29 @@
 use crate::brush::Brush;
 use crate::inspector::make_expander_container;
 use crate::{
+    BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface, VerticalAlignment,
+    Widget, WidgetMessage,
     button::{Button, ButtonBuilder, ButtonMessage},
     core::{
-        pool::Handle, reflect::prelude::*, variable::InheritableVariable, visitor::prelude::*,
-        PhantomDataSendSync,
+        PhantomDataSendSync, pool::Handle, reflect::prelude::*, variable::InheritableVariable,
+        visitor::prelude::*,
     },
     define_widget_deref,
     grid::{Column, GridBuilder, Row},
     image::ImageBuilder,
     inspector::{
+        FieldAction, InheritableAction, Inspector, InspectorBuilder, InspectorContext,
+        InspectorContextArgs, InspectorError, InspectorMessage, PropertyChanged,
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldAction, InheritableAction, Inspector, InspectorBuilder, InspectorContext,
-        InspectorContextArgs, InspectorError, InspectorMessage, PropertyChanged,
     },
     message::{MessageData, UiMessage},
     resources::REVERT_ICON,
-    style::{resource::StyleResourceExt, Style},
+    style::{Style, resource::StyleResourceExt},
     utils::make_simple_tooltip,
     widget::WidgetBuilder,
-    BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface, VerticalAlignment,
-    Widget, WidgetMessage,
 };
 use fyrox_graph::SceneGraph;
 use std::{
@@ -321,13 +321,13 @@ where
             });
         }
 
-        if let Some(InheritablePropertyEditorMessage::PropertyChanged(msg)) = ctx.message.data() {
-            if ctx.message.direction() == MessageDirection::FromWidget {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_owned(),
-                    action: FieldAction::InspectableAction(Box::new(msg.clone())),
-                });
-            }
+        if let Some(InheritablePropertyEditorMessage::PropertyChanged(msg)) = ctx.message.data()
+            && ctx.message.direction() == MessageDirection::FromWidget
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_owned(),
+                action: FieldAction::InspectableAction(Box::new(msg.clone())),
+            });
         }
 
         None

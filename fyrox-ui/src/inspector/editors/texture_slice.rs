@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
     border::BorderBuilder,
     brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
@@ -37,11 +38,11 @@ use crate::{
     draw::{CommandTexture, Draw, DrawingContext},
     grid::{Column, GridBuilder, Row},
     inspector::{
+        FieldAction, InspectorError, PropertyChanged,
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldAction, InspectorError, PropertyChanged,
     },
     message::{CursorIcon, MessageDirection, UiMessage},
     nine_patch::TextureSlice,
@@ -53,7 +54,6 @@ use crate::{
     thumb::{ThumbBuilder, ThumbMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     window::{Window, WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 
 use crate::button::Button;
@@ -211,16 +211,16 @@ impl Control for TextureSliceEditor {
 
         if let Some(texture) = self.slice.texture_source.as_ref() {
             let state = texture.state();
-            if let Some(data) = state.data_ref() {
-                if let TextureKind::Rectangle { width, height } = data.kind() {
-                    let width = width as f32;
-                    let height = height as f32;
-                    if size.x < width {
-                        size.x = width;
-                    }
-                    if size.y < height {
-                        size.y = height;
-                    }
+            if let Some(data) = state.data_ref()
+                && let TextureKind::Rectangle { width, height } = data.kind()
+            {
+                let width = width as f32;
+                let height = height as f32;
+                if size.x < width {
+                    size.x = width;
+                }
+                if size.y < height {
+                    size.y = height;
                 }
             }
         }
@@ -731,15 +731,14 @@ impl Control for TextureSliceFieldEditor {
                 );
             }
         } else if let Some(TextureSliceEditorMessage::Slice(slice)) = message.data_for(self.handle)
+            && &self.texture_slice != slice
         {
-            if &self.texture_slice != slice {
-                self.texture_slice = slice.clone();
-                ui.try_send_response(message);
-                ui.send(
-                    self.editor,
-                    TextureSliceEditorMessage::Slice(self.texture_slice.clone()),
-                );
-            }
+            self.texture_slice = slice.clone();
+            ui.try_send_response(message);
+            ui.send(
+                self.editor,
+                TextureSliceEditorMessage::Slice(self.texture_slice.clone()),
+            );
         }
     }
 }
@@ -813,14 +812,14 @@ impl PropertyEditorDefinition for TextureSlicePropertyEditorDefinition {
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(TextureSliceEditorMessage::Slice(value)) = ctx.message.data() {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(TextureSliceEditorMessage::Slice(value)) = ctx.message.data()
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
 
-                    action: FieldAction::object(value.clone()),
-                });
-            }
+                action: FieldAction::object(value.clone()),
+            });
         }
         None
     }

@@ -21,7 +21,7 @@
 use crate::{
     fyrox::{
         core::{algebra::Vector3, pool::Handle},
-        scene::{node::Node, Scene},
+        scene::{Scene, node::Node},
     },
     plugins::collider::{ShapeGizmoTrait, ShapeHandleValue},
 };

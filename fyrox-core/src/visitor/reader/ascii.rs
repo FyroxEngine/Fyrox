@@ -21,11 +21,11 @@
 use crate::{
     pool::{Handle, Pool},
     visitor::{
+        VisitResult, Visitor, VisitorFlags, VisitorNode,
         blackboard::Blackboard,
         error::VisitError,
         field::{Field, FieldKind},
         reader::Reader,
-        VisitResult, Visitor, VisitorFlags, VisitorNode,
     },
 };
 use base64::Engine;
@@ -405,8 +405,8 @@ mod test {
     use crate::visitor::{
         field::{Field, FieldKind},
         reader::{
-            ascii::{AsciiReader, ByteReader},
             Reader,
+            ascii::{AsciiReader, ByteReader},
         },
     };
     use nalgebra::{

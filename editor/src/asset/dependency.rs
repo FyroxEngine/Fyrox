@@ -25,6 +25,8 @@ use crate::fyrox::{
     },
     core::{log::Log, pool::Handle},
     gui::{
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
+        VerticalAlignment,
         button::{ButtonBuilder, ButtonMessage},
         copypasta::ClipboardProvider,
         grid::{Column, GridBuilder, Row},
@@ -35,8 +37,6 @@ use crate::fyrox::{
         tree::{TreeBuilder, TreeRootBuilder, TreeRootMessage},
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
-        VerticalAlignment,
     },
 };
 use fyrox::asset::manager::ResourceManager;
@@ -176,12 +176,11 @@ impl DependencyViewer {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.close {
                 ui.send(self.window, WindowMessage::Close);
-            } else if message.destination() == self.copy_to_clipboard {
-                if let Some(mut clipboard) = ui.clipboard_mut() {
-                    if let Some(resource_graph) = self.resource_graph.as_ref() {
-                        Log::verify(clipboard.set_contents(resource_graph.pretty_print()));
-                    }
-                }
+            } else if message.destination() == self.copy_to_clipboard
+                && let Some(mut clipboard) = ui.clipboard_mut()
+                && let Some(resource_graph) = self.resource_graph.as_ref()
+            {
+                Log::verify(clipboard.set_contents(resource_graph.pretty_print()));
             }
         } else if let Some(WindowMessage::Close) = message.data() {
             self.resource_graph = None;

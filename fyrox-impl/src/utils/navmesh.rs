@@ -29,13 +29,13 @@ use crate::{
     core::{
         algebra::{Point3, Vector3},
         arrayvec::ArrayVec,
-        math::{self, plane::Plane, ray::Ray, PositionProvider, TriangleDefinition, Vector3Ext},
+        math::{self, PositionProvider, TriangleDefinition, Vector3Ext, plane::Plane, ray::Ray},
         reflect::prelude::*,
         visitor::prelude::*,
     },
     scene::mesh::{
-        buffer::{VertexAttributeUsage, VertexReadTrait},
         Mesh,
+        buffer::{VertexAttributeUsage, VertexReadTrait},
     },
     utils::{
         astar::{Graph, PathError, PathKind, VertexData, VertexDataProvider},
@@ -738,34 +738,33 @@ impl NavmeshAgent {
         self.current = 0;
         self.interpolator = 0.0;
 
-        if let Some((src_point_on_navmesh, src_triangle)) = navmesh.query_closest(src_point) {
-            if let Some((dest_point_on_navmesh, dest_triangle)) = navmesh.query_closest(dest_point)
-            {
-                if src_triangle == dest_triangle {
-                    self.path.push(src_point_on_navmesh);
-                    self.path.push(dest_point_on_navmesh);
+        if let Some((src_point_on_navmesh, src_triangle)) = navmesh.query_closest(src_point)
+            && let Some((dest_point_on_navmesh, dest_triangle)) = navmesh.query_closest(dest_point)
+        {
+            if src_triangle == dest_triangle {
+                self.path.push(src_point_on_navmesh);
+                self.path.push(dest_point_on_navmesh);
 
-                    return Ok(PathKind::Full);
-                }
-
-                let mut path_triangle_indices = Vec::new();
-                let path_kind = navmesh.graph.build_indexed_path(
-                    src_triangle,
-                    dest_triangle,
-                    &mut path_triangle_indices,
-                )?;
-
-                path_triangle_indices.reverse();
-
-                self.straighten_path(
-                    navmesh,
-                    src_point_on_navmesh,
-                    dest_point_on_navmesh,
-                    &path_triangle_indices,
-                );
-
-                return Ok(path_kind);
+                return Ok(PathKind::Full);
             }
+
+            let mut path_triangle_indices = Vec::new();
+            let path_kind = navmesh.graph.build_indexed_path(
+                src_triangle,
+                dest_triangle,
+                &mut path_triangle_indices,
+            )?;
+
+            path_triangle_indices.reverse();
+
+            self.straighten_path(
+                navmesh,
+                src_point_on_navmesh,
+                dest_point_on_navmesh,
+                &path_triangle_indices,
+            );
+
+            return Ok(path_kind);
         }
 
         Err(PathError::Empty)
@@ -861,18 +860,18 @@ impl NavmeshAgent {
             self.path_dirty = false;
         }
 
-        if let Some(source) = self.path.get(self.current as usize) {
-            if let Some(destination) = self.path.get((self.current + 1) as usize) {
-                let len = destination.metric_distance(source);
-                self.position = source.lerp(destination, self.interpolator.clamp(0.0, 1.0));
-                self.interpolator += (self.speed * dt) / len.max(f32::EPSILON);
-                if self.interpolator >= 1.0 {
-                    self.current += 1;
-                    self.interpolator = 0.0;
-                } else if self.interpolator < 0.0 {
-                    self.current = self.current.saturating_sub(1);
-                    self.interpolator = 1.0;
-                }
+        if let Some(source) = self.path.get(self.current as usize)
+            && let Some(destination) = self.path.get((self.current + 1) as usize)
+        {
+            let len = destination.metric_distance(source);
+            self.position = source.lerp(destination, self.interpolator.clamp(0.0, 1.0));
+            self.interpolator += (self.speed * dt) / len.max(f32::EPSILON);
+            if self.interpolator >= 1.0 {
+                self.current += 1;
+                self.interpolator = 0.0;
+            } else if self.interpolator < 0.0 {
+                self.current = self.current.saturating_sub(1);
+                self.interpolator = 1.0;
             }
         }
 

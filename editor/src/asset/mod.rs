@@ -19,25 +19,27 @@
 // SOFTWARE.
 
 use crate::{
+    Message, Mode,
     asset::{
         creator::ResourceCreator,
         dependency::DependencyViewer,
         item::{AssetItem, AssetItemBuilder, AssetItemMessage},
         preview::{
-            cache::{AssetPreviewCache, IconRequest},
             AssetPreviewGeneratorsCollection,
+            cache::{AssetPreviewCache, IconRequest},
         },
         selection::AssetSelection,
     },
     fyrox::{
         asset::{event::ResourceEvent, manager::ResourceManager, options::BaseImportOptions},
         core::{
-            append_extension, color::Color, err, futures::executor::block_on, log::Log,
-            make_relative_path, ok_or_continue, pool::Handle, some_or_continue, SafeLock,
+            SafeLock, append_extension, color::Color, err, futures::executor::block_on, log::Log,
+            make_relative_path, ok_or_continue, pool::Handle, some_or_continue,
         },
         engine::Engine,
         graph::SceneGraph,
         gui::{
+            HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
             button::{Button, ButtonBuilder, ButtonMessage},
             copypasta::ClipboardProvider,
             dock::{DockingManager, DockingManagerBuilder, TileBuilder, TileContent},
@@ -53,7 +55,6 @@ use crate::{
             widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::{WrapPanel, WrapPanelBuilder},
-            HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
         },
     },
     load_image,
@@ -61,9 +62,8 @@ use crate::{
     plugin::EditorPluginsContainer,
     plugins::inspector::InspectorPlugin,
     preview::PreviewPanel,
-    scene::{commands::ChangeSelectionCommand, container::EditorSceneEntry, Selection},
+    scene::{Selection, commands::ChangeSelectionCommand, container::EditorSceneEntry},
     utils::window_content,
-    Message, Mode,
 };
 use menu::AssetItemContextMenu;
 use notify::{EventKind, RecommendedWatcher, RecursiveMode, Watcher};
@@ -71,9 +71,9 @@ use std::{
     ffi::OsStr,
     path::{Path, PathBuf},
     sync::{
+        Arc,
         atomic::{AtomicBool, Ordering},
         mpsc::{self, Receiver, Sender},
-        Arc,
     },
 };
 
@@ -145,17 +145,16 @@ pub struct AssetBrowser {
 fn is_path_in_registry(path: &Path, resource_manager: &ResourceManager) -> bool {
     let rm_state = resource_manager.state();
     let registry = rm_state.resource_registry.safe_lock();
-    if let Some(registry_directory) = registry.directory() {
-        if let Ok(canonical_registry_path) = registry_directory.canonicalize() {
-            if let Ok(canonical_path) = path.canonicalize() {
-                if canonical_path.is_dir() {
-                    return canonical_path.starts_with(canonical_registry_path);
-                } else if let Some(parent) = canonical_registry_path.parent() {
-                    if let Ok(relative) = canonical_path.strip_prefix(parent) {
-                        return registry.is_registered(relative);
-                    }
-                }
-            }
+    if let Some(registry_directory) = registry.directory()
+        && let Ok(canonical_registry_path) = registry_directory.canonicalize()
+        && let Ok(canonical_path) = path.canonicalize()
+    {
+        if canonical_path.is_dir() {
+            return canonical_path.starts_with(canonical_registry_path);
+        } else if let Some(parent) = canonical_registry_path.parent()
+            && let Ok(relative) = canonical_path.strip_prefix(parent)
+        {
+            return registry.is_registered(relative);
         }
     }
     false
@@ -520,22 +519,22 @@ impl AssetBrowser {
             .and_then(|current_path| current_path.parent().map(|path| path.to_owned()))
         {
             let registry_folder = resource_manager.registry_folder();
-            if absolute_parent_path.starts_with(&registry_folder) {
-                if let Ok(relative_parent_path) = make_relative_path(absolute_parent_path) {
-                    let asset_item = AssetItemBuilder::new(
-                        WidgetBuilder::new().with_context_menu(self.context_menu.menu.clone()),
-                    )
-                    .with_icon(load_image!("../../resources/folder_return.png"))
-                    .with_path(relative_parent_path)
-                    .build(
-                        resource_manager.clone(),
-                        message_sender.clone(),
-                        &mut ui.build_ctx(),
-                    );
+            if absolute_parent_path.starts_with(&registry_folder)
+                && let Ok(relative_parent_path) = make_relative_path(absolute_parent_path)
+            {
+                let asset_item = AssetItemBuilder::new(
+                    WidgetBuilder::new().with_context_menu(self.context_menu.menu.clone()),
+                )
+                .with_icon(load_image!("../../resources/folder_return.png"))
+                .with_path(relative_parent_path)
+                .build(
+                    resource_manager.clone(),
+                    message_sender.clone(),
+                    &mut ui.build_ctx(),
+                );
 
-                    self.items.push(asset_item);
-                    ui.send(asset_item, WidgetMessage::link_with(self.content_panel));
-                }
+                self.items.push(asset_item);
+                ui.send(asset_item, WidgetMessage::link_with(self.content_panel));
             }
         }
 
@@ -581,10 +580,10 @@ impl AssetBrowser {
         for path in folders.into_iter().chain(resources) {
             let asset_item = self.add_asset(&path, ui, resource_manager, message_sender);
 
-            if let Some(item_to_select) = item_to_select.as_ref() {
-                if item_to_select == &path {
-                    handle_to_select = asset_item;
-                }
+            if let Some(item_to_select) = item_to_select.as_ref()
+                && item_to_select == &path
+            {
+                handle_to_select = asset_item;
             }
         }
 
@@ -618,10 +617,10 @@ impl AssetBrowser {
             return;
         }
 
-        if let Some(selection) = entry.selection.as_ref::<AssetSelection>() {
-            if selection.contains(&asset_path) {
-                return;
-            }
+        if let Some(selection) = entry.selection.as_ref::<AssetSelection>()
+            && selection.contains(&asset_path)
+        {
+            return;
         }
         sender.do_command(ChangeSelectionCommand::new(Selection::new(
             AssetSelection::new(asset_path.clone(), &engine.resource_manager),
@@ -747,9 +746,11 @@ impl AssetBrowser {
                 let registry = registry.safe_lock();
                 let mut paths = Vec::new();
                 for resource_path in registry.inner().values() {
-                    let file_stem = some_or_continue!(resource_path
-                        .file_stem()
-                        .map(|stem| stem.to_string_lossy().to_lowercase()));
+                    let file_stem = some_or_continue!(
+                        resource_path
+                            .file_stem()
+                            .map(|stem| stem.to_string_lossy().to_lowercase())
+                    );
 
                     if file_stem.contains(&search_text)
                         || rust_fuzzy_search::fuzzy_compare(&search_text, &file_stem) >= 0.33
@@ -764,33 +765,29 @@ impl AssetBrowser {
                 }
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {
-            if message.destination() == self.context_menu.dependencies {
-                if let Ok(item) = engine
+            if message.destination() == self.context_menu.dependencies
+                && let Ok(item) = engine
                     .user_interfaces
                     .first_mut()
                     .try_get_of_type::<AssetItem>(self.context_menu.placement_target)
-                {
-                    if let Ok(resource) =
-                        block_on(engine.resource_manager.request_untyped(&item.path))
-                    {
-                        self.dependency_viewer.open(
-                            &resource,
-                            &engine.resource_manager,
-                            engine.user_interfaces.first_mut(),
-                        );
-                    }
-                }
+                && let Ok(resource) = block_on(engine.resource_manager.request_untyped(&item.path))
+            {
+                self.dependency_viewer.open(
+                    &resource,
+                    &engine.resource_manager,
+                    engine.user_interfaces.first_mut(),
+                );
             }
         } else if let Some(WindowMessage::Close) = message.data() {
-            if let Some(resource_creator) = self.resource_creator.as_ref() {
-                if message.destination() == resource_creator.window {
-                    engine
-                        .user_interfaces
-                        .first()
-                        .send(resource_creator.window, WidgetMessage::Remove);
+            if let Some(resource_creator) = self.resource_creator.as_ref()
+                && message.destination() == resource_creator.window
+            {
+                engine
+                    .user_interfaces
+                    .first()
+                    .send(resource_creator.window, WidgetMessage::Remove);
 
-                    self.resource_creator = None;
-                }
+                self.resource_creator = None;
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.add_resource {
@@ -823,50 +820,47 @@ impl AssetBrowser {
                     None
                 }
 
-                if let Some(selection) = entry.selection.as_ref::<AssetSelection>() {
-                    if let Some(path) = selection.selected_path() {
-                        if let Some(extension) = path.extension() {
-                            let default_import_options =
-                                default_import_options(extension, &engine.resource_manager);
-                            if let Some(mut import_options) = selection.selected_import_options() {
-                                if message.destination() == inspector_buttons.revert {
-                                    if let Some(default_import_options) = default_import_options {
-                                        *import_options = default_import_options;
-                                        sender.send(Message::ForceSync);
-                                    }
-                                } else if message.destination() == inspector_buttons.apply {
-                                    import_options.save(&append_extension(path, "options"));
+                if let Some(selection) = entry.selection.as_ref::<AssetSelection>()
+                    && let Some(path) = selection.selected_path()
+                    && let Some(extension) = path.extension()
+                {
+                    let default_import_options =
+                        default_import_options(extension, &engine.resource_manager);
+                    if let Some(mut import_options) = selection.selected_import_options() {
+                        if message.destination() == inspector_buttons.revert {
+                            if let Some(default_import_options) = default_import_options {
+                                *import_options = default_import_options;
+                                sender.send(Message::ForceSync);
+                            }
+                        } else if message.destination() == inspector_buttons.apply {
+                            import_options.save(&append_extension(path, "options"));
 
-                                    if let Ok(resource) =
-                                        block_on(engine.resource_manager.request_untyped(path))
-                                    {
-                                        engine.resource_manager.state().reload_resource(resource);
-                                    }
-                                }
+                            if let Ok(resource) =
+                                block_on(engine.resource_manager.request_untyped(path))
+                            {
+                                engine.resource_manager.state().reload_resource(resource);
                             }
                         }
                     }
                 }
             }
-        } else if let Some(WidgetMessage::MouseDown { button, .. }) = message.data() {
-            if ui.has_descendant_or_equal(message.destination(), self.scroll_viewer)
-                && !message.handled()
-            {
-                if let MouseButton::Back = *button {
-                    let mut parent_folder = self
-                        .current_path
-                        .parent()
-                        .map(|p| p.to_path_buf())
-                        .unwrap_or_else(|| PathBuf::from("./"));
-                    if parent_folder == Path::new("") {
-                        parent_folder = PathBuf::from("./");
-                    }
-
-                    self.set_path(&parent_folder, ui, &engine.resource_manager);
-
-                    message.set_handled(true);
-                }
+        } else if let Some(WidgetMessage::MouseDown { button, .. }) = message.data()
+            && ui.has_descendant_or_equal(message.destination(), self.scroll_viewer)
+            && !message.handled()
+            && let MouseButton::Back = *button
+        {
+            let mut parent_folder = self
+                .current_path
+                .parent()
+                .map(|p| p.to_path_buf())
+                .unwrap_or_else(|| PathBuf::from("./"));
+            if parent_folder == Path::new("") {
+                parent_folder = PathBuf::from("./");
             }
+
+            self.set_path(&parent_folder, ui, &engine.resource_manager);
+
+            message.set_handled(true);
         }
     }
 
@@ -1017,29 +1011,23 @@ impl AssetBrowser {
                         )
                     }
                     let mut has_preview = false;
-                    if let Some(asset_path) = selection.selected_path() {
-                        if !asset_path.is_dir() {
-                            if let Ok(resource) =
-                                block_on(engine.resource_manager.request_untyped(asset_path))
-                            {
-                                if let Some(preview_generator) =
-                                    resource.type_uuid().and_then(|type_uuid| {
-                                        self.preview_generators.map.get_mut(&type_uuid)
-                                    })
-                                {
-                                    let preview_scene =
-                                        &mut engine.scenes[inspector_addon.preview.scene()];
-                                    let preview = preview_generator.generate_scene(
-                                        &resource,
-                                        &engine.resource_manager,
-                                        preview_scene,
-                                        inspector_addon.preview.camera,
-                                    );
-                                    has_preview = preview.is_some();
-                                    inspector_addon.preview.set_model(preview, engine);
-                                }
-                            }
-                        }
+                    if let Some(asset_path) = selection.selected_path()
+                        && !asset_path.is_dir()
+                        && let Ok(resource) =
+                            block_on(engine.resource_manager.request_untyped(asset_path))
+                        && let Some(preview_generator) = resource
+                            .type_uuid()
+                            .and_then(|type_uuid| self.preview_generators.map.get_mut(&type_uuid))
+                    {
+                        let preview_scene = &mut engine.scenes[inspector_addon.preview.scene()];
+                        let preview = preview_generator.generate_scene(
+                            &resource,
+                            &engine.resource_manager,
+                            preview_scene,
+                            inspector_addon.preview.camera,
+                        );
+                        has_preview = preview.is_some();
+                        inspector_addon.preview.set_model(preview, engine);
                     }
                     engine.user_interfaces.first_mut().send(
                         inspector_addon.preview.root,

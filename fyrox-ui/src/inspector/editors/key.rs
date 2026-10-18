@@ -19,12 +19,13 @@
 // SOFTWARE.
 
 use crate::{
+    Thickness,
     inspector::{
+        FieldAction, InspectorError, PropertyChanged,
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldAction, InspectorError, PropertyChanged,
     },
     key::{
         HotKey, HotKeyEditorBuilder, HotKeyEditorMessage, KeyBinding, KeyBindingEditorBuilder,
@@ -32,7 +33,6 @@ use crate::{
     },
     message::{MessageDirection, UiMessage},
     widget::WidgetBuilder,
-    Thickness,
 };
 use std::any::TypeId;
 
@@ -68,14 +68,14 @@ impl PropertyEditorDefinition for HotKeyPropertyEditorDefinition {
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(HotKeyEditorMessage::Value(value)) = ctx.message.data() {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(HotKeyEditorMessage::Value(value)) = ctx.message.data()
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
 
-                    action: FieldAction::object(value.clone()),
-                });
-            }
+                action: FieldAction::object(value.clone()),
+            });
         }
         None
     }
@@ -113,14 +113,14 @@ impl PropertyEditorDefinition for KeyBindingPropertyEditorDefinition {
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(KeyBindingEditorMessage::Value(value)) = ctx.message.data() {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(KeyBindingEditorMessage::Value(value)) = ctx.message.data()
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
 
-                    action: FieldAction::object(value.clone()),
-                });
-            }
+                action: FieldAction::object(value.clone()),
+            });
         }
         None
     }

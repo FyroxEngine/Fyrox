@@ -19,11 +19,12 @@
 // SOFTWARE.
 
 use crate::{
+    Engine,
     fyrox::{
         core::{
             algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
             color::Color,
-            math::{plane::Plane, Matrix4Ext},
+            math::{Matrix4Ext, plane::Plane},
             pool::Handle,
         },
         graph::SceneGraph,
@@ -31,8 +32,8 @@ use crate::{
             base::BaseBuilder,
             graph::Graph,
             mesh::{
-                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
                 MeshBuilder, RenderPath,
+                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
             },
             node::Node,
             pivot::PivotBuilder,
@@ -44,7 +45,6 @@ use crate::{
     scene::{GameScene, Selection},
     set_mesh_diffuse_color,
     settings::Settings,
-    Engine,
 };
 use fyrox::core::reflect::prelude::*;
 use fyrox::scene::camera::Camera;
@@ -88,11 +88,17 @@ fn make_rotation_ribbon(
             ),
     )
     .with_render_path(RenderPath::Forward)
-    .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
-        SurfaceData::make_torus(0.5, RIBBON_THICKNESS, 16, 32, &Matrix4::identity()),
-    ))
-    .with_material(make_color_material(color))
-    .build()])
+    .with_surfaces(vec![
+        SurfaceBuilder::new(SurfaceResource::new_embedded(SurfaceData::make_torus(
+            0.5,
+            RIBBON_THICKNESS,
+            16,
+            32,
+            &Matrix4::identity(),
+        )))
+        .with_material(make_color_material(color))
+        .build(),
+    ])
     .build(graph)
 }
 
@@ -205,26 +211,26 @@ impl RotationGizmo {
         let plane =
             Plane::from_normal_and_point(&oriented_axis, &transform.position()).unwrap_or_default();
 
-        if let Some(old_pos) = initial_ray.plane_intersection_point(&plane) {
-            if let Some(new_pos) = offset_ray.plane_intersection_point(&plane) {
-                let center = transform.position();
-                let old = (old_pos - center)
-                    .try_normalize(f32::EPSILON)
-                    .unwrap_or_default();
-                let new = (new_pos - center)
-                    .try_normalize(f32::EPSILON)
-                    .unwrap_or_default();
+        if let Some(old_pos) = initial_ray.plane_intersection_point(&plane)
+            && let Some(new_pos) = offset_ray.plane_intersection_point(&plane)
+        {
+            let center = transform.position();
+            let old = (old_pos - center)
+                .try_normalize(f32::EPSILON)
+                .unwrap_or_default();
+            let new = (new_pos - center)
+                .try_normalize(f32::EPSILON)
+                .unwrap_or_default();
 
-                let angle_delta = old.dot(&new).clamp(-1.0, 1.0).acos();
-                let sign = old.cross(&new).dot(&oriented_axis).signum();
+            let angle_delta = old.dot(&new).clamp(-1.0, 1.0).acos();
+            let sign = old.cross(&new).dot(&oriented_axis).signum();
 
-                let static_axis = match self.mode {
-                    RotateGizmoMode::Pitch => Vector3::x_axis(),
-                    RotateGizmoMode::Yaw => Vector3::y_axis(),
-                    RotateGizmoMode::Roll => Vector3::z_axis(),
-                };
-                return UnitQuaternion::from_axis_angle(&static_axis, sign * angle_delta);
-            }
+            let static_axis = match self.mode {
+                RotateGizmoMode::Pitch => Vector3::x_axis(),
+                RotateGizmoMode::Yaw => Vector3::y_axis(),
+                RotateGizmoMode::Roll => Vector3::z_axis(),
+            };
+            return UnitQuaternion::from_axis_angle(&static_axis, sign * angle_delta);
         }
 
         UnitQuaternion::default()

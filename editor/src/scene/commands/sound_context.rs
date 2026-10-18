@@ -20,7 +20,7 @@
 
 use crate::command::CommandContext;
 use crate::fyrox::scene::sound::{
-    context::SoundContext, DistanceModel, HrirSphereResource, Renderer,
+    DistanceModel, HrirSphereResource, Renderer, context::SoundContext,
 };
 use crate::{CommandTrait, GameSceneContext};
 

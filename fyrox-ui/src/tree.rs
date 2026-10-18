@@ -24,6 +24,7 @@
 #![warn(missing_docs)]
 
 use crate::{
+    BuildContext, Control, MouseButton, Thickness, UiNode, UserInterface, VerticalAlignment,
     border::BorderBuilder,
     brush::Brush,
     check_box::{CheckBoxBuilder, CheckBoxMessage},
@@ -35,11 +36,10 @@ use crate::{
     message::KeyCode,
     message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
-    style::resource::StyleResourceExt,
     style::Style,
-    utils::{make_arrow, ArrowDirection},
+    style::resource::StyleResourceExt,
+    utils::{ArrowDirection, make_arrow},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, MouseButton, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 
 use crate::check_box::CheckBox;
@@ -47,8 +47,8 @@ use crate::message::MessageData;
 use crate::stack_panel::StackPanel;
 use fyrox_core::pool::{HandlesVecExtension, ObjectOrVariant};
 
-use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use std::collections::VecDeque;
 
 /// Opaque selection state of a tree.
@@ -368,101 +368,100 @@ impl Control for Tree {
                     WidgetMessage::MouseDown { .. } => {
                         let keyboard_modifiers = ui.keyboard_modifiers();
                         // Prevent selection changes by Alt+Click to be able to drag'n'drop tree items.
-                        if !keyboard_modifiers.alt {
-                            if let Some((tree_root_handle, tree_root)) =
+                        if !keyboard_modifiers.alt
+                            && let Some((tree_root_handle, tree_root)) =
                                 ui.find_self_or_field_up::<TreeRoot>(self.parent())
-                            {
-                                let selection = if keyboard_modifiers.control {
-                                    let mut selection = tree_root.selected.clone();
-                                    if let Some(existing) =
-                                        selection.iter().position(|&h| self.handle == h)
-                                    {
-                                        selection.remove(existing);
-                                    } else {
-                                        selection.push(self.handle.to_variant());
-                                    }
-                                    Some(selection)
-                                } else if keyboard_modifiers.shift {
-                                    // Select range.
-                                    let mut first_position = None;
-                                    let mut this_position = None;
-                                    let mut flat_hierarchy = Vec::<Handle<Tree>>::new();
-
-                                    fn visit_widget(
-                                        this_tree: &Tree,
-                                        handle: Handle<UiNode>,
-                                        ui: &UserInterface,
-                                        selection: &[Handle<Tree>],
-                                        hierarchy: &mut Vec<Handle<Tree>>,
-                                        first_position: &mut Option<usize>,
-                                        this_position: &mut Option<usize>,
-                                    ) {
-                                        let node = if handle == this_tree.handle {
-                                            *this_position = Some(hierarchy.len());
-
-                                            hierarchy.push(handle.to_variant());
-
-                                            &this_tree.widget
-                                        } else {
-                                            let node = ui.node(handle);
-
-                                            if let Some(first) = selection.first() {
-                                                if handle == *first {
-                                                    *first_position = Some(hierarchy.len());
-                                                }
-                                            }
-
-                                            if node.self_or_field_ref::<Tree>().is_some() {
-                                                hierarchy.push(handle.to_variant());
-                                            }
-
-                                            node
-                                        };
-
-                                        for &child in node.children() {
-                                            visit_widget(
-                                                this_tree,
-                                                child,
-                                                ui,
-                                                selection,
-                                                hierarchy,
-                                                first_position,
-                                                this_position,
-                                            );
-                                        }
-                                    }
-
-                                    visit_widget(
-                                        self,
-                                        tree_root_handle,
-                                        ui,
-                                        &tree_root.selected,
-                                        &mut flat_hierarchy,
-                                        &mut first_position,
-                                        &mut this_position,
-                                    );
-
-                                    if let (Some(this_position), Some(first_position)) =
-                                        (this_position, first_position)
-                                    {
-                                        Some(if first_position < this_position {
-                                            flat_hierarchy[first_position..=this_position].to_vec()
-                                        } else {
-                                            flat_hierarchy[this_position..=first_position].to_vec()
-                                        })
-                                    } else {
-                                        Some(vec![])
-                                    }
-                                } else if !self.is_selected {
-                                    Some(vec![self.handle().to_variant()])
+                        {
+                            let selection = if keyboard_modifiers.control {
+                                let mut selection = tree_root.selected.clone();
+                                if let Some(existing) =
+                                    selection.iter().position(|&h| self.handle == h)
+                                {
+                                    selection.remove(existing);
                                 } else {
-                                    None
-                                };
-                                if let Some(selection) = selection {
-                                    ui.send(tree_root_handle, TreeRootMessage::Select(selection));
+                                    selection.push(self.handle.to_variant());
                                 }
-                                message.set_handled(true);
+                                Some(selection)
+                            } else if keyboard_modifiers.shift {
+                                // Select range.
+                                let mut first_position = None;
+                                let mut this_position = None;
+                                let mut flat_hierarchy = Vec::<Handle<Tree>>::new();
+
+                                fn visit_widget(
+                                    this_tree: &Tree,
+                                    handle: Handle<UiNode>,
+                                    ui: &UserInterface,
+                                    selection: &[Handle<Tree>],
+                                    hierarchy: &mut Vec<Handle<Tree>>,
+                                    first_position: &mut Option<usize>,
+                                    this_position: &mut Option<usize>,
+                                ) {
+                                    let node = if handle == this_tree.handle {
+                                        *this_position = Some(hierarchy.len());
+
+                                        hierarchy.push(handle.to_variant());
+
+                                        &this_tree.widget
+                                    } else {
+                                        let node = ui.node(handle);
+
+                                        if let Some(first) = selection.first()
+                                            && handle == *first
+                                        {
+                                            *first_position = Some(hierarchy.len());
+                                        }
+
+                                        if node.self_or_field_ref::<Tree>().is_some() {
+                                            hierarchy.push(handle.to_variant());
+                                        }
+
+                                        node
+                                    };
+
+                                    for &child in node.children() {
+                                        visit_widget(
+                                            this_tree,
+                                            child,
+                                            ui,
+                                            selection,
+                                            hierarchy,
+                                            first_position,
+                                            this_position,
+                                        );
+                                    }
+                                }
+
+                                visit_widget(
+                                    self,
+                                    tree_root_handle,
+                                    ui,
+                                    &tree_root.selected,
+                                    &mut flat_hierarchy,
+                                    &mut first_position,
+                                    &mut this_position,
+                                );
+
+                                if let (Some(this_position), Some(first_position)) =
+                                    (this_position, first_position)
+                                {
+                                    Some(if first_position < this_position {
+                                        flat_hierarchy[first_position..=this_position].to_vec()
+                                    } else {
+                                        flat_hierarchy[this_position..=first_position].to_vec()
+                                    })
+                                } else {
+                                    Some(vec![])
+                                }
+                            } else if !self.is_selected {
+                                Some(vec![self.handle().to_variant()])
+                            } else {
+                                None
+                            };
+                            if let Some(selection) = selection {
+                                ui.send(tree_root_handle, TreeRootMessage::Select(selection));
                             }
+                            message.set_handled(true);
                         }
                     }
                     WidgetMessage::DoubleClick { button } if *button == MouseButton::Left => {
@@ -477,86 +476,86 @@ impl Control for Tree {
                     _ => (),
                 }
             }
-        } else if let Some(msg) = message.data::<TreeMessage>() {
-            if message.destination() == self.handle() {
-                match msg {
-                    &TreeMessage::Expand {
-                        expand,
-                        expansion_strategy,
-                    } => {
-                        self.is_expanded = expand;
+        } else if let Some(msg) = message.data::<TreeMessage>()
+            && message.destination() == self.handle()
+        {
+            match msg {
+                &TreeMessage::Expand {
+                    expand,
+                    expansion_strategy,
+                } => {
+                    self.is_expanded = expand;
 
-                        ui.send(self.panel, WidgetMessage::Visibility(self.is_expanded));
-                        ui.send(self.expander, CheckBoxMessage::Check(Some(expand)));
+                    ui.send(self.panel, WidgetMessage::Visibility(self.is_expanded));
+                    ui.send(self.expander, CheckBoxMessage::Check(Some(expand)));
 
-                        match expansion_strategy {
-                            TreeExpansionStrategy::RecursiveDescendants => {
-                                for &item in &self.items {
-                                    ui.send(
-                                        item,
-                                        TreeMessage::Expand {
-                                            expand,
-                                            expansion_strategy,
-                                        },
-                                    );
-                                }
-                            }
-                            TreeExpansionStrategy::RecursiveAncestors => {
-                                // CAVEAT: This may lead to potential false expansions when there are
-                                // trees inside trees (this is insane, but possible) because we're searching
-                                // up on visual tree and don't care about search bounds, ideally we should
-                                // stop search if we're found TreeRoot.
-                                let parent_tree =
-                                    self.find_by_criteria_up(ui, |n| n.cast::<Tree>().is_some());
-                                if parent_tree.is_some() {
-                                    ui.send(
-                                        parent_tree,
-                                        TreeMessage::Expand {
-                                            expand,
-                                            expansion_strategy,
-                                        },
-                                    );
-                                }
-                            }
-                            TreeExpansionStrategy::Direct => {
-                                // Handle this variant too instead of using _ => (),
-                                // to force compiler to notify if new strategy is added.
+                    match expansion_strategy {
+                        TreeExpansionStrategy::RecursiveDescendants => {
+                            for &item in &self.items {
+                                ui.send(
+                                    item,
+                                    TreeMessage::Expand {
+                                        expand,
+                                        expansion_strategy,
+                                    },
+                                );
                             }
                         }
+                        TreeExpansionStrategy::RecursiveAncestors => {
+                            // CAVEAT: This may lead to potential false expansions when there are
+                            // trees inside trees (this is insane, but possible) because we're searching
+                            // up on visual tree and don't care about search bounds, ideally we should
+                            // stop search if we're found TreeRoot.
+                            let parent_tree =
+                                self.find_by_criteria_up(ui, |n| n.cast::<Tree>().is_some());
+                            if parent_tree.is_some() {
+                                ui.send(
+                                    parent_tree,
+                                    TreeMessage::Expand {
+                                        expand,
+                                        expansion_strategy,
+                                    },
+                                );
+                            }
+                        }
+                        TreeExpansionStrategy::Direct => {
+                            // Handle this variant too instead of using _ => (),
+                            // to force compiler to notify if new strategy is added.
+                        }
                     }
-                    &TreeMessage::ExpanderVisible(show) => {
-                        self.always_show_expander = show;
-                        self.invalidate_arrange();
+                }
+                &TreeMessage::ExpanderVisible(show) => {
+                    self.always_show_expander = show;
+                    self.invalidate_arrange();
+                }
+                &TreeMessage::AddItem(item) => {
+                    ui.send(item, WidgetMessage::link_with(self.panel));
+                    self.items.push(item);
+                }
+                &TreeMessage::RemoveItem(item) => {
+                    if let Some(pos) = self.items.iter().position(|&i| i == item) {
+                        ui.send(item, WidgetMessage::Remove);
+                        self.items.remove(pos);
                     }
-                    &TreeMessage::AddItem(item) => {
-                        ui.send(item, WidgetMessage::link_with(self.panel));
-                        self.items.push(item);
-                    }
-                    &TreeMessage::RemoveItem(item) => {
-                        if let Some(pos) = self.items.iter().position(|&i| i == item) {
+                }
+                TreeMessage::SetItems {
+                    items,
+                    remove_previous,
+                } => {
+                    if *remove_previous {
+                        for &item in self.items.iter() {
                             ui.send(item, WidgetMessage::Remove);
-                            self.items.remove(pos);
                         }
                     }
-                    TreeMessage::SetItems {
-                        items,
-                        remove_previous,
-                    } => {
-                        if *remove_previous {
-                            for &item in self.items.iter() {
-                                ui.send(item, WidgetMessage::Remove);
-                            }
-                        }
-                        for &item in items {
-                            ui.send(item, WidgetMessage::link_with(self.panel));
-                        }
-                        self.items.clone_from(items);
+                    for &item in items {
+                        ui.send(item, WidgetMessage::link_with(self.panel));
                     }
-                    &TreeMessage::Select(state) => {
-                        if self.is_selected != state.0 {
-                            self.is_selected = state.0;
-                            ui.send(self.background, DecoratorMessage::Select(self.is_selected));
-                        }
+                    self.items.clone_from(items);
+                }
+                &TreeMessage::Select(state) => {
+                    if self.is_selected != state.0 {
+                        self.is_selected = state.0;
+                        ui.send(self.background, DecoratorMessage::Select(self.is_selected));
                     }
                 }
             }
@@ -902,47 +901,47 @@ impl Control for TreeRoot {
                     // Do nothing.
                 }
             }
-        } else if let Some(WidgetMessage::KeyDown(key_code)) = message.data() {
-            if !message.handled() {
-                match *key_code {
-                    KeyCode::ArrowRight => {
-                        self.move_selection(ui, Direction::Down, true);
-                        message.set_handled(true);
-                    }
-                    KeyCode::ArrowLeft => {
-                        if let Some(selection) = self.selected.first() {
-                            if let Ok(item) = ui.try_get(*selection) {
-                                if item.is_expanded {
-                                    ui.send(
-                                        *selection,
-                                        TreeMessage::Expand {
-                                            expand: false,
-                                            expansion_strategy: TreeExpansionStrategy::Direct,
-                                        },
-                                    );
-                                    message.set_handled(true);
-                                } else if let Some((parent_handle, _)) =
-                                    ui.find_self_or_field_up::<Tree>(item.parent())
-                                {
-                                    ui.send(
-                                        self.handle,
-                                        TreeRootMessage::Select(vec![parent_handle.to_variant()]),
-                                    );
-                                    message.set_handled(true);
-                                }
-                            }
+        } else if let Some(WidgetMessage::KeyDown(key_code)) = message.data()
+            && !message.handled()
+        {
+            match *key_code {
+                KeyCode::ArrowRight => {
+                    self.move_selection(ui, Direction::Down, true);
+                    message.set_handled(true);
+                }
+                KeyCode::ArrowLeft => {
+                    if let Some(selection) = self.selected.first()
+                        && let Ok(item) = ui.try_get(*selection)
+                    {
+                        if item.is_expanded {
+                            ui.send(
+                                *selection,
+                                TreeMessage::Expand {
+                                    expand: false,
+                                    expansion_strategy: TreeExpansionStrategy::Direct,
+                                },
+                            );
+                            message.set_handled(true);
+                        } else if let Some((parent_handle, _)) =
+                            ui.find_self_or_field_up::<Tree>(item.parent())
+                        {
+                            ui.send(
+                                self.handle,
+                                TreeRootMessage::Select(vec![parent_handle.to_variant()]),
+                            );
+                            message.set_handled(true);
                         }
                     }
-                    KeyCode::ArrowUp => {
-                        self.move_selection(ui, Direction::Up, false);
-                        message.set_handled(true);
-                    }
-                    KeyCode::ArrowDown => {
-                        self.move_selection(ui, Direction::Down, false);
-                        message.set_handled(true);
-                    }
-                    _ => (),
                 }
+                KeyCode::ArrowUp => {
+                    self.move_selection(ui, Direction::Up, false);
+                    message.set_handled(true);
+                }
+                KeyCode::ArrowDown => {
+                    self.move_selection(ui, Direction::Down, false);
+                    message.set_handled(true);
+                }
+                _ => (),
             }
         }
     }
@@ -1050,18 +1049,15 @@ impl TreeRoot {
                         while let Some((ancestor_handle, ancestor)) =
                             ui.find_self_or_field_up::<Tree>(current_ancestor_parent)
                         {
-                            if ancestor.is_expanded {
-                                if let Some(current_ancestor_position) =
+                            if ancestor.is_expanded
+                                && let Some(current_ancestor_position) =
                                     ancestor.items.iter().position(|c| *c == current_ancestor)
-                                {
-                                    if let Some(next) = ancestor
-                                        .items
-                                        .get(current_ancestor_position.saturating_add(1))
-                                    {
-                                        self.select(ui, *next);
-                                        break;
-                                    }
-                                }
+                                && let Some(next) = ancestor
+                                    .items
+                                    .get(current_ancestor_position.saturating_add(1))
+                            {
+                                self.select(ui, *next);
+                                break;
                             }
 
                             current_ancestor_parent = ancestor.parent();

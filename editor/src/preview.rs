@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    Engine,
     fyrox::{
         core::{
             algebra::{UnitQuaternion, Vector2, Vector3},
@@ -27,30 +28,30 @@ use crate::{
         },
         graph::SceneGraph,
         gui::{
+            HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
             button::{ButtonBuilder, ButtonMessage},
             grid::{Column, GridBuilder, Row},
             image::{Image, ImageBuilder, ImageMessage},
             message::{CursorIcon, MouseButton, UiMessage},
             stack_panel::StackPanelBuilder,
             widget::{WidgetBuilder, WidgetMessage},
-            HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
         },
         resource::{
             model::{Model, ModelResourceExtension},
             texture::{TextureKind, TextureResource, TextureResourceExtension},
         },
         scene::{
+            Scene, SceneRenderingOptions,
             base::BaseBuilder,
             camera::{CameraBuilder, FitParameters},
             debug::Line,
-            light::{directional::DirectionalLightBuilder, BaseLightBuilder},
+            light::{BaseLightBuilder, directional::DirectionalLightBuilder},
             node::Node,
             pivot::PivotBuilder,
             transform::TransformBuilder,
-            Scene, SceneRenderingOptions,
         },
     },
-    load_image, Engine,
+    load_image,
 };
 use fyrox::core::num_traits::Zero;
 use fyrox::core::pool::ObjectOrVariant;

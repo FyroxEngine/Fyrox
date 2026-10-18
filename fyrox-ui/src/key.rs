@@ -26,6 +26,7 @@
 use crate::message::MessageData;
 use crate::text::Text;
 use crate::{
+    BuildContext, Control, UiNode, UserInterface,
     brush::Brush,
     core::{color::Color, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     define_widget_deref,
@@ -33,7 +34,6 @@ use crate::{
     message::{KeyCode, KeyboardModifiers, MouseButton, UiMessage},
     text::{TextBuilder, TextMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
@@ -280,12 +280,12 @@ impl Control for HotKeyEditor {
             }
         }
 
-        if let Some(HotKeyEditorMessage::Value(value)) = message.data_for(self.handle) {
-            if value != &*self.value {
-                self.value.set_value_and_mark_modified(value.clone());
-                ui.send(*self.text, TextMessage::Text(format!("{}", *self.value)));
-                ui.try_send_response(message);
-            }
+        if let Some(HotKeyEditorMessage::Value(value)) = message.data_for(self.handle)
+            && value != &*self.value
+        {
+            self.value.set_value_and_mark_modified(value.clone());
+            ui.send(*self.text, TextMessage::Text(format!("{}", *self.value)));
+            ui.try_send_response(message);
         }
     }
 }
@@ -479,12 +479,12 @@ impl Control for KeyBindingEditor {
             }
         }
 
-        if let Some(KeyBindingEditorMessage::Value(value)) = message.data_for(self.handle) {
-            if value != &*self.value {
-                self.value.set_value_and_mark_modified(value.clone());
-                ui.send(*self.text, TextMessage::Text(format!("{}", *self.value)));
-                ui.try_send_response(message);
-            }
+        if let Some(KeyBindingEditorMessage::Value(value)) = message.data_for(self.handle)
+            && value != &*self.value
+        {
+            self.value.set_value_and_mark_modified(value.clone());
+            ui.send(*self.text, TextMessage::Text(format!("{}", *self.value)));
+            ui.try_send_response(message);
         }
     }
 }

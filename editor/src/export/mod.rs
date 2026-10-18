@@ -20,6 +20,7 @@
 
 use crate::settings::build::BuildSettings;
 use crate::{
+    Message,
     fyrox::{
         asset::manager::ResourceManager,
         core::{
@@ -29,6 +30,8 @@ use crate::{
         },
         graph::SceneGraph,
         gui::{
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
+            VerticalAlignment,
             border::BorderBuilder,
             button::{Button, ButtonBuilder, ButtonMessage},
             decorator::DecoratorBuilder,
@@ -36,31 +39,28 @@ use crate::{
             formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
             inspector::{
-                editors::PropertyEditorDefinitionContainer, Inspector, InspectorBuilder,
-                InspectorContext, InspectorContextArgs, InspectorMessage, PropertyAction,
+                Inspector, InspectorBuilder, InspectorContext, InspectorContextArgs,
+                InspectorMessage, PropertyAction, editors::PropertyEditorDefinitionContainer,
             },
             list_view::{ListView, ListViewBuilder, ListViewMessage},
             message::UiMessage,
             scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
             stack_panel::{StackPanel, StackPanelBuilder},
-            style::{resource::StyleResourceExt, Style},
+            style::{Style, resource::StyleResourceExt},
             text::{Text, TextBuilder},
             utils::make_dropdown_list_option,
             widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
-            BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
-            VerticalAlignment,
         },
     },
     message::MessageSender,
-    Message,
 };
 use fyrox_build_tools::export::{BuildResult, ExportOptions};
 use std::sync::{
+    Arc,
     atomic::AtomicBool,
     mpsc::{self, Receiver},
-    Arc,
 };
 use strum::VariantNames;
 
@@ -96,8 +96,7 @@ impl ExportWindow {
     pub const TITLE_BRUSH: &'static str = "ExportWindow.TitleBrush";
 
     pub fn new(ctx: &mut BuildContext) -> Self {
-        let instructions =
-            "Select the target directory in which you want to export the current project. You can \
+        let instructions = "Select the target directory in which you want to export the current project. You can \
             also specify the assets, that will be included in the final build. Previous content of \
             the build folder will be completely erased when you press Export.";
 
@@ -497,18 +496,18 @@ impl ExportWindow {
             }
         }
 
-        if let Some(receiver) = self.build_result_receiver.as_ref() {
-            if let Ok(result) = receiver.try_recv() {
-                match result {
-                    Ok(mut output) => {
-                        Log::info("Build finished!");
-                        self.child_processes.append(&mut output.child_processes);
-                    }
-                    Err(err) => Log::err(format!("Build failed! Reason: {err}")),
+        if let Some(receiver) = self.build_result_receiver.as_ref()
+            && let Ok(result) = receiver.try_recv()
+        {
+            match result {
+                Ok(mut output) => {
+                    Log::info("Build finished!");
+                    self.child_processes.append(&mut output.child_processes);
                 }
-
-                ui.send(self.export, WidgetMessage::Enabled(true));
+                Err(err) => Log::err(format!("Build failed! Reason: {err}")),
             }
+
+            ui.send(self.export, WidgetMessage::Enabled(true));
         }
     }
 }

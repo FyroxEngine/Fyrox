@@ -29,8 +29,8 @@ use crate::{
         base::BaseBuilder,
         graph::Graph,
         light::{
-            directional::DirectionalLightBuilder, point::PointLightBuilder, spot::SpotLightBuilder,
-            BaseLightBuilder,
+            BaseLightBuilder, directional::DirectionalLightBuilder, point::PointLightBuilder,
+            spot::SpotLightBuilder,
         },
         node::Node,
     },

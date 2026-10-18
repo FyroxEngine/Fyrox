@@ -21,6 +21,7 @@
 use crate::menu::MenuItem;
 use crate::messagebox::MessageBox;
 use crate::{
+    BuildContext, Control, Thickness, UiNode, UserInterface,
     core::{algebra::Vector2, log::Log, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     draw::DrawingContext,
     file_browser::{
@@ -34,7 +35,6 @@ use crate::{
     stack_panel::StackPanelBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     window::{WindowBuilder, WindowTitle},
-    BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 use fyrox_graph::SceneGraph;
 use std::{
@@ -144,13 +144,13 @@ impl Control for ItemContextMenu {
         if let Some(MessageBoxMessage::Close(result)) =
             message.data_from(self.delete_message_box.get())
         {
-            if let MessageBoxResult::Yes = *result {
-                if let Some(item_path) = self.item_path(ui).map(|p| p.into_path()) {
-                    if item_path.is_dir() {
-                        Log::verify(std::fs::remove_dir_all(item_path));
-                    } else {
-                        Log::verify(std::fs::remove_file(item_path));
-                    }
+            if let MessageBoxResult::Yes = *result
+                && let Some(item_path) = self.item_path(ui).map(|p| p.into_path())
+            {
+                if item_path.is_dir() {
+                    Log::verify(std::fs::remove_dir_all(item_path));
+                } else {
+                    Log::verify(std::fs::remove_file(item_path));
                 }
             }
 
@@ -159,14 +159,12 @@ impl Control for ItemContextMenu {
             self.delete_message_box.set(Handle::NONE);
         } else if let Some(FolderNameDialogMessage::Name(folder_name)) =
             message.data_from(self.folder_name_dialog)
+            && !folder_name.is_empty()
+            && let Some(item_path) = self.item_path(ui).map(|p| p.into_path())
         {
-            if !folder_name.is_empty() {
-                if let Some(item_path) = self.item_path(ui).map(|p| p.into_path()) {
-                    Log::verify(std::fs::create_dir_all(
-                        item_path.to_path_buf().join(folder_name),
-                    ));
-                }
-            }
+            Log::verify(std::fs::create_dir_all(
+                item_path.to_path_buf().join(folder_name),
+            ));
         }
     }
 

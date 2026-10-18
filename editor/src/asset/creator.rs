@@ -19,14 +19,16 @@
 // SOFTWARE.
 
 use crate::{
+    Message,
     fyrox::{
         asset::{
             manager::ResourceManager,
             untyped::{ResourceKind, UntypedResource},
         },
-        core::{log::Log, make_pretty_type_name, pool::Handle, SafeLock},
+        core::{SafeLock, log::Log, make_pretty_type_name, pool::Handle},
         engine::Engine,
         gui::{
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
             button::{ButtonBuilder, ButtonMessage},
             grid::{Column, GridBuilder, Row},
             list_view::{ListViewBuilder, ListViewMessage},
@@ -37,11 +39,9 @@ use crate::{
             utils::make_dropdown_list_option,
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
-            BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
         },
     },
     message::MessageSender,
-    Message,
 };
 use fyrox::core::uuid::Uuid;
 use fyrox::gui::button::Button;
@@ -202,18 +202,17 @@ impl ResourceCreator {
                 if let Some(loader) = loaders
                     .iter()
                     .find(|loader| &loader.data_type_uuid() == data_type_uuid)
+                    && let Some(first) = loader.extensions().first()
                 {
-                    if let Some(first) = loader.extensions().first() {
-                        let mut path = PathBuf::from(&self.name_str);
-                        path.set_extension(first);
+                    let mut path = PathBuf::from(&self.name_str);
+                    path.set_extension(first);
 
-                        self.name_str = path.to_string_lossy().to_string();
+                    self.name_str = path.to_string_lossy().to_string();
 
-                        engine
-                            .user_interfaces
-                            .first()
-                            .send(self.name, TextMessage::Text(self.name_str.clone()));
-                    }
+                    engine
+                        .user_interfaces
+                        .first()
+                        .send(self.name, TextMessage::Text(self.name_str.clone()));
                 };
             }
         } else if let Some(ButtonMessage::Click) = message.data() {

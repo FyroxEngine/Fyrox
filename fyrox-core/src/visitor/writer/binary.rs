@@ -19,9 +19,9 @@
 // SOFTWARE.
 
 use crate::visitor::{
+    VisitResult, VisitableElementaryField, Visitor, VisitorNode,
     field::{Field, FieldKind},
     writer::Writer,
-    VisitResult, VisitableElementaryField, Visitor, VisitorNode,
 };
 use byteorder::{LittleEndian, WriteBytesExt};
 use nalgebra::SVector;

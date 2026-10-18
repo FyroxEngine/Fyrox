@@ -19,17 +19,17 @@
 // SOFTWARE.
 
 use crate::{
+    Thickness, VerticalAlignment,
     inspector::{
+        FieldAction, InspectorError, PropertyChanged,
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldAction, InspectorError, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
     path::{PathEditorBuilder, PathEditorMessage},
     widget::WidgetBuilder,
-    Thickness, VerticalAlignment,
 };
 use std::{any::TypeId, path::PathBuf};
 
@@ -69,14 +69,14 @@ impl PropertyEditorDefinition for PathPropertyEditorDefinition {
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(PathEditorMessage::Path(value)) = ctx.message.data() {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(PathEditorMessage::Path(value)) = ctx.message.data()
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
 
-                    action: FieldAction::object(value.clone()),
-                });
-            }
+                action: FieldAction::object(value.clone()),
+            });
         }
         None
     }

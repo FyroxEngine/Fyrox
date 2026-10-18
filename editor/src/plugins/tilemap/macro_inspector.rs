@@ -23,11 +23,11 @@ use fyrox::gui::text::Text;
 use fyrox::{
     asset::untyped::UntypedResource,
     gui::{
+        VerticalAlignment,
         button::{Button, ButtonMessage},
         grid::{Column, GridBuilder, Row},
         stack_panel::StackPanelBuilder,
         text::{TextBuilder, TextMessage},
-        VerticalAlignment,
     },
     scene::tilemap::brush::TileMapBrushResource,
 };

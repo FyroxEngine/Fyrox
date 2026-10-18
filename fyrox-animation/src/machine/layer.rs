@@ -22,6 +22,7 @@
 //! for more info.
 
 use crate::{
+    Animation, AnimationContainer, AnimationEvent, AnimationPose, EntityId,
     core::{
         log::{Log, MessageKind},
         pool::{Handle, Pool},
@@ -29,12 +30,11 @@ use crate::{
         visitor::prelude::*,
     },
     machine::{
-        event::FixedEventQueue, node::AnimationEventCollectionStrategy, AnimationPoseSource, Event,
-        LayerMask, ParameterContainer, PoseNode, State, Transition,
+        AnimationPoseSource, Event, LayerMask, ParameterContainer, PoseNode, State, Transition,
+        event::FixedEventQueue, node::AnimationEventCollectionStrategy,
     },
-    Animation, AnimationContainer, AnimationEvent, AnimationPose, EntityId,
 };
-use fyrox_core::{find_by_name_mut, find_by_name_ref, NameProvider};
+use fyrox_core::{NameProvider, find_by_name_mut, find_by_name_ref};
 
 /// Layer is a separate state graph. Layers mainly used to animate different parts of humanoid (but not only) characters. For
 /// example there could a layer for upper body and a layer for lower body. Upper body layer could contain animations for aiming,
@@ -325,78 +325,78 @@ impl<T: EntityId> MachineLayer<T> {
                     })
                     .unwrap_or_default(),
             };
-        } else if let Ok(transition) = self.transitions.try_borrow(self.active_transition) {
-            if let (Ok(source_state), Ok(dest_state)) = (
+        } else if let Ok(transition) = self.transitions.try_borrow(self.active_transition)
+            && let (Ok(source_state), Ok(dest_state)) = (
                 self.states.try_borrow(transition.source()),
                 self.states.try_borrow(transition.dest()),
-            ) {
-                let mut events = Vec::new();
-                match strategy {
-                    AnimationEventCollectionStrategy::All => {
-                        for state in [source_state, dest_state] {
-                            if let Ok(root) = self.nodes.try_borrow(state.root) {
-                                events.extend(root.collect_animation_events(
-                                    &self.nodes,
-                                    params,
-                                    animations,
-                                    strategy,
-                                ));
-                            }
-                        }
-                    }
-                    AnimationEventCollectionStrategy::MaxWeight => {
-                        let input = if transition.blend_factor() < 0.5 {
-                            source_state
-                        } else {
-                            dest_state
-                        };
-
-                        if let Ok(pose_source) = self.nodes.try_borrow(input.root) {
-                            events = pose_source.collect_animation_events(
+            )
+        {
+            let mut events = Vec::new();
+            match strategy {
+                AnimationEventCollectionStrategy::All => {
+                    for state in [source_state, dest_state] {
+                        if let Ok(root) = self.nodes.try_borrow(state.root) {
+                            events.extend(root.collect_animation_events(
                                 &self.nodes,
                                 params,
                                 animations,
                                 strategy,
-                            );
-                        }
-                    }
-                    AnimationEventCollectionStrategy::MinWeight => {
-                        let input = if transition.blend_factor() < 0.5 {
-                            dest_state
-                        } else {
-                            source_state
-                        };
-
-                        if let Ok(pose_source) = self.nodes.try_borrow(input.root) {
-                            events = pose_source.collect_animation_events(
-                                &self.nodes,
-                                params,
-                                animations,
-                                strategy,
-                            );
+                            ));
                         }
                     }
                 }
+                AnimationEventCollectionStrategy::MaxWeight => {
+                    let input = if transition.blend_factor() < 0.5 {
+                        source_state
+                    } else {
+                        dest_state
+                    };
 
-                return LayerAnimationEventsCollection {
-                    source: AnimationEventsSource::Transition {
-                        handle: self.active_transition,
-                        source_state_handle: transition.source,
-                        dest_state_handle: transition.dest,
-                        source_state_name: self
-                            .states
-                            .try_borrow(transition.source)
-                            .map(|s| s.name.clone())
-                            .unwrap_or_default(),
-                        dest_state_name: self
-                            .states
-                            .try_borrow(transition.dest)
-                            .map(|s| s.name.clone())
-                            .unwrap_or_default(),
-                    },
-                    events,
-                };
+                    if let Ok(pose_source) = self.nodes.try_borrow(input.root) {
+                        events = pose_source.collect_animation_events(
+                            &self.nodes,
+                            params,
+                            animations,
+                            strategy,
+                        );
+                    }
+                }
+                AnimationEventCollectionStrategy::MinWeight => {
+                    let input = if transition.blend_factor() < 0.5 {
+                        dest_state
+                    } else {
+                        source_state
+                    };
+
+                    if let Ok(pose_source) = self.nodes.try_borrow(input.root) {
+                        events = pose_source.collect_animation_events(
+                            &self.nodes,
+                            params,
+                            animations,
+                            strategy,
+                        );
+                    }
+                }
             }
+
+            return LayerAnimationEventsCollection {
+                source: AnimationEventsSource::Transition {
+                    handle: self.active_transition,
+                    source_state_handle: transition.source,
+                    dest_state_handle: transition.dest,
+                    source_state_name: self
+                        .states
+                        .try_borrow(transition.source)
+                        .map(|s| s.name.clone())
+                        .unwrap_or_default(),
+                    dest_state_name: self
+                        .states
+                        .try_borrow(transition.dest)
+                        .map(|s| s.name.clone())
+                        .unwrap_or_default(),
+                },
+                events,
+            };
         }
         Default::default()
     }

@@ -21,21 +21,21 @@
 use crate::fyrox::{
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     gui::{
+        BuildContext, Control, Thickness, UiNode, UserInterface,
         button::{ButtonBuilder, ButtonMessage},
         define_widget_deref,
         grid::{Column, GridBuilder, Row},
         inspector::{
+            FieldAction, InspectorError, PropertyChanged,
             editors::{
                 PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
                 PropertyEditorMessageContext, PropertyEditorTranslationContext,
             },
-            FieldAction, InspectorError, PropertyChanged,
         },
         message::{MessageDirection, UiMessage},
         text::TextBuilder,
         widget::{Widget, WidgetBuilder},
         window::WindowMessage,
-        BuildContext, Control, Thickness, UiNode, UserInterface,
     },
     scene::animation::spritesheet::prelude::*,
 };
@@ -174,16 +174,15 @@ impl PropertyEditorDefinition for SpriteSheetFramesContainerEditorDefinition {
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(SpriteSheetFramesPropertyEditorMessage::Value(container)) =
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(SpriteSheetFramesPropertyEditorMessage::Value(container)) =
                 ctx.message.data()
-            {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
 
-                    action: FieldAction::object(container.clone()),
-                });
-            }
+                action: FieldAction::object(container.clone()),
+            });
         }
         None
     }

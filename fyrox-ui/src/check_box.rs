@@ -25,6 +25,7 @@
 #![warn(missing_docs)]
 
 use crate::{
+    BuildContext, Control, MouseButton, Thickness, UiNode, UserInterface, VerticalAlignment,
     border::BorderBuilder,
     brush::Brush,
     core::{
@@ -38,9 +39,8 @@ use crate::{
     image::ImageBuilder,
     message::{KeyCode, MessageData, UiMessage},
     resources,
-    style::{resource::StyleResourceExt, Style},
+    style::{Style, resource::StyleResourceExt},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, MouseButton, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 
@@ -233,34 +233,34 @@ impl Control for CheckBox {
                 }
                 _ => (),
             }
-        } else if let Some(&CheckBoxMessage::Check(value)) = message.data_for(self.handle) {
-            if *self.checked != value {
-                self.checked.set_value_and_mark_modified(value);
+        } else if let Some(&CheckBoxMessage::Check(value)) = message.data_for(self.handle)
+            && *self.checked != value
+        {
+            self.checked.set_value_and_mark_modified(value);
 
-                ui.try_send_response(message);
+            ui.try_send_response(message);
 
-                match value {
-                    None => {
-                        if self.check_mark.is_some() {
-                            ui.send(*self.check_mark, WidgetMessage::Visibility(false));
-                        }
-                        if self.uncheck_mark.is_some() {
-                            ui.send(*self.uncheck_mark, WidgetMessage::Visibility(false));
-                        }
-                        if self.undefined_mark.is_some() {
-                            ui.send(*self.undefined_mark, WidgetMessage::Visibility(true));
-                        }
+            match value {
+                None => {
+                    if self.check_mark.is_some() {
+                        ui.send(*self.check_mark, WidgetMessage::Visibility(false));
                     }
-                    Some(value) => {
-                        if self.check_mark.is_some() {
-                            ui.send(*self.check_mark, WidgetMessage::Visibility(value));
-                        }
-                        if self.uncheck_mark.is_some() {
-                            ui.send(*self.uncheck_mark, WidgetMessage::Visibility(!value));
-                        }
-                        if self.undefined_mark.is_some() {
-                            ui.send(*self.undefined_mark, WidgetMessage::Visibility(false));
-                        }
+                    if self.uncheck_mark.is_some() {
+                        ui.send(*self.uncheck_mark, WidgetMessage::Visibility(false));
+                    }
+                    if self.undefined_mark.is_some() {
+                        ui.send(*self.undefined_mark, WidgetMessage::Visibility(true));
+                    }
+                }
+                Some(value) => {
+                    if self.check_mark.is_some() {
+                        ui.send(*self.check_mark, WidgetMessage::Visibility(value));
+                    }
+                    if self.uncheck_mark.is_some() {
+                        ui.send(*self.uncheck_mark, WidgetMessage::Visibility(!value));
+                    }
+                    if self.undefined_mark.is_some() {
+                        ui.send(*self.undefined_mark, WidgetMessage::Visibility(false));
                     }
                 }
             }
@@ -445,9 +445,9 @@ impl CheckBoxBuilder {
 mod test {
     use crate::message::UiMessage;
     use crate::{
+        UserInterface,
         check_box::{CheckBoxBuilder, CheckBoxMessage},
         widget::WidgetBuilder,
-        UserInterface,
     };
     use fyrox_core::algebra::Vector2;
 

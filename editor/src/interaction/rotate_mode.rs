@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    Engine,
     camera::PickingOptions,
     command::{Command, CommandGroup},
     fyrox::{
@@ -28,22 +29,21 @@ use crate::{
             pool::Handle,
             reflect::prelude::*,
             some_or_return,
-            uuid::{uuid, Uuid},
+            uuid::{Uuid, uuid},
         },
         gui::BuildContext,
     },
     interaction::{
-        gizmo::rotate_gizmo::RotationGizmo, make_interaction_mode_button, InteractionMode,
+        InteractionMode, gizmo::rotate_gizmo::RotationGizmo, make_interaction_mode_button,
     },
     message::MessageSender,
     scene::{
-        commands::{graph::RotateNodeCommand, ChangeSelectionCommand},
-        controller::SceneController,
         GameScene, Selection, SelectionContainer,
+        commands::{ChangeSelectionCommand, graph::RotateNodeCommand},
+        controller::SceneController,
     },
     settings::Settings,
     world::selection::GraphSelection,
-    Engine,
 };
 use fyrox::gui::button::Button;
 
@@ -95,13 +95,12 @@ impl InteractionMode for RotateInteractionMode {
                 method: Default::default(),
                 settings: &settings.selection,
             },
-        ) {
-            if self.rotation_gizmo.handle_pick(result.node, graph) {
-                let graph = &mut engine.scenes[game_scene.scene].graph;
-                if let Some(selection) = editor_selection.as_graph() {
-                    self.interacting = true;
-                    self.initial_rotations = selection.local_rotations(graph);
-                }
+        ) && self.rotation_gizmo.handle_pick(result.node, graph)
+        {
+            let graph = &mut engine.scenes[game_scene.scene].graph;
+            if let Some(selection) = editor_selection.as_graph() {
+                self.interacting = true;
+                self.initial_rotations = selection.local_rotations(graph);
             }
         }
     }
@@ -124,28 +123,28 @@ impl InteractionMode for RotateInteractionMode {
         self.rotation_gizmo.reset_state(graph);
 
         if self.interacting {
-            if let Some(selection) = editor_selection.as_graph() {
-                if !selection.is_empty() {
-                    self.interacting = false;
-                    let current_rotation = selection.local_rotations(graph);
-                    if current_rotation != self.initial_rotations {
-                        let commands = CommandGroup::from(
-                            selection
-                                .nodes()
-                                .iter()
-                                .zip(self.initial_rotations.iter().zip(current_rotation.iter()))
-                                .map(|(&node, (&old_rotation, &new_rotation))| {
-                                    Command::new(RotateNodeCommand::new(
-                                        node,
-                                        old_rotation,
-                                        new_rotation,
-                                    ))
-                                })
-                                .collect::<Vec<Command>>(),
-                        );
-                        // Commit changes.
-                        self.message_sender.do_command(commands);
-                    }
+            if let Some(selection) = editor_selection.as_graph()
+                && !selection.is_empty()
+            {
+                self.interacting = false;
+                let current_rotation = selection.local_rotations(graph);
+                if current_rotation != self.initial_rotations {
+                    let commands = CommandGroup::from(
+                        selection
+                            .nodes()
+                            .iter()
+                            .zip(self.initial_rotations.iter().zip(current_rotation.iter()))
+                            .map(|(&node, (&old_rotation, &new_rotation))| {
+                                Command::new(RotateNodeCommand::new(
+                                    node,
+                                    old_rotation,
+                                    new_rotation,
+                                ))
+                            })
+                            .collect::<Vec<Command>>(),
+                    );
+                    // Commit changes.
+                    self.message_sender.do_command(commands);
                 }
             }
         } else {
@@ -286,8 +285,7 @@ impl InteractionMode for RotateInteractionMode {
     }
 
     fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<Button> {
-        let rotate_mode_tooltip =
-            "Rotate Object(s) - Shortcut: [3]\n\nRotation interaction mode allows you to rotate selected \
+        let rotate_mode_tooltip = "Rotate Object(s) - Shortcut: [3]\n\nRotation interaction mode allows you to rotate selected \
         objects. Keep in mind that rotation always works in local coordinates!\n\n\
         This also allows you to select an object or add an object to current selection using Ctrl+Click";
 

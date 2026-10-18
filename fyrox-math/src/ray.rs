@@ -304,10 +304,10 @@ impl Ray {
         let ca = vertices[2] - vertices[0];
         let plane = Plane::from_normal_and_point(&ba.cross(&ca), &vertices[0])?;
 
-        if let Some(point) = self.plane_intersection_point(&plane) {
-            if is_point_inside_triangle(&point, vertices) {
-                return Some(point);
-            }
+        if let Some(point) = self.plane_intersection_point(&plane)
+            && is_point_inside_triangle(&point, vertices)
+        {
+            return Some(point);
         }
         None
     }
@@ -460,10 +460,10 @@ mod test {
     use nalgebra::Matrix4;
 
     use crate::{
+        Vector3,
         aabb::AxisAlignedBoundingBox,
         plane::Plane,
         ray::{CylinderKind, Ray},
-        Vector3,
     };
 
     use super::IntersectionResult;
@@ -583,9 +583,10 @@ mod test {
     fn ray_sphere_intersection() {
         let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
 
-        assert!(ray
-            .sphere_intersection(&Vector3::new(-10.0, -10.0, -10.0), 1.0)
-            .is_none());
+        assert!(
+            ray.sphere_intersection(&Vector3::new(-10.0, -10.0, -10.0), 1.0)
+                .is_none()
+        );
 
         let result = ray.sphere_intersection(&Vector3::new(0.0, 0.0, 0.0), 1.0);
         assert_eq!(result.unwrap().min, -1.0);
@@ -596,9 +597,10 @@ mod test {
     fn ray_sphere_intersection_points() {
         let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
 
-        assert!(ray
-            .sphere_intersection_points(&Vector3::new(-10.0, -10.0, -10.0), 1.0)
-            .is_none());
+        assert!(
+            ray.sphere_intersection_points(&Vector3::new(-10.0, -10.0, -10.0), 1.0)
+                .is_none()
+        );
 
         assert_eq!(
             ray.sphere_intersection_points(&Vector3::new(0.0, 0.0, 0.0), 1.0),
@@ -643,12 +645,14 @@ mod test {
         assert_eq!(ir.unwrap().min, 1.0);
         assert_eq!(ir.unwrap().max, 10.0);
 
-        assert!(ray
-            .box_intersection(&Vector3::new(1.0, 1.0, 0.0), &Vector3::new(10.0, 10.0, 0.0))
-            .is_none());
-        assert!(ray
-            .box_intersection(&Vector3::new(1.0, 0.0, 1.0), &Vector3::new(10.0, 0.0, 10.0))
-            .is_none());
+        assert!(
+            ray.box_intersection(&Vector3::new(1.0, 1.0, 0.0), &Vector3::new(10.0, 10.0, 0.0))
+                .is_none()
+        );
+        assert!(
+            ray.box_intersection(&Vector3::new(1.0, 0.0, 1.0), &Vector3::new(10.0, 0.0, 10.0))
+                .is_none()
+        );
 
         let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(-1.0, -1.0, -1.0));
         let ir = ray.box_intersection(
@@ -663,9 +667,13 @@ mod test {
     fn ray_box_intersection_points() {
         let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
 
-        assert!(ray
-            .box_intersection_points(&Vector3::new(1.0, 1.0, 0.0), &Vector3::new(10.0, 10.0, 0.0))
-            .is_none());
+        assert!(
+            ray.box_intersection_points(
+                &Vector3::new(1.0, 1.0, 0.0),
+                &Vector3::new(10.0, 10.0, 0.0)
+            )
+            .is_none()
+        );
         assert_eq!(
             ray.box_intersection_points(
                 &Vector3::new(1.0, 1.0, 1.0),
@@ -679,12 +687,13 @@ mod test {
     fn ray_aabb_intersection() {
         let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
 
-        assert!(ray
-            .aabb_intersection(&AxisAlignedBoundingBox {
+        assert!(
+            ray.aabb_intersection(&AxisAlignedBoundingBox {
                 min: Vector3::new(1.0, 1.0, 0.0),
                 max: Vector3::new(10.0, 10.0, 0.0)
             })
-            .is_none());
+            .is_none()
+        );
 
         let ir = ray.aabb_intersection(&AxisAlignedBoundingBox {
             min: Vector3::new(1.0, 1.0, 1.0),
@@ -698,12 +707,13 @@ mod test {
     fn ray_aabb_intersection_points() {
         let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
 
-        assert!(ray
-            .aabb_intersection_points(&AxisAlignedBoundingBox {
+        assert!(
+            ray.aabb_intersection_points(&AxisAlignedBoundingBox {
                 min: Vector3::new(1.0, 1.0, 0.0),
                 max: Vector3::new(10.0, 10.0, 0.0)
             })
-            .is_none());
+            .is_none()
+        );
 
         assert_eq!(
             ray.aabb_intersection_points(&AxisAlignedBoundingBox {

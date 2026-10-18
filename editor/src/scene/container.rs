@@ -23,8 +23,8 @@ use crate::fyrox::{
     core::{algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, uuid::Uuid},
     engine::Engine,
     gui::{
-        message::{KeyCode, MouseButton},
         UiNode, UserInterface,
+        message::{KeyCode, MouseButton},
     },
     scene::Scene,
 };
@@ -32,18 +32,17 @@ use crate::scene::nullscene::NullSceneController;
 use crate::{
     highlight::HighlightRenderPass,
     interaction::{
-        move_mode::MoveInteractionMode, navmesh::EditNavmeshMode,
+        InteractionModeContainer, move_mode::MoveInteractionMode, navmesh::EditNavmeshMode,
         rotate_mode::RotateInteractionMode, scale_mode::ScaleInteractionMode,
         select_mode::SelectInteractionMode, terrain::TerrainInteractionMode,
-        InteractionModeContainer,
     },
     message::MessageSender,
-    scene::{controller::SceneController, GameScene, Selection},
+    scene::{GameScene, Selection, controller::SceneController},
     scene_viewer::SceneViewer,
-    settings::{keys::KeyBindings, Settings},
+    settings::{Settings, keys::KeyBindings},
     ui_scene::{
-        interaction::move_mode::MoveWidgetsInteractionMode, interaction::UiSelectInteractionMode,
-        UiScene,
+        UiScene, interaction::UiSelectInteractionMode,
+        interaction::move_mode::MoveWidgetsInteractionMode,
     },
 };
 use fyrox::gui::file_browser::FileType;
@@ -264,10 +263,9 @@ impl EditorSceneEntry {
         if let Some(interaction_mode) = self
             .current_interaction_mode
             .and_then(|id| self.interaction_modes.get_mut(&id))
+            && interaction_mode.on_key_up(key, &mut *self.controller, engine)
         {
-            if interaction_mode.on_key_up(key, &mut *self.controller, engine) {
-                return true;
-            }
+            return true;
         }
 
         false
@@ -287,10 +285,9 @@ impl EditorSceneEntry {
         if let Some(interaction_mode) = self
             .current_interaction_mode
             .and_then(|id| self.interaction_modes.get_mut(&id))
+            && interaction_mode.on_key_down(key, &self.selection, &mut *self.controller, engine)
         {
-            if interaction_mode.on_key_down(key, &self.selection, &mut *self.controller, engine) {
-                return true;
-            }
+            return true;
         }
 
         false
@@ -336,21 +333,20 @@ impl EditorSceneEntry {
         engine: &mut Engine,
         settings: &Settings,
     ) {
-        if button == MouseButton::Left {
-            if let Some(interaction_mode) = self
+        if button == MouseButton::Left
+            && let Some(interaction_mode) = self
                 .current_interaction_mode
                 .and_then(|id| self.interaction_modes.get_mut(&id))
-            {
-                let rel_pos = pos - screen_bounds.position;
-                interaction_mode.on_left_mouse_button_up(
-                    &self.selection,
-                    &mut *self.controller,
-                    engine,
-                    rel_pos,
-                    screen_bounds.size,
-                    settings,
-                );
-            }
+        {
+            let rel_pos = pos - screen_bounds.position;
+            interaction_mode.on_left_mouse_button_up(
+                &self.selection,
+                &mut *self.controller,
+                engine,
+                rel_pos,
+                screen_bounds.size,
+                settings,
+            );
         }
 
         self.controller
@@ -365,22 +361,21 @@ impl EditorSceneEntry {
         engine: &mut Engine,
         settings: &Settings,
     ) {
-        if button == MouseButton::Left {
-            if let Some(interaction_mode) = self
+        if button == MouseButton::Left
+            && let Some(interaction_mode) = self
                 .current_interaction_mode
                 .and_then(|id| self.interaction_modes.get_mut(&id))
-            {
-                let rel_pos = pos - screen_bounds.position;
+        {
+            let rel_pos = pos - screen_bounds.position;
 
-                interaction_mode.on_left_mouse_button_down(
-                    &self.selection,
-                    &mut *self.controller,
-                    engine,
-                    rel_pos,
-                    screen_bounds.size,
-                    settings,
-                );
-            }
+            interaction_mode.on_left_mouse_button_down(
+                &self.selection,
+                &mut *self.controller,
+                engine,
+                rel_pos,
+                screen_bounds.size,
+                settings,
+            );
         }
 
         self.controller

@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::{
+    BuildContext, Control, Thickness, UiNode, UserInterface, Widget,
     border::BorderBuilder,
     brush::Brush,
     core::{
@@ -29,7 +30,6 @@ use crate::{
     message::{MessageDirection, UiMessage},
     numeric::{NumericType, NumericUpDownBuilder, NumericUpDownMessage},
     widget::WidgetBuilder,
-    BuildContext, Control, Thickness, UiNode, UserInterface, Widget,
 };
 
 use crate::border::Border;
@@ -190,27 +190,26 @@ where
             }
         } else if let Some(&VecEditorMessage::Value(new_value)) =
             message.data::<VecEditorMessage<T, D>>()
+            && message.direction() == MessageDirection::ToWidget
         {
-            if message.direction() == MessageDirection::ToWidget {
-                let mut changed = false;
+            let mut changed = false;
 
-                for i in 0..D {
-                    let editor = self.fields[i];
-                    let current = &mut self.value[i];
-                    let min = self.min[i];
-                    let max = self.max[i];
-                    let new = num_traits::clamp(new_value[i], min, max);
+            for i in 0..D {
+                let editor = self.fields[i];
+                let current = &mut self.value[i];
+                let min = self.min[i];
+                let max = self.max[i];
+                let new = num_traits::clamp(new_value[i], min, max);
 
-                    if *current != new {
-                        *current = new;
-                        ui.send(editor, NumericUpDownMessage::Value(new));
-                        changed = true;
-                    }
+                if *current != new {
+                    *current = new;
+                    ui.send(editor, NumericUpDownMessage::Value(new));
+                    changed = true;
                 }
+            }
 
-                if changed {
-                    ui.try_send_response(message);
-                }
+            if changed {
+                ui.try_send_response(message);
             }
         }
     }

@@ -22,27 +22,27 @@ use crate::fyrox::graph::NodeWrapper;
 use crate::fyrox::{
     core::{algebra::Vector2, pool::Handle},
     generic_animation::machine::{
-        node::{blendspace::BlendSpace, blendspace::BlendSpacePoint, BasePoseNode},
         BlendAnimations, BlendAnimationsByIndex, MachineLayer, PlayAnimation, PoseNode, State,
+        node::{BasePoseNode, blendspace::BlendSpace, blendspace::BlendSpacePoint},
     },
     graph::SceneGraph,
     gui::{
+        BuildContext, RcUiNodeHandle, UiNode, UserInterface,
         menu::MenuItemMessage,
         message::UiMessage,
         popup::{Placement, PopupBuilder, PopupMessage},
         stack_panel::StackPanelBuilder,
         widget::WidgetBuilder,
-        BuildContext, RcUiNodeHandle, UiNode, UserInterface,
     },
 };
 use crate::plugins::absm::canvas::AbsmCanvas;
 use crate::plugins::absm::{
     command::{
+        AddPoseNodeCommand, DeletePoseNodeCommand, SetStateRootPoseCommand,
         blend::{
             SetBlendAnimationByIndexInputPoseSourceCommand, SetBlendAnimationsPoseSourceCommand,
             SetBlendSpacePoseSourceCommand,
         },
-        AddPoseNodeCommand, DeletePoseNodeCommand, SetStateRootPoseCommand,
     },
     connection::Connection,
     node::AbsmNode,
@@ -52,9 +52,9 @@ use crate::{
     command::{Command, CommandGroup},
     menu::create_menu_item,
     message::MessageSender,
-    scene::{commands::ChangeSelectionCommand, Selection},
+    scene::{Selection, commands::ChangeSelectionCommand},
 };
-use fyrox::core::uuid::{uuid, Uuid};
+use fyrox::core::uuid::{Uuid, uuid};
 use fyrox::gui::menu::{ContextMenuBuilder, MenuItem};
 
 pub struct CanvasContextMenu {
@@ -315,10 +315,10 @@ impl NodeContextMenu {
                     value: root,
                 });
             }
-        } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == self.menu.handle() {
-                self.placement_target = *target;
-            }
+        } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data()
+            && message.destination() == self.menu.handle()
+        {
+            self.placement_target = *target;
         }
     }
 }
@@ -420,10 +420,10 @@ impl ConnectionContextMenu {
                     }),
                 }
             }
-        } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == self.menu.handle() {
-                self.placement_target = *target;
-            }
+        } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data()
+            && message.destination() == self.menu.handle()
+        {
+            self.placement_target = *target;
         }
     }
 }

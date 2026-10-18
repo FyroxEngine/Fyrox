@@ -171,20 +171,22 @@ where
             if ter.fill.include_diagonal {
                 for offset in Pos::all_diagonals() {
                     let p = ter.position.clone() + offset;
-                    if !self.terrain_cells.contains(&p) && !terrains.contains_position(&p) {
-                        if let Some(terrain) = patterns.get_terrain(&p) {
-                            self.insert(p.clone(), TileConstraint::Terrain(terrain));
-                        }
+                    if !self.terrain_cells.contains(&p)
+                        && !terrains.contains_position(&p)
+                        && let Some(terrain) = patterns.get_terrain(&p)
+                    {
+                        self.insert(p.clone(), TileConstraint::Terrain(terrain));
                     }
                 }
             }
             if ter.fill.include_adjacent {
                 for offset in Pos::all_offsets() {
                     let p = ter.position.clone() + offset;
-                    if !self.terrain_cells.contains(&p) && !terrains.contains_position(&p) {
-                        if let Some(terrain) = patterns.get_terrain(&p) {
-                            self.insert(p.clone(), TileConstraint::Terrain(terrain));
-                        }
+                    if !self.terrain_cells.contains(&p)
+                        && !terrains.contains_position(&p)
+                        && let Some(terrain) = patterns.get_terrain(&p)
+                    {
+                        self.insert(p.clone(), TileConstraint::Terrain(terrain));
                     }
                 }
             }
@@ -358,10 +360,10 @@ impl<Pos: OffsetPosition, Pat: Clone + Debug> AutoTiler<Pos, Pat> {
         <Pos as OffsetPosition>::Offset: Debug,
     {
         for pos in constraint.all_positions() {
-            if !self.patterns.contains_key(pos) {
-                if let Some(pat) = self.find_pattern(pos, constraint) {
-                    _ = self.patterns.insert(pos.clone(), pat);
-                }
+            if !self.patterns.contains_key(pos)
+                && let Some(pat) = self.find_pattern(pos, constraint)
+            {
+                _ = self.patterns.insert(pos.clone(), pat);
             }
         }
     }

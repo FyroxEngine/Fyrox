@@ -23,18 +23,18 @@
 use crate::style::{IntoPrimitive, Style, StyleProperty, StyledProperty};
 use fyrox_core::visitor::error::VisitError;
 use fyrox_core::{
+    ImmutableString,
     io::FileError,
     log::Log,
     reflect::prelude::*,
-    visitor::{prelude::*, Visitor},
-    ImmutableString,
+    visitor::{Visitor, prelude::*},
 };
 use fyrox_resource::{
+    Resource, ResourceData,
     io::ResourceIo,
     loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
     manager::ResourceManager,
     state::LoadError,
-    Resource, ResourceData,
 };
 use std::{
     error::Error,

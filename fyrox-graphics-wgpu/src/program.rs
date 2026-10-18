@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::format_helpers::{
-    sample_type_for_format, SAMPLER_BINDING_OFFSET, UNIFORM_BINDING_OFFSET,
+    SAMPLER_BINDING_OFFSET, UNIFORM_BINDING_OFFSET, sample_type_for_format,
 };
 use crate::server::WgpuGraphicsServer;
 use fyrox_graphics::{

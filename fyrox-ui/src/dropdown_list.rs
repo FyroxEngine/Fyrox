@@ -25,6 +25,7 @@
 #![warn(missing_docs)]
 
 use crate::{
+    BuildContext, Control, Thickness, UiNode, UserInterface,
     border::BorderBuilder,
     core::{
         algebra::Vector2, pool::Handle, reflect::prelude::*, variable::InheritableVariable,
@@ -34,14 +35,13 @@ use crate::{
     list_view::{ListView, ListViewBuilder, ListViewMessage},
     message::{KeyCode, MessageData, MessageDirection, UiMessage},
     popup::{Placement, Popup, PopupBuilder, PopupMessage},
-    style::{resource::StyleResourceExt, Style},
-    utils::{make_arrow_non_uniform_size, ArrowDirection},
+    style::{Style, resource::StyleResourceExt},
+    utils::{ArrowDirection, make_arrow_non_uniform_size},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 use fyrox_graph::{
-    constructor::{ConstructorProvider, GraphNodeConstructor},
     SceneGraph,
+    constructor::{ConstructorProvider, GraphNodeConstructor},
 };
 use std::sync::mpsc::Sender;
 
@@ -258,7 +258,13 @@ impl Control for DropdownList {
                     self.sync_selected_item_preview(ui);
                 }
                 &DropdownListMessage::AddItem(item) => {
-                    ui.send(*self.list_view, ListViewMessage::AddItem(item));
+                    ui.send(
+                        *self.list_view,
+                        ListViewMessage::AddItem {
+                            node: item,
+                            in_front: false,
+                        },
+                    );
                     self.items.push(item);
                 }
                 &DropdownListMessage::Selection(selection) => {

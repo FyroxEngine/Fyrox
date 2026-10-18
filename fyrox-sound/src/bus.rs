@@ -358,10 +358,10 @@ impl AudioBusGraph {
             std::mem::replace(&mut self.buses[node_handle].parent_bus, Handle::NONE);
 
         // Remove child from parent's children list
-        if let Ok(parent) = self.buses.try_borrow_mut(parent_handle) {
-            if let Some(i) = parent.children().iter().position(|h| *h == node_handle) {
-                parent.child_buses.remove(i);
-            }
+        if let Ok(parent) = self.buses.try_borrow_mut(parent_handle)
+            && let Some(i) = parent.children().iter().position(|h| *h == node_handle)
+        {
+            parent.child_buses.remove(i);
         }
     }
 

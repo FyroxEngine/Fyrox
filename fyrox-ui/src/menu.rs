@@ -27,6 +27,8 @@ use crate::message::MessageData;
 use crate::stack_panel::StackPanel;
 use crate::vector_image::VectorImage;
 use crate::{
+    BuildContext, Control, HorizontalAlignment, Orientation, RestrictionEntry, Thickness, UiNode,
+    UserInterface, VerticalAlignment,
     border::BorderBuilder,
     brush::Brush,
     control_trait_proxy_impls,
@@ -39,24 +41,22 @@ use crate::{
     message::{ButtonState, KeyCode, OsEvent, UiMessage},
     popup::{Placement, Popup, PopupBuilder, PopupMessage},
     stack_panel::StackPanelBuilder,
-    style::{resource::StyleResourceExt, Style},
+    style::{Style, resource::StyleResourceExt},
     text::TextBuilder,
-    utils::{make_arrow_primitives, ArrowDirection},
+    utils::{ArrowDirection, make_arrow_primitives},
     vector_image::VectorImageBuilder,
     widget::{self, Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, HorizontalAlignment, Orientation, RestrictionEntry, Thickness, UiNode,
-    UserInterface, VerticalAlignment,
 };
 use fyrox_core::pool::{HandlesVecExtension, ObjectOrVariant};
 use fyrox_graph::{
-    constructor::{ConstructorProvider, GraphNodeConstructor},
     NodeWrapper, SceneGraph,
+    constructor::{ConstructorProvider, GraphNodeConstructor},
 };
 use std::{
     cmp::Ordering,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
-    sync::{mpsc::Sender, Arc},
+    sync::{Arc, mpsc::Sender},
 };
 
 /// A set of messages that can be used to manipulate a [`Menu`] widget at runtime.
@@ -92,16 +92,16 @@ impl SortingPredicate {
     /// won't work with custom menu item content!
     pub fn sort_by_text() -> Self {
         Self::new(|a, b, _| {
-            if let MenuItemContent::Text { text: a_text, .. } = a {
-                if let MenuItemContent::Text { text: b_text, .. } = b {
-                    return a_text.cmp(b_text);
-                }
+            if let MenuItemContent::Text { text: a_text, .. } = a
+                && let MenuItemContent::Text { text: b_text, .. } = b
+            {
+                return a_text.cmp(b_text);
             }
 
-            if let MenuItemContent::TextCentered(a_text) = a {
-                if let MenuItemContent::TextCentered(b_text) = b {
-                    return a_text.cmp(b_text);
-                }
+            if let MenuItemContent::TextCentered(a_text) = a
+                && let MenuItemContent::TextCentered(b_text) = b
+            {
+                return a_text.cmp(b_text);
             }
 
             Ordering::Equal
@@ -266,14 +266,14 @@ impl Control for Menu {
                     }
                 }
             }
-        } else if let Some(WidgetMessage::KeyDown(key_code)) = message.data() {
-            if !message.handled() {
-                if keyboard_navigation(ui, *key_code, self, self.handle.to_variant()) {
-                    message.set_handled(true);
-                } else if *key_code == KeyCode::Escape {
-                    ui.send(self.handle, MenuMessage::Deactivate);
-                    message.set_handled(true);
-                }
+        } else if let Some(WidgetMessage::KeyDown(key_code)) = message.data()
+            && !message.handled()
+        {
+            if keyboard_navigation(ui, *key_code, self, self.handle.to_variant()) {
+                message.set_handled(true);
+            } else if *key_code == KeyCode::Escape {
+                ui.send(self.handle, MenuMessage::Deactivate);
+                message.set_handled(true);
             }
         }
     }
@@ -288,37 +288,38 @@ impl Control for Menu {
         // raw event here because we need to know the fact that mouse was clicked,
         // and we do not care which element was clicked, so we'll get here in any
         // case.
-        if let OsEvent::MouseInput { state, .. } = event {
-            if *state == ButtonState::Pressed && self.active {
-                // TODO: Make picking more accurate - right now it works only with rects.
-                let pos = ui.cursor_position();
-                if !self.widget.screen_bounds().contains(pos) {
-                    // Also check if we clicked inside some descendant menu item - in this
-                    //  case, we don't need to close the menu.
-                    let mut any_picked = false;
-                    let mut stack = self.children().to_vec();
-                    'depth_search: while let Some(handle) = stack.pop() {
-                        let node = ui.node(handle);
-                        if let Some(item) = node.cast::<MenuItem>() {
-                            let popup = ui.node(*item.items_panel);
-                            if popup.screen_bounds().contains(pos) && popup.is_globally_visible() {
-                                // Once we found that we clicked inside some descendant menu item,
-                                // we can immediately stop search - we don't want to close menu
-                                // items popups in this case and can safely skip all the stuff below.
-                                any_picked = true;
-                                break 'depth_search;
-                            }
-                            // We have to search in popup content too because the menu shows its content
-                            // in popup and content could be another menu item.
-                            stack.push(*item.items_panel);
+        if let OsEvent::MouseInput { state, .. } = event
+            && *state == ButtonState::Pressed
+            && self.active
+        {
+            // TODO: Make picking more accurate - right now it works only with rects.
+            let pos = ui.cursor_position();
+            if !self.widget.screen_bounds().contains(pos) {
+                // Also check if we clicked inside some descendant menu item - in this
+                //  case, we don't need to close the menu.
+                let mut any_picked = false;
+                let mut stack = self.children().to_vec();
+                'depth_search: while let Some(handle) = stack.pop() {
+                    let node = ui.node(handle);
+                    if let Some(item) = node.cast::<MenuItem>() {
+                        let popup = ui.node(*item.items_panel);
+                        if popup.screen_bounds().contains(pos) && popup.is_globally_visible() {
+                            // Once we found that we clicked inside some descendant menu item,
+                            // we can immediately stop search - we don't want to close menu
+                            // items popups in this case and can safely skip all the stuff below.
+                            any_picked = true;
+                            break 'depth_search;
                         }
-                        // Continue depth search.
-                        stack.extend_from_slice(node.children());
+                        // We have to search in popup content too because the menu shows its content
+                        // in popup and content could be another menu item.
+                        stack.push(*item.items_panel);
                     }
+                    // Continue depth search.
+                    stack.extend_from_slice(node.children());
+                }
 
-                    if !any_picked {
-                        ui.send(self.handle(), MenuMessage::Deactivate);
-                    }
+                if !any_picked {
+                    ui.send(self.handle(), MenuMessage::Deactivate);
                 }
             }
         }
@@ -370,10 +371,10 @@ impl DerefMut for ItemsContainer {
 impl ItemsContainer {
     fn selected_item_index(&self, ui: &UserInterface) -> Option<usize> {
         for (index, item) in self.items.iter().enumerate() {
-            if let Ok(item_ref) = ui.try_get(*item) {
-                if *item_ref.is_selected {
-                    return Some(index);
-                }
+            if let Ok(item_ref) = ui.try_get(*item)
+                && *item_ref.is_selected
+            {
+                return Some(index);
             }
         }
 
@@ -397,10 +398,10 @@ impl ItemsContainer {
                     }
                     index %= count;
                     let handle = self.items.get(index as usize).cloned();
-                    if let Some(item) = handle.and_then(|h| ui.try_get(h).ok()) {
-                        if item.enabled() {
-                            return handle;
-                        }
+                    if let Some(item) = handle.and_then(|h| ui.try_get(h).ok())
+                        && item.enabled()
+                    {
+                        return handle;
                     }
                 }
 
@@ -643,18 +644,17 @@ impl Control for MenuItem {
                     if let Some(panel) = ui
                         .node(*self.items_panel)
                         .self_or_field_ref::<ContextMenu>()
+                        && *panel.popup.is_open
                     {
-                        if *panel.popup.is_open {
-                            ui.send(*self.items_panel, PopupMessage::Close);
+                        ui.send(*self.items_panel, PopupMessage::Close);
 
-                            if *deselect && *self.is_selected {
-                                ui.send(self.handle, MenuItemMessage::Select(false));
-                            }
+                        if *deselect && *self.is_selected {
+                            ui.send(self.handle, MenuItemMessage::Select(false));
+                        }
 
-                            // Recursively deselect everything in the sub-items container.
-                            for &item in &*self.items_container.items {
-                                ui.send(item, MenuItemMessage::Close { deselect: true });
-                            }
+                        // Recursively deselect everything in the sub-items container.
+                        for &item in &*self.items_container.items {
+                            ui.send(item, MenuItemMessage::Close { deselect: true });
                         }
                     }
                 }
@@ -719,36 +719,34 @@ impl Control for MenuItem {
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         // We need to check if some new menu item opened and then close other not in
         // direct chain of menu items until to menu.
-        if message.destination() != self.handle() {
-            if let Some(MenuItemMessage::Open) = message.data::<MenuItemMessage>() {
-                let mut found = false;
-                let mut handle = message.destination();
-                while handle.is_some() {
-                    if handle == self.handle() {
-                        found = true;
-                        break;
+        if message.destination() != self.handle()
+            && let Some(MenuItemMessage::Open) = message.data::<MenuItemMessage>()
+        {
+            let mut found = false;
+            let mut handle = message.destination();
+            while handle.is_some() {
+                if handle == self.handle() {
+                    found = true;
+                    break;
+                } else {
+                    let node = ui.node(handle);
+                    if let Some(panel) = node.self_or_field_ref::<ContextMenu>() {
+                        // Once we found popup in chain, we must extract handle
+                        // of parent menu item to continue search.
+                        handle = panel.parent_menu_item.to_base();
                     } else {
-                        let node = ui.node(handle);
-                        if let Some(panel) = node.self_or_field_ref::<ContextMenu>() {
-                            // Once we found popup in chain, we must extract handle
-                            // of parent menu item to continue search.
-                            handle = panel.parent_menu_item.to_base();
-                        } else {
-                            handle = node.parent();
-                        }
+                        handle = node.parent();
                     }
                 }
+            }
 
-                if !found {
-                    if let Some(panel) = ui
-                        .node(*self.items_panel)
-                        .self_or_field_ref::<ContextMenu>()
-                    {
-                        if *panel.popup.is_open {
-                            ui.send(self.handle(), MenuItemMessage::Close { deselect: true });
-                        }
-                    }
-                }
+            if !found
+                && let Some(panel) = ui
+                    .node(*self.items_panel)
+                    .self_or_field_ref::<ContextMenu>()
+                && *panel.popup.is_open
+            {
+                ui.send(self.handle(), MenuItemMessage::Close { deselect: true });
             }
         }
     }
@@ -760,22 +758,19 @@ impl Control for MenuItem {
         event: &OsEvent,
     ) {
         // Allow closing "orphaned" menus by clicking outside of them.
-        if let OsEvent::MouseInput { state, .. } = event {
-            if *state == ButtonState::Pressed {
-                if let Some(panel) = ui
-                    .node(*self.items_panel)
-                    .self_or_field_ref::<ContextMenu>()
-                {
-                    if *panel.popup.is_open {
-                        // Ensure that the cursor is outside any menus.
-                        if !is_any_menu_item_contains_point(ui, ui.cursor_position())
-                            && find_menu(self.parent(), ui).is_none()
-                        {
-                            // Close all other popups.
-                            self.close_menu_chain(ui);
-                        }
-                    }
-                }
+        if let OsEvent::MouseInput { state, .. } = event
+            && *state == ButtonState::Pressed
+            && let Some(panel) = ui
+                .node(*self.items_panel)
+                .self_or_field_ref::<ContextMenu>()
+            && *panel.popup.is_open
+        {
+            // Ensure that the cursor is outside any menus.
+            if !is_any_menu_item_contains_point(ui, ui.cursor_position())
+                && find_menu(self.parent(), ui).is_none()
+            {
+                // Close all other popups.
+                self.close_menu_chain(ui);
             }
         }
     }
@@ -1190,14 +1185,12 @@ impl Control for ContextMenu {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.popup.handle_routed_message(ui, message);
 
-        if let Some(WidgetMessage::KeyDown(key_code)) = message.data() {
-            if !message.handled() {
-                if let Ok(parent_menu_item) = ui.try_get(self.parent_menu_item) {
-                    if keyboard_navigation(ui, *key_code, parent_menu_item, self.parent_menu_item) {
-                        message.set_handled(true);
-                    }
-                }
-            }
+        if let Some(WidgetMessage::KeyDown(key_code)) = message.data()
+            && !message.handled()
+            && let Ok(parent_menu_item) = ui.try_get(self.parent_menu_item)
+            && keyboard_navigation(ui, *key_code, parent_menu_item, self.parent_menu_item)
+        {
+            message.set_handled(true);
         }
     }
 }
@@ -1277,10 +1270,10 @@ fn keyboard_navigation(
 
             ui.send(selected_item, MenuItemMessage::Open);
 
-            if let Ok(selected_item_ref) = ui.try_get(selected_item) {
-                if let Some(first_item) = selected_item_ref.items_container.first() {
-                    ui.send(*first_item, MenuItemMessage::Select(true));
-                }
+            if let Ok(selected_item_ref) = ui.try_get(selected_item)
+                && let Some(first_item) = selected_item_ref.items_container.first()
+            {
+                ui.send(*first_item, MenuItemMessage::Select(true));
             }
         }
         return true;
@@ -1329,10 +1322,10 @@ pub fn make_menu_splitter(ctx: &mut BuildContext) -> Handle<UiNode> {
 #[cfg(test)]
 mod test {
     use crate::{
-        menu::{MenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
-        test::{test_widget_deletion, UserInterfaceTestingExtension},
-        widget::WidgetBuilder,
         UserInterface,
+        menu::{MenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
+        test::{UserInterfaceTestingExtension, test_widget_deletion},
+        widget::WidgetBuilder,
     };
     use fyrox_core::algebra::Vector2;
     use uuid::uuid;

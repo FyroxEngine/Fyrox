@@ -24,15 +24,15 @@
 #![warn(missing_docs)]
 
 use crate::{
+    BuildContext, Control, Thickness, UiNode, UserInterface,
     border::BorderBuilder,
     button::{Button, ButtonBuilder, ButtonMessage},
     core::{pool::Handle, reflect::prelude::*, variable::InheritableVariable, visitor::prelude::*},
     define_widget_deref,
     grid::{Column, GridBuilder, Row},
     message::{MessageData, MessageDirection, UiMessage},
-    utils::{make_arrow, ArrowDirection},
+    utils::{ArrowDirection, make_arrow},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 
@@ -185,18 +185,18 @@ impl Control for Selector {
                     if &*self.current != current
                         && message.direction() == MessageDirection::ToWidget
                     {
-                        if let Some(current) = *self.current {
-                            if let Some(current_item) = self.items.get(current) {
-                                ui.send(*current_item, WidgetMessage::Visibility(false));
-                            }
+                        if let Some(current) = *self.current
+                            && let Some(current_item) = self.items.get(current)
+                        {
+                            ui.send(*current_item, WidgetMessage::Visibility(false));
                         }
 
                         self.current.set_value_and_mark_modified(*current);
 
-                        if let Some(new_current) = *self.current {
-                            if let Some(new_current_item) = self.items.get(new_current) {
-                                ui.send(*new_current_item, WidgetMessage::Visibility(true));
-                            }
+                        if let Some(new_current) = *self.current
+                            && let Some(new_current_item) = self.items.get(new_current)
+                        {
+                            ui.send(*new_current_item, WidgetMessage::Visibility(true));
                         }
 
                         ui.try_send_response(message);
@@ -209,13 +209,13 @@ impl Control for Selector {
                     let new_current = current.saturating_sub(1);
                     ui.send(self.handle, SelectorMessage::Current(Some(new_current)));
                 }
-            } else if message.destination() == *self.next {
-                if let Some(current) = *self.current {
-                    let new_current = current
-                        .saturating_add(1)
-                        .min(self.items.len().saturating_sub(1));
-                    ui.send(self.handle, SelectorMessage::Current(Some(new_current)));
-                }
+            } else if message.destination() == *self.next
+                && let Some(current) = *self.current
+            {
+                let new_current = current
+                    .saturating_add(1)
+                    .min(self.items.len().saturating_sub(1));
+                ui.send(self.handle, SelectorMessage::Current(Some(new_current)));
             }
         }
     }

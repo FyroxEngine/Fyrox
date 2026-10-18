@@ -22,16 +22,16 @@
 //! mixes them in arbitrary way into one animation. See [`AnimationBlendingStateMachine`] docs for more info.
 
 use crate::{
+    BuildContext, Control, UiNode, UserInterface,
     animation::{AnimationPlayer, AnimationPoseExt},
     core::{pool::Handle, reflect::prelude::*, variable::InheritableVariable, visitor::prelude::*},
     define_widget_deref,
     message::{KeyCode, MouseButton, UiMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_animation::machine::Parameter;
-use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
 /// UI-specific root motion settings.

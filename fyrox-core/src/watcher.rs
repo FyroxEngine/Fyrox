@@ -24,7 +24,7 @@
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::{
     path::Path,
-    sync::mpsc::{channel, Receiver},
+    sync::mpsc::{Receiver, channel},
     time::Duration,
 };
 

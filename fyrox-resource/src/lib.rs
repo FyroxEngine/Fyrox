@@ -29,7 +29,7 @@ use crate::{
     core::{
         parking_lot::MutexGuard,
         reflect::prelude::*,
-        uuid::{uuid, Uuid},
+        uuid::{Uuid, uuid},
         visitor::prelude::*,
     },
     state::{LoadError, ResourceState},
@@ -616,7 +616,10 @@ where
                 } else {
                     format!("{path:?}")
                 };
-                panic!("Attempt to get reference to resource data which failed to load! Type {}. Path: {path}. Error: {error:?}", std::any::type_name::<T>())
+                panic!(
+                    "Attempt to get reference to resource data which failed to load! Type {}. Path: {path}. Error: {error:?}",
+                    std::any::type_name::<T>()
+                )
             }
             ResourceState::Ok { ref data } => (data.inner_ref() as &dyn Any)
                 .downcast_ref()
@@ -738,17 +741,17 @@ pub fn collect_used_resources(
 mod tests {
     use super::*;
     use crate::{
+        ResourceData,
         io::{FsResourceIo, ResourceIo},
         loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader, ResourceLoadersContainer},
         manager::ResourceManager,
         metadata::ResourceMetadata,
         registry::ResourceRegistry,
         state::LoadError,
-        ResourceData,
     };
     use fyrox_core::{
-        append_extension, futures::executor::block_on, io::FileError, parking_lot::Mutex,
-        reflect::prelude::*, task::TaskPool, visitor::prelude::*, SafeLock,
+        SafeLock, append_extension, futures::executor::block_on, io::FileError, parking_lot::Mutex,
+        reflect::prelude::*, task::TaskPool, visitor::prelude::*,
     };
     use ron::ser::PrettyConfig;
     use serde::{Deserialize, Serialize};

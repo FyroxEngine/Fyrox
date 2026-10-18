@@ -27,6 +27,8 @@ use crate::button::Button;
 use crate::canvas::Canvas;
 use crate::text::Text;
 use crate::{
+    BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+    VerticalAlignment,
     border::BorderBuilder,
     brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
@@ -38,17 +40,15 @@ use crate::{
     font::FontResource,
     grid::{Column, GridBuilder, Row},
     message::{MessageData, UiMessage},
-    style::{resource::StyleResourceExt, Style, StyledProperty},
+    style::{Style, StyledProperty, resource::StyleResourceExt},
     text::{TextBuilder, TextMessage},
-    utils::{make_arrow, ArrowDirection},
+    utils::{ArrowDirection, make_arrow},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-    VerticalAlignment,
 };
 
 use fyrox_core::variable::InheritableVariable;
-use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 
 /// A set of messages that can be accepted by [`ScrollBar`] widget.
 #[derive(Debug, Clone, PartialEq)]
@@ -168,8 +168,16 @@ pub struct ScrollBar {
 impl ConstructorProvider<UiNode, UserInterface> for ScrollBar {
     fn constructor() -> GraphNodeConstructor<UiNode, UserInterface> {
         GraphNodeConstructor::new::<Self>()
-            .with_variant("Scroll Bar", |ui| {
-                ScrollBarBuilder::new(WidgetBuilder::new().with_name("Scroll Bar"))
+            .with_variant("Horizontal Scroll Bar", |ui| {
+                ScrollBarBuilder::new(WidgetBuilder::new().with_name("Horizontal Scroll Bar"))
+                    .with_orientation(Orientation::Horizontal)
+                    .build(&mut ui.build_ctx())
+                    .to_base()
+                    .into()
+            })
+            .with_variant("Vertical Scroll Bar", |ui| {
+                ScrollBarBuilder::new(WidgetBuilder::new().with_name("Vertical Scroll Bar"))
+                    .with_orientation(Orientation::Vertical)
                     .build(&mut ui.build_ctx())
                     .to_base()
                     .into()
@@ -187,31 +195,34 @@ impl Control for ScrollBar {
         // Adjust indicator position according to current value
         let percent = (*self.value - *self.min) / (*self.max - *self.min);
 
-        let field_size = ui[*self.indicator_canvas].actual_local_size();
+        if let (Ok(indicator_canvas), Ok(indicator)) = (
+            ui.try_get(*self.indicator_canvas),
+            ui.try_get(*self.indicator),
+        ) {
+            let field_size = indicator_canvas.actual_local_size();
+            match *self.orientation {
+                Orientation::Horizontal => {
+                    ui.send(*self.indicator, WidgetMessage::Height(field_size.y));
+                    ui.send(*self.decrease, WidgetMessage::Width(field_size.y));
+                    ui.send(*self.increase, WidgetMessage::Width(field_size.y));
 
-        let indicator = ui.node(*self.indicator);
-        match *self.orientation {
-            Orientation::Horizontal => {
-                ui.send(*self.indicator, WidgetMessage::Height(field_size.y));
-                ui.send(*self.decrease, WidgetMessage::Width(field_size.y));
-                ui.send(*self.increase, WidgetMessage::Width(field_size.y));
+                    let position = Vector2::new(
+                        percent * (field_size.x - indicator.actual_local_size().x).max(0.0),
+                        0.0,
+                    );
+                    ui.send(*self.indicator, WidgetMessage::DesiredPosition(position));
+                }
+                Orientation::Vertical => {
+                    ui.send(*self.indicator, WidgetMessage::Width(field_size.x));
+                    ui.send(*self.decrease, WidgetMessage::Height(field_size.x));
+                    ui.send(*self.increase, WidgetMessage::Height(field_size.x));
 
-                let position = Vector2::new(
-                    percent * (field_size.x - indicator.actual_local_size().x).max(0.0),
-                    0.0,
-                );
-                ui.send(*self.indicator, WidgetMessage::DesiredPosition(position));
-            }
-            Orientation::Vertical => {
-                ui.send(*self.indicator, WidgetMessage::Width(field_size.x));
-                ui.send(*self.decrease, WidgetMessage::Height(field_size.x));
-                ui.send(*self.increase, WidgetMessage::Height(field_size.x));
-
-                let position = Vector2::new(
-                    0.0,
-                    percent * (field_size.y - indicator.actual_local_size().y).max(0.0),
-                );
-                ui.send(*self.indicator, WidgetMessage::DesiredPosition(position));
+                    let position = Vector2::new(
+                        0.0,
+                        percent * (field_size.y - indicator.actual_local_size().y).max(0.0),
+                    );
+                    ui.send(*self.indicator, WidgetMessage::DesiredPosition(position));
+                }
             }
         }
 
@@ -304,49 +315,58 @@ impl Control for ScrollBar {
                     }
                 }
                 ScrollBarMessage::SizeRatio(size_ratio) => {
-                    let field_size = ui[*self.indicator_canvas].actual_global_size();
-                    let indicator_size = ui.node(*self.indicator).actual_global_size();
+                    if let (Ok(indicator_canvas), Ok(indicator)) = (
+                        ui.try_get(*self.indicator_canvas),
+                        ui.try_get(*self.indicator),
+                    ) {
+                        let field_size = indicator_canvas.actual_global_size();
+                        let indicator_size = indicator.actual_global_size();
 
-                    match *self.orientation {
-                        Orientation::Horizontal => {
-                            // the minimum size of the indicator will be 15 irrespective of size ratio
-                            let new_size = (size_ratio * field_size.x).max(15.0);
-                            let old_size = indicator_size.x;
+                        match *self.orientation {
+                            Orientation::Horizontal => {
+                                // the minimum size of the indicator will be 15 irrespective of size ratio
+                                let new_size = (size_ratio * field_size.x).max(15.0);
+                                let old_size = indicator_size.x;
 
-                            if new_size != old_size {
-                                ui.send(*self.indicator, WidgetMessage::Width(new_size));
+                                if new_size != old_size {
+                                    ui.send(*self.indicator, WidgetMessage::Width(new_size));
+                                }
                             }
-                        }
-                        Orientation::Vertical => {
-                            // the minimum size of the indicator will be 15 irrespective of size ratio
-                            let new_size = (size_ratio * field_size.y).max(15.0);
-                            let old_size = indicator_size.y;
+                            Orientation::Vertical => {
+                                // the minimum size of the indicator will be 15 irrespective of size ratio
+                                let new_size = (size_ratio * field_size.y).max(15.0);
+                                let old_size = indicator_size.y;
 
-                            if new_size != old_size {
-                                ui.send(*self.indicator, WidgetMessage::Height(new_size));
+                                if new_size != old_size {
+                                    ui.send(*self.indicator, WidgetMessage::Height(new_size));
+                                }
                             }
                         }
                     }
                 }
             }
-        } else if let Some(msg) = message.data::<WidgetMessage>() {
-            if message.destination() == *self.indicator {
-                match msg {
-                    WidgetMessage::MouseDown { pos, .. } if self.indicator.is_some() => {
-                        let indicator_pos = ui.nodes.borrow(*self.indicator).screen_position();
-                        self.is_dragging = true;
-                        self.offset = indicator_pos - *pos;
-                        ui.capture_mouse(*self.indicator);
-                        message.set_handled(true);
-                    }
-                    WidgetMessage::MouseUp { .. } => {
-                        self.is_dragging = false;
-                        ui.release_mouse_capture();
-                        message.set_handled(true);
-                    }
-                    WidgetMessage::MouseMove { pos: mouse_pos, .. } if self.indicator.is_some() => {
-                        let indicator_canvas = &ui[*self.indicator_canvas];
-                        let indicator_size = ui.nodes.borrow(*self.indicator).actual_global_size();
+        } else if let Some(msg) = message.data::<WidgetMessage>()
+            && message.destination() == *self.indicator
+        {
+            match msg {
+                WidgetMessage::MouseDown { pos, .. } if self.indicator.is_some() => {
+                    let indicator_pos = ui.nodes.borrow(*self.indicator).screen_position();
+                    self.is_dragging = true;
+                    self.offset = indicator_pos - *pos;
+                    ui.capture_mouse(*self.indicator);
+                    message.set_handled(true);
+                }
+                WidgetMessage::MouseUp { .. } => {
+                    self.is_dragging = false;
+                    ui.release_mouse_capture();
+                    message.set_handled(true);
+                }
+                WidgetMessage::MouseMove { pos: mouse_pos, .. } => {
+                    if let (Ok(indicator_canvas), Ok(indicator)) = (
+                        ui.try_get(*self.indicator_canvas),
+                        ui.try_get(*self.indicator),
+                    ) {
+                        let indicator_size = indicator.actual_global_size();
                         if self.is_dragging {
                             let percent = match *self.orientation {
                                 Orientation::Horizontal => {
@@ -381,8 +401,8 @@ impl Control for ScrollBar {
                             message.set_handled(true);
                         }
                     }
-                    _ => (),
                 }
+                _ => (),
             }
         }
     }

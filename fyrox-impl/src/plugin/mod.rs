@@ -29,23 +29,22 @@ use crate::{
     asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{
         define_as_any_trait, dyntype::DynTypeConstructorContainer, log::Log, pool::Handle,
-        reflect::Reflect, variable::try_inherit_properties, visitor::error::VisitError,
-        visitor::Visit,
+        reflect::Reflect, variable::try_inherit_properties, visitor::Visit,
+        visitor::error::VisitError,
     },
     engine::{
-        input::InputState, task::TaskPoolHandler, ApplicationLoopController, GraphicsContext,
-        PerformanceStatistics, ScriptProcessor, SerializationContext,
+        ApplicationLoopController, GraphicsContext, PerformanceStatistics, ScriptProcessor,
+        SerializationContext, input::InputState, task::TaskPoolHandler,
     },
     event::Event,
     graph::NodeMapping,
     gui::{
-        constructor::WidgetConstructorContainer,
-        inspector::editors::PropertyEditorDefinitionContainer, message::UiMessage, UiContainer,
-        UserInterface,
+        UiContainer, UserInterface, constructor::WidgetConstructorContainer,
+        inspector::editors::PropertyEditorDefinitionContainer, message::UiMessage,
     },
     plugin::error::{GameError, GameResult},
     resource::model::Model,
-    scene::{graph::NodePool, navmesh, Scene, SceneContainer, SceneLoader},
+    scene::{Scene, SceneContainer, SceneLoader, graph::NodePool, navmesh},
 };
 use fyrox_core::err;
 use std::path::{Path, PathBuf};
@@ -396,11 +395,10 @@ impl<'a, 'b> PluginContext<'a, 'b> {
                             (&mut scene as &mut dyn Reflect).apply_recursively_mut(
                                 &mut |object| {
                                     let type_id = (*object).type_id();
-                                    if type_id != TypeId::of::<NodePool>() {
-                                        if let Some(variable) = object.as_inheritable_variable_mut()
-                                        {
-                                            variable.reset_modified_flag();
-                                        }
+                                    if type_id != TypeId::of::<NodePool>()
+                                        && let Some(variable) = object.as_inheritable_variable_mut()
+                                    {
+                                        variable.reset_modified_flag();
                                     }
                                 },
                                 &[

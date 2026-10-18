@@ -25,12 +25,12 @@ use regex::Regex;
 use std::{
     collections::HashMap,
     fmt::Display,
-    fs::{create_dir_all, read_dir, remove_dir_all, File},
+    fs::{File, create_dir_all, read_dir, remove_dir_all},
     io::{Read, Write},
     path::Path,
     process::Command,
 };
-use toml_edit::{table, value, DocumentMut};
+use toml_edit::{DocumentMut, table, value};
 use uuid::Uuid;
 
 pub static CURRENT_ENGINE_VERSION: &str = include_str!("../engine.version");
@@ -146,7 +146,7 @@ fn init_game(base_path: &Path, name: &str) -> Result<(), String> {
 [package]
 name = "{name}"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 fyrox = {{workspace = true}}
@@ -237,7 +237,7 @@ fn init_executor(base_path: &Path, name: &str) -> Result<(), String> {
 [package]
 name = "executor"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 fyrox = {{ workspace = true }}
@@ -304,7 +304,7 @@ fn init_export_cli(base_path: &Path, name: &str) -> Result<(), String> {
 [package]
 name = "export-cli"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 fyrox = {{ workspace = true }}
@@ -354,7 +354,7 @@ fn init_wasm_executor(base_path: &Path, name: &str) -> Result<(), String> {
 [package]
 name = "executor-wasm"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -428,7 +428,7 @@ fn init_editor(base_path: &Path, name: &str) -> Result<(), String> {
 [package]
 name = "editor"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 fyrox = {{ workspace = true }}
@@ -501,7 +501,7 @@ fn init_game_dylib(base_path: &Path, name: &str) -> Result<(), String> {
 [package]
 name = "game_dylib"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [lib]
 crate-type = ["cdylib"]
@@ -547,7 +547,7 @@ fn init_android_executor(base_path: &Path, name: &str) -> Result<(), String> {
 [package]
 name = "executor-android"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [package.metadata.android]
 # This folder is used as a temporary storage for assets. Project exporter will clone everything
@@ -859,68 +859,65 @@ pub fn upgrade_project(root_path: &Path, version: &str, local: bool) -> Result<(
                 if let Ok(mut document) = toml.parse::<DocumentMut>() {
                     if let Some(workspace) =
                         document.get_mut("workspace").and_then(|i| i.as_table_mut())
-                    {
-                        if let Some(dependencies) = workspace
+                        && let Some(dependencies) = workspace
                             .get_mut("dependencies")
                             .and_then(|i| i.as_table_mut())
-                        {
-                            if version == "latest" {
-                                if local {
-                                    let mut engine_table = table();
-                                    engine_table["path"] = value("../Fyrox/fyrox");
-                                    dependencies["fyrox"] = engine_table;
+                    {
+                        if version == "latest" {
+                            if local {
+                                let mut engine_table = table();
+                                engine_table["path"] = value("../Fyrox/fyrox");
+                                dependencies["fyrox"] = engine_table;
 
-                                    let mut editor_table = table();
-                                    editor_table["path"] = value("../Fyrox/editor");
-                                    dependencies["fyroxed_base"] = editor_table;
+                                let mut editor_table = table();
+                                editor_table["path"] = value("../Fyrox/editor");
+                                dependencies["fyroxed_base"] = editor_table;
 
-                                    if dependencies.contains_key("fyrox_scripts") {
-                                        let mut scripts_table = table();
-                                        scripts_table["path"] = value("../Fyrox/fyrox-scripts");
-                                        dependencies["fyrox_scripts"] = scripts_table;
-                                    }
-
-                                    if dependencies.contains_key("fyrox-build-tools") {
-                                        let mut scripts_table = table();
-                                        scripts_table["path"] = value("../Fyrox/fyrox-build-tools");
-                                        dependencies["fyrox-build-tools"] = scripts_table;
-                                    }
-                                } else {
-                                    dependencies["fyrox"] = value(CURRENT_ENGINE_VERSION);
-                                    dependencies["fyroxed_base"] = value(CURRENT_EDITOR_VERSION);
-                                    if dependencies.contains_key("fyrox_scripts") {
-                                        dependencies["fyrox_scripts"] =
-                                            value(CURRENT_SCRIPTS_VERSION);
-                                    }
-                                    if dependencies.contains_key("fyrox-build-tools") {
-                                        dependencies["fyrox-build-tools"] =
-                                            value(CURRENT_ENGINE_VERSION);
-                                    }
+                                if dependencies.contains_key("fyrox_scripts") {
+                                    let mut scripts_table = table();
+                                    scripts_table["path"] = value("../Fyrox/fyrox-scripts");
+                                    dependencies["fyrox_scripts"] = scripts_table;
                                 }
-                            } else if version == "nightly" {
-                                let mut table = table();
-                                table["git"] = value("https://github.com/FyroxEngine/Fyrox");
 
-                                dependencies["fyrox"] = table.clone();
-                                dependencies["fyroxed_base"] = table.clone();
-                                dependencies["fyrox-build-tools"] = table.clone();
+                                if dependencies.contains_key("fyrox-build-tools") {
+                                    let mut scripts_table = table();
+                                    scripts_table["path"] = value("../Fyrox/fyrox-build-tools");
+                                    dependencies["fyrox-build-tools"] = scripts_table;
+                                }
                             } else {
-                                dependencies["fyrox"] = value(version);
-                                if let Some((editor_version, scripts_version)) =
-                                    editor_versions.get(version)
-                                {
-                                    dependencies["fyroxed_base"] = value(editor_version);
-                                    if let Some(scripts_version) = scripts_version {
-                                        if dependencies.contains_key("fyrox_scripts") {
-                                            dependencies["fyrox_scripts"] = value(scripts_version);
-                                        }
-                                    }
-                                    if dependencies.contains_key("fyrox-build-tools") {
-                                        dependencies["fyrox-build-tools"] = value(version);
-                                    }
-                                } else {
-                                    println!("WARNING: matching editor/scripts version not found!");
+                                dependencies["fyrox"] = value(CURRENT_ENGINE_VERSION);
+                                dependencies["fyroxed_base"] = value(CURRENT_EDITOR_VERSION);
+                                if dependencies.contains_key("fyrox_scripts") {
+                                    dependencies["fyrox_scripts"] = value(CURRENT_SCRIPTS_VERSION);
                                 }
+                                if dependencies.contains_key("fyrox-build-tools") {
+                                    dependencies["fyrox-build-tools"] =
+                                        value(CURRENT_ENGINE_VERSION);
+                                }
+                            }
+                        } else if version == "nightly" {
+                            let mut table = table();
+                            table["git"] = value("https://github.com/FyroxEngine/Fyrox");
+
+                            dependencies["fyrox"] = table.clone();
+                            dependencies["fyroxed_base"] = table.clone();
+                            dependencies["fyrox-build-tools"] = table.clone();
+                        } else {
+                            dependencies["fyrox"] = value(version);
+                            if let Some((editor_version, scripts_version)) =
+                                editor_versions.get(version)
+                            {
+                                dependencies["fyroxed_base"] = value(editor_version);
+                                if let Some(scripts_version) = scripts_version
+                                    && dependencies.contains_key("fyrox_scripts")
+                                {
+                                    dependencies["fyrox_scripts"] = value(scripts_version);
+                                }
+                                if dependencies.contains_key("fyrox-build-tools") {
+                                    dependencies["fyrox-build-tools"] = value(version);
+                                }
+                            } else {
+                                println!("WARNING: matching editor/scripts version not found!");
                             }
                         }
                     }

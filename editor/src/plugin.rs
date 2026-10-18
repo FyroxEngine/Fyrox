@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::{fyrox::gui::message::UiMessage, Editor, Message};
+use crate::{Editor, Message, fyrox::gui::message::UiMessage};
 use fyrox::core::define_as_any_trait;
 use fyrox::engine::ApplicationLoopController;
 

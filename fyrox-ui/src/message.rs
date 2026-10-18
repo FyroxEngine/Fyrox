@@ -24,8 +24,8 @@
 #![warn(missing_docs)]
 
 use crate::{
-    core::{algebra::Vector2, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     UiNode, UserInterface,
+    core::{algebra::Vector2, pool::Handle, reflect::prelude::*, visitor::prelude::*},
 };
 use fyrox_core::pool::ObjectOrVariant;
 use serde::{Deserialize, Serialize};
@@ -545,7 +545,22 @@ pub enum ButtonState {
 }
 
 /// A set of possible mouse buttons.
-#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy, Default, Visit, Reflect)]
+#[derive(
+    Debug,
+    Hash,
+    Ord,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    Default,
+    Visit,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    VariantNames,
+)]
 #[reflect(type_uuid = "3e3097b4-5845-439f-8926-91850ee376da")]
 pub enum MouseButton {
     /// Left mouse button.
@@ -994,21 +1009,21 @@ pub enum KeyCode {
     NumpadMemoryStore,
     /// <kbd>M</kbd> Subtract current entry from the value stored in memory.
     NumpadMemorySubtract,
-    /// <kbd>*</kbd> on a keyboard. For use with numpads that provide mathematical
-    /// operations (<kbd>+</kbd>, <kbd>-</kbd> <kbd>*</kbd> and <kbd>/</kbd>).
+    /// <kbd>\*</kbd> on a keyboard. For use with numpads that provide mathematical
+    /// operations (<kbd>+</kbd>, <kbd>-</kbd> <kbd>\*</kbd> and <kbd>/</kbd>).
     ///
-    /// Use `NumpadStar` for the <kbd>*</kbd> key on phones and remote controls.
+    /// Use `NumpadStar` for the <kbd>\*</kbd> key on phones and remote controls.
     NumpadMultiply,
     /// <kbd>(</kbd> Found on the Microsoft Natural Keyboard.
     NumpadParenLeft,
     /// <kbd>)</kbd> Found on the Microsoft Natural Keyboard.
     NumpadParenRight,
-    /// <kbd>*</kbd> on a phone or remote control device.
+    /// <kbd>\*</kbd> on a phone or remote control device.
     ///
     /// This key is typically found below the <kbd>7</kbd> key and to the left of
     /// the <kbd>0</kbd> key.
     ///
-    /// Use <kbd>"NumpadMultiply"</kbd> for the <kbd>*</kbd> key on
+    /// Use <kbd>"NumpadMultiply"</kbd> for the <kbd>\*</kbd> key on
     /// numeric keypads.
     NumpadStar,
     /// <kbd>-</kbd>

@@ -25,17 +25,17 @@
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
-        math::{frustum::Frustum, Rect},
+        math::{Rect, frustum::Frustum},
         pool::Handle,
     },
     graphics::gpu_texture::CubeMapFace,
     renderer::utils::CubeMapFaceDescriptor,
     scene::{
+        EnvironmentLightingSource, Scene,
         camera::{Camera, ColorGradingLut, Exposure, PerspectiveProjection, Projection},
         collider::BitMask,
         node::Node,
         probe::ReflectionProbe,
-        EnvironmentLightingSource, Scene,
     },
 };
 use fyrox_core::color::Color;
@@ -205,14 +205,13 @@ pub struct Observer {
 impl Observer {
     /// Creates a new observer from a scene camera.
     pub fn from_camera(camera: &Camera, mut frame_size: Vector2<f32>) -> Self {
-        if let Some(render_target) = camera.render_target() {
-            if let Some(size) = render_target
+        if let Some(render_target) = camera.render_target()
+            && let Some(size) = render_target
                 .data_ref()
                 .as_loaded_ref()
                 .and_then(|rt| rt.kind().rectangle_size().map(|size| size.cast::<f32>()))
-            {
-                frame_size = size;
-            }
+        {
+            frame_size = size;
         }
         Observer {
             handle: camera.handle(),

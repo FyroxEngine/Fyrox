@@ -26,21 +26,21 @@ use crate::{
         },
         graph::SceneGraph,
         gui::{
+            BuildContext, Control, UiNode, UserInterface,
             brush::Brush,
             draw::{CommandTexture, Draw, DrawingContext},
-            font::{Font, FontResource, BUILT_IN_FONT},
+            font::{BUILT_IN_FONT, Font, FontResource},
             formatted_text::WrapMode,
             inspector::{
+                FieldAction, InspectorError, PropertyChanged,
                 editors::{
                     PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
                     PropertyEditorMessageContext, PropertyEditorTranslationContext,
                 },
-                FieldAction, InspectorError, PropertyChanged,
             },
             message::{MessageDirection, UiMessage},
             text::{TextBuilder, TextMessage},
             widget::{Widget, WidgetBuilder, WidgetMessage},
-            BuildContext, Control, UiNode, UserInterface,
         },
     },
 };
@@ -112,25 +112,24 @@ impl Control for FontField {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(WidgetMessage::Drop(dropped)) = message.data::<WidgetMessage>() {
-            if message.destination() == self.handle {
-                if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
-                    if let Some(font) = item.resource::<Font>() {
-                        ui.send(self.handle(), FontFieldMessage::Font(font));
-                    }
-                }
+            if message.destination() == self.handle
+                && let Some(item) = ui.node(*dropped).cast::<AssetItem>()
+                && let Some(font) = item.resource::<Font>()
+            {
+                ui.send(self.handle(), FontFieldMessage::Font(font));
             }
-        } else if let Some(FontFieldMessage::Font(font)) = message.data_for(self.handle) {
-            if &self.font != font {
-                self.font = font.clone();
+        } else if let Some(FontFieldMessage::Font(font)) = message.data_for(self.handle)
+            && &self.font != font
+        {
+            self.font = font.clone();
 
-                ui.send(self.text_preview, TextMessage::Font(font.clone()));
-                ui.send(
-                    self.text_preview,
-                    TextMessage::Text(make_name(&self.resource_manager, &self.font)),
-                );
+            ui.send(self.text_preview, TextMessage::Font(font.clone()));
+            ui.send(
+                self.text_preview,
+                TextMessage::Text(make_name(&self.resource_manager, &self.font)),
+            );
 
-                ui.try_send_response(message);
-            }
+            ui.try_send_response(message);
         }
     }
 }
@@ -232,13 +231,13 @@ impl PropertyEditorDefinition for FontPropertyEditorDefinition {
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(FontFieldMessage::Font(value)) = ctx.message.data() {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
-                    action: FieldAction::object(value.clone()),
-                });
-            }
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(FontFieldMessage::Font(value)) = ctx.message.data()
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
+                action: FieldAction::object(value.clone()),
+            });
         }
         None
     }

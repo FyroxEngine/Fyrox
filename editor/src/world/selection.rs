@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::{
-    command::{Command, SetPropertyCommand},
+    command::{Command, CommandGroup, SetPropertyCommand},
     fyrox::{
         asset::core::algebra::Vector3,
         core::{
@@ -29,12 +29,13 @@ use crate::{
         engine::Engine,
         graph::{NodeWrapper, SceneGraph},
         gui::inspector::PropertyChanged,
-        scene::{graph::Graph, node::Node, SceneContainer},
+        scene::{SceneContainer, graph::Graph, node::Node},
     },
     message::MessageSender,
     scene::{
-        commands::GameSceneContext, controller::SceneController, EntityInfo, GameScene,
-        SelectionContainer,
+        EntityInfo, GameScene, SelectionContainer,
+        commands::{ChangeSelectionCommand, GameSceneContext, graph::DeleteSubGraphCommand},
+        controller::SceneController,
     },
     utils,
 };
@@ -120,11 +121,38 @@ impl SelectionContainer for GraphSelection {
         sender.do_command_group(group);
     }
 
-    fn provide_docs(&self, controller: &dyn SceneController, engine: &Engine) -> Option<String> {
+    fn make_delete_selection_command(
+        &self,
+        controller: &dyn SceneController,
+        engine: &Engine,
+    ) -> Option<Command> {
+        if self.is_empty() {
+            return None;
+        }
+
+        let mut selection = self.clone();
+
         let game_scene = controller.downcast_ref::<GameScene>()?;
-        let scene = &engine.scenes[game_scene.scene];
-        let node = scene.graph.try_get(*self.nodes.first()?).ok()?;
-        Some(node.inner_ref().type_info_ref().doc_comment.to_string())
+        let graph = &engine.scenes[game_scene.scene].graph;
+        selection
+            .nodes
+            .retain(|n| graph.can_be_deleted(*n, game_scene.scene_content_root));
+
+        if selection.is_empty() {
+            return None;
+        }
+
+        // Change selection first.
+        let mut command_group = CommandGroup::from(vec![Command::new(
+            ChangeSelectionCommand::new(Default::default()),
+        )]);
+
+        let root_nodes = graph.root_nodes(selection.nodes());
+        for root_node in root_nodes {
+            command_group.push(DeleteSubGraphCommand::new(root_node));
+        }
+
+        Some(Command::new(command_group))
     }
 }
 
@@ -171,38 +199,6 @@ impl GraphSelection {
 
     pub fn extend(&mut self, other: &GraphSelection) {
         self.nodes.extend_from_slice(&other.nodes)
-    }
-
-    pub fn root_nodes(&self, graph: &Graph) -> Vec<Handle<Node>> {
-        // Helper function.
-        fn is_descendant_of(handle: Handle<Node>, other: Handle<Node>, graph: &Graph) -> bool {
-            for &child in graph[other].children() {
-                if child == handle {
-                    return true;
-                }
-
-                let inner = is_descendant_of(handle, child, graph);
-                if inner {
-                    return true;
-                }
-            }
-            false
-        }
-
-        let mut root_nodes = Vec::new();
-        for &node in self.nodes().iter() {
-            let mut descendant = false;
-            for &other_node in self.nodes().iter() {
-                if is_descendant_of(node, other_node, graph) {
-                    descendant = true;
-                    break;
-                }
-            }
-            if !descendant {
-                root_nodes.push(node);
-            }
-        }
-        root_nodes
     }
 
     pub fn global_rotation_position(

@@ -19,18 +19,18 @@
 // SOFTWARE.
 
 use crate::{
+    Thickness,
     core::{algebra::Vector2, math::curve::Curve},
     curve::{CurveEditorBuilder, CurveEditorMessage},
     inspector::{
+        FieldAction, InspectorError, PropertyChanged,
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldAction, InspectorError, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
     widget::WidgetBuilder,
-    Thickness,
 };
 use std::any::TypeId;
 
@@ -72,14 +72,14 @@ impl PropertyEditorDefinition for CurvePropertyEditorDefinition {
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(CurveEditorMessage::Sync(value)) = ctx.message.data() {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(CurveEditorMessage::Sync(value)) = ctx.message.data()
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
 
-                    action: FieldAction::object(value.first().cloned().unwrap()),
-                });
-            }
+                action: FieldAction::object(value.first().cloned().unwrap()),
+            });
         }
         None
     }

@@ -19,15 +19,18 @@
 // SOFTWARE.
 
 use crate::{
+    HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
     brush::Brush,
     core::{
         algebra::Vector2, color::Color, log::Log, math::Rect, reflect::prelude::*,
         variable::InheritableVariable, visitor::prelude::*,
     },
-    font::{Font, FontGlyph, FontHeight, FontResource, BUILT_IN_FONT},
-    style::{resource::StyleResource, StyledProperty},
-    HorizontalAlignment, Thickness, VerticalAlignment,
+    font::{BUILT_IN_FONT, Font, FontGlyph, FontHeight, FontResource},
+    style::{StyledProperty, resource::StyleResource},
 };
+use fxhash::FxHashMap;
+use fyrox_core::pool::Handle;
+use fyrox_graph::SceneGraph;
 use fyrox_resource::state::{LoadError, ResourceState};
 pub use run::*;
 use std::{
@@ -273,6 +276,13 @@ pub struct FormattedText {
     glyphs: Vec<TextGlyph>,
     vertical_alignment: InheritableVariable<VerticalAlignment>,
     horizontal_alignment: InheritableVariable<HorizontalAlignment>,
+    /// Baseline alignment defines how the glyphs will be aligned in each line of the text. This
+    /// setting has limited use in case of text with inline widgets; it allows you to specify
+    /// how the text will be aligned relative to the line height defined by inline elements. By default,
+    /// [`VerticalAlignment::Bottom`] is used, this way the baseline is anchored to the bottom of the
+    /// line. [`VerticalAlignment::Center`] can be used to center glyphs relative to the line bounds.
+    #[visit(optional)]
+    baseline_alignment: InheritableVariable<VerticalAlignment>,
     #[reflect(hidden)]
     brush: InheritableVariable<Brush>,
     #[visit(skip)]
@@ -306,6 +316,11 @@ pub struct FormattedText {
     /// outside provided bounds.
     #[visit(optional)]
     pub trim_text: InheritableVariable<bool>,
+}
+
+pub struct InlineContext<'a> {
+    pub children: &'a [Handle<UiNode>],
+    pub ui: &'a UserInterface,
 }
 
 impl FormattedText {
@@ -803,7 +818,8 @@ impl FormattedText {
         self
     }
 
-    pub fn remove_range(&mut self, range: Range<usize>) -> &mut Self {
+    pub fn remove_range(&mut self, mut range: Range<usize>) -> &mut Self {
+        range.end = range.end.min(self.text.len());
         self.text.drain(range);
         self
     }
@@ -833,10 +849,10 @@ impl FormattedText {
             return false;
         }
         for run in self.runs.iter() {
-            if let Some(font) = run.font() {
-                if !font.is_ok() {
-                    return false;
-                }
+            if let Some(font) = run.font()
+                && !font.is_ok()
+            {
+                return false;
             }
         }
         true
@@ -847,10 +863,10 @@ impl FormattedText {
             return true;
         }
         for run in self.runs.iter() {
-            if let Some(font) = run.font() {
-                if !font.is_loading() {
-                    return true;
-                }
+            if let Some(font) = run.font()
+                && !font.is_loading()
+            {
+                return true;
             }
         }
         false
@@ -862,10 +878,10 @@ impl FormattedText {
             list.push((path.clone(), error.clone()));
         }
         for run in self.runs.iter() {
-            if let Some(font) = run.font() {
-                if let ResourceState::LoadError { path, error } = &font.header().state {
-                    list.push((path.clone(), error.clone()));
-                }
+            if let Some(font) = run.font()
+                && let ResourceState::LoadError { path, error } = &font.header().state
+            {
+                list.push((path.clone(), error.clone()));
             }
         }
         list
@@ -884,12 +900,51 @@ impl FormattedText {
     }
 
     pub fn measure_and_arrange(&mut self) -> Vector2<f32> {
-        let size = self.measure();
-        self.arrange(self.constraint);
+        let size = self.measure(None);
+        self.arrange(self.constraint, None);
         size
     }
 
-    pub fn measure(&mut self) -> Vector2<f32> {
+    fn wrap(
+        &self,
+        mut wrapper: impl TextWrapper,
+        inline_bounds: &FxHashMap<usize, Vector2<f32>>,
+        text: &[char],
+    ) {
+        for (i, c) in text.iter().enumerate() {
+            // Try wrap an inline first.
+            if let Some(inline_bounds) = inline_bounds.get(&i) {
+                wrapper.push(None, inline_bounds.x);
+            }
+
+            // Then wrap the character.
+            let advance = GlyphMetrics {
+                font: &mut self.font_at(i).data_ref(),
+                size: self.font_size_at(i),
+            }
+            .advance(*c);
+
+            wrapper.push(Some(*c), advance);
+        }
+        wrapper.finish();
+    }
+
+    pub fn measure(&mut self, inline_ctx: Option<InlineContext>) -> Vector2<f32> {
+        let mut inline_bounds = FxHashMap::default();
+        if let Some(ref inline_ctx) = inline_ctx {
+            for &inline in inline_ctx.children {
+                let inline_ref = inline_ctx.ui.node(inline);
+                inline_ctx
+                    .ui
+                    .measure_node(inline, Vector2::new(f32::INFINITY, f32::INFINITY));
+                let desired_size = inline_ref.desired_size();
+                let measured_inline = inline_bounds
+                    .entry(*inline_ref.column)
+                    .or_insert_with(|| desired_size);
+                *measured_inline = measured_inline.sup(&desired_size);
+            }
+        }
+
         let mut lines = std::mem::take(&mut self.lines);
         lines.clear();
         // Fail early if any font is not available.
@@ -929,18 +984,10 @@ impl FormattedText {
                 WrapMode::Word => wrap_mask(WordWrap::new(sink), self.text.len(), mask, advance),
             }
         } else {
-            let source = self.text.iter().enumerate().map(|(i, c)| {
-                let a = GlyphMetrics {
-                    font: &mut self.font_at(i).data_ref(),
-                    size: self.font_size_at(i),
-                }
-                .advance(*c);
-                (*c, a)
-            });
             match *self.wrap {
-                WrapMode::NoWrap => wrap(NoWrap::new(sink), source),
-                WrapMode::Letter => wrap(LetterWrap::new(sink), source),
-                WrapMode::Word => wrap(WordWrap::new(sink), source),
+                WrapMode::NoWrap => self.wrap(NoWrap::new(sink), &inline_bounds, &self.text),
+                WrapMode::Letter => self.wrap(LetterWrap::new(sink), &inline_bounds, &self.text),
+                WrapMode::Word => self.wrap(WordWrap::new(sink), &inline_bounds, &self.text),
             }
         }
 
@@ -948,20 +995,27 @@ impl FormattedText {
 
         // Calculate line height
         for line in lines.iter_mut() {
+            for (pos, size) in inline_bounds.iter() {
+                if (line.begin..line.end).contains(pos) {
+                    line.height = size.y;
+                }
+            }
+
             if self.mask_char.is_some() || self.runs.is_empty() {
-                line.height = GlyphMetrics {
+                let ascender = GlyphMetrics {
                     font: &mut self.get_font().data_ref(),
                     size: **self.font_size,
                 }
                 .ascender();
+                line.height = line.height.max(ascender);
             } else {
                 for i in line.begin..line.end {
-                    let h = GlyphMetrics {
+                    let ascender = GlyphMetrics {
                         font: &mut self.font_at(i).data_ref(),
                         size: self.font_size_at(i),
                     }
                     .ascender();
-                    line.height = line.height.max(h);
+                    line.height = line.height.max(ascender);
                 }
             }
             self.total_height += line.height + self.line_space();
@@ -1010,7 +1064,18 @@ impl FormattedText {
         )
     }
 
-    pub fn arrange(&mut self, constraint: Vector2<f32>) {
+    pub fn arrange(&mut self, constraint: Vector2<f32>, inline_ctx: Option<InlineContext>) {
+        let mut inlines = FxHashMap::default();
+        if let Some(ref inline_ctx) = inline_ctx {
+            for &inline in inline_ctx.children {
+                let inline_ref = inline_ctx.ui.node(inline);
+                inlines
+                    .entry(*inline_ref.column)
+                    .or_insert_with(Vec::default)
+                    .push(inline);
+            }
+        }
+
         self.constraint = constraint;
         let constraint = Vector2::new(
             (self.constraint.x - (self.padding.left + self.padding.right)).max(0.0),
@@ -1068,6 +1133,11 @@ impl FormattedText {
         let mut y: f32 = cursor_y_start.floor();
         for line in lines.iter_mut() {
             let mut x = line.x_offset.floor();
+            let base_line = match *self.baseline_alignment {
+                VerticalAlignment::Center => y + line.height * 0.5,
+                VerticalAlignment::Top => y,
+                VerticalAlignment::Stretch | VerticalAlignment::Bottom => y + line.height,
+            };
             if let Some(mask) = *self.mask_char {
                 let mut prev = None;
                 let font = self.get_font();
@@ -1085,6 +1155,26 @@ impl FormattedText {
             } else {
                 let mut prev = None;
                 for (i, &c) in self.text.iter().enumerate().take(line.end).skip(line.begin) {
+                    // Put inlines first (if any).
+                    if let Some(ref inline_ctx) = inline_ctx
+                        && let Some(inlines) = inlines.get(&i)
+                    {
+                        let mut bounds = Vector2::zeros();
+                        for &inline in inlines {
+                            let inline_ref = inline_ctx.ui.node(inline);
+                            let desired_size = inline_ref.desired_size();
+                            inline_ctx.ui.arrange_node(
+                                inline,
+                                &Rect {
+                                    position: Vector2::new(x, y),
+                                    size: Vector2::new(desired_size.x, line.height),
+                                },
+                            );
+                            bounds = bounds.sup(&desired_size);
+                        }
+                        x += bounds.x;
+                    }
+
                     let font = self.font_at(i);
                     let font = &mut font.data_ref();
                     let size = self.font_size_at(i);
@@ -1094,7 +1184,15 @@ impl FormattedText {
                             x += metrics.newline_advance();
                         }
                         _ => {
-                            let y1 = y + line.height - metrics.ascender();
+                            // Then the glyph.
+                            let mut y1 = base_line;
+                            match *self.baseline_alignment {
+                                VerticalAlignment::Center => y1 -= metrics.ascender() * 0.5,
+                                VerticalAlignment::Top => (),
+                                VerticalAlignment::Bottom | VerticalAlignment::Stretch => {
+                                    y1 -= metrics.ascender()
+                                }
+                            }
                             let scale = self.super_sampling_scale;
                             let (glyph, advance) =
                                 build_glyph(&mut metrics, x, y1, i, c, prev, scale);
@@ -1126,20 +1224,9 @@ impl FormattedText {
     }
 }
 
-fn wrap<W, I>(mut wrapper: W, source: I)
-where
-    W: TextWrapper,
-    I: Iterator<Item = (char, f32)>,
-{
-    for (character, advance) in source {
-        wrapper.push(character, advance);
-    }
-    wrapper.finish();
-}
-
 fn wrap_mask<W: TextWrapper>(mut wrapper: W, length: usize, mask_char: char, advance: f32) {
     for _ in 0..length {
-        wrapper.push(mask_char, advance);
+        wrapper.push(Some(mask_char), advance);
     }
     wrapper.finish();
 }
@@ -1150,6 +1237,7 @@ pub struct FormattedTextBuilder {
     constraint: Vector2<f32>,
     text: Vec<char>,
     vertical_alignment: VerticalAlignment,
+    baseline_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
     wrap: WrapMode,
     mask_char: Option<char>,
@@ -1176,6 +1264,7 @@ impl FormattedTextBuilder {
             text: Vec::default(),
             horizontal_alignment: HorizontalAlignment::Left,
             vertical_alignment: VerticalAlignment::Top,
+            baseline_alignment: VerticalAlignment::Bottom,
             brush: Brush::Solid(Color::WHITE),
             constraint: Vector2::new(128.0, 128.0),
             wrap: WrapMode::NoWrap,
@@ -1196,6 +1285,11 @@ impl FormattedTextBuilder {
 
     pub fn with_vertical_alignment(mut self, vertical_alignment: VerticalAlignment) -> Self {
         self.vertical_alignment = vertical_alignment;
+        self
+    }
+
+    pub fn with_baseline_alignment(mut self, baseline_alignment: VerticalAlignment) -> Self {
+        self.baseline_alignment = baseline_alignment;
         self
     }
 
@@ -1323,6 +1417,7 @@ impl FormattedTextBuilder {
             glyphs: Vec::new(),
             vertical_alignment: self.vertical_alignment.into(),
             horizontal_alignment: self.horizontal_alignment.into(),
+            baseline_alignment: self.baseline_alignment.into(),
             brush: self.brush.into(),
             constraint: self.constraint,
             wrap: self.wrap.into(),

@@ -20,7 +20,7 @@
 
 //! A module that handles resource states.
 
-use crate::{core::reflect::prelude::*, ResourceData, ResourceLoadError, TypedResourceData};
+use crate::{ResourceData, ResourceLoadError, TypedResourceData, core::reflect::prelude::*};
 use std::any::Any;
 use std::fmt::{Debug, Display};
 use std::path::PathBuf;
@@ -280,7 +280,7 @@ impl ResourceState {
     pub fn commit(&mut self, state: ResourceState) {
         assert!(!matches!(state, ResourceState::Pending { .. }));
 
-        let wakers = if let ResourceState::Pending { ref mut wakers, .. } = self {
+        let wakers = if let ResourceState::Pending { wakers, .. } = self {
             std::mem::take(wakers)
         } else {
             WakersList::default()

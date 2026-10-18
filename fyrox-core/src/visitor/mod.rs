@@ -60,8 +60,8 @@ use crate::{
     io::{self},
     pool::{Handle, Pool},
     visitor::{
-        reader::{ascii::AsciiReader, binary::BinaryReader, Reader},
-        writer::{ascii::AsciiWriter, binary::BinaryWriter, Writer},
+        reader::{Reader, ascii::AsciiReader, binary::BinaryReader},
+        writer::{Writer, ascii::AsciiWriter, binary::BinaryWriter},
     },
 };
 use bitflags::bitflags;
@@ -830,13 +830,13 @@ impl Visitor {
 
 #[cfg(test)]
 mod test {
-    use crate::visitor::{prelude::*, BinaryBlob};
+    use crate::visitor::{BinaryBlob, prelude::*};
     use nalgebra::{
         Matrix2, Matrix3, Matrix4, UnitComplex, UnitQuaternion, Vector2, Vector3, Vector4,
     };
     use std::sync::Arc;
     use std::{fs::File, io::Write, path::Path, rc, rc::Rc, sync};
-    use uuid::{uuid, Uuid};
+    use uuid::{Uuid, uuid};
 
     #[derive(Visit, Default, PartialEq, Debug)]
     pub struct Model {

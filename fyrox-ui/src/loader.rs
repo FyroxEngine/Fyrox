@@ -21,7 +21,7 @@
 //! User Interface loader.
 
 use crate::constructor::WidgetConstructorContainer;
-use crate::{core::uuid::Uuid, UserInterface};
+use crate::{UserInterface, core::uuid::Uuid};
 use fyrox_core::dyntype::DynTypeConstructorContainer;
 use fyrox_core::reflect::Reflect;
 use fyrox_resource::{

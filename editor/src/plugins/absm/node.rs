@@ -21,6 +21,8 @@
 use crate::fyrox::{
     core::{color::Color, pool::Handle, reflect::prelude::*, uuid::uuid, visitor::prelude::*},
     gui::{
+        BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
+        VerticalAlignment,
         border::{BorderBuilder, BorderMessage},
         brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
@@ -29,8 +31,6 @@ use crate::fyrox::{
         stack_panel::StackPanelBuilder,
         text::{TextBuilder, TextMessage},
         widget::{Widget, WidgetBuilder, WidgetMessage},
-        BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
-        VerticalAlignment,
     },
 };
 use crate::plugins::absm::selectable::{Selectable, SelectableMessage};

@@ -25,7 +25,7 @@ use crate::{
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
-        uuid::{uuid, Uuid},
+        uuid::{Uuid, uuid},
         visitor::prelude::*,
     },
     scene::{
@@ -34,8 +34,8 @@ use crate::{
         node::{Node, NodeTrait},
     },
 };
-use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_graph::SceneGraph;
+use fyrox_graph::constructor::ConstructorProvider;
 use std::ops::{Deref, DerefMut};
 
 /// A simplest possible node which represents point in space.

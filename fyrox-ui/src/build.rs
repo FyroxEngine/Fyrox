@@ -22,8 +22,8 @@
 //! more info.
 
 use crate::{
-    core::pool::Handle, font::FontResource, message::UiMessage, style::resource::StyleResource,
-    Control, RestrictionEntry, UiNode, UserInterface,
+    Control, RestrictionEntry, UiNode, UserInterface, core::pool::Handle, font::FontResource,
+    message::UiMessage, style::resource::StyleResource,
 };
 use fyrox_core::pool::{ObjectOrVariant, PoolError};
 use fyrox_graph::SceneGraph;

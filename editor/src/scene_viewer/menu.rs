@@ -22,16 +22,16 @@ use crate::{
     fyrox::{
         core::{
             pool::Handle,
-            uuid::{uuid, Uuid},
+            uuid::{Uuid, uuid},
         },
         graph::SceneGraph,
         gui::{
+            BuildContext, RcUiNodeHandle, UiNode, UserInterface,
             menu::{ContextMenuBuilder, MenuItem, MenuItemMessage},
             message::UiMessage,
             popup::{Placement, PopupBuilder, PopupMessage},
             stack_panel::StackPanelBuilder,
             widget::WidgetBuilder,
-            BuildContext, RcUiNodeHandle, UiNode, UserInterface,
         },
     },
     menu::create_menu_item,

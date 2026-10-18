@@ -30,15 +30,15 @@
 
 use crate::{
     asset::{
+        Resource, ResourceData, ResourceDataRef,
         io::ResourceIo,
         loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
         manager::ResourceManager,
         state::LoadError,
-        Resource, ResourceData, ResourceDataRef,
     },
     core::{
-        algebra::Vector2, color::Color, io::FileError, log::Log, reflect::prelude::*,
-        visitor::prelude::*, ImmutableString,
+        ImmutableString, algebra::Vector2, color::Color, io::FileError, log::Log,
+        reflect::prelude::*, visitor::prelude::*,
     },
     fxhash::{FxHashMap, FxHashSet},
     material::{MaterialResource, MaterialResourceExtension},
@@ -1830,15 +1830,14 @@ impl TileSet {
             for position in self.palette_iterator(TilePaletteStage::Tiles, page) {
                 if let Some(tile_collider) =
                     self.get_tile_collider(position.handle().unwrap(), layer.uuid)
+                    && !tile_collider.is_none()
                 {
-                    if !tile_collider.is_none() {
-                        func(
-                            position.stage_position(),
-                            layer.uuid,
-                            layer.color,
-                            tile_collider,
-                        );
-                    }
+                    func(
+                        position.stage_position(),
+                        layer.uuid,
+                        layer.color,
+                        tile_collider,
+                    );
                 }
             }
         }

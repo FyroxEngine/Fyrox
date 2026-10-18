@@ -26,6 +26,8 @@ use fyrox::gui::window::{Window, WindowAlignment};
 use fyrox::{
     core::{log::Log, pool::Handle},
     gui::{
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
+        VerticalAlignment,
         button::ButtonMessage,
         dropdown_list::{DropdownListBuilder, DropdownListMessage},
         grid::{Column, GridBuilder, Row},
@@ -36,8 +38,6 @@ use fyrox::{
         utils::make_dropdown_list_option,
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
-        VerticalAlignment,
     },
 };
 
@@ -245,12 +245,11 @@ impl UpgradeTool {
                     WidgetMessage::Visibility(is_visible),
                 )
             }
-        } else if let Some(TextMessage::Text(text)) = message.data() {
-            if message.is_from(self.version_input_field) {
-                if let Version::Specific(ref mut version) = self.selected_version {
-                    *version = text.clone();
-                }
-            }
+        } else if let Some(TextMessage::Text(text)) = message.data()
+            && message.is_from(self.version_input_field)
+            && let Version::Specific(ref mut version) = self.selected_version
+        {
+            *version = text.clone();
         }
 
         Some(self)

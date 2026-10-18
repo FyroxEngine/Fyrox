@@ -28,9 +28,9 @@ use crate::fyrox::{
 };
 use crate::ui_scene::clipboard::DeepCloneResult;
 use crate::{
-    scene::Selection,
-    ui_scene::{commands::UiSceneContext, UiSelection},
     Message,
+    scene::Selection,
+    ui_scene::{UiSelection, commands::UiSceneContext},
 };
 
 #[derive(Debug)]

@@ -27,14 +27,14 @@
 pub mod resource;
 
 use crate::{
+    Thickness,
     brush::Brush,
     button::Button,
     check_box::CheckBox,
-    core::{color::Color, reflect::prelude::*, visitor::prelude::*, ImmutableString},
+    core::{ImmutableString, color::Color, reflect::prelude::*, visitor::prelude::*},
     dropdown_list::DropdownList,
     style::resource::{StyleResource, StyleResourceError, StyleResourceExt},
     toggle::ToggleButton,
-    Thickness,
 };
 use fyrox_resource::untyped::ResourceKind;
 use fyrox_resource::{
@@ -197,6 +197,16 @@ impl<T> StyledProperty<T> {
             self.property = property;
         }
     }
+
+    fn visit_new(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult
+    where
+        T: Visit,
+    {
+        let mut region = visitor.enter_region(name)?;
+        self.property.visit("Property", &mut region)?;
+        self.name.visit("Name", &mut region)?;
+        Ok(())
+    }
 }
 
 impl<T> Deref for StyledProperty<T> {
@@ -215,7 +225,15 @@ impl<T> DerefMut for StyledProperty<T> {
 
 impl<T: Visit> Visit for StyledProperty<T> {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.property.visit(name, visitor)
+        // Backward compatibility with old version.
+        if visitor.is_reading() {
+            if self.property.visit(name, visitor).is_err() {
+                self.visit_new(name, visitor)?;
+            }
+        } else {
+            self.visit_new(name, visitor)?;
+        }
+        Ok(())
     }
 }
 
@@ -669,8 +687,8 @@ impl Style {
 mod test {
     use crate::brush::Brush;
     use crate::style::Style;
-    use fyrox_core::color::Color;
     use fyrox_core::ImmutableString;
+    use fyrox_core::color::Color;
 
     #[test]
     fn test_style() {

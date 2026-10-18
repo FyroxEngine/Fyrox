@@ -26,7 +26,7 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         pool::Handle,
         reflect::prelude::*,
-        uuid::{uuid, Uuid},
+        uuid::{Uuid, uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
     },
@@ -41,25 +41,25 @@ use crate::{
 // Re-export some the fyrox_sound entities.
 pub use fyrox_sound::{
     buffer::{
+        DataSource, SoundBuffer, SoundBufferResource, SoundBufferResourceLoadError,
         generic::Samples,
         loader::{SoundBufferImportOptions, SoundBufferLoader},
-        DataSource, SoundBuffer, SoundBufferResource, SoundBufferResourceLoadError,
     },
     bus::*,
     context::DistanceModel,
-    dsp::{filters::*, DelayLine},
+    dsp::{DelayLine, filters::*},
     effects::*,
     engine::SoundEngine,
     error::SoundError,
     hrtf::HrirSphere,
-    renderer::{hrtf::*, Renderer},
+    renderer::{Renderer, hrtf::*},
     source::Status,
 };
 
-use crate::scene::node::constructor::NodeConstructor;
 use crate::scene::Scene;
-use fyrox_graph::constructor::ConstructorProvider;
+use crate::scene::node::constructor::NodeConstructor;
 use fyrox_graph::SceneGraph;
+use fyrox_graph::constructor::ConstructorProvider;
 use fyrox_resource::state::ResourceState;
 use fyrox_sound::source::SoundSource;
 use std::{

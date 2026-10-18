@@ -19,18 +19,18 @@
 // SOFTWARE.
 
 use crate::{
+    Thickness,
     core::num_traits::NumCast,
     inspector::{
+        FieldAction, InspectorError, PropertyChanged,
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldAction, InspectorError, PropertyChanged,
     },
     message::{MessageDirection, UiMessage},
     numeric::{NumericType, NumericUpDownBuilder, NumericUpDownMessage},
     widget::WidgetBuilder,
-    Thickness,
 };
 use std::{any::TypeId, marker::PhantomData};
 
@@ -104,16 +104,15 @@ where
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
-        if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(NumericUpDownMessage::Value(value)) =
+        if ctx.message.direction() == MessageDirection::FromWidget
+            && let Some(NumericUpDownMessage::Value(value)) =
                 ctx.message.data::<NumericUpDownMessage<T>>()
-            {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
+        {
+            return Some(PropertyChanged {
+                name: ctx.name.to_string(),
 
-                    action: FieldAction::object(*value),
-                });
-            }
+                action: FieldAction::object(*value),
+            });
         }
 
         None

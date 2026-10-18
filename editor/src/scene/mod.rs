@@ -17,7 +17,9 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
+
 use crate::{
+    Message, Settings,
     asset::item::AssetItem,
     audio::AudioBusSelection,
     camera::{CameraController, PickingOptions},
@@ -26,48 +28,51 @@ use crate::{
         asset::manager::ResourceManager,
         core::{
             algebra::{Matrix4, Vector2, Vector3},
+            blank_reflect_ref,
             color::Color,
             define_as_any_trait,
             futures::executor::block_on,
             log::Log,
             make_relative_path,
-            math::{aabb::AxisAlignedBoundingBox, plane::Plane, Rect},
+            math::{Rect, aabb::AxisAlignedBoundingBox, plane::Plane},
             pool::{ErasedHandle, Handle},
             reflect::Reflect,
+            uuid::Uuid,
             visitor::Visitor,
         },
-        engine::{Engine, SerializationContext},
+        engine::{Engine, GraphicsContext, SerializationContext},
         fxhash::FxHashSet,
         graph::{NodeWrapper, SceneGraph},
         gui::{
-            inspector::PropertyChanged,
-            message::UiMessage,
-            message::{KeyCode, MessageDirection, MouseButton},
             UiNode,
+            file_browser::FileType,
+            inspector::PropertyChanged,
+            message::{KeyCode, MessageDirection, MouseButton, UiMessage},
         },
         material::{
-            shader::ShaderResource, shader::ShaderResourceExtension, Material, MaterialResource,
+            Material, MaterialResource, shader::ShaderResource, shader::ShaderResourceExtension,
         },
         resource::{
             model::{Model, ModelResourceExtension},
             texture::{Texture, TextureKind, TextureResource, TextureResourceExtension},
         },
         scene::{
+            Scene, SceneContainer,
             base::BaseBuilder,
             camera::{Camera, Projection},
+            collider::BitMask,
             debug::{Line, SceneDrawingContext},
             graph::{Graph, GraphUpdateSwitches},
             light::{point::PointLight, spot::SpotLight},
-            mesh::RenderPath,
             mesh::{
+                Mesh, MeshBuilder, RenderPath,
                 surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
-                Mesh, MeshBuilder,
             },
             navmesh::NavigationalMesh,
             node::Node,
+            pivot::Pivot,
             pivot::PivotBuilder,
             terrain::Terrain,
-            Scene, SceneContainer,
         },
     },
     highlight::HighlightRenderPass,
@@ -84,23 +89,16 @@ use crate::{
     scene::{
         clipboard::Clipboard,
         commands::{
-            graph::AddModelCommand, mesh::SetMeshTextureCommand, ChangeSelectionCommand,
-            GameSceneContext,
+            ChangeSelectionCommand, GameSceneContext, graph::AddModelCommand,
+            mesh::SetMeshTextureCommand,
         },
         controller::SceneController,
         selector::HierarchyNode,
     },
-    settings::{keys::KeyBindings, SettingsMessage},
+    settings::{SettingsMessage, keys::KeyBindings},
     ui_scene::selection::UiSelection,
     world::selection::GraphSelection,
-    Message, Settings,
 };
-use fyrox::core::blank_reflect_ref;
-use fyrox::core::uuid::Uuid;
-use fyrox::engine::GraphicsContext;
-use fyrox::gui::file_browser::FileType;
-use fyrox::scene::collider::BitMask;
-use fyrox::scene::pivot::Pivot;
 use std::{
     cell::RefCell,
     fmt::Debug,
@@ -109,8 +107,8 @@ use std::{
     path::Path,
     rc::Rc,
     sync::{
-        mpsc::{self, Receiver},
         Arc, LazyLock,
+        mpsc::{self, Receiver},
     },
 };
 
@@ -204,11 +202,13 @@ impl GameScene {
                 .with_frustum_culling(false)
                 .with_visibility(settings.graphics.draw_grid),
         )
-        .with_surfaces(vec![SurfaceBuilder::new(SurfaceResource::new_embedded(
-            SurfaceData::make_quad(&Matrix4::new_scaling(2.0)),
-        ))
-        .with_material(grid_material.clone())
-        .build()])
+        .with_surfaces(vec![
+            SurfaceBuilder::new(SurfaceResource::new_embedded(SurfaceData::make_quad(
+                &Matrix4::new_scaling(2.0),
+            )))
+            .with_material(grid_material.clone())
+            .build(),
+        ])
         .with_render_path(RenderPath::Forward)
         .build(&mut scene.graph);
 
@@ -434,31 +434,11 @@ impl GameScene {
         );
     }
 
-    /// Checks whether the current graph selection has references to the nodes outside of the selection.
-    pub fn is_current_selection_has_external_refs(
-        &self,
-        editor_selection: &Selection,
-        graph: &Graph,
-    ) -> bool {
-        if let Some(selection) = editor_selection.as_graph() {
-            for node in selection.nodes() {
-                for (descendant_handle, _) in graph.traverse_iter(*node) {
-                    for reference in graph.find_references_to(descendant_handle) {
-                        if !selection.contains(reference) {
-                            return true;
-                        }
-                    }
-                }
-            }
-        }
-        false
-    }
-
     fn try_save_selection_as_prefab(&self, path: &Path, selection: &Selection, engine: &Engine) {
         let source_scene = &engine.scenes[self.scene];
         let mut dest_scene = Scene::new();
         if let Some(graph_selection) = selection.as_graph() {
-            for root_node in graph_selection.root_nodes(&source_scene.graph) {
+            for root_node in source_scene.graph.root_nodes(graph_selection.nodes()) {
                 source_scene.graph.copy_node(
                     root_node,
                     &mut dest_scene.graph,
@@ -926,14 +906,13 @@ impl SceneController for GameScene {
                 new_render_target.clone_from(&scene.rendering_options.render_target);
 
                 if let GraphicsContext::Initialized(ref graphics_context) = engine.graphics_context
+                    && let Some(highlighter) = self.highlighter.as_ref()
                 {
-                    if let Some(highlighter) = self.highlighter.as_ref() {
-                        highlighter.borrow_mut().resize(
-                            &*graphics_context.renderer.server,
-                            frame_size.x as usize,
-                            frame_size.y as usize,
-                        );
-                    }
+                    highlighter.borrow_mut().resize(
+                        &*graphics_context.renderer.server,
+                        frame_size.x as usize,
+                        frame_size.y as usize,
+                    );
                 }
             }
         }
@@ -961,11 +940,7 @@ impl SceneController for GameScene {
 
         let scale = if settings.move_mode_settings.grid_snapping {
             fn div_safe(a: f32, b: f32) -> f32 {
-                if b == 0.0 {
-                    a
-                } else {
-                    a / b
-                }
+                if b == 0.0 { a } else { a / b }
             }
 
             match projection {
@@ -1127,6 +1102,17 @@ impl SceneController for GameScene {
             })
             .collect::<Vec<_>>()
     }
+
+    fn selection_external_refs(
+        &self,
+        editor_selection: &Selection,
+        engine: &Engine,
+    ) -> Option<String> {
+        let graph = &engine.scenes[self.scene].graph;
+        editor_selection
+            .as_graph()
+            .and_then(|s| graph.external_refs_summary(s.nodes()))
+    }
 }
 
 define_as_any_trait!(SelectionContainerAsAny => SelectionContainer);
@@ -1201,7 +1187,14 @@ pub trait SelectionContainer: BaseSelectionContainer {
 
     fn paste_property(&mut self, path: &str, value: &dyn Reflect, sender: &MessageSender);
 
-    fn provide_docs(&self, controller: &dyn SceneController, engine: &Engine) -> Option<String>;
+    fn make_delete_selection_command(
+        &self,
+        _controller: &dyn SceneController,
+        _engine: &Engine,
+    ) -> Option<Command> {
+        // TODO. Make this impl mandatory and refactor/unify deletion in general.
+        None
+    }
 }
 
 impl dyn SelectionContainer {
@@ -1358,8 +1351,22 @@ impl Selection {
         controller: &dyn SceneController,
         engine: &Engine,
     ) -> Option<String> {
+        self.0.as_ref().map(|c| {
+            let mut doc_comment = String::default();
+            c.first_selected_entity(controller, &engine.scenes, &mut |e| {
+                doc_comment = e.entity.type_info_ref().doc_comment.to_string();
+            });
+            doc_comment
+        })
+    }
+
+    pub fn make_delete_selection_command(
+        &self,
+        controller: &dyn SceneController,
+        engine: &Engine,
+    ) -> Option<Command> {
         self.0
             .as_ref()
-            .and_then(|c| c.provide_docs(controller, engine))
+            .and_then(|c| c.make_delete_selection_command(controller, engine))
     }
 }

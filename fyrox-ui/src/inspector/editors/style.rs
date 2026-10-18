@@ -26,35 +26,35 @@ use crate::list_view::ListView;
 use crate::message::MessageData;
 use crate::window::WindowAlignment;
 use crate::{
+    BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+    VerticalAlignment, Widget,
     button::{ButtonBuilder, ButtonMessage},
     core::{
-        pool::Handle, reflect::prelude::*, visitor::prelude::*, ImmutableString,
-        PhantomDataSendSync,
+        ImmutableString, PhantomDataSendSync, pool::Handle, reflect::prelude::*,
+        visitor::prelude::*,
     },
     define_widget_deref,
     draw::DrawingContext,
     grid::{Column, GridBuilder, Row},
     image::ImageBuilder,
     inspector::{
+        FieldAction, InspectorError, PropertyChanged,
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        FieldAction, InspectorError, PropertyChanged,
     },
     list_view::{ListViewBuilder, ListViewMessage},
     message::{OsEvent, UiMessage},
     resources::BIND_ICON,
     stack_panel::StackPanelBuilder,
     style::{
-        resource::{StyleResource, StyleResourceExt},
         Style, StyledProperty,
+        resource::{StyleResource, StyleResourceExt},
     },
     utils::{make_dropdown_list_option, make_simple_tooltip},
     widget::WidgetBuilder,
     window::{Window, WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-    VerticalAlignment, Widget,
 };
 use fyrox_core::algebra::{Matrix3, Vector2};
 use fyrox_graph::SceneGraph;
@@ -141,10 +141,10 @@ impl Control for StyledPropertySelector {
         self.window.handle_routed_message(ui, message);
 
         if let Some(ListViewMessage::Selection(selected)) = message.data() {
-            if let Some(selected_index) = selected.first() {
-                if message.destination() == self.properties {
-                    self.style_property_name = self.property_list[*selected_index].clone();
-                }
+            if let Some(selected_index) = selected.first()
+                && message.destination() == self.properties
+            {
+                self.style_property_name = self.property_list[*selected_index].clone();
             }
         } else if let Some(ButtonMessage::Click) = message.data_from(self.ok) {
             ui.post(
@@ -329,17 +329,16 @@ impl Control for StyledPropertyEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(target_style) = self.target_style.as_ref() {
-            if let Some(ButtonMessage::Click) = message.data() {
-                if message.destination() == self.bind {
-                    self.selector = StyledPropertySelectorBuilder::build_and_open_window(
-                        target_style,
-                        self.target_type_id,
-                        self.style_property_name.clone(),
-                        &mut ui.build_ctx(),
-                    );
-                }
-            }
+        if let Some(target_style) = self.target_style.as_ref()
+            && let Some(ButtonMessage::Click) = message.data()
+            && message.destination() == self.bind
+        {
+            self.selector = StyledPropertySelectorBuilder::build_and_open_window(
+                target_style,
+                self.target_type_id,
+                self.style_property_name.clone(),
+                &mut ui.build_ctx(),
+            );
         }
 
         // Re-cast messages from inner editor as message from this editor.

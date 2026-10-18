@@ -53,13 +53,13 @@ use fyrox::core::futures::executor::block_on;
 use fyrox::core::log::Log;
 use fyrox::fxhash::FxHashMap;
 use fyrox::gui::grid::{Column, GridBuilder, Row};
-use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::text::TextBuilder;
-use fyrox::gui::{message::KeyCode, texture::TextureResource};
 use fyrox::gui::{HorizontalAlignment, VerticalAlignment};
-use fyrox::scene::tilemap::tileset::{TileSetPropertyLayer, ELEMENT_MATCH_HIGHLIGHT_COLOR};
+use fyrox::gui::{message::KeyCode, texture::TextureResource};
 use fyrox::scene::tilemap::StampElement;
+use fyrox::scene::tilemap::tileset::{ELEMENT_MATCH_HIGHLIGHT_COLOR, TileSetPropertyLayer};
 pub use handle_editor::*;
 use handle_field::*;
 use interaction_mode::*;
@@ -78,7 +78,7 @@ use crate::fyrox::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
         color::Color,
-        math::{plane::Plane, Matrix4Ext},
+        math::{Matrix4Ext, plane::Plane},
         parking_lot::{Mutex, MutexGuard},
         pool::Handle,
         reflect::prelude::*,
@@ -88,6 +88,7 @@ use crate::fyrox::{
     fxhash::FxHashSet,
     graph::{NodeWrapper, SceneGraph},
     gui::{
+        BuildContext, Thickness, UiNode, UserInterface,
         border::BorderBuilder,
         brush::Brush,
         button::ButtonBuilder,
@@ -97,28 +98,27 @@ use crate::fyrox::{
         message::{MessageDirection, UiMessage},
         utils::make_simple_tooltip,
         widget::{WidgetBuilder, WidgetMessage},
-        BuildContext, Thickness, UiNode, UserInterface,
     },
     scene::{
+        Scene,
         debug::Line,
         node::Node,
         tilemap::{
-            tileset::{TileSet, TileSetResource},
             RandomTileSource, Stamp, TileBook, TileCollider, TileDefinitionHandle, TileMap,
             TilePaletteStage,
+            tileset::{TileSet, TileSetResource},
         },
-        Scene,
     },
 };
 use crate::{
-    interaction::{make_interaction_mode_button, InteractionMode},
+    Editor, Message,
+    interaction::{InteractionMode, make_interaction_mode_button},
     load_image,
     message::MessageSender,
     plugin::EditorPlugin,
     plugins::tilemap::{palette::PaletteMessage, preview::TileSetPreview, tileset::TileSetEditor},
-    scene::{controller::SceneController, GameScene, Selection},
+    scene::{GameScene, Selection, controller::SceneController},
     settings::Settings,
-    Editor, Message,
 };
 use fyrox::asset::manager::ResourceManager;
 use fyrox::engine::ApplicationLoopController;
@@ -779,10 +779,10 @@ impl EditorPlugin for TileMapEditorPlugin {
                 &editor.message_sender,
                 &editor.engine.resource_manager,
             );
-        } else if let Some(&TileDefinitionHandleEditorMessage::Goto(handle)) = message.data() {
-            if let Some(panel) = &mut self.panel {
-                panel.set_focus(handle, ui);
-            }
+        } else if let Some(&TileDefinitionHandleEditorMessage::Goto(handle)) = message.data()
+            && let Some(panel) = &mut self.panel
+        {
+            panel.set_focus(handle, ui);
         }
 
         if let Some(panel) = self.panel.take() {
@@ -856,20 +856,20 @@ impl EditorPlugin for TileMapEditorPlugin {
             }
         }
 
-        if let Message::SetInteractionMode(uuid) = message {
-            if *uuid == TileMapInteractionMode::type_info().type_uuid && self.panel.is_none() {
-                if let Some(tile_map) = self.get_tile_map_mut(editor) {
-                    let resource = if let Some(brush) = tile_map.active_brush() {
-                        TileBook::Brush(brush.clone())
-                    } else if let Some(tile_set) = tile_map.tile_set() {
-                        TileBook::TileSet(tile_set.clone())
-                    } else {
-                        TileBook::Empty
-                    };
-                    if !resource.is_empty() {
-                        self.open_panel_for_tile_map(editor);
-                    }
-                }
+        if let Message::SetInteractionMode(uuid) = message
+            && *uuid == TileMapInteractionMode::type_info().type_uuid
+            && self.panel.is_none()
+            && let Some(tile_map) = self.get_tile_map_mut(editor)
+        {
+            let resource = if let Some(brush) = tile_map.active_brush() {
+                TileBook::Brush(brush.clone())
+            } else if let Some(tile_set) = tile_map.tile_set() {
+                TileBook::TileSet(tile_set.clone())
+            } else {
+                TileBook::Empty
+            };
+            if !resource.is_empty() {
+                self.open_panel_for_tile_map(editor);
             }
         }
 

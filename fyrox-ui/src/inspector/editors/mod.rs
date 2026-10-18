@@ -22,8 +22,11 @@
 //! including standard Rust types and Fyrox core types.
 
 use crate::inspector::InspectorEnvironmentContainer;
+use crate::message::MouseButton;
 use crate::style::{StyleProperty, StylePropertyContainer};
 use crate::{
+    BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, RcUiNodeHandleInner, Thickness,
+    UiNode, UserInterface, VerticalAlignment,
     absm::{EventAction, EventKind},
     bit::BitField,
     border::Border,
@@ -31,17 +34,17 @@ use crate::{
     button::Button,
     canvas::Canvas,
     core::{
+        SafeLock,
         algebra::{Matrix2, Matrix3, Matrix4, SMatrix, UnitQuaternion, Vector2, Vector3, Vector4},
         color::Color,
         color_gradient::ColorGradient,
-        math::{curve::Curve, Rect, SmoothAngle},
+        math::{Rect, SmoothAngle, curve::Curve},
         parking_lot::{Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard},
         pool::Handle,
         reflect::prelude::*,
         sstorage::ImmutableString,
         uuid::Uuid,
         visitor::prelude::*,
-        SafeLock,
     },
     decorator::Decorator,
     dropdown_list::DropdownList,
@@ -51,6 +54,7 @@ use crate::{
     grid::{Grid, GridDimension, SizeMode},
     image::Image,
     inspector::{
+        InspectorError, PropertyChanged, PropertyFilter,
         editors::{
             array::ArrayPropertyEditorDefinition,
             bool::BoolPropertyEditorDefinition,
@@ -81,7 +85,6 @@ use crate::{
                 Vec4PropertyEditorDefinition,
             },
         },
-        InspectorError, PropertyChanged, PropertyFilter,
     },
     key::{HotKeyEditor, KeyBinding, KeyBindingEditor},
     list_view::{ListView, ListViewItem},
@@ -109,8 +112,6 @@ use crate::{
     widget::Widget,
     window::Window,
     wrap_panel::WrapPanel,
-    BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, RcUiNodeHandleInner, Thickness,
-    UiNode, UserInterface, VerticalAlignment,
 };
 use fxhash::FxHashMap;
 use fyrox_animation::machine::Parameter;
@@ -567,6 +568,51 @@ impl PropertyEditorDefinitionContainer {
         reg_array_property_editor! { container, usize, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
         reg_array_property_editor! { container, isize, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
 
+        // [Vector2<NumericType>; 1..N]
+        reg_array_property_editor! { container, Vector2<f64>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<f32>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<u64>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<i64>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<u32>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<i32>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<u16>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<i16>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<u8>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<i8>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<u8>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<usize>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector2<isize>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+
+        // [Vector3<NumericType>; 1..N]
+        reg_array_property_editor! { container, Vector3<f64>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<f32>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<u64>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<i64>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<u32>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<i32>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<u16>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<i16>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<u8>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<i8>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<u8>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<usize>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector3<isize>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+
+        // [Vector4<NumericType>; 1..N]
+        reg_array_property_editor! { container, Vector4<f64>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<f32>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<u64>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<i64>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<u32>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<i32>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<u16>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<i16>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<u8>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<i8>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<u8>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<usize>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+        reg_array_property_editor! { container, Vector4<isize>, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
+
         // SmoothAngle
         container.register_inheritable_inspectable::<SmoothAngle>();
 
@@ -603,6 +649,8 @@ impl PropertyEditorDefinitionContainer {
         container.register_inheritable_vec_collection::<GradientPoint>();
         container.register_inheritable_vec_collection::<Primitive>();
 
+        container.register_inheritable_vec_collection::<usize>();
+
         container.insert(RefCellPropertyEditorDefinition::<FormattedText>::new());
 
         container.insert(VecCollectionPropertyEditorDefinition::<GridDimension>::new());
@@ -632,6 +680,8 @@ impl PropertyEditorDefinitionContainer {
         container.insert(InheritablePropertyEditorDefinition::<Option<SelectionRange>>::new());
 
         container.register_inheritable_inspectable::<Position>();
+
+        container.register_inheritable_enum::<MouseButton, _>();
 
         container.insert(EnumPropertyEditorDefinition::<RcUiNodeHandle>::new_optional());
         container.insert(InspectablePropertyEditorDefinition::<RcUiNodeHandle>::new());
@@ -835,21 +885,24 @@ impl PropertyEditorDefinitionContainer {
     where
         T: CollectionItem + PartialEq,
     {
-        assert!(self
-            .insert(VecCollectionPropertyEditorDefinition::<T>::new())
-            .is_none());
-        assert!(self
-            .insert(InheritablePropertyEditorDefinition::<Vec<T>>::new())
-            .is_none());
+        assert!(
+            self.insert(VecCollectionPropertyEditorDefinition::<T>::new())
+                .is_none()
+        );
+        assert!(
+            self.insert(InheritablePropertyEditorDefinition::<Vec<T>>::new())
+                .is_none()
+        );
     }
 
     pub fn register_vec_collection<T>(&self)
     where
         T: CollectionItem,
     {
-        assert!(self
-            .insert(VecCollectionPropertyEditorDefinition::<T>::new())
-            .is_none());
+        assert!(
+            self.insert(VecCollectionPropertyEditorDefinition::<T>::new())
+                .is_none()
+        );
     }
 
     /// Insert a [InspectablePropertyEditorDefinition] for the given type.
@@ -864,39 +917,46 @@ impl PropertyEditorDefinitionContainer {
     where
         T: Reflect + Clone + PartialEq,
     {
-        assert!(self
-            .insert(InspectablePropertyEditorDefinition::<T>::new())
-            .is_none());
-        assert!(self
-            .insert(InheritablePropertyEditorDefinition::<T>::new())
-            .is_none());
+        assert!(
+            self.insert(InspectablePropertyEditorDefinition::<T>::new())
+                .is_none()
+        );
+        assert!(
+            self.insert(InheritablePropertyEditorDefinition::<T>::new())
+                .is_none()
+        );
     }
 
     pub fn register_inspectable<T>(&self)
     where
         T: Reflect,
     {
-        assert!(self
-            .insert(InspectablePropertyEditorDefinition::<T>::new())
-            .is_none());
+        assert!(
+            self.insert(InspectablePropertyEditorDefinition::<T>::new())
+                .is_none()
+        );
     }
 
     pub fn register_inheritable_styleable_inspectable<T>(&self)
     where
         T: Reflect + Clone + PartialEq,
     {
-        assert!(self
-            .insert(InspectablePropertyEditorDefinition::<T>::new())
-            .is_none());
-        assert!(self
-            .insert(InheritablePropertyEditorDefinition::<T>::new())
-            .is_none());
-        assert!(self
-            .insert(InheritablePropertyEditorDefinition::<StyledProperty<T>>::new())
-            .is_none());
-        assert!(self
-            .insert(StyledPropertyEditorDefinition::<T>::new())
-            .is_none());
+        assert!(
+            self.insert(InspectablePropertyEditorDefinition::<T>::new())
+                .is_none()
+        );
+        assert!(
+            self.insert(InheritablePropertyEditorDefinition::<T>::new())
+                .is_none()
+        );
+        assert!(
+            self.insert(InheritablePropertyEditorDefinition::<StyledProperty<T>>::new())
+                .is_none()
+        );
+        assert!(
+            self.insert(StyledPropertyEditorDefinition::<T>::new())
+                .is_none()
+        );
     }
 
     /// Insert property editor definitions to allow enum T to be edited
@@ -907,39 +967,46 @@ impl PropertyEditorDefinitionContainer {
     where
         T: InspectableEnum + VariantNames + AsRef<str> + FromStr<Err = E> + Debug + PartialEq,
     {
-        assert!(self
-            .insert(EnumPropertyEditorDefinition::<T>::new())
-            .is_none());
-        assert!(self
-            .insert(InheritablePropertyEditorDefinition::<T>::new())
-            .is_none());
+        assert!(
+            self.insert(EnumPropertyEditorDefinition::<T>::new())
+                .is_none()
+        );
+        assert!(
+            self.insert(InheritablePropertyEditorDefinition::<T>::new())
+                .is_none()
+        );
     }
 
     pub fn register_enum<T, E: Debug>(&self)
     where
         T: InspectableEnum + VariantNames + AsRef<str> + FromStr<Err = E> + Debug,
     {
-        assert!(self
-            .insert(EnumPropertyEditorDefinition::<T>::new())
-            .is_none());
+        assert!(
+            self.insert(EnumPropertyEditorDefinition::<T>::new())
+                .is_none()
+        );
     }
 
     pub fn register_inheritable_styleable_enum<T, E: Debug>(&self)
     where
         T: InspectableEnum + VariantNames + AsRef<str> + FromStr<Err = E> + Debug + PartialEq,
     {
-        assert!(self
-            .insert(EnumPropertyEditorDefinition::<T>::new())
-            .is_none());
-        assert!(self
-            .insert(InheritablePropertyEditorDefinition::<T>::new())
-            .is_none());
-        assert!(self
-            .insert(InheritablePropertyEditorDefinition::<StyledProperty<T>>::new())
-            .is_none());
-        assert!(self
-            .insert(StyledPropertyEditorDefinition::<T>::new())
-            .is_none());
+        assert!(
+            self.insert(EnumPropertyEditorDefinition::<T>::new())
+                .is_none()
+        );
+        assert!(
+            self.insert(InheritablePropertyEditorDefinition::<T>::new())
+                .is_none()
+        );
+        assert!(
+            self.insert(InheritablePropertyEditorDefinition::<StyledProperty<T>>::new())
+                .is_none()
+        );
+        assert!(
+            self.insert(StyledPropertyEditorDefinition::<T>::new())
+                .is_none()
+        );
     }
 
     /// Insert property editor definitions to allow `Option<T>` to be edited
@@ -950,12 +1017,14 @@ impl PropertyEditorDefinitionContainer {
     where
         T: InspectableEnum + Default + PartialEq,
     {
-        assert!(self
-            .insert(EnumPropertyEditorDefinition::<T>::new_optional())
-            .is_none());
-        assert!(self
-            .insert(InheritablePropertyEditorDefinition::<Option<T>>::new())
-            .is_none());
+        assert!(
+            self.insert(EnumPropertyEditorDefinition::<T>::new_optional())
+                .is_none()
+        );
+        assert!(
+            self.insert(InheritablePropertyEditorDefinition::<Option<T>>::new())
+                .is_none()
+        );
     }
 
     /// Direct read-only access to all the editor definitions.

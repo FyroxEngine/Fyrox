@@ -22,7 +22,7 @@ use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Vector2, Vector3},
         color::Color,
-        math::{lerpf, Rect},
+        math::{Rect, lerpf},
         sstorage::ImmutableString,
     },
     graphics::{
@@ -33,15 +33,15 @@ use crate::{
     },
     rand::Rng,
     renderer::{
+        RenderPassStatistics,
         cache::{
-            shader::{binding, property, PropertyGroup, RenderMaterial},
+            shader::{PropertyGroup, RenderMaterial, binding, property},
             uniform::UniformBufferCache,
         },
         gbuffer::GBuffer,
         make_viewport_matrix,
         resources::RendererResources,
         ssao::blur::Blur,
-        RenderPassStatistics,
     },
 };
 

@@ -34,6 +34,7 @@ use fyrox::{
     asset::Resource,
     core::{algebra::Vector2, color::Color, pool::Handle},
     gui::{
+        BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
         border::BorderBuilder,
         brush::Brush,
         button::{Button, ButtonBuilder, ButtonMessage},
@@ -48,9 +49,8 @@ use fyrox::{
         text_box::{TextBoxBuilder, TextCommitMode},
         utils::make_simple_tooltip,
         widget::WidgetBuilder,
-        BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
-    scene::tilemap::{tileset::*, CustomTileCollider, CustomTileColliderResource, TileSetUpdate},
+    scene::tilemap::{CustomTileCollider, CustomTileColliderResource, TileSetUpdate, tileset::*},
 };
 use std::str::FromStr;
 
@@ -350,13 +350,12 @@ impl TileEditor for TileColliderEditor {
                 send_visibility(ui, self.custom_field, self.value.is_custom());
                 self.send_value(state, sender, tile_book);
             }
-        } else if let Some(TextMessage::Text(text)) = message.data() {
-            if message.destination() == self.custom_field {
-                if let Some(value) = self.build_custom_collider(text, ui) {
-                    self.value = TileCollider::Custom(value);
-                    self.send_value(state, sender, tile_book);
-                }
-            }
+        } else if let Some(TextMessage::Text(text)) = message.data()
+            && message.destination() == self.custom_field
+            && let Some(value) = self.build_custom_collider(text, ui)
+        {
+            self.value = TileCollider::Custom(value);
+            self.send_value(state, sender, tile_book);
         }
     }
 }

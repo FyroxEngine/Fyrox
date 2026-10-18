@@ -23,7 +23,7 @@ pub mod binary;
 
 use crate::{
     pool::Handle,
-    visitor::{error::VisitError, field::Field, Visitor, VisitorNode},
+    visitor::{Visitor, VisitorNode, error::VisitError, field::Field},
 };
 
 pub trait Reader {

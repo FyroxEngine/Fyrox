@@ -24,6 +24,7 @@
 #![warn(missing_docs)]
 
 use crate::{
+    BuildContext, Control, UiNode, UserInterface,
     core::{
         algebra::Vector2, log::Log, math::Rect, pool::Handle, reflect::prelude::*,
         variable::InheritableVariable, visitor::prelude::*,
@@ -31,13 +32,11 @@ use crate::{
     draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, UiNode, UserInterface,
 };
-use core::f32;
 
 use crate::message::MessageData;
-use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_graph::SceneGraph;
+use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use smallvec::SmallVec;
 use std::cell::RefCell;
 use strum_macros::{AsRefStr, EnumString, VariantNames};
@@ -611,11 +610,10 @@ impl Control for Grid {
             self.measure_group(&groups[3], ui, Vector2::new(space_x, space_y));
         }
 
-        let desired_size = Vector2::<f32>::new(
+        Vector2::<f32>::new(
             self.columns.borrow().iter().map(|c| c.actual_size).sum(),
             self.rows.borrow().iter().map(|r| r.actual_size).sum(),
-        );
-        desired_size
+        )
     }
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
@@ -635,18 +633,18 @@ impl Control for Grid {
 
         for child_handle in self.widget.children() {
             let child = ui.nodes.borrow(*child_handle);
-            if let Some(column) = columns.get(child.column()) {
-                if let Some(row) = rows.get(child.row()) {
-                    ui.arrange_node(
-                        *child_handle,
-                        &Rect::new(
-                            column.location,
-                            row.location,
-                            column.actual_size,
-                            row.actual_size,
-                        ),
-                    );
-                }
+            if let Some(column) = columns.get(child.column())
+                && let Some(row) = rows.get(child.row())
+            {
+                ui.arrange_node(
+                    *child_handle,
+                    &Rect::new(
+                        column.location,
+                        row.location,
+                        column.actual_size,
+                        row.actual_size,
+                    ),
+                );
             }
         }
 

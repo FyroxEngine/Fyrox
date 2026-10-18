@@ -22,28 +22,29 @@ use crate::renderer::make_deferred_viewport_matrix;
 use crate::{
     asset::manager::ResourceManager,
     core::{
+        ImmutableString,
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
         color::Color,
-        math::{frustum::Frustum, Matrix4Ext, Rect, TriangleDefinition},
-        ImmutableString,
+        math::{Matrix4Ext, Rect, TriangleDefinition, frustum::Frustum},
     },
     graphics::{
+        ColorMask, CompareFunc, CullFace, DrawParameters, ElementRange, StencilAction, StencilFunc,
+        StencilOp,
         buffer::BufferUsage,
         error::FrameworkError,
         framebuffer::GpuFrameBuffer,
         geometry_buffer::GpuGeometryBuffer,
         gpu_texture::{GpuTexture, GpuTextureKind},
         server::GraphicsServer,
-        ColorMask, CompareFunc, CullFace, DrawParameters, ElementRange, StencilAction, StencilFunc,
-        StencilOp,
     },
     include_bytes_align_as,
     renderer::{
+        GeometryCache, LightingStatistics, QualitySettings, RenderPassStatistics, TextureCache,
         bundle::{LightSourceKind, RenderDataBundleStorage},
         cache::{
-            shader::{binding, property, PropertyGroup, RenderMaterial, ShaderCache},
-            uniform::{UniformBufferCache, UniformMemoryAllocator},
             DynamicSurfaceCache,
+            shader::{PropertyGroup, RenderMaterial, ShaderCache, binding, property},
+            uniform::{UniformBufferCache, UniformMemoryAllocator},
         },
         convolution::{EnvironmentMapIrradianceConvolution, EnvironmentMapSpecularConvolution},
         framework::GeometryBufferExt,
@@ -59,15 +60,14 @@ use crate::{
         ssao::ScreenSpaceAmbientOcclusionRenderer,
         utils::make_brdf_lut,
         visibility::ObserverVisibilityCache,
-        GeometryCache, LightingStatistics, QualitySettings, RenderPassStatistics, TextureCache,
     },
     scene::{
+        EnvironmentLightingSource, Scene,
         mesh::{
             buffer::{TriangleBuffer, VertexBuffer},
             surface::SurfaceData,
             vertex::SimpleVertex,
         },
-        EnvironmentLightingSource, Scene,
     },
 };
 
@@ -318,39 +318,39 @@ impl DeferredLightRenderer {
         }
 
         // Render skybox (if any).
-        if let Some(skybox) = scene.skybox_ref().and_then(|s| s.cubemap_ref()) {
-            if let Some(texture_sampler_pair) = textures.get(server, resource_manager, skybox) {
-                let size = observer.position.z_far / 2.0f32.sqrt();
-                let scale = Matrix4::new_scaling(size);
-                let wvp = Matrix4::new_translation(&observer.position.translation) * scale;
-                let wvp = observer.position.view_projection_matrix * wvp;
-                let properties = PropertyGroup::from([property("worldViewProjection", &wvp)]);
-                let material = RenderMaterial::from([
-                    binding(
-                        "cubemapTexture",
-                        (
-                            &texture_sampler_pair.gpu_texture,
-                            &texture_sampler_pair.gpu_sampler,
-                        ),
+        if let Some(skybox) = scene.skybox_ref().and_then(|s| s.cubemap_ref())
+            && let Some(texture_sampler_pair) = textures.get(server, resource_manager, skybox)
+        {
+            let size = observer.position.z_far / 2.0f32.sqrt();
+            let scale = Matrix4::new_scaling(size);
+            let wvp = Matrix4::new_translation(&observer.position.translation) * scale;
+            let wvp = observer.position.view_projection_matrix * wvp;
+            let properties = PropertyGroup::from([property("worldViewProjection", &wvp)]);
+            let material = RenderMaterial::from([
+                binding(
+                    "cubemapTexture",
+                    (
+                        &texture_sampler_pair.gpu_texture,
+                        &texture_sampler_pair.gpu_sampler,
                     ),
-                    binding("properties", &properties),
-                ]);
+                ),
+                binding("properties", &properties),
+            ]);
 
-                pass_stats += renderer_resources.shaders.skybox.run_pass(
-                    1,
-                    &ImmutableString::new("Primary"),
-                    frame_buffer,
-                    &self.skybox,
-                    viewport,
-                    &material,
-                    uniform_buffer_cache,
-                    ElementRange::Specific {
-                        offset: 0,
-                        count: 12,
-                    },
-                    None,
-                )?;
-            }
+            pass_stats += renderer_resources.shaders.skybox.run_pass(
+                1,
+                &ImmutableString::new("Primary"),
+                frame_buffer,
+                &self.skybox,
+                viewport,
+                &material,
+                uniform_buffer_cache,
+                ElementRange::Specific {
+                    offset: 0,
+                    count: 12,
+                },
+                None,
+            )?;
         }
 
         let environment_map = observer

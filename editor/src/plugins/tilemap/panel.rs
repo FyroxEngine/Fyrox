@@ -32,6 +32,8 @@ use crate::{
         core::pool::Handle,
         graph::SceneGraph,
         gui::{
+            BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+            VerticalAlignment,
             border::BorderBuilder,
             brush::Brush,
             button::{Button, ButtonMessage},
@@ -41,8 +43,6 @@ use crate::{
             widget::{WidgetBuilder, WidgetMessage},
             window::{WindowBuilder, WindowMessage, WindowTitle},
             wrap_panel::WrapPanelBuilder,
-            BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-            VerticalAlignment,
         },
         gui::{
             grid::SizeMode,
@@ -51,12 +51,12 @@ use crate::{
             window::Window,
         },
         scene::tilemap::brush::{TileMapBrush, TileMapBrushResource},
-        scene::tilemap::{tileset::TileSet, TileBook, *},
+        scene::tilemap::{TileBook, tileset::TileSet, *},
     },
     message::MessageSender,
     plugins::tilemap::{
-        palette::{PaletteMessage, PaletteWidgetBuilder},
         DrawingMode,
+        palette::{PaletteMessage, PaletteWidgetBuilder},
     },
 };
 use fyrox::asset::manager::ResourceManager;
@@ -471,10 +471,10 @@ impl TileMapPanel {
             // A tile set has no brush, but if this is the tile set of our current brush
             // then keep the current brush since it meant to be used with given resource.
             TileBook::TileSet(tile_set) => {
-                if let Some(brush) = &self.brush {
-                    if brush.data_ref().tile_set.as_ref() != Some(tile_set) {
-                        self.brush = None;
-                    }
+                if let Some(brush) = &self.brush
+                    && brush.data_ref().tile_set.as_ref() != Some(tile_set)
+                {
+                    self.brush = None;
                 }
             }
             // We are being given a brush, so that becomes our brush.
@@ -621,11 +621,11 @@ impl TileMapPanel {
         ui: &mut UserInterface,
         resource_manager: &ResourceManager,
     ) -> Option<Self> {
-        if let Some(WindowMessage::Close) = message.data() {
-            if message.destination() == self.window {
-                self.destroy(ui);
-                return None;
-            }
+        if let Some(WindowMessage::Close) = message.data()
+            && message.destination() == self.window
+        {
+            self.destroy(ui);
+            return None;
         }
         if let Some(ButtonMessage::Click) = message.data() {
             self.handle_button(message.destination(), ui, resource_manager);
@@ -640,20 +640,20 @@ impl TileMapPanel {
                         .with_direction(MessageDirection::ToWidget),
                 );
             }
-        } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
-            if ui.is_node_child_of(message.destination(), self.window) {
-                let tile_book = if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
-                    if let Some(brush) = item.resource::<TileMapBrush>() {
-                        Some(TileBook::Brush(brush))
-                    } else {
-                        item.resource::<TileSet>().map(TileBook::TileSet)
-                    }
+        } else if let Some(WidgetMessage::Drop(dropped)) = message.data()
+            && ui.is_node_child_of(message.destination(), self.window)
+        {
+            let tile_book = if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
+                if let Some(brush) = item.resource::<TileMapBrush>() {
+                    Some(TileBook::Brush(brush))
                 } else {
-                    None
-                };
-                if let Some(tile_book) = tile_book {
-                    self.set_resource(tile_book, ui, resource_manager);
+                    item.resource::<TileSet>().map(TileBook::TileSet)
                 }
+            } else {
+                None
+            };
+            if let Some(tile_book) = tile_book {
+                self.set_resource(tile_book, ui, resource_manager);
             }
         }
         Some(self)

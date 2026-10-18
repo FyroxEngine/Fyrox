@@ -23,7 +23,10 @@
 
 #![warn(missing_docs)]
 
+use crate::formatted_text::InlineContext;
 use crate::{
+    BBCode, BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
+    WidgetMessage,
     brush::Brush,
     core::{
         algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, visitor::prelude::*,
@@ -32,10 +35,8 @@ use crate::{
     font::FontResource,
     formatted_text::{FormattedText, FormattedTextBuilder, Run, RunSet, WrapMode},
     message::{MessageData, UiMessage},
-    style::{resource::StyleResourceExt, Style, StyledProperty},
+    style::{Style, StyledProperty, resource::StyleResourceExt},
     widget::{Widget, WidgetBuilder},
-    BBCode, BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
-    WidgetMessage,
 };
 use fyrox_core::algebra::Matrix3;
 use fyrox_core::variable::InheritableVariable;
@@ -319,6 +320,15 @@ impl MessageData for TextMessage {}
 ///
 /// Please keep in mind, that like any other situation when you "changing" something via messages, you should remember
 /// that the change is **not** immediate.
+///
+/// ## Inline Elements
+///
+/// It is possible to put a child widget in the text at arbitrary position, such widgets are called
+/// inline widgets. It could be useful to create complex text layout. For example, this ability allows
+/// you to create text with embedded images. To add an inline element all you need to do is to put
+/// it as a direct child widget of the [`Text`] widget and set its column property to the desired
+/// character index. The inline widget will then be put at the specified position and the rest of the
+/// text will be put right next to it.
 #[derive(Default, Clone, Visit, PartialEq, Reflect, Debug)]
 #[reflect(
     derived_type = "UiNode",
@@ -359,17 +369,26 @@ impl ConstructorProvider<UiNode, UserInterface> for Text {
 crate::define_widget_deref!(Text);
 
 impl Control for Text {
-    fn measure_override(&self, _: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
+    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         self.formatted_text
             .borrow_mut()
             .set_super_sampling_scale(self.visual_max_scaling())
             .set_constraint(available_size)
-            .measure()
+            .measure(Some(InlineContext {
+                children: &self.children,
+                ui,
+            }))
     }
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
-        self.formatted_text.borrow_mut().arrange(final_size);
-        self.widget.arrange_override(ui, final_size)
+        self.formatted_text.borrow_mut().arrange(
+            final_size,
+            Some(InlineContext {
+                children: &self.children,
+                ui,
+            }),
+        );
+        final_size
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
@@ -544,6 +563,7 @@ pub struct TextBuilder {
     text: Option<String>,
     font: Option<FontResource>,
     vertical_text_alignment: VerticalAlignment,
+    baseline_alignment: VerticalAlignment,
     horizontal_text_alignment: HorizontalAlignment,
     wrap: WrapMode,
     shadow: bool,
@@ -564,6 +584,7 @@ impl TextBuilder {
             text: None,
             font: None,
             vertical_text_alignment: VerticalAlignment::Top,
+            baseline_alignment: VerticalAlignment::Bottom,
             horizontal_text_alignment: HorizontalAlignment::Left,
             wrap: WrapMode::NoWrap,
             shadow: false,
@@ -605,6 +626,13 @@ impl TextBuilder {
     /// Sets the desired vertical alignment of the widget.
     pub fn with_vertical_text_alignment(mut self, valign: VerticalAlignment) -> Self {
         self.vertical_text_alignment = valign;
+        self
+    }
+
+    /// Sets the desired baseline alignment. Baseline alignment defines how the glyphs will be aligned
+    /// in each line of the text.
+    pub fn with_baseline_alignment(mut self, baseline_alignment: VerticalAlignment) -> Self {
+        self.baseline_alignment = baseline_alignment;
         self
     }
 
@@ -703,6 +731,7 @@ impl TextBuilder {
             .with_shadow_dilation(self.shadow_dilation)
             .with_shadow_offset(self.shadow_offset)
             .with_trim_text(self.trim_text)
+            .with_baseline_alignment(self.baseline_alignment)
             .with_font_size(
                 self.font_size
                     .unwrap_or_else(|| ctx.style.property(Style::FONT_SIZE)),

@@ -26,11 +26,11 @@ use fyrox_sound::{
     algebra::{Point3, UnitQuaternion, Vector3},
     buffer::{DataSource, SoundBufferResource},
     context::SoundContext,
-    effects::{reverb::Reverb, Effect},
+    effects::{Effect, reverb::Reverb},
     engine::SoundEngine,
     futures::executor::block_on,
     hrtf::HrirSphere,
-    renderer::{hrtf::HrtfRenderer, Renderer},
+    renderer::{Renderer, hrtf::HrtfRenderer},
     source::{SoundSourceBuilder, Status},
 };
 use std::path::PathBuf;

@@ -53,6 +53,7 @@ pub mod transform;
 use crate::{
     asset::{self, io::ResourceIo, manager::ResourceManager, untyped::UntypedResource},
     core::{
+        SafeLock,
         algebra::Vector2,
         color::Color,
         futures::future::join_all,
@@ -60,8 +61,7 @@ use crate::{
         pool::{Handle, Pool, Ticket},
         reflect::prelude::*,
         variable::InheritableVariable,
-        visitor::{error::VisitError, Visit, VisitResult, Visitor},
-        SafeLock,
+        visitor::{Visit, VisitResult, Visitor, error::VisitError},
     },
     engine::SerializationContext,
     graph::NodeHandleMap,

@@ -25,6 +25,7 @@
 use fyrox::{
     fxhash::FxHashMap,
     gui::{
+        HorizontalAlignment, VerticalAlignment,
         button::ButtonMessage,
         color::{ColorFieldBuilder, ColorFieldMessage},
         grid::*,
@@ -34,8 +35,7 @@ use fyrox::{
         stack_panel::StackPanelBuilder,
         text::{TextBuilder, TextMessage},
         text_box::{TextBoxBuilder, TextCommitMode},
-        utils::{make_arrow, ArrowDirection},
-        HorizontalAlignment, VerticalAlignment,
+        utils::{ArrowDirection, make_arrow},
     },
     scene::tilemap::tileset::{
         NamableValue, NamedValue, OptionTileSet, TileSetPropertyLayer, TileSetPropertyType,

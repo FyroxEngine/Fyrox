@@ -19,47 +19,47 @@
 // SOFTWARE.
 
 use crate::command::{Command, CommandGroup};
-use crate::fyrox::generic_animation::machine::Machine;
 use crate::fyrox::generic_animation::AnimationContainer;
+use crate::fyrox::generic_animation::machine::Machine;
 use crate::fyrox::graph::{NodeWrapper, PrefabData};
 use crate::fyrox::{
     core::pool::{ErasedHandle, Handle},
     generic_animation::{
-        machine::{MachineLayer, PoseNode, State},
         Animation,
+        machine::{MachineLayer, PoseNode, State},
     },
     graph::SceneGraph,
     gui::{
+        BuildContext, Thickness, UiNode, UserInterface,
         border::BorderBuilder,
         message::{MessageDirection, UiMessage},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Thickness, UiNode, UserInterface,
     },
 };
 use crate::message::MessageSender;
 use crate::plugins::absm::{
+    AbsmEditor,
     canvas::{AbsmCanvasBuilder, AbsmCanvasMessage},
     command::{
+        MovePoseNodeCommand,
         blend::{
             SetBlendAnimationByIndexInputPoseSourceCommand, SetBlendAnimationsPoseSourceCommand,
             SetBlendSpacePoseSourceCommand,
         },
-        MovePoseNodeCommand,
     },
     connection::{Connection, ConnectionBuilder},
     node::{AbsmNode, AbsmNodeBuilder, AbsmNodeMessage},
     selection::{AbsmSelection, SelectedEntity},
     socket::{Socket, SocketBuilder, SocketDirection},
     state_viewer::context::{CanvasContextMenu, ConnectionContextMenu, NodeContextMenu},
-    AbsmEditor,
 };
-use crate::scene::{commands::ChangeSelectionCommand, Selection};
+use crate::scene::{Selection, commands::ChangeSelectionCommand};
 
 use crate::plugins::absm::canvas::AbsmCanvas;
 use fyrox::core::reflect::Reflect;
-use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::style::Style;
+use fyrox::gui::style::resource::StyleResourceExt;
 use fyrox::gui::window::Window;
 use std::cmp::Ordering;
 
@@ -283,99 +283,96 @@ impl StateViewer {
         N: NodeWrapper<SceneGraph = G, ResourceData = P>,
     {
         if let Some(layer) = machine.layers().get(layer_index) {
-            if message.destination() == self.canvas {
-                if let Some(msg) = message.data::<AbsmCanvasMessage>() {
-                    match msg {
-                        AbsmCanvasMessage::CommitDrag { entries } => {
-                            let commands = entries
-                                .iter()
-                                .map(|e| {
-                                    let pose_handle = fetch_pose_node_model_handle(e.node, ui);
-                                    let new_position = ui.node(e.node).actual_local_position();
+            if message.destination() == self.canvas
+                && let Some(msg) = message.data::<AbsmCanvasMessage>()
+            {
+                match msg {
+                    AbsmCanvasMessage::CommitDrag { entries } => {
+                        let commands = entries
+                            .iter()
+                            .map(|e| {
+                                let pose_handle = fetch_pose_node_model_handle(e.node, ui);
+                                let new_position = ui.node(e.node).actual_local_position();
 
-                                    Command::new(MovePoseNodeCommand::new(
-                                        absm_node_handle,
-                                        pose_handle,
-                                        layer_index,
-                                        e.initial_position,
-                                        new_position,
-                                    ))
-                                })
-                                .collect::<Vec<_>>();
+                                Command::new(MovePoseNodeCommand::new(
+                                    absm_node_handle,
+                                    pose_handle,
+                                    layer_index,
+                                    e.initial_position,
+                                    new_position,
+                                ))
+                            })
+                            .collect::<Vec<_>>();
 
-                            sender.do_command(CommandGroup::from(commands));
-                        }
-                        AbsmCanvasMessage::SelectionChanged(selection)
-                            if message.direction() == MessageDirection::FromWidget =>
-                        {
-                            let selection = Selection::new(AbsmSelection {
-                                absm_node_handle,
-                                layer: Some(layer_index),
-                                entities: selection
-                                    .iter()
-                                    .filter_map(|n| {
-                                        let node_ref = ui.node(*n);
-
-                                        node_ref
-                                            .self_or_field_ref::<AbsmNode<PoseNode<Handle<N>>>>()
-                                            .map(|state_node| {
-                                                SelectedEntity::PoseNode(state_node.model_handle)
-                                            })
-                                    })
-                                    .collect::<Vec<_>>(),
-                            });
-
-                            if !selection.is_empty() && &selection != editor_selection {
-                                sender.do_command(ChangeSelectionCommand::new(selection));
-                            }
-                        }
-                        AbsmCanvasMessage::CommitConnection {
-                            source_socket,
-                            dest_socket,
-                        } => {
-                            let source_node =
-                                fetch_socket_pose_node_model_handle(*source_socket, ui);
-
-                            let dest_socket_ref =
-                                ui.node(*dest_socket).self_or_field_ref::<Socket>().unwrap();
-                            let dest_node = fetch_socket_pose_node_model_handle(*dest_socket, ui);
-
-                            let dest_node_ref = &layer.nodes()[dest_node];
-                            match dest_node_ref {
-                                PoseNode::PlayAnimation(_) => {}
-                                PoseNode::BlendAnimations(_) => {
-                                    sender.do_command(SetBlendAnimationsPoseSourceCommand {
-                                        node_handle: absm_node_handle,
-                                        layer_index,
-                                        handle: dest_node,
-                                        index: dest_socket_ref.index,
-                                        value: source_node,
-                                    });
-                                }
-                                PoseNode::BlendAnimationsByIndex(_) => {
-                                    sender.do_command(
-                                        SetBlendAnimationByIndexInputPoseSourceCommand {
-                                            node_handle: absm_node_handle,
-                                            layer_index,
-                                            handle: dest_node,
-                                            index: dest_socket_ref.index,
-                                            value: source_node,
-                                        },
-                                    );
-                                }
-                                PoseNode::BlendSpace(_) => {
-                                    sender.do_command(SetBlendSpacePoseSourceCommand {
-                                        node_handle: absm_node_handle,
-                                        layer_index,
-                                        handle: dest_node,
-                                        index: dest_socket_ref.index,
-                                        value: source_node,
-                                    });
-                                }
-                            }
-                        }
-                        _ => (),
+                        sender.do_command(CommandGroup::from(commands));
                     }
+                    AbsmCanvasMessage::SelectionChanged(selection)
+                        if message.direction() == MessageDirection::FromWidget =>
+                    {
+                        let selection = Selection::new(AbsmSelection {
+                            absm_node_handle,
+                            layer: Some(layer_index),
+                            entities: selection
+                                .iter()
+                                .filter_map(|n| {
+                                    let node_ref = ui.node(*n);
+
+                                    node_ref
+                                        .self_or_field_ref::<AbsmNode<PoseNode<Handle<N>>>>()
+                                        .map(|state_node| {
+                                            SelectedEntity::PoseNode(state_node.model_handle)
+                                        })
+                                })
+                                .collect::<Vec<_>>(),
+                        });
+
+                        if !selection.is_empty() && &selection != editor_selection {
+                            sender.do_command(ChangeSelectionCommand::new(selection));
+                        }
+                    }
+                    AbsmCanvasMessage::CommitConnection {
+                        source_socket,
+                        dest_socket,
+                    } => {
+                        let source_node = fetch_socket_pose_node_model_handle(*source_socket, ui);
+
+                        let dest_socket_ref =
+                            ui.node(*dest_socket).self_or_field_ref::<Socket>().unwrap();
+                        let dest_node = fetch_socket_pose_node_model_handle(*dest_socket, ui);
+
+                        let dest_node_ref = &layer.nodes()[dest_node];
+                        match dest_node_ref {
+                            PoseNode::PlayAnimation(_) => {}
+                            PoseNode::BlendAnimations(_) => {
+                                sender.do_command(SetBlendAnimationsPoseSourceCommand {
+                                    node_handle: absm_node_handle,
+                                    layer_index,
+                                    handle: dest_node,
+                                    index: dest_socket_ref.index,
+                                    value: source_node,
+                                });
+                            }
+                            PoseNode::BlendAnimationsByIndex(_) => {
+                                sender.do_command(SetBlendAnimationByIndexInputPoseSourceCommand {
+                                    node_handle: absm_node_handle,
+                                    layer_index,
+                                    handle: dest_node,
+                                    index: dest_socket_ref.index,
+                                    value: source_node,
+                                });
+                            }
+                            PoseNode::BlendSpace(_) => {
+                                sender.do_command(SetBlendSpacePoseSourceCommand {
+                                    node_handle: absm_node_handle,
+                                    layer_index,
+                                    handle: dest_node,
+                                    index: dest_socket_ref.index,
+                                    value: source_node,
+                                });
+                            }
+                        }
+                    }
+                    _ => (),
                 }
             }
 
