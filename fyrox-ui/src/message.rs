@@ -652,6 +652,19 @@ impl Force {
     }
 }
 
+/// Input method events. Preedit text is temporary and must not be committed to a widget's value.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ImeEvent {
+    /// The input method started accepting text.
+    Enabled,
+    /// Temporary composition text and its selection, expressed as UTF-8 byte offsets.
+    Preedit(String, Option<(usize, usize)>),
+    /// The input method accepted the given text.
+    Commit(String),
+    /// The input method ended the current session.
+    Disabled,
+}
+
 /// An event that an OS sends to a window, that is then can be used to "feed" the user interface so it can do some actions.
 #[derive(Debug)]
 pub enum OsEvent {
@@ -678,6 +691,10 @@ pub enum OsEvent {
     },
     /// Text committed by the operating system input method (IME).
     TextInput(String),
+    /// Input method lifecycle, composition, and committed text.
+    Ime(ImeEvent),
+    /// Whether the native window has keyboard focus.
+    Focused(bool),
     /// Keyboard modifier event (used for key combinations such as Ctrl+A, Ctrl+C, etc).
     KeyboardModifiers(KeyboardModifiers),
     /// Mouse wheel event, with a tuple that stores the (x, y) offsets.

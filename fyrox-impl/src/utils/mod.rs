@@ -529,7 +529,13 @@ pub fn translate_event(event: &WindowEvent) -> Option<OsEvent> {
                 .map(|s| s.to_string())
                 .unwrap_or_default(),
         }),
-        WindowEvent::Ime(Ime::Commit(text)) => Some(OsEvent::TextInput(text.clone())),
+        WindowEvent::Ime(event) => Some(OsEvent::Ime(match event {
+            Ime::Enabled => message::ImeEvent::Enabled,
+            Ime::Preedit(text, cursor) => message::ImeEvent::Preedit(text.clone(), *cursor),
+            Ime::Commit(text) => message::ImeEvent::Commit(text.clone()),
+            Ime::Disabled => message::ImeEvent::Disabled,
+        })),
+        WindowEvent::Focused(focused) => Some(OsEvent::Focused(*focused)),
         WindowEvent::CursorMoved { position, .. } => Some(OsEvent::CursorMoved {
             position: Vector2::new(position.x as f32, position.y as f32),
         }),
@@ -863,15 +869,60 @@ impl<T: PartialEq> PartialEq for ThreadSafeQueue<T> {
 #[cfg(test)]
 mod test {
     use super::translate_event;
+    #[cfg(target_os = "windows")]
+    use fyrox_ui::message::ImeEvent;
     use fyrox_ui::message::OsEvent;
     use winit::event::{Ime, WindowEvent};
 
     #[test]
     fn translates_committed_ime_text() {
         let event = WindowEvent::Ime(Ime::Commit("中文".to_string()));
+        #[cfg(target_os = "windows")]
         assert!(matches!(
             translate_event(&event),
-            Some(OsEvent::TextInput(text)) if text == "中文"
+            Some(OsEvent::Ime(ImeEvent::Commit(text))) if text == "中文"
         ));
+        #[cfg(not(target_os = "windows"))]
+        assert!(
+            matches!(translate_event(&event), Some(OsEvent::TextInput(text)) if text == "中文")
+        );
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn translates_ime_lifecycle_and_utf8_preedit_selection() {
+        let cases = [
+            (Ime::Enabled, ImeEvent::Enabled),
+            (
+                Ime::Preedit("中文🙂".into(), Some((6, 10))),
+                ImeEvent::Preedit("中文🙂".into(), Some((6, 10))),
+            ),
+            (
+                Ime::Preedit(String::new(), None),
+                ImeEvent::Preedit(String::new(), None),
+            ),
+            (Ime::Disabled, ImeEvent::Disabled),
+        ];
+        for (input, expected) in cases {
+            assert!(matches!(translate_event(&WindowEvent::Ime(input)),
+                Some(OsEvent::Ime(actual)) if actual == expected));
+        }
+        assert!(matches!(
+            translate_event(&WindowEvent::Focused(false)),
+            Some(OsEvent::Focused(false))
+        ));
+    }
+
+    #[test]
+    #[cfg(not(target_os = "windows"))]
+    fn preserves_non_windows_ime_event_routing() {
+        for event in [
+            Ime::Enabled,
+            Ime::Preedit("nihao".into(), Some((5, 5))),
+            Ime::Disabled,
+        ] {
+            assert!(translate_event(&WindowEvent::Ime(event)).is_none());
+        }
+        assert!(translate_event(&WindowEvent::Focused(false)).is_none());
     }
 }

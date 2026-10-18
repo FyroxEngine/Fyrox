@@ -427,13 +427,8 @@ pub static BUILT_IN_CJK: LazyLock<BuiltInResource<Font>> = LazyLock::new(|| {
             FontResource::new_ok(
                 uuid!("a7b53f05-4d8b-4b55-9d0f-ec16d37b1ee1"),
                 ResourceKind::External,
-                Font::from_memory(
-                    data.to_vec(),
-                    1024,
-                    FontStyles::default(),
-                    Vec::default(),
-                )
-                .unwrap(),
+                Font::from_memory(data.to_vec(), 1024, FontStyles::default(), Vec::default())
+                    .unwrap(),
             )
         },
     )
@@ -474,8 +469,13 @@ pub static BUILT_IN_ITALIC: LazyLock<BuiltInResource<Font>> = LazyLock::new(|| {
             FontResource::new_ok(
                 uuid!("1cd79487-6c76-4370-91c2-e6e1e728950a"),
                 ResourceKind::External,
-                Font::from_memory(data.to_vec(), 1024, styles, vec![Some(BUILT_IN_CJK.resource())])
-                    .unwrap(),
+                Font::from_memory(
+                    data.to_vec(),
+                    1024,
+                    styles,
+                    vec![Some(BUILT_IN_CJK.resource())],
+                )
+                .unwrap(),
             )
         },
     )
@@ -495,8 +495,13 @@ pub static BUILT_IN_BOLD: LazyLock<BuiltInResource<Font>> = LazyLock::new(|| {
             FontResource::new_ok(
                 uuid!("8a471243-2466-4241-a4cb-c341ce8e844a"),
                 ResourceKind::External,
-                Font::from_memory(data.to_vec(), 1024, styles, vec![Some(BUILT_IN_CJK.resource())])
-                    .unwrap(),
+                Font::from_memory(
+                    data.to_vec(),
+                    1024,
+                    styles,
+                    vec![Some(BUILT_IN_CJK.resource())],
+                )
+                .unwrap(),
             )
         },
     )
@@ -516,8 +521,13 @@ pub static BUILT_IN_FONT: LazyLock<BuiltInResource<Font>> = LazyLock::new(|| {
             FontResource::new_ok(
                 uuid!("77260e8e-f6fa-429c-8009-13dda2673925"),
                 ResourceKind::External,
-                Font::from_memory(data.to_vec(), 1024, styles, vec![Some(BUILT_IN_CJK.resource())])
-                    .unwrap(),
+                Font::from_memory(
+                    data.to_vec(),
+                    1024,
+                    styles,
+                    vec![Some(BUILT_IN_CJK.resource())],
+                )
+                .unwrap(),
             )
         },
     )
