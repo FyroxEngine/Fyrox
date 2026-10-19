@@ -189,9 +189,9 @@ impl StyledPropertySelectorBuilder {
         ctx: &mut BuildContext,
     ) -> Handle<StyledPropertySelector> {
         let style_data = target_style.data_ref();
-        let (items, property_list): (Vec<_>, Vec<_>) = style_data
-            .all_properties()
-            .inner()
+        let mut sorted_properties = style_data.all_properties().inner().clone();
+        sorted_properties.sort_by(|a, b| a.name.as_str().cmp(b.name.as_str()));
+        let (items, property_list): (Vec<_>, Vec<_>) = sorted_properties
             .iter()
             .map(|container| {
                 (
