@@ -30,7 +30,7 @@ pub mod prelude {
 
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_core::{
-    NameProvider,
+    NameProvider, err,
     log::{Log, MessageKind},
     ok_or_return,
     pool::{Handle, ObjectOrVariant, PoolError},
@@ -586,20 +586,29 @@ pub trait NodeWrapper: Reflect + NameProvider + Clone {
 
                 let mut parent_value = Some(parent_value);
 
-                self.inner_mut().set_field_by_path(
-                    path,
-                    parent_value.take().unwrap(),
-                    &mut |result| match result {
-                        Ok(old_value) => {
-                            previous_value = Some(old_value);
-
-                            was_set = true;
+                self.inner_mut()
+                    .resolve_path_mut(path, &mut |result| match result {
+                        Ok(field) => {
+                            if let Some(parent_inheritable) = field.as_inheritable_variable_mut() {
+                                match parent_inheritable
+                                    .inner_value_mut()
+                                    .set(parent_value.take().unwrap())
+                                {
+                                    Ok(old_value) => {
+                                        previous_value = Some(old_value);
+                                        was_set = true;
+                                    }
+                                    Err(_) => {
+                                        err!("Failed to revert property {path}. Invalid type!")
+                                    }
+                                }
+                            }
                         }
-                        Err(_) => Log::err(format!(
-                            "Failed to revert property {path}. Reason: no such property!"
-                        )),
-                    },
-                );
+                        Err(e) => err!(
+                            "Failed to revert property {path}. Reason: no such property ({})!",
+                            e
+                        ),
+                    });
 
                 if was_set {
                     // Reset modified flag.

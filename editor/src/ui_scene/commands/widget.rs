@@ -109,10 +109,10 @@ impl CommandTrait for RevertWidgetPropertyCommand {
                 &self.path,
                 old_value.take().unwrap(),
                 &mut |result| {
-                    if result.is_err() {
+                    if let Err(e) = result {
                         Log::err(format!(
-                            "Failed to revert property {}. Reason: no such property!",
-                            self.path
+                            "Failed to revert property {}. Reason: no such property ({})!",
+                            self.path, e
                         ))
                     }
                 },
