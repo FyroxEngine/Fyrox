@@ -205,7 +205,7 @@ pub fn make_asset_preview_tooltip(
     )
 }
 
-fn adjust_decorator(builder: DecoratorBuilder, ctx: &BuildContext) -> DecoratorBuilder {
+pub fn adjust_decorator(builder: DecoratorBuilder, ctx: &BuildContext) -> DecoratorBuilder {
     builder
         .with_normal_brush(ctx.style.property(Style::BRUSH_DARKER))
         .with_hover_brush(ctx.style.property(Style::BRUSH_DARK))
@@ -213,7 +213,7 @@ fn adjust_decorator(builder: DecoratorBuilder, ctx: &BuildContext) -> DecoratorB
         .with_selected_brush(ctx.style.property(Style::BRUSH_LIGHTER_PRIMARY))
 }
 
-fn text_margin() -> Thickness {
+pub fn text_margin() -> Thickness {
     Thickness {
         left: 5.0,
         top: 2.0,

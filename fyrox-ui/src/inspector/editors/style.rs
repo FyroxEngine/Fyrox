@@ -21,11 +21,13 @@
 //! Property editor for StyledProperty. It acts like a proxy to inner property, but also
 //! adds a special "bind" button used to change style binding of the property.
 
-use crate::style::StyledPropertyName;
-use crate::text::{Text, TextMessage};
+use crate::brush::Brush;
+use crate::image::ImageBuilder;
+use crate::style::{StyleProperty, StylePropertyContainer};
 use crate::{
     BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     VerticalAlignment, Widget,
+    border::BorderBuilder,
     button::{Button, ButtonBuilder, ButtonMessage},
     core::{
         ImmutableString,
@@ -35,6 +37,7 @@ use crate::{
         reflect::prelude::*,
         visitor::prelude::*,
     },
+    decorator::DecoratorBuilder,
     define_widget_deref,
     draw::DrawingContext,
     grid::{Column, GridBuilder, Row},
@@ -47,11 +50,15 @@ use crate::{
     },
     list_view::{ListView, ListViewBuilder, ListViewMessage},
     message::{MessageData, OsEvent, UiMessage},
+    resources,
     resources::BIND_ICON,
     stack_panel::StackPanelBuilder,
+    style::StyledPropertyName,
     style::resource::StyleResource,
     text::TextBuilder,
-    utils::{ImageButtonBuilder, make_dropdown_list_option},
+    text::{Text, TextMessage},
+    utils::ImageButtonBuilder,
+    utils::adjust_decorator,
     widget::WidgetBuilder,
     window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
 };
@@ -177,6 +184,61 @@ pub struct StyledPropertySelectorBuilder {
     window_builder: WindowBuilder,
 }
 
+pub fn make_dropdown_list_option(
+    ctx: &mut BuildContext,
+    container: &StylePropertyContainer,
+) -> Handle<UiNode> {
+    let (image, color) = match container.value {
+        StyleProperty::Number(_) => (resources::NUMBER.clone(), Color::opaque(0, 162, 232)),
+        StyleProperty::Thickness(_) => (resources::THICKNESS.clone(), Color::opaque(34, 177, 76)),
+        StyleProperty::Color(_) => (resources::COLOR.clone(), Color::opaque(163, 73, 164)),
+        StyleProperty::Brush(_) => (resources::BRUSH.clone(), Color::opaque(255, 127, 39)),
+        StyleProperty::Texture(_) => (resources::TEXTURE.clone(), Color::opaque(150, 150, 150)),
+    };
+
+    let content = GridBuilder::new(
+        WidgetBuilder::new()
+            .with_margin(Thickness::left(5.0))
+            .with_child(
+                ImageBuilder::new(
+                    WidgetBuilder::new()
+                        .with_background(Brush::Solid(color).into())
+                        .with_width(18.0)
+                        .with_height(18.0),
+                )
+                .with_opt_texture(image)
+                .build(ctx),
+            )
+            .with_child(
+                TextBuilder::new(
+                    WidgetBuilder::new()
+                        .on_column(1)
+                        .with_margin(crate::utils::text_margin())
+                        .with_vertical_alignment(VerticalAlignment::Center),
+                )
+                .with_vertical_text_alignment(VerticalAlignment::Center)
+                .with_horizontal_text_alignment(HorizontalAlignment::Left)
+                .with_text(container.name.as_str())
+                .build(ctx),
+            ),
+    )
+    .add_row(Row::auto())
+    .add_column(Column::auto())
+    .add_column(Column::stretch())
+    .build(ctx);
+
+    adjust_decorator(
+        DecoratorBuilder::new(
+            BorderBuilder::new(WidgetBuilder::new().with_child(content))
+                .with_corner_radius(4.0f32.into())
+                .with_pad_by_corner_radius(false),
+        ),
+        ctx,
+    )
+    .build(ctx)
+    .to_base()
+}
+
 impl StyledPropertySelectorBuilder {
     pub fn new(window_builder: WindowBuilder) -> Self {
         Self { window_builder }
@@ -195,7 +257,7 @@ impl StyledPropertySelectorBuilder {
             .iter()
             .map(|container| {
                 (
-                    make_dropdown_list_option(ctx, &container.name),
+                    make_dropdown_list_option(ctx, container),
                     container.name.clone(),
                 )
             })
