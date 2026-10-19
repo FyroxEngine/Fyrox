@@ -220,6 +220,7 @@ impl StyledPropertySelectorBuilder {
             WidgetBuilder::new()
                 .on_column(0)
                 .on_row(1)
+                .with_height(28.0)
                 .with_horizontal_alignment(HorizontalAlignment::Right)
                 .with_child({
                     ok = ButtonBuilder::new(
@@ -280,7 +281,7 @@ impl StyledPropertySelectorBuilder {
         ctx: &mut BuildContext,
     ) -> Handle<StyledPropertySelector> {
         let window = StyledPropertySelectorBuilder::new(
-            WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(200.0))
+            WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(600.0))
                 .with_title(WindowTitle::text("Select A Style Property"))
                 .with_remove_on_close(true)
                 .open(false),
