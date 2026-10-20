@@ -21,13 +21,12 @@
 //! Property editor for StyledProperty. It acts like a proxy to inner property, but also
 //! adds a special "bind" button used to change style binding of the property.
 
-use crate::brush::Brush;
-use crate::image::ImageBuilder;
-use crate::style::{StyleProperty, StylePropertyContainer};
+use crate::widget::WidgetMessage;
 use crate::{
     BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     VerticalAlignment, Widget,
     border::BorderBuilder,
+    brush::Brush,
     button::{Button, ButtonBuilder, ButtonMessage},
     core::{
         ImmutableString,
@@ -41,6 +40,7 @@ use crate::{
     define_widget_deref,
     draw::DrawingContext,
     grid::{Column, GridBuilder, Row},
+    image::ImageBuilder,
     inspector::{
         FieldAction, InspectorError, PropertyChanged,
         editors::{
@@ -50,18 +50,16 @@ use crate::{
     },
     list_view::{ListView, ListViewBuilder, ListViewMessage},
     message::{MessageData, OsEvent, UiMessage},
-    resources,
-    resources::BIND_ICON,
+    resources::{self, BIND_ICON},
+    searchbar::{SearchBar, SearchBarBuilder, SearchBarMessage},
     stack_panel::StackPanelBuilder,
-    style::StyledPropertyName,
-    style::resource::StyleResource,
-    text::TextBuilder,
-    text::{Text, TextMessage},
-    utils::ImageButtonBuilder,
-    utils::adjust_decorator,
+    style::{StyleProperty, StylePropertyContainer, StyledPropertyName, resource::StyleResource},
+    text::{Text, TextBuilder, TextMessage},
+    utils::{ImageButtonBuilder, adjust_decorator},
     widget::WidgetBuilder,
     window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
 };
+use rust_fuzzy_search::fuzzy_compare;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -91,6 +89,7 @@ pub struct StyledPropertySelector {
     property_list: Vec<ImmutableString>,
     ok: Handle<Button>,
     cancel: Handle<Button>,
+    search_bar: Handle<SearchBar>,
     style_property_name: ImmutableString,
 }
 
@@ -159,6 +158,18 @@ impl Control for StyledPropertySelector {
             ui.send(self.handle, WindowMessage::Close);
         } else if let Some(ButtonMessage::Click) = message.data_from(self.cancel) {
             ui.send(self.handle, WindowMessage::Close);
+        } else if let Some(SearchBarMessage::Text(filter_text)) = message.data_from(self.search_bar)
+        {
+            let filter_text = filter_text.to_lowercase();
+            let list_view_ref = &*ui[self.properties].items;
+            for (item, value) in list_view_ref.iter().zip(&self.property_list) {
+                let value = value.to_lowercase();
+                let visibility = value.contains(&filter_text)
+                    || fuzzy_compare(&filter_text, value.as_str()) >= 0.5;
+                ui.send(*item, WidgetMessage::Visibility(visibility));
+            }
+        } else if let Some(WindowMessage::Open { .. }) = message.data_for(self.handle) {
+            ui.send(self.search_bar, WidgetMessage::Focus);
         }
     }
 
@@ -268,7 +279,7 @@ impl StyledPropertySelectorBuilder {
         let selected_item = selection.and_then(|i| items.get(i).cloned());
         let properties = ListViewBuilder::new(
             WidgetBuilder::new()
-                .on_row(0)
+                .on_row(1)
                 .on_column(0)
                 .with_margin(Thickness::uniform(1.0)),
         )
@@ -281,7 +292,7 @@ impl StyledPropertySelectorBuilder {
         let buttons = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .on_column(0)
-                .on_row(1)
+                .on_row(2)
                 .with_height(28.0)
                 .with_horizontal_alignment(HorizontalAlignment::Right)
                 .with_child({
@@ -308,11 +319,20 @@ impl StyledPropertySelectorBuilder {
         .with_orientation(Orientation::Horizontal)
         .build(ctx);
 
+        let search_bar = SearchBarBuilder::new(
+            WidgetBuilder::new()
+                .with_height(24.0)
+                .with_margin(Thickness::uniform(1.0)),
+        )
+        .build(ctx);
+
         let content = GridBuilder::new(
             WidgetBuilder::new()
+                .with_child(search_bar)
                 .with_child(properties)
                 .with_child(buttons),
         )
+        .add_row(Row::auto())
         .add_row(Row::stretch())
         .add_row(Row::auto())
         .add_column(Column::stretch())
@@ -324,6 +344,7 @@ impl StyledPropertySelectorBuilder {
             property_list,
             ok,
             cancel,
+            search_bar,
             style_property_name,
         };
 
