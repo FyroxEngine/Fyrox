@@ -186,7 +186,7 @@ fn make_project_item(
             .with_height(40.0)
             .on_column(0),
     )
-    .with_opt_texture(load_image(include_bytes!("../resources/icon.png")))
+    .with_opt_texture(load_image(include_bytes!("../resources/icon.png")).into())
     .build(ctx);
 
     let hot_reload = ImageBuilder::new(
@@ -196,7 +196,7 @@ fn make_project_item(
             .with_margin(Thickness::uniform(2.0))
             .with_visibility(hot_reload),
     )
-    .with_opt_texture(load_image(include_bytes!("../resources/flame.png")))
+    .with_opt_texture(load_image(include_bytes!("../resources/flame.png")).into())
     .build(ctx);
 
     let engine_version = TextBuilder::new(
@@ -341,7 +341,7 @@ impl ProjectManager {
         let (sender, receiver) = std::sync::mpsc::channel();
         Log::add_listener(sender);
 
-        let log = LogPanel::new(ctx, receiver, None, false);
+        let log = LogPanel::new(ctx, receiver, None.into(), false);
 
         let is_ready = is_production_ready();
 
@@ -422,7 +422,7 @@ impl ProjectManager {
         .with_empty_text_placeholder(EmptyTextPlaceholder::Text("Search for a project"))
         .build(ctx);
         let open_settings = ImageButtonBuilder::default()
-            .with_image(load_image(include_bytes!("../resources/gear.png")))
+            .with_image(load_image(include_bytes!("../resources/gear.png")).into())
             .with_image_size(18.0)
             .with_tooltip("Settings\nHotkey: Ctrl+S")
             .with_tab_index(Some(7))
@@ -430,7 +430,7 @@ impl ProjectManager {
         ctx[open_settings].set_column(3);
 
         let open_help = ImageButtonBuilder::default()
-            .with_image(load_image(include_bytes!("../resources/question.png")))
+            .with_image(load_image(include_bytes!("../resources/question.png")).into())
             .with_image_size(18.0)
             .with_tooltip("Help\nHotkey: F1")
             .with_tab_index(Some(8))
@@ -456,7 +456,9 @@ impl ProjectManager {
                                 .with_height(18.0)
                                 .on_column(0),
                         )
-                        .with_opt_texture(load_image(include_bytes!("../resources/caution.png")))
+                        .with_opt_texture(
+                            load_image(include_bytes!("../resources/caution.png")).into(),
+                        )
                         .build(ctx),
                     )
                     .with_child({

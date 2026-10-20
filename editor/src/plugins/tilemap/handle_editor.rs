@@ -172,7 +172,7 @@ impl TileDefinitionHandleEditorBuilder {
                         .with_width(16.0)
                         .with_height(16.0),
                 )
-                .with_opt_texture(PALETTE_IMAGE.clone())
+                .with_opt_texture(PALETTE_IMAGE.clone().into())
                 .build(ctx),
             )
             .build(ctx);

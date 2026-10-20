@@ -838,7 +838,7 @@ impl Editor {
         let log = LogPanel::new(
             ctx,
             log_message_receiver,
-            load_image!("../resources/clear.png"),
+            load_image!("../resources/clear.png").into(),
             true,
         );
         let inspector_plugin = InspectorPlugin::new(ctx);

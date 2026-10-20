@@ -342,7 +342,7 @@ impl CheckBoxBuilder {
                     .with_background(ctx.style.property(Style::BRUSH_BRIGHT_BLUE))
                     .with_child(
                         ImageBuilder::new(WidgetBuilder::new().with_width(size).with_height(size))
-                            .with_opt_texture(resources::CHECK.clone())
+                            .with_opt_texture(resources::CHECK.clone().into())
                             .build(ctx),
                     ),
             )

@@ -177,7 +177,7 @@ impl Control for MaterialFieldEditor {
         }) = message.data_for(self.handle)
         {
             for widget in [self.image, self.image_preview] {
-                ui.send(widget, ImageMessage::Texture(texture.clone()));
+                ui.send(widget, ImageMessage::Texture(texture.clone().into()));
                 ui.send(widget, ImageMessage::Flip(*flip_y));
                 ui.send(
                     widget,
@@ -266,7 +266,7 @@ impl MaterialFieldEditorBuilder {
                 .with_child({
                     locate = ImageButtonBuilder::default()
                         .on_column(1)
-                        .with_image(load_image!("../../../resources/locate.png"))
+                        .with_image(load_image!("../../../resources/locate.png").into())
                         .with_tooltip("Show In Asset Browser")
                         .build_button(ctx);
                     locate

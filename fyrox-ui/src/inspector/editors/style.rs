@@ -217,7 +217,7 @@ pub fn make_dropdown_list_option(
                         .with_width(18.0)
                         .with_height(18.0),
                 )
-                .with_opt_texture(image)
+                .with_opt_texture(image.into())
                 .build(ctx),
             )
             .with_child(
@@ -468,7 +468,7 @@ impl StyledPropertyNameEditorBuilder {
             .with_margin(Thickness::uniform(1.0))
             .with_vertical_alignment(VerticalAlignment::Top)
             .with_image_size(14.0)
-            .with_image(BIND_ICON.clone())
+            .with_image(BIND_ICON.clone().into())
             .build_button(ctx);
 
         let name_text = TextBuilder::new(WidgetBuilder::new())

@@ -243,7 +243,7 @@ pub fn make_interaction_mode_button(
                 .with_width(19.0)
                 .with_height(19.0),
         )
-        .with_opt_texture(load_image_internal(image))
+        .with_opt_texture(load_image_internal(image).into())
         .build(ctx),
     )
     .build(ctx)

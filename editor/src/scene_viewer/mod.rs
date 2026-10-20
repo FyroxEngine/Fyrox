@@ -109,7 +109,7 @@ impl GridSnappingMenu {
         let grid_snap_menu = DropdownMenuBuilder::new(WidgetBuilder::new())
             .with_header({
                 button = ImageButtonBuilder::default()
-                    .with_image(load_image!("../../resources/grid_snapping.png"))
+                    .with_image(load_image!("../../resources/grid_snapping.png").into())
                     .with_tooltip("Snapping Options")
                     .build_button(ctx);
                 button.to_base()
@@ -400,7 +400,9 @@ impl SceneViewer {
                                                 Brush::Solid(Color::opaque(0, 200, 0)).into(),
                                             ),
                                     )
-                                    .with_opt_texture(load_image!("../../resources/play.png"))
+                                    .with_opt_texture(
+                                        load_image!("../../resources/play.png").into(),
+                                    )
                                     .build(ctx),
                                 )
                                 .build(ctx);
@@ -423,7 +425,9 @@ impl SceneViewer {
                                                 Brush::Solid(Color::opaque(0, 200, 0)).into(),
                                             ),
                                     )
-                                    .with_opt_texture(load_image!("../../resources/hammer.png"))
+                                    .with_opt_texture(
+                                        load_image!("../../resources/hammer.png").into(),
+                                    )
                                     .build(ctx),
                                 )
                                 .build(ctx);
@@ -446,7 +450,9 @@ impl SceneViewer {
                                                 Brush::Solid(Color::opaque(200, 0, 0)).into(),
                                             ),
                                     )
-                                    .with_opt_texture(load_image!("../../resources/stop.png"))
+                                    .with_opt_texture(
+                                        load_image!("../../resources/stop.png").into(),
+                                    )
                                     .build(ctx),
                                 )
                                 .build(ctx);
@@ -1027,7 +1033,7 @@ impl SceneViewer {
     }
 
     pub fn set_render_target(&self, ui: &UserInterface, render_target: Option<TextureResource>) {
-        ui.send(self.frame, ImageMessage::Texture(render_target));
+        ui.send(self.frame, ImageMessage::Texture(render_target.into()));
     }
 
     pub fn set_title(&self, ui: &UserInterface, title: String) {

@@ -224,9 +224,9 @@ impl PreviewPanel {
                                                         .with_height(18.0)
                                                         .with_margin(Thickness::uniform(2.0)),
                                                 )
-                                                .with_opt_texture(load_image!(
-                                                    "../resources/fit.png"
-                                                ))
+                                                .with_opt_texture(
+                                                    load_image!("../resources/fit.png").into(),
+                                                )
                                                 .build(ctx),
                                             )
                                             .build(ctx);
@@ -408,7 +408,7 @@ impl PreviewPanel {
             engine
                 .user_interfaces
                 .first()
-                .send(self.frame, ImageMessage::Texture(Some(rt)));
+                .send(self.frame, ImageMessage::Texture(Some(rt).into()));
         }
     }
 

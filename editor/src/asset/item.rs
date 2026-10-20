@@ -317,7 +317,7 @@ impl Control for AssetItem {
                     flip_y,
                     color,
                 } => {
-                    ui.send(self.preview, ImageMessage::Texture(texture.clone()));
+                    ui.send(self.preview, ImageMessage::Texture(texture.clone().into()));
                     ui.send(self.preview, ImageMessage::Flip(*flip_y));
                     ui.send(
                         self.preview,
@@ -396,7 +396,7 @@ impl AssetItemBuilder {
                 .with_width(DEFAULT_SIZE)
                 .with_height(DEFAULT_SIZE),
         )
-        .with_opt_texture(self.icon)
+        .with_opt_texture(self.icon.into())
         .build(ctx);
 
         let text_border = BorderBuilder::new(

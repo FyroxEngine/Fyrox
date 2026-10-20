@@ -60,7 +60,7 @@ pub fn make_pick_button(column: usize, ctx: &mut BuildContext) -> Handle<Button>
                 .with_margin(Thickness::uniform(3.0))
                 .with_background(Brush::Solid(Color::opaque(0, 180, 0)).into()),
         )
-        .with_opt_texture(load_image!("../../resources/pick.png"))
+        .with_opt_texture(load_image!("../../resources/pick.png").into())
         .build(ctx),
     )
     .build(ctx)

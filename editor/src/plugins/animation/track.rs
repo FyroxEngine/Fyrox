@@ -575,14 +575,16 @@ impl Toolbar {
                             .on_column(1)
                             .with_child({
                                 collapse_all = ImageButtonBuilder::default()
-                                    .with_image(load_image!("../../../resources/collapse.png"))
+                                    .with_image(
+                                        load_image!("../../../resources/collapse.png").into(),
+                                    )
                                     .with_tooltip("Collapse All")
                                     .build_button(ctx);
                                 collapse_all
                             })
                             .with_child({
                                 expand_all = ImageButtonBuilder::default()
-                                    .with_image(load_image!("../../../resources/expand.png"))
+                                    .with_image(load_image!("../../../resources/expand.png").into())
                                     .with_tooltip("Expand All")
                                     .build_button(ctx);
                                 expand_all
@@ -649,14 +651,14 @@ impl TrackList {
 
         let tree_root;
         let add_track = ImageButtonBuilder::default()
-            .with_image(load_image!("../../../resources/property_track.png"))
+            .with_image(load_image!("../../../resources/property_track.png").into())
             .with_tooltip(
                 "Add Property Track.\nCreate generic property binding to a numeric property.",
             )
             .with_tab_index(Some(0))
             .build_button(ctx);
         let add_position_track = ImageButtonBuilder::default()
-            .with_image(load_image!("../../../resources/position_track.png"))
+            .with_image(load_image!("../../../resources/position_track.png").into())
             .with_tooltip(
                 "Add Position Track.\nCreates a binding to a local position of a node. Such \
                 binding is much more performant than generic property binding",
@@ -664,7 +666,7 @@ impl TrackList {
             .with_tab_index(Some(1))
             .build_button(ctx);
         let add_rotation_track = ImageButtonBuilder::default()
-            .with_image(load_image!("../../../resources/rotation_track.png"))
+            .with_image(load_image!("../../../resources/rotation_track.png").into())
             .with_tooltip(
                 "Add Rotation Track.\nCreates a binding to a local rotation of a node. \
                 Such binding is much more performant than generic property binding",
@@ -672,7 +674,7 @@ impl TrackList {
             .with_tab_index(Some(3))
             .build_button(ctx);
         let add_scale_track = ImageButtonBuilder::default()
-            .with_image(load_image!("../../../resources/scaling_track.png"))
+            .with_image(load_image!("../../../resources/scaling_track.png").into())
             .with_tooltip(
                 "Add Scale Track.\nCreates a binding to a local scale of a node. Such \
                 binding is much more performant than generic property binding",
@@ -681,7 +683,7 @@ impl TrackList {
             .build_button(ctx);
         let add_key = ImageButtonBuilder::default()
             .with_image_color(Color::GREEN_YELLOW)
-            .with_image(load_image!("../../../resources/key.png"))
+            .with_image(load_image!("../../../resources/key.png").into())
             .with_tooltip("Add key.\nCaptures the state of all properties of the selected object")
             .with_tab_index(Some(4))
             .build_button(ctx);

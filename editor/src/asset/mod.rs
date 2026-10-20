@@ -232,7 +232,7 @@ impl AssetBrowser {
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
 
         let add_resource = ImageButtonBuilder::default()
-            .with_image(load_image!("../../resources/add.png"))
+            .with_image(load_image!("../../resources/add.png").into())
             .with_image_color(Color::GREEN)
             .with_tab_index(Some(1))
             .with_tooltip("Add New Resource")
@@ -241,14 +241,14 @@ impl AssetBrowser {
         let refresh = ImageButtonBuilder::default()
             .with_image_color(Color::DEEP_SKY_BLUE)
             .on_column(1)
-            .with_image(load_image!("../../resources/reimport.png"))
+            .with_image(load_image!("../../resources/reimport.png").into())
             .with_tooltip("Refresh")
             .with_tab_index(Some(1))
             .build_button(ctx);
 
         let resave_resources = ImageButtonBuilder::default()
             .on_column(2)
-            .with_image(load_image!("../../resources/resave.png"))
+            .with_image(load_image!("../../resources/resave.png").into())
             .with_tooltip(
                 "Resave All Native Resources\n\
             Use for assets migration from the previous versions of the engine",

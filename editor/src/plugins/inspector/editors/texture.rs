@@ -133,7 +133,10 @@ impl Control for TextureEditor {
             if &self.texture != texture {
                 self.texture.clone_from(texture);
 
-                ui.send(self.image, ImageMessage::Texture(self.texture.clone()));
+                ui.send(
+                    self.image,
+                    ImageMessage::Texture(self.texture.clone().into()),
+                );
                 ui.send(
                     self.path,
                     TextMessage::Text(texture_name(
@@ -212,7 +215,7 @@ impl TextureEditorBuilder {
         )
         .with_sync_with_texture_size(false)
         .with_checkerboard_background(true)
-        .with_opt_texture(self.texture.clone())
+        .with_opt_texture(self.texture.clone().into())
         .build(ctx);
 
         let (tooltip, _) = make_asset_preview_tooltip(self.texture.clone(), ctx);
@@ -232,7 +235,7 @@ impl TextureEditorBuilder {
             .on_column(3)
             .with_image_size(14.0)
             .with_size(22.0)
-            .with_image(load_image!("../../../../resources/locate.png"))
+            .with_image(load_image!("../../../../resources/locate.png").into())
             .with_tooltip("Show In Asset Browser")
             .build_button(ctx);
 
@@ -241,7 +244,7 @@ impl TextureEditorBuilder {
             .with_image_size(14.0)
             .with_size(22.0)
             .with_image_color(Color::opaque(180, 0, 0))
-            .with_image(load_image!("../../../../resources/cross.png"))
+            .with_image(load_image!("../../../../resources/cross.png").into())
             .with_tooltip("Unassign. Fallback will be used instead.")
             .build_button(ctx);
 

@@ -90,7 +90,7 @@ impl Toolbar {
                     add_layer = ImageButtonBuilder::default()
                         .with_size(24.0)
                         .with_image_color(Color::GREEN)
-                        .with_image(load_image!("../../../resources/add.png"))
+                        .with_image(load_image!("../../../resources/add.png").into())
                         .with_tooltip("Add new layer.")
                         .build_button(ctx);
                     add_layer
@@ -108,7 +108,7 @@ impl Toolbar {
                     edit_mask = ImageButtonBuilder::default()
                         .with_size(24.0)
                         .with_image_color(Color::LIGHT_SKY_BLUE)
-                        .with_image(load_image!("../../../resources/filter.png"))
+                        .with_image(load_image!("../../../resources/filter.png").into())
                         .with_tooltip("Edit layer mask...")
                         .build_button(ctx);
                     edit_mask
@@ -117,7 +117,7 @@ impl Toolbar {
                     rename_layer = ImageButtonBuilder::default()
                         .with_size(24.0)
                         .with_image_color(Color::ORANGE)
-                        .with_image(load_image!("../../../resources/rename.png"))
+                        .with_image(load_image!("../../../resources/rename.png").into())
                         .with_tooltip("Rename current layer.")
                         .build_button(ctx);
                     rename_layer
@@ -126,7 +126,7 @@ impl Toolbar {
                     remove_layer = ImageButtonBuilder::default()
                         .with_size(24.0)
                         .with_image_color(Color::ORANGE_RED)
-                        .with_image(load_image!("../../../resources/cross.png"))
+                        .with_image(load_image!("../../../resources/cross.png").into())
                         .with_tooltip("Remove Selected Animation")
                         .build_button(ctx);
                     remove_layer
@@ -134,7 +134,7 @@ impl Toolbar {
                 .with_child({
                     preview = ImageButtonBuilder::default()
                         .with_size(24.0)
-                        .with_image(load_image!("../../../resources/eye.png"))
+                        .with_image(load_image!("../../../resources/eye.png").into())
                         .with_tooltip("Preview")
                         .build_toggle(ctx);
                     preview

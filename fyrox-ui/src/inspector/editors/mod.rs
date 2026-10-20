@@ -714,6 +714,12 @@ impl PropertyEditorDefinitionContainer {
             StyledProperty<Thickness>,
         >::new());
         container.insert(EnumPropertyEditorDefinition::<StyledProperty<Thickness>>::new());
+        container.insert(InheritablePropertyEditorDefinition::<
+            StyledProperty<Option<TextureResource>>,
+        >::new());
+        container.insert(EnumPropertyEditorDefinition::<
+            StyledProperty<Option<TextureResource>>,
+        >::new());
 
         container.insert(InheritablePropertyEditorDefinition::<
             StyledProperty<TextureResource>,

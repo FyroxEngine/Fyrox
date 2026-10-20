@@ -145,7 +145,7 @@ impl CameraPreviewControlPanel {
                     engine
                         .user_interfaces
                         .first()
-                        .send_sync(self.preview_frame, ImageMessage::Texture(rt.clone()));
+                        .send_sync(self.preview_frame, ImageMessage::Texture(rt.clone().into()));
                     camera.set_render_target(rt);
                     camera
                         .render_mask
@@ -176,7 +176,7 @@ impl CameraPreviewControlPanel {
         let ui = engine.user_interfaces.first();
 
         // Don't keep the render target alive after the preview mode is off.
-        ui.send_sync(self.preview_frame, ImageMessage::Texture(None));
+        ui.send_sync(self.preview_frame, ImageMessage::Texture(None.into()));
         ui.send_sync(self.preview_frame, WidgetMessage::Visibility(false));
     }
 }

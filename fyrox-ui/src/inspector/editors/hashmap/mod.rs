@@ -271,7 +271,7 @@ where
                 .on_row(row)
                 .with_image_size(12.0)
                 .with_width(18.0)
-                .with_image(resources::REMOVE.clone())
+                .with_image(resources::REMOVE.clone().into())
                 .build_button(ctx);
 
             let key_editor = key_editor_instance.container();

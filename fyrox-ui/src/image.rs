@@ -37,6 +37,7 @@ use crate::{
 };
 
 use crate::message::MessageData;
+use crate::style::StyledProperty;
 use fyrox_graph::constructor::{ConstructorProvider, GraphNodeConstructor};
 use fyrox_texture::{TextureKind, TextureResource};
 
@@ -44,7 +45,7 @@ use fyrox_texture::{TextureKind, TextureResource};
 #[derive(Debug, Clone, PartialEq)]
 pub enum ImageMessage {
     /// Used to set new texture of the [`Image`] widget.
-    Texture(Option<TextureResource>),
+    Texture(StyledProperty<Option<TextureResource>>),
     /// Used to enable or disable texture flip of the [`Image`] widget. See the respective [section](Image#vertical-flip)
     /// of the docs for more info.
     Flip(bool),
@@ -165,7 +166,7 @@ pub struct Image {
     /// Base widget of the image.
     pub widget: Widget,
     /// Current texture of the image.
-    pub texture: InheritableVariable<Option<TextureResource>>,
+    pub texture: InheritableVariable<StyledProperty<Option<TextureResource>>>,
     /// Defines whether to vertically flip the image or not.
     pub flip: InheritableVariable<bool>,
     /// Specifies an arbitrary portion of the texture.
@@ -202,8 +203,9 @@ impl Control for Image {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         let mut size: Vector2<f32> = self.widget.measure_override(ui, available_size);
 
+        let texture = self.texture.get_or_default(&self.style);
         if *self.sync_with_texture_size
-            && let Some(texture) = self.texture.as_ref()
+            && let Some(texture) = texture.as_ref()
         {
             let state = texture.state();
             if let Some(data) = state.data_ref()
@@ -239,7 +241,8 @@ impl Control for Image {
             );
         }
 
-        if self.texture.is_some() || !*self.checkerboard_background {
+        let texture = self.texture.get_or_default(&self.style);
+        if texture.is_some() || !*self.checkerboard_background {
             let tex_coords = if *self.flip {
                 Some([
                     Vector2::new(self.uv_rect.position.x, self.uv_rect.position.y),
@@ -274,8 +277,7 @@ impl Control for Image {
                 ])
             };
             drawing_context.push_rect_filled(&bounds, tex_coords.as_ref());
-            let texture = self
-                .texture
+            let texture = texture
                 .as_ref()
                 .map_or(CommandTexture::None, |t| CommandTexture::Texture(t.clone()));
             drawing_context.commit(
@@ -320,7 +322,7 @@ impl Control for Image {
 /// Image builder is used to create [`Image`] widget instances and register them in the user interface.
 pub struct ImageBuilder {
     widget_builder: WidgetBuilder,
-    texture: Option<TextureResource>,
+    texture: StyledProperty<Option<TextureResource>>,
     flip: bool,
     uv_rect: Rect<f32>,
     checkerboard_background: bool,
@@ -333,7 +335,7 @@ impl ImageBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
-            texture: None,
+            texture: None.into(),
             flip: false,
             uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
             checkerboard_background: false,
@@ -351,12 +353,12 @@ impl ImageBuilder {
 
     /// Sets the texture that will be used for drawing.
     pub fn with_texture(mut self, texture: TextureResource) -> Self {
-        self.texture = Some(texture);
+        self.texture = StyledProperty::new_value(Some(texture));
         self
     }
 
     /// Specifies the texture that will be used for drawing.
-    pub fn with_opt_texture(mut self, texture: Option<TextureResource>) -> Self {
+    pub fn with_opt_texture(mut self, texture: StyledProperty<Option<TextureResource>>) -> Self {
         self.texture = texture;
         self
     }

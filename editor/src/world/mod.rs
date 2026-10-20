@@ -278,7 +278,7 @@ impl WorldViewer {
                     .with_horizontal_alignment(HorizontalAlignment::Center)
                     .with_vertical_alignment(VerticalAlignment::Center),
             )
-            .with_opt_texture(load_image!("../../resources/track.png"))
+            .with_opt_texture(load_image!("../../resources/track.png").into())
             .build(ctx),
         )
         .with_toggled(settings.selection.track_selection)
@@ -291,7 +291,7 @@ impl WorldViewer {
                 .on_column(0)
                 .with_child({
                     collapse_all = ImageButtonBuilder::default()
-                        .with_image(load_image!("../../resources/collapse.png"))
+                        .with_image(load_image!("../../resources/collapse.png").into())
                         .with_tooltip("Collapse Everything")
                         .with_tab_index(Some(0))
                         .build_button(ctx);
@@ -299,7 +299,7 @@ impl WorldViewer {
                 })
                 .with_child({
                     expand_all = ImageButtonBuilder::default()
-                        .with_image(load_image!("../../resources/expand.png"))
+                        .with_image(load_image!("../../resources/expand.png").into())
                         .with_tooltip("Expand Everything")
                         .with_tab_index(Some(1))
                         .build_button(ctx);
@@ -307,7 +307,7 @@ impl WorldViewer {
                 })
                 .with_child({
                     locate_selection = ImageButtonBuilder::default()
-                        .with_image(load_image!("../../resources/locate.png"))
+                        .with_image(load_image!("../../resources/locate.png").into())
                         .with_tooltip("Locate Selection")
                         .with_tab_index(Some(2))
                         .build_button(ctx);

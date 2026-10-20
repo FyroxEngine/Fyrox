@@ -338,7 +338,7 @@ where
             .on_column(2)
             .with_image_size(12.0)
             .with_size(18.0)
-            .with_image(resources::ADD.clone())
+            .with_image(resources::ADD.clone().into())
             .build_button(ctx);
 
         let children = make_children_list(add, &self.hash_map);

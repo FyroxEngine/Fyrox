@@ -136,7 +136,7 @@ pub fn build_tree_item<P: AsRef<Path>>(
                             bottom: 1.0,
                         }),
                 )
-                .with_opt_texture(FOLDER_ICON.clone())
+                .with_opt_texture(FOLDER_ICON.clone().into())
                 .build(ctx)
             } else {
                 Handle::NONE

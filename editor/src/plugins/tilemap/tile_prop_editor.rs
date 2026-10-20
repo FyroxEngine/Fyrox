@@ -707,7 +707,7 @@ fn make_draw_button(tab_index: Option<usize>, ctx: &mut BuildContext) -> Handle<
                 .with_width(DRAW_BUTTON_WIDTH)
                 .with_height(DRAW_BUTTON_HEIGHT),
         )
-        .with_opt_texture(BRUSH_IMAGE.clone())
+        .with_opt_texture(BRUSH_IMAGE.clone().into())
         .build(ctx),
     )
     .build(ctx)

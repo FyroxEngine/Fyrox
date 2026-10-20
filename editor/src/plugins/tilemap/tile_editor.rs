@@ -147,7 +147,7 @@ fn make_draw_button(
                 .with_width(16.0)
                 .with_height(16.0),
         )
-        .with_opt_texture(BRUSH_IMAGE.clone())
+        .with_opt_texture(BRUSH_IMAGE.clone().into())
         .build(ctx),
     )
     .build(ctx)

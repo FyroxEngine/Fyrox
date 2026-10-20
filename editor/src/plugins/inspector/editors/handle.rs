@@ -332,7 +332,7 @@ fn make_icon(data: &[u8], color: Color, ctx: &mut BuildContext) -> Handle<Image>
             .with_margin(Thickness::uniform(3.0))
             .with_background(Brush::Solid(color).into()),
     )
-    .with_opt_texture(load_image_internal(data))
+    .with_opt_texture(load_image_internal(data).into())
     .build(ctx)
 }
 

@@ -108,7 +108,7 @@ impl Control for Item {
                 color,
             }) = message.data()
         {
-            ui.send(self.image, ImageMessage::Texture(texture.clone()));
+            ui.send(self.image, ImageMessage::Texture(texture.clone().into()));
             ui.send(self.image, ImageMessage::Flip(*flip_y));
             ui.send(
                 self.image,

@@ -192,7 +192,7 @@ pub fn make_asset_preview_tooltip(
                         .with_margin(Thickness::uniform(1.0)),
                 )
                 .with_checkerboard_background(true)
-                .with_opt_texture(texture)
+                .with_opt_texture(texture.into())
                 .with_sync_with_texture_size(false)
                 .build(ctx);
                 image_preview
@@ -306,7 +306,7 @@ pub struct ImageButtonBuilder<'a> {
     height: f32,
     image_width: f32,
     image_height: f32,
-    image: Option<TextureResource>,
+    image: StyledProperty<Option<TextureResource>>,
     tooltip: &'a str,
     tab_index: Option<usize>,
     image_brush: Option<StyledProperty<Brush>>,
@@ -326,7 +326,7 @@ impl<'a> Default for ImageButtonBuilder<'a> {
             height: f32::NAN,
             image_width: 16.0,
             image_height: 16.0,
-            image: None,
+            image: None.into(),
             tooltip: "",
             tab_index: None,
             image_brush: None,
@@ -374,7 +374,7 @@ impl<'a> ImageButtonBuilder<'a> {
         self
     }
 
-    pub fn with_image(mut self, image: Option<TextureResource>) -> Self {
+    pub fn with_image(mut self, image: StyledProperty<Option<TextureResource>>) -> Self {
         self.image = image;
         self
     }
@@ -531,7 +531,7 @@ pub fn make_text_and_image_button_with_tooltip(
                             .with_width(image_width - 2.0 * margin)
                             .with_height(image_height - 2.0 * margin),
                     )
-                    .with_opt_texture(image)
+                    .with_opt_texture(image.into())
                     .build(ctx),
                 )
                 .with_child(

@@ -435,7 +435,7 @@ impl Toolbar {
                             .with_child({
                                 add_animation = ImageButtonBuilder::default()
                                     .with_image_color(Color::GREEN)
-                                    .with_image(load_image!("../../../resources/add.png"))
+                                    .with_image(load_image!("../../../resources/add.png").into())
                                     .with_tooltip(add_animation_tooltip)
                                     .build_button(ctx);
                                 add_animation
@@ -443,7 +443,7 @@ impl Toolbar {
                             .with_child({
                                 import = ImageButtonBuilder::default()
                                     .with_image_color(Color::PALE_TURQUOISE)
-                                    .with_image(load_image!("../../../resources/import.png"))
+                                    .with_image(load_image!("../../../resources/import.png").into())
                                     .with_tooltip(import_tooltip)
                                     .build_button(ctx);
                                 import
@@ -465,7 +465,9 @@ impl Toolbar {
                             .with_child({
                                 reimport = ImageButtonBuilder::default()
                                     .with_image_color(Color::DEEP_SKY_BLUE)
-                                    .with_image(load_image!("../../../resources/reimport.png"))
+                                    .with_image(
+                                        load_image!("../../../resources/reimport.png").into(),
+                                    )
                                     .with_tooltip(reimport_tooltip)
                                     .build_button(ctx);
                                 reimport
@@ -473,7 +475,7 @@ impl Toolbar {
                             .with_child({
                                 rename_current_animation = ImageButtonBuilder::default()
                                     .with_image_color(Color::ORANGE)
-                                    .with_image(load_image!("../../../resources/rename.png"))
+                                    .with_image(load_image!("../../../resources/rename.png").into())
                                     .with_tooltip(rename_animation_tooltip)
                                     .build_button(ctx);
                                 rename_current_animation
@@ -481,7 +483,7 @@ impl Toolbar {
                             .with_child({
                                 remove_current_animation = ImageButtonBuilder::default()
                                     .with_image_color(Color::ORANGE_RED)
-                                    .with_image(load_image!("../../../resources/cross.png"))
+                                    .with_image(load_image!("../../../resources/cross.png").into())
                                     .with_tooltip("Remove Selected Animation")
                                     .build_button(ctx);
                                 remove_current_animation
@@ -489,21 +491,23 @@ impl Toolbar {
                             .with_child({
                                 clone_current_animation = ImageButtonBuilder::default()
                                     .with_image_color(Color::LIGHT_GOLDEN_ROD_YELLOW)
-                                    .with_image(load_image!("../../../resources/copy.png"))
+                                    .with_image(load_image!("../../../resources/copy.png").into())
                                     .with_tooltip("Clone Selected Animation")
                                     .build_button(ctx);
                                 clone_current_animation
                             })
                             .with_child({
                                 root_motion = ImageButtonBuilder::default()
-                                    .with_image(load_image!("../../../resources/root_motion.png"))
+                                    .with_image(
+                                        load_image!("../../../resources/root_motion.png").into(),
+                                    )
                                     .with_tooltip("Root Motion Settings")
                                     .build_button(ctx);
                                 root_motion
                             })
                             .with_child({
                                 looping = ImageButtonBuilder::default()
-                                    .with_image(load_image!("../../../resources/loop.png"))
+                                    .with_image(load_image!("../../../resources/loop.png").into())
                                     .with_tooltip(
                                         "Animation looping. Looped animation will play infinitely.",
                                     )
@@ -513,7 +517,9 @@ impl Toolbar {
                             .with_child({
                                 show_background_curves = ImageButtonBuilder::default()
                                     .with_is_toggled(true)
-                                    .with_image(load_image!("../../../resources/all_curves.png"))
+                                    .with_image(
+                                        load_image!("../../../resources/all_curves.png").into(),
+                                    )
                                     .with_tooltip("Show Background Curves.")
                                     .build_toggle(ctx);
                                 show_background_curves
@@ -556,7 +562,7 @@ impl Toolbar {
                             .with_margin(Thickness::uniform(1.0))
                             .with_child({
                                 preview = ImageButtonBuilder::default()
-                                    .with_image(load_image!("../../../resources/eye.png"))
+                                    .with_image(load_image!("../../../resources/eye.png").into())
                                     .with_tooltip("Preview")
                                     .build_toggle(ctx);
                                 preview
@@ -564,7 +570,9 @@ impl Toolbar {
                             .with_child({
                                 play_pause = ImageButtonBuilder::default()
                                     .with_image_color(Color::GREEN)
-                                    .with_image(load_image!("../../../resources/play_pause.png"))
+                                    .with_image(
+                                        load_image!("../../../resources/play_pause.png").into(),
+                                    )
                                     .with_tooltip("Play/Pause")
                                     .build_button(ctx);
                                 play_pause
@@ -572,7 +580,7 @@ impl Toolbar {
                             .with_child({
                                 stop = ImageButtonBuilder::default()
                                     .with_image_color(Color::ORANGE_RED)
-                                    .with_image(load_image!("../../../resources/stop.png"))
+                                    .with_image(load_image!("../../../resources/stop.png").into())
                                     .with_tooltip("Stop Playback")
                                     .build_button(ctx);
                                 stop
@@ -590,7 +598,9 @@ impl Toolbar {
                                         })
                                         .with_background(ctx.style.property(Style::BRUSH_BRIGHT)),
                                 )
-                                .with_opt_texture(load_image!("../../../resources/speed.png"))
+                                .with_opt_texture(
+                                    load_image!("../../../resources/speed.png").into(),
+                                )
                                 .build(ctx),
                             )
                             .with_child({
@@ -621,7 +631,7 @@ impl Toolbar {
                                         })
                                         .with_background(ctx.style.property(Style::BRUSH_BRIGHT)),
                                 )
-                                .with_opt_texture(load_image!("../../../resources/time.png"))
+                                .with_opt_texture(load_image!("../../../resources/time.png").into())
                                 .build(ctx),
                             )
                             .with_child({

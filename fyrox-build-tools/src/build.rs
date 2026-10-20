@@ -131,7 +131,7 @@ impl BuildWindow {
                                                 })
                                                 .with_clip_to_bounds(false),
                                         )
-                                        .with_opt_texture(progress_image)
+                                        .with_opt_texture(progress_image.into())
                                         .build(ctx);
                                         progress_indicator
                                     }),

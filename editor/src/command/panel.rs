@@ -67,7 +67,7 @@ impl CommandStackViewer {
                 .with_child({
                     undo = ImageButtonBuilder::default()
                         .with_image_color(Color::ORANGE_RED)
-                        .with_image(load_image!("../../resources/undo.png"))
+                        .with_image(load_image!("../../resources/undo.png").into())
                         .with_tooltip("Undo The Command")
                         .with_tab_index(Some(0))
                         .build_button(ctx);
@@ -76,7 +76,7 @@ impl CommandStackViewer {
                 .with_child({
                     redo = ImageButtonBuilder::default()
                         .with_image_color(Color::LIME_GREEN)
-                        .with_image(load_image!("../../resources/redo.png"))
+                        .with_image(load_image!("../../resources/redo.png").into())
                         .with_tooltip("Redo The Command")
                         .with_tab_index(Some(1))
                         .build_button(ctx);
@@ -89,7 +89,7 @@ impl CommandStackViewer {
         let buttons_right = StackPanelBuilder::new(WidgetBuilder::new().on_column(2).with_child({
             clear = ImageButtonBuilder::default()
                 .with_image_color(Color::ORANGE)
-                .with_image(load_image!("../../resources/clear.png"))
+                .with_image(load_image!("../../resources/clear.png").into())
                 .with_tooltip("Clear Command Stack\nChanges history will be erased.")
                 .with_tab_index(Some(2))
                 .build_button(ctx);

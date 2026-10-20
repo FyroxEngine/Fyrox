@@ -244,7 +244,7 @@ where
         }) = message.data_for(self.handle)
         {
             for widget in [self.image, self.image_preview] {
-                ui.send(widget, ImageMessage::Texture(texture.clone()));
+                ui.send(widget, ImageMessage::Texture(texture.clone().into()));
                 ui.send(widget, ImageMessage::Flip(*flip_y));
                 ui.send(
                     widget,
@@ -341,7 +341,9 @@ where
                                 locate = ImageButtonBuilder::default()
                                     .on_column(2)
                                     .with_image_size(14.0)
-                                    .with_image(load_image!("../../../../resources/locate.png"))
+                                    .with_image(
+                                        load_image!("../../../../resources/locate.png").into(),
+                                    )
                                     .with_tooltip("Show In Asset Browser")
                                     .build_button(ctx);
                                 locate

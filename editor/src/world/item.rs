@@ -192,7 +192,7 @@ impl Control for SceneItem {
                                 .on_row(0)
                                 .on_column(2),
                         )
-                        .with_opt_texture(load_image!("../../resources/warning.png"))
+                        .with_opt_texture(load_image!("../../resources/warning.png").into())
                         .build(&mut ui.build_ctx());
 
                         ui.send(self.warning_icon, WidgetMessage::link_with(self.grid));
@@ -313,7 +313,7 @@ impl SceneItemBuilder {
                                     .unwrap_or_else(|| ctx.style.property(Style::BRUSH_TEXT)),
                             ),
                     )
-                    .with_opt_texture(self.icon.as_ref().map(|i| i.icon.clone()))
+                    .with_opt_texture(self.icon.as_ref().map(|i| i.icon.clone()).into())
                     .build(ctx),
                 )
                 .with_child({

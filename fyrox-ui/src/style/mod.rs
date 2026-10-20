@@ -54,6 +54,7 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
 /// A set of potential values for styled properties.
 #[derive(Visit, PartialEq, Reflect, Debug, Clone, AsRefStr, EnumString, VariantNames)]
 #[reflect(type_uuid = "85b8c1e4-03a2-4a28-acb4-1850d1a29227")]
+#[visit(optional)]
 pub enum StyleProperty {
     /// A numeric property.
     Number(f32),
@@ -65,7 +66,7 @@ pub enum StyleProperty {
     Brush(Brush),
     /// A texture property. Could be used together with [`crate::image::Image`] widget or [`crate::nine_patch::NinePatch`]
     /// widget.
-    Texture(TextureResource),
+    Texture(Option<TextureResource>),
 }
 
 impl Default for StyleProperty {
@@ -118,7 +119,7 @@ impl_casts!(f32 => Number);
 impl_casts!(Thickness => Thickness);
 impl_casts!(Color => Color);
 impl_casts!(Brush => Brush);
-impl_casts!(TextureResource => Texture);
+impl_casts!(Option<TextureResource> => Texture);
 
 /// Default style of the library.
 pub static DEFAULT_STYLE: LazyLock<BuiltInResource<Style>> = LazyLock::new(|| {

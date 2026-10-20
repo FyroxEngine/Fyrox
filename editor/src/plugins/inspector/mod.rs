@@ -259,7 +259,7 @@ impl InspectorPlugin {
             .with_width(26.0)
             .with_height(26.0)
             .on_column(1)
-            .with_image(load_image!("../../../resources/doc.png"))
+            .with_image(load_image!("../../../resources/doc.png").into())
             .with_tooltip("Open Documentation")
             .with_tab_index(Some(0))
             .build_button(ctx);

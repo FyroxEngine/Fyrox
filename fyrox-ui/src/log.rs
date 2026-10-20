@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::style::StyledProperty;
 use crate::{
     BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
     UserInterface, VerticalAlignment,
@@ -115,7 +116,7 @@ impl LogPanel {
     pub fn new(
         ctx: &mut BuildContext,
         message_receiver: Receiver<LogMessage>,
-        clear_icon: Option<TextureResource>,
+        clear_icon: StyledProperty<Option<TextureResource>>,
         open: bool,
     ) -> Self {
         let messages;
@@ -135,7 +136,7 @@ impl LogPanel {
                         .with_tooltip("Enable or disable logging of information messages.")
                         .with_image_color(Color::WHITE)
                         .with_is_toggled(Log::is_logging_info())
-                        .with_image(resources::INFO.clone())
+                        .with_image(resources::INFO.clone().into())
                         .build_toggle(ctx);
                     log_info
                 })
@@ -144,7 +145,7 @@ impl LogPanel {
                         .with_tooltip("Enable or disable logging of warning messages.")
                         .with_image_color(Color::WHITE)
                         .with_is_toggled(Log::is_logging_warning())
-                        .with_image(resources::WARNING.clone())
+                        .with_image(resources::WARNING.clone().into())
                         .build_toggle(ctx);
                     log_warning
                 })
@@ -153,7 +154,7 @@ impl LogPanel {
                         .with_tooltip("Enable or disable logging of error messages.")
                         .with_image_color(Color::WHITE)
                         .with_is_toggled(Log::is_logging_error())
-                        .with_image(resources::ERROR.clone())
+                        .with_image(resources::ERROR.clone().into())
                         .build_toggle(ctx);
                     log_error
                 }),

@@ -145,7 +145,7 @@ impl InheritablePropertyEditorBuilder {
                     .with_width(16.0)
                     .with_height(16.0),
             )
-            .with_opt_texture(REVERT_ICON.clone())
+            .with_opt_texture(REVERT_ICON.clone().into())
             .build(ctx),
         )
         .build(ctx);

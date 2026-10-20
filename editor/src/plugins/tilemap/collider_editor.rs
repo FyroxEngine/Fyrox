@@ -400,7 +400,7 @@ fn make_button(
                 .with_width(DRAW_BUTTON_WIDTH)
                 .with_height(DRAW_BUTTON_HEIGHT),
         )
-        .with_opt_texture(icon)
+        .with_opt_texture(icon.into())
         .build(ctx),
     )
     .build(ctx)

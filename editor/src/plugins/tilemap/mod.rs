@@ -273,7 +273,7 @@ fn make_drawing_mode_button(
                 .with_width(width)
                 .with_height(height),
         )
-        .with_opt_texture(image)
+        .with_opt_texture(image.into())
         .build(ctx),
     )
     .build(ctx)
