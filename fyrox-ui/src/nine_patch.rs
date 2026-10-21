@@ -31,6 +31,7 @@ use crate::{
 };
 
 use crate::message::MessageData;
+use crate::style::StyledProperty;
 use fyrox_graph::{
     SceneGraph,
     constructor::{ConstructorProvider, GraphNodeConstructor},
@@ -65,14 +66,14 @@ pub enum StretchMode {
 }
 
 /// A set of possible nine patch messages.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum NinePatchMessage {
     LeftMargin(u32),
     RightMargin(u32),
     TopMargin(u32),
     BottomMargin(u32),
     TextureRegion(Rect<u32>),
-    Texture(Option<TextureResource>),
+    Texture(StyledProperty<Option<TextureResource>>),
     DrawCenter(bool),
 }
 impl MessageData for NinePatchMessage {}
@@ -165,14 +166,14 @@ pub struct NinePatch {
     pub texture_slice: TextureSlice,
     pub draw_center: InheritableVariable<bool>,
     #[reflect(setter = "set_texture")]
-    pub texture: InheritableVariable<Option<TextureResource>>,
+    pub texture: InheritableVariable<StyledProperty<Option<TextureResource>>>,
     pub stretch_mode: InheritableVariable<StretchMode>,
 }
 
 impl NinePatch {
-    pub fn set_texture(&mut self, texture: Option<TextureResource>) {
+    pub fn set_texture(&mut self, texture: StyledProperty<Option<TextureResource>>) {
         self.texture.set_value_and_mark_modified(texture.clone());
-        self.texture_slice.texture_source = texture;
+        self.texture_slice.texture_source = texture.get_or_default(&self.style);
     }
 }
 
@@ -303,7 +304,8 @@ impl Control for NinePatch {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        let texture = some_or_return!(self.texture.as_ref());
+        let texture = self.texture.get_or_default(&self.style);
+        let texture = some_or_return!(texture.as_ref());
 
         let texture_state = texture.state();
         let texture_state = some_or_return!(texture_state.data_ref());
@@ -526,6 +528,7 @@ impl Control for NinePatch {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(msg) = message.data_for::<NinePatchMessage>(self.handle) {
+            let style = &*self.widget.style;
             let slice = &mut self.texture_slice;
             match msg {
                 NinePatchMessage::LeftMargin(margin) => {
@@ -549,7 +552,8 @@ impl Control for NinePatch {
                     self.invalidate_visual();
                 }
                 NinePatchMessage::Texture(texture) => {
-                    compare_and_set(&mut slice.texture_source, texture, message, ui);
+                    let texture = texture.get_or_default(style);
+                    compare_and_set(&mut slice.texture_source, &texture, message, ui);
                     self.invalidate_visual();
                 }
                 NinePatchMessage::DrawCenter(draw_center) => {
@@ -564,7 +568,7 @@ impl Control for NinePatch {
 /// Creates instances of [`NinePatch`] widget.
 pub struct NinePatchBuilder {
     pub widget_builder: WidgetBuilder,
-    pub texture: Option<TextureResource>,
+    pub texture: StyledProperty<Option<TextureResource>>,
     pub bottom_margin: u32,
     pub left_margin: u32,
     pub right_margin: u32,
@@ -578,7 +582,7 @@ impl NinePatchBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
-            texture: None,
+            texture: None.into(),
             bottom_margin: 20,
             left_margin: 20,
             right_margin: 20,
@@ -589,8 +593,8 @@ impl NinePatchBuilder {
         }
     }
 
-    pub fn with_texture(mut self, texture: TextureResource) -> Self {
-        self.texture = Some(texture);
+    pub fn with_texture(mut self, texture: StyledProperty<Option<TextureResource>>) -> Self {
+        self.texture = texture;
         self
     }
 
@@ -634,10 +638,11 @@ impl NinePatchBuilder {
             self.widget_builder.background = Some(Brush::Solid(Color::WHITE).into())
         }
 
+        let texture_source = self.texture.get_or_default(&Some(ctx.style.clone()));
         ctx.add(NinePatch {
             widget: self.widget_builder.build(ctx),
             texture_slice: TextureSlice {
-                texture_source: self.texture.clone(),
+                texture_source,
                 bottom_margin: self.bottom_margin.into(),
                 left_margin: self.left_margin.into(),
                 right_margin: self.right_margin.into(),
