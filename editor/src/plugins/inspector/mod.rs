@@ -64,6 +64,8 @@ use crate::{
     ui_scene::UiScene,
     utils::window_content,
 };
+use fyrox::core::SafeLock;
+use fyrox::core::parking_lot::Mutex;
 use std::ops::Deref;
 use std::{any::Any, sync::Arc, sync::mpsc::Sender};
 
@@ -77,7 +79,7 @@ pub struct AnimationDefinition {
     handle: ErasedHandle,
 }
 
-#[derive(Reflect, Clone, Debug)]
+#[derive(Reflect, Debug)]
 #[reflect(
     non_cloneable,
     non_comparable,
@@ -95,7 +97,21 @@ pub struct EditorEnvironment {
     pub sender: MessageSender,
     #[reflect(hidden)]
     pub icon_request_sender: Sender<IconRequest>,
-    pub style: Option<StyleResource>,
+    pub style: Mutex<Option<StyleResource>>,
+}
+
+impl Clone for EditorEnvironment {
+    fn clone(&self) -> Self {
+        Self {
+            resource_manager: self.resource_manager.clone(),
+            serialization_context: self.serialization_context.clone(),
+            dyn_type_constructors: self.dyn_type_constructors.clone(),
+            available_animations: self.available_animations.clone(),
+            sender: self.sender.clone(),
+            icon_request_sender: self.icon_request_sender.clone(),
+            style: Mutex::new(self.style.safe_lock().clone()),
+        }
+    }
 }
 
 impl EditorEnvironment {
@@ -343,7 +359,7 @@ impl InspectorPlugin {
             available_animations: available_animations.to_vec(),
             sender: sender.clone(),
             icon_request_sender,
-            style,
+            style: Mutex::new(style),
             dyn_type_constructors,
         });
 
@@ -404,6 +420,8 @@ impl EditorPlugin for InspectorPlugin {
                     read_only,
                 } = entity_info;
 
+                let style = current_widget_style(&entry.selection, &*entry.controller);
+
                 if let Err(errors) = self.sync_to(entity, ui) {
                     if is_out_of_sync(&errors) {
                         let available_animations = fetch_available_animations(
@@ -411,8 +429,6 @@ impl EditorPlugin for InspectorPlugin {
                             &*entry.controller,
                             &editor.engine.scenes,
                         );
-
-                        let style = current_widget_style(&entry.selection, &*entry.controller);
 
                         self.change_context(
                             entity,
@@ -433,6 +449,13 @@ impl EditorPlugin for InspectorPlugin {
                         print_errors(&errors);
                     }
                 } else {
+                    // Update the style, since it may have changed.
+                    if let Ok(env) =
+                        EditorEnvironment::try_get_from(&ui[self.inspector].context.environment)
+                    {
+                        *env.style.safe_lock() = style;
+                    }
+
                     need_clear = false;
                 }
 

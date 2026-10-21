@@ -54,6 +54,7 @@ use crate::{
     scene::{commands::GameSceneContext, controller::SceneController},
     ui_scene::UiScene,
 };
+use fyrox::core::parking_lot;
 use fyrox::gui::inspector::editors::inspectable::InspectablePropertyEditorDefinition;
 use fyrox::gui::inspector::{Inspector, InspectorEnvironmentContainer};
 use std::sync::{Arc, mpsc::Sender};
@@ -152,7 +153,7 @@ impl SceneSettingsWindow {
             available_animations: Default::default(),
             sender,
             icon_request_sender,
-            style: None,
+            style: parking_lot::Mutex::default(),
         });
 
         let context = InspectorContext::from_object(InspectorContextArgs {

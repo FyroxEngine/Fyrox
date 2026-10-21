@@ -21,6 +21,7 @@
 //! Property editor for StyledProperty. It acts like a proxy to inner property, but also
 //! adds a special "bind" button used to change style binding of the property.
 
+use crate::inspector::InspectorEnvironmentContainer;
 use crate::widget::WidgetMessage;
 use crate::{
     BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
@@ -59,6 +60,8 @@ use crate::{
     widget::WidgetBuilder,
     window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
 };
+use fyrox_core::parking_lot::Mutex;
+use fyrox_core::{SafeLock, err};
 use rust_fuzzy_search::fuzzy_compare;
 use std::{
     any::{Any, TypeId},
@@ -392,7 +395,9 @@ pub struct StyledPropertyNameEditor {
     bind: Handle<Button>,
     name_text: Handle<Text>,
     selector: Handle<StyledPropertySelector>,
-    target_style: Option<StyleResource>,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    environment: Option<InspectorEnvironmentContainer>,
     style_property_name: ImmutableString,
 }
 
@@ -402,15 +407,25 @@ impl Control for StyledPropertyNameEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(target_style) = self.target_style.as_ref()
-            && let Some(ButtonMessage::Click) = message.data()
-            && message.destination() == self.bind
-        {
-            self.selector = StyledPropertySelectorBuilder::build_and_open_window(
-                target_style,
-                self.style_property_name.clone(),
-                &mut ui.build_ctx(),
-            );
+        if let Some(environment) = self.environment.as_ref() {
+            if let Some(ButtonMessage::Click) = message.data()
+                && message.destination() == self.bind
+            {
+                let style = (&**environment as &dyn Reflect)
+                    .first_field_ref::<Mutex<Option<StyleResource>>>()
+                    .and_then(|v| (*v.safe_lock()).clone());
+                if let Some(style) = style {
+                    self.selector = StyledPropertySelectorBuilder::build_and_open_window(
+                        &style,
+                        self.style_property_name.clone(),
+                        &mut ui.build_ctx(),
+                    );
+                } else {
+                    err!("Environment does not have style specified!");
+                }
+            }
+        } else {
+            err!("Environment is not specified!");
         }
 
         if let Some(StyledPropertyEditorMessage::PropertyName(name)) = message.data_for(self.handle)
@@ -434,7 +449,7 @@ impl Control for StyledPropertyNameEditor {
 struct StyledPropertyNameEditorBuilder {
     widget_builder: WidgetBuilder,
     style_property_name: ImmutableString,
-    target_style: Option<StyleResource>,
+    environment: Option<InspectorEnvironmentContainer>,
 }
 
 impl StyledPropertyNameEditorBuilder {
@@ -442,7 +457,7 @@ impl StyledPropertyNameEditorBuilder {
         Self {
             widget_builder,
             style_property_name: Default::default(),
-            target_style: None,
+            environment: None,
         }
     }
 
@@ -451,8 +466,8 @@ impl StyledPropertyNameEditorBuilder {
         self
     }
 
-    pub fn with_style_resource(mut self, target_style: Option<StyleResource>) -> Self {
-        self.target_style = target_style;
+    pub fn with_environment(mut self, environment: Option<InspectorEnvironmentContainer>) -> Self {
+        self.environment = environment;
         self
     }
 
@@ -491,7 +506,7 @@ impl StyledPropertyNameEditorBuilder {
             bind,
             name_text,
             selector: Default::default(),
-            target_style: self.target_style,
+            environment: self.environment,
             style_property_name: self.style_property_name,
         })
     }
@@ -513,12 +528,7 @@ impl PropertyEditorDefinition for StyledPropertyNameEditorDefinition {
 
         let editor = StyledPropertyNameEditorBuilder::new(WidgetBuilder::new())
             .with_style_property_name(value.0.clone())
-            .with_style_resource(ctx.environment.as_ref().and_then(|env| {
-                (&**env as &dyn Reflect)
-                    .first_field_ref::<Option<StyleResource>>()
-                    .cloned()
-                    .flatten()
-            }))
+            .with_environment(ctx.environment.clone())
             .build(ctx.build_context);
 
         Ok(PropertyEditorInstance::simple(editor))
