@@ -18,11 +18,12 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::nine_patch::NinePatch;
 use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
     border::BorderBuilder,
     brush::Brush,
-    button::{ButtonBuilder, ButtonMessage},
+    button::{Button, ButtonBuilder, ButtonMessage},
     control_trait_proxy_impls,
     core::{
         algebra::{Matrix3, Vector2},
@@ -44,25 +45,18 @@ use crate::{
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
     },
-    message::{CursorIcon, MessageDirection, UiMessage},
+    message::{CursorIcon, MessageData, MessageDirection, UiMessage},
     nine_patch::TextureSlice,
-    numeric::{NumericUpDownBuilder, NumericUpDownMessage},
-    rect::{RectEditorBuilder, RectEditorMessage},
+    numeric::{NumericUpDown, NumericUpDownBuilder, NumericUpDownMessage},
+    rect::{RectEditor, RectEditorBuilder, RectEditorMessage},
     scroll_viewer::ScrollViewerBuilder,
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
-    thumb::{ThumbBuilder, ThumbMessage},
+    thumb::{Thumb, ThumbBuilder, ThumbMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    window::{Window, WindowBuilder, WindowMessage, WindowTitle},
+    window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
 };
-
-use crate::button::Button;
-use crate::message::MessageData;
-use crate::numeric::NumericUpDown;
-use crate::rect::RectEditor;
-use crate::thumb::Thumb;
-use crate::window::WindowAlignment;
-use fyrox_texture::TextureKind;
+use fyrox_texture::{TextureKind, TextureResource};
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
@@ -71,6 +65,7 @@ use std::{
 #[derive(Debug, Clone, PartialEq)]
 pub enum TextureSliceEditorMessage {
     Slice(TextureSlice),
+    Texture(Option<TextureResource>),
 }
 impl MessageData for TextureSliceEditorMessage {}
 
@@ -95,6 +90,9 @@ pub struct TextureSliceEditor {
     region_max_thumb: Handle<Thumb>,
     slice_min_thumb: Handle<Thumb>,
     slice_max_thumb: Handle<Thumb>,
+    #[reflect(hidden)]
+    #[visit(skip)]
+    texture: Option<TextureResource>,
     #[reflect(hidden)]
     #[visit(skip)]
     drag_context: Option<DragContext>,
@@ -123,7 +121,7 @@ impl TextureSliceEditor {
 
     fn on_thumb_dragged(&mut self, thumb: Handle<UiNode>, offset: Vector2<f32>) {
         let ctx = some_or_return!(self.drag_context.as_ref());
-        let texture = some_or_return!(self.slice.texture_source.clone());
+        let texture = some_or_return!(self.texture.clone());
         let texture_state = texture.state();
         let texture_data = some_or_return!(texture_state.data_ref());
         let TextureKind::Rectangle { width, height } = texture_data.kind() else {
@@ -209,7 +207,7 @@ impl Control for TextureSliceEditor {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         let mut size: Vector2<f32> = self.widget.measure_override(ui, available_size);
 
-        if let Some(texture) = self.slice.texture_source.as_ref() {
+        if let Some(texture) = self.texture.as_ref() {
             let state = texture.state();
             if let Some(data) = state.data_ref()
                 && let TextureKind::Rectangle { width, height } = data.kind()
@@ -246,7 +244,7 @@ impl Control for TextureSliceEditor {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        let texture = some_or_return!(self.slice.texture_source.clone());
+        let texture = some_or_return!(self.texture.clone());
 
         let state = texture.state();
         let texture_data = some_or_return!(state.data_ref());
@@ -388,6 +386,10 @@ impl Control for TextureSliceEditor {
                 ui.send(thumb, WidgetMessage::Width(self.handle_size / self.scale));
                 ui.send(thumb, WidgetMessage::Height(self.handle_size / self.scale));
             }
+        } else if let Some(TextureSliceEditorMessage::Texture(texture)) =
+            message.data_for(self.handle)
+        {
+            self.texture = texture.clone();
         }
     }
 }
@@ -439,7 +441,11 @@ impl TextureSliceEditorBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<TextureSliceEditor> {
+    pub fn build(
+        self,
+        texture: Option<TextureResource>,
+        ctx: &mut BuildContext,
+    ) -> Handle<TextureSliceEditor> {
         let region_min_thumb =
             make_thumb(self.slice.texture_region.position, self.handle_size, ctx);
         let region_max_thumb = make_thumb(
@@ -464,6 +470,7 @@ impl TextureSliceEditorBuilder {
             region_max_thumb,
             slice_min_thumb,
             slice_max_thumb,
+            texture,
             drag_context: None,
             scale: 1.0,
         })
@@ -572,6 +579,13 @@ impl Control for TextureSliceEditorWindow {
             let mut slice = self.texture_slice.clone();
             slice.texture_region.set_value_and_mark_modified(*value);
             ui.send(self.handle, TextureSliceEditorMessage::Slice(slice));
+        } else if let Some(TextureSliceEditorMessage::Texture(texture)) =
+            message.data_for(self.handle)
+        {
+            ui.send(
+                self.slice_editor,
+                TextureSliceEditorMessage::Texture(texture.clone()),
+            );
         }
     }
 }
@@ -597,6 +611,7 @@ impl TextureSliceEditorWindowBuilder {
     pub fn build(
         self,
         parent_editor: Handle<UiNode>,
+        texture: Option<TextureResource>,
         ctx: &mut BuildContext,
     ) -> Handle<TextureSliceEditorWindow> {
         let region_text = TextBuilder::new(WidgetBuilder::new())
@@ -659,7 +674,7 @@ impl TextureSliceEditorWindowBuilder {
                 .with_margin(Thickness::uniform(3.0)),
         )
         .with_texture_slice(self.texture_slice.clone())
-        .build(ctx);
+        .build(texture, ctx);
         let scroll_viewer = ScrollViewerBuilder::new(WidgetBuilder::new().on_column(1))
             .with_horizontal_scroll_allowed(true)
             .with_vertical_scroll_allowed(true)
@@ -700,6 +715,7 @@ impl TextureSliceEditorWindowBuilder {
 pub struct TextureSliceFieldEditor {
     widget: Widget,
     texture_slice: TextureSlice,
+    texture: Option<TextureResource>,
     edit: Handle<Button>,
     editor: Handle<TextureSliceEditorWindow>,
 }
@@ -719,7 +735,7 @@ impl Control for TextureSliceFieldEditor {
                         .with_remove_on_close(true),
                 )
                 .with_texture_slice(self.texture_slice.clone())
-                .build(self.handle, &mut ui.build_ctx());
+                .build(self.handle, self.texture.clone(), &mut ui.build_ctx());
 
                 ui.send(
                     self.editor,
@@ -739,6 +755,10 @@ impl Control for TextureSliceFieldEditor {
                 self.editor,
                 TextureSliceEditorMessage::Slice(self.texture_slice.clone()),
             );
+        } else if let Some(TextureSliceEditorMessage::Texture(texture)) =
+            message.data_for(self.handle)
+        {
+            self.texture = texture.clone();
         }
     }
 }
@@ -761,7 +781,11 @@ impl TextureSliceFieldEditorBuilder {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<TextureSliceFieldEditor> {
+    pub fn build(
+        self,
+        texture: Option<TextureResource>,
+        ctx: &mut BuildContext,
+    ) -> Handle<TextureSliceFieldEditor> {
         let edit = ButtonBuilder::new(WidgetBuilder::new())
             .with_text("Edit...")
             .build(ctx);
@@ -769,6 +793,7 @@ impl TextureSliceFieldEditorBuilder {
         let node = TextureSliceFieldEditor {
             widget: self.widget_builder.with_child(edit).build(ctx),
             texture_slice: self.texture_slice,
+            texture,
             edit,
             editor: Default::default(),
         };
@@ -778,6 +803,12 @@ impl TextureSliceFieldEditorBuilder {
 
 #[derive(Debug)]
 pub struct TextureSlicePropertyEditorDefinition;
+
+fn fetch_texture(object: &dyn Reflect) -> Option<TextureResource> {
+    object
+        .downcast_ref::<NinePatch>()
+        .and_then(|n| n.texture.get_or_default(&n.style))
+}
 
 impl PropertyEditorDefinition for TextureSlicePropertyEditorDefinition {
     fn value_type_id(&self) -> TypeId {
@@ -789,6 +820,7 @@ impl PropertyEditorDefinition for TextureSlicePropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<TextureSlice>()?;
+        let texture = fetch_texture(ctx.object);
         Ok(PropertyEditorInstance::simple(
             TextureSliceFieldEditorBuilder::new(
                 WidgetBuilder::new()
@@ -796,7 +828,7 @@ impl PropertyEditorDefinition for TextureSlicePropertyEditorDefinition {
                     .with_vertical_alignment(VerticalAlignment::Center),
             )
             .with_texture_slice(value.clone())
-            .build(ctx.build_context),
+            .build(texture, ctx.build_context),
         ))
     }
 
@@ -805,6 +837,9 @@ impl PropertyEditorDefinition for TextureSlicePropertyEditorDefinition {
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<TextureSlice>()?;
+        let texture = fetch_texture(ctx.object);
+        ctx.ui
+            .send(ctx.instance, TextureSliceEditorMessage::Texture(texture));
         Ok(Some(
             UiMessage::with_data(TextureSliceEditorMessage::Slice(value.clone()))
                 .with_destination(ctx.instance),

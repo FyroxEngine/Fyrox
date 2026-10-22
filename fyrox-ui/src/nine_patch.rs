@@ -83,9 +83,6 @@ impl MessageData for NinePatchMessage {}
 #[derive(Default, Clone, Visit, Reflect, Debug, PartialEq)]
 #[reflect(type_uuid = "e1ea4fee-f138-47d2-9770-c088b6c7d86e")]
 pub struct TextureSlice {
-    /// Texture of the slice. This field is used only for editing purposes in the UI. Can be [`None`]
-    /// if no editing is needed.
-    pub texture_source: Option<TextureResource>,
     /// Offset from the bottom side of the texture region.
     pub bottom_margin: InheritableVariable<u32>,
     /// Offset from the left side of the texture region.
@@ -165,16 +162,8 @@ pub struct NinePatch {
     pub widget: Widget,
     pub texture_slice: TextureSlice,
     pub draw_center: InheritableVariable<bool>,
-    #[reflect(setter = "set_texture")]
     pub texture: InheritableVariable<StyledProperty<Option<TextureResource>>>,
     pub stretch_mode: InheritableVariable<StretchMode>,
-}
-
-impl NinePatch {
-    pub fn set_texture(&mut self, texture: StyledProperty<Option<TextureResource>>) {
-        self.texture.set_value_and_mark_modified(texture.clone());
-        self.texture_slice.texture_source = texture.get_or_default(&self.style);
-    }
 }
 
 impl ConstructorProvider<UiNode, UserInterface> for NinePatch {
@@ -528,7 +517,6 @@ impl Control for NinePatch {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(msg) = message.data_for::<NinePatchMessage>(self.handle) {
-            let style = &*self.widget.style;
             let slice = &mut self.texture_slice;
             match msg {
                 NinePatchMessage::LeftMargin(margin) => {
@@ -552,8 +540,7 @@ impl Control for NinePatch {
                     self.invalidate_visual();
                 }
                 NinePatchMessage::Texture(texture) => {
-                    let texture = texture.get_or_default(style);
-                    compare_and_set(&mut slice.texture_source, &texture, message, ui);
+                    compare_and_set(self.texture.deref_mut(), &texture, message, ui);
                     self.invalidate_visual();
                 }
                 NinePatchMessage::DrawCenter(draw_center) => {
@@ -638,11 +625,9 @@ impl NinePatchBuilder {
             self.widget_builder.background = Some(Brush::Solid(Color::WHITE).into())
         }
 
-        let texture_source = self.texture.get_or_default(&Some(ctx.style.clone()));
         ctx.add(NinePatch {
             widget: self.widget_builder.build(ctx),
             texture_slice: TextureSlice {
-                texture_source,
                 bottom_margin: self.bottom_margin.into(),
                 left_margin: self.left_margin.into(),
                 right_margin: self.right_margin.into(),
