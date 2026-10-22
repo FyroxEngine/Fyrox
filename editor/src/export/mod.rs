@@ -198,6 +198,7 @@ impl ExportWindow {
                     )
                     .with_content({
                         let context = InspectorContext::from_object(InspectorContextArgs {
+                            root_object: &export_options,
                             object: &export_options,
                             ctx,
                             definition_container: Arc::new(
@@ -461,6 +462,7 @@ impl ExportWindow {
             if let Err(sync_errors) = ctx.sync(
                 &self.export_options,
                 ui,
+                &self.export_options,
                 0,
                 true,
                 Default::default(),

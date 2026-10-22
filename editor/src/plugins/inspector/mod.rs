@@ -47,7 +47,7 @@ use crate::{
             scroll_viewer::ScrollViewerBuilder,
             searchbar::{SearchBar, SearchBarBuilder, SearchBarMessage},
             stack_panel::{StackPanel, StackPanelBuilder},
-            style::{Style, resource::StyleResource, resource::StyleResourceExt},
+            style::{Style, resource::StyleResourceExt},
             text::{Text, TextBuilder, TextMessage},
             text_box::EmptyTextPlaceholder,
             utils::ImageButtonBuilder,
@@ -64,9 +64,6 @@ use crate::{
     ui_scene::UiScene,
     utils::window_content,
 };
-use fyrox::core::SafeLock;
-use fyrox::core::parking_lot::Mutex;
-use std::ops::Deref;
 use std::{any::Any, sync::Arc, sync::mpsc::Sender};
 
 pub mod editors;
@@ -97,7 +94,6 @@ pub struct EditorEnvironment {
     pub sender: MessageSender,
     #[reflect(hidden)]
     pub icon_request_sender: Sender<IconRequest>,
-    pub style: Mutex<Option<StyleResource>>,
 }
 
 impl Clone for EditorEnvironment {
@@ -109,7 +105,6 @@ impl Clone for EditorEnvironment {
             available_animations: self.available_animations.clone(),
             sender: self.sender.clone(),
             icon_request_sender: self.icon_request_sender.clone(),
-            style: Mutex::new(self.style.safe_lock().clone()),
         }
     }
 }
@@ -190,22 +185,6 @@ fn fetch_available_animations(
             .collect();
     }
     Default::default()
-}
-
-fn current_widget_style(
-    selection: &Selection,
-    controller: &dyn SceneController,
-) -> Option<StyleResource> {
-    if let Some(ui_scene) = controller.downcast_ref::<UiScene>()
-        && let Some(ui_selection) = selection.as_ui()
-    {
-        return ui_scene
-            .ui
-            .try_get_node(ui_selection.widgets[0])
-            .ok()
-            .and_then(|n| n.style.deref().clone());
-    }
-    None
 }
 
 fn print_errors(sync_errors: &[InspectorError]) {
@@ -336,7 +315,15 @@ impl InspectorPlugin {
         ui: &mut UserInterface,
     ) -> Result<(), Vec<InspectorError>> {
         let ctx = ui[self.inspector].context().clone();
-        ctx.sync(obj, ui, 0, true, Default::default(), Default::default())
+        ctx.sync(
+            obj,
+            ui,
+            obj,
+            0,
+            true,
+            Default::default(),
+            Default::default(),
+        )
     }
 
     fn change_context(
@@ -350,7 +337,6 @@ impl InspectorPlugin {
         sender: &MessageSender,
         icon_request_sender: Sender<IconRequest>,
         has_parent_object: bool,
-        style: Option<StyleResource>,
         property_editors: Arc<PropertyEditorDefinitionContainer>,
     ) {
         let environment = Arc::new(EditorEnvironment {
@@ -359,11 +345,11 @@ impl InspectorPlugin {
             available_animations: available_animations.to_vec(),
             sender: sender.clone(),
             icon_request_sender,
-            style: Mutex::new(style),
             dyn_type_constructors,
         });
 
         let context = InspectorContext::from_object(InspectorContextArgs {
+            root_object: obj,
             object: obj,
             ctx: &mut ui.build_ctx(),
             definition_container: property_editors,
@@ -420,8 +406,6 @@ impl EditorPlugin for InspectorPlugin {
                     read_only,
                 } = entity_info;
 
-                let style = current_widget_style(&entry.selection, &*entry.controller);
-
                 if let Err(errors) = self.sync_to(entity, ui) {
                     if is_out_of_sync(&errors) {
                         let available_animations = fetch_available_animations(
@@ -440,7 +424,6 @@ impl EditorPlugin for InspectorPlugin {
                             &editor.message_sender,
                             editor.asset_browser.preview_sender.clone(),
                             has_inheritance_parent,
-                            style,
                             editor.property_editors.clone(),
                         );
 
@@ -449,13 +432,6 @@ impl EditorPlugin for InspectorPlugin {
                         print_errors(&errors);
                     }
                 } else {
-                    // Update the style, since it may have changed.
-                    if let Ok(env) =
-                        EditorEnvironment::try_get_from(&ui[self.inspector].context.environment)
-                    {
-                        *env.style.safe_lock() = style;
-                    }
-
                     need_clear = false;
                 }
 

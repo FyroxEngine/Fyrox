@@ -638,6 +638,7 @@ impl BrushPanel {
         property_editors.insert(make_brush_shape_enum_property_editor_definition());
 
         let context = InspectorContext::from_object(InspectorContextArgs {
+            root_object: brush,
             object: brush,
             ctx,
             definition_container: Arc::new(property_editors),
@@ -670,7 +671,15 @@ impl BrushPanel {
 
     fn sync_to_model(&self, ui: &mut UserInterface, brush: &Brush) {
         let ctx = ui[self.inspector].context().clone();
-        if let Err(e) = ctx.sync(brush, ui, 0, true, Default::default(), Default::default()) {
+        if let Err(e) = ctx.sync(
+            brush,
+            ui,
+            brush,
+            0,
+            true,
+            Default::default(),
+            Default::default(),
+        ) {
             Log::writeln(
                 MessageKind::Error,
                 format!("Failed to sync BrushPanel's inspector. Reason: {e:?}"),

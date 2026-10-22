@@ -184,7 +184,7 @@ impl<K: HashMapKey> SelectHashMapKeyDialogWindowBuilder<K> {
                     definition
                         .property_editor
                         .create_instance(PropertyEditorBuildContext {
-                            object: &self.initial_value,
+                            root_object: &self.initial_value,
                             build_context: ctx,
                             property_info: &key_info,
                             environment: self.environment.clone(),

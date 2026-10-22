@@ -888,9 +888,15 @@ impl Inspector {
                 if pasted && let Ok(inspector) = ui.try_get(inspector) {
                     let ctx = inspector.context.clone();
 
-                    if let Err(errs) =
-                        ctx.sync(object, ui, 0, true, Default::default(), Default::default())
-                    {
+                    if let Err(errs) = ctx.sync(
+                        object,
+                        ui,
+                        object,
+                        0,
+                        true,
+                        Default::default(),
+                        Default::default(),
+                    ) {
                         for err in errs {
                             Log::err(err.to_string());
                         }
@@ -1313,6 +1319,8 @@ fn assign_tab_indices(container: Handle<impl ObjectOrVariant<UiNode>>, ui: &mut 
 }
 
 pub struct InspectorContextArgs<'a, 'b, 'c> {
+    /// Must be equal to `object` when `layer_index==0`.
+    pub root_object: &'a dyn Reflect,
     pub object: &'a dyn Reflect,
     pub ctx: &'b mut BuildContext<'c>,
     pub definition_container: Arc<PropertyEditorDefinitionContainer>,
@@ -1346,6 +1354,7 @@ impl InspectorContext {
     /// * filter: A filter function that controls whether each field will be included in the inspector.
     pub fn from_object(context: InspectorContextArgs) -> Self {
         let InspectorContextArgs {
+            root_object,
             object,
             ctx,
             definition_container,
@@ -1388,7 +1397,7 @@ impl InspectorContext {
 
                     let editor = match definition.property_editor.create_instance(
                         PropertyEditorBuildContext {
-                            object,
+                            root_object,
                             build_context: ctx,
                             property_info: info,
                             environment: environment.clone(),
@@ -1569,6 +1578,7 @@ impl InspectorContext {
         &self,
         object: &dyn Reflect,
         ui: &mut UserInterface,
+        root_object: &dyn Reflect,
         layer_index: usize,
         generate_property_string_values: bool,
         filter: PropertyFilter,
@@ -1593,7 +1603,7 @@ impl InspectorContext {
                 {
                     if let Some(property_editor) = self.find_property_editor(info.name) {
                         let ctx = PropertyEditorMessageContext {
-                            object,
+                            root_object,
                             instance: property_editor.property_editor,
                             ui,
                             property_info: info,

@@ -158,7 +158,7 @@ where
                 definition
                     .property_editor
                     .create_instance(PropertyEditorBuildContext {
-                        object,
+                        root_object: object,
                         build_context: ctx,
                         property_info: &proxy_property_info,
                         environment: environment.clone(),
@@ -347,7 +347,7 @@ where
                 .with_filter(ctx.filter)
                 .build(
                     ctx.build_context,
-                    ctx.object,
+                    ctx.root_object,
                     ctx.property_info,
                     ctx.name_column_width,
                     ctx.hide_name_column,
@@ -379,7 +379,7 @@ where
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let PropertyEditorMessageContext {
-            object,
+            root_object: object,
             instance,
             ui,
             layer_index,
@@ -437,7 +437,7 @@ where
                     definition
                         .property_editor
                         .create_message(PropertyEditorMessageContext {
-                            object,
+                            root_object: object,
                             property_info: &proxy_property_info,
                             environment: environment.clone(),
                             definition_container: definition_container.clone(),

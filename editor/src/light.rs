@@ -261,6 +261,7 @@ impl LightPanel {
                                 WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                             )
                             .with_context(InspectorContext::from_object(InspectorContextArgs {
+                                root_object: &settings,
                                 object: &settings,
                                 ctx,
                                 definition_container: property_editors,

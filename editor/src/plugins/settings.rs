@@ -209,6 +209,7 @@ impl SettingsWindow {
     ) {
         let ctx = &mut ui.build_ctx();
         let context = InspectorContext::from_object(InspectorContextArgs {
+            root_object: &**settings,
             object: &**settings,
             ctx,
             definition_container: property_editors,

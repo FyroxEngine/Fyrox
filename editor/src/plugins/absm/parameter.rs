@@ -102,6 +102,7 @@ impl ParameterPanel {
         let inspector_context = parameters
             .map(|parameters| {
                 InspectorContext::from_object(InspectorContextArgs {
+                    root_object: parameters,
                     object: parameters,
                     ctx: &mut ui.build_ctx(),
                     definition_container: self.property_editors.clone(),
@@ -132,6 +133,7 @@ impl ParameterPanel {
         if let Err(sync_errors) = ctx.sync(
             parameters,
             ui,
+            parameters,
             0,
             true,
             Default::default(),

@@ -100,7 +100,7 @@ where
             definition
                 .property_editor
                 .create_instance(PropertyEditorBuildContext {
-                    object: ctx.object,
+                    root_object: ctx.root_object,
                     build_context: ctx.build_context,
                     property_info: &proxy_property_info,
                     environment: ctx.environment.clone(),
@@ -146,7 +146,7 @@ where
             return definition
                 .property_editor
                 .create_message(PropertyEditorMessageContext {
-                    object: ctx.object,
+                    root_object: ctx.root_object,
                     property_info: &proxy_property_info,
                     environment: ctx.environment.clone(),
                     definition_container: ctx.definition_container.clone(),

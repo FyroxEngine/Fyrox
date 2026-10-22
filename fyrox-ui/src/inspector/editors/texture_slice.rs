@@ -820,7 +820,7 @@ impl PropertyEditorDefinition for TextureSlicePropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<TextureSlice>()?;
-        let texture = fetch_texture(ctx.object);
+        let texture = fetch_texture(ctx.root_object);
         Ok(PropertyEditorInstance::simple(
             TextureSliceFieldEditorBuilder::new(
                 WidgetBuilder::new()
@@ -837,7 +837,7 @@ impl PropertyEditorDefinition for TextureSlicePropertyEditorDefinition {
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<TextureSlice>()?;
-        let texture = fetch_texture(ctx.object);
+        let texture = fetch_texture(ctx.root_object);
         ctx.ui
             .send(ctx.instance, TextureSliceEditorMessage::Texture(texture));
         Ok(Some(

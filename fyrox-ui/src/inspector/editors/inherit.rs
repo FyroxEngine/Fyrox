@@ -213,6 +213,7 @@ where
         let value = property_info.cast_value::<InheritableVariable<T>>()?;
 
         let inspector_context = InspectorContext::from_object(InspectorContextArgs {
+            root_object: ctx.root_object,
             object: value,
             ctx: ctx.build_context,
             definition_container: ctx.definition_container.clone(),
@@ -298,6 +299,7 @@ where
         if let Err(e) = inspector_context.sync(
             value,
             ctx.ui,
+            ctx.root_object,
             0,
             ctx.generate_property_string_values,
             ctx.filter,

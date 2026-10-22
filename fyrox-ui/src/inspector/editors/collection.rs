@@ -254,7 +254,7 @@ where
                 definition
                     .property_editor
                     .create_instance(PropertyEditorBuildContext {
-                        object,
+                        root_object: object,
                         build_context: ctx,
                         property_info: &proxy_property_info,
                         environment: environment.clone(),
@@ -520,7 +520,7 @@ where
                 .with_immutable_collection(ctx.property_info.immutable_collection)
                 .build(
                     ctx.build_context,
-                    ctx.object,
+                    ctx.root_object,
                     ctx.property_info,
                     ctx.name_column_width,
                     ctx.hide_name_column,
@@ -552,7 +552,7 @@ where
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let PropertyEditorMessageContext {
-            object,
+            root_object,
             instance,
             ui,
             property_info,
@@ -581,7 +581,7 @@ where
             // Re-create items.
             let items = create_items(
                 value.iter(),
-                ctx.object,
+                ctx.root_object,
                 environment,
                 definition_container,
                 property_info,
@@ -632,7 +632,7 @@ where
                         definition
                             .property_editor
                             .create_message(PropertyEditorMessageContext {
-                                object,
+                                root_object,
                                 property_info: &proxy_property_info,
                                 environment: environment.clone(),
                                 definition_container: definition_container.clone(),

@@ -145,6 +145,9 @@ impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
             let variant = (self.definition.variant_generator)(*variant);
 
             let ctx = InspectorContext::from_object(InspectorContextArgs {
+                // There's impossible to get the real root object.
+                // TODO. Send context in Variant message instead of creating it here.
+                root_object: &variant,
                 object: &variant,
                 ctx: &mut ui.build_ctx(),
                 definition_container: self.definition_container.clone(),
@@ -242,6 +245,7 @@ impl EnumPropertyEditorBuilder {
     pub fn build<T: InspectableEnum>(
         self,
         ctx: &mut BuildContext,
+        root_object: &dyn Reflect,
         definition: &EnumPropertyEditorDefinition<T>,
         value: &T,
         name_column_width: f32,
@@ -253,6 +257,7 @@ impl EnumPropertyEditorBuilder {
             .unwrap_or_else(|| Arc::new(PropertyEditorDefinitionContainer::with_default_editors()));
 
         let context = InspectorContext::from_object(InspectorContextArgs {
+            root_object,
             object: value,
             ctx,
             definition_container: definition_container.clone(),
@@ -395,6 +400,7 @@ where
             .with_filter(ctx.filter)
             .build(
                 ctx.build_context,
+                ctx.root_object,
                 self,
                 value,
                 ctx.name_column_width,
@@ -452,6 +458,7 @@ where
             let inspector = instance_ref.inspector;
 
             let context = InspectorContext::from_object(InspectorContextArgs {
+                root_object: ctx.root_object,
                 object: value,
                 ctx: &mut ctx.ui.build_ctx(),
                 definition_container: ctx.definition_container.clone(),
@@ -475,6 +482,7 @@ where
             if let Err(e) = inspector_ctx.sync(
                 value,
                 ctx.ui,
+                ctx.root_object,
                 layer_index + 1,
                 ctx.generate_property_string_values,
                 ctx.filter,

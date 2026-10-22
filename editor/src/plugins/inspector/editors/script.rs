@@ -227,6 +227,7 @@ impl ScriptPropertyEditorBuilder {
     ) -> Handle<ScriptPropertyEditor> {
         let context = script.as_ref().map(|script| {
             InspectorContext::from_object(InspectorContextArgs {
+                root_object: script,
                 object: script,
                 ctx,
                 definition_container,
@@ -450,6 +451,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                 .as_ref()
                 .map(|script| {
                     InspectorContext::from_object(InspectorContextArgs {
+                        root_object: script,
                         object: script,
                         ctx: &mut ctx.ui.build_ctx(),
                         definition_container: ctx.definition_container.clone(),
@@ -476,6 +478,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                 if let Err(e) = inspector_ctx.sync(
                     value,
                     ctx.ui,
+                    ctx.root_object,
                     layer_index + 1,
                     ctx.generate_property_string_values,
                     ctx.filter,

@@ -1051,6 +1051,7 @@ impl RagdollWizard {
                                 WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                             )
                             .with_context(InspectorContext::from_object(InspectorContextArgs {
+                                root_object: &preset,
                                 object: &preset,
                                 ctx,
                                 definition_container: property_editors,
@@ -1215,6 +1216,7 @@ impl RagdollWizard {
                 if let Err(sync_errors) = ctx.sync(
                     &self.preset,
                     ui,
+                    &self.preset,
                     0,
                     true,
                     Default::default(),

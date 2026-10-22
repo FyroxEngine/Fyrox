@@ -157,6 +157,7 @@ impl DynTypePropertyEditorBuilder {
     ) -> Handle<DynTypePropertyEditor> {
         let context = dyntype_container.value_ref().as_ref().map(|dyn_type| {
             InspectorContext::from_object(InspectorContextArgs {
+                root_object: *dyn_type,
                 object: *dyn_type,
                 ctx,
                 definition_container,
@@ -353,6 +354,7 @@ impl PropertyEditorDefinition for DynTypePropertyEditorDefinition {
                 .value_ref()
                 .map(|dyn_type| {
                     InspectorContext::from_object(InspectorContextArgs {
+                        root_object: dyn_type,
                         object: dyn_type,
                         ctx: &mut ctx.ui.build_ctx(),
                         definition_container: ctx.definition_container.clone(),
@@ -379,6 +381,7 @@ impl PropertyEditorDefinition for DynTypePropertyEditorDefinition {
                 if let Err(e) = inspector_ctx.sync(
                     value,
                     ctx.ui,
+                    ctx.root_object,
                     layer_index + 1,
                     ctx.generate_property_string_values,
                     ctx.filter,

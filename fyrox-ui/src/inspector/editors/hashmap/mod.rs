@@ -143,7 +143,7 @@ where
     key_property_editor
         .property_editor
         .create_instance(PropertyEditorBuildContext {
-            object,
+            root_object: object,
             build_context: ctx,
             property_info: &key_property_info,
             environment,
@@ -197,7 +197,7 @@ where
     value_property_editor
         .property_editor
         .create_instance(PropertyEditorBuildContext {
-            object,
+            root_object: object,
             build_context: ctx,
             property_info: &value_property_info,
             environment,
@@ -322,7 +322,7 @@ where
         let editor = HashMapPropertyEditorBuilder::<K, V, S>::new(WidgetBuilder::new())
             .with_hash_map(make_entries(
                 hash_map,
-                ctx.object,
+                ctx.root_object,
                 ctx.environment.clone(),
                 ctx.definition_container.clone(),
                 ctx.property_info,
@@ -346,7 +346,7 @@ where
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let PropertyEditorMessageContext {
-            object,
+            root_object: object,
             instance,
             ui,
             property_info,
@@ -418,7 +418,7 @@ where
                     if let Some(message) = key_property_editor_definition
                         .property_editor
                         .create_message(PropertyEditorMessageContext {
-                            object,
+                            root_object: object,
                             property_info: &key_property_info,
                             environment: environment.clone(),
                             definition_container: definition_container.clone(),
@@ -456,7 +456,7 @@ where
                     if let Some(message) = value_property_editor_definition
                         .property_editor
                         .create_message(PropertyEditorMessageContext {
-                            object,
+                            root_object: object,
                             property_info: &value_property_info,
                             environment: environment.clone(),
                             definition_container: definition_container.clone(),

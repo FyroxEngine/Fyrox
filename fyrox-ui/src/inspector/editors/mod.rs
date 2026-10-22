@@ -161,7 +161,7 @@ pub mod vec;
 /// This structure is passed to [PropertyEditorDefinition::create_instance] in order to allow it to
 /// build a widget to allow a property to be edited.
 pub struct PropertyEditorBuildContext<'a, 'b, 'c, 'd> {
-    pub object: &'b dyn Reflect,
+    pub root_object: &'b dyn Reflect,
     /// General context for widget building to be used for creating the editor.
     pub build_context: &'a mut BuildContext<'c>,
     /// The FieldInfo of the property to edit, extracted from the object we are inspecting by reflection.
@@ -200,7 +200,7 @@ pub struct PropertyEditorBuildContext<'a, 'b, 'c, 'd> {
 /// This structure is passed to [PropertyEditorDefinition::create_message] in order to generate a message that will
 /// update the editor widget to the property's current value.
 pub struct PropertyEditorMessageContext<'a, 'b, 'c> {
-    pub object: &'b dyn Reflect,
+    pub root_object: &'b dyn Reflect,
     /// The handle of the widget that the message will be sent to. It should be an editor created by
     /// [PropertyEditorDefinition::create_instance].
     pub instance: Handle<UiNode>,
