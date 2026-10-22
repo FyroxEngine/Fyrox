@@ -1388,6 +1388,7 @@ impl InspectorContext {
 
                     let editor = match definition.property_editor.create_instance(
                         PropertyEditorBuildContext {
+                            object,
                             build_context: ctx,
                             property_info: info,
                             environment: environment.clone(),
@@ -1592,6 +1593,7 @@ impl InspectorContext {
                 {
                     if let Some(property_editor) = self.find_property_editor(info.name) {
                         let ctx = PropertyEditorMessageContext {
+                            object,
                             instance: property_editor.property_editor,
                             ui,
                             property_info: info,

@@ -104,6 +104,7 @@ where
 
 fn create_key_editor<'a, 'b, K>(
     key: &K,
+    object: &'a dyn Reflect,
     environment: Option<InspectorEnvironmentContainer>,
     definition_container: Arc<PropertyEditorDefinitionContainer>,
     property_info: &FieldRef<'a, 'b>,
@@ -142,6 +143,7 @@ where
     key_property_editor
         .property_editor
         .create_instance(PropertyEditorBuildContext {
+            object,
             build_context: ctx,
             property_info: &key_property_info,
             environment,
@@ -159,6 +161,7 @@ where
 
 fn create_value_editor<'a, 'b, V>(
     key: &V,
+    object: &'a dyn Reflect,
     environment: Option<InspectorEnvironmentContainer>,
     definition_container: Arc<PropertyEditorDefinitionContainer>,
     property_info: &FieldRef<'a, 'b>,
@@ -194,6 +197,7 @@ where
     value_property_editor
         .property_editor
         .create_instance(PropertyEditorBuildContext {
+            object,
             build_context: ctx,
             property_info: &value_property_info,
             environment,
@@ -211,6 +215,7 @@ where
 
 fn make_entries<'a, 'b, K, V, S>(
     hash_map: &HashMap<K, V, S>,
+    object: &'a dyn Reflect,
     environment: Option<InspectorEnvironmentContainer>,
     definition_container: Arc<PropertyEditorDefinitionContainer>,
     property_info: &FieldRef<'a, 'b>,
@@ -234,6 +239,7 @@ where
         .filter_map(|(i, (key, value))| {
             let key_editor_instance = create_key_editor(
                 key,
+                object,
                 environment.clone(),
                 definition_container.clone(),
                 property_info,
@@ -248,6 +254,7 @@ where
             )?;
             let value_editor_instance = create_value_editor(
                 value,
+                object,
                 environment.clone(),
                 definition_container.clone(),
                 property_info,
@@ -315,6 +322,7 @@ where
         let editor = HashMapPropertyEditorBuilder::<K, V, S>::new(WidgetBuilder::new())
             .with_hash_map(make_entries(
                 hash_map,
+                ctx.object,
                 ctx.environment.clone(),
                 ctx.definition_container.clone(),
                 ctx.property_info,
@@ -338,6 +346,7 @@ where
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let PropertyEditorMessageContext {
+            object,
             instance,
             ui,
             property_info,
@@ -367,6 +376,7 @@ where
             // Re-create items.
             let items = make_entries(
                 hash_map,
+                object,
                 environment,
                 definition_container,
                 property_info,
@@ -408,6 +418,7 @@ where
                     if let Some(message) = key_property_editor_definition
                         .property_editor
                         .create_message(PropertyEditorMessageContext {
+                            object,
                             property_info: &key_property_info,
                             environment: environment.clone(),
                             definition_container: definition_container.clone(),
@@ -445,6 +456,7 @@ where
                     if let Some(message) = value_property_editor_definition
                         .property_editor
                         .create_message(PropertyEditorMessageContext {
+                            object,
                             property_info: &value_property_info,
                             environment: environment.clone(),
                             definition_container: definition_container.clone(),

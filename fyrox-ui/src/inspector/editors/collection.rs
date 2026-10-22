@@ -209,6 +209,7 @@ fn create_item_views(items: &[Item], ctx: &mut BuildContext) -> Vec<Handle<UiNod
 
 fn create_items<'a, 'b, T, I>(
     iter: I,
+    object: &'a dyn Reflect,
     environment: Option<InspectorEnvironmentContainer>,
     definition_container: Arc<PropertyEditorDefinitionContainer>,
     property_info: &FieldRef<'a, 'b>,
@@ -253,6 +254,7 @@ where
                 definition
                     .property_editor
                     .create_instance(PropertyEditorBuildContext {
+                        object,
                         build_context: ctx,
                         property_info: &proxy_property_info,
                         environment: environment.clone(),
@@ -391,6 +393,7 @@ where
     pub fn build(
         self,
         ctx: &mut BuildContext,
+        object: &'a dyn Reflect,
         property_info: &FieldRef<'a, '_>,
         name_column_width: f32,
         hide_name_column: bool,
@@ -405,6 +408,7 @@ where
         let items = if let Some(collection) = self.collection {
             create_items(
                 collection,
+                object,
                 environment,
                 definition_container,
                 property_info,
@@ -516,6 +520,7 @@ where
                 .with_immutable_collection(ctx.property_info.immutable_collection)
                 .build(
                     ctx.build_context,
+                    ctx.object,
                     ctx.property_info,
                     ctx.name_column_width,
                     ctx.hide_name_column,
@@ -547,6 +552,7 @@ where
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let PropertyEditorMessageContext {
+            object,
             instance,
             ui,
             property_info,
@@ -575,6 +581,7 @@ where
             // Re-create items.
             let items = create_items(
                 value.iter(),
+                ctx.object,
                 environment,
                 definition_container,
                 property_info,
@@ -625,6 +632,7 @@ where
                         definition
                             .property_editor
                             .create_message(PropertyEditorMessageContext {
+                                object,
                                 property_info: &proxy_property_info,
                                 environment: environment.clone(),
                                 definition_container: definition_container.clone(),
