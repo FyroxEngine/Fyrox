@@ -23,6 +23,7 @@
 //! See [`Inspector`] docs for more info and usage examples.
 
 use crate::brush::Brush;
+use crate::expander::{Expander, ExpanderMessage};
 use crate::style::resource::StyleResourceExt;
 use crate::style::{Style, StyledProperty};
 use crate::{
@@ -577,6 +578,10 @@ pub enum InspectorMessage {
     },
     /// Inspector context was changed.
     ContextChanged,
+    /// Expands all collapsible areas in the inspector and all descendants.
+    ExpandAll,
+    /// Collapses all collapsible areas in the inspector and all descendants.
+    CollapseAll,
 }
 impl MessageData for InspectorMessage {}
 
@@ -1677,6 +1682,14 @@ impl Control for Inspector {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
+        fn set_expanders_expanded_state(from: Handle<UiNode>, ui: &UserInterface, expanded: bool) {
+            for (h, w) in ui.traverse_iter(from) {
+                if w.self_or_field_ref::<Expander>().is_some() {
+                    ui.send(h, ExpanderMessage::Expand(expanded));
+                }
+            }
+        }
+
         if let Some(msg) = message.data_for::<InspectorMessage>(self.handle) {
             match msg {
                 InspectorMessage::Context(ctx) => {
@@ -1704,6 +1717,12 @@ impl Control for Inspector {
                         self.context.menu.paste_value,
                         WidgetMessage::Enabled(*can_paste),
                     );
+                }
+                InspectorMessage::ExpandAll => {
+                    set_expanders_expanded_state(self.context.stack_panel.to_base(), ui, true);
+                }
+                InspectorMessage::CollapseAll => {
+                    set_expanders_expanded_state(self.context.stack_panel.to_base(), ui, false);
                 }
                 _ => (),
             }
