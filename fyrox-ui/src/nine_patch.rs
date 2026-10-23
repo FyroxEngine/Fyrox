@@ -540,7 +540,7 @@ impl Control for NinePatch {
                     self.invalidate_visual();
                 }
                 NinePatchMessage::Texture(texture) => {
-                    compare_and_set(self.texture.deref_mut(), &texture, message, ui);
+                    compare_and_set(self.texture.deref_mut(), texture, message, ui);
                     self.invalidate_visual();
                 }
                 NinePatchMessage::DrawCenter(draw_center) => {

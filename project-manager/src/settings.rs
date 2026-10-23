@@ -235,6 +235,7 @@ impl SettingsWindow {
         property_editors.insert(InspectablePropertyEditorDefinition::<EnvironmentVariable>::new());
         let property_editors = Arc::new(property_editors);
         let context = InspectorContext::from_object(InspectorContextArgs {
+            root_object: settings.deref(),
             object: settings.deref(),
             ctx,
             definition_container: property_editors,
@@ -312,6 +313,7 @@ impl SettingsWindow {
             if let Err(errs) = ctx.sync(
                 &**settings,
                 ui,
+                &**settings,
                 0,
                 true,
                 Default::default(),
