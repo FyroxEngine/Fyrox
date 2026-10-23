@@ -141,6 +141,8 @@ pub struct InspectorPlugin {
     type_name_text: Handle<Text>,
     docs_button: Handle<Button>,
     filter_text: String,
+    collapse_all: Handle<Button>,
+    expand_all: Handle<Button>,
     clipboard: Option<Box<dyn Reflect>>,
 }
 
@@ -234,13 +236,44 @@ impl InspectorPlugin {
         .with_wrap(WrapMode::Word)
         .with_text(warning_text_str)
         .build(ctx);
+
         let search_bar = SearchBarBuilder::new(
             WidgetBuilder::new()
-                .on_row(2)
+                .on_column(0)
                 .with_margin(Thickness::uniform(2.0)),
         )
         .with_empty_text_placeholder(EmptyTextPlaceholder::Text("Search for a property"))
         .build(ctx);
+
+        let collapse_all;
+        let expand_all;
+        let navigation_block = GridBuilder::new(
+            WidgetBuilder::new()
+                .on_row(2)
+                .with_child(search_bar)
+                .with_child({
+                    collapse_all = ImageButtonBuilder::default()
+                        .with_image(load_image!("../../../resources/collapse.png").into())
+                        .with_tooltip("Collapse Everything")
+                        .on_column(1)
+                        .build_button(ctx);
+                    collapse_all
+                })
+                .with_child({
+                    expand_all = ImageButtonBuilder::default()
+                        .with_image(load_image!("../../../resources/expand.png").into())
+                        .with_tooltip("Expand Everything")
+                        .on_column(2)
+                        .build_button(ctx);
+                    expand_all
+                }),
+        )
+        .add_column(Column::stretch())
+        .add_column(Column::auto())
+        .add_column(Column::auto())
+        .add_row(Row::stretch())
+        .build(ctx);
+
         let type_name_text = TextBuilder::new(
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(4.0))
@@ -258,6 +291,7 @@ impl InspectorPlugin {
             .with_tooltip("Open Documentation")
             .with_tab_index(Some(0))
             .build_button(ctx);
+
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("Inspector"))
             .with_title(WindowTitle::text("Inspector"))
             .with_tab_label("Inspector")
@@ -265,7 +299,7 @@ impl InspectorPlugin {
                 GridBuilder::new(
                     WidgetBuilder::new()
                         .with_child(warning_text)
-                        .with_child(search_bar)
+                        .with_child(navigation_block)
                         .with_child(
                             GridBuilder::new(
                                 WidgetBuilder::new()
@@ -303,6 +337,8 @@ impl InspectorPlugin {
             type_name_text,
             docs_button,
             filter_text: String::default(),
+            collapse_all,
+            expand_all,
             clipboard: None,
             footer,
             search_bar,
@@ -569,6 +605,13 @@ impl EditorPlugin for InspectorPlugin {
                     .provide_docs(&*entry.controller, &editor.engine)
             {
                 editor.message_sender.send(Message::ShowDocumentation(doc));
+            }
+
+            let ui = editor.engine.user_interfaces.first();
+            if message.destination() == self.expand_all {
+                ui.send(self.inspector, InspectorMessage::ExpandAll);
+            } else if message.destination() == self.collapse_all {
+                ui.send(self.inspector, InspectorMessage::CollapseAll);
             }
         } else if let Some(SearchBarMessage::Text(search_text)) = message.data_from(self.search_bar)
         {
