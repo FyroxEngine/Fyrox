@@ -22,13 +22,10 @@
 //! structure or enumeration recursively. It's primary usage is provide unified and simple way of introspection.
 //! See [`Inspector`] docs for more info and usage examples.
 
-use crate::brush::Brush;
-use crate::expander::{Expander, ExpanderMessage};
-use crate::style::resource::StyleResourceExt;
-use crate::style::{Style, StyledProperty};
 use crate::{
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
     border::BorderBuilder,
+    brush::Brush,
     check_box::{CheckBox, CheckBoxBuilder},
     core::{
         algebra::Vector2,
@@ -38,7 +35,7 @@ use crate::{
         reflect::{self, CastError, Reflect, ReflectPathError, prelude::*},
         visitor::prelude::*,
     },
-    expander::ExpanderBuilder,
+    expander::{Expander, ExpanderBuilder, ExpanderMessage},
     formatted_text::WrapMode,
     grid::{Column, GridBuilder, Row},
     inspector::editors::{
@@ -49,7 +46,9 @@ use crate::{
     message::{DeliveryMode, MessageData, MessageDirection, UiMessage},
     popup::{Popup, PopupBuilder, PopupMessage},
     stack_panel::{StackPanel, StackPanelBuilder},
+    style::{Style, StyledProperty, resource::StyleResourceExt},
     text::{Text, TextBuilder},
+    text_box::TextBox,
     utils::{ArrowDirection, make_arrow, make_simple_tooltip},
     widget::{Widget, WidgetBuilder, WidgetMessage},
 };
@@ -725,18 +724,60 @@ crate::define_widget_deref!(Inspector);
 
 impl Inspector {
     pub fn apply_filter(&self, filter_text: &str, ui: &UserInterface) {
+        fn find_inspectors_recursive(
+            handle: Handle<UiNode>,
+            ui: &UserInterface,
+            inspectors: &mut Vec<Handle<UiNode>>,
+        ) {
+            let node = ok_or_return!(ui.try_get(handle));
+
+            // We're interested only in one nesting layer of inspectors.
+            if node.cast::<Inspector>().is_some() {
+                inspectors.push(handle);
+                return;
+            }
+
+            for child in node.children() {
+                find_inspectors_recursive(*child, ui, inspectors)
+            }
+        }
+
         fn make_visible_recursive(inspector: Handle<UiNode>, ui: &UserInterface) {
             let inspector = ok_or_return!(ui.try_get_of_type::<Inspector>(inspector));
             for entry in inspector.context.entries.iter() {
-                let sub_inspector = ui.find_handle(entry.property_editor, &mut |node| {
-                    node.is_or_has_field::<Inspector>()
-                });
-                if sub_inspector.is_some() {
+                let mut inspectors = Vec::default();
+                find_inspectors_recursive(entry.property_editor, ui, &mut inspectors);
+                for sub_inspector in inspectors {
                     make_visible_recursive(sub_inspector, ui);
                 }
 
                 ui.send(entry.property_container, WidgetMessage::Visibility(true));
             }
+        }
+
+        fn filter(filter_text: &str, other: &str) -> bool {
+            let other = other.to_lowercase();
+            other.contains(filter_text)
+                || rust_fuzzy_search::fuzzy_compare(filter_text, other.as_str()) >= 0.5
+        }
+
+        fn check_text(filter_text: &str, from: Handle<UiNode>, ui: &UserInterface) -> bool {
+            for (_, n) in ui.traverse_iter(from) {
+                if n.is_or_has_field::<Inspector>() {
+                    break;
+                }
+                let text = if let Some(text) = n.cast::<Text>() {
+                    Some(text.text())
+                } else {
+                    n.cast::<TextBox>().map(|text_box| text_box.text())
+                };
+                if let Some(text) = text
+                    && filter(filter_text, &text)
+                {
+                    return true;
+                }
+            }
+            false
         }
 
         fn filter_recursive(
@@ -748,16 +789,17 @@ impl Inspector {
 
             let mut is_any_match = false;
             for entry in inspector.context.entries.iter() {
-                let display_name = entry.property_display_name.to_lowercase();
-                let mut is_visible = filter_text.is_empty()
-                    || display_name.contains(filter_text)
-                    || rust_fuzzy_search::fuzzy_compare(filter_text, display_name.as_str()) >= 0.5;
+                let mut is_visible =
+                    filter_text.is_empty() || filter(filter_text, &entry.property_display_name);
 
                 if !is_visible {
-                    let sub_inspector = ui.find_handle(entry.property_editor, &mut |node| {
-                        node.is_or_has_field::<Inspector>()
-                    });
-                    if sub_inspector.is_some() {
+                    is_visible |= check_text(filter_text, entry.property_container, ui);
+                }
+
+                if !is_visible {
+                    let mut inspectors = Vec::default();
+                    find_inspectors_recursive(entry.property_editor, ui, &mut inspectors);
+                    for sub_inspector in inspectors {
                         is_visible |= filter_recursive(filter_text, sub_inspector, ui);
                     }
                 }
