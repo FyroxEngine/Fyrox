@@ -705,8 +705,10 @@ impl Style {
     /// try to search in the parent style (the search is recursive).
     pub fn get_raw(&self, name: impl Into<ImmutableString>) -> Option<StyleProperty> {
         let name = name.into();
-        let index = self.index_of(&name)?;
-        if let Some(container) = self.properties.get(index) {
+        if let Some(container) = self
+            .index_of(&name)
+            .and_then(|index| self.properties.get(index))
+        {
             return Some(container.value.clone());
         } else if let Some(parent) = self.parent.as_ref() {
             let state = parent.state();
@@ -825,6 +827,26 @@ mod test {
         assert_eq!(style.index_of(&ImmutableString::new("B")), Some(2));
         assert_eq!(style.index_of(&ImmutableString::new("C")), Some(1));
         assert_eq!(style.index_of(&ImmutableString::new("D")), Some(0));
+    }
+
+    #[test]
+    fn test_cascaded_styles() {
+        let mut parent_style = Style::default();
+        parent_style.set("A", 0.2f32);
+        assert_eq!(parent_style.get_or_default::<f32>("A"), 0.2f32);
+        let parent_style = StyleResource::new_embedded(parent_style);
+
+        let mut child_style = Style::default();
+        child_style.set("B", 0.1f32);
+        assert_eq!(child_style.get_or_default::<f32>("B"), 0.1f32);
+        child_style.parent = Some(parent_style);
+
+        assert_eq!(child_style.get_or_default::<f32>("A"), 0.2f32);
+        assert_eq!(child_style.get_or_default::<f32>("B"), 0.1f32);
+
+        // Override A in child style.
+        child_style.set("A", 123.321f32);
+        assert_eq!(child_style.get_or_default::<f32>("A"), 123.321f32);
     }
 
     #[test]
