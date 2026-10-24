@@ -1104,6 +1104,7 @@ pub struct InspectorContext {
     pub environment: Option<InspectorEnvironmentContainer>,
     /// Type id of the object for which the context was created.
     pub object_type_id: TypeId,
+    pub object_id: u64,
     /// A width of the property name column.
     pub name_column_width: f32,
     pub hide_name_column: bool,
@@ -1135,6 +1136,7 @@ impl Default for InspectorContext {
             ),
             environment: None,
             object_type_id: ().type_id(),
+            object_id: 0,
             name_column_width: 150.0,
             hide_name_column: false,
             has_parent_object: false,
@@ -1385,6 +1387,10 @@ pub struct InspectorContextArgs<'a, 'b, 'c> {
     pub has_parent_object: bool,
 }
 
+fn fat_ptr_to_addr(object: &dyn Reflect) -> u64 {
+    object as *const dyn Reflect as *const () as u64
+}
+
 impl InspectorContext {
     /// Build the widgets for an Inspector to represent the given object by accessing
     /// the object's fields through reflection.
@@ -1605,6 +1611,7 @@ impl InspectorContext {
             property_definitions: definition_container,
             environment,
             object_type_id: object_type_id(object),
+            object_id: fat_ptr_to_addr(object),
             name_column_width,
             hide_name_column,
             has_parent_object,
@@ -1631,7 +1638,9 @@ impl InspectorContext {
         filter: PropertyFilter,
         base_path: String,
     ) -> Result<(), Vec<InspectorError>> {
-        if object_type_id(object) != self.object_type_id {
+        if object_type_id(object) != self.object_type_id
+            || fat_ptr_to_addr(object) != self.object_id
+        {
             return Err(vec![InspectorError::OutOfSync]);
         }
 
