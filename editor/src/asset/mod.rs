@@ -671,7 +671,15 @@ impl AssetBrowser {
                     src_item_path,
                     dest_dir,
                 } => {
-                    if let (Some(file_name), true) =
+                    if entry.path.as_ref().is_some_and(|p| {
+                        if let (Ok(a), Ok(b)) = (p.canonicalize(), src_item_path.canonicalize()) {
+                            a == b
+                        } else {
+                            true
+                        }
+                    }) {
+                        err!("Cannot move a resource, because it is being edited!");
+                    } else if let (Some(file_name), true) =
                         (src_item_path.file_name(), src_item_path.is_file())
                     {
                         try_move_resource(
