@@ -25,7 +25,7 @@ use crate::{
         engine::Engine,
         graph::SceneGraph,
         gui::{
-            BuildContext, Thickness, VerticalAlignment,
+            BuildContext, Thickness, UserInterface, VerticalAlignment,
             button::{Button, ButtonBuilder, ButtonMessage},
             check_box::{CheckBox, CheckBoxBuilder, CheckBoxMessage},
             grid::{Column, Grid, GridBuilder, Row},
@@ -206,6 +206,12 @@ impl AudioPreviewPanel {
         }
     }
 
+    fn set_buttons_enabled(&self, ui: &UserInterface, enabled: bool) {
+        for button in [self.play, self.pause, self.rewind, self.stop] {
+            ui.send(button, WidgetMessage::Enabled(enabled));
+        }
+    }
+
     fn enter_preview_mode(
         &mut self,
         editor_selection: &Selection,
@@ -214,6 +220,7 @@ impl AudioPreviewPanel {
     ) {
         assert!(self.sounds_state.is_empty());
 
+        let ui = engine.user_interfaces.first();
         let scene = &engine.scenes[game_scene.scene];
         let node_overrides = game_scene.graph_switches.node_overrides.as_mut().unwrap();
 
@@ -226,7 +233,7 @@ impl AudioPreviewPanel {
                             let mut state = buffer.state();
                             if let Some(buffer) = state.data() {
                                 let duration_secs = buffer.duration().as_secs_f32();
-                                engine.user_interfaces.first().send_sync_many(
+                                ui.send_sync_many(
                                     self.time,
                                     [
                                         ScrollBarMessage::MaxValue(duration_secs),
@@ -248,6 +255,8 @@ impl AudioPreviewPanel {
                 }
             }
         }
+
+        self.set_buttons_enabled(ui, true);
     }
 
     pub fn leave_preview_mode(&mut self, game_scene: &mut GameScene, engine: &mut Engine) {
@@ -259,13 +268,12 @@ impl AudioPreviewPanel {
 
             assert!(node_overrides.remove(&sound_handle));
         }
-
-        engine
-            .user_interfaces
-            .first()
-            .send_sync(self.preview, CheckBoxMessage::Check(Some(false)));
+        let ui = engine.user_interfaces.first();
+        ui.send_sync(self.preview, CheckBoxMessage::Check(Some(false)));
 
         scene.graph.sound_context.state().destroy_sound_sources();
+
+        self.set_buttons_enabled(ui, false);
     }
 
     pub fn is_in_preview_mode(&self) -> bool {
