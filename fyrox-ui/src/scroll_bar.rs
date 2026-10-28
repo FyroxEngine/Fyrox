@@ -65,6 +65,10 @@ pub enum ScrollBarMessage {
     /// Used to set the size of the indicator(thumb) adaptively, according to the relative sizes of the container and the
     /// content in it (with [`crate::message::MessageDirection::ToWidget`].
     SizeRatio(f32),
+    /// Appears when a user starts dragging the thumb of the scroll bar.
+    StartDragging,
+    /// Appears when a user ends dragging the thumb of the scroll bar.
+    EndDragging,
 }
 impl MessageData for ScrollBarMessage {}
 
@@ -344,6 +348,8 @@ impl Control for ScrollBar {
                         }
                     }
                 }
+                ScrollBarMessage::StartDragging => {}
+                ScrollBarMessage::EndDragging => {}
             }
         } else if let Some(msg) = message.data::<WidgetMessage>()
             && message.destination() == *self.indicator
@@ -355,11 +361,13 @@ impl Control for ScrollBar {
                     self.offset = indicator_pos - *pos;
                     ui.capture_mouse(*self.indicator);
                     message.set_handled(true);
+                    ui.post(self.handle, ScrollBarMessage::StartDragging);
                 }
                 WidgetMessage::MouseUp { .. } => {
                     self.is_dragging = false;
                     ui.release_mouse_capture();
                     message.set_handled(true);
+                    ui.post(self.handle, ScrollBarMessage::EndDragging);
                 }
                 WidgetMessage::MouseMove { pos: mouse_pos, .. } => {
                     if let (Ok(indicator_canvas), Ok(indicator)) = (
