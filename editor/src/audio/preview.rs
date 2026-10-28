@@ -285,12 +285,13 @@ impl AudioPreviewPanel {
         if let Some(new_graph_selection) = editor_selection.as_graph() {
             for &node_handle in &new_graph_selection.nodes {
                 if let Ok(sound) = scene.graph.try_get_of_type::<Sound>(node_handle) {
-                    engine
-                        .user_interfaces
-                        .first()
-                        .send_sync(self.time, ScrollBarMessage::Value(sound.playback_time()));
-
-                    break;
+                    if sound.status() == Status::Playing {
+                        engine
+                            .user_interfaces
+                            .first()
+                            .send_sync(self.time, ScrollBarMessage::Value(sound.playback_time()));
+                        break;
+                    }
                 }
             }
         }
@@ -328,14 +329,23 @@ impl AudioPreviewPanel {
                 } else {
                     self.leave_preview_mode(game_scene, engine);
                 }
-            } else if let Some(ScrollBarMessage::Value(playback_position)) =
-                message.data_from(self.time)
-            {
+            } else if let Some(msg) = message.data_from::<ScrollBarMessage>(self.time) {
                 let scene = &mut engine.scenes[game_scene.scene];
 
                 for &node in &selection.nodes {
                     if let Ok(sound) = scene.graph.try_get_mut_of_type::<Sound>(node) {
-                        sound.set_playback_time(*playback_position);
+                        match msg {
+                            ScrollBarMessage::Value(playback_position) => {
+                                sound.set_playback_time(*playback_position);
+                            }
+                            ScrollBarMessage::StartDragging => {
+                                sound.pause();
+                            }
+                            ScrollBarMessage::EndDragging => {
+                                sound.play();
+                            }
+                            _ => (),
+                        }
                     }
                 }
             }
