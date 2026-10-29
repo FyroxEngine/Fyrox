@@ -284,14 +284,14 @@ impl AudioPreviewPanel {
         let scene = &engine.scenes[game_scene.scene];
         if let Some(new_graph_selection) = editor_selection.as_graph() {
             for &node_handle in &new_graph_selection.nodes {
-                if let Ok(sound) = scene.graph.try_get_of_type::<Sound>(node_handle) {
-                    if sound.status() == Status::Playing {
-                        engine
-                            .user_interfaces
-                            .first()
-                            .send_sync(self.time, ScrollBarMessage::Value(sound.playback_time()));
-                        break;
-                    }
+                if let Ok(sound) = scene.graph.try_get_of_type::<Sound>(node_handle)
+                    && sound.status() == Status::Playing
+                {
+                    engine
+                        .user_interfaces
+                        .first()
+                        .send_sync(self.time, ScrollBarMessage::Value(sound.playback_time()));
+                    break;
                 }
             }
         }
