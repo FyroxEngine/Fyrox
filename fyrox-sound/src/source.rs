@@ -476,8 +476,10 @@ impl SoundSource {
                 }
             }
             // Set absolute position first.
-            self.playback_pos = (time.as_secs_f64() * buffer.sample_rate as f64)
+            let clamped_time = time
+                .as_secs_f64()
                 .clamp(0.0, buffer.duration().as_secs_f64());
+            self.playback_pos = clamped_time * buffer.sample_rate as f64;
             // Then adjust buffer read position.
             self.buf_read_pos = match *buffer {
                 SoundBuffer::Streaming(ref mut streaming) => {
