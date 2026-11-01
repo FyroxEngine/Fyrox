@@ -5,6 +5,7 @@ use crate::{
     scene::Selection,
     ui_scene::{UiScene, commands::UiSceneContext},
 };
+use fyrox::gui::Thickness;
 use fyrox::gui::stack_panel::StackPanel;
 use fyrox::gui::text_box::TextBox;
 use fyrox::{
@@ -36,6 +37,7 @@ impl BBCodePanel {
             .build(ctx);
         let root_widget = StackPanelBuilder::new(
             WidgetBuilder::new()
+                .with_margin(Thickness::uniform(2.0))
                 .with_visibility(false)
                 .with_child(
                     TextBuilder::new(WidgetBuilder::new())
