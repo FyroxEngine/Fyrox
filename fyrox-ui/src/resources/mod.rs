@@ -18,9 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox_resource::{
-    Resource, builtin::BuiltInResource, embedded_data_source, untyped::ResourceKind,
-};
+use fyrox_resource::{builtin::BuiltInResource, embedded_data_source, untyped::ResourceKind};
 use fyrox_texture::{
     CompressionOptions, Texture, TextureImportOptions, TextureMinificationFilter, TextureResource,
     TextureResourceExtension,

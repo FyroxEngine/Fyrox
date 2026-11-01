@@ -20,6 +20,7 @@
 
 use fyrox::core::log::Log;
 
+use crate::world::WorldViewer;
 use crate::{
     Message,
     asset::open_in_explorer,
@@ -399,28 +400,46 @@ impl AssetItemBuilder {
         .with_opt_texture(self.icon.into())
         .build(ctx);
 
+        let is_built_in = resource_manager
+            .state()
+            .built_in_resources
+            .is_built_in_resource_path(&self.path);
+        let foreground = if is_built_in {
+            ctx.style.property(WorldViewer::INSTANCE_BRUSH)
+        } else {
+            ctx.style.property(Style::BRUSH_TEXT)
+        };
+        let tooltip = if is_built_in {
+            format!("[Built-in Resource] {}", self.path.display())
+        } else {
+            format!("{}", self.path.display())
+        };
         let text_border = BorderBuilder::new(
             WidgetBuilder::new()
                 .on_row(1)
-                .with_tooltip(make_tooltip(ctx, &format!("{}", self.path.display())))
+                .with_tooltip(make_tooltip(ctx, &tooltip))
                 .with_foreground(Brush::Solid(Color::TRANSPARENT).into())
                 .with_background(
                     ctx.style
                         .property(AssetItem::DESELECTED_TEXT_BORDER_BACKGROUND),
                 )
                 .with_child(
-                    TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
-                        .with_vertical_text_alignment(VerticalAlignment::Center)
-                        .with_horizontal_text_alignment(HorizontalAlignment::Center)
-                        .with_wrap(WrapMode::Word)
-                        .with_text(
-                            self.path
-                                .file_name()
-                                .unwrap_or_default()
-                                .to_string_lossy()
-                                .to_string(),
-                        )
-                        .build(ctx),
+                    TextBuilder::new(
+                        WidgetBuilder::new()
+                            .with_foreground(foreground)
+                            .with_margin(Thickness::uniform(2.0)),
+                    )
+                    .with_vertical_text_alignment(VerticalAlignment::Center)
+                    .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                    .with_wrap(WrapMode::Word)
+                    .with_text(
+                        self.path
+                            .file_name()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .to_string(),
+                    )
+                    .build(ctx),
                 ),
         )
         .with_pad_by_corner_radius(false)
