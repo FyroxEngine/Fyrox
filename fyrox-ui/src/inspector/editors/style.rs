@@ -21,6 +21,7 @@
 //! Property editor for StyledProperty. It acts like a proxy to inner property, but also
 //! adds a special "bind" button used to change style binding of the property.
 
+use crate::formatted_text::FormattedText;
 use crate::widget::WidgetMessage;
 use crate::{
     BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
@@ -62,6 +63,7 @@ use crate::{
 use fyrox_core::err;
 use fyrox_resource::untyped::UntypedResource;
 use rust_fuzzy_search::fuzzy_compare;
+use std::cell::RefCell;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -519,7 +521,10 @@ fn fetch_style(root_object: &dyn Reflect) -> Option<StyleResource> {
                 style = widget.style.deref().clone();
             }
         },
-        &[TypeId::of::<UntypedResource>()],
+        &[
+            TypeId::of::<UntypedResource>(),
+            TypeId::of::<RefCell<FormattedText>>(),
+        ],
     );
     style
 }
