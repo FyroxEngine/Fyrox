@@ -870,9 +870,7 @@ impl Editor {
                                                 splitter: 0.25,
                                                 tiles: [
                                                     TileBuilder::new(WidgetBuilder::new())
-                                                        .with_content(TileContent::Window(
-                                                            world_outliner.window,
-                                                        ))
+                                                        .with_window(world_outliner.window)
                                                         .build(ctx),
                                                     TileBuilder::new(WidgetBuilder::new())
                                                         .with_content(
@@ -882,19 +880,15 @@ impl Editor {
                                                                     TileBuilder::new(
                                                                         WidgetBuilder::new(),
                                                                     )
-                                                                    .with_content(
-                                                                        TileContent::Window(
-                                                                            scene_viewer.window(),
-                                                                        ),
+                                                                    .with_window(
+                                                                        scene_viewer.window(),
                                                                     )
                                                                     .build(ctx),
                                                                     TileBuilder::new(
                                                                         WidgetBuilder::new(),
                                                                     )
-                                                                    .with_content(
-                                                                        TileContent::Window(
-                                                                            inspector_plugin.window,
-                                                                        ),
+                                                                    .with_window(
+                                                                        inspector_plugin.window,
                                                                     )
                                                                     .build(ctx),
                                                                 ],
@@ -916,20 +910,15 @@ impl Editor {
                                                                     TileBuilder::new(
                                                                         WidgetBuilder::new(),
                                                                     )
-                                                                    .with_content(
-                                                                        TileContent::Window(
-                                                                            asset_browser.window,
-                                                                        ),
+                                                                    .with_window(
+                                                                        asset_browser.window,
                                                                     )
                                                                     .build(ctx),
                                                                     TileBuilder::new(
                                                                         WidgetBuilder::new(),
                                                                     )
-                                                                    .with_content(
-                                                                        TileContent::Window(
-                                                                            command_stack_viewer
-                                                                                .window,
-                                                                        ),
+                                                                    .with_window(
+                                                                        command_stack_viewer.window,
                                                                     )
                                                                     .build(ctx),
                                                                 ],
@@ -944,20 +933,12 @@ impl Editor {
                                                                     TileBuilder::new(
                                                                         WidgetBuilder::new(),
                                                                     )
-                                                                    .with_content(
-                                                                        TileContent::Window(
-                                                                            log.window,
-                                                                        ),
-                                                                    )
+                                                                    .with_window(log.window)
                                                                     .build(ctx),
                                                                     TileBuilder::new(
                                                                         WidgetBuilder::new(),
                                                                     )
-                                                                    .with_content(
-                                                                        TileContent::Window(
-                                                                            audio_panel.window,
-                                                                        ),
-                                                                    )
+                                                                    .with_window(audio_panel.window)
                                                                     .build(ctx),
                                                                 ],
                                                             },

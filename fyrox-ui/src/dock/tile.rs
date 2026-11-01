@@ -1238,6 +1238,11 @@ impl TileBuilder {
         self
     }
 
+    pub fn with_window(mut self, window: Handle<Window>) -> Self {
+        self.content = TileContent::Window(window);
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext) -> Handle<Tile> {
         let left_anchor = make_default_anchor(ctx, 2, 1);
         let right_anchor = make_default_anchor(ctx, 2, 3);
