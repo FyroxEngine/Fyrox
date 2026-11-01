@@ -277,7 +277,7 @@ where
                 .on_column(1)
                 .with_image_size(12.0)
                 .with_width(18.0)
-                .with_image(resources::REMOVE.clone().into())
+                .with_image(resources::REMOVE.resource_opt().into())
                 .build_button(ctx);
 
             match editor_instance {
@@ -505,7 +505,7 @@ where
             .on_column(1)
             .with_image_size(12.0)
             .with_size(18.0)
-            .with_image(resources::ADD.clone().into())
+            .with_image(resources::ADD.resource_opt().into())
             .build_button(ctx.build_context);
 
         let editor =

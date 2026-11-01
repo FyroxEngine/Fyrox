@@ -24,6 +24,7 @@ use crate::{
     upgrade::UpgradeTool,
     utils::{self, is_production_ready},
 };
+use fyrox::gui::load_image;
 use fyrox::{
     core::{
         color::Color,
@@ -58,10 +59,7 @@ use fyrox::{
         style::{Style, resource::StyleResourceExt},
         text::{Text, TextBuilder, TextMessage},
         text_box::EmptyTextPlaceholder,
-        utils::{
-            ImageButtonBuilder, load_image, make_simple_tooltip,
-            make_text_and_image_button_with_tooltip,
-        },
+        utils::{ImageButtonBuilder, make_simple_tooltip, make_text_and_image_button_with_tooltip},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
     },
@@ -186,7 +184,7 @@ fn make_project_item(
             .with_height(40.0)
             .on_column(0),
     )
-    .with_opt_texture(load_image(include_bytes!("../resources/icon.png")).into())
+    .with_texture(load_image!("../resources/icon.png"))
     .build(ctx);
 
     let hot_reload = ImageBuilder::new(
@@ -196,7 +194,7 @@ fn make_project_item(
             .with_margin(Thickness::uniform(2.0))
             .with_visibility(hot_reload),
     )
-    .with_opt_texture(load_image(include_bytes!("../resources/flame.png")).into())
+    .with_texture(load_image!("../resources/flame.png"))
     .build(ctx);
 
     let engine_version = TextBuilder::new(
@@ -392,7 +390,7 @@ impl ProjectManager {
             "Create",
             20.0,
             20.0,
-            load_image(include_bytes!("../resources/plus.png")),
+            load_image!("../resources/plus.png"),
             create_tooltip,
             0,
             0,
@@ -405,7 +403,7 @@ impl ProjectManager {
             "Import",
             22.0,
             22.0,
-            load_image(include_bytes!("../resources/open-folder.png")),
+            load_image!("../resources/open-folder.png"),
             import_tooltip,
             0,
             1,
@@ -422,7 +420,7 @@ impl ProjectManager {
         .with_empty_text_placeholder(EmptyTextPlaceholder::Text("Search for a project"))
         .build(ctx);
         let open_settings = ImageButtonBuilder::default()
-            .with_image(load_image(include_bytes!("../resources/gear.png")).into())
+            .with_raw_image(load_image!("../resources/gear.png"))
             .with_image_size(18.0)
             .with_tooltip("Settings\nHotkey: Ctrl+S")
             .with_tab_index(Some(7))
@@ -430,7 +428,7 @@ impl ProjectManager {
         ctx[open_settings].set_column(3);
 
         let open_help = ImageButtonBuilder::default()
-            .with_image(load_image(include_bytes!("../resources/question.png")).into())
+            .with_raw_image(load_image!("../resources/question.png"))
             .with_image_size(18.0)
             .with_tooltip("Help\nHotkey: F1")
             .with_tab_index(Some(8))
@@ -456,9 +454,7 @@ impl ProjectManager {
                                 .with_height(18.0)
                                 .on_column(0),
                         )
-                        .with_opt_texture(
-                            load_image(include_bytes!("../resources/caution.png")).into(),
-                        )
+                        .with_texture(load_image!("../resources/caution.png"))
                         .build(ctx),
                     )
                     .with_child({
@@ -527,7 +523,7 @@ impl ProjectManager {
             "Edit",
             22.0,
             22.0,
-            load_image(include_bytes!("../resources/pencil.png")),
+            load_image!("../resources/pencil.png"),
             edit_tooltip,
             0,
             0,
@@ -540,7 +536,7 @@ impl ProjectManager {
             "Run",
             22.0,
             22.0,
-            load_image(include_bytes!("../resources/play.png")),
+            load_image!("../resources/play.png"),
             run_tooltip,
             0,
             0,
@@ -553,7 +549,7 @@ impl ProjectManager {
             "Delete",
             22.0,
             22.0,
-            load_image(include_bytes!("../resources/delete.png")),
+            load_image!("../resources/delete.png"),
             delete_tooltip,
             0,
             0,
@@ -566,7 +562,7 @@ impl ProjectManager {
             "Upgrade",
             22.0,
             22.0,
-            load_image(include_bytes!("../resources/up.png")),
+            load_image!("../resources/up.png"),
             upgrade_tooltip,
             0,
             0,
@@ -579,7 +575,7 @@ impl ProjectManager {
             "Locate",
             22.0,
             22.0,
-            load_image(include_bytes!("../resources/location.png")),
+            load_image!("../resources/location.png"),
             locate_tooltip,
             0,
             0,
@@ -592,7 +588,7 @@ impl ProjectManager {
             "Open IDE",
             22.0,
             22.0,
-            load_image(include_bytes!("../resources/ide.png")),
+            load_image!("../resources/ide.png"),
             open_ide_tooltip,
             0,
             0,
@@ -605,7 +601,7 @@ impl ProjectManager {
             "Exclude",
             22.0,
             22.0,
-            load_image(include_bytes!("../resources/cross.png")),
+            load_image!("../resources/cross.png"),
             exclude_project_tooltip,
             0,
             0,
@@ -618,7 +614,7 @@ impl ProjectManager {
             "Clean",
             22.0,
             22.0,
-            load_image(include_bytes!("../resources/clean.png")),
+            load_image!("../resources/clean.png"),
             clean_project_tooltip,
             0,
             0,
@@ -631,7 +627,7 @@ impl ProjectManager {
             "Donate",
             22.0,
             22.0,
-            load_image(include_bytes!("../resources/donate.png")),
+            load_image!("../resources/donate.png"),
             donate_tooltip,
             2,
             0,

@@ -185,6 +185,11 @@ impl<T: TypedResourceData> BuiltInResource<T> {
     pub fn resource(&self) -> Resource<T> {
         self.resource.clone()
     }
+
+    /// Same as [`Self::resource`], but returns `Some(value)`.
+    pub fn resource_opt(&self) -> Option<Resource<T>> {
+        Some(self.resource.clone())
+    }
 }
 
 impl<T: TypedResourceData> From<BuiltInResource<T>> for UntypedBuiltInResource {

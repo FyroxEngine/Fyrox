@@ -203,11 +203,13 @@ pub fn make_dropdown_list_option(
     container: &StylePropertyContainer,
 ) -> Handle<UiNode> {
     let (image, color) = match container.value {
-        StyleProperty::Number(_) => (resources::NUMBER.clone(), Color::opaque(0, 162, 232)),
-        StyleProperty::Thickness(_) => (resources::THICKNESS.clone(), Color::opaque(34, 177, 76)),
-        StyleProperty::Color(_) => (resources::COLOR.clone(), Color::opaque(163, 73, 164)),
-        StyleProperty::Brush(_) => (resources::BRUSH.clone(), Color::opaque(255, 127, 39)),
-        StyleProperty::Texture(_) => (resources::TEXTURE.clone(), Color::opaque(150, 150, 150)),
+        StyleProperty::Number(_) => (resources::NUMBER.resource(), Color::opaque(0, 162, 232)),
+        StyleProperty::Thickness(_) => {
+            (resources::THICKNESS.resource(), Color::opaque(34, 177, 76))
+        }
+        StyleProperty::Color(_) => (resources::COLOR.resource(), Color::opaque(163, 73, 164)),
+        StyleProperty::Brush(_) => (resources::BRUSH.resource(), Color::opaque(255, 127, 39)),
+        StyleProperty::Texture(_) => (resources::TEXTURE.resource(), Color::opaque(150, 150, 150)),
     };
 
     let content = GridBuilder::new(
@@ -220,7 +222,7 @@ pub fn make_dropdown_list_option(
                         .with_width(18.0)
                         .with_height(18.0),
                 )
-                .with_opt_texture(image.into())
+                .with_texture(image)
                 .build(ctx),
             )
             .with_child(
@@ -477,7 +479,7 @@ impl StyledPropertyNameEditorBuilder {
             .with_margin(Thickness::uniform(1.0))
             .with_vertical_alignment(VerticalAlignment::Top)
             .with_image_size(14.0)
-            .with_image(BIND_ICON.clone().into())
+            .with_image(BIND_ICON.resource_opt().into())
             .build_button(ctx);
 
         let name_text = TextBuilder::new(WidgetBuilder::new())

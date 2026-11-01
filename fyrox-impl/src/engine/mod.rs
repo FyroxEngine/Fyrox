@@ -56,6 +56,7 @@ use crate::{
     event::Event,
     graph::SceneGraph,
     graphics::error::FrameworkError,
+    gui,
     gui::{
         RenderMode, UiContainer, UiUpdateSwitches, UserInterface,
         constructor::WidgetConstructorContainer,
@@ -1263,6 +1264,10 @@ pub(crate) fn initialize_resource_manager_loaders(
     };
 
     let mut state = resource_manager.state();
+
+    for texture in gui::resources::all_resources() {
+        state.built_in_resources.add(texture);
+    }
 
     for shader in ShaderResource::standard_shaders() {
         state.built_in_resources.add((*shader).clone());

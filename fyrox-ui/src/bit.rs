@@ -302,7 +302,7 @@ where
         ctx.commit(
             self.clip_bounds(),
             Brush::Solid(Color::opaque(200, 200, 200)),
-            CommandTexture::Texture(BITS_ICON.clone().unwrap()),
+            CommandTexture::Texture(BITS_ICON.resource()),
             &self.material,
             None,
         );
@@ -314,7 +314,7 @@ where
         ctx.commit(
             self.clip_bounds(),
             Brush::Solid(Color::opaque(200, 200, 200)),
-            CommandTexture::Texture(BITS_ICON.clone().unwrap()),
+            CommandTexture::Texture(BITS_ICON.resource()),
             &self.material,
             None,
         );

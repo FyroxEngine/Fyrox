@@ -154,7 +154,7 @@ impl UuidEditorBuilder {
                         .on_row(0)
                         .with_size(20.0)
                         .with_image_size(14.0)
-                        .with_image(resources::SHUFFLE.clone().into())
+                        .with_image(resources::SHUFFLE.resource_opt().into())
                         .with_tooltip("New Random UUID")
                         .build_button(ctx);
                     generate

@@ -34,11 +34,7 @@ use crate::{
     vector_image::{Primitive, VectorImage, VectorImageBuilder},
     widget::WidgetBuilder,
 };
-use fyrox_texture::{
-    CompressionOptions, TextureImportOptions, TextureMinificationFilter, TextureResource,
-    TextureResourceExtension,
-};
-use uuid::Uuid;
+use fyrox_texture::TextureResource;
 
 pub enum ArrowDirection {
     Top,
@@ -379,6 +375,11 @@ impl<'a> ImageButtonBuilder<'a> {
         self
     }
 
+    pub fn with_raw_image(mut self, image: TextureResource) -> Self {
+        self.image = Some(image).into();
+        self
+    }
+
     pub fn with_tooltip(mut self, tooltip: &'a str) -> Self {
         self.tooltip = tooltip;
         self
@@ -496,7 +497,7 @@ pub fn make_text_and_image_button_with_tooltip(
     text: &str,
     image_width: f32,
     image_height: f32,
-    image: Option<TextureResource>,
+    image: TextureResource,
     tooltip: &str,
     row: usize,
     column: usize,
@@ -531,7 +532,7 @@ pub fn make_text_and_image_button_with_tooltip(
                             .with_width(image_width - 2.0 * margin)
                             .with_height(image_height - 2.0 * margin),
                     )
-                    .with_opt_texture(image.into())
+                    .with_texture(image)
                     .build(ctx),
                 )
                 .with_child(
@@ -559,17 +560,4 @@ pub fn make_text_and_image_button_with_tooltip(
         .build(ctx),
     )
     .build(ctx)
-}
-
-pub fn load_image(data: &[u8]) -> Option<TextureResource> {
-    TextureResource::load_from_memory(
-        Uuid::new_v4(),
-        Default::default(),
-        data,
-        TextureImportOptions::default()
-            .with_compression(CompressionOptions::NoCompression)
-            .with_minification_filter(TextureMinificationFilter::LinearMipMapLinear)
-            .with_lod_bias(-1.0),
-    )
-    .ok()
 }
