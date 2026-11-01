@@ -55,6 +55,7 @@ use crate::{
     message::MessageSender,
     utils,
 };
+use fyrox::gui::menu;
 use std::{
     fs::File,
     io::Write,
@@ -276,14 +277,16 @@ impl AssetItemContextMenu {
                         WidgetBuilder::new().with_children(
                             vec![
                                 open,
-                                duplicate,
-                                copy_path,
-                                copy_file_name,
-                                delete,
-                                show_in_explorer,
-                                dependencies,
                                 rename,
                                 reload,
+                                duplicate,
+                                menu::make_menu_splitter(ctx).to_variant(),
+                                copy_path,
+                                copy_file_name,
+                                show_in_explorer,
+                                dependencies,
+                                menu::make_menu_splitter(ctx).to_variant(),
+                                delete,
                             ]
                             .to_base(),
                         ),
