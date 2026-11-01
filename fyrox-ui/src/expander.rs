@@ -114,12 +114,12 @@ impl MessageData for ExpanderMessage {}
 ///             CheckBoxBuilder::new(WidgetBuilder::new())
 ///                 .with_check_mark(
 ///                     ImageBuilder::new(WidgetBuilder::new().with_height(16.0).with_height(16.0))
-///                         .with_opt_texture(None) // Set this to the required image.
+///                         .with_opt_texture(None.into()) // Set this to the required image.
 ///                         .build(ctx),
 ///                 )
 ///                 .with_uncheck_mark(
 ///                     ImageBuilder::new(WidgetBuilder::new().with_height(16.0).with_height(16.0))
-///                         .with_opt_texture(None) // Set this to the required image.
+///                         .with_opt_texture(None.into()) // Set this to the required image.
 ///                         .build(ctx),
 ///                 )
 ///                 .build(ctx),

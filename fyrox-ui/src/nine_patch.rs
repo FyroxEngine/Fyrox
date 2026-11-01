@@ -148,7 +148,7 @@ impl TextureSlice {
 ///         .with_right_margin(50)
 ///         .with_top_margin(40)
 ///         .with_bottom_margin(40)
-///         .with_texture(texture)
+///         .with_texture(Some(texture).into())
 ///         // Optionally, you can also specify a region in a texture to use. It is useful if you
 ///         // have a texture atlas where most of the UI elements are packed.
 ///         .with_texture_region(Rect::new(200, 200, 400, 400))

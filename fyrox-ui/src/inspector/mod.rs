@@ -680,6 +680,7 @@ impl Deref for InspectorEnvironmentContainer {
 ///     // by the inspector.
 ///     let context = InspectorContext::from_object(InspectorContextArgs{
 ///         object: &my_object,
+///         root_object: &my_object,
 ///         ctx,
 ///         definition_container: Arc::new(definition_container),
 ///         environment: None,

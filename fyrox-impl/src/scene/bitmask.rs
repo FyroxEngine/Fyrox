@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+//! A set of bits that can be used to store up to 32 individual boolean values.
+
 use crate::core::{
     num_traits::{NumCast, One, ToPrimitive, Zero},
     reflect::prelude::*,
