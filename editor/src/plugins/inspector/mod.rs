@@ -215,15 +215,12 @@ impl InspectorPlugin {
         let warning_text_str = "Multiple objects are selected, showing properties of the first object only!\
             Only common properties will be editable!";
 
-        let head = StackPanelBuilder::new(WidgetBuilder::new()).build(ctx);
-        let footer = BorderBuilder::new(WidgetBuilder::new().on_row(4))
+        let head = StackPanelBuilder::new(WidgetBuilder::new().on_row(3)).build(ctx);
+        let footer = BorderBuilder::new(WidgetBuilder::new().on_row(5))
             .build(ctx)
             .to_base();
         let inspector =
             InspectorBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(3.0)))
-                .build(ctx);
-        let content =
-            StackPanelBuilder::new(WidgetBuilder::new().with_child(head).with_child(inspector))
                 .build(ctx);
 
         let warning_text = TextBuilder::new(
@@ -299,7 +296,6 @@ impl InspectorPlugin {
                 GridBuilder::new(
                     WidgetBuilder::new()
                         .with_child(warning_text)
-                        .with_child(navigation_block)
                         .with_child(
                             GridBuilder::new(
                                 WidgetBuilder::new()
@@ -312,13 +308,16 @@ impl InspectorPlugin {
                             .add_column(Column::auto())
                             .build(ctx),
                         )
+                        .with_child(navigation_block)
+                        .with_child(head)
                         .with_child(
-                            ScrollViewerBuilder::new(WidgetBuilder::new().on_row(3))
-                                .with_content(content)
+                            ScrollViewerBuilder::new(WidgetBuilder::new().on_row(4))
+                                .with_content(inspector)
                                 .build(ctx),
                         )
                         .with_child(footer),
                 )
+                .add_row(Row::auto())
                 .add_row(Row::auto())
                 .add_row(Row::auto())
                 .add_row(Row::auto())

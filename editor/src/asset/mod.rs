@@ -266,6 +266,7 @@ impl AssetBrowser {
 
         let toolbar = GridBuilder::new(
             WidgetBuilder::new()
+                .with_margin(Thickness::uniform(2.0))
                 .with_child(add_resource)
                 .with_child(refresh)
                 .with_child(resave_resources)
@@ -315,6 +316,7 @@ impl AssetBrowser {
                                 .with_content({
                                     content_panel = WrapPanelBuilder::new(
                                         WidgetBuilder::new()
+                                            .with_margin(Thickness::uniform(4.0))
                                             .with_horizontal_alignment(HorizontalAlignment::Left)
                                             .with_vertical_alignment(VerticalAlignment::Top),
                                     )
