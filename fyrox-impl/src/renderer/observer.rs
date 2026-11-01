@@ -22,6 +22,7 @@
 //! Contains all information for rendering, effectively decouples rendering entities from scene
 //! entities. See [`Observer`] docs for more info.
 
+use crate::scene::bitmask::BitMask;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -33,7 +34,6 @@ use crate::{
     scene::{
         EnvironmentLightingSource, Scene,
         camera::{Camera, ColorGradingLut, Exposure, PerspectiveProjection, Projection},
-        collider::BitMask,
         node::Node,
         probe::ReflectionProbe,
     },

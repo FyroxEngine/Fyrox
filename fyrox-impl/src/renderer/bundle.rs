@@ -23,6 +23,7 @@
 #![allow(missing_docs)] // TODO
 
 use crate::renderer::resources::RendererResources;
+use crate::scene::bitmask::BitMask;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
@@ -61,7 +62,6 @@ use crate::{
     },
     resource::texture::TextureResource,
     scene::{
-        collider::BitMask,
         graph::Graph,
         light::{
             BaseLight,

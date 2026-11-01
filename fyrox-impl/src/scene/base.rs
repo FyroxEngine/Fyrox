@@ -22,7 +22,7 @@
 //!
 //! For more info see [`Base`]
 
-use super::collider::BitMask;
+use crate::scene::bitmask::BitMask;
 use crate::{
     core::{
         ImmutableString,

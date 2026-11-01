@@ -27,7 +27,6 @@ use crate::{
         algebra::Vector3,
         log::Log,
         math::aabb::AxisAlignedBoundingBox,
-        num_traits::{NumCast, One, ToPrimitive, Zero},
         pool::Handle,
         reflect::prelude::*,
         uuid::{Uuid, uuid},
@@ -47,13 +46,13 @@ use crate::{
 };
 use fyrox_core::algebra::{Isometry3, Translation3};
 
+use crate::scene::bitmask::BitMask;
 use fyrox_graph::SceneGraph;
 use fyrox_graph::constructor::ConstructorProvider;
 use rapier3d::geometry::{self, ColliderHandle};
-use std::fmt::Write;
 use std::{
     cell::Cell,
-    ops::{Add, BitAnd, BitOr, Deref, DerefMut, Mul, Not, Shl},
+    ops::{Deref, DerefMut},
 };
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
@@ -228,152 +227,6 @@ pub struct HeightfieldShape {
 pub struct ConvexPolyhedronShape {
     /// A handle to a mesh node.
     pub geometry_source: GeometrySource,
-}
-
-/// A set of bits used for pairwise collision filtering.
-#[derive(Clone, Copy, Default, PartialEq, Reflect, Eq)]
-#[reflect(type_uuid = "f2db0c2a-921b-4728-9ce4-2506d95c60fa")]
-pub struct BitMask(pub u32);
-
-impl BitMask {
-    /// BitMask with all bits set. BitMask(u32::MAX)
-    pub const fn all() -> Self {
-        Self(u32::MAX)
-    }
-    /// BitMask with no bits set. BitMask(0)
-    pub const fn none() -> Self {
-        Self(0)
-    }
-    /// Construct BitMask from this BitMask plus setting bit at the given index to 1.
-    pub const fn with(self, index: usize) -> Self {
-        Self(self.0 | (1 << index))
-    }
-    /// Construct BitMask from this BitMask plus resetting the bit at the given index to 0.
-    pub const fn without(self, index: usize) -> Self {
-        Self(self.0 & !(1 << index))
-    }
-    /// True if the bit at `index` is set.
-    pub fn bit(&self, index: usize) -> bool {
-        (self.0 >> index) & 1 != 0
-    }
-    /// Set or reset the bit at `index`.
-    pub fn set_bit(&mut self, index: usize, value: bool) {
-        if value {
-            self.0 |= 1 << index;
-        } else {
-            self.0 &= !(1 << index);
-        }
-    }
-}
-
-impl std::fmt::Debug for BitMask {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "BitMask({:08x})", self.0)
-    }
-}
-
-impl std::fmt::Display for BitMask {
-    /// Represent the bit mask in the same way it is shown in the editor, with bit 0 on the left and bit 31 on the right.
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut value = self.0;
-        for i in 0..4 {
-            if i != 0 {
-                f.write_char(' ')?;
-            }
-            for _ in 0..8 {
-                let bit = if value & 1 == 1 { '1' } else { '0' };
-                value >>= 1;
-                f.write_char(bit)?;
-            }
-        }
-        Ok(())
-    }
-}
-
-impl Visit for BitMask {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.0.visit(name, visitor)
-    }
-}
-
-impl BitOr for BitMask {
-    type Output = Self;
-
-    fn bitor(self, rhs: Self) -> Self::Output {
-        Self(self.0 | rhs.0)
-    }
-}
-
-impl BitAnd for BitMask {
-    type Output = Self;
-
-    fn bitand(self, rhs: Self) -> Self::Output {
-        Self(self.0 & rhs.0)
-    }
-}
-
-impl Mul for BitMask {
-    type Output = Self;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        Self(self.0 * rhs.0)
-    }
-}
-
-impl One for BitMask {
-    fn one() -> Self {
-        Self(1)
-    }
-}
-
-impl Add for BitMask {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Self(self.0 + rhs.0)
-    }
-}
-
-impl Zero for BitMask {
-    fn zero() -> Self {
-        Self(0)
-    }
-
-    fn is_zero(&self) -> bool {
-        self.0 == 0
-    }
-}
-
-impl Shl for BitMask {
-    type Output = Self;
-
-    fn shl(self, rhs: Self) -> Self::Output {
-        Self(self.0 << rhs.0)
-    }
-}
-
-impl Not for BitMask {
-    type Output = Self;
-
-    fn not(self) -> Self::Output {
-        Self(!self.0)
-    }
-}
-
-impl ToPrimitive for BitMask {
-    fn to_i64(&self) -> Option<i64> {
-        Some(self.0 as i64)
-    }
-
-    fn to_u64(&self) -> Option<u64> {
-        Some(self.0 as u64)
-    }
-}
-
-impl NumCast for BitMask {
-    fn from<T: ToPrimitive>(n: T) -> Option<Self> {
-        n.to_u32().map(Self)
-    }
 }
 
 /// Pairwise filtering using bit masks.

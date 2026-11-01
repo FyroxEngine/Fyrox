@@ -60,7 +60,6 @@ use crate::{
             Scene, SceneContainer,
             base::BaseBuilder,
             camera::{Camera, Projection},
-            collider::BitMask,
             debug::{Line, SceneDrawingContext},
             graph::{Graph, GraphUpdateSwitches},
             light::{point::PointLight, spot::SpotLight},
@@ -99,6 +98,7 @@ use crate::{
     ui_scene::selection::UiSelection,
     world::selection::GraphSelection,
 };
+use fyrox::scene::bitmask::BitMask;
 use std::{
     cell::RefCell,
     fmt::Debug,

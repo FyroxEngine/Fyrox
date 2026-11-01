@@ -36,7 +36,6 @@ use crate::{
             Scene,
             base::BaseBuilder,
             camera::{Camera, CameraBuilder, FitParameters, Projection},
-            collider::BitMask,
             graph::Graph,
             mesh::{
                 buffer::{VertexAttributeUsage, VertexReadTrait},
@@ -57,6 +56,7 @@ use crate::{
 use bitflags::bitflags;
 use fyrox::renderer::cache::DynamicSurfaceCache;
 use fyrox::renderer::observer::ObserverPosition;
+use fyrox::scene::bitmask::BitMask;
 use fyrox::scene::mesh::Mesh;
 use fyrox::scene::pivot::Pivot;
 use std::{

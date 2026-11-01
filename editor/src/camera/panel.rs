@@ -32,10 +32,11 @@ use crate::{
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
         },
         resource::texture::{TextureResource, TextureResourceExtension},
-        scene::{camera::Camera, collider::BitMask},
+        scene::camera::Camera,
     },
     scene::{GameScene, Selection},
 };
+use fyrox::scene::bitmask::BitMask;
 
 pub struct CameraPreviewControlPanel {
     pub window: Handle<Window>,

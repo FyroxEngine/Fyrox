@@ -105,9 +105,9 @@ use crate::{
                 Projection,
             },
             collider::{
-                BallShape, BitMask, CapsuleShape, Collider, ColliderShape, ConeShape,
-                ConvexPolyhedronShape, CuboidShape, CylinderShape, GeometrySource,
-                HeightfieldShape, InteractionGroups, SegmentShape, TriangleShape, TrimeshShape,
+                BallShape, CapsuleShape, Collider, ColliderShape, ConeShape, ConvexPolyhedronShape,
+                CuboidShape, CylinderShape, GeometrySource, HeightfieldShape, InteractionGroups,
+                SegmentShape, TriangleShape, TrimeshShape,
             },
             decal::Decal,
             dim2,
@@ -197,6 +197,7 @@ use crate::{
 };
 use fyrox::gui::message::{ButtonState, KeyboardModifiers};
 use fyrox::gui::{MouseState, RenderMode, RestrictionEntry};
+use fyrox::scene::bitmask::BitMask;
 use fyrox::scene::graph::physics::character::{
     CharacterAutostep, CharacterLength, KinematicCharacterController,
 };

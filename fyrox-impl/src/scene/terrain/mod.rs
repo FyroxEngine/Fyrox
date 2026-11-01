@@ -80,7 +80,7 @@ use crate::scene::node::constructor::NodeConstructor;
 pub use brushstroke::*;
 use fyrox_graph::constructor::ConstructorProvider;
 
-use super::collider::BitMask;
+use crate::scene::bitmask::BitMask;
 
 /// Current implementation version marker.
 pub const VERSION: u8 = 0;

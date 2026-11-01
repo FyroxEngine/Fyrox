@@ -27,6 +27,7 @@
 pub mod accel;
 pub mod animation;
 pub mod base;
+pub mod bitmask;
 pub mod camera;
 pub mod collider;
 pub mod debug;

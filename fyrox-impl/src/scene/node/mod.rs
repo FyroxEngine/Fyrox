@@ -24,7 +24,7 @@
 
 #![warn(missing_docs)]
 
-use super::collider::BitMask;
+use crate::scene::bitmask::BitMask;
 use crate::{
     asset::{Resource, untyped::UntypedResource},
     core::{

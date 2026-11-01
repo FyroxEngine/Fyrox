@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::scene::bitmask::BitMask;
 use crate::{
     asset::manager::ResourceManager,
     core::{
@@ -43,7 +44,7 @@ use crate::{
         settings::ShadowMapPrecision,
         shadow::cascade_size,
     },
-    scene::{collider::BitMask, graph::Graph},
+    scene::graph::Graph,
 };
 
 pub struct SpotShadowMapRenderer {
