@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::plugins::inspector::type_editor::{InspectorTypeEditorContext, ResourceTypeEditor};
 use crate::{
     Editor, Message, WidgetMessage, WrapMode,
     asset::preview::cache::IconRequest,
@@ -59,15 +60,17 @@ use crate::{
     load_image,
     message::MessageSender,
     plugin::EditorPlugin,
-    plugins::absm::animation_container_ref,
+    plugins::{absm::animation_container_ref, inspector::type_editor::InspectorTypeEditor},
     scene::{EntityInfo, GameScene, Selection, controller::SceneController},
     ui_scene::UiScene,
     utils::window_content,
 };
-use std::{any::Any, sync::Arc, sync::mpsc::Sender};
+use fyrox::resource::model::Model;
+use std::{any::Any, any::TypeId, sync::Arc, sync::mpsc::Sender};
 
 pub mod editors;
 pub mod handlers;
+pub mod type_editor;
 
 #[derive(Clone, PartialEq, Reflect, Debug)]
 #[reflect(type_uuid = "e617f0b6-fb5f-4e41-85c2-9dbb1869af30")]
@@ -131,6 +134,23 @@ impl InspectorEnvironment for EditorEnvironment {
     }
 }
 
+struct TypeEditorContainer {
+    editor: Handle<UiNode>,
+    type_editor: Box<dyn InspectorTypeEditor>,
+}
+
+impl TypeEditorContainer {
+    fn new<T>(v: T) -> Self
+    where
+        T: InspectorTypeEditor,
+    {
+        Self {
+            editor: Default::default(),
+            type_editor: Box::new(v),
+        }
+    }
+}
+
 pub struct InspectorPlugin {
     pub(crate) window: Handle<Window>,
     pub inspector: Handle<fyrox::gui::inspector::Inspector>,
@@ -144,6 +164,7 @@ pub struct InspectorPlugin {
     collapse_all: Handle<Button>,
     expand_all: Handle<Button>,
     clipboard: Option<Box<dyn Reflect>>,
+    type_editors: Vec<TypeEditorContainer>,
 }
 
 fn fetch_available_animations(
@@ -328,6 +349,11 @@ impl InspectorPlugin {
             )
             .build(ctx);
 
+        let type_editors = vec![
+            TypeEditorContainer::new(ResourceTypeEditor::<UserInterface>::default()),
+            TypeEditorContainer::new(ResourceTypeEditor::<Model>::default()),
+        ];
+
         Self {
             window,
             inspector,
@@ -341,6 +367,7 @@ impl InspectorPlugin {
             clipboard: None,
             footer,
             search_bar,
+            type_editors,
         }
     }
 
@@ -416,6 +443,16 @@ impl InspectorPlugin {
         let ui = editor.engine.user_interfaces.first();
         ui[self.inspector].apply_filter(&self.filter_text, ui);
     }
+
+    fn type_editor(&mut self, type_id: TypeId) -> Option<&mut TypeEditorContainer> {
+        self.type_editors
+            .iter_mut()
+            .find(|e| e.type_editor.supports_type(type_id))
+    }
+
+    fn has_type_editor(&mut self, type_id: TypeId) -> bool {
+        self.type_editor(type_id).is_some()
+    }
 }
 
 impl EditorPlugin for InspectorPlugin {
@@ -441,33 +478,35 @@ impl EditorPlugin for InspectorPlugin {
                     read_only,
                 } = entity_info;
 
-                if let Err(errors) = self.sync_to(entity, ui) {
-                    if is_out_of_sync(&errors) {
-                        let available_animations = fetch_available_animations(
-                            &entry.selection,
-                            &*entry.controller,
-                            &editor.engine.scenes,
-                        );
+                if !self.has_type_editor(entity.type_id()) {
+                    if let Err(errors) = self.sync_to(entity, ui) {
+                        if is_out_of_sync(&errors) {
+                            let available_animations = fetch_available_animations(
+                                &entry.selection,
+                                &*entry.controller,
+                                &editor.engine.scenes,
+                            );
 
-                        self.change_context(
-                            entity,
-                            ui,
-                            editor.engine.resource_manager.clone(),
-                            editor.engine.serialization_context.clone(),
-                            editor.engine.dyn_type_constructors.clone(),
-                            &available_animations,
-                            &editor.message_sender,
-                            editor.asset_browser.preview_sender.clone(),
-                            has_inheritance_parent,
-                            editor.property_editors.clone(),
-                        );
+                            self.change_context(
+                                entity,
+                                ui,
+                                editor.engine.resource_manager.clone(),
+                                editor.engine.serialization_context.clone(),
+                                editor.engine.dyn_type_constructors.clone(),
+                                &available_animations,
+                                &editor.message_sender,
+                                editor.asset_browser.preview_sender.clone(),
+                                has_inheritance_parent,
+                                editor.property_editors.clone(),
+                            );
 
-                        need_clear = false;
+                            need_clear = false;
+                        } else {
+                            print_errors(&errors);
+                        }
                     } else {
-                        print_errors(&errors);
+                        need_clear = false;
                     }
-                } else {
-                    need_clear = false;
                 }
 
                 for widget in [self.inspector.to_base::<UiNode>(), self.head.to_base()] {
@@ -488,6 +527,47 @@ impl EditorPlugin for InspectorPlugin {
             window_content(self.window, ui),
             WidgetMessage::Enabled(editor.mode.is_edit()),
         );
+    }
+
+    fn on_message(&mut self, message: &Message, editor: &mut Editor) {
+        if let Message::SelectionChanged { .. } = message {
+            let ui = editor.engine.user_interfaces.first_mut();
+
+            let entry = editor.scenes.current_scene_entry_mut();
+            entry.selection.first_selected_entity(
+                &*entry.controller,
+                &editor.engine.scenes,
+                &mut |entity_info| {
+                    for type_editor_container in self.type_editors.iter_mut() {
+                        type_editor_container
+                            .type_editor
+                            .destroy_ui(InspectorTypeEditorContext {
+                                object: entity_info.entity,
+                                ui,
+                                resource_manager: &editor.engine.resource_manager,
+                                message_sender: &editor.message_sender,
+                            });
+                        type_editor_container.editor = Handle::NONE;
+                    }
+                    if let Some(type_editor_container) =
+                        self.type_editor(entity_info.entity.type_id())
+                    {
+                        type_editor_container.editor = type_editor_container.type_editor.create_ui(
+                            InspectorTypeEditorContext {
+                                object: entity_info.entity,
+                                ui,
+                                resource_manager: &editor.engine.resource_manager,
+                                message_sender: &editor.message_sender,
+                            },
+                        );
+                        ui.send(
+                            type_editor_container.editor,
+                            WidgetMessage::LinkWith(self.head.to_base()),
+                        );
+                    }
+                },
+            );
+        }
     }
 
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
