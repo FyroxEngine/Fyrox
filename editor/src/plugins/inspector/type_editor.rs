@@ -45,7 +45,7 @@ pub struct InspectorTypeEditorContext<'a> {
 }
 
 pub trait InspectorTypeEditor: 'static {
-    fn supports_type(&self, type_id: TypeId) -> bool;
+    fn supports_type(&self, entity_info: EntityInfo) -> bool;
     fn create_ui(&mut self, ctx: InspectorTypeEditorContext) -> Handle<UiNode>;
     fn destroy_ui(&mut self, ctx: InspectorTypeEditorContext);
     fn on_ui_message(&mut self, message: &mut UiMessage, ctx: InspectorTypeEditorContext);
@@ -56,24 +56,37 @@ where
     T: TypedResourceData,
 {
     open: Handle<Button>,
+    extension: String,
     phantom_data: PhantomData<T>,
 }
 
-impl<T> Default for ResourceTypeEditor<T>
+impl<T> ResourceTypeEditor<T>
 where
     T: TypedResourceData,
 {
-    fn default() -> Self {
+    pub fn new(extension: &str) -> Self {
         Self {
             open: Default::default(),
+            extension: extension.to_string(),
             phantom_data: Default::default(),
         }
     }
 }
 
 impl<T: TypedResourceData> InspectorTypeEditor for ResourceTypeEditor<T> {
-    fn supports_type(&self, type_id: TypeId) -> bool {
-        TypeId::of::<T>() == type_id
+    fn supports_type(&self, entity_info: EntityInfo) -> bool {
+        let path = some_or_return!(
+            entity_info
+                .selection_entity
+                .downcast_ref::<SelectedResource>()
+                .map(|r| r.path.clone()),
+            false
+        );
+        let ext = path
+            .extension()
+            .map(|e| e.to_string_lossy().to_lowercase())
+            .unwrap_or_default();
+        TypeId::of::<T>() == entity_info.entity.type_id() || ext == self.extension
     }
 
     fn create_ui(&mut self, ctx: InspectorTypeEditorContext) -> Handle<UiNode> {

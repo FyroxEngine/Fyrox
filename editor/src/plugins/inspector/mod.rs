@@ -66,7 +66,7 @@ use crate::{
     utils::window_content,
 };
 use fyrox::resource::model::Model;
-use std::{any::Any, any::TypeId, sync::Arc, sync::mpsc::Sender};
+use std::{any::Any, sync::Arc, sync::mpsc::Sender};
 
 pub mod editors;
 pub mod handlers;
@@ -350,8 +350,8 @@ impl InspectorPlugin {
             .build(ctx);
 
         let type_editors = vec![
-            TypeEditorContainer::new(ResourceTypeEditor::<UserInterface>::default()),
-            TypeEditorContainer::new(ResourceTypeEditor::<Model>::default()),
+            TypeEditorContainer::new(ResourceTypeEditor::<UserInterface>::new("ui")),
+            TypeEditorContainer::new(ResourceTypeEditor::<Model>::new("rgs")),
         ];
 
         Self {
@@ -444,14 +444,14 @@ impl InspectorPlugin {
         ui[self.inspector].apply_filter(&self.filter_text, ui);
     }
 
-    fn type_editor(&mut self, type_id: TypeId) -> Option<&mut TypeEditorContainer> {
+    fn type_editor(&mut self, entity_info: EntityInfo) -> Option<&mut TypeEditorContainer> {
         self.type_editors
             .iter_mut()
-            .find(|e| e.type_editor.supports_type(type_id))
+            .find(|e| e.type_editor.supports_type(entity_info.clone()))
     }
 
-    fn has_type_editor(&mut self, type_id: TypeId) -> bool {
-        self.type_editor(type_id).is_some()
+    fn has_type_editor(&mut self, entity_info: EntityInfo) -> bool {
+        self.type_editor(entity_info).is_some()
     }
 }
 
@@ -472,14 +472,13 @@ impl EditorPlugin for InspectorPlugin {
             &*entry.controller,
             &editor.engine.scenes,
             &mut |entity_info| {
-                let EntityInfo {
-                    entity,
-                    has_inheritance_parent,
-                    read_only,
-                    ..
-                } = entity_info;
-
-                if !self.has_type_editor(entity.type_id()) {
+                if !self.has_type_editor(entity_info.clone()) {
+                    let EntityInfo {
+                        entity,
+                        has_inheritance_parent,
+                        read_only,
+                        ..
+                    } = entity_info;
                     if let Err(errors) = self.sync_to(entity, ui) {
                         if is_out_of_sync(&errors) {
                             let available_animations = fetch_available_animations(
@@ -508,10 +507,9 @@ impl EditorPlugin for InspectorPlugin {
                     } else {
                         need_clear = false;
                     }
-                }
-
-                for widget in [self.inspector.to_base::<UiNode>(), self.head.to_base()] {
-                    ui.send(widget, WidgetMessage::Enabled(!read_only));
+                    for widget in [self.inspector.to_base::<UiNode>(), self.head.to_base()] {
+                        ui.send(widget, WidgetMessage::Enabled(!read_only));
+                    }
                 }
             },
         );
@@ -549,9 +547,7 @@ impl EditorPlugin for InspectorPlugin {
                             });
                         type_editor_container.editor = Handle::NONE;
                     }
-                    if let Some(type_editor_container) =
-                        self.type_editor(entity_info.entity.type_id())
-                    {
+                    if let Some(type_editor_container) = self.type_editor(entity_info.clone()) {
                         type_editor_container.editor = type_editor_container.type_editor.create_ui(
                             InspectorTypeEditorContext {
                                 entity_info,
