@@ -82,7 +82,7 @@ mod dependency;
 pub mod item;
 pub mod menu;
 pub mod preview;
-mod selection;
+pub mod selection;
 pub mod selector;
 
 fn open_in_explorer<P: AsRef<Path>>(path: P) {

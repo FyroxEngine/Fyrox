@@ -25,7 +25,7 @@ use crate::{
             ResourceData, manager::ResourceManager, options::BaseImportOptions,
             untyped::UntypedResource,
         },
-        core::{SafeLock, futures::executor::block_on, log::Log, reflect::Reflect},
+        core::{SafeLock, futures::executor::block_on, log::Log, reflect::prelude::*},
         engine::Engine,
         gui::inspector::PropertyChanged,
         scene::SceneContainer,
@@ -40,9 +40,11 @@ use std::{
     rc::Rc,
 };
 
-#[derive(Clone, Debug)]
-struct SelectedResource {
-    path: PathBuf,
+#[derive(Clone, Debug, Reflect)]
+#[reflect(type_uuid = "47664163-69b7-4102-b81c-a14b2d7f5717")]
+pub struct SelectedResource {
+    pub path: PathBuf,
+    #[reflect(hidden)]
     import_options: Option<Rc<RefCell<Box<dyn BaseImportOptions>>>>,
 }
 
@@ -165,16 +167,21 @@ impl SelectionContainer for AssetSelection {
         _scenes: &SceneContainer,
         callback: &mut dyn FnMut(EntityInfo),
     ) {
-        if let Some(resource) = self.resources.first() {
-            if let Some(options) = resource.import_options.as_ref() {
+        if let Some(selected_resource) = self.resources.first() {
+            if let Some(options) = selected_resource.import_options.as_ref() {
                 let options = options.borrow();
-                callback(EntityInfo::with_no_parent(&**options as &dyn Reflect))
-            } else if let Ok(resource) =
-                block_on(self.resource_manager.request_untyped(&resource.path))
-            {
+                callback(EntityInfo::with_no_parent(
+                    &**options as &dyn Reflect,
+                    selected_resource,
+                ))
+            } else if let Ok(resource) = block_on(
+                self.resource_manager
+                    .request_untyped(&selected_resource.path),
+            ) {
                 let guard = resource.lock();
                 if let Some(data) = guard.state.data_ref() {
                     callback(EntityInfo {
+                        selection_entity: selected_resource,
                         entity: &*data.0 as &dyn Reflect,
                         has_inheritance_parent: false,
                         read_only: self.resource_manager.is_built_in_resource(&resource),

@@ -25,7 +25,7 @@ use crate::{
         core::log::Log,
         core::pool::ErasedHandle,
         core::pool::Handle,
-        core::reflect::Reflect,
+        core::reflect::prelude::*,
         core::variable::InheritableVariable,
         engine::Engine,
         generic_animation::machine::Machine,
@@ -44,7 +44,8 @@ use crate::{
 use std::fmt::{Debug, Formatter};
 use std::ops::Deref;
 
-#[derive(Eq)]
+#[derive(Eq, Reflect)]
+#[reflect(type_uuid = "c9b9a142-9471-4f04-8518-d566d91fad35")]
 pub enum SelectedEntity<N: Reflect> {
     Transition(Handle<Transition<Handle<N>>>),
     State(Handle<State<Handle<N>>>),
@@ -168,19 +169,22 @@ impl<N: Reflect> SelectionContainer for AbsmSelection<N> {
         callback: &mut dyn FnMut(EntityInfo),
     ) {
         if let Some(machine) = get_machine_ref(controller, self.absm_node_handle, scenes)
-            && let Some(first) = self.entities.first()
+            && let Some(first_entity) = self.entities.first()
             && let Some(layer_index) = self.layer
             && let Some(layer) = machine.layers().get(layer_index)
         {
-            match first {
+            match first_entity {
                 SelectedEntity::Transition(transition) => (callback)(EntityInfo::with_no_parent(
                     &layer.transitions()[*transition],
+                    first_entity,
                 )),
                 SelectedEntity::State(state) => (callback)(EntityInfo::with_no_parent(
                     &layer.states()[*state] as &dyn Reflect,
+                    first_entity,
                 )),
                 SelectedEntity::PoseNode(pose) => (callback)(EntityInfo::with_no_parent(
                     &layer.nodes()[*pose] as &dyn Reflect,
+                    first_entity,
                 )),
             };
         }

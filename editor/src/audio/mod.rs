@@ -92,12 +92,10 @@ impl SelectionContainer for AudioBusSelection {
         let game_scene = some_or_return!(controller.downcast_ref::<GameScene>());
         let scene = &scenes[game_scene.scene];
         let state = scene.graph.sound_context.state();
-        if let Some(effect) = self
-            .buses
-            .first()
-            .and_then(|handle| state.bus_graph_ref().try_get_bus_ref(*handle).ok())
+        if let Some(selected_bus) = self.buses.first()
+            && let Ok(effect) = state.bus_graph_ref().try_get_bus_ref(*selected_bus)
         {
-            (callback)(EntityInfo::with_no_parent(effect));
+            (callback)(EntityInfo::with_no_parent(effect, selected_bus));
         }
     }
 

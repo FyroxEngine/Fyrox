@@ -67,6 +67,7 @@ impl SelectionContainer for NavmeshSelection {
         let scene = &scenes[game_scene.scene];
         let node = scene.graph.try_get_node(self.navmesh_node).unwrap();
         (callback)(EntityInfo {
+            selection_entity: &self.navmesh_node,
             entity: node,
             has_inheritance_parent: node.has_inheritance_parent(),
             read_only: false,

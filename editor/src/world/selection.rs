@@ -58,12 +58,11 @@ impl SelectionContainer for GraphSelection {
     ) {
         let game_scene = some_or_return!(controller.downcast_ref::<GameScene>());
         let scene = &scenes[game_scene.scene];
-        if let Some(node) = self
-            .nodes
-            .first()
-            .and_then(|handle| scene.graph.try_get_node(*handle).ok())
+        if let Some(first) = self.nodes.first()
+            && let Ok(node) = scene.graph.try_get_node(*first)
         {
             (callback)(EntityInfo {
+                selection_entity: first,
                 entity: node.inner_ref(),
                 has_inheritance_parent: node.has_inheritance_parent(),
                 read_only: false,

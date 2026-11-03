@@ -1139,15 +1139,18 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct EntityInfo<'a> {
+    pub selection_entity: &'a dyn Reflect,
     pub entity: &'a dyn Reflect,
     pub has_inheritance_parent: bool,
     pub read_only: bool,
 }
 
 impl<'a> EntityInfo<'a> {
-    pub fn with_no_parent(entity: &'a dyn Reflect) -> Self {
+    pub fn with_no_parent(entity: &'a dyn Reflect, selection_entity: &'a dyn Reflect) -> Self {
         Self {
+            selection_entity,
             entity,
             has_inheritance_parent: false,
             read_only: false,

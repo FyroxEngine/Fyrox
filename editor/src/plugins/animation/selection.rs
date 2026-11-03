@@ -24,7 +24,7 @@ use crate::{
     fyrox::{
         core::{
             pool::{ErasedHandle, Handle},
-            reflect::Reflect,
+            reflect::prelude::*,
             uuid::Uuid,
             variable::InheritableVariable,
         },
@@ -41,7 +41,8 @@ use crate::{
 };
 use std::fmt::{Debug, Formatter};
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Reflect)]
+#[reflect(type_uuid = "2376fb00-da78-420f-9944-d8643ab7addd")]
 pub enum SelectedEntity {
     Track(Uuid),
     Curve(Uuid),
@@ -130,10 +131,11 @@ where
     ) {
         if let Some(container) = get_animations_container(self.animation_player, controller, scenes)
             && let Ok(animation) = container.try_get(self.animation)
-            && let Some(animation::selection::SelectedEntity::Signal(id)) = self.entities.first()
+            && let Some(first_selected) = self.entities.first()
+            && let animation::selection::SelectedEntity::Signal(id) = first_selected
             && let Some(signal) = animation.signals().iter().find(|s| s.id == *id)
         {
-            (callback)(EntityInfo::with_no_parent(signal));
+            (callback)(EntityInfo::with_no_parent(signal, first_selected));
         }
     }
 

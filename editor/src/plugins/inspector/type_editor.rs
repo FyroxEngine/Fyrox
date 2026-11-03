@@ -18,23 +18,27 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::{Message, message::MessageSender};
-use fyrox::gui::widget::WidgetMessage;
-use fyrox::{
-    asset::{Resource, TypedResourceData, manager::ResourceManager},
-    core::{pool::Handle, reflect::Reflect, some_or_return},
-    gui::{
-        UiNode, UserInterface,
-        button::{Button, ButtonBuilder, ButtonMessage},
-        message::UiMessage,
-        widget::WidgetBuilder,
+use crate::{
+    Message,
+    asset::selection::SelectedResource,
+    fyrox::{
+        asset::{TypedResourceData, manager::ResourceManager},
+        core::{pool::Handle, some_or_return},
+        gui::{
+            UiNode, UserInterface,
+            button::{Button, ButtonBuilder, ButtonMessage},
+            message::UiMessage,
+            widget::{WidgetBuilder, WidgetMessage},
+        },
     },
+    message::MessageSender,
+    scene::EntityInfo,
 };
-use std::marker::PhantomData;
-use std::{any::TypeId, path::PathBuf};
+use fyrox::gui::Thickness;
+use std::{any::TypeId, marker::PhantomData};
 
 pub struct InspectorTypeEditorContext<'a> {
-    pub object: &'a dyn Reflect,
+    pub entity_info: EntityInfo<'a>,
     pub ui: &'a mut UserInterface,
     pub resource_manager: &'a ResourceManager,
     pub message_sender: &'a MessageSender,
@@ -44,7 +48,6 @@ pub trait InspectorTypeEditor: 'static {
     fn supports_type(&self, type_id: TypeId) -> bool;
     fn create_ui(&mut self, ctx: InspectorTypeEditorContext) -> Handle<UiNode>;
     fn destroy_ui(&mut self, ctx: InspectorTypeEditorContext);
-    fn on_sync_to_model(&mut self, ctx: InspectorTypeEditorContext);
     fn on_ui_message(&mut self, message: &mut UiMessage, ctx: InspectorTypeEditorContext);
 }
 
@@ -68,26 +71,26 @@ where
     }
 }
 
-impl<T> ResourceTypeEditor<T>
-where
-    T: TypedResourceData,
-{
-    fn path(&self, object: &dyn Reflect, resource_manager: &ResourceManager) -> Option<PathBuf> {
-        let ui_resource = object.downcast_ref::<Resource<T>>()?;
-        resource_manager.resource_path(ui_resource)
-    }
-}
-
 impl<T: TypedResourceData> InspectorTypeEditor for ResourceTypeEditor<T> {
     fn supports_type(&self, type_id: TypeId) -> bool {
-        TypeId::of::<Resource<T>>() == type_id
+        TypeId::of::<T>() == type_id
     }
 
     fn create_ui(&mut self, ctx: InspectorTypeEditorContext) -> Handle<UiNode> {
-        let path = some_or_return!(self.path(ctx.object, ctx.resource_manager), Handle::NONE);
-        self.open = ButtonBuilder::new(WidgetBuilder::new())
-            .with_text(&format!("Open {}", path.display()))
-            .build(&mut ctx.ui.build_ctx());
+        let path = some_or_return!(
+            ctx.entity_info
+                .selection_entity
+                .downcast_ref::<SelectedResource>()
+                .map(|r| r.path.clone()),
+            Handle::NONE
+        );
+        self.open = ButtonBuilder::new(
+            WidgetBuilder::new()
+                .with_margin(Thickness::uniform(2.0))
+                .with_height(24.0),
+        )
+        .with_text(&format!("Edit {}...", path.display()))
+        .build(&mut ctx.ui.build_ctx());
         self.open.to_base()
     }
 
@@ -95,10 +98,13 @@ impl<T: TypedResourceData> InspectorTypeEditor for ResourceTypeEditor<T> {
         ctx.ui.send(self.open, WidgetMessage::Remove);
     }
 
-    fn on_sync_to_model(&mut self, _ctx: InspectorTypeEditorContext) {}
-
     fn on_ui_message(&mut self, message: &mut UiMessage, ctx: InspectorTypeEditorContext) {
-        let path = some_or_return!(self.path(ctx.object, ctx.resource_manager));
+        let path = some_or_return!(
+            ctx.entity_info
+                .selection_entity
+                .downcast_ref::<SelectedResource>()
+                .map(|r| r.path.clone())
+        );
         if let Some(ButtonMessage::Click) = message.data_from(self.open) {
             ctx.message_sender.send(Message::LoadScene(path));
         }

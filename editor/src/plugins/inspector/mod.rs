@@ -476,6 +476,7 @@ impl EditorPlugin for InspectorPlugin {
                     entity,
                     has_inheritance_parent,
                     read_only,
+                    ..
                 } = entity_info;
 
                 if !self.has_type_editor(entity.type_id()) {
@@ -532,7 +533,6 @@ impl EditorPlugin for InspectorPlugin {
     fn on_message(&mut self, message: &Message, editor: &mut Editor) {
         if let Message::SelectionChanged { .. } = message {
             let ui = editor.engine.user_interfaces.first_mut();
-
             let entry = editor.scenes.current_scene_entry_mut();
             entry.selection.first_selected_entity(
                 &*entry.controller,
@@ -542,7 +542,7 @@ impl EditorPlugin for InspectorPlugin {
                         type_editor_container
                             .type_editor
                             .destroy_ui(InspectorTypeEditorContext {
-                                object: entity_info.entity,
+                                entity_info: entity_info.clone(),
                                 ui,
                                 resource_manager: &editor.engine.resource_manager,
                                 message_sender: &editor.message_sender,
@@ -554,7 +554,7 @@ impl EditorPlugin for InspectorPlugin {
                     {
                         type_editor_container.editor = type_editor_container.type_editor.create_ui(
                             InspectorTypeEditorContext {
-                                object: entity_info.entity,
+                                entity_info,
                                 ui,
                                 resource_manager: &editor.engine.resource_manager,
                                 message_sender: &editor.message_sender,
@@ -572,6 +572,27 @@ impl EditorPlugin for InspectorPlugin {
 
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
         let entry = editor.scenes.current_scene_entry_mut();
+
+        let ui = editor.engine.user_interfaces.first_mut();
+        for type_editor in self.type_editors.iter_mut() {
+            if type_editor.editor.is_some() {
+                entry.selection.first_selected_entity(
+                    &*entry.controller,
+                    &editor.engine.scenes,
+                    &mut |entity_info| {
+                        type_editor.type_editor.on_ui_message(
+                            message,
+                            InspectorTypeEditorContext {
+                                entity_info,
+                                ui,
+                                resource_manager: &editor.engine.resource_manager,
+                                message_sender: &editor.message_sender,
+                            },
+                        );
+                    },
+                );
+            }
+        }
 
         fn is_sub_inspector_message(
             inspector: Handle<fyrox::gui::inspector::Inspector>,

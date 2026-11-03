@@ -60,6 +60,7 @@ impl SelectionContainer for UiSelection {
             && let Ok(widget) = ui_scene.ui.try_get_node(*first)
         {
             (callback)(EntityInfo {
+                selection_entity: first,
                 entity: widget.inner_ref(),
                 has_inheritance_parent: widget.has_inheritance_parent(),
                 read_only: false,
