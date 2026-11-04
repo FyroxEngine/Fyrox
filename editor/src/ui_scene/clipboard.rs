@@ -81,7 +81,7 @@ impl Clipboard {
     pub fn fill_from_selection(&mut self, selection: &UiSelection, ui: &UserInterface) {
         self.clear();
 
-        let root_widgets = selection.root_widgets(ui);
+        let root_widgets = ui.root_nodes(&selection.widgets);
 
         deep_clone_nodes(&root_widgets, ui, &mut self.ui);
 

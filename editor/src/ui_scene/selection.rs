@@ -25,7 +25,7 @@ use crate::{
         core::{pool::Handle, reflect::Reflect, some_or_return},
         engine::Engine,
         graph::{NodeWrapper, SceneGraph},
-        gui::{UiNode, UserInterface, inspector::PropertyChanged},
+        gui::{UiNode, inspector::PropertyChanged},
         scene::SceneContainer,
     },
     message::MessageSender,
@@ -146,8 +146,7 @@ impl SelectionContainer for UiSelection {
             ChangeSelectionCommand::new(Default::default()),
         )]);
 
-        let root_nodes = selection.root_widgets(&ui_scene.ui);
-
+        let root_nodes = ui_scene.ui.root_nodes(&selection.widgets);
         for root_node in root_nodes {
             command_group.push(DeleteWidgetsSubGraphCommand::new(root_node));
         }
@@ -184,41 +183,5 @@ impl UiSelection {
         } else {
             self.widgets.push(handle);
         }
-    }
-
-    pub fn root_widgets(&self, ui: &UserInterface) -> Vec<Handle<UiNode>> {
-        // Helper function.
-        fn is_descendant_of(
-            handle: Handle<UiNode>,
-            other: Handle<UiNode>,
-            ui: &UserInterface,
-        ) -> bool {
-            for &child in ui.node(other).children() {
-                if child == handle {
-                    return true;
-                }
-
-                let inner = is_descendant_of(handle, child, ui);
-                if inner {
-                    return true;
-                }
-            }
-            false
-        }
-
-        let mut root_widgets = Vec::new();
-        for &node in self.widgets.iter() {
-            let mut descendant = false;
-            for &other_node in self.widgets.iter() {
-                if is_descendant_of(node, other_node, ui) {
-                    descendant = true;
-                    break;
-                }
-            }
-            if !descendant {
-                root_widgets.push(node);
-            }
-        }
-        root_widgets
     }
 }

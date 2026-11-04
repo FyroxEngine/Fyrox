@@ -181,7 +181,7 @@ impl WidgetContextMenu {
         sender: &MessageSender,
     ) {
         let ui_selection = some_or_return!(editor_selection.as_ui());
-        let root_widgets = ui_selection.root_widgets(&ui_scene.ui);
+        let root_widgets = ui_scene.ui.root_nodes(&ui_selection.widgets);
         let first_root = some_or_return!(root_widgets.first().cloned());
         let parent = ok_or_return!(ui_scene.ui.try_get(first_root).map(|r| r.parent()));
         ui_scene
