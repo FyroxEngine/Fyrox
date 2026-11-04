@@ -46,6 +46,7 @@ use crate::{
     utils,
     world::{WorldViewerItemContextMenu, create::EntityCreatorMode},
 };
+use fyrox::core::{ok_or_return, some_or_return};
 use std::path::PathBuf;
 
 pub struct WidgetContextMenu {
@@ -58,6 +59,7 @@ pub struct WidgetContextMenu {
     make_root: Handle<MenuItem>,
     open_asset: Handle<MenuItem>,
     show_asset: Handle<MenuItem>,
+    duplicate_selection: Handle<MenuItem>,
 }
 
 impl WorldViewerItemContextMenu for WidgetContextMenu {
@@ -87,6 +89,7 @@ fn resource_path_of_first_selected_node(
 impl WidgetContextMenu {
     pub const DELETE_SELECTION: Uuid = uuid!("30eef2a7-9f12-4e64-9142-b604f25e9e06");
     pub const COPY_SELECTION: Uuid = uuid!("0a2d10bc-de1e-4196-aba6-0a51c54eb238");
+    pub const DUPLICATE_SELECTION: Uuid = uuid!("d39d5a97-d515-45d0-8c83-2081872e3ede");
     pub const PASTE_AS_CHILD: Uuid = uuid!("d3b86c8c-1efd-4917-9543-b0f5f32f8cbd");
     pub const CREATE_CHILD_WIDGET: Uuid = uuid!("26b2ed1f-c4b8-4ec4-8112-9f29fc600101");
     pub const MAKE_ROOT: Uuid = uuid!("968318f6-21c7-430f-a13d-36aefb61cde2");
@@ -96,6 +99,7 @@ impl WidgetContextMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let delete_selection;
         let copy_selection;
+        let duplicate_selection;
         let paste;
         let make_root;
         let open_asset;
@@ -138,6 +142,15 @@ impl WidgetContextMenu {
                                     ctx,
                                 );
                                 copy_selection
+                            })
+                            .with_child({
+                                duplicate_selection = create_menu_item(
+                                    "Duplicate Selection",
+                                    Self::DUPLICATE_SELECTION,
+                                    vec![],
+                                    ctx,
+                                );
+                                duplicate_selection
                             })
                             .with_child({
                                 paste = create_menu_item(
@@ -191,7 +204,24 @@ impl WidgetContextMenu {
             make_root,
             open_asset,
             show_asset,
+            duplicate_selection,
         }
+    }
+
+    fn on_duplicate_clicked(
+        &self,
+        editor_selection: &Selection,
+        ui_scene: &mut UiScene,
+        sender: &MessageSender,
+    ) {
+        let ui_selection = some_or_return!(editor_selection.as_ui());
+        let root_widgets = ui_selection.root_widgets(&ui_scene.ui);
+        let first_root = some_or_return!(root_widgets.first().cloned());
+        let parent = ok_or_return!(ui_scene.ui.try_get(first_root).map(|r| r.parent()));
+        ui_scene
+            .clipboard
+            .fill_from_selection(ui_selection, &ui_scene.ui);
+        sender.do_command(PasteWidgetCommand::new(parent));
     }
 
     pub fn handle_ui_message(
@@ -216,6 +246,8 @@ impl WidgetContextMenu {
                             .clipboard
                             .fill_from_selection(ui_selection, &ui_scene.ui);
                     }
+                } else if message.destination() == self.duplicate_selection {
+                    self.on_duplicate_clicked(editor_selection, ui_scene, sender);
                 } else if message.destination() == self.paste {
                     if let Some(ui_selection) = editor_selection.as_ui()
                         && let Some(first) = ui_selection.widgets.first()
