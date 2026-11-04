@@ -24,6 +24,7 @@
 use crate::inspector::InspectorEnvironmentContainer;
 use crate::message::MouseButton;
 use crate::style::{StyleProperty, StylePropertyContainer};
+use crate::tab_control::Tab;
 use crate::{
     BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, RcUiNodeHandleInner, Thickness,
     UiNode, UserInterface, VerticalAlignment,
@@ -650,6 +651,9 @@ impl PropertyEditorDefinitionContainer {
 
         container.register_inheritable_vec_collection::<GradientPoint>();
         container.register_inheritable_vec_collection::<Primitive>();
+
+        container.register_inheritable_inspectable::<Tab>();
+        container.register_inheritable_vec_collection::<Tab>();
 
         container.register_inheritable_vec_collection::<usize>();
 
