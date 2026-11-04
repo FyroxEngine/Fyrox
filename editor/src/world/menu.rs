@@ -75,6 +75,7 @@ pub struct SceneNodeContextMenu {
     paste: Handle<MenuItem>,
     make_root: Handle<MenuItem>,
     open_asset: Handle<MenuItem>,
+    show_asset: Handle<MenuItem>,
     reset_inheritable_properties: Handle<MenuItem>,
 }
 
@@ -114,6 +115,7 @@ impl SceneNodeContextMenu {
     pub const REPLACE_WITH: Uuid = uuid!("92163075-4d90-4b39-ba9d-af0ebaf62348");
     pub const SET_AS_ROOT: Uuid = uuid!("689adb98-7603-4576-a0ab-3f48c2d57d22");
     pub const OPEN_PARENT_PREFAB: Uuid = uuid!("99903c9e-d7ac-49bd-9ee3-3bbd8536f595");
+    pub const SHOW_PREFAB: Uuid = uuid!("9f14050a-d909-47b3-b75c-6dd00ec56041");
     pub const SAVE_AS_PREFAB: Uuid = uuid!("82a70cff-b536-46fb-83c0-4a886585d871");
     pub const RESET_INHERITABLE: Uuid = uuid!("95c6437f-dc23-4ec1-9490-d35f0864f027");
     pub const SAVE_AS_PREFAB_FILE_SELECTOR: Uuid = uuid!("5d438037-a4be-4d70-a830-138185e1a049");
@@ -125,11 +127,11 @@ impl SceneNodeContextMenu {
         let paste;
         let make_root;
         let open_asset;
+        let show_asset;
         let reset_inheritable_properties;
         let create_parent;
         let create_child;
         let replace_with;
-
         let menu = ContextMenuBuilder::new(
             PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
                 .with_content(
@@ -139,8 +141,8 @@ impl SceneNodeContextMenu {
                                 create_child = MenuItemBuilder::new(
                                     WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
                                 )
-                                    .with_content(MenuItemContent::text("Create Child Node..."))
-                                    .build(ctx);
+                                .with_content(MenuItemContent::text("Create Child Node..."))
+                                .build(ctx);
                                 create_child
                             })
                             .with_child({
@@ -182,8 +184,8 @@ impl SceneNodeContextMenu {
                                         .with_id(Self::CREATE_PARENT)
                                         .with_min_size(Vector2::new(120.0, 22.0)),
                                 )
-                                    .with_content(MenuItemContent::text("Create Parent Node..."))
-                                    .build(ctx);
+                                .with_content(MenuItemContent::text("Create Parent Node..."))
+                                .build(ctx);
                                 create_parent
                             })
                             .with_child({
@@ -192,8 +194,8 @@ impl SceneNodeContextMenu {
                                         .with_id(Self::REPLACE_WITH)
                                         .with_min_size(Vector2::new(120.0, 22.0)),
                                 )
-                                    .with_content(MenuItemContent::text("Replace With Node..."))
-                                    .build(ctx);
+                                .with_content(MenuItemContent::text("Replace With Node..."))
+                                .build(ctx);
                                 replace_with
                             })
                             .with_child({
@@ -216,6 +218,15 @@ impl SceneNodeContextMenu {
                                 open_asset
                             })
                             .with_child({
+                                show_asset = create_menu_item(
+                                    "Show Prefab In Asset Browser",
+                                    Self::SHOW_PREFAB,
+                                    vec![],
+                                    ctx,
+                                );
+                                show_asset
+                            })
+                            .with_child({
                                 save_as_prefab = create_menu_item(
                                     "Save Node(s) As Prefab...",
                                     Self::SAVE_AS_PREFAB,
@@ -234,11 +245,11 @@ impl SceneNodeContextMenu {
                                 reset_inheritable_properties
                             }),
                     )
-                        .build(ctx),
+                    .build(ctx),
                 )
                 .with_restrict_picking(false),
         )
-            .build(ctx);
+        .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         for item in [create_child, create_parent, replace_with] {
@@ -258,6 +269,7 @@ impl SceneNodeContextMenu {
             paste,
             make_root,
             open_asset,
+            show_asset,
             reset_inheritable_properties,
             create_child_menu: create_child,
             create_parent_menu: create_parent,
@@ -278,11 +290,16 @@ impl SceneNodeContextMenu {
             if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
                 if message.destination() == self.delete_selection {
                     if let Some(delete_command) =
-                        editor_selection.make_delete_selection_command(game_scene, engine) {
+                        editor_selection.make_delete_selection_command(game_scene, engine)
+                    {
                         if settings.general.show_node_removal_dialog
-                            && let Some(refs) = game_scene.selection_external_refs(editor_selection, engine)
+                            && let Some(refs) =
+                                game_scene.selection_external_refs(editor_selection, engine)
                         {
-                            sender.send(Message::OpenNodeRemovalDialog { delete_command, refs });
+                            sender.send(Message::OpenNodeRemovalDialog {
+                                delete_command,
+                                refs,
+                            });
                         } else {
                             sender.send(Message::DoCommand(delete_command));
                         }
@@ -354,6 +371,12 @@ impl SceneNodeContextMenu {
                     {
                         sender.send(Message::LoadScene(path));
                     }
+                } else if message.destination() == self.show_asset {
+                    if let Some(path) =
+                        resource_path_of_first_selected_node(editor_selection, game_scene, engine)
+                    {
+                        sender.send(Message::ShowInAssetBrowser(path));
+                    }
                 } else if message.destination() == self.reset_inheritable_properties {
                     if let Some(graph_selection) = editor_selection.as_graph() {
                         let scene = &engine.scenes[game_scene.scene];
@@ -405,7 +428,7 @@ impl SceneNodeContextMenu {
                                 game_scene,
                                 engine,
                             )
-                                .is_some_and(|p| utils::is_native_scene(&p)),
+                            .is_some_and(|p| utils::is_native_scene(&p)),
                         ),
                     );
                 }

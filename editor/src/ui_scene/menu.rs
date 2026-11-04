@@ -57,6 +57,7 @@ pub struct WidgetContextMenu {
     paste: Handle<MenuItem>,
     make_root: Handle<MenuItem>,
     open_asset: Handle<MenuItem>,
+    show_asset: Handle<MenuItem>,
 }
 
 impl WorldViewerItemContextMenu for WidgetContextMenu {
@@ -90,6 +91,7 @@ impl WidgetContextMenu {
     pub const CREATE_CHILD_WIDGET: Uuid = uuid!("26b2ed1f-c4b8-4ec4-8112-9f29fc600101");
     pub const MAKE_ROOT: Uuid = uuid!("968318f6-21c7-430f-a13d-36aefb61cde2");
     pub const OPEN_ASSET: Uuid = uuid!("f3f7d0fa-e905-4371-8973-dfc1eb758e5a");
+    pub const SHOW_ASSET: Uuid = uuid!("0e8ef1bf-bc59-421d-80f4-c234f8469c01");
 
     pub fn new(ctx: &mut BuildContext) -> Self {
         let delete_selection;
@@ -97,6 +99,7 @@ impl WidgetContextMenu {
         let paste;
         let make_root;
         let open_asset;
+        let show_asset;
         let create_child;
         let stack_panel;
         let menu = ContextMenuBuilder::new(
@@ -152,9 +155,22 @@ impl WidgetContextMenu {
                                 make_root
                             })
                             .with_child({
-                                open_asset =
-                                    create_menu_item("Open Asset", Self::OPEN_ASSET, vec![], ctx);
+                                open_asset = create_menu_item(
+                                    "Open Parent Prefab",
+                                    Self::OPEN_ASSET,
+                                    vec![],
+                                    ctx,
+                                );
                                 open_asset
+                            })
+                            .with_child({
+                                show_asset = create_menu_item(
+                                    "Show Prefab In Asset Browser",
+                                    Self::SHOW_ASSET,
+                                    vec![],
+                                    ctx,
+                                );
+                                show_asset
                             }),
                     )
                     .build(ctx);
@@ -174,6 +190,7 @@ impl WidgetContextMenu {
             paste,
             make_root,
             open_asset,
+            show_asset,
         }
     }
 
@@ -223,6 +240,14 @@ impl WidgetContextMenu {
                     ) && utils::is_native_scene(&path)
                     {
                         sender.send(Message::LoadScene(path));
+                    }
+                } else if message.destination() == self.show_asset {
+                    if let Some(path) = resource_path_of_first_selected_node(
+                        editor_selection,
+                        ui_scene,
+                        &engine.resource_manager,
+                    ) {
+                        sender.send(Message::ShowInAssetBrowser(path));
                     }
                 } else if message.destination() == self.create_child {
                     sender.send(Message::OpenEntityCreator(EntityCreatorMode::CreateChild));
