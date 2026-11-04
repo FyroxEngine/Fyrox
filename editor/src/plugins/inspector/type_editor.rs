@@ -119,7 +119,12 @@ impl<T: TypedResourceData> InspectorTypeEditor for ResourceTypeEditor<T> {
                 .map(|r| r.path.clone())
         );
         if let Some(ButtonMessage::Click) = message.data_from(self.open) {
-            ctx.message_sender.send(Message::LoadScene(path));
+            if self.extension == "material" {
+                ctx.message_sender
+                    .send(Message::OpenMaterialEditorFromPath(path));
+            } else {
+                ctx.message_sender.send(Message::LoadScene(path));
+            }
         }
     }
 }

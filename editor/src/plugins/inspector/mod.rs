@@ -65,6 +65,7 @@ use crate::{
     ui_scene::UiScene,
     utils::window_content,
 };
+use fyrox::material::Material;
 use fyrox::resource::model::Model;
 use std::{any::Any, sync::Arc, sync::mpsc::Sender};
 
@@ -352,6 +353,7 @@ impl InspectorPlugin {
         let type_editors = vec![
             TypeEditorContainer::new(ResourceTypeEditor::<UserInterface>::new("ui")),
             TypeEditorContainer::new(ResourceTypeEditor::<Model>::new("rgs")),
+            TypeEditorContainer::new(ResourceTypeEditor::<Material>::new("material")),
         ];
 
         Self {

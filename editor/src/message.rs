@@ -81,6 +81,7 @@ pub enum Message {
     OpenAnimationEditor,
     OpenAbsmEditor,
     OpenMaterialEditor(MaterialResource),
+    OpenMaterialEditorFromPath(PathBuf),
     OpenTileSetEditor(TileSetResource),
     OpenTileMapBrushEditor(TileMapBrushResource),
     OpenNodeRemovalDialog {

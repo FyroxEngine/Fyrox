@@ -807,8 +807,12 @@ impl EditorPlugin for MaterialPlugin {
     }
 
     fn on_message(&mut self, message: &Message, editor: &mut Editor) {
-        let Message::OpenMaterialEditor(material) = message else {
-            return;
+        let material = match message {
+            Message::OpenMaterialEditorFromPath(path) => {
+                some_or_return!(editor.engine.resource_manager.try_request(path))
+            }
+            Message::OpenMaterialEditor(material) => material.clone(),
+            _ => return,
         };
 
         let engine = &mut editor.engine;
