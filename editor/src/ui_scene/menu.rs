@@ -23,7 +23,9 @@ use crate::{
     fyrox::{
         asset::manager::ResourceManager,
         core::{
+            ok_or_return,
             pool::Handle,
+            some_or_return,
             uuid::{Uuid, uuid},
         },
         graph::{NodeWrapper, SceneGraph},
@@ -46,7 +48,6 @@ use crate::{
     utils,
     world::{WorldViewerItemContextMenu, create::EntityCreatorMode},
 };
-use fyrox::core::{ok_or_return, some_or_return};
 use std::path::PathBuf;
 
 pub struct WidgetContextMenu {
@@ -97,94 +98,59 @@ impl WidgetContextMenu {
     pub const SHOW_ASSET: Uuid = uuid!("0e8ef1bf-bc59-421d-80f4-c234f8469c01");
 
     pub fn new(ctx: &mut BuildContext) -> Self {
-        let delete_selection;
-        let copy_selection;
-        let duplicate_selection;
-        let paste;
-        let make_root;
-        let open_asset;
-        let show_asset;
-        let create_child;
+        let delete_selection = create_menu_item_shortcut(
+            "Delete Selection",
+            None,
+            Self::DELETE_SELECTION,
+            "Del",
+            vec![],
+            ctx,
+        );
+        let copy_selection = create_menu_item_shortcut(
+            "Copy Selection",
+            None,
+            Self::COPY_SELECTION,
+            "Ctrl+C",
+            vec![],
+            ctx,
+        );
+        let duplicate_selection = create_menu_item(
+            "Duplicate Selection",
+            Self::DUPLICATE_SELECTION,
+            vec![],
+            ctx,
+        );
+        let paste = create_menu_item("Paste As Child", Self::PASTE_AS_CHILD, vec![], ctx);
+        let make_root = create_menu_item("Make Root", Self::MAKE_ROOT, vec![], ctx);
+        let open_asset = create_menu_item("Open Parent Prefab", Self::OPEN_ASSET, vec![], ctx);
+        let show_asset = create_menu_item(
+            "Show Prefab In Asset Browser",
+            Self::SHOW_ASSET,
+            vec![],
+            ctx,
+        );
+        let create_child = create_menu_item(
+            "Create Child Widget...",
+            Self::CREATE_CHILD_WIDGET,
+            vec![],
+            ctx,
+        );
         let stack_panel;
         let menu = ContextMenuBuilder::new(
             PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
                 .with_content({
                     stack_panel = StackPanelBuilder::new(
                         WidgetBuilder::new()
-                            .with_child({
-                                create_child = create_menu_item(
-                                    "Create Child Widget...",
-                                    Self::CREATE_CHILD_WIDGET,
-                                    vec![],
-                                    ctx,
-                                );
-                                create_child
-                            })
+                            .with_child(create_child)
                             .with_child(make_menu_splitter(ctx))
-                            .with_child({
-                                delete_selection = create_menu_item_shortcut(
-                                    "Delete Selection",
-                                    None,
-                                    Self::DELETE_SELECTION,
-                                    "Del",
-                                    vec![],
-                                    ctx,
-                                );
-                                delete_selection
-                            })
-                            .with_child({
-                                copy_selection = create_menu_item_shortcut(
-                                    "Copy Selection",
-                                    None,
-                                    Self::COPY_SELECTION,
-                                    "Ctrl+C",
-                                    vec![],
-                                    ctx,
-                                );
-                                copy_selection
-                            })
-                            .with_child({
-                                duplicate_selection = create_menu_item(
-                                    "Duplicate Selection",
-                                    Self::DUPLICATE_SELECTION,
-                                    vec![],
-                                    ctx,
-                                );
-                                duplicate_selection
-                            })
-                            .with_child({
-                                paste = create_menu_item(
-                                    "Paste As Child",
-                                    Self::PASTE_AS_CHILD,
-                                    vec![],
-                                    ctx,
-                                );
-                                paste
-                            })
+                            .with_child(delete_selection)
+                            .with_child(copy_selection)
+                            .with_child(duplicate_selection)
+                            .with_child(paste)
                             .with_child(make_menu_splitter(ctx))
-                            .with_child({
-                                make_root =
-                                    create_menu_item("Make Root", Self::MAKE_ROOT, vec![], ctx);
-                                make_root
-                            })
-                            .with_child({
-                                open_asset = create_menu_item(
-                                    "Open Parent Prefab",
-                                    Self::OPEN_ASSET,
-                                    vec![],
-                                    ctx,
-                                );
-                                open_asset
-                            })
-                            .with_child({
-                                show_asset = create_menu_item(
-                                    "Show Prefab In Asset Browser",
-                                    Self::SHOW_ASSET,
-                                    vec![],
-                                    ctx,
-                                );
-                                show_asset
-                            }),
+                            .with_child(make_root)
+                            .with_child(open_asset)
+                            .with_child(show_asset),
                     )
                     .build(ctx);
                     stack_panel
@@ -224,6 +190,99 @@ impl WidgetContextMenu {
         sender.do_command(PasteWidgetCommand::new(parent));
     }
 
+    fn on_delete_selection_clicked(
+        &self,
+        editor_selection: &Selection,
+        controller: &mut dyn SceneController,
+        engine: &mut Engine,
+        sender: &MessageSender,
+    ) {
+        if let Some(command) = editor_selection.make_delete_selection_command(controller, engine) {
+            sender.send(Message::DoCommand(command));
+        }
+    }
+
+    fn on_copy_selection_clicked(&self, editor_selection: &Selection, ui_scene: &mut UiScene) {
+        if let Some(ui_selection) = editor_selection.as_ui() {
+            ui_scene
+                .clipboard
+                .fill_from_selection(ui_selection, &ui_scene.ui);
+        }
+    }
+
+    fn on_paste_clicked(
+        &self,
+        editor_selection: &Selection,
+        ui_scene: &mut UiScene,
+        sender: &MessageSender,
+    ) {
+        if let Some(ui_selection) = editor_selection.as_ui()
+            && let Some(first) = ui_selection.widgets.first()
+            && !ui_scene.clipboard.is_empty()
+        {
+            sender.do_command(PasteWidgetCommand::new(*first));
+        }
+    }
+
+    fn on_make_root_clicked(&self, editor_selection: &Selection, sender: &MessageSender) {
+        if let Some(selection) = editor_selection.as_ui()
+            && let Some(first) = selection.widgets.first()
+        {
+            sender.do_command(SetUiRootCommand {
+                root: *first,
+                link_scheme: Default::default(),
+            });
+        }
+    }
+
+    fn on_open_asset_clicked(
+        &self,
+        editor_selection: &Selection,
+        ui_scene: &mut UiScene,
+        engine: &mut Engine,
+        sender: &MessageSender,
+    ) {
+        if let Some(path) = resource_path_of_first_selected_node(
+            editor_selection,
+            ui_scene,
+            &engine.resource_manager,
+        ) && utils::is_native_scene(&path)
+        {
+            sender.send(Message::LoadScene(path));
+        }
+    }
+
+    fn on_show_asset_clicked(
+        &self,
+        editor_selection: &Selection,
+        ui_scene: &mut UiScene,
+        engine: &mut Engine,
+        sender: &MessageSender,
+    ) {
+        if let Some(path) = resource_path_of_first_selected_node(
+            editor_selection,
+            ui_scene,
+            &engine.resource_manager,
+        ) {
+            sender.send(Message::ShowInAssetBrowser(path));
+        }
+    }
+
+    fn on_menu_placed(
+        &mut self,
+        target: Handle<UiNode>,
+        engine: &mut Engine,
+        ui_scene: &mut UiScene,
+    ) {
+        self.placement_target = target;
+
+        // Check if there's something to paste and deactivate "Paste" if nothing.
+        engine.user_interfaces.first_mut().send(
+            self.paste,
+            WidgetMessage::Enabled(!ui_scene.clipboard.is_empty()),
+        );
+    }
+
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
@@ -232,69 +291,27 @@ impl WidgetContextMenu {
         engine: &mut Engine,
         sender: &MessageSender,
     ) {
-        if let Some(ui_scene) = controller.downcast_mut::<UiScene>() {
-            if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
-                if message.destination() == self.delete_selection {
-                    if let Some(command) =
-                        editor_selection.make_delete_selection_command(controller, engine)
-                    {
-                        sender.send(Message::DoCommand(command));
-                    }
-                } else if message.destination() == self.copy_selection {
-                    if let Some(ui_selection) = editor_selection.as_ui() {
-                        ui_scene
-                            .clipboard
-                            .fill_from_selection(ui_selection, &ui_scene.ui);
-                    }
-                } else if message.destination() == self.duplicate_selection {
-                    self.on_duplicate_clicked(editor_selection, ui_scene, sender);
-                } else if message.destination() == self.paste {
-                    if let Some(ui_selection) = editor_selection.as_ui()
-                        && let Some(first) = ui_selection.widgets.first()
-                        && !ui_scene.clipboard.is_empty()
-                    {
-                        sender.do_command(PasteWidgetCommand::new(*first));
-                    }
-                } else if message.destination() == self.make_root {
-                    if let Some(selection) = editor_selection.as_ui()
-                        && let Some(first) = selection.widgets.first()
-                    {
-                        sender.do_command(SetUiRootCommand {
-                            root: *first,
-                            link_scheme: Default::default(),
-                        });
-                    }
-                } else if message.destination() == self.open_asset {
-                    if let Some(path) = resource_path_of_first_selected_node(
-                        editor_selection,
-                        ui_scene,
-                        &engine.resource_manager,
-                    ) && utils::is_native_scene(&path)
-                    {
-                        sender.send(Message::LoadScene(path));
-                    }
-                } else if message.destination() == self.show_asset {
-                    if let Some(path) = resource_path_of_first_selected_node(
-                        editor_selection,
-                        ui_scene,
-                        &engine.resource_manager,
-                    ) {
-                        sender.send(Message::ShowInAssetBrowser(path));
-                    }
-                } else if message.destination() == self.create_child {
-                    sender.send(Message::OpenEntityCreator(EntityCreatorMode::CreateChild));
-                }
-            } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data()
-                && message.destination() == self.menu.handle()
-            {
-                self.placement_target = *target;
-
-                // Check if there's something to paste and deactivate "Paste" if nothing.
-                engine.user_interfaces.first_mut().send(
-                    self.paste,
-                    WidgetMessage::Enabled(!ui_scene.clipboard.is_empty()),
-                );
-            }
+        let ui_scene = some_or_return!(controller.downcast_mut::<UiScene>());
+        if let Some(MenuItemMessage::Click) = message.data_from(self.delete_selection) {
+            self.on_delete_selection_clicked(editor_selection, controller, engine, sender);
+        } else if let Some(MenuItemMessage::Click) = message.data_from(self.copy_selection) {
+            self.on_copy_selection_clicked(editor_selection, ui_scene);
+        } else if let Some(MenuItemMessage::Click) = message.data_from(self.duplicate_selection) {
+            self.on_duplicate_clicked(editor_selection, ui_scene, sender);
+        } else if let Some(MenuItemMessage::Click) = message.data_from(self.paste) {
+            self.on_paste_clicked(editor_selection, ui_scene, sender);
+        } else if let Some(MenuItemMessage::Click) = message.data_from(self.make_root) {
+            self.on_make_root_clicked(editor_selection, sender);
+        } else if let Some(MenuItemMessage::Click) = message.data_from(self.open_asset) {
+            self.on_open_asset_clicked(editor_selection, ui_scene, engine, sender);
+        } else if let Some(MenuItemMessage::Click) = message.data_from(self.show_asset) {
+            self.on_show_asset_clicked(editor_selection, ui_scene, engine, sender);
+        } else if let Some(MenuItemMessage::Click) = message.data_from(self.create_child) {
+            sender.send(Message::OpenEntityCreator(EntityCreatorMode::CreateChild));
+        } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) =
+            message.data_for(self.menu.handle())
+        {
+            self.on_menu_placed(*target, engine, ui_scene)
         }
     }
 }
