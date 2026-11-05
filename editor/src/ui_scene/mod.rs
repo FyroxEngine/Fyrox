@@ -70,6 +70,7 @@ use crate::{
         utils::make_widget_name,
     },
 };
+use fyrox::core::{ok_or_continue, some_or_return};
 use std::{fs::File, io::Write, path::Path};
 
 pub struct PreviewInstance {
@@ -107,6 +108,15 @@ impl UiScene {
                 .do_command(ChangeSelectionCommand::new(Selection::new(
                     UiSelection::single_or_empty(handle.into()),
                 )))
+        }
+    }
+
+    fn invalidate_selection(&mut self, selection: &mut Selection) {
+        let ui_selection = some_or_return!(selection.as_ui());
+        for widget in ui_selection.widgets.iter() {
+            let widget = ok_or_continue!(self.ui.try_get_mut(*widget));
+            widget.invalidate_layout();
+            widget.request_update_visibility();
         }
     }
 }
@@ -307,7 +317,7 @@ impl SceneController for UiScene {
             },
         );
 
-        self.ui.invalidate_layout();
+        self.invalidate_selection(selection);
     }
 
     fn undo(
@@ -324,7 +334,7 @@ impl SceneController for UiScene {
             |ctx| command_stack.undo(ctx),
         );
 
-        self.ui.invalidate_layout();
+        self.invalidate_selection(selection);
     }
 
     fn redo(
@@ -341,7 +351,7 @@ impl SceneController for UiScene {
             |ctx| command_stack.redo(ctx),
         );
 
-        self.ui.invalidate_layout();
+        self.invalidate_selection(selection);
     }
 
     fn clear_command_stack(
@@ -358,7 +368,7 @@ impl SceneController for UiScene {
             |ctx| command_stack.clear(ctx),
         );
 
-        self.ui.invalidate_layout();
+        self.invalidate_selection(selection);
     }
 
     fn on_before_render(&mut self, editor_selection: &Selection, engine: &mut Engine) {
