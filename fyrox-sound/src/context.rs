@@ -317,14 +317,7 @@ impl State {
 }
 
 impl SoundContext {
-    /// TODO: This is magic constant that gives 1024 + 1 number when summed with
-    ///       HRTF length for faster FFT calculations. Find a better way of selecting this.
-    pub const HRTF_BLOCK_LEN: usize = 513;
-
-    pub(crate) const HRTF_INTERPOLATION_STEPS: usize = 4;
-
-    pub(crate) const SAMPLES_PER_CHANNEL: usize =
-        Self::HRTF_BLOCK_LEN * Self::HRTF_INTERPOLATION_STEPS;
+    pub(crate) const SAMPLES_PER_CHANNEL: usize = 2048 + 1;
 
     /// Creates new instance of context. Internally context starts new thread which will call render all
     /// sound source and send samples to default output device. This method returns `Arc<Mutex<Context>>`

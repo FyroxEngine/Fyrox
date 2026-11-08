@@ -231,10 +231,9 @@ impl HrtfRenderer {
                     source.prev_sampling_vector.y,
                     source.prev_sampling_vector.z,
                 ),
-                prev_left_samples: &mut source.prev_left_samples,
-                prev_right_samples: &mut source.prev_right_samples,
-                prev_distance_gain: source.prev_distance_gain.unwrap_or(new_distance_gain),
-                new_distance_gain,
+                history: &mut source.history,
+                prev_gain: source.prev_distance_gain.unwrap_or(new_distance_gain),
+                new_gain: new_distance_gain,
             });
         }
 
@@ -285,8 +284,7 @@ impl HrirSphereResourceData {
         };
         Some(hrtf::HrtfProcessor::new(
             hrir_sphere,
-            SoundContext::HRTF_INTERPOLATION_STEPS,
-            SoundContext::HRTF_BLOCK_LEN,
+            SoundContext::SAMPLES_PER_CHANNEL,
         ))
     }
 }

@@ -133,11 +133,7 @@ pub struct SoundSource {
     // Some data that needed for iterative overlap-save convolution.
     #[reflect(hidden)]
     #[visit(skip)]
-    pub(crate) prev_left_samples: Vec<f32>,
-    #[reflect(hidden)]
-    #[visit(skip)]
-    pub(crate) prev_right_samples: Vec<f32>,
-    #[reflect(hidden)]
+    pub(crate) history: Vec<f32>,
     #[visit(skip)]
     pub(crate) prev_sampling_vector: Vector3<f32>,
     #[reflect(hidden)]
@@ -168,8 +164,7 @@ impl Default for SoundSource {
             position: Vector3::new(0.0, 0.0, 0.0),
             max_distance: f32::MAX,
             rolloff_factor: 1.0,
-            prev_left_samples: Default::default(),
-            prev_right_samples: Default::default(),
+            history: Default::default(),
             prev_sampling_vector: Vector3::new(0.0, 0.0, 1.0),
             prev_distance_gain: None,
         }
@@ -225,9 +220,6 @@ impl SoundSource {
             match buffer.state().data() {
                 None => return Err(SoundError::BufferFailedToLoad),
                 Some(locked_buffer) => {
-                    if locked_buffer.duration() == Duration::ZERO {
-                        panic!("Zero duration buffer: {:?}", locked_buffer);
-                    }
                     // Check new buffer if streaming - it must not be used by anyone else.
                     if let SoundBuffer::Streaming(ref mut streaming) = *locked_buffer {
                         if streaming.use_count != 0 {
@@ -883,8 +875,7 @@ impl SoundSourceBuilder {
             max_distance: self.max_distance,
             rolloff_factor: self.rolloff_factor,
             spatial_blend: self.spatial_blend,
-            prev_left_samples: Default::default(),
-            prev_right_samples: Default::default(),
+            history: Default::default(),
             bus: self.bus,
             ..Default::default()
         };
