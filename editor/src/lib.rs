@@ -181,6 +181,7 @@ use crate::{
     utils::doc::DocWindow,
     world::{WorldViewer, graph::EditorSceneWrapper, menu::SceneNodeContextMenu},
 };
+use fyrox::asset::event::ResourceEvent;
 use fyrox::core::uuid::uuid;
 use fyrox_build_tools::{CommandDescriptor, build::BuildWindow};
 pub use message::Message;
@@ -672,6 +673,7 @@ pub struct Editor {
     pub scene_loading_window: Option<SceneLoadingWindow>,
     pub default_layout: DockingManagerLayoutDescriptor,
     pub startup_data: Option<StartupData>,
+    pub resource_event_receiver: Receiver<ResourceEvent>,
     /// Allows you to register your property editors for custom types.
     pub property_editors: Arc<PropertyEditorDefinitionContainer>,
 }
@@ -797,6 +799,13 @@ impl Editor {
             dyn_type_constructors: Arc::new(Default::default()),
         })
         .unwrap();
+
+        let (resource_event_sender, resource_event_receiver) = mpsc::channel();
+        engine
+            .resource_manager
+            .state()
+            .event_broadcaster
+            .add(resource_event_sender);
 
         let (message_sender, message_receiver) = mpsc::channel();
         let message_sender = MessageSender(message_sender);
@@ -1076,6 +1085,7 @@ impl Editor {
             scene_loading_window: None,
             default_layout,
             startup_data: startup_data.clone(),
+            resource_event_receiver,
             property_editors,
         };
 
@@ -2470,7 +2480,25 @@ impl Editor {
         }
     }
 
+    fn handle_reloaded_ui_resources(&mut self) {
+        while let Ok(event) = self.resource_event_receiver.try_recv() {
+            let ResourceEvent::Reloaded(resource) = event else {
+                continue;
+            };
+
+            if resource.try_cast::<UserInterface>().is_some() {
+                for entry in self.scenes.iter_mut() {
+                    if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
+                        ui_scene.ui.resolve();
+                    }
+                }
+            }
+        }
+    }
+
     fn update(&mut self, dt: f32, loop_controller: ApplicationLoopController) {
+        self.handle_reloaded_ui_resources();
+
         for_each_plugin!(self.plugins => on_update(self, loop_controller));
 
         let settings_data = self.settings.data_mut();
