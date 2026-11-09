@@ -79,7 +79,7 @@ use crate::{
     resource::{
         curve::{CurveResourceState, loader::CurveLoader},
         gltf::material::GLTF_SHADER,
-        model::{Model, ModelResource, loader::ModelLoader},
+        model::{Model, loader::ModelLoader},
         texture::{
             self, CompressionOptions, Texture, TextureImportOptions, TextureKind,
             TextureMinificationFilter, TextureResource, TextureResourceExtension,
@@ -112,10 +112,11 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_animation::AnimationTracksData;
-use fyrox_core::NameProvider;
 use fyrox_core::dyntype::DynTypeConstructorContainer;
+use fyrox_core::{NameProvider, info};
+use fyrox_graph::dependency::ResourceDependencyGraph;
 use fyrox_graphics::server::SharedGraphicsServer;
-
+use fyrox_resource::Resource;
 use fyrox_sound::{
     buffer::{SoundBuffer, loader::SoundBufferLoader},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
@@ -124,7 +125,7 @@ use std::fmt::Debug;
 use std::{
     any::TypeId,
     cell::Cell,
-    collections::{HashSet, VecDeque},
+    collections::VecDeque,
     fmt::{Display, Formatter},
     io::Cursor,
     ops::{Deref, DerefMut},
@@ -930,77 +931,6 @@ impl ScriptProcessor {
                 }
             }
         }
-    }
-}
-
-struct ResourceGraphVertex {
-    resource: ModelResource,
-    children: Vec<ResourceGraphVertex>,
-}
-
-impl ResourceGraphVertex {
-    pub fn new(model: ModelResource, resource_manager: ResourceManager) -> Self {
-        let mut children = Vec::new();
-
-        // Look for dependent resources.
-        let mut dependent_resources = HashSet::new();
-        for resource in resource_manager.state().iter() {
-            if let Some(other_model) = resource.try_cast::<Model>() {
-                let mut state = other_model.state();
-                if let Some(model_data) = state.data()
-                    && model_data
-                        .get_scene()
-                        .graph
-                        .linear_iter()
-                        .any(|n| n.resource.as_ref() == Some(&model))
-                {
-                    dependent_resources.insert(other_model.clone());
-                }
-            }
-        }
-
-        children.extend(
-            dependent_resources
-                .into_iter()
-                .map(|r| ResourceGraphVertex::new(r, resource_manager.clone())),
-        );
-
-        Self {
-            resource: model,
-            children,
-        }
-    }
-
-    pub fn resolve(&self) {
-        Log::info(format!(
-            "Resolving {} resource from dependency graph...",
-            self.resource.resource_uuid()
-        ));
-
-        // Wait until resource is fully loaded, then resolve.
-        if block_on(self.resource.clone()).is_ok() {
-            self.resource.data_ref().get_scene_mut();
-
-            for child in self.children.iter() {
-                child.resolve();
-            }
-        }
-    }
-}
-
-struct ResourceDependencyGraph {
-    root: ResourceGraphVertex,
-}
-
-impl ResourceDependencyGraph {
-    pub fn new(model: ModelResource, resource_manager: ResourceManager) -> Self {
-        Self {
-            root: ResourceGraphVertex::new(model, resource_manager),
-        }
-    }
-
-    pub fn resolve(&self) {
-        self.root.resolve()
     }
 }
 
@@ -2327,31 +2257,48 @@ impl Engine {
         }
     }
 
+    /// Forces the engine to update all loaded dependent ui resources and propagate all the changes
+    /// to the existing user interfaces. Used in resource hot reloading and property inheritance.
+    pub fn resolve_dependent_uis(&mut self, ui_resource: Resource<UserInterface>) {
+        let id = ui_resource.resource_uuid();
+        info!("A UI resource {id} was reloaded, propagating changes...",);
+        ResourceDependencyGraph::new(ui_resource, self.resource_manager.clone()).resolve();
+        info!("Propagating changes to user interfaces...");
+        // Resolve all user interfaces.
+        for ui in self.user_interfaces.iter_mut() {
+            ui.resolve();
+        }
+    }
+
+    /// Forces the engine to update all loaded dependent model resources and propagate all the
+    /// changes to the existing scenes. Used in resource hot reloading and property inheritance.
+    pub fn resolve_dependent_scenes(&mut self, model: Resource<Model>) {
+        let id = model.resource_uuid();
+        info!("A model resource {id} was reloaded, propagating changes...",);
+        ResourceDependencyGraph::new(model, self.resource_manager.clone()).resolve();
+        info!("Propagating changes to active scenes...");
+        // Resolve all scenes.
+        for scene in self.scenes.iter_mut() {
+            scene.resolve();
+        }
+    }
+
     /// Handle hot-reloading of resources.
     ///
     /// Normally, this is called from `Engine::update()`.
     /// You should only call this manually if you don't use that method.
+    // TODO: This method might be inefficient if there is bunch of scenes/uis loaded,
+    // however this seems to be very rare case so it should be ok.
     pub fn handle_model_events(&mut self) {
         while let Ok(event) = self.model_events_receiver.try_recv() {
-            if let ResourceEvent::Reloaded(resource) = event
-                && let Some(model) = resource.try_cast::<Model>()
-            {
-                Log::info(format!(
-                    "A model resource {} was reloaded, propagating changes...",
-                    model.resource_uuid()
-                ));
+            let ResourceEvent::Reloaded(resource) = event else {
+                continue;
+            };
 
-                // Build resource dependency graph and resolve it first.
-                ResourceDependencyGraph::new(model, self.resource_manager.clone()).resolve();
-
-                Log::info("Propagating changes to active scenes...");
-
-                // Resolve all scenes.
-                // TODO: This might be inefficient if there is bunch of scenes loaded,
-                // however this seems to be very rare case so it should be ok.
-                for scene in self.scenes.iter_mut() {
-                    scene.resolve();
-                }
+            if let Some(model) = resource.try_cast::<Model>() {
+                self.resolve_dependent_scenes(model);
+            } else if let Some(ui_resource) = resource.try_cast::<UserInterface>() {
+                self.resolve_dependent_uis(ui_resource);
             }
         }
     }

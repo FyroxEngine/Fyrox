@@ -3611,6 +3611,11 @@ impl PrefabData for UserInterface {
     }
 
     #[inline]
+    fn graph_mut(&mut self) -> &mut Self::Graph {
+        self
+    }
+
+    #[inline]
     fn mapping(&self) -> NodeMapping {
         NodeMapping::UseHandles
     }

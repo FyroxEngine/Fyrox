@@ -99,6 +99,11 @@ impl PrefabData for Model {
     }
 
     #[inline]
+    fn graph_mut(&mut self) -> &mut Self::Graph {
+        &mut self.scene.graph
+    }
+
+    #[inline]
     fn mapping(&self) -> NodeMapping {
         self.mapping
     }
@@ -851,9 +856,5 @@ impl Model {
     /// handle and a reference to the found node. If nothing is found, it returns [`None`].
     pub fn find_node_by_name(&self, name: &str) -> Option<(Handle<Node>, &Node)> {
         self.scene.graph.find_by_name_from_root(name)
-    }
-
-    pub(crate) fn get_scene_mut(&mut self) -> &mut Scene {
-        &mut self.scene
     }
 }

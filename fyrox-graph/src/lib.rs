@@ -23,6 +23,7 @@
 //! Graph utilities and common algorithms.
 
 pub mod constructor;
+pub mod dependency;
 
 pub mod prelude {
     pub use crate::SceneGraph;
@@ -645,6 +646,7 @@ pub trait PrefabData: TypedResourceData + 'static {
     type Graph: SceneGraph;
 
     fn graph(&self) -> &Self::Graph;
+    fn graph_mut(&mut self) -> &mut Self::Graph;
     fn mapping(&self) -> NodeMapping;
 }
 
@@ -2074,6 +2076,10 @@ mod test {
         type Graph = TestGraph;
 
         fn graph(&self) -> &Self::Graph {
+            self
+        }
+
+        fn graph_mut(&mut self) -> &mut Self::Graph {
             self
         }
 
