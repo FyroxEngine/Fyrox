@@ -558,6 +558,7 @@ impl Base {
     /// [`super::Graph::set_global_position`] and [`super::Graph::set_global_rotation`] methods respectively.
     #[inline]
     pub fn local_transform_mut(&mut self) -> &mut Transform {
+        self.notify(self.self_handle, NodeMessageKind::TransformChanged);
         &mut self.local_transform
     }
 

@@ -98,6 +98,7 @@ use crate::{
     ui_scene::selection::UiSelection,
     world::selection::GraphSelection,
 };
+use fyrox::core::{ok_or_continue, some_or_return};
 use fyrox::scene::bitmask::BitMask;
 use std::{
     cell::RefCell,
@@ -476,6 +477,14 @@ impl GameScene {
                 )))
         }
     }
+
+    fn invalidate_selection(&mut self, scene: &mut Scene, selection: &mut Selection) {
+        let ui_selection = some_or_return!(selection.as_graph());
+        for node in ui_selection.nodes.iter() {
+            let node = ok_or_continue!(scene.graph.try_get_mut(*node));
+            node.local_transform_mut().mark_dirty();
+        }
+    }
 }
 
 impl SceneController for GameScene {
@@ -762,16 +771,18 @@ impl SceneController for GameScene {
         selection: &mut Selection,
         engine: &mut Engine,
     ) {
+        let scene = &mut engine.scenes[self.scene];
         GameSceneContext::exec(
             selection,
-            &mut engine.scenes[self.scene],
+            scene,
             &mut self.scene_content_root,
             &mut self.clipboard,
             self.sender.clone(),
             engine.resource_manager.clone(),
             engine.serialization_context.clone(),
             |ctx| command_stack.do_command(command, ctx),
-        )
+        );
+        self.invalidate_selection(scene, selection);
     }
 
     fn undo(
@@ -780,9 +791,10 @@ impl SceneController for GameScene {
         selection: &mut Selection,
         engine: &mut Engine,
     ) {
+        let scene = &mut engine.scenes[self.scene];
         GameSceneContext::exec(
             selection,
-            &mut engine.scenes[self.scene],
+            scene,
             &mut self.scene_content_root,
             &mut self.clipboard,
             self.sender.clone(),
@@ -790,6 +802,7 @@ impl SceneController for GameScene {
             engine.serialization_context.clone(),
             |ctx| command_stack.undo(ctx),
         );
+        self.invalidate_selection(scene, selection);
     }
 
     fn redo(
@@ -798,9 +811,10 @@ impl SceneController for GameScene {
         selection: &mut Selection,
         engine: &mut Engine,
     ) {
+        let scene = &mut engine.scenes[self.scene];
         GameSceneContext::exec(
             selection,
-            &mut engine.scenes[self.scene],
+            scene,
             &mut self.scene_content_root,
             &mut self.clipboard,
             self.sender.clone(),
@@ -808,6 +822,7 @@ impl SceneController for GameScene {
             engine.serialization_context.clone(),
             |ctx| command_stack.redo(ctx),
         );
+        self.invalidate_selection(scene, selection);
     }
 
     fn clear_command_stack(
@@ -816,9 +831,10 @@ impl SceneController for GameScene {
         selection: &mut Selection,
         scenes: &mut SceneContainer,
     ) {
+        let scene = &mut scenes[self.scene];
         GameSceneContext::exec(
             selection,
-            &mut scenes[self.scene],
+            scene,
             &mut self.scene_content_root,
             &mut self.clipboard,
             self.sender.clone(),
@@ -826,6 +842,7 @@ impl SceneController for GameScene {
             self.serialization_context.clone(),
             |ctx| command_stack.clear(ctx),
         );
+        self.invalidate_selection(scene, selection);
     }
 
     fn on_before_render(&mut self, _editor_selection: &Selection, engine: &mut Engine) {
