@@ -183,6 +183,7 @@ use crate::{
 };
 use fyrox::asset::event::ResourceEvent;
 use fyrox::core::uuid::uuid;
+use fyrox::resource::model::Model;
 use fyrox_build_tools::{CommandDescriptor, build::BuildWindow};
 pub use message::Message;
 use plugins::inspector::InspectorPlugin;
@@ -2480,7 +2481,9 @@ impl Editor {
         }
     }
 
-    fn handle_reloaded_ui_resources(&mut self) {
+    fn handle_reloaded_resources(&mut self) {
+        let mut need_sync = false;
+
         while let Ok(event) = self.resource_event_receiver.try_recv() {
             let ResourceEvent::Reloaded(resource) = event else {
                 continue;
@@ -2490,14 +2493,39 @@ impl Editor {
                 for entry in self.scenes.iter_mut() {
                     if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
                         ui_scene.ui.resolve();
+
+                        entry.controller.clear_command_stack(
+                            &mut entry.command_stack,
+                            &mut entry.selection,
+                            &mut self.engine.scenes,
+                        );
+
+                        need_sync = true;
+                    }
+                }
+            } else if resource.try_cast::<Model>().is_some() {
+                for entry in self.scenes.iter_mut() {
+                    if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
+                        self.engine.scenes[game_scene.scene].resolve();
+
+                        entry.controller.clear_command_stack(
+                            &mut entry.command_stack,
+                            &mut entry.selection,
+                            &mut self.engine.scenes,
+                        );
+
+                        need_sync = true;
                     }
                 }
             }
         }
+        if need_sync {
+            self.message_sender.send(Message::ForceSync);
+        }
     }
 
     fn update(&mut self, dt: f32, loop_controller: ApplicationLoopController) {
-        self.handle_reloaded_ui_resources();
+        self.handle_reloaded_resources();
 
         for_each_plugin!(self.plugins => on_update(self, loop_controller));
 
