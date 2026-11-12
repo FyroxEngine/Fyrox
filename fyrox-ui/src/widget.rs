@@ -579,41 +579,30 @@ pub struct Widget {
     /// Desired position relative to the parent node. It is just a recommendation for the layout system, actual position
     /// will be stored in the `actual_local_position` field and can be fetched using [`Widget::actual_local_position`]
     /// method.
-    #[reflect(setter = "set_desired_local_position_notify")]
     pub desired_local_position: InheritableVariable<Vector2<f32>>,
     /// Explicit width for the widget, or automatic if [`f32::NAN`] (means the value is undefined). Default is [`f32::NAN`].
-    #[reflect(setter = "set_width_notify")]
     pub width: InheritableVariable<f32>,
     /// Explicit height for the widget, or automatic if [`f32::NAN`] (means the value is undefined). Default is [`f32::NAN`].
-    #[reflect(setter = "set_height_notify")]
     pub height: InheritableVariable<f32>,
     /// Minimum width and height. Default is 0.0 for both axes.
-    #[reflect(setter = "set_min_size_notify")]
     pub min_size: InheritableVariable<Vector2<f32>>,
     /// Maximum width and height. Default is [`f32::INFINITY`] for both axes.
-    #[reflect(setter = "set_max_size_notify")]
     pub max_size: InheritableVariable<Vector2<f32>>,
     /// Background brush of the widget.
     pub background: InheritableVariable<StyledProperty<Brush>>,
     /// Foreground brush of the widget.
     pub foreground: InheritableVariable<StyledProperty<Brush>>,
     /// Index of the row to which this widget belongs to. It is valid only when used in [`crate::grid::Grid`] widget.
-    #[reflect(setter = "set_row_notify")]
     pub row: InheritableVariable<usize>,
     /// Index of the column to which this widget belongs to. It is valid only when used in [`crate::grid::Grid`] widget.
-    #[reflect(setter = "set_column_notify")]
     pub column: InheritableVariable<usize>,
     /// Vertical alignment of the widget.
-    #[reflect(setter = "set_vertical_alignment_notify")]
     pub vertical_alignment: InheritableVariable<VerticalAlignment>,
     /// Horizontal alignment of the widget.
-    #[reflect(setter = "set_horizontal_alignment_notify")]
     pub horizontal_alignment: InheritableVariable<HorizontalAlignment>,
     /// Margin for every side of bounding rectangle. See [`Thickness`] docs for more info.
-    #[reflect(setter = "set_margin_notify")]
     pub margin: InheritableVariable<Thickness>,
     /// Current, **local**, visibility state of the widget.
-    #[reflect(setter = "set_visibility_notify")]
     pub visibility: InheritableVariable<bool>,
     /// Current, **global** (including the chain of parent widgets), visibility state of the widget.
     #[reflect(read_only)]
@@ -1293,12 +1282,12 @@ impl Widget {
                 WidgetMessage::VerticalAlignment(vertical_alignment)
                     if *self.vertical_alignment != *vertical_alignment =>
                 {
-                    self.set_vertical_alignment(*vertical_alignment);
+                    self.set_vertical_alignment_notify(*vertical_alignment);
                 }
                 WidgetMessage::HorizontalAlignment(horizontal_alignment)
                     if *self.horizontal_alignment != *horizontal_alignment =>
                 {
-                    self.set_horizontal_alignment(*horizontal_alignment);
+                    self.set_horizontal_alignment_notify(*horizontal_alignment);
                 }
                 WidgetMessage::MaxSize(max_size) if *self.max_size != *max_size => {
                     self.set_max_size_notify(*max_size);
