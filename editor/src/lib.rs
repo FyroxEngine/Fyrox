@@ -182,7 +182,10 @@ use crate::{
     world::{WorldViewer, graph::EditorSceneWrapper, menu::SceneNodeContextMenu},
 };
 use fyrox::asset::event::ResourceEvent;
+use fyrox::asset::{Resource, collect_used_resources};
+use fyrox::core::some_or_return;
 use fyrox::core::uuid::uuid;
+use fyrox::graph::dependency::ResourceDependencyGraph;
 use fyrox::resource::model::Model;
 use fyrox_build_tools::{CommandDescriptor, build::BuildWindow};
 pub use message::Message;
@@ -2482,40 +2485,92 @@ impl Editor {
     }
 
     fn handle_reloaded_resources(&mut self) {
-        let mut need_sync = false;
+        fn handle_reloaded_ui(
+            resource_manager: ResourceManager,
+            ui_scene: &mut UiScene,
+            ui_resource: Resource<UserInterface>,
+        ) -> bool {
+            ResourceDependencyGraph::new(ui_resource.clone(), resource_manager).resolve();
+            let mut used_resources = FxHashSet::default();
+            collect_used_resources(&ui_scene.ui, &mut used_resources);
+            if used_resources.contains(&ui_resource.clone().into_untyped()) {
+                ui_scene.ui.resolve();
+                true
+            } else {
+                false
+            }
+        }
 
+        fn handle_reloaded_scene(
+            scenes: &mut fyrox::scene::SceneContainer,
+            resource_manager: ResourceManager,
+            game_scene: &mut GameScene,
+            model: Resource<Model>,
+        ) -> bool {
+            ResourceDependencyGraph::new(model.clone(), resource_manager).resolve();
+            let scene = &mut scenes[game_scene.scene];
+            let mut used_resources = FxHashSet::default();
+            collect_used_resources(scene, &mut used_resources);
+            if used_resources.contains(&model.clone().into_untyped()) {
+                scene.resolve();
+                true
+            } else {
+                false
+            }
+        }
+
+        let mut need_sync = false;
+        let current_scene = some_or_return!(self.scenes.current_scene_index());
         while let Ok(event) = self.resource_event_receiver.try_recv() {
             let ResourceEvent::Reloaded(resource) = event else {
                 continue;
             };
 
-            if resource.try_cast::<UserInterface>().is_some() {
-                for entry in self.scenes.iter_mut() {
-                    if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
-                        ui_scene.ui.resolve();
+            let resource_path = self
+                .engine
+                .resource_manager
+                .resource_path(&resource)
+                .unwrap_or_default();
+            info!(
+                "A resource {} was reloaded, propagating changes to edited scenes...",
+                resource_path.display()
+            );
 
-                        entry.controller.clear_command_stack(
-                            &mut entry.command_stack,
-                            &mut entry.selection,
-                            &mut self.engine.scenes,
-                        );
+            for (i, entry) in self.scenes.iter_mut().enumerate() {
+                if i == current_scene {
+                    continue;
+                }
 
-                        need_sync = true;
+                let mut changes_propagated = false;
+                let resource_manager = self.engine.resource_manager.clone();
+                if let (Some(ui_scene), Some(ui_resource)) = (
+                    entry.controller.downcast_mut::<UiScene>(),
+                    resource.try_cast::<UserInterface>(),
+                ) {
+                    if handle_reloaded_ui(resource_manager, ui_scene, ui_resource) {
+                        changes_propagated = true;
+                    }
+                } else if let (Some(game_scene), Some(model)) = (
+                    entry.controller.downcast_mut::<GameScene>(),
+                    resource.try_cast::<Model>(),
+                ) {
+                    let scenes = &mut self.engine.scenes;
+                    if handle_reloaded_scene(scenes, resource_manager, game_scene, model) {
+                        changes_propagated = true;
                     }
                 }
-            } else if resource.try_cast::<Model>().is_some() {
-                for entry in self.scenes.iter_mut() {
-                    if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
-                        self.engine.scenes[game_scene.scene].resolve();
 
-                        entry.controller.clear_command_stack(
-                            &mut entry.command_stack,
-                            &mut entry.selection,
-                            &mut self.engine.scenes,
-                        );
-
-                        need_sync = true;
-                    }
+                if changes_propagated {
+                    info!(
+                        "Changes applied to {:?} scene! Command history erased.",
+                        entry.path
+                    );
+                    entry.controller.clear_command_stack(
+                        &mut entry.command_stack,
+                        &mut entry.selection,
+                        &mut self.engine.scenes,
+                    );
+                    need_sync = true;
                 }
             }
         }

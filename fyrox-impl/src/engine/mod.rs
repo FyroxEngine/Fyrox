@@ -116,7 +116,7 @@ use fyrox_core::dyntype::DynTypeConstructorContainer;
 use fyrox_core::{NameProvider, info};
 use fyrox_graph::dependency::ResourceDependencyGraph;
 use fyrox_graphics::server::SharedGraphicsServer;
-use fyrox_resource::Resource;
+use fyrox_resource::{Resource, collect_used_resources};
 use fyrox_sound::{
     buffer::{SoundBuffer, loader::SoundBufferLoader},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
@@ -1632,9 +1632,7 @@ impl Engine {
 
         // Now that the plugins and scripts have made whatever changes are needed, we must respond
         // to those changes by updating the scenes and the state of the engine.
-
         self.resource_manager.state().update(dt);
-        self.handle_model_events();
 
         let window_size = if let GraphicsContext::Initialized(ctx) = &mut self.graphics_context {
             let inner_size = ctx.window.inner_size();
@@ -2262,11 +2260,16 @@ impl Engine {
     pub fn resolve_dependent_uis(&mut self, ui_resource: Resource<UserInterface>) {
         let id = ui_resource.resource_uuid();
         info!("A UI resource {id} was reloaded, propagating changes...",);
-        ResourceDependencyGraph::new(ui_resource, self.resource_manager.clone()).resolve();
-        info!("Propagating changes to user interfaces...");
+        ResourceDependencyGraph::new(ui_resource.clone(), self.resource_manager.clone()).resolve();
+        info!("Searching for UIs referencing the resource...");
         // Resolve all user interfaces.
-        for ui in self.user_interfaces.iter_mut() {
-            ui.resolve();
+        for (handle, ui) in self.user_interfaces.pair_iter_mut() {
+            let mut used_resources = FxHashSet::default();
+            collect_used_resources(ui, &mut used_resources);
+            if used_resources.contains(&ui_resource.clone().into_untyped()) {
+                info!("Propagating changes to {handle} UI...");
+                ui.resolve();
+            }
         }
     }
 
@@ -2275,21 +2278,22 @@ impl Engine {
     pub fn resolve_dependent_scenes(&mut self, model: Resource<Model>) {
         let id = model.resource_uuid();
         info!("A model resource {id} was reloaded, propagating changes...",);
-        ResourceDependencyGraph::new(model, self.resource_manager.clone()).resolve();
-        info!("Propagating changes to active scenes...");
+        ResourceDependencyGraph::new(model.clone(), self.resource_manager.clone()).resolve();
+        info!("Searching for scenes referencing the resource...");
         // Resolve all scenes.
-        for scene in self.scenes.iter_mut() {
-            scene.resolve();
+        for (handle, scene) in self.scenes.pair_iter_mut() {
+            let mut used_resources = FxHashSet::default();
+            collect_used_resources(scene, &mut used_resources);
+            if used_resources.contains(&model.clone().into_untyped()) {
+                info!("Propagating changes to {handle} scene...");
+                scene.resolve();
+            }
         }
     }
 
-    /// Handle hot-reloading of resources.
-    ///
-    /// Normally, this is called from `Engine::update()`.
-    /// You should only call this manually if you don't use that method.
-    // TODO: This method might be inefficient if there is bunch of scenes/uis loaded,
-    // however this seems to be very rare case so it should be ok.
-    pub fn handle_model_events(&mut self) {
+    /// Handle hot-reloading of resources. Usually, this method is called from an executor automatically
+    /// in the beginning of the frame.
+    pub fn handle_resource_hot_reloading(&mut self) {
         while let Ok(event) = self.model_events_receiver.try_recv() {
             let ResourceEvent::Reloaded(resource) = event else {
                 continue;

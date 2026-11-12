@@ -243,6 +243,7 @@ impl Executor {
                 throttle_threshold,
                 throttle_frame_interval,
                 self.desired_update_rate,
+                self.resource_hot_reloading,
             ),
             None => run_headless(
                 engine,
@@ -250,6 +251,7 @@ impl Executor {
                 throttle_threshold,
                 throttle_frame_interval,
                 self.desired_update_rate,
+                self.resource_hot_reloading,
             ),
         }
     }
@@ -261,6 +263,7 @@ fn run_headless(
     throttle_threshold: f32,
     throttle_frame_interval: usize,
     desired_update_rate: f32,
+    hot_reload_resources: bool,
 ) {
     let mut previous = Instant::now();
     let fixed_time_step = 1.0 / desired_update_rate;
@@ -294,6 +297,7 @@ fn run_headless(
             throttle_frame_interval,
             frame_counter,
             &mut last_throttle_frame_number,
+            hot_reload_resources,
         );
 
         frame_counter += 1;
@@ -314,6 +318,7 @@ fn run_normal(
     throttle_threshold: f32,
     throttle_frame_interval: usize,
     desired_update_rate: f32,
+    hot_reload_resources: bool,
 ) {
     let mut previous = Instant::now();
     let fixed_time_step = 1.0 / desired_update_rate;
@@ -414,6 +419,7 @@ fn run_normal(
                     throttle_frame_interval,
                     frame_counter,
                     &mut last_throttle_frame_number,
+                    hot_reload_resources,
                 );
             }
             Event::WindowEvent { event, .. } => {
@@ -478,6 +484,7 @@ fn game_loop_iteration(
     throttle_frame_interval: usize,
     frame_counter: usize,
     last_throttle_frame_number: &mut usize,
+    hot_reload_resources: bool,
 ) {
     let elapsed = previous.elapsed();
     *previous = Instant::now();
@@ -501,6 +508,9 @@ fn game_loop_iteration(
             time_step = fixed_time_step;
         }
 
+        if hot_reload_resources {
+            engine.handle_resource_hot_reloading();
+        }
         engine.update(time_step, controller, lag, Default::default());
 
         // Additional check is needed, because the `update` call above could modify
