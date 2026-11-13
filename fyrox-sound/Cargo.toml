@@ -18,12 +18,14 @@ rust-version = "1.94"
 fyrox-core = { path = "../fyrox-core", version = "2.0.0-rc.1" }
 fyrox-resource = { path = "../fyrox-resource", version = "2.0.0-rc.1" }
 hrtf = "0.10.0"
-hound = "3.4.0"
 strum = "0.27"
 strum_macros = "0.27"
 tinyaudio = { version = "2", optional = true }
 serde = { version = "1", features = ["derive"] }
 symphonia = { version = "0.5.4", features = ["all-codecs"] }
+
+[dev-dependencies]
+hound = "3.4.0"
 
 [features]
 default = ["output"]

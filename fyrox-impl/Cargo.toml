@@ -87,6 +87,10 @@ toml = { version = "0.9", default-features = false, features = ["parse"] }
 toml_edit = "0.23"
 rust-fuzzy-search = "0.1.1"
 
+[lints.cargo]
+# See the comment above.
+unused_dependencies = "allow"
+
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 cargo_metadata = "0.22"
 open = "5"
@@ -101,3 +105,4 @@ mesh_analysis = []
 
 [target.'cfg(target_os = "android")'.dependencies]
 winit = { version = "0.30", features = ["android-native-activity"] }
+

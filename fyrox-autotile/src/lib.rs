@@ -464,6 +464,7 @@ impl PatternBits {
     }
     /// The number of distinct distinct values in this pattern. This count is at most 9 and
     /// at least 1, for the case where every bit is the same.
+    #[allow(clippy::needless_range_loop)]
     pub fn unique_terrain_count(&self) -> usize {
         let mut count = 1;
         'outer: for i in 1..9 {

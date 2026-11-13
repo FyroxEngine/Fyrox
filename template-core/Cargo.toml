@@ -16,7 +16,6 @@ rust-version = "1.94"
 [dependencies]
 uuid = { version = "1", features = ["v4"] }
 convert_case = "0.8.0"
-toml = "0.9.6"
 toml_edit = "0.23.5"
 regex = "1.7.3"
 unicode-xid = "0.2.6"

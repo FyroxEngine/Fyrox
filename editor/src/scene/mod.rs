@@ -494,11 +494,7 @@ impl SceneController for GameScene {
         _engine: &mut Engine,
         key_bindings: &KeyBindings,
     ) -> bool {
-        if self.camera_controller.on_key_up(key_bindings, key) {
-            return true;
-        }
-
-        false
+        self.camera_controller.on_key_up(key_bindings, key)
     }
 
     fn on_key_down(
@@ -507,11 +503,7 @@ impl SceneController for GameScene {
         _engine: &mut Engine,
         key_bindings: &KeyBindings,
     ) -> bool {
-        if self.camera_controller.on_key_down(key_bindings, key) {
-            return true;
-        }
-
-        false
+        self.camera_controller.on_key_down(key_bindings, key)
     }
 
     fn on_mouse_move(
