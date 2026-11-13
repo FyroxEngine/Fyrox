@@ -1225,13 +1225,13 @@ fn make_expander_check_box(
     handle
 }
 
-/// Build an [Expander](crate::expander::Expander) widget to contain an editor.
+/// Build an [`Expander`] widget to contain an editor.
 /// * layer_index: How deeply nested is the editor? This controls the width of the left margine.
 /// * property_name: The name to use as the label for the expander.
 /// * description: The tooltip for the editor.
-/// * header: See [Expander](crate::expander::Expander) docs for an explanation of expander headers.
+/// * header: See [`Expander`] docs for an explanation of expander headers.
 /// * content: The editor widget to be shown or hidden.
-/// * ctx: The [BuildContext] to make it possible to create the widget.
+/// * ctx: The [`BuildContext`] to make it possible to create the widget.
 pub fn make_expander_container(
     layer_index: usize,
     property_name: &str,
