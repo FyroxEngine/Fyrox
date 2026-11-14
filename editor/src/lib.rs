@@ -37,7 +37,6 @@ pub mod configurator;
 pub mod export;
 pub mod highlight;
 pub mod interaction;
-pub mod light;
 pub mod menu;
 pub mod mesh;
 pub mod message;
@@ -57,6 +56,7 @@ pub mod world;
 
 pub use fyrox;
 
+use crate::plugins::light::LightPlugin;
 use crate::world::create::EntityCreator;
 use crate::{
     asset::{AssetBrowser, item::AssetItem},
@@ -144,7 +144,6 @@ use crate::{
         select_mode::SelectInteractionMode,
         terrain::TerrainInteractionMode,
     },
-    light::LightPanel,
     menu::{Menu, MenuContext, Panels},
     mesh::{MeshControlPanel, SurfaceDataViewer},
     message::MessageSender,
@@ -634,7 +633,6 @@ pub struct Editor {
     pub asset_browser: AssetBrowser,
     pub exit_message_box: Handle<MessageBox>,
     pub save_scene_dialog: SaveSceneConfirmationDialog,
-    pub light_panel: LightPanel,
     pub menu: Menu,
     pub configurator: Configurator,
     pub log: LogPanel,
@@ -832,7 +830,6 @@ impl Editor {
         let scene_viewer = SceneViewer::new(&mut engine, message_sender.clone(), &mut settings);
         let asset_browser = AssetBrowser::new(&mut engine);
         let menu = Menu::new(&mut engine, message_sender.clone(), &settings);
-        let light_panel = LightPanel::new(&mut engine, property_editors.clone());
         let audio_panel = AudioPanel::new(
             &mut engine,
             message_sender.clone(),
@@ -968,7 +965,6 @@ impl Editor {
                             camera_control_panel.window,
                             navmesh_panel.window,
                             doc_window.window,
-                            light_panel.window,
                             scene_settings.window,
                         ])
                         .build(ctx);
@@ -1033,7 +1029,6 @@ impl Editor {
             exit_message_box,
             configurator,
             log,
-            light_panel,
             command_stack_viewer,
             validation_message_box,
             settings,
@@ -1064,6 +1059,7 @@ impl Editor {
                 .with(EditorStatisticsPlugin::default())
                 .with(CurveEditorPlugin::default())
                 .with(ReflectionProbePlugin::default())
+                .with(LightPlugin::default())
                 .with(inspector_plugin),
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread
@@ -1393,7 +1389,6 @@ impl Editor {
                     inspector_window: inspector.window,
                     world_outliner_window: self.world_viewer.window,
                     asset_window: self.asset_browser.window,
-                    light_panel: self.light_panel.window,
                     log_panel: self.log.window,
                     navmesh_panel: self.navmesh_panel.window,
                     audio_panel: self.audio_panel.window,
@@ -1543,9 +1538,6 @@ impl Editor {
                 engine.user_interfaces.first(),
                 &mut self.settings,
             );
-
-            self.light_panel
-                .handle_ui_message(message, game_scene, engine);
         } else if let Some(ui_scene) = current_scene_entry.controller.downcast_mut::<UiScene>() {
             self.entity_creator.handle_ui_message_with_ui_scene(
                 ui_scene,
@@ -1992,7 +1984,6 @@ impl Editor {
 
         self.particle_system_control_panel.is_in_preview_mode()
             || self.audio_preview_panel.is_in_preview_mode()
-            || self.light_panel.is_in_preview_mode()
             || self.export_window.is_some()
             || is_any_plugin_in_preview_mode
             || self.scenes.current_scene_controller_ref().is_interacting()
@@ -2628,7 +2619,6 @@ impl Editor {
                 stats.update(game_scene.scene, &self.engine);
             }
 
-            self.light_panel.update(game_scene, &mut self.engine);
             self.audio_preview_panel
                 .update(&entry.selection, game_scene, &self.engine);
             self.scene_viewer.update(game_scene, &mut self.engine);

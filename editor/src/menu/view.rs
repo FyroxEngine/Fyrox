@@ -41,7 +41,6 @@ pub struct ViewMenu {
     pub inspector: Handle<MenuItem>,
     pub world_viewer: Handle<MenuItem>,
     pub asset_browser: Handle<MenuItem>,
-    pub light_panel: Handle<MenuItem>,
     pub log_panel: Handle<MenuItem>,
     pub nav_mesh: Handle<MenuItem>,
     pub audio: Handle<MenuItem>,
@@ -76,7 +75,6 @@ impl ViewMenu {
     pub const INSPECTOR: Uuid = uuid!("58ad3e9f-1e4f-43a5-b203-ef9d92982c0e");
     pub const ASSET_BROWSER: Uuid = uuid!("a2b8931e-2979-435b-9d72-00bf60a2d1b9");
     pub const WORLD_VIEWER: Uuid = uuid!("7b2dce51-9de4-4f35-9d5b-c8606607480f");
-    pub const LIGHT_PANEL: Uuid = uuid!("9363ce91-6034-4e99-a6fc-2b3edac27182");
     pub const LOG_PANEL: Uuid = uuid!("105847a5-bd6d-4d12-8aaa-ba19c53a9c38");
     pub const NAV_MESH: Uuid = uuid!("aa387bc2-fecc-474f-be40-ec1d6ec1ac25");
     pub const AUDIO: Uuid = uuid!("8b3eb8c5-eb9e-4d53-8fac-2b6e75b2e624");
@@ -89,7 +87,6 @@ impl ViewMenu {
         let inspector;
         let asset_browser;
         let world_viewer;
-        let light_panel;
         let log_panel;
         let nav_mesh;
         let audio;
@@ -114,10 +111,6 @@ impl ViewMenu {
                     world_viewer =
                         create_menu_item("World Viewer", Self::WORLD_VIEWER, vec![], ctx);
                     world_viewer
-                },
-                {
-                    light_panel = create_menu_item("Light Panel", Self::LIGHT_PANEL, vec![], ctx);
-                    light_panel
                 },
                 {
                     log_panel = create_menu_item("Log Panel", Self::LOG_PANEL, vec![], ctx);
@@ -159,7 +152,6 @@ impl ViewMenu {
             inspector,
             world_viewer,
             asset_browser,
-            light_panel,
             log_panel,
             nav_mesh,
             audio,
@@ -180,8 +172,6 @@ impl ViewMenu {
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.asset_browser {
                 switch_window_state(panels.asset_window, ui, false);
-            } else if message.destination() == self.light_panel {
-                switch_window_state(panels.light_panel, ui, true);
             } else if message.destination() == self.world_viewer {
                 switch_window_state(panels.world_outliner_window, ui, false);
             } else if message.destination() == self.inspector {

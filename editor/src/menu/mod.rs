@@ -64,7 +64,6 @@ pub struct Menu {
 
 pub struct Panels<'b> {
     pub scene_frame: Handle<Image>,
-    pub light_panel: Handle<Window>,
     pub log_panel: Handle<Window>,
     pub navmesh_panel: Handle<Window>,
     pub audio_panel: Handle<Window>,

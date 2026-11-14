@@ -19,19 +19,22 @@
 // SOFTWARE.
 
 use crate::{
-    Engine,
+    Editor,
     fyrox::{
-        core::{log::Log, make_relative_path, pool::Handle, reflect::prelude::*},
+        core::{log::Log, make_relative_path, pool::Handle, reflect::prelude::*, some_or_return},
+        engine::{ApplicationLoopController, Engine},
         gui::{
             BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
             VerticalAlignment,
             button::{Button, ButtonBuilder, ButtonMessage},
+            dock::DockingManagerMessage,
             formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
             inspector::{
                 Inspector, InspectorBuilder, InspectorContext, InspectorContextArgs,
                 InspectorMessage, PropertyAction, editors::PropertyEditorDefinitionContainer,
             },
+            menu::{MenuItem, MenuItemMessage},
             message::UiMessage,
             progress_bar::{ProgressBar, ProgressBarBuilder, ProgressBarMessage},
             scroll_viewer::ScrollViewerBuilder,
@@ -45,6 +48,8 @@ use crate::{
             ProgressIndicator,
         },
     },
+    menu::create_menu_item_shortcut,
+    plugin::EditorPlugin,
     scene::GameScene,
 };
 use std::{
@@ -245,6 +250,7 @@ impl LightPanel {
                 .with_width(300.0)
                 .with_height(400.0),
         )
+        .with_remove_on_close(true)
         .with_title(WindowTitle::text("Light Settings"))
         .open(false)
         .with_content(
@@ -328,12 +334,23 @@ impl LightPanel {
         }
     }
 
+    fn open(&self, ui: &mut UserInterface) {
+        ui.send(
+            self.window,
+            WindowMessage::Open {
+                alignment: WindowAlignment::Center,
+                modal: false,
+                focus_content: true,
+            },
+        );
+    }
+
     pub fn handle_ui_message(
-        &mut self,
+        mut self,
         message: &UiMessage,
         game_scene: &GameScene,
         engine: &mut Engine,
-    ) {
+    ) -> Option<Self> {
         Inspector::handle_context_menu_message(
             self.inspector,
             message,
@@ -421,7 +438,13 @@ impl LightPanel {
                     Log::verify(result);
                 },
             );
+        } else if let Some(WindowMessage::Close) = message.data()
+            && message.destination() == self.window
+        {
+            return None;
         }
+
+        Some(self)
     }
 
     pub fn update(&mut self, game_scene: &GameScene, engine: &mut Engine) {
@@ -450,5 +473,67 @@ impl LightPanel {
 
     pub fn is_in_preview_mode(&self) -> bool {
         self.progress_window.is_some()
+    }
+}
+
+#[derive(Default)]
+pub struct LightPlugin {
+    window: Option<LightPanel>,
+    open_light_panel: Handle<MenuItem>,
+}
+
+impl LightPlugin {
+    pub const LIGHT_PLUGIN: Uuid = uuid!("35df6897-686a-4ea8-8037-b77cab81b6a4");
+
+    fn on_open_light_panel_clicked(&mut self, editor: &mut Editor) {
+        let window = self.window.get_or_insert_with(|| {
+            LightPanel::new(&mut editor.engine, editor.property_editors.clone())
+        });
+        let ui = editor.engine.user_interfaces.first_mut();
+        window.open(ui);
+        ui.send(
+            editor.docking_manager,
+            DockingManagerMessage::AddFloatingWindow(window.window),
+        );
+    }
+}
+
+impl EditorPlugin for LightPlugin {
+    fn on_start(&mut self, editor: &mut Editor) {
+        let ui = editor.engine.user_interfaces.first_mut();
+        let ctx = &mut ui.build_ctx();
+        self.open_light_panel =
+            create_menu_item_shortcut("Light Panel...", None, Self::LIGHT_PLUGIN, "", vec![], ctx);
+        ui.send(
+            editor.menu.view_menu.menu,
+            MenuItemMessage::AddItem(self.open_light_panel),
+        );
+    }
+
+    fn on_update(&mut self, editor: &mut Editor, _loop_controller: ApplicationLoopController) {
+        let entry = editor.scenes.current_scene_entry_ref();
+        if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>()
+            && let Some(window) = self.window.as_mut()
+        {
+            window.update(game_scene, &mut editor.engine);
+        }
+    }
+
+    fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
+        if let Some(MenuItemMessage::Click) = message.data()
+            && message.destination() == self.open_light_panel
+        {
+            self.on_open_light_panel_clicked(editor);
+        }
+
+        let window = some_or_return!(self.window.take());
+        if let Some(game_scene) = editor
+            .scenes
+            .current_scene_entry_mut()
+            .controller
+            .downcast_mut::<GameScene>()
+        {
+            self.window = window.handle_ui_message(message, game_scene, &mut editor.engine);
+        }
     }
 }

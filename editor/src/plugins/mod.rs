@@ -23,6 +23,7 @@ pub mod animation;
 pub mod collider;
 pub mod curve_editor;
 pub mod inspector;
+pub mod light;
 pub mod material;
 pub mod probe;
 pub mod ragdoll;
