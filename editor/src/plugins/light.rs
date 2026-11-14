@@ -510,6 +510,13 @@ impl EditorPlugin for LightPlugin {
         );
     }
 
+    fn is_in_preview_mode(&self, _editor: &Editor) -> bool {
+        if let Some(light_panel) = self.window.as_ref() {
+            return light_panel.is_in_preview_mode();
+        }
+        false
+    }
+
     fn on_update(&mut self, editor: &mut Editor, _loop_controller: ApplicationLoopController) {
         let entry = editor.scenes.current_scene_entry_ref();
         if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>()
