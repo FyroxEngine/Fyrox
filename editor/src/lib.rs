@@ -403,7 +403,9 @@ impl SaveSceneConfirmationDialog {
                     .with_width(300.0)
                     .with_height(100.0),
             )
+            .with_remove_on_close(true)
             .can_close(false)
+            .can_maximize(false)
             .can_minimize(false)
             .open(false)
             .with_title(WindowTitle::text("Unsaved changes")),
@@ -444,11 +446,11 @@ impl SaveSceneConfirmationDialog {
     }
 
     pub fn handle_ui_message(
-        &mut self,
+        mut self,
         message: &UiMessage,
         sender: &MessageSender,
         scenes: &SceneContainer,
-    ) {
+    ) -> Option<Self> {
         if let Some(MessageBoxMessage::Close(result)) = message.data_from(self.save_message_box) {
             match result {
                 MessageBoxResult::No => match self.action {
@@ -501,7 +503,12 @@ impl SaveSceneConfirmationDialog {
                 }
                 _ => (),
             }
+        } else if let Some(WindowMessage::Close) = message.data()
+            && message.destination() == self.save_message_box
+        {
+            return None;
         }
+        Some(self)
     }
 
     fn handle_message(&mut self, message: &Message, sender: &MessageSender) {
@@ -632,7 +639,7 @@ pub struct Editor {
     pub scene_viewer: SceneViewer,
     pub asset_browser: AssetBrowser,
     pub exit_message_box: Handle<MessageBox>,
-    pub save_scene_dialog: SaveSceneConfirmationDialog,
+    pub save_scene_dialog: Option<SaveSceneConfirmationDialog>,
     pub menu: Menu,
     pub configurator: Configurator,
     pub log: LogPanel,
@@ -986,8 +993,6 @@ impl Editor {
         .build(ctx);
         let entity_creator = EntityCreator::new(ctx);
 
-        let save_scene_dialog = SaveSceneConfirmationDialog::new(ctx);
-
         let ui = engine.user_interfaces.first_mut();
         ui.update(
             Vector2::new(inner_size.width, inner_size.height),
@@ -1022,7 +1027,7 @@ impl Editor {
             validation_message_box,
             settings,
             audio_panel,
-            save_scene_dialog,
+            save_scene_dialog: None,
             mode: Mode::Edit,
             game_loop_data: GameLoopData {
                 clock: Instant::now(),
@@ -1361,8 +1366,10 @@ impl Editor {
 
         let engine = &mut self.engine;
 
-        self.save_scene_dialog
-            .handle_ui_message(message, &self.message_sender, &self.scenes);
+        if let Some(save_scene_dialog) = self.save_scene_dialog.take() {
+            self.save_scene_dialog =
+                save_scene_dialog.handle_ui_message(message, &self.message_sender, &self.scenes);
+        }
 
         let current_scene_entry = self.scenes.current_scene_entry_mut();
 
@@ -2630,8 +2637,9 @@ impl Editor {
 
                 editor_messages_processed_count += 1;
 
-                self.save_scene_dialog
-                    .handle_message(&message, &self.message_sender);
+                if let Some(save_scene_dialog) = self.save_scene_dialog.as_mut() {
+                    save_scene_dialog.handle_message(&message, &self.message_sender);
+                }
 
                 let entry = self.scenes.current_scene_entry_mut();
                 self.asset_browser
@@ -2789,12 +2797,10 @@ impl Editor {
                         );
                     }
                     Message::OpenSaveSceneConfirmationDialog { id, action } => {
-                        self.save_scene_dialog.open(
-                            self.engine.user_interfaces.first(),
-                            id,
-                            &self.scenes,
-                            action,
-                        );
+                        let ui = self.engine.user_interfaces.first_mut();
+                        let mut dialog = SaveSceneConfirmationDialog::new(&mut ui.build_ctx());
+                        dialog.open(ui, id, &self.scenes, action);
+                        self.save_scene_dialog = Some(dialog);
                     }
                     Message::ForceSync => {
                         needs_sync = true;
