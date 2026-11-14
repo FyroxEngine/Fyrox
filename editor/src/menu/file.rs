@@ -21,7 +21,6 @@
 use crate::{
     Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
     asset::preview::cache::IconRequest,
-    export::ExportWindow,
     fyrox::{
         asset::manager::ResourceManager,
         core::pool::Handle,
@@ -35,18 +34,20 @@ use crate::{
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
         },
     },
+    fyrox::{
+        core::uuid::{Uuid, uuid},
+        graph::SceneGraph,
+        gui::file_browser::FileSelector,
+        gui::menu::MenuItem,
+        gui::messagebox::MessageBox,
+        gui::widget::UserData,
+    },
     load_image, make_save_file_selector,
     menu::{create_menu_item, create_menu_item_shortcut, create_root_menu_item},
     message::MessageSender,
     scene::container::EditorSceneEntry,
     settings::{Settings, recent::RecentFiles},
 };
-use fyrox::core::uuid::{Uuid, uuid};
-use fyrox::graph::SceneGraph;
-use fyrox::gui::file_browser::FileSelector;
-use fyrox::gui::menu::MenuItem;
-use fyrox::gui::messagebox::MessageBox;
-use fyrox::gui::widget::UserData;
 use std::{path::PathBuf, sync::mpsc::Sender};
 
 pub struct FileMenu {
@@ -66,7 +67,6 @@ pub struct FileMenu {
     pub recent_files_container: Handle<MenuItem>,
     pub recent_files: Vec<Handle<MenuItem>>,
     pub open_scene_settings: Handle<MenuItem>,
-    pub export_project: Handle<MenuItem>,
 }
 
 #[derive(Clone)]
@@ -99,7 +99,6 @@ impl FileMenu {
     pub const CLOSE_SCENE: Uuid = uuid!("f90803c3-4ff0-4d68-8ebd-c3c24eaa6693");
     pub const SCENE_SETTINGS: Uuid = uuid!("aa6743d0-f965-4589-9937-e0b79a350282");
     pub const CONFIGURE: Uuid = uuid!("220274af-bc1d-47d2-8a1d-7ee4b2d409f4");
-    pub const EXPORT_PROJECT: Uuid = uuid!("699b39ae-a9c2-4af4-9ade-c36a14f96aa2");
     pub const EXIT: Uuid = uuid!("cf62b116-37fd-4620-8594-9ca04735d45b");
     pub const SAVE_FILE_SELECTOR: Uuid = uuid!("ddb9df20-ec54-4ebd-9493-fe06b9ac4ab2");
 
@@ -115,7 +114,6 @@ impl FileMenu {
         let configure;
         let exit;
         let recent_files_container;
-        let export_project;
 
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
 
@@ -242,11 +240,6 @@ impl FileMenu {
                     configure
                 },
                 {
-                    export_project =
-                        create_menu_item("Export Project...", Self::EXPORT_PROJECT, vec![], ctx);
-                    export_project
-                },
-                {
                     exit =
                         create_menu_item_shortcut("Exit", None, Self::EXIT, "Alt+F4", vec![], ctx);
                     exit
@@ -291,7 +284,6 @@ impl FileMenu {
             recent_files_container,
             recent_files,
             open_scene_settings,
-            export_project,
             save_all,
         }
     }
@@ -449,11 +441,6 @@ impl FileMenu {
                         },
                     );
                 }
-            } else if message.destination() == self.export_project {
-                let export_window =
-                    ExportWindow::new(&mut engine.user_interfaces.first_mut().build_ctx());
-                export_window.open(engine.user_interfaces.first());
-                *panels.export_window = Some(export_window);
             } else if message.destination() == self.open_scene_settings {
                 if let Some(game_scene) = entry {
                     panels.scene_settings.open(

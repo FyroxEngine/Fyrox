@@ -22,6 +22,7 @@ pub mod absm;
 pub mod animation;
 pub mod collider;
 pub mod curve_editor;
+pub mod export;
 pub mod inspector;
 pub mod light;
 pub mod material;

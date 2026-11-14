@@ -21,7 +21,6 @@
 use crate::{
     Engine, Mode, SceneSettingsWindow,
     asset::preview::cache::IconRequest,
-    export::ExportWindow,
     fyrox::{
         asset::manager::ResourceManager,
         core::uuid::Uuid,
@@ -73,7 +72,6 @@ pub struct Panels<'b> {
     pub asset_window: Handle<Window>,
     pub configurator_window: Handle<Window>,
     pub scene_settings: &'b SceneSettingsWindow,
-    pub export_window: &'b mut Option<ExportWindow>,
     pub statistics_window: &'b mut Option<StatisticsWindow>,
 }
 

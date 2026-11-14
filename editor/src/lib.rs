@@ -34,7 +34,6 @@ pub mod audio;
 pub mod camera;
 pub mod command;
 pub mod configurator;
-pub mod export;
 pub mod highlight;
 pub mod interaction;
 pub mod menu;
@@ -56,6 +55,7 @@ pub mod world;
 
 pub use fyrox;
 
+use crate::plugins::export::ExportPlugin;
 use crate::plugins::light::LightPlugin;
 use crate::world::create::EntityCreator;
 use crate::{
@@ -64,7 +64,6 @@ use crate::{
     camera::panel::CameraPreviewControlPanel,
     command::{Command, CommandTrait, panel::CommandStackViewer},
     configurator::Configurator,
-    export::ExportWindow,
     fyrox::{
         asset::{io::FsResourceIo, manager::ResourceManager, untyped::ResourceKind},
         core::info,
@@ -188,6 +187,7 @@ use fyrox::graph::dependency::ResourceDependencyGraph;
 use fyrox::resource::model::Model;
 use fyrox_build_tools::{CommandDescriptor, build::BuildWindow};
 pub use message::Message;
+use plugins::export::ExportWindow;
 use plugins::inspector::InspectorPlugin;
 use std::cell::Cell;
 use std::{
@@ -662,7 +662,6 @@ pub struct Editor {
     pub widget_context_menu: Rc<RefCell<WidgetContextMenu>>,
     pub overlay_pass: Option<Rc<RefCell<OverlayRenderPass>>>,
     pub highlighter: Option<Rc<RefCell<HighlightRenderPass>>>,
-    pub export_window: Option<ExportWindow>,
     pub statistics_window: Option<StatisticsWindow>,
     pub surface_data_viewer: Option<SurfaceDataViewer>,
     pub processed_ui_messages: usize,
@@ -1060,6 +1059,7 @@ impl Editor {
                 .with(CurveEditorPlugin::default())
                 .with(ReflectionProbePlugin::default())
                 .with(LightPlugin::default())
+                .with(ExportPlugin::default())
                 .with(inspector_plugin),
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread
@@ -1072,7 +1072,6 @@ impl Editor {
             widget_context_menu,
             overlay_pass: None,
             highlighter: None,
-            export_window: None,
             statistics_window: None,
             surface_data_viewer: None,
             processed_ui_messages: 0,
@@ -1395,7 +1394,6 @@ impl Editor {
                     configurator_window: self.configurator.window,
                     command_stack_panel: self.command_stack_viewer.window,
                     scene_settings: &self.scene_settings,
-                    export_window: &mut self.export_window,
                     statistics_window: &mut self.statistics_window,
                 },
                 settings: &mut self.settings,
@@ -1417,15 +1415,6 @@ impl Editor {
             {
                 self.mode = Mode::Play { process, active };
             }
-        }
-        if let Some(export_window) = self.export_window.as_mut() {
-            export_window.handle_ui_message(
-                message,
-                ui,
-                &self.message_sender,
-                engine.resource_manager.clone(),
-                &self.settings.build,
-            );
         }
         if let Some(stats) = self.statistics_window.as_ref()
             && let StatisticsWindowAction::Remove = stats.handle_ui_message(message, ui)
@@ -1790,9 +1779,6 @@ impl Editor {
 
         self.scene_viewer
             .sync_to_model(&self.scenes, &self.settings, engine);
-        if let Some(exporter) = self.export_window.as_ref() {
-            exporter.sync_to_model(engine.user_interfaces.first_mut());
-        }
 
         let current_scene_entry = self.scenes.current_scene_entry_mut();
         self.command_stack_viewer.sync_to_model(
@@ -1984,7 +1970,6 @@ impl Editor {
 
         self.particle_system_control_panel.is_in_preview_mode()
             || self.audio_preview_panel.is_in_preview_mode()
-            || self.export_window.is_some()
             || is_any_plugin_in_preview_mode
             || self.scenes.current_scene_controller_ref().is_interacting()
             || stays_active
@@ -2601,9 +2586,6 @@ impl Editor {
         }
 
         self.log.update(self.settings.general.max_log_entries, ui);
-        if let Some(export_window) = self.export_window.as_mut() {
-            export_window.update(ui);
-        }
 
         self.asset_browser
             .update(&mut self.engine, &self.message_sender);

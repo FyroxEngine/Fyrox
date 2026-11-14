@@ -18,15 +18,16 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::settings::build::BuildSettings;
 use crate::{
-    Message,
+    Editor, Message,
     fyrox::{
         asset::manager::ResourceManager,
         core::{
             log::{Log, LogMessage, MessageKind},
             platform::TargetPlatform,
             pool::Handle,
+            some_or_return,
+            uuid::{Uuid, uuid},
         },
         graph::SceneGraph,
         gui::{
@@ -35,18 +36,22 @@ use crate::{
             border::BorderBuilder,
             button::{Button, ButtonBuilder, ButtonMessage},
             decorator::DecoratorBuilder,
+            dock::DockingManagerMessage,
             dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
             formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
+            inspector::editors::PropertyEditorDefinitionContainer,
             inspector::{
                 Inspector, InspectorBuilder, InspectorContext, InspectorContextArgs,
-                InspectorMessage, PropertyAction, editors::PropertyEditorDefinitionContainer,
+                InspectorMessage, PropertyAction,
             },
             list_view::{ListView, ListViewBuilder, ListViewMessage},
+            menu::{MenuItem, MenuItemMessage},
             message::UiMessage,
             scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
             stack_panel::{StackPanel, StackPanelBuilder},
-            style::{Style, resource::StyleResourceExt},
+            style::Style,
+            style::resource::StyleResourceExt,
             text::{Text, TextBuilder},
             utils::make_dropdown_list_option,
             widget::{WidgetBuilder, WidgetMessage},
@@ -54,14 +59,14 @@ use crate::{
             wrap_panel::WrapPanelBuilder,
         },
     },
+    menu::create_menu_item_shortcut,
     message::MessageSender,
+    plugin::EditorPlugin,
+    settings::build::BuildSettings,
 };
+use fyrox::engine::ApplicationLoopController;
 use fyrox_build_tools::export::{BuildResult, ExportOptions};
-use std::sync::{
-    Arc,
-    atomic::AtomicBool,
-    mpsc::{self, Receiver},
-};
+use std::sync::{Arc, atomic::AtomicBool, mpsc, mpsc::Receiver};
 use strum::VariantNames;
 
 pub struct ExportWindow {
@@ -284,6 +289,7 @@ impl ExportWindow {
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(500.0).with_height(650.0))
             .open(false)
+            .with_remove_on_close(true)
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
@@ -352,7 +358,6 @@ impl ExportWindow {
 
     pub fn close_and_destroy(&mut self, ui: &UserInterface) {
         ui.send(self.window, WindowMessage::Close);
-        ui.send(self.window, WidgetMessage::Remove);
         self.log_message_receiver = None;
         self.build_result_receiver = None;
         self.kill_child_processes();
@@ -365,13 +370,13 @@ impl ExportWindow {
     }
 
     pub fn handle_ui_message(
-        &mut self,
+        mut self,
         message: &UiMessage,
         ui: &mut UserInterface,
         sender: &MessageSender,
         resource_manager: ResourceManager,
         settings: &BuildSettings,
-    ) {
+    ) -> Option<Self> {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.export {
                 self.kill_child_processes();
@@ -403,7 +408,7 @@ impl ExportWindow {
                         }),
                 );
             } else if message.destination() == self.cancel {
-                self.close_and_destroy(ui);
+                ui.send(self.window, WindowMessage::Close);
             }
         } else if let Some(ListViewMessage::Selection(selection)) =
             message.data_from(self.target_platform_list)
@@ -453,7 +458,13 @@ impl ExportWindow {
             message.data_from(self.build_targets_selector)
         {
             self.export_options.build_target = self.build_targets[*index].clone();
+        } else if let Some(WindowMessage::Close) = message.data()
+            && message.destination() == self.window
+        {
+            self.close_and_destroy(ui);
+            return None;
         }
+        Some(self)
     }
 
     pub fn sync_to_model(&self, ui: &mut UserInterface) {
@@ -511,5 +522,82 @@ impl ExportWindow {
 
             ui.send(self.export, WidgetMessage::Enabled(true));
         }
+    }
+}
+
+#[derive(Default)]
+pub struct ExportPlugin {
+    window: Option<ExportWindow>,
+    export_project: Handle<MenuItem>,
+}
+
+impl ExportPlugin {
+    pub const EXPORT_PROJECT: Uuid = uuid!("b62d49f5-f859-4acb-8d4a-15bc611bf4bf");
+
+    fn on_export_project_clicked(&mut self, editor: &mut Editor) {
+        let window = self.window.get_or_insert_with(|| {
+            let ui = editor.engine.user_interfaces.first_mut();
+            ExportWindow::new(&mut ui.build_ctx())
+        });
+        let ui = editor.engine.user_interfaces.first();
+        window.open(ui);
+        ui.send(
+            editor.docking_manager,
+            DockingManagerMessage::AddFloatingWindow(window.window),
+        );
+    }
+}
+
+impl EditorPlugin for ExportPlugin {
+    fn on_start(&mut self, editor: &mut Editor) {
+        let ui = editor.engine.user_interfaces.first_mut();
+        let ctx = &mut ui.build_ctx();
+        self.export_project = create_menu_item_shortcut(
+            "Export Project...",
+            None,
+            Self::EXPORT_PROJECT,
+            "",
+            vec![],
+            ctx,
+        );
+        ui.send(
+            editor.menu.file_menu.menu,
+            MenuItemMessage::AddItem(self.export_project),
+        );
+    }
+
+    fn is_in_preview_mode(&self, _editor: &Editor) -> bool {
+        self.window.is_some()
+    }
+
+    fn on_sync_to_model(&mut self, editor: &mut Editor) {
+        if let Some(exporter) = self.window.as_ref() {
+            exporter.sync_to_model(editor.engine.user_interfaces.first_mut());
+        }
+    }
+
+    fn on_update(&mut self, editor: &mut Editor, _loop_controller: ApplicationLoopController) {
+        let ui = editor.engine.user_interfaces.first_mut();
+        if let Some(export_window) = self.window.as_mut() {
+            export_window.update(ui);
+        }
+    }
+
+    fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
+        if let Some(MenuItemMessage::Click) = message.data()
+            && message.destination() == self.export_project
+        {
+            self.on_export_project_clicked(editor);
+        }
+
+        let ui = editor.engine.user_interfaces.first_mut();
+        let window = some_or_return!(self.window.take());
+        self.window = window.handle_ui_message(
+            message,
+            ui,
+            &editor.message_sender,
+            editor.engine.resource_manager.clone(),
+            &editor.settings.build,
+        );
     }
 }
