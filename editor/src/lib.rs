@@ -975,16 +975,6 @@ impl Editor {
         .add_column(Column::stretch())
         .build(ctx);
 
-        let exit_message_box = MessageBoxBuilder::new(
-            WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(100.0))
-                .can_close(false)
-                .can_minimize(false)
-                .open(false)
-                .with_title(WindowTitle::text("Unsaved changes")),
-        )
-        .with_buttons(MessageBoxButtons::YesNoCancel)
-        .build(ctx);
-
         let validation_message_box = MessageBoxBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(500.0))
                 .can_close(false)
@@ -1025,7 +1015,7 @@ impl Editor {
             root_grid,
             menu,
             asset_browser,
-            exit_message_box,
+            exit_message_box: Handle::NONE,
             configurator,
             log,
             command_stack_viewer,
@@ -2133,7 +2123,21 @@ impl Editor {
         if force {
             loop_controller.exit();
         } else if let Some(first_unsaved) = self.scenes.first_unsaved_scene() {
-            engine.user_interfaces.first_mut().send(
+            let ui = engine.user_interfaces.first_mut();
+
+            self.exit_message_box = MessageBoxBuilder::new(
+                WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(100.0))
+                    .can_close(false)
+                    .can_minimize(false)
+                    .can_maximize(false)
+                    .open(false)
+                    .with_remove_on_close(true)
+                    .with_title(WindowTitle::text("Unsaved changes")),
+            )
+            .with_buttons(MessageBoxButtons::YesNoCancel)
+            .build(&mut ui.build_ctx());
+
+            ui.send(
                 self.exit_message_box,
                 MessageBoxMessage::Open {
                     title: None,
