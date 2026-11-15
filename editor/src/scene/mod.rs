@@ -22,7 +22,6 @@ use crate::{
     Message, Settings,
     asset::item::AssetItem,
     audio::AudioBusSelection,
-    camera::{CameraController, PickingOptions},
     command::{Command, CommandGroup, CommandStack},
     fyrox::{
         asset::manager::ResourceManager,
@@ -98,6 +97,7 @@ use crate::{
     ui_scene::selection::UiSelection,
     world::selection::GraphSelection,
 };
+use camera::{CameraController, PickingOptions};
 use fyrox::core::{ok_or_continue, some_or_return};
 use fyrox::scene::bitmask::BitMask;
 use std::{
@@ -122,6 +122,7 @@ pub mod settings;
 
 #[macro_use]
 pub mod commands;
+pub mod camera;
 pub mod container;
 pub mod controller;
 

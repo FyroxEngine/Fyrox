@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::scene::camera::PickingOptions;
 use crate::{
     Editor, Message,
-    camera::PickingOptions,
     command::SetPropertyCommand,
     fyrox::{
         core::{

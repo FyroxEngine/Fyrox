@@ -18,7 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::camera::CameraController;
 use crate::fyrox::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
@@ -43,6 +42,7 @@ use crate::fyrox::{
     },
 };
 use crate::scene::GameScene;
+use crate::scene::camera::CameraController;
 use fyrox::scene::camera::Camera;
 use fyrox::scene::mesh::Mesh;
 use fyrox::scene::pivot::Pivot;

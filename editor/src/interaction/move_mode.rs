@@ -18,10 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::camera::PickMethod;
+use crate::scene::camera::PickMethod;
+use crate::scene::camera::{CameraController, PickingOptions};
 use crate::{
     Engine, Message,
-    camera::{CameraController, PickingOptions},
     command::{Command, CommandGroup},
     fyrox::{
         core::{

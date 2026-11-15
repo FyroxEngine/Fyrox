@@ -36,9 +36,9 @@ mod triangle;
 mod triangle2d;
 
 use super::inspector::InspectorPlugin;
+use crate::scene::camera::PickingOptions;
 use crate::{
     Editor, Message,
-    camera::PickingOptions,
     command::SetPropertyCommand,
     fyrox::{
         core::{

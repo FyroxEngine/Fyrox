@@ -31,7 +31,6 @@
 
 pub mod asset;
 pub mod audio;
-pub mod camera;
 pub mod command;
 pub mod configurator;
 pub mod highlight;
