@@ -44,6 +44,7 @@ pub mod particle;
 pub mod plugin;
 pub mod plugins;
 pub mod preview;
+pub mod save_dialog;
 pub mod scene;
 pub mod scene_viewer;
 pub mod settings;
@@ -182,13 +183,13 @@ use crate::{
 use fyrox::asset::event::ResourceEvent;
 use fyrox::asset::{Resource, collect_used_resources};
 use fyrox::core::some_or_return;
-use fyrox::core::uuid::uuid;
 use fyrox::graph::dependency::ResourceDependencyGraph;
 use fyrox::resource::model::Model;
 use fyrox_build_tools::{CommandDescriptor, build::BuildWindow};
 pub use message::Message;
 use plugins::export::ExportWindow;
 use plugins::inspector::InspectorPlugin;
+use save_dialog::SaveSceneConfirmationDialog;
 use std::cell::Cell;
 use std::{
     cell::RefCell,
@@ -370,168 +371,6 @@ pub struct StartupData {
     pub scenes: Vec<PathBuf>,
 
     pub named_objects: bool,
-}
-
-#[derive(Debug)]
-pub enum SaveSceneConfirmationDialogAction {
-    /// Do nothing.
-    None,
-    /// Opens `Load Scene` dialog.
-    OpenLoadSceneDialog,
-    /// Load specified scene.
-    LoadScene(PathBuf),
-    /// Immediately creates new scene.
-    MakeNewScene,
-    /// Closes the specified scene.
-    CloseScene(Uuid),
-}
-
-pub struct SaveSceneConfirmationDialog {
-    save_message_box: Handle<MessageBox>,
-    action: SaveSceneConfirmationDialogAction,
-    id: Uuid,
-}
-
-impl SaveSceneConfirmationDialog {
-    pub const DIALOG_ID: Uuid = uuid!("9828ff5f-c2e2-4e72-9b17-0d5192155a77");
-
-    pub fn new(ctx: &mut BuildContext) -> Self {
-        let save_message_box = MessageBoxBuilder::new(
-            WindowBuilder::new(
-                WidgetBuilder::new()
-                    .with_id(Self::DIALOG_ID)
-                    .with_width(300.0)
-                    .with_height(100.0),
-            )
-            .with_remove_on_close(true)
-            .can_close(false)
-            .can_maximize(false)
-            .can_minimize(false)
-            .open(false)
-            .with_title(WindowTitle::text("Unsaved changes")),
-        )
-        .with_buttons(MessageBoxButtons::YesNoCancel)
-        .build(ctx);
-
-        Self {
-            save_message_box,
-            action: SaveSceneConfirmationDialogAction::None,
-            id: Default::default(),
-        }
-    }
-
-    pub fn open(
-        &mut self,
-        ui: &UserInterface,
-        id: Uuid,
-        scenes: &SceneContainer,
-        action: SaveSceneConfirmationDialogAction,
-    ) {
-        self.id = id;
-        self.action = action;
-
-        if let Some(entry) = scenes.entry_by_scene_id(self.id) {
-            ui.send(
-                self.save_message_box,
-                MessageBoxMessage::Open {
-                    title: None,
-                    text: Some(format!(
-                        "There are unsaved changes in the {} scene. \
-                Do you wish to save them before continue?",
-                        entry.name(),
-                    )),
-                },
-            );
-        }
-    }
-
-    pub fn handle_ui_message(
-        mut self,
-        message: &UiMessage,
-        sender: &MessageSender,
-        scenes: &SceneContainer,
-    ) -> Option<Self> {
-        if let Some(MessageBoxMessage::Close(result)) = message.data_from(self.save_message_box) {
-            match result {
-                MessageBoxResult::No => match self.action {
-                    SaveSceneConfirmationDialogAction::None => {}
-                    SaveSceneConfirmationDialogAction::OpenLoadSceneDialog => {
-                        sender.send(Message::OpenLoadSceneDialog)
-                    }
-                    SaveSceneConfirmationDialogAction::MakeNewScene => {
-                        sender.send(Message::NewScene)
-                    }
-                    SaveSceneConfirmationDialogAction::CloseScene(scene) => {
-                        sender.send(Message::CloseScene(scene))
-                    }
-                    SaveSceneConfirmationDialogAction::LoadScene(ref path) => {
-                        sender.send(Message::LoadScene(path.clone()))
-                    }
-                },
-                MessageBoxResult::Yes => {
-                    if let Some(entry) = scenes.entry_by_scene_id(self.id) {
-                        if let Some(path) = entry.path.clone() {
-                            // If the scene was already saved into some file - save it
-                            // immediately and perform the requested action.
-                            sender.send(Message::SaveScene { id: self.id, path });
-
-                            match self.action {
-                                SaveSceneConfirmationDialogAction::None => {}
-                                SaveSceneConfirmationDialogAction::OpenLoadSceneDialog => {
-                                    sender.send(Message::OpenLoadSceneDialog)
-                                }
-                                SaveSceneConfirmationDialogAction::MakeNewScene => {
-                                    sender.send(Message::NewScene)
-                                }
-                                SaveSceneConfirmationDialogAction::CloseScene(scene) => {
-                                    sender.send(Message::CloseScene(scene))
-                                }
-                                SaveSceneConfirmationDialogAction::LoadScene(ref path) => {
-                                    sender.send(Message::LoadScene(path.clone()))
-                                }
-                            }
-
-                            self.action = SaveSceneConfirmationDialogAction::None;
-                        } else {
-                            // Otherwise, open save scene dialog and do the action after the
-                            // scene was saved.
-                            sender.send(Message::OpenSaveSceneDialog {
-                                default_file_info: entry.default_file_info(),
-                            })
-                        }
-                    }
-                }
-                _ => (),
-            }
-        } else if let Some(WindowMessage::Close) = message.data()
-            && message.destination() == self.save_message_box
-        {
-            return None;
-        }
-        Some(self)
-    }
-
-    fn handle_message(&mut self, message: &Message, sender: &MessageSender) {
-        if let Message::SaveScene { id: scene, .. } = message
-            && *scene == self.id
-        {
-            self.id = Default::default();
-
-            match std::mem::replace(&mut self.action, SaveSceneConfirmationDialogAction::None) {
-                SaveSceneConfirmationDialogAction::None => {}
-                SaveSceneConfirmationDialogAction::OpenLoadSceneDialog => {
-                    sender.send(Message::OpenLoadSceneDialog);
-                }
-                SaveSceneConfirmationDialogAction::MakeNewScene => sender.send(Message::NewScene),
-                SaveSceneConfirmationDialogAction::CloseScene(scene) => {
-                    sender.send(Message::CloseScene(scene));
-                }
-                SaveSceneConfirmationDialogAction::LoadScene(path) => {
-                    sender.send(Message::LoadScene(path))
-                }
-            }
-        }
-    }
 }
 
 pub struct UpdateLoopState(u32);
@@ -2637,8 +2476,9 @@ impl Editor {
 
                 editor_messages_processed_count += 1;
 
-                if let Some(save_scene_dialog) = self.save_scene_dialog.as_mut() {
-                    save_scene_dialog.handle_message(&message, &self.message_sender);
+                if let Some(save_scene_dialog) = self.save_scene_dialog.take() {
+                    self.save_scene_dialog =
+                        save_scene_dialog.handle_message(&message, &self.message_sender);
                 }
 
                 let entry = self.scenes.current_scene_entry_mut();
@@ -2796,10 +2636,13 @@ impl Editor {
                             default_file_info,
                         );
                     }
-                    Message::OpenSaveSceneConfirmationDialog { id, action } => {
+                    Message::OpenSaveSceneConfirmationDialog { scene_id } => {
                         let ui = self.engine.user_interfaces.first_mut();
+                        if let Some(existing) = self.save_scene_dialog.take() {
+                            existing.force_destroy(ui);
+                        }
                         let mut dialog = SaveSceneConfirmationDialog::new(&mut ui.build_ctx());
-                        dialog.open(ui, id, &self.scenes, action);
+                        dialog.open(ui, scene_id, &self.scenes);
                         self.save_scene_dialog = Some(dialog);
                     }
                     Message::ForceSync => {

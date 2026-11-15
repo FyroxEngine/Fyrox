@@ -18,9 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::world::create::EntityCreatorMode;
 use crate::{
-    SaveSceneConfirmationDialogAction,
     command::{Command, CommandGroup, CommandTrait},
     fyrox::{
         core::{
@@ -29,9 +27,10 @@ use crate::{
             reflect::prelude::*,
             uuid::Uuid,
         },
-        gui::{UiNode, inspector::PropertyChanged},
+        gui::{UiNode, UserInterface, file_browser::FileType, inspector::PropertyChanged},
         material::MaterialResource,
         scene::{
+            Scene,
             camera::Projection,
             mesh::surface::SurfaceResource,
             node::Node,
@@ -39,10 +38,8 @@ use crate::{
         },
     },
     scene::Selection,
+    world::create::EntityCreatorMode,
 };
-use fyrox::gui::UserInterface;
-use fyrox::gui::file_browser::FileType;
-use fyrox::scene::Scene;
 use std::{path::PathBuf, sync::mpsc::Sender, sync::mpsc::channel};
 
 #[derive(Debug)]
@@ -108,8 +105,7 @@ pub enum Message {
         default_file_info: (PathBuf, FileType),
     },
     OpenSaveSceneConfirmationDialog {
-        id: Uuid,
-        action: SaveSceneConfirmationDialogAction,
+        scene_id: Uuid,
     },
     SaveSelectionAsPrefab(PathBuf),
     SyncNodeHandleName {

@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::{
-    Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
+    Engine, Message, Mode, Panels,
     asset::preview::cache::IconRequest,
     fyrox::{
         asset::manager::ResourceManager,
@@ -408,10 +408,8 @@ impl FileMenu {
             } else if message.destination() == self.close_scene {
                 if let Some(entry) = entry.as_ref() {
                     if entry.need_save() {
-                        sender.send(Message::OpenSaveSceneConfirmationDialog {
-                            id: entry.id,
-                            action: SaveSceneConfirmationDialogAction::CloseScene(entry.id),
-                        });
+                        sender
+                            .send(Message::OpenSaveSceneConfirmationDialog { scene_id: entry.id });
                     } else {
                         sender.send(Message::CloseScene(entry.id));
                     }

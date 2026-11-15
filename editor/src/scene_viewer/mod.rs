@@ -19,8 +19,7 @@
 // SOFTWARE.
 
 use crate::{
-    DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
-    SceneContainer, Settings,
+    DropdownListBuilder, GameScene, Message, Mode, SceneContainer, Settings,
     fyrox::{
         core::{algebra::Vector2, color::Color, math::Rect, pool::Handle, uuid::Uuid},
         engine::Engine,
@@ -685,10 +684,8 @@ impl SceneViewer {
     fn close_scene(&self, scenes: &mut SceneContainer, uuid: &Uuid) {
         if let Some(entry) = scenes.entry_by_scene_id(*uuid) {
             if entry.need_save() {
-                self.sender.send(Message::OpenSaveSceneConfirmationDialog {
-                    id: entry.id,
-                    action: SaveSceneConfirmationDialogAction::CloseScene(entry.id),
-                });
+                self.sender
+                    .send(Message::OpenSaveSceneConfirmationDialog { scene_id: entry.id });
             } else {
                 self.sender.send(Message::CloseScene(entry.id));
             }
