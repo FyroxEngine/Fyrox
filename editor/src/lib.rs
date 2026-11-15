@@ -56,6 +56,7 @@ pub mod world;
 
 pub use fyrox;
 
+use crate::plugins::camera::CameraPlugin;
 use crate::plugins::export::ExportPlugin;
 use crate::plugins::light::LightPlugin;
 use crate::plugins::particle_system::ParticleSystemPlugin;
@@ -63,7 +64,6 @@ use crate::world::create::EntityCreator;
 use crate::{
     asset::{AssetBrowser, item::AssetItem},
     audio::{AudioPanel, preview::AudioPreviewPanel},
-    camera::panel::CameraPreviewControlPanel,
     command::{Command, CommandTrait, panel::CommandStackViewer},
     configurator::Configurator,
     fyrox::{
@@ -423,7 +423,6 @@ pub struct Editor {
     pub build_window: Option<BuildWindow>,
     pub scene_settings: SceneSettingsWindow,
     pub bbcode_panel: BBCodePanel,
-    pub camera_control_panel: CameraPreviewControlPanel,
     pub mesh_control_panel: MeshControlPanel,
     pub audio_preview_panel: AudioPreviewPanel,
     pub doc_window: DocWindow,
@@ -629,7 +628,6 @@ impl Editor {
         );
         let inspector_plugin = InspectorPlugin::new(ctx);
         let bbcode_panel = BBCodePanel::new(inspector_plugin.head, ctx);
-        let camera_control_panel = CameraPreviewControlPanel::new(scene_viewer.frame(), ctx);
         let mesh_control_panel = MeshControlPanel::new(inspector_plugin.head, ctx);
         let audio_preview_panel = AudioPreviewPanel::new(inspector_plugin.head, ctx);
         let doc_window = DocWindow::new(ctx);
@@ -736,7 +734,6 @@ impl Editor {
                                 .build(ctx)
                         }))
                         .with_floating_windows(vec![
-                            camera_control_panel.window,
                             navmesh_panel.window,
                             doc_window.window,
                             scene_settings.window,
@@ -804,7 +801,6 @@ impl Editor {
             build_window: None,
             scene_settings,
             bbcode_panel,
-            camera_control_panel,
             mesh_control_panel,
             audio_preview_panel,
             node_removal_dialog,
@@ -823,6 +819,7 @@ impl Editor {
                 .with(LightPlugin::default())
                 .with(ExportPlugin::default())
                 .with(ParticleSystemPlugin::default())
+                .with(CameraPlugin::default())
                 .with(inspector_plugin),
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread
@@ -1695,8 +1692,6 @@ impl Editor {
         let entry = self.scenes.current_scene_entry_mut();
         if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
             let engine = &mut self.engine;
-            self.camera_control_panel
-                .leave_preview_mode(game_scene, engine);
             self.audio_preview_panel
                 .leave_preview_mode(game_scene, engine);
         }
@@ -2404,12 +2399,6 @@ impl Editor {
                 let entry = self.scenes.current_scene_entry_mut();
                 self.asset_browser
                     .on_message(&mut self.engine, entry, &message, &self.plugins);
-                self.camera_control_panel.handle_message(
-                    &message,
-                    &entry.selection,
-                    entry.controller.downcast_mut::<GameScene>(),
-                    &mut self.engine,
-                );
                 self.mesh_control_panel.handle_message(
                     &message,
                     &entry.selection,

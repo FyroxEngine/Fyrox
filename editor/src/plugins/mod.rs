@@ -20,6 +20,7 @@
 
 pub mod absm;
 pub mod animation;
+pub mod camera;
 pub mod collider;
 pub mod curve_editor;
 pub mod export;

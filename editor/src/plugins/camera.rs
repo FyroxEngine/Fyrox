@@ -19,24 +19,26 @@
 // SOFTWARE.
 
 use crate::{
-    Message,
+    Editor, Message,
     fyrox::{
-        core::{algebra::Vector2, pool::Handle},
+        core::{algebra::Vector2, pool::Handle, some_or_return},
         engine::Engine,
         graph::SceneGraph,
         gui::{
             BuildContext, HorizontalAlignment, Orientation, Thickness, VerticalAlignment,
+            dock::DockingManagerMessage,
             image::{Image, ImageBuilder, ImageMessage},
             stack_panel::StackPanelBuilder,
+            texture::{TextureResource, TextureResourceExtension},
             widget::{WidgetBuilder, WidgetMessage},
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
         },
-        resource::texture::{TextureResource, TextureResourceExtension},
-        scene::camera::Camera,
+        scene::{bitmask::BitMask, camera::Camera},
     },
+    plugin::EditorPlugin,
     scene::{GameScene, Selection},
 };
-use fyrox::scene::bitmask::BitMask;
+use fyrox::gui::UserInterface;
 
 pub struct CameraPreviewControlPanel {
     pub window: Handle<Window>,
@@ -52,6 +54,8 @@ impl CameraPreviewControlPanel {
                 .with_name("CameraPanel")
                 .with_min_size(Vector2::new(180.0, 225.0)),
         )
+        .can_maximize(false)
+        .can_minimize(false)
         .with_title(WindowTitle::text("Camera Preview"))
         .with_content(
             StackPanelBuilder::new(
@@ -76,53 +80,6 @@ impl CameraPreviewControlPanel {
             window,
             scene_viewer_frame,
             preview_frame,
-        }
-    }
-
-    pub fn handle_message(
-        &mut self,
-        message: &Message,
-        editor_selection: &Selection,
-        mut game_scene: Option<&mut GameScene>,
-        engine: &mut Engine,
-    ) {
-        if let Message::SelectionChanged { .. } = message {
-            let any_camera = if let Some(game_scene) = game_scene.as_mut() {
-                let scene = &engine.scenes[game_scene.scene];
-                editor_selection.as_graph().is_some_and(|s| {
-                    s.nodes
-                        .iter()
-                        .any(|n| scene.graph.try_get_of_type::<Camera>(*n).is_ok())
-                })
-            } else {
-                false
-            };
-            if any_camera {
-                if let Some(game_scene) = game_scene.as_mut() {
-                    self.enter_preview_mode(editor_selection, game_scene, engine);
-                }
-                engine.user_interfaces.first_mut().send(
-                    self.window,
-                    WindowMessage::Open {
-                        alignment: WindowAlignment::Relative {
-                            relative_to: self.scene_viewer_frame.to_base(),
-                            horizontal_alignment: HorizontalAlignment::Right,
-                            vertical_alignment: VerticalAlignment::Top,
-                            margin: Thickness::top_right(5.0),
-                        },
-                        modal: false,
-                        focus_content: false,
-                    },
-                );
-            } else {
-                if let Some(game_scene) = game_scene.as_mut() {
-                    self.leave_preview_mode(game_scene, engine);
-                }
-                engine
-                    .user_interfaces
-                    .first_mut()
-                    .send(self.window, WindowMessage::Close);
-            }
         }
     }
 
@@ -165,7 +122,7 @@ impl CameraPreviewControlPanel {
         }
     }
 
-    pub fn leave_preview_mode(&mut self, game_scene: &mut GameScene, engine: &mut Engine) {
+    fn leave_preview_mode(&mut self, game_scene: &mut GameScene, engine: &mut Engine) {
         let node_overrides = game_scene.graph_switches.node_overrides.as_mut().unwrap();
 
         if game_scene.preview_camera.is_some() {
@@ -179,5 +136,78 @@ impl CameraPreviewControlPanel {
         // Don't keep the render target alive after the preview mode is off.
         ui.send_sync(self.preview_frame, ImageMessage::Texture(None.into()));
         ui.send_sync(self.preview_frame, WidgetMessage::Visibility(false));
+    }
+
+    fn destroy(self, ui: &UserInterface) {
+        ui.send(self.window, WidgetMessage::Remove);
+    }
+}
+
+#[derive(Default)]
+pub struct CameraPlugin {
+    panel: Option<CameraPreviewControlPanel>,
+}
+
+impl EditorPlugin for CameraPlugin {
+    fn on_leave_preview_mode(&mut self, editor: &mut Editor) {
+        let panel = some_or_return!(self.panel.as_mut());
+        let entry = editor.scenes.current_scene_entry_mut();
+        let game_scene = some_or_return!(entry.controller.downcast_mut::<GameScene>());
+        panel.leave_preview_mode(game_scene, &mut editor.engine);
+    }
+
+    fn on_message(&mut self, message: &Message, editor: &mut Editor) {
+        let entry = editor.scenes.current_scene_entry_mut();
+        let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() else {
+            if let Some(panel) = self.panel.take() {
+                panel.destroy(editor.engine.user_interfaces.first());
+            }
+            return;
+        };
+
+        let scene = &mut editor.engine.scenes[game_scene.scene];
+
+        if let Message::SelectionChanged { .. } = message {
+            let any_camera = entry.selection.as_graph().is_some_and(|s| {
+                s.nodes
+                    .iter()
+                    .any(|n| scene.graph.try_get_of_type::<Camera>(*n).is_ok())
+            });
+
+            if any_camera {
+                if self.panel.is_none() {
+                    let ui = editor.engine.user_interfaces.first_mut();
+                    let mut panel = CameraPreviewControlPanel::new(
+                        editor.scene_viewer.frame(),
+                        &mut ui.build_ctx(),
+                    );
+                    ui.send(
+                        editor.docking_manager,
+                        DockingManagerMessage::AddFloatingWindow(panel.window),
+                    );
+
+                    ui.send(
+                        panel.window,
+                        WindowMessage::Open {
+                            alignment: WindowAlignment::Relative {
+                                relative_to: panel.scene_viewer_frame.to_base(),
+                                horizontal_alignment: HorizontalAlignment::Right,
+                                vertical_alignment: VerticalAlignment::Top,
+                                margin: Thickness::top_right(5.0),
+                            },
+                            modal: false,
+                            focus_content: false,
+                        },
+                    );
+
+                    panel.enter_preview_mode(&entry.selection, game_scene, &mut editor.engine);
+
+                    self.panel = Some(panel);
+                }
+            } else if let Some(mut panel) = self.panel.take() {
+                panel.leave_preview_mode(game_scene, &mut editor.engine);
+                panel.destroy(editor.engine.user_interfaces.first())
+            }
+        }
     }
 }

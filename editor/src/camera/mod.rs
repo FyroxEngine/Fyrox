@@ -65,8 +65,6 @@ use std::{
     path::Path,
 };
 
-pub mod panel;
-
 pub const DEFAULT_Z_OFFSET: f32 = -3.0;
 
 #[derive(PartialEq, Copy, Clone)]
