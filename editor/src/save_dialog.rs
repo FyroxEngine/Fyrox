@@ -40,7 +40,6 @@ use crate::{
     message::MessageSender,
     scene::container::SceneContainer,
 };
-use fyrox::core::err;
 
 pub struct SaveSceneConfirmationDialog {
     save_message_box: Handle<MessageBox>,
@@ -96,7 +95,6 @@ impl SaveSceneConfirmationDialog {
 
     fn close_scene_and_destroy(self, sender: &MessageSender) -> Option<Self> {
         sender.send(Message::CloseScene(self.scene_id));
-        err!("destroyed!");
         None
     }
 
