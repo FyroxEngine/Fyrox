@@ -26,6 +26,7 @@ pub mod export;
 pub mod inspector;
 pub mod light;
 pub mod material;
+pub mod particle_system;
 pub mod probe;
 pub mod ragdoll;
 pub mod settings;

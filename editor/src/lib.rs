@@ -41,7 +41,6 @@ pub mod menu;
 pub mod mesh;
 pub mod message;
 pub mod overlay;
-pub mod particle;
 pub mod plugin;
 pub mod plugins;
 pub mod preview;
@@ -59,6 +58,7 @@ pub use fyrox;
 
 use crate::plugins::export::ExportPlugin;
 use crate::plugins::light::LightPlugin;
+use crate::plugins::particle_system::ParticleSystemPlugin;
 use crate::world::create::EntityCreator;
 use crate::{
     asset::{AssetBrowser, item::AssetItem},
@@ -148,7 +148,6 @@ use crate::{
     mesh::{MeshControlPanel, SurfaceDataViewer},
     message::MessageSender,
     overlay::OverlayRenderPass,
-    particle::ParticleSystemPreviewControlPanel,
     plugin::{EditorPlugin, EditorPluginsContainer},
     plugins::{
         absm::{AbsmEditor, AbsmEditorPlugin},
@@ -424,7 +423,6 @@ pub struct Editor {
     pub build_window: Option<BuildWindow>,
     pub scene_settings: SceneSettingsWindow,
     pub bbcode_panel: BBCodePanel,
-    pub particle_system_control_panel: ParticleSystemPreviewControlPanel,
     pub camera_control_panel: CameraPreviewControlPanel,
     pub mesh_control_panel: MeshControlPanel,
     pub audio_preview_panel: AudioPreviewPanel,
@@ -631,8 +629,6 @@ impl Editor {
         );
         let inspector_plugin = InspectorPlugin::new(ctx);
         let bbcode_panel = BBCodePanel::new(inspector_plugin.head, ctx);
-        let particle_system_control_panel =
-            ParticleSystemPreviewControlPanel::new(inspector_plugin.head, ctx);
         let camera_control_panel = CameraPreviewControlPanel::new(scene_viewer.frame(), ctx);
         let mesh_control_panel = MeshControlPanel::new(inspector_plugin.head, ctx);
         let audio_preview_panel = AudioPreviewPanel::new(inspector_plugin.head, ctx);
@@ -808,7 +804,6 @@ impl Editor {
             build_window: None,
             scene_settings,
             bbcode_panel,
-            particle_system_control_panel,
             camera_control_panel,
             mesh_control_panel,
             audio_preview_panel,
@@ -827,6 +822,7 @@ impl Editor {
                 .with(ReflectionProbePlugin::default())
                 .with(LightPlugin::default())
                 .with(ExportPlugin::default())
+                .with(ParticleSystemPlugin::default())
                 .with(inspector_plugin),
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread
@@ -1228,12 +1224,6 @@ impl Editor {
                 &self.message_sender,
                 &mut self.settings,
                 current_scene_entry.path.as_ref(),
-            );
-            self.particle_system_control_panel.handle_ui_message(
-                message,
-                &current_scene_entry.selection,
-                game_scene,
-                engine,
             );
             self.mesh_control_panel.handle_ui_message(
                 message,
@@ -1705,8 +1695,6 @@ impl Editor {
         let entry = self.scenes.current_scene_entry_mut();
         if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
             let engine = &mut self.engine;
-            self.particle_system_control_panel
-                .leave_preview_mode(game_scene, engine);
             self.camera_control_panel
                 .leave_preview_mode(game_scene, engine);
             self.audio_preview_panel
@@ -1737,8 +1725,7 @@ impl Editor {
             Mode::Play { .. } => false,
         };
 
-        self.particle_system_control_panel.is_in_preview_mode()
-            || self.audio_preview_panel.is_in_preview_mode()
+        self.audio_preview_panel.is_in_preview_mode()
             || is_any_plugin_in_preview_mode
             || self.scenes.current_scene_controller_ref().is_interacting()
             || stays_active
@@ -2417,12 +2404,6 @@ impl Editor {
                 let entry = self.scenes.current_scene_entry_mut();
                 self.asset_browser
                     .on_message(&mut self.engine, entry, &message, &self.plugins);
-                self.particle_system_control_panel.handle_message(
-                    &message,
-                    &entry.selection,
-                    entry.controller.downcast_mut::<GameScene>(),
-                    &mut self.engine,
-                );
                 self.camera_control_panel.handle_message(
                     &message,
                     &entry.selection,

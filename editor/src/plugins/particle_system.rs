@@ -18,31 +18,26 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox::gui::button::Button;
-use fyrox::gui::check_box::CheckBox;
-use fyrox::gui::grid::Grid;
-use fyrox::gui::numeric::NumericUpDown;
-use fyrox::gui::stack_panel::StackPanel;
-use fyrox::gui::widget::WidgetMessage;
-
-use crate::fyrox::graph::SceneGraph;
-use crate::fyrox::{
-    core::pool::Handle,
-    engine::Engine,
-    gui::{
-        BuildContext, Thickness, VerticalAlignment,
-        button::{ButtonBuilder, ButtonMessage},
-        check_box::{CheckBoxBuilder, CheckBoxMessage},
-        grid::{Column, GridBuilder, Row},
-        message::UiMessage,
-        numeric::{NumericUpDownBuilder, NumericUpDownMessage},
-        text::TextBuilder,
-        widget::WidgetBuilder,
-    },
-    scene::{node::Node, particle_system::ParticleSystem},
-};
 use crate::{
-    FIXED_TIMESTEP, Message,
+    Editor, FIXED_TIMESTEP, Message,
+    fyrox::{
+        core::{pool::Handle, some_or_return},
+        engine::Engine,
+        graph::SceneGraph,
+        gui::{
+            BuildContext, Thickness, UserInterface, VerticalAlignment,
+            button::{Button, ButtonBuilder, ButtonMessage},
+            check_box::{CheckBox, CheckBoxBuilder, CheckBoxMessage},
+            grid::{Column, Grid, GridBuilder, Row},
+            message::UiMessage,
+            numeric::{NumericUpDown, NumericUpDownBuilder, NumericUpDownMessage},
+            text::TextBuilder,
+            widget::{WidgetBuilder, WidgetMessage},
+        },
+        scene::{node::Node, particle_system::ParticleSystem},
+    },
+    plugin::EditorPlugin,
+    plugins::inspector::InspectorPlugin,
     scene::{GameScene, Selection},
 };
 
@@ -60,7 +55,7 @@ pub struct ParticleSystemPreviewControlPanel {
 }
 
 impl ParticleSystemPreviewControlPanel {
-    pub fn new(inspector_head: Handle<StackPanel>, ctx: &mut BuildContext) -> Self {
+    pub fn new(ctx: &mut BuildContext) -> Self {
         let preview;
         let play;
         let pause;
@@ -145,62 +140,56 @@ impl ParticleSystemPreviewControlPanel {
         let time;
         let set_time;
         let root_widget = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_visibility(false)
-                .with_child(grid)
-                .with_child(
-                    GridBuilder::new(
-                        WidgetBuilder::new()
-                            .on_row(1)
-                            .on_column(0)
-                            .with_child(
-                                TextBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_column(0)
-                                        .with_vertical_alignment(VerticalAlignment::Center)
-                                        .with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_text("Playback Time")
-                                .build(ctx),
+            WidgetBuilder::new().with_child(grid).with_child(
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .on_row(1)
+                        .on_column(0)
+                        .with_child(
+                            TextBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_column(0)
+                                    .with_vertical_alignment(VerticalAlignment::Center)
+                                    .with_margin(Thickness::uniform(1.0)),
                             )
-                            .with_child({
-                                time = NumericUpDownBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_column(1)
-                                        .with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_min_value(0.0f32)
-                                .with_max_value(10.0 * 60.0) // 10 Minutes
-                                .with_value(0.0f32)
-                                .build(ctx);
-                                time
-                            })
-                            .with_child({
-                                set_time = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_column(2)
-                                        .with_width(33.0)
-                                        .with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_text("Set")
-                                .build(ctx);
-                                set_time
-                            }),
-                    )
-                    .add_row(Row::stretch())
-                    .add_column(Column::auto())
-                    .add_column(Column::stretch())
-                    .add_column(Column::auto())
-                    .build(ctx),
-                ),
+                            .with_text("Playback Time")
+                            .build(ctx),
+                        )
+                        .with_child({
+                            time = NumericUpDownBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_column(1)
+                                    .with_margin(Thickness::uniform(1.0)),
+                            )
+                            .with_min_value(0.0f32)
+                            .with_max_value(10.0 * 60.0) // 10 Minutes
+                            .with_value(0.0f32)
+                            .build(ctx);
+                            time
+                        })
+                        .with_child({
+                            set_time = ButtonBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_column(2)
+                                    .with_width(33.0)
+                                    .with_margin(Thickness::uniform(1.0)),
+                            )
+                            .with_text("Set")
+                            .build(ctx);
+                            set_time
+                        }),
+                )
+                .add_row(Row::stretch())
+                .add_column(Column::auto())
+                .add_column(Column::stretch())
+                .add_column(Column::auto())
+                .build(ctx),
+            ),
         )
         .add_row(Row::stretch())
         .add_row(Row::stretch())
         .add_column(Column::stretch())
         .build(ctx);
-
-        ctx.inner()
-            .send(root_widget, WidgetMessage::link_with(inspector_head));
 
         Self {
             root_widget,
@@ -337,6 +326,64 @@ impl ParticleSystemPreviewControlPanel {
                 message.data_from(self.time)
             {
                 self.desired_playback_time = *desired_playback_time;
+            }
+        }
+    }
+
+    fn destroy(self, ui: &UserInterface) {
+        ui.send(self.root_widget, WidgetMessage::Remove)
+    }
+}
+
+#[derive(Default)]
+pub struct ParticleSystemPlugin {
+    panel: Option<ParticleSystemPreviewControlPanel>,
+}
+
+impl EditorPlugin for ParticleSystemPlugin {
+    fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
+        let entry = editor.scenes.current_scene_entry_mut();
+        let game_scene = some_or_return!(entry.controller.downcast_mut::<GameScene>());
+        let panel = some_or_return!(self.panel.as_mut());
+        panel.handle_ui_message(message, &entry.selection, game_scene, &mut editor.engine);
+    }
+
+    fn on_leave_preview_mode(&mut self, editor: &mut Editor) {
+        let panel = some_or_return!(self.panel.as_mut());
+        let entry = editor.scenes.current_scene_entry_mut();
+        let game_scene = some_or_return!(entry.controller.downcast_mut::<GameScene>());
+        panel.leave_preview_mode(game_scene, &mut editor.engine);
+    }
+
+    fn is_in_preview_mode(&self, _editor: &Editor) -> bool {
+        self.panel.as_ref().is_some_and(|p| p.is_in_preview_mode())
+    }
+
+    fn on_message(&mut self, message: &Message, editor: &mut Editor) {
+        let entry = editor.scenes.current_scene_entry_mut();
+        let game_scene = some_or_return!(entry.controller.downcast_mut::<GameScene>());
+
+        let scene = &mut editor.engine.scenes[game_scene.scene];
+
+        if let Message::SelectionChanged { .. } = message {
+            let selected_particle_system = entry.selection.as_graph().and_then(|s| {
+                s.nodes()
+                    .iter()
+                    .find(|h| scene.graph.is_or_has_field::<ParticleSystem>(**h))
+                    .cloned()
+            });
+
+            if selected_particle_system.is_some() {
+                if self.panel.is_none() {
+                    let inspector = editor.plugins.get::<InspectorPlugin>();
+                    let ui = editor.engine.user_interfaces.first_mut();
+                    let panel = ParticleSystemPreviewControlPanel::new(&mut ui.build_ctx());
+                    ui.send(panel.root_widget, WidgetMessage::link_with(inspector.head));
+                    self.panel = Some(panel);
+                }
+            } else if let Some(panel) = self.panel.take() {
+                let ui = editor.engine.user_interfaces.first();
+                panel.destroy(ui);
             }
         }
     }
