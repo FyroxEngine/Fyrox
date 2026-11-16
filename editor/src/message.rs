@@ -32,7 +32,6 @@ use crate::{
         scene::{
             Scene,
             camera::Projection,
-            mesh::surface::SurfaceResource,
             node::Node,
             tilemap::{brush::TileMapBrushResource, tileset::TileSetResource},
         },
@@ -120,10 +119,20 @@ pub enum Message {
     SaveLayout,
     LoadLayout,
     ResetLayout,
-    ViewSurfaceData(SurfaceResource),
     SyncInteractionModes,
     SetAssetBrowserCurrentDir(PathBuf),
     OpenEntityCreator(EntityCreatorMode),
+    Any(Box<dyn Any>),
+}
+
+impl Message {
+    pub fn try_cast_any<T: Any>(&self) -> Option<&T> {
+        if let Self::Any(any) = self {
+            any.downcast_ref()
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Clone, Debug, Reflect)]
@@ -156,6 +165,10 @@ impl MessageSender {
 
     pub fn send(&self, message: Message) {
         Log::verify(self.0.send(message));
+    }
+
+    pub fn send_any<T: Any>(&self, message: T) {
+        Log::verify(self.0.send(Message::Any(Box::new(message))));
     }
 
     pub fn send_command(&self, command: Command) {
