@@ -19,42 +19,39 @@
 // SOFTWARE.
 
 use crate::{
-    Message,
+    Editor, Message,
     command::{Command, CommandGroup},
     fyrox::{
-        core::pool::Handle,
-        engine::Engine,
+        core::{math::TriangleDefinition, pool::Handle, some_or_return},
+        engine::{ApplicationLoopController, Engine},
         graph::SceneGraph,
         gui::{
-            BuildContext, Thickness,
-            button::Button,
-            button::{ButtonBuilder, ButtonMessage},
+            BuildContext, Thickness, UserInterface, VerticalAlignment,
+            button::{Button, ButtonBuilder, ButtonMessage},
             grid::{Column, GridBuilder, Row},
             message::UiMessage,
             scroll_viewer::ScrollViewerBuilder,
-            stack_panel::StackPanel,
-            stack_panel::StackPanelBuilder,
+            stack_panel::{StackPanel, StackPanelBuilder},
             text::{Text, TextBuilder, TextMessage},
             utils::make_simple_tooltip,
-            widget::WidgetBuilder,
-            widget::WidgetMessage,
-            window::{Window, WindowAlignment},
-            window::{WindowBuilder, WindowMessage, WindowTitle},
+            widget::{WidgetBuilder, WidgetMessage},
+            window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
         },
-        scene::mesh::surface::SurfaceData,
         scene::{
             Scene,
             base::BaseBuilder,
             collider::{ColliderBuilder, ColliderShape, ConvexPolyhedronShape, GeometrySource},
             mesh::{
                 Mesh, MeshBuilder,
-                surface::{SurfaceBuilder, SurfaceResource},
+                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
             },
             node::Node,
             rigidbody::{RigidBody, RigidBodyBuilder, RigidBodyType},
         },
     },
     message::MessageSender,
+    plugin::EditorPlugin,
+    plugins::{inspector::InspectorPlugin, mesh::surface::SurfaceDataPropertyEditorDefinition},
     preview::PreviewPanel,
     scene::{
         GameScene, Selection,
@@ -62,8 +59,10 @@ use crate::{
     },
     world::selection::GraphSelection,
 };
-use fyrox::core::math::TriangleDefinition;
-use fyrox::gui::VerticalAlignment;
+
+mod surface;
+
+struct ViewSurfaceDataMessage(pub SurfaceResource);
 
 pub struct MeshControlPanel {
     pub root_widget: Handle<StackPanel>,
@@ -98,7 +97,7 @@ fn meshes_iter<'a>(
 }
 
 impl MeshControlPanel {
-    pub fn new(inspector_head: Handle<StackPanel>, ctx: &mut BuildContext) -> Self {
+    fn new(ctx: &mut BuildContext) -> Self {
         let create_trimesh_collider = make_button(
             "Create Trimesh Collider",
             "Creates a new trimesh collider and attaches it to the selected mesh(es)",
@@ -131,7 +130,6 @@ impl MeshControlPanel {
         );
         let root_widget = StackPanelBuilder::new(
             WidgetBuilder::new()
-                .with_visibility(false)
                 .with_child(create_trimesh_collider)
                 .with_child(create_convex_collider)
                 .with_child(create_trimesh_rigid_body)
@@ -139,9 +137,6 @@ impl MeshControlPanel {
                 .with_child(add_trimesh_collider),
         )
         .build(ctx);
-
-        ctx.inner()
-            .send(root_widget, WidgetMessage::link_with(inspector_head));
 
         Self {
             root_widget,
@@ -153,7 +148,7 @@ impl MeshControlPanel {
         }
     }
 
-    pub fn handle_ui_message(
+    fn handle_ui_message(
         &mut self,
         message: &UiMessage,
         editor_selection: &Selection,
@@ -267,31 +262,8 @@ impl MeshControlPanel {
         }
     }
 
-    pub fn handle_message(
-        &mut self,
-        message: &Message,
-        editor_selection: &Selection,
-        game_scene: Option<&mut GameScene>,
-        engine: &mut Engine,
-    ) {
-        let Message::SelectionChanged { .. } = message else {
-            return;
-        };
-
-        let any_mesh = if let Some(game_scene) = game_scene {
-            let scene = &engine.scenes[game_scene.scene];
-            editor_selection.as_graph().is_some_and(|s| {
-                s.nodes()
-                    .iter()
-                    .any(|n| scene.graph.try_get_of_type::<Mesh>(*n).is_ok())
-            })
-        } else {
-            false
-        };
-        engine
-            .user_interfaces
-            .first()
-            .send(self.root_widget, WidgetMessage::Visibility(any_mesh));
+    fn destroy(self, ui: &UserInterface) {
+        ui.send(self.root_widget, WidgetMessage::Remove);
     }
 }
 
@@ -326,7 +298,7 @@ fn surface_data_statistics(surface_data: &SurfaceData) -> Result<String, std::fm
 }
 
 impl SurfaceDataViewer {
-    pub fn new(engine: &mut Engine) -> Self {
+    fn new(engine: &mut Engine) -> Self {
         let preview_panel = PreviewPanel::new(engine, 386, 386);
 
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
@@ -351,6 +323,7 @@ impl SurfaceDataViewer {
 
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(650.0).with_height(400.0))
             .open(false)
+            .with_remove_on_close(true)
             .with_title(WindowTitle::text("Surface Data"))
             .with_content(content)
             .build(ctx);
@@ -362,7 +335,7 @@ impl SurfaceDataViewer {
         }
     }
 
-    pub fn open(&mut self, surface_data: SurfaceResource, engine: &mut Engine) {
+    fn open(&mut self, surface_data: SurfaceResource, engine: &mut Engine) {
         let guard = surface_data.data_ref();
         let ui = engine.user_interfaces.first();
         ui.send(
@@ -387,7 +360,7 @@ impl SurfaceDataViewer {
         self.preview_panel.set_model(mesh, engine);
     }
 
-    pub fn handle_ui_message(mut self, message: &UiMessage, engine: &mut Engine) -> Option<Self> {
+    fn handle_ui_message(mut self, message: &UiMessage, engine: &mut Engine) -> Option<Self> {
         self.preview_panel.handle_message(message, engine);
 
         if let Some(WindowMessage::Close) = message.data()
@@ -400,7 +373,91 @@ impl SurfaceDataViewer {
         Some(self)
     }
 
-    pub fn update(&mut self, engine: &mut Engine) {
+    fn update(&mut self, engine: &mut Engine) {
         self.preview_panel.update(engine)
+    }
+}
+
+#[derive(Default)]
+pub struct MeshPlugin {
+    panel: Option<MeshControlPanel>,
+    surface_data_viewer: Option<SurfaceDataViewer>,
+}
+
+impl MeshPlugin {
+    fn destroy_panel(&mut self, ui: &UserInterface) {
+        if let Some(panel) = self.panel.take() {
+            panel.destroy(ui);
+        }
+    }
+}
+
+impl EditorPlugin for MeshPlugin {
+    fn on_start(&mut self, editor: &mut Editor) {
+        editor
+            .property_editors
+            .insert(SurfaceDataPropertyEditorDefinition {
+                sender: editor.message_sender.clone(),
+            });
+    }
+
+    fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
+        if let Some(surface_data_viewer) = self.surface_data_viewer.take() {
+            self.surface_data_viewer =
+                surface_data_viewer.handle_ui_message(message, &mut editor.engine);
+        }
+
+        let entry = editor.scenes.current_scene_entry_mut();
+        let game_scene = some_or_return!(entry.controller.downcast_mut::<GameScene>());
+        let panel = some_or_return!(self.panel.as_mut());
+        panel.handle_ui_message(
+            message,
+            &entry.selection,
+            game_scene,
+            &mut editor.engine,
+            &editor.message_sender,
+        );
+    }
+
+    fn on_update(&mut self, editor: &mut Editor, _loop_controller: ApplicationLoopController) {
+        if let Some(surface_data_viewer) = self.surface_data_viewer.as_mut() {
+            surface_data_viewer.update(&mut editor.engine);
+        }
+    }
+
+    fn on_message(&mut self, message: &Message, editor: &mut Editor) {
+        let ui = editor.engine.user_interfaces.first_mut();
+        let entry = editor.scenes.current_scene_entry_mut();
+        let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() else {
+            self.destroy_panel(ui);
+            return;
+        };
+
+        let scene = &mut editor.engine.scenes[game_scene.scene];
+
+        if let Message::SelectionChanged { .. } = message {
+            let selected_mesh = entry.selection.as_graph().and_then(|s| {
+                s.nodes()
+                    .iter()
+                    .find(|h| scene.graph.is_or_has_field::<Mesh>(**h))
+                    .cloned()
+            });
+
+            if selected_mesh.is_some() {
+                if self.panel.is_none() {
+                    let inspector = editor.plugins.get::<InspectorPlugin>();
+
+                    let panel = MeshControlPanel::new(&mut ui.build_ctx());
+                    ui.send(panel.root_widget, WidgetMessage::link_with(inspector.head));
+                    self.panel = Some(panel);
+                }
+            } else {
+                self.destroy_panel(ui);
+            }
+        } else if let Some(data) = message.try_cast_any::<ViewSurfaceDataMessage>() {
+            let mut viewer = SurfaceDataViewer::new(&mut editor.engine);
+            viewer.open(data.0.clone(), &mut editor.engine);
+            self.surface_data_viewer = Some(viewer);
+        }
     }
 }

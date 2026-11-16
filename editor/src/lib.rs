@@ -37,7 +37,6 @@ pub mod highlight;
 pub mod interaction;
 pub mod loading_window;
 pub mod menu;
-pub mod mesh;
 pub mod message;
 pub mod overlay;
 pub mod plugin;
@@ -58,6 +57,7 @@ pub use fyrox;
 use crate::plugins::camera::CameraPlugin;
 use crate::plugins::export::ExportPlugin;
 use crate::plugins::light::LightPlugin;
+use crate::plugins::mesh::MeshPlugin;
 use crate::plugins::particle_system::ParticleSystemPlugin;
 use crate::world::create::EntityCreator;
 use crate::{
@@ -144,7 +144,6 @@ use crate::{
         terrain::TerrainInteractionMode,
     },
     menu::{Menu, MenuContext, Panels},
-    mesh::{MeshControlPanel, SurfaceDataViewer},
     message::MessageSender,
     overlay::OverlayRenderPass,
     plugin::{EditorPlugin, EditorPluginsContainer},
@@ -422,7 +421,6 @@ pub struct Editor {
     pub build_window: Option<BuildWindow>,
     pub scene_settings: SceneSettingsWindow,
     pub bbcode_panel: BBCodePanel,
-    pub mesh_control_panel: MeshControlPanel,
     pub audio_preview_panel: AudioPreviewPanel,
     pub doc_window: DocWindow,
     pub docking_manager: Handle<DockingManager>,
@@ -438,7 +436,6 @@ pub struct Editor {
     pub overlay_pass: Option<Rc<RefCell<OverlayRenderPass>>>,
     pub highlighter: Option<Rc<RefCell<HighlightRenderPass>>>,
     pub statistics_window: Option<StatisticsWindow>,
-    pub surface_data_viewer: Option<SurfaceDataViewer>,
     pub processed_ui_messages: usize,
     pub styles: FxHashMap<EditorStyle, StyleResource>,
     pub running_game_process: Option<(std::process::Child, Arc<AtomicBool>)>,
@@ -627,7 +624,6 @@ impl Editor {
         );
         let inspector_plugin = InspectorPlugin::new(ctx);
         let bbcode_panel = BBCodePanel::new(inspector_plugin.head, ctx);
-        let mesh_control_panel = MeshControlPanel::new(inspector_plugin.head, ctx);
         let audio_preview_panel = AudioPreviewPanel::new(inspector_plugin.head, ctx);
         let doc_window = DocWindow::new(ctx);
         let node_removal_dialog = NodeRemovalDialog::new(ctx);
@@ -800,7 +796,6 @@ impl Editor {
             build_window: None,
             scene_settings,
             bbcode_panel,
-            mesh_control_panel,
             audio_preview_panel,
             node_removal_dialog,
             doc_window,
@@ -819,6 +814,7 @@ impl Editor {
                 .with(ExportPlugin::default())
                 .with(ParticleSystemPlugin::default())
                 .with(CameraPlugin::default())
+                .with(MeshPlugin::default())
                 .with(inspector_plugin),
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread
@@ -832,7 +828,6 @@ impl Editor {
             overlay_pass: None,
             highlighter: None,
             statistics_window: None,
-            surface_data_viewer: None,
             processed_ui_messages: 0,
             styles,
             running_game_process: None,
@@ -1162,10 +1157,6 @@ impl Editor {
             },
         );
 
-        if let Some(surface_data_viewer) = self.surface_data_viewer.take() {
-            self.surface_data_viewer = surface_data_viewer.handle_ui_message(message, engine);
-        }
-
         let ui = engine.user_interfaces.first_mut();
         if let Some(build_window) = self.build_window.take() {
             self.build_window = build_window.handle_ui_message(message, ui, || {
@@ -1220,13 +1211,6 @@ impl Editor {
                 &self.message_sender,
                 &mut self.settings,
                 current_scene_entry.path.as_ref(),
-            );
-            self.mesh_control_panel.handle_ui_message(
-                message,
-                &current_scene_entry.selection,
-                game_scene,
-                engine,
-                &self.message_sender,
             );
             self.audio_preview_panel.handle_ui_message(
                 message,
@@ -2353,9 +2337,6 @@ impl Editor {
 
         self.asset_browser
             .update(&mut self.engine, &self.message_sender);
-        if let Some(surface_data_viewer) = self.surface_data_viewer.as_mut() {
-            surface_data_viewer.update(&mut self.engine);
-        }
 
         self.scene_viewer
             .pre_update(&self.settings, &mut self.engine);
@@ -2398,12 +2379,6 @@ impl Editor {
                 let entry = self.scenes.current_scene_entry_mut();
                 self.asset_browser
                     .on_message(&mut self.engine, entry, &message, &self.plugins);
-                self.mesh_control_panel.handle_message(
-                    &message,
-                    &entry.selection,
-                    entry.controller.downcast_mut::<GameScene>(),
-                    &mut self.engine,
-                );
                 self.audio_preview_panel.handle_message(
                     &message,
                     &entry.selection,
@@ -2570,11 +2545,6 @@ impl Editor {
                     }
                     Message::ResetLayout => {
                         self.reset_layout();
-                    }
-                    Message::ViewSurfaceData(data) => {
-                        let mut viewer = SurfaceDataViewer::new(&mut self.engine);
-                        viewer.open(data, &mut self.engine);
-                        self.surface_data_viewer = Some(viewer);
                     }
                     Message::SyncInteractionModes => {
                         self.scene_viewer.sync_interaction_modes(

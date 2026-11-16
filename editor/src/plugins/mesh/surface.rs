@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::plugins::mesh::ViewSurfaceDataMessage;
 use crate::{
     Message,
     asset::{
@@ -97,7 +98,7 @@ impl Control for SurfaceDataPropertyEditor {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination == self.view {
                 if let Some(sender) = self.sender.as_ref() {
-                    sender.send(Message::ViewSurfaceData(self.surface_resource.clone()));
+                    sender.send_any(ViewSurfaceDataMessage(self.surface_resource.clone()));
                 }
             } else if message.destination() == self.locate
                 && let Some(path) = self
@@ -240,7 +241,7 @@ impl SurfaceDataPropertyEditor {
 
         let locate = ImageButtonBuilder::default()
             .with_size(22.0)
-            .with_image(load_image!("../../../../resources/locate.png").into())
+            .with_image(load_image!("../../../resources/locate.png").into())
             .with_tooltip("Show In Asset Browser")
             .build_button(ctx);
 

@@ -171,7 +171,6 @@ use crate::{
             script::ScriptPropertyEditorDefinition,
             shader::field::ShaderSourceCodeEditorDefinition,
             spritesheet::SpriteSheetFramesContainerEditorDefinition,
-            surface::SurfaceDataPropertyEditorDefinition,
             texture::TexturePropertyEditorDefinition,
             triangle_buffer::TriangleBufferPropertyEditorDefinition,
             vertex_buffer::VertexBufferPropertyEditorDefinition,
@@ -211,7 +210,6 @@ pub mod resource;
 pub mod script;
 pub mod shader;
 pub mod spritesheet;
-pub mod surface;
 pub mod texture;
 mod triangle_buffer;
 mod vertex_buffer;
@@ -539,9 +537,6 @@ pub fn make_property_editors_container(
     container.register_inheritable_inspectable::<dim2::joint::JointMotorParams>();
     container.insert(SpriteSheetFramesContainerEditorDefinition);
 
-    container.insert(SurfaceDataPropertyEditorDefinition {
-        sender: sender.clone(),
-    });
     container.insert(InheritablePropertyEditorDefinition::<Option<SurfaceResource>>::new());
     container.register_inheritable_vec_collection::<Option<SurfaceResource>>();
     container.insert(InheritablePropertyEditorDefinition::<SurfaceResource>::new());
