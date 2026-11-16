@@ -39,6 +39,7 @@ use crate::{
     },
     utils,
 };
+use fyrox::scene::node::NodeTrait;
 
 #[derive(Debug, Default, Clone, Eq)]
 pub struct GraphSelection {
@@ -198,6 +199,16 @@ impl GraphSelection {
 
     pub fn extend(&mut self, other: &GraphSelection) {
         self.nodes.extend_from_slice(&other.nodes)
+    }
+
+    pub fn try_get_first<'a, T: NodeTrait>(&self, graph: &'a Graph) -> Option<&'a T> {
+        self.nodes()
+            .iter()
+            .find_map(move |h| graph.try_get_of_type::<T>(*h).ok())
+    }
+
+    pub fn contains_type<T: NodeTrait>(&self, graph: &Graph) -> bool {
+        self.try_get_first::<T>(graph).is_some()
     }
 
     pub fn global_rotation_position(

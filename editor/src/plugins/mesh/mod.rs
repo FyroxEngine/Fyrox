@@ -360,13 +360,21 @@ impl SurfaceDataViewer {
         self.preview_panel.set_model(mesh, engine);
     }
 
+    fn destroy(self, engine: &mut Engine) {
+        engine
+            .user_interfaces
+            .first()
+            .send(self.window, WidgetMessage::Remove);
+        self.preview_panel.destroy(engine);
+    }
+
     fn handle_ui_message(mut self, message: &UiMessage, engine: &mut Engine) -> Option<Self> {
         self.preview_panel.handle_message(message, engine);
 
         if let Some(WindowMessage::Close) = message.data()
             && message.destination() == self.window
         {
-            self.preview_panel.destroy(engine);
+            self.destroy(engine);
             return None;
         }
 
@@ -388,6 +396,12 @@ impl MeshPlugin {
     fn destroy_panel(&mut self, ui: &UserInterface) {
         if let Some(panel) = self.panel.take() {
             panel.destroy(ui);
+        }
+    }
+
+    fn destroy_surface_viewer(&mut self, engine: &mut Engine) {
+        if let Some(surface_data_viewer) = self.surface_data_viewer.take() {
+            surface_data_viewer.destroy(engine)
         }
     }
 }
@@ -430,23 +444,20 @@ impl EditorPlugin for MeshPlugin {
         let entry = editor.scenes.current_scene_entry_mut();
         let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() else {
             self.destroy_panel(ui);
+            self.destroy_surface_viewer(&mut editor.engine);
             return;
         };
 
         let scene = &mut editor.engine.scenes[game_scene.scene];
 
         if let Message::SelectionChanged { .. } = message {
-            let selected_mesh = entry.selection.as_graph().and_then(|s| {
-                s.nodes()
-                    .iter()
-                    .find(|h| scene.graph.is_or_has_field::<Mesh>(**h))
-                    .cloned()
-            });
-
-            if selected_mesh.is_some() {
+            let is_mesh_selected = entry
+                .selection
+                .as_graph()
+                .is_some_and(|s| s.contains_type::<Mesh>(&scene.graph));
+            if is_mesh_selected {
                 if self.panel.is_none() {
                     let inspector = editor.plugins.get::<InspectorPlugin>();
-
                     let panel = MeshControlPanel::new(&mut ui.build_ctx());
                     ui.send(panel.root_widget, WidgetMessage::link_with(inspector.head));
                     self.panel = Some(panel);

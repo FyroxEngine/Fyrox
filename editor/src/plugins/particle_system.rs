@@ -340,6 +340,14 @@ pub struct ParticleSystemPlugin {
     panel: Option<ParticleSystemPreviewControlPanel>,
 }
 
+impl ParticleSystemPlugin {
+    fn destroy_panel(&mut self, ui: &UserInterface) {
+        if let Some(panel) = self.panel.take() {
+            panel.destroy(ui);
+        }
+    }
+}
+
 impl EditorPlugin for ParticleSystemPlugin {
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
         let entry = editor.scenes.current_scene_entry_mut();
@@ -360,30 +368,29 @@ impl EditorPlugin for ParticleSystemPlugin {
     }
 
     fn on_message(&mut self, message: &Message, editor: &mut Editor) {
+        let ui = editor.engine.user_interfaces.first_mut();
         let entry = editor.scenes.current_scene_entry_mut();
-        let game_scene = some_or_return!(entry.controller.downcast_mut::<GameScene>());
+        let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() else {
+            self.destroy_panel(ui);
+            return;
+        };
 
         let scene = &mut editor.engine.scenes[game_scene.scene];
 
         if let Message::SelectionChanged { .. } = message {
-            let selected_particle_system = entry.selection.as_graph().and_then(|s| {
-                s.nodes()
-                    .iter()
-                    .find(|h| scene.graph.is_or_has_field::<ParticleSystem>(**h))
-                    .cloned()
-            });
-
-            if selected_particle_system.is_some() {
+            let is_particle_system_selected = entry
+                .selection
+                .as_graph()
+                .is_some_and(|s| s.contains_type::<ParticleSystem>(&scene.graph));
+            if is_particle_system_selected {
                 if self.panel.is_none() {
                     let inspector = editor.plugins.get::<InspectorPlugin>();
-                    let ui = editor.engine.user_interfaces.first_mut();
                     let panel = ParticleSystemPreviewControlPanel::new(&mut ui.build_ctx());
                     ui.send(panel.root_widget, WidgetMessage::link_with(inspector.head));
                     self.panel = Some(panel);
                 }
-            } else if let Some(panel) = self.panel.take() {
-                let ui = editor.engine.user_interfaces.first();
-                panel.destroy(ui);
+            } else {
+                self.destroy_panel(ui);
             }
         }
     }
