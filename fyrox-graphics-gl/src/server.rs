@@ -624,7 +624,7 @@ impl GlGraphicsServer {
             let debug = true;
 
             #[cfg(not(debug_assertions))]
-            let debug = true;
+            let debug = false;
 
             let gl3_3_core_context_attributes = ContextAttributesBuilder::new()
                 .with_debug(debug)
