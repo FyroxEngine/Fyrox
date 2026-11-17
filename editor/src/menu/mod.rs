@@ -42,6 +42,7 @@ use crate::{
     settings::Settings,
     stats::StatisticsWindow,
 };
+use fyrox::gui::clipboard::ClipboardContainer;
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 
@@ -81,6 +82,7 @@ pub struct MenuContext<'a, 'b> {
     pub panels: Panels<'b>,
     pub settings: &'b mut Settings,
     pub icon_request_sender: Sender<IconRequest>,
+    pub clipboard: &'b mut ClipboardContainer,
 }
 
 pub fn create_root_menu_item(
@@ -216,6 +218,7 @@ impl Menu {
             &entry.selection,
             &mut *entry.controller,
             ctx.engine,
+            ctx.clipboard,
         );
 
         self.utils_menu.handle_ui_message(

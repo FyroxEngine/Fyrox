@@ -25,15 +25,14 @@ use crate::fyrox::{
     graph::{NodeWrapper, SceneGraph},
     scene::{Scene, graph::SubGraph, node::Node},
 };
+use crate::scene::clipboard::GameSceneClipboardPayload;
 use crate::{
     Message,
     command::{CommandContext, CommandTrait},
     message::MessageSender,
-    scene::{
-        GraphSelection, Selection,
-        clipboard::{Clipboard, DeepCloneResult},
-    },
+    scene::{GraphSelection, Selection, clipboard::DeepCloneResult},
 };
+use fyrox::gui::clipboard::ClipboardContainer;
 use std::sync::Arc;
 
 pub mod effect;
@@ -55,7 +54,7 @@ pub struct GameSceneContext {
     pub scene: &'static mut Scene,
     #[reflect(hidden)]
     pub scene_content_root: &'static mut Handle<Node>,
-    pub clipboard: &'static mut Clipboard,
+    pub clipboard: &'static mut ClipboardContainer,
     pub message_sender: MessageSender,
     pub resource_manager: ResourceManager,
     #[reflect(hidden)]
@@ -67,7 +66,7 @@ impl GameSceneContext {
         selection: &'a mut Selection,
         scene: &'a mut Scene,
         scene_content_root: &'a mut Handle<Node>,
-        clipboard: &'a mut Clipboard,
+        clipboard: &'a mut ClipboardContainer,
         message_sender: MessageSender,
         resource_manager: ResourceManager,
         serialization_context: Arc<SerializationContext>,
@@ -179,20 +178,22 @@ impl CommandTrait for PasteCommand {
         let context = context.get_mut::<GameSceneContext>();
         match std::mem::replace(&mut self.state, PasteCommandState::Undefined) {
             PasteCommandState::NonExecuted => {
-                let paste_result = context.clipboard.paste(&mut context.scene.graph);
+                if let Some(data) = context.clipboard.content_ref::<GameSceneClipboardPayload>() {
+                    let paste_result = data.paste(&mut context.scene.graph);
 
-                for &handle in paste_result.root_nodes.iter() {
-                    context.scene.graph.link_nodes(handle, self.parent);
+                    for &handle in paste_result.root_nodes.iter() {
+                        context.scene.graph.link_nodes(handle, self.parent);
+                    }
+
+                    let mut selection =
+                        Selection::new(GraphSelection::from_list(paste_result.root_nodes.clone()));
+                    std::mem::swap(context.selection, &mut selection);
+
+                    self.state = PasteCommandState::Executed {
+                        paste_result,
+                        last_selection: selection,
+                    };
                 }
-
-                let mut selection =
-                    Selection::new(GraphSelection::from_list(paste_result.root_nodes.clone()));
-                std::mem::swap(context.selection, &mut selection);
-
-                self.state = PasteCommandState::Executed {
-                    paste_result,
-                    last_selection: selection,
-                };
             }
             PasteCommandState::Reverted {
                 subgraphs,

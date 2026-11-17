@@ -40,12 +40,14 @@ use crate::{
             math::Rect,
             pool::{ErasedHandle, Handle},
         },
+        core::{ok_or_continue, some_or_return},
         engine::{Engine, GraphicsContext},
         fxhash::FxHashSet,
         graph::SceneGraph,
         gui::{
             UiNode, UiUpdateSwitches, UserInterface, UserInterfaceResourceExtension,
             brush::Brush,
+            clipboard::ClipboardContainer,
             draw::{CommandTexture, Draw},
             file_browser::FileType,
             message::{KeyCode, MessageDirection, MouseButton, UiMessage},
@@ -64,13 +66,12 @@ use crate::{
     },
     settings::{Settings, keys::KeyBindings},
     ui_scene::{
-        clipboard::Clipboard,
-        commands::{UiSceneContext, graph::AddUiPrefabCommand},
+        clipboard::UiSceneClipboardPayload,
+        commands::{UiSceneContext, graph::AddUiPrefabCommand, graph::PasteWidgetCommand},
         selection::UiSelection,
         utils::make_widget_name,
     },
 };
-use fyrox::core::{ok_or_continue, some_or_return};
 use std::{fs::File, io::Write, path::Path};
 
 pub struct PreviewInstance {
@@ -82,7 +83,6 @@ pub struct UiScene {
     pub ui: UserInterface,
     pub render_target: TextureResource,
     pub message_sender: MessageSender,
-    pub clipboard: Clipboard,
     pub preview_instance: Option<PreviewInstance>,
     pub ui_update_switches: UiUpdateSwitches,
 }
@@ -93,7 +93,6 @@ impl UiScene {
             ui,
             render_target: TextureResource::new_render_target(200, 200),
             message_sender,
-            clipboard: Default::default(),
             preview_instance: None,
             ui_update_switches: UiUpdateSwitches {
                 // Disable update for everything.
@@ -306,12 +305,13 @@ impl SceneController for UiScene {
         command: Command,
         selection: &mut Selection,
         _engine: &mut Engine,
+        clipboard: &mut ClipboardContainer,
     ) {
         UiSceneContext::exec(
             &mut self.ui,
             selection,
             self.message_sender.clone(),
-            &mut self.clipboard,
+            clipboard,
             |ctx| {
                 command_stack.do_command(command, ctx);
             },
@@ -325,12 +325,13 @@ impl SceneController for UiScene {
         command_stack: &mut CommandStack,
         selection: &mut Selection,
         _engine: &mut Engine,
+        clipboard: &mut ClipboardContainer,
     ) {
         UiSceneContext::exec(
             &mut self.ui,
             selection,
             self.message_sender.clone(),
-            &mut self.clipboard,
+            clipboard,
             |ctx| command_stack.undo(ctx),
         );
 
@@ -342,12 +343,13 @@ impl SceneController for UiScene {
         command_stack: &mut CommandStack,
         selection: &mut Selection,
         _engine: &mut Engine,
+        clipboard: &mut ClipboardContainer,
     ) {
         UiSceneContext::exec(
             &mut self.ui,
             selection,
             self.message_sender.clone(),
-            &mut self.clipboard,
+            clipboard,
             |ctx| command_stack.redo(ctx),
         );
 
@@ -359,12 +361,13 @@ impl SceneController for UiScene {
         command_stack: &mut CommandStack,
         selection: &mut Selection,
         _scenes: &mut SceneContainer,
+        clipboard: &mut ClipboardContainer,
     ) {
         UiSceneContext::exec(
             &mut self.ui,
             selection,
             self.message_sender.clone(),
-            &mut self.clipboard,
+            clipboard,
             |ctx| command_stack.clear(ctx),
         );
 
@@ -445,12 +448,13 @@ impl SceneController for UiScene {
         command_stack: &mut CommandStack,
         _engine: &mut Engine,
         selection: &mut Selection,
+        clipboard: &mut ClipboardContainer,
     ) {
         UiSceneContext::exec(
             &mut self.ui,
             selection,
             self.message_sender.clone(),
-            &mut self.clipboard,
+            clipboard,
             |ctx| command_stack.clear(ctx),
         );
     }
@@ -497,6 +501,7 @@ impl SceneController for UiScene {
         command_stack: &mut CommandStack,
         selection: &mut Selection,
         _engine: &mut Engine,
+        clipboard: &mut ClipboardContainer,
     ) -> Vec<String> {
         command_stack
             .commands
@@ -507,7 +512,7 @@ impl SceneController for UiScene {
                     &mut self.ui,
                     selection,
                     self.message_sender.clone(),
-                    &mut self.clipboard,
+                    clipboard,
                     |ctx| {
                         name = c.name(ctx);
                     },
@@ -525,5 +530,43 @@ impl SceneController for UiScene {
         editor_selection
             .as_ui()
             .and_then(|s| self.ui.external_refs_summary(&s.widgets))
+    }
+
+    fn copy_selection_to_clipboard(
+        &self,
+        editor_selection: &Selection,
+        clipboard: &mut ClipboardContainer,
+        _engine: &Engine,
+    ) {
+        if let Some(ui_selection) = editor_selection.as_ui() {
+            let mut data = UiSceneClipboardPayload::default();
+            data.fill_from_selection(ui_selection, &self.ui);
+            clipboard.set_content(data);
+        }
+    }
+
+    fn paste_from_clipboard(
+        &self,
+        sender: &MessageSender,
+        editor_selection: &Selection,
+        clipboard: &mut ClipboardContainer,
+    ) {
+        if let Some(ui_selection) = editor_selection.as_ui()
+            && let Some(data) = clipboard.content_ref::<UiSceneClipboardPayload>()
+            && !data.is_empty()
+        {
+            let parent = ui_selection
+                .widgets
+                .first()
+                .cloned()
+                .unwrap_or(self.ui.root());
+            sender.do_command(PasteWidgetCommand::new(parent));
+        }
+    }
+
+    fn can_be_pasted(&self, clipboard: &ClipboardContainer) -> bool {
+        clipboard
+            .content_ref::<UiSceneClipboardPayload>()
+            .is_some_and(|data| !data.is_empty())
     }
 }

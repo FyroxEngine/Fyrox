@@ -22,6 +22,7 @@
 //! structure or enumeration recursively. It's primary usage is provide unified and simple way of introspection.
 //! See [`Inspector`] docs for more info and usage examples.
 
+use crate::clipboard::ClipboardContainer;
 use crate::{
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
     border::BorderBuilder,
@@ -827,7 +828,7 @@ impl Inspector {
         message: &UiMessage,
         ui: &mut UserInterface,
         object: &mut dyn Reflect,
-        clipboard_value: &mut Option<Box<dyn Reflect>>,
+        clipboard: &mut ClipboardContainer,
     ) {
         if let Some(inspector_message) = message.data::<InspectorMessage>()
             && ui.has_descendant_or_equal(message.destination(), inspector)
@@ -837,7 +838,7 @@ impl Inspector {
                 inspector_message,
                 ui,
                 object,
-                clipboard_value,
+                clipboard,
             );
         }
     }
@@ -847,7 +848,7 @@ impl Inspector {
         msg: &InspectorMessage,
         ui: &mut UserInterface,
         object: &mut dyn Reflect,
-        clipboard_value: &mut Option<Box<dyn Reflect>>,
+        clipboard: &mut ClipboardContainer,
     ) {
         let object_type_name = object.type_info_ref().type_name;
 
@@ -860,8 +861,8 @@ impl Inspector {
                     if let Ok(field) = result {
                         can_clone = field.try_clone_box().is_some();
 
-                        if let Some(clipboard_value) = clipboard_value {
-                            can_paste = field.type_id() == (**clipboard_value).type_id();
+                        if let Some(clipboard_value) = clipboard.content_ref_raw() {
+                            can_paste = field.type_id() == clipboard_value.type_id();
                         }
                     }
                 });
@@ -878,7 +879,7 @@ impl Inspector {
                 object.resolve_path(path, &mut |field| {
                     if let Ok(field) = field {
                         if let Some(field) = field.try_clone_box() {
-                            clipboard_value.replace(field);
+                            clipboard.set_content_raw(field);
                         } else {
                             err!(
                                 "Unable to clone the field {}, because it is non-cloneable! \
@@ -899,7 +900,7 @@ impl Inspector {
             InspectorMessage::PasteValue { dest } => {
                 let mut pasted = false;
 
-                if let Some(value) = clipboard_value.as_ref() {
+                if let Some(value) = clipboard.content_ref_raw() {
                     if let Some(value) = value.try_clone_box() {
                         let mut value = Some(value);
                         object.resolve_path_mut(dest, &mut |field| {

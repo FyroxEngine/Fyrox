@@ -26,7 +26,7 @@ use crate::fyrox::{
     core::pool::Handle,
     gui::{SubGraph, UiNode, UserInterface},
 };
-use crate::ui_scene::clipboard::DeepCloneResult;
+use crate::ui_scene::clipboard::{DeepCloneResult, UiSceneClipboardPayload};
 use crate::{
     Message,
     scene::Selection,
@@ -230,21 +230,23 @@ impl CommandTrait for PasteWidgetCommand {
 
         match std::mem::replace(&mut self.state, PasteWidgetCommandState::Undefined) {
             PasteWidgetCommandState::NonExecuted => {
-                let paste_result = ctx.clipboard.paste(ctx.ui);
+                if let Some(data) = ctx.clipboard.content_ref::<UiSceneClipboardPayload>() {
+                    let paste_result = data.paste(ctx.ui);
 
-                for &handle in paste_result.root_nodes.iter() {
-                    ctx.ui.link_nodes(handle, self.parent, false);
+                    for &handle in paste_result.root_nodes.iter() {
+                        ctx.ui.link_nodes(handle, self.parent, false);
+                    }
+
+                    let mut selection = Selection::new(UiSelection {
+                        widgets: paste_result.root_nodes.clone(),
+                    });
+                    std::mem::swap(ctx.selection, &mut selection);
+
+                    self.state = PasteWidgetCommandState::Executed {
+                        paste_result,
+                        last_selection: selection,
+                    };
                 }
-
-                let mut selection = Selection::new(UiSelection {
-                    widgets: paste_result.root_nodes.clone(),
-                });
-                std::mem::swap(ctx.selection, &mut selection);
-
-                self.state = PasteWidgetCommandState::Executed {
-                    paste_result,
-                    last_selection: selection,
-                };
             }
             PasteWidgetCommandState::Reverted {
                 subgraphs,

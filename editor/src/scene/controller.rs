@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::message::MessageSender;
 use crate::{
     Message,
     command::{Command, CommandStack},
@@ -35,6 +36,7 @@ use crate::{
     scene::Selection,
     settings::{Settings, keys::KeyBindings},
 };
+use fyrox::gui::clipboard::ClipboardContainer;
 use std::path::Path;
 
 define_as_any_trait!(SceneControllerAsAny => SceneController);
@@ -113,6 +115,7 @@ pub trait SceneController: SceneControllerAsAny {
         command: Command,
         selection: &mut Selection,
         engine: &mut Engine,
+        clipboard: &mut ClipboardContainer,
     );
 
     fn undo(
@@ -120,6 +123,7 @@ pub trait SceneController: SceneControllerAsAny {
         command_stack: &mut CommandStack,
         selection: &mut Selection,
         engine: &mut Engine,
+        clipboard: &mut ClipboardContainer,
     );
 
     fn redo(
@@ -127,6 +131,7 @@ pub trait SceneController: SceneControllerAsAny {
         command_stack: &mut CommandStack,
         selection: &mut Selection,
         engine: &mut Engine,
+        clipboard: &mut ClipboardContainer,
     );
 
     fn clear_command_stack(
@@ -134,6 +139,7 @@ pub trait SceneController: SceneControllerAsAny {
         command_stack: &mut CommandStack,
         selection: &mut Selection,
         scenes: &mut SceneContainer,
+        clipboard: &mut ClipboardContainer,
     );
 
     fn on_before_render(&mut self, editor_selection: &Selection, engine: &mut Engine);
@@ -157,6 +163,7 @@ pub trait SceneController: SceneControllerAsAny {
         command_stack: &mut CommandStack,
         engine: &mut Engine,
         selection: &mut Selection,
+        clipboard: &mut ClipboardContainer,
     );
 
     fn on_message(&mut self, message: &Message, selection: &Selection, engine: &mut Engine)
@@ -167,6 +174,7 @@ pub trait SceneController: SceneControllerAsAny {
         command_stack: &mut CommandStack,
         selection: &mut Selection,
         engine: &mut Engine,
+        clipboard: &mut ClipboardContainer,
     ) -> Vec<String>;
 
     /// Checks whether the current selection has references to the nodes outside of the selection.
@@ -175,6 +183,22 @@ pub trait SceneController: SceneControllerAsAny {
         editor_selection: &Selection,
         engine: &Engine,
     ) -> Option<String>;
+
+    fn copy_selection_to_clipboard(
+        &self,
+        editor_selection: &Selection,
+        clipboard: &mut ClipboardContainer,
+        engine: &Engine,
+    );
+
+    fn paste_from_clipboard(
+        &self,
+        sender: &MessageSender,
+        editor_selection: &Selection,
+        clipboard: &mut ClipboardContainer,
+    );
+
+    fn can_be_pasted(&self, clipboard: &ClipboardContainer) -> bool;
 }
 
 impl dyn SceneController {

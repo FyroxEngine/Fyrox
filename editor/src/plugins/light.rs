@@ -52,6 +52,7 @@ use crate::{
     plugin::EditorPlugin,
     scene::GameScene,
 };
+use fyrox::gui::clipboard::ClipboardContainer;
 use std::{
     path::PathBuf,
     sync::{
@@ -226,7 +227,6 @@ pub struct LightPanel {
     progress_window: Option<ProgressWindow>,
     sender: Sender<Result<Lightmap, LightmapGenerationError>>,
     receiver: Receiver<Result<Lightmap, LightmapGenerationError>>,
-    clipboard: Option<Box<dyn Reflect>>,
     clear_lightmap: Handle<Button>,
 }
 
@@ -329,7 +329,6 @@ impl LightPanel {
             progress_window: None,
             sender,
             receiver,
-            clipboard: None,
             clear_lightmap,
         }
     }
@@ -350,13 +349,14 @@ impl LightPanel {
         message: &UiMessage,
         game_scene: &GameScene,
         engine: &mut Engine,
+        clipboard: &mut ClipboardContainer,
     ) -> Option<Self> {
         Inspector::handle_context_menu_message(
             self.inspector,
             message,
             engine.user_interfaces.first_mut(),
             &mut self.settings,
-            &mut self.clipboard,
+            clipboard,
         );
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
@@ -540,7 +540,12 @@ impl EditorPlugin for LightPlugin {
             .controller
             .downcast_mut::<GameScene>()
         {
-            self.window = window.handle_ui_message(message, game_scene, &mut editor.engine);
+            self.window = window.handle_ui_message(
+                message,
+                game_scene,
+                &mut editor.engine,
+                &mut editor.clipboard,
+            );
         }
     }
 }

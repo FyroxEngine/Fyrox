@@ -28,17 +28,18 @@ use crate::{
 };
 use std::collections::HashMap;
 
-#[derive(Debug)]
-pub struct Clipboard {
+#[derive(Debug, Clone, Reflect, PartialEq)]
+#[reflect(type_uuid = "00284909-7672-4e5a-9fd8-566f80a4bbd1")]
+pub struct UiSceneClipboardPayload {
     ui: UserInterface,
     empty: bool,
 }
 
-impl Reflect for &'static mut Clipboard {
+impl Reflect for &'static mut UiSceneClipboardPayload {
     blank_reflect_ref!("5c62193c-3be8-48f3-ac0d-d278e8ac3925");
 }
 
-impl Default for Clipboard {
+impl Default for UiSceneClipboardPayload {
     fn default() -> Self {
         Self {
             ui: UserInterface::new(Default::default()),
@@ -77,7 +78,7 @@ fn deep_clone_nodes(
     result
 }
 
-impl Clipboard {
+impl UiSceneClipboardPayload {
     pub fn fill_from_selection(&mut self, selection: &UiSelection, ui: &UserInterface) {
         self.clear();
 
@@ -88,7 +89,7 @@ impl Clipboard {
         self.empty = false;
     }
 
-    pub fn paste(&mut self, dest_ui: &mut UserInterface) -> DeepCloneResult {
+    pub fn paste(&self, dest_ui: &mut UserInterface) -> DeepCloneResult {
         assert!(!self.empty);
 
         deep_clone_nodes(self.ui.node(self.ui.root()).children(), &self.ui, dest_ui)

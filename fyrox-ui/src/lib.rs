@@ -237,6 +237,7 @@ mod build;
 pub mod button;
 pub mod canvas;
 pub mod check_box;
+pub mod clipboard;
 pub mod color;
 mod control;
 pub mod curve;

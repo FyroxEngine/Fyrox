@@ -22,13 +22,11 @@ pub mod graph;
 pub mod widget;
 
 use crate::fyrox::{core::reflect::prelude::*, gui::UserInterface};
-use crate::{
-    command::CommandContext, message::MessageSender, scene::Selection,
-    ui_scene::clipboard::Clipboard,
-};
+use crate::{command::CommandContext, message::MessageSender, scene::Selection};
 use fyrox::core::pool::Handle;
 use fyrox::graph::NodeWrapper;
 use fyrox::gui::UiNode;
+use fyrox::gui::clipboard::ClipboardContainer;
 
 #[derive(Reflect, Debug)]
 #[reflect(non_cloneable)]
@@ -37,7 +35,7 @@ pub struct UiSceneContext {
     pub ui: &'static mut UserInterface,
     pub selection: &'static mut Selection,
     pub message_sender: MessageSender,
-    pub clipboard: &'static mut Clipboard,
+    pub clipboard: &'static mut ClipboardContainer,
 }
 
 impl PartialEq for UiSceneContext {
@@ -54,7 +52,7 @@ impl UiSceneContext {
         ui: &'a mut UserInterface,
         selection: &'a mut Selection,
         message_sender: MessageSender,
-        clipboard: &'a mut Clipboard,
+        clipboard: &'a mut ClipboardContainer,
         func: F,
     ) where
         F: FnOnce(&mut UiSceneContext),

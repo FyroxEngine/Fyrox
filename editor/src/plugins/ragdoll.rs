@@ -68,6 +68,7 @@ use crate::{
     world::selection::GraphSelection,
 };
 use fyrox::gui::button::Button;
+use fyrox::gui::clipboard::ClipboardContainer;
 use fyrox::gui::menu::MenuItem;
 use fyrox::gui::window::Window;
 use fyrox::scene::joint::Joint;
@@ -1017,7 +1018,6 @@ pub struct RagdollWizard {
     ok: Handle<Button>,
     cancel: Handle<Button>,
     autofill: Handle<Button>,
-    clipboard: Option<Box<dyn Reflect>>,
 }
 
 impl RagdollWizard {
@@ -1130,7 +1130,6 @@ impl RagdollWizard {
             ok,
             cancel,
             autofill,
-            clipboard: None,
         }
     }
 
@@ -1152,13 +1151,14 @@ impl RagdollWizard {
         graph: &mut Graph,
         game_scene: &GameScene,
         sender: &MessageSender,
+        clipboard: &mut ClipboardContainer,
     ) {
         Inspector::handle_context_menu_message(
             self.inspector,
             message,
             ui,
             &mut self.preset,
-            &mut self.clipboard,
+            clipboard,
         );
 
         if let Some(InspectorMessage::PropertyChanged(args)) = message.data_from(self.inspector) {
@@ -1274,6 +1274,13 @@ impl EditorPlugin for RagdollPlugin {
         let current_scene = editor.scenes.current_scene_entry_mut();
         let game_scene = some_or_return!(current_scene.controller.downcast_mut::<GameScene>());
         let graph = &mut editor.engine.scenes[game_scene.scene].graph;
-        wizard.handle_ui_message(message, ui, graph, game_scene, &editor.message_sender);
+        wizard.handle_ui_message(
+            message,
+            ui,
+            graph,
+            game_scene,
+            &editor.message_sender,
+            &mut editor.clipboard,
+        );
     }
 }

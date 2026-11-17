@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::ui_scene::clipboard::UiSceneClipboardPayload;
 use crate::{
     Engine, Message,
     fyrox::{
@@ -48,6 +49,7 @@ use crate::{
     utils,
     world::{WorldViewerItemContextMenu, create::EntityCreatorMode},
 };
+use fyrox::gui::clipboard::ClipboardContainer;
 use std::path::PathBuf;
 
 pub struct WidgetContextMenu {
@@ -179,14 +181,15 @@ impl WidgetContextMenu {
         editor_selection: &Selection,
         ui_scene: &mut UiScene,
         sender: &MessageSender,
+        clipboard: &mut ClipboardContainer,
     ) {
         let ui_selection = some_or_return!(editor_selection.as_ui());
         let root_widgets = ui_scene.ui.root_nodes(&ui_selection.widgets);
         let first_root = some_or_return!(root_widgets.first().cloned());
         let parent = ok_or_return!(ui_scene.ui.try_get(first_root).map(|r| r.parent()));
-        ui_scene
-            .clipboard
-            .fill_from_selection(ui_selection, &ui_scene.ui);
+        let mut data = UiSceneClipboardPayload::default();
+        data.fill_from_selection(ui_selection, &ui_scene.ui);
+        clipboard.set_content(data);
         sender.do_command(PasteWidgetCommand::new(parent));
     }
 
@@ -199,28 +202,6 @@ impl WidgetContextMenu {
     ) {
         if let Some(command) = editor_selection.make_delete_selection_command(controller, engine) {
             sender.send(Message::DoCommand(command));
-        }
-    }
-
-    fn on_copy_selection_clicked(&self, editor_selection: &Selection, ui_scene: &mut UiScene) {
-        if let Some(ui_selection) = editor_selection.as_ui() {
-            ui_scene
-                .clipboard
-                .fill_from_selection(ui_selection, &ui_scene.ui);
-        }
-    }
-
-    fn on_paste_clicked(
-        &self,
-        editor_selection: &Selection,
-        ui_scene: &mut UiScene,
-        sender: &MessageSender,
-    ) {
-        if let Some(ui_selection) = editor_selection.as_ui()
-            && let Some(first) = ui_selection.widgets.first()
-            && !ui_scene.clipboard.is_empty()
-        {
-            sender.do_command(PasteWidgetCommand::new(*first));
         }
     }
 
@@ -272,15 +253,18 @@ impl WidgetContextMenu {
         &mut self,
         target: Handle<UiNode>,
         engine: &mut Engine,
-        ui_scene: &mut UiScene,
+        clipboard: &ClipboardContainer,
     ) {
         self.placement_target = target;
 
         // Check if there's something to paste and deactivate "Paste" if nothing.
-        engine.user_interfaces.first_mut().send(
-            self.paste,
-            WidgetMessage::Enabled(!ui_scene.clipboard.is_empty()),
-        );
+        let can_paste = clipboard
+            .content_ref::<UiSceneClipboardPayload>()
+            .is_some_and(|data| !data.is_empty());
+        engine
+            .user_interfaces
+            .first_mut()
+            .send(self.paste, WidgetMessage::Enabled(can_paste));
     }
 
     pub fn handle_ui_message(
@@ -290,16 +274,17 @@ impl WidgetContextMenu {
         controller: &mut dyn SceneController,
         engine: &mut Engine,
         sender: &MessageSender,
+        clipboard: &mut ClipboardContainer,
     ) {
         let ui_scene = some_or_return!(controller.downcast_mut::<UiScene>());
         if let Some(MenuItemMessage::Click) = message.data_from(self.delete_selection) {
             self.on_delete_selection_clicked(editor_selection, controller, engine, sender);
         } else if let Some(MenuItemMessage::Click) = message.data_from(self.copy_selection) {
-            self.on_copy_selection_clicked(editor_selection, ui_scene);
+            controller.copy_selection_to_clipboard(editor_selection, clipboard, engine);
         } else if let Some(MenuItemMessage::Click) = message.data_from(self.duplicate_selection) {
-            self.on_duplicate_clicked(editor_selection, ui_scene, sender);
+            self.on_duplicate_clicked(editor_selection, ui_scene, sender, clipboard);
         } else if let Some(MenuItemMessage::Click) = message.data_from(self.paste) {
-            self.on_paste_clicked(editor_selection, ui_scene, sender);
+            controller.paste_from_clipboard(sender, editor_selection, clipboard);
         } else if let Some(MenuItemMessage::Click) = message.data_from(self.make_root) {
             self.on_make_root_clicked(editor_selection, sender);
         } else if let Some(MenuItemMessage::Click) = message.data_from(self.open_asset) {
@@ -311,7 +296,7 @@ impl WidgetContextMenu {
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) =
             message.data_for(self.menu.handle())
         {
-            self.on_menu_placed(*target, engine, ui_scene)
+            self.on_menu_placed(*target, engine, clipboard)
         }
     }
 }

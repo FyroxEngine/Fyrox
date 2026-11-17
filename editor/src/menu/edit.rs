@@ -18,23 +18,23 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::{
-    core::pool::Handle,
-    gui::{
-        BuildContext, UserInterface, menu::MenuItemMessage, message::UiMessage,
-        widget::WidgetMessage,
-    },
-};
-use crate::scene::controller::SceneController;
 use crate::{
-    Engine, Message, Mode, load_image,
+    Engine, Message, Mode,
+    fyrox::{
+        core::{
+            pool::Handle,
+            uuid::{Uuid, uuid},
+        },
+        gui::{
+            BuildContext, UserInterface, clipboard::ClipboardContainer, menu, menu::MenuItem,
+            menu::MenuItemMessage, message::UiMessage, widget::WidgetMessage,
+        },
+    },
+    load_image,
     menu::{create_menu_item_shortcut, create_root_menu_item},
     message::MessageSender,
-    scene::{GameScene, Selection, commands::PasteCommand},
+    scene::{Selection, controller::SceneController},
 };
-use fyrox::core::uuid::{Uuid, uuid};
-use fyrox::gui::menu;
-use fyrox::gui::menu::MenuItem;
 
 pub struct EditMenu {
     pub menu: Handle<MenuItem>,
@@ -119,22 +119,13 @@ impl EditMenu {
         editor_selection: &Selection,
         controller: &mut dyn SceneController,
         engine: &mut Engine,
+        clipboard: &mut ClipboardContainer,
     ) {
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.copy {
-                if let Some(selection) = editor_selection.as_graph()
-                    && let Some(game_scene) = controller.downcast_mut::<GameScene>()
-                {
-                    game_scene
-                        .clipboard
-                        .fill_from_selection(selection, game_scene.scene, engine);
-                }
+                controller.copy_selection_to_clipboard(editor_selection, clipboard, engine);
             } else if message.destination() == self.paste {
-                if let Some(game_scene) = controller.downcast_mut::<GameScene>()
-                    && !game_scene.clipboard.is_empty()
-                {
-                    sender.do_command(PasteCommand::new(game_scene.scene_content_root));
-                }
+                controller.paste_from_clipboard(sender, editor_selection, clipboard);
             } else if message.destination() == self.undo {
                 sender.send(Message::UndoCurrentSceneCommand);
             } else if message.destination() == self.redo {

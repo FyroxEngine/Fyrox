@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::scene::clipboard::GameSceneClipboardPayload;
+use crate::scene::commands::PasteCommand;
 use crate::{
     Message, Settings,
     asset::item::AssetItem,
@@ -85,7 +87,6 @@ use crate::{
         inspector::handlers::node::SceneNodePropertyChangedHandler,
     },
     scene::{
-        clipboard::Clipboard,
         commands::{
             ChangeSelectionCommand, GameSceneContext, graph::AddModelCommand,
             mesh::SetMeshTextureCommand,
@@ -99,6 +100,7 @@ use crate::{
 };
 use camera::{CameraController, PickingOptions};
 use fyrox::core::{ok_or_continue, some_or_return};
+use fyrox::gui::clipboard::ClipboardContainer;
 use fyrox::scene::bitmask::BitMask;
 use std::{
     cell::RefCell,
@@ -136,7 +138,6 @@ pub struct GameScene {
     // Handle to a root for all editor nodes.
     pub editor_objects_root: Handle<Pivot>,
     pub scene_content_root: Handle<Node>,
-    pub clipboard: Clipboard,
     pub camera_controller: CameraController,
     pub preview_camera: Handle<Node>,
     pub graph_switches: GraphUpdateSwitches,
@@ -240,7 +241,6 @@ impl GameScene {
             camera_controller,
             preview_instance: None,
             scene: engine.scenes.add(scene),
-            clipboard: Default::default(),
             preview_camera: Default::default(),
             graph_switches: GraphUpdateSwitches {
                 // Freeze physics simulation while editing scene by setting time step to zero.
@@ -763,13 +763,14 @@ impl SceneController for GameScene {
         command: Command,
         selection: &mut Selection,
         engine: &mut Engine,
+        clipboard: &mut ClipboardContainer,
     ) {
         let scene = &mut engine.scenes[self.scene];
         GameSceneContext::exec(
             selection,
             scene,
             &mut self.scene_content_root,
-            &mut self.clipboard,
+            clipboard,
             self.sender.clone(),
             engine.resource_manager.clone(),
             engine.serialization_context.clone(),
@@ -783,13 +784,14 @@ impl SceneController for GameScene {
         command_stack: &mut CommandStack,
         selection: &mut Selection,
         engine: &mut Engine,
+        clipboard: &mut ClipboardContainer,
     ) {
         let scene = &mut engine.scenes[self.scene];
         GameSceneContext::exec(
             selection,
             scene,
             &mut self.scene_content_root,
-            &mut self.clipboard,
+            clipboard,
             self.sender.clone(),
             engine.resource_manager.clone(),
             engine.serialization_context.clone(),
@@ -803,13 +805,14 @@ impl SceneController for GameScene {
         command_stack: &mut CommandStack,
         selection: &mut Selection,
         engine: &mut Engine,
+        clipboard: &mut ClipboardContainer,
     ) {
         let scene = &mut engine.scenes[self.scene];
         GameSceneContext::exec(
             selection,
             scene,
             &mut self.scene_content_root,
-            &mut self.clipboard,
+            clipboard,
             self.sender.clone(),
             engine.resource_manager.clone(),
             engine.serialization_context.clone(),
@@ -823,13 +826,14 @@ impl SceneController for GameScene {
         command_stack: &mut CommandStack,
         selection: &mut Selection,
         scenes: &mut SceneContainer,
+        clipboard: &mut ClipboardContainer,
     ) {
         let scene = &mut scenes[self.scene];
         GameSceneContext::exec(
             selection,
             scene,
             &mut self.scene_content_root,
-            &mut self.clipboard,
+            clipboard,
             self.sender.clone(),
             self.resource_manager.clone(),
             self.serialization_context.clone(),
@@ -1008,12 +1012,13 @@ impl SceneController for GameScene {
         command_stack: &mut CommandStack,
         engine: &mut Engine,
         selection: &mut Selection,
+        clipboard: &mut ClipboardContainer,
     ) {
         GameSceneContext::exec(
             selection,
             &mut engine.scenes[self.scene],
             &mut self.scene_content_root,
-            &mut self.clipboard,
+            clipboard,
             self.sender.clone(),
             engine.resource_manager.clone(),
             engine.serialization_context.clone(),
@@ -1090,6 +1095,7 @@ impl SceneController for GameScene {
         command_stack: &mut CommandStack,
         selection: &mut Selection,
         engine: &mut Engine,
+        clipboard: &mut ClipboardContainer,
     ) -> Vec<String> {
         command_stack
             .commands
@@ -1100,7 +1106,7 @@ impl SceneController for GameScene {
                     selection,
                     &mut engine.scenes[self.scene],
                     &mut self.scene_content_root,
-                    &mut self.clipboard,
+                    clipboard,
                     self.sender.clone(),
                     engine.resource_manager.clone(),
                     engine.serialization_context.clone(),
@@ -1122,6 +1128,44 @@ impl SceneController for GameScene {
         editor_selection
             .as_graph()
             .and_then(|s| graph.external_refs_summary(s.nodes()))
+    }
+
+    fn copy_selection_to_clipboard(
+        &self,
+        editor_selection: &Selection,
+        clipboard: &mut ClipboardContainer,
+        engine: &Engine,
+    ) {
+        if let Some(selection) = editor_selection.as_graph() {
+            let mut payload = GameSceneClipboardPayload::default();
+            payload.fill_from_selection(selection, self.scene, engine);
+            clipboard.set_content(payload);
+        }
+    }
+
+    fn paste_from_clipboard(
+        &self,
+        sender: &MessageSender,
+        editor_selection: &Selection,
+        clipboard: &mut ClipboardContainer,
+    ) {
+        if let Some(graph) = editor_selection.as_graph()
+            && let Some(payload) = clipboard.content_ref::<GameSceneClipboardPayload>()
+            && !payload.is_empty()
+        {
+            let parent = graph
+                .nodes
+                .first()
+                .cloned()
+                .unwrap_or(self.scene_content_root);
+            sender.do_command(PasteCommand::new(parent));
+        }
+    }
+
+    fn can_be_pasted(&self, clipboard: &ClipboardContainer) -> bool {
+        clipboard
+            .content_ref::<GameSceneClipboardPayload>()
+            .is_some_and(|data| !data.is_empty())
     }
 }
 

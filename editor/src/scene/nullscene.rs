@@ -163,6 +163,7 @@ impl SceneController for NullSceneController {
         command: crate::command::Command,
         selection: &mut Selection,
         engine: &mut Engine,
+        clipboard: &mut ClipboardContainer,
     ) {
         NullSceneContext::exec(
             selection,
@@ -177,6 +178,7 @@ impl SceneController for NullSceneController {
         command_stack: &mut CommandStack,
         selection: &mut Selection,
         engine: &mut Engine,
+        clipboard: &mut ClipboardContainer,
     ) {
         NullSceneContext::exec(
             selection,
@@ -191,6 +193,7 @@ impl SceneController for NullSceneController {
         command_stack: &mut CommandStack,
         selection: &mut Selection,
         engine: &mut Engine,
+        clipboard: &mut ClipboardContainer,
     ) {
         NullSceneContext::exec(
             selection,
@@ -205,6 +208,7 @@ impl SceneController for NullSceneController {
         command_stack: &mut CommandStack,
         selection: &mut Selection,
         scenes: &mut fyrox::scene::SceneContainer,
+        clipboard: &mut ClipboardContainer,
     ) {
         NullSceneContext::exec(
             selection,
@@ -239,6 +243,7 @@ impl SceneController for NullSceneController {
         command_stack: &mut CommandStack,
         engine: &mut Engine,
         selection: &mut Selection,
+        clipboard: &mut ClipboardContainer,
     ) {
         panic!("The NullSceneController was destroyed!")
     }
@@ -257,6 +262,7 @@ impl SceneController for NullSceneController {
         command_stack: &mut CommandStack,
         selection: &mut Selection,
         engine: &mut Engine,
+        clipboard: &mut ClipboardContainer,
     ) -> Vec<String> {
         command_stack
             .commands
@@ -282,5 +288,25 @@ impl SceneController for NullSceneController {
         engine: &Engine,
     ) -> Option<String> {
         None
+    }
+
+    fn copy_selection_to_clipboard(
+        &self,
+        _editor_selection: &Selection,
+        _clipboard: &mut ClipboardContainer,
+        _engine: &Engine,
+    ) {
+    }
+
+    fn paste_from_clipboard(
+        &self,
+        _sender: &MessageSender,
+        _editor_selection: &Selection,
+        _clipboard: &mut ClipboardContainer,
+    ) {
+    }
+
+    fn can_be_pasted(&self, clipboard: &ClipboardContainer) -> bool {
+        false
     }
 }

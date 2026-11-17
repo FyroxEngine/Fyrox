@@ -20,6 +20,7 @@
 
 use directories::ProjectDirs;
 use fyrox::gui::Thickness;
+use fyrox::gui::clipboard::ClipboardContainer;
 use fyrox::gui::inspector::InspectorContextArgs;
 use fyrox::gui::window::{Window, WindowAlignment};
 use fyrox::{
@@ -223,7 +224,7 @@ pub struct Project {
 pub struct SettingsWindow {
     window: Handle<Window>,
     inspector: Handle<Inspector>,
-    clipboard: Option<Box<dyn Reflect>>,
+    clipboard: ClipboardContainer,
 }
 
 impl SettingsWindow {
@@ -276,7 +277,7 @@ impl SettingsWindow {
         Self {
             window,
             inspector,
-            clipboard: None,
+            clipboard: Default::default(),
         }
     }
 

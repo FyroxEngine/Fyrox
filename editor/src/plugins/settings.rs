@@ -24,7 +24,7 @@ use crate::menu::create_menu_item_shortcut;
 use crate::{
     Editor,
     fyrox::{
-        core::{log::Log, pool::Handle, reflect::Reflect, some_or_return},
+        core::{log::Log, pool::Handle, some_or_return},
         engine::Engine,
         graph::SceneGraph,
         gui::{
@@ -52,6 +52,7 @@ use crate::{
 use fyrox::core::uuid::{Uuid, uuid};
 use fyrox::engine::GraphicsContext;
 use fyrox::gui::button::Button;
+use fyrox::gui::clipboard::ClipboardContainer;
 use fyrox::gui::dock::DockingManager;
 use fyrox::gui::menu::MenuItem;
 use fyrox::gui::scroll_viewer::ScrollViewer;
@@ -73,7 +74,6 @@ pub struct SettingsWindow {
     groups: Handle<StackPanel>,
     scroll_viewer: Handle<ScrollViewer>,
     search_bar: Handle<SearchBar>,
-    clipboard: Option<Box<dyn Reflect>>,
 }
 
 impl SettingsWindow {
@@ -179,7 +179,6 @@ impl SettingsWindow {
             groups,
             scroll_viewer,
             search_bar,
-            clipboard: None,
         }
     }
 
@@ -240,12 +239,13 @@ impl SettingsWindow {
     }
 
     pub fn handle_ui_message(
-        mut self,
+        self,
         message: &UiMessage,
         engine: &mut Engine,
         settings: &mut Settings,
         docking_manager: Handle<DockingManager>,
         property_editors: Arc<PropertyEditorDefinitionContainer>,
+        clipboard: &mut ClipboardContainer,
     ) -> Option<Self> {
         let ui = engine.user_interfaces.first_mut();
 
@@ -258,7 +258,7 @@ impl SettingsWindow {
                 message,
                 ui,
                 settings_data,
-                &mut self.clipboard,
+                clipboard,
             );
         }
 
@@ -379,6 +379,7 @@ impl EditorPlugin for SettingsPlugin {
             &mut editor.settings,
             editor.docking_manager,
             editor.property_editors.clone(),
+            &mut editor.clipboard,
         );
     }
 }

@@ -28,17 +28,18 @@ use fyrox::core::blank_reflect_ref;
 use fyrox::graph::SceneGraph;
 use std::collections::HashMap;
 
-#[derive(Debug)]
-pub struct Clipboard {
+#[derive(Debug, Reflect, Clone, PartialEq)]
+#[reflect(type_uuid = "9b70a4e3-8579-4681-9035-c6173bda9f4a")]
+pub struct GameSceneClipboardPayload {
     graph: Graph,
     empty: bool,
 }
 
-impl Reflect for &'static mut Clipboard {
+impl Reflect for &'static mut GameSceneClipboardPayload {
     blank_reflect_ref!("ab09394a-ad19-477b-85cb-5dccf7401c80");
 }
 
-impl Default for Clipboard {
+impl Default for GameSceneClipboardPayload {
     fn default() -> Self {
         Self {
             graph: Graph::new(),
@@ -84,7 +85,7 @@ fn deep_clone_nodes(
     result
 }
 
-impl Clipboard {
+impl GameSceneClipboardPayload {
     pub fn fill_from_selection(
         &mut self,
         selection: &GraphSelection,
@@ -102,7 +103,7 @@ impl Clipboard {
         self.empty = false;
     }
 
-    pub fn paste(&mut self, dest_graph: &mut Graph) -> DeepCloneResult {
+    pub fn paste(&self, dest_graph: &mut Graph) -> DeepCloneResult {
         assert!(!self.empty);
 
         deep_clone_nodes(

@@ -20,7 +20,7 @@
 
 use crate::world::create::EntityCreatorMode;
 use crate::{
-    Engine, Message, PasteCommand,
+    Engine, Message,
     command::{Command, CommandGroup},
     fyrox::{
         asset::untyped::UntypedResource,
@@ -60,6 +60,7 @@ use crate::{
     utils,
     world::WorldViewerItemContextMenu,
 };
+use fyrox::gui::clipboard::ClipboardContainer;
 use std::{any::TypeId, path::PathBuf};
 
 pub struct SceneNodeContextMenu {
@@ -285,6 +286,7 @@ impl SceneNodeContextMenu {
         engine: &mut Engine,
         sender: &MessageSender,
         settings: &Settings,
+        clipboard: &mut ClipboardContainer,
     ) {
         if let Some(game_scene) = controller.downcast_mut::<GameScene>() {
             if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
@@ -305,20 +307,9 @@ impl SceneNodeContextMenu {
                         }
                     }
                 } else if message.destination() == self.copy_selection {
-                    if let Some(graph_selection) = editor_selection.as_graph() {
-                        game_scene.clipboard.fill_from_selection(
-                            graph_selection,
-                            game_scene.scene,
-                            engine,
-                        );
-                    }
+                    game_scene.copy_selection_to_clipboard(editor_selection, clipboard, engine);
                 } else if message.destination() == self.paste {
-                    if let Some(graph_selection) = editor_selection.as_graph()
-                        && let Some(first) = graph_selection.nodes.first()
-                        && !game_scene.clipboard.is_empty()
-                    {
-                        sender.do_command(PasteCommand::new(*first));
-                    }
+                    game_scene.paste_from_clipboard(sender, editor_selection, clipboard);
                 } else if message.destination() == self.save_as_prefab {
                     let ui = engine.user_interfaces.first_mut();
 
@@ -414,12 +405,6 @@ impl SceneNodeContextMenu {
                 if message.destination() == self.menu.handle() {
                     self.placement_target = *target;
 
-                    // Check if there's something to paste and deactivate "Paste" if nothing.
-                    engine.user_interfaces.first_mut().send(
-                        self.paste,
-                        WidgetMessage::Enabled(!game_scene.clipboard.is_empty()),
-                    );
-
                     engine.user_interfaces.first().send(
                         self.open_asset,
                         WidgetMessage::Enabled(
@@ -430,6 +415,12 @@ impl SceneNodeContextMenu {
                             )
                             .is_some_and(|p| utils::is_native_scene(&p)),
                         ),
+                    );
+
+                    // Check if there's something to paste and deactivate "Paste" if nothing.
+                    engine.user_interfaces.first_mut().send(
+                        self.paste,
+                        WidgetMessage::Enabled(controller.can_be_pasted(clipboard)),
                     );
                 }
             } else if let Some(FileSelectorMessage::Commit(path)) = message.data()

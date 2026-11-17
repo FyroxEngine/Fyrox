@@ -162,7 +162,7 @@ use crate::{
     },
     scene::{
         GameScene, Selection,
-        commands::{ChangeSelectionCommand, GameSceneContext, PasteCommand},
+        commands::{ChangeSelectionCommand, GameSceneContext},
         container::{EditorSceneEntry, SceneContainer},
         dialog::NodeRemovalDialog,
         settings::SceneSettingsWindow,
@@ -171,7 +171,7 @@ use crate::{
     settings::{Settings, general::EditorStyle},
     stats::{StatisticsWindow, StatisticsWindowAction},
     ui_scene::{
-        UiScene, bbcode::BBCodePanel, commands::graph::PasteWidgetCommand, menu::WidgetContextMenu,
+        UiScene, bbcode::BBCodePanel, menu::WidgetContextMenu,
         utils::UiSceneWorldViewerDataProvider,
     },
     utils::doc::DocWindow,
@@ -181,6 +181,7 @@ use fyrox::asset::event::ResourceEvent;
 use fyrox::asset::{Resource, collect_used_resources};
 use fyrox::core::some_or_return;
 use fyrox::graph::dependency::ResourceDependencyGraph;
+use fyrox::gui::clipboard::ClipboardContainer;
 use fyrox::resource::model::Model;
 use fyrox_build_tools::{CommandDescriptor, build::BuildWindow};
 use loading_window::SceneLoadingWindow;
@@ -449,6 +450,7 @@ pub struct Editor {
     pub resource_event_receiver: Receiver<ResourceEvent>,
     /// Allows you to register your property editors for custom types.
     pub property_editors: Arc<PropertyEditorDefinitionContainer>,
+    pub clipboard: ClipboardContainer,
 }
 
 fn make_dark_style() -> StyleResource {
@@ -840,6 +842,7 @@ impl Editor {
             startup_data: startup_data.clone(),
             resource_event_receiver,
             property_editors,
+            clipboard: Default::default(),
         };
 
         let mut startup_scenes = editor
@@ -1040,32 +1043,18 @@ impl Editor {
                     self.message_sender.send(Message::SaveAllScenes);
                 } else if hot_key == key_bindings.copy_selection {
                     let entry = self.scenes.current_scene_entry_mut();
-                    if let Some(graph_selection) = entry.selection.as_graph() {
-                        if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
-                            game_scene.clipboard.fill_from_selection(
-                                graph_selection,
-                                game_scene.scene,
-                                engine,
-                            );
-                        } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>()
-                            && let Some(selection) = entry.selection.as_ui()
-                        {
-                            ui_scene
-                                .clipboard
-                                .fill_from_selection(selection, &ui_scene.ui);
-                        }
-                    }
+                    entry.controller.copy_selection_to_clipboard(
+                        &entry.selection,
+                        &mut self.clipboard,
+                        &self.engine,
+                    );
                 } else if hot_key == key_bindings.paste {
-                    let controller = self.scenes.current_scene_controller_mut();
-                    if let Some(game_scene) = controller.downcast_mut::<GameScene>() {
-                        if !game_scene.clipboard.is_empty() {
-                            sender.do_command(PasteCommand::new(game_scene.scene_content_root));
-                        }
-                    } else if let Some(ui_scene) = controller.downcast_mut::<UiScene>()
-                        && !ui_scene.clipboard.is_empty()
-                    {
-                        sender.do_command(PasteWidgetCommand::new(ui_scene.ui.root()));
-                    }
+                    let entry = self.scenes.current_scene_entry_mut();
+                    entry.controller.paste_from_clipboard(
+                        &self.message_sender,
+                        &entry.selection,
+                        &mut self.clipboard,
+                    );
                 } else if hot_key == key_bindings.new_scene {
                     sender.send(Message::NewScene);
                 } else if hot_key == key_bindings.close_scene {
@@ -1154,6 +1143,7 @@ impl Editor {
                 },
                 settings: &mut self.settings,
                 icon_request_sender: self.asset_browser.preview_sender.clone(),
+                clipboard: &mut self.clipboard,
             },
         );
 
@@ -1251,6 +1241,7 @@ impl Editor {
                 engine,
                 &self.message_sender,
                 &self.settings,
+                &mut self.clipboard,
             );
             self.world_viewer.handle_ui_message(
                 message,
@@ -1303,6 +1294,7 @@ impl Editor {
                 ui_scene,
                 engine,
                 &self.message_sender,
+                &mut self.clipboard,
             );
         }
 
@@ -1526,6 +1518,7 @@ impl Editor {
                 &mut current_scene_entry.command_stack,
                 &mut current_scene_entry.selection,
                 engine,
+                &mut self.clipboard,
             ),
             engine.user_interfaces.first_mut(),
         );
@@ -1623,6 +1616,7 @@ impl Editor {
             command,
             &mut current_scene_entry.selection,
             engine,
+            &mut self.clipboard,
         );
 
         true
@@ -1639,6 +1633,7 @@ impl Editor {
             &mut current_scene_entry.command_stack,
             &mut current_scene_entry.selection,
             engine,
+            &mut self.clipboard,
         );
 
         true
@@ -1651,6 +1646,7 @@ impl Editor {
             &mut current_scene_entry.command_stack,
             &mut current_scene_entry.selection,
             engine,
+            &mut self.clipboard,
         );
 
         if let Some(command) = current_scene_entry.command_stack.top_command() {
@@ -1667,6 +1663,7 @@ impl Editor {
             &mut current_scene_entry.command_stack,
             &mut current_scene_entry.selection,
             &mut engine.scenes,
+            &mut self.clipboard,
         );
         true
     }
@@ -1919,9 +1916,12 @@ impl Editor {
 
         let engine = &mut self.engine;
         if let Some(mut entry) = self.scenes.take_scene(id) {
-            entry
-                .controller
-                .on_destroy(&mut entry.command_stack, engine, &mut entry.selection);
+            entry.controller.on_destroy(
+                &mut entry.command_stack,
+                engine,
+                &mut entry.selection,
+                &mut self.clipboard,
+            );
 
             if closing_current_scene {
                 // Preview frame has scene frame texture assigned, it must be cleared explicitly,
@@ -2293,6 +2293,7 @@ impl Editor {
                         &mut entry.command_stack,
                         &mut entry.selection,
                         &mut self.engine.scenes,
+                        &mut self.clipboard,
                     );
                     need_sync = true;
                 }
@@ -3013,11 +3014,16 @@ fn update(editor: &mut Editor, loop_controller: ApplicationLoopController) -> f3
                             &mut entry.command_stack,
                             &mut entry.selection,
                             &mut editor.engine.scenes,
+                            &mut editor.clipboard,
                         );
                         entry.selection = Default::default();
 
                         Log::warn(format!("Command stack flushed for scene {i}"));
                     }
+
+                    // Clear the clipboard, otherwise there might be an entity from a plugin and
+                    // its destructor will cause crash.
+                    editor.clipboard.clear();
 
                     editor.message_sender.send(Message::SelectionChanged {
                         old_selection: Default::default(),

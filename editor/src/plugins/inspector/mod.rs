@@ -164,7 +164,6 @@ pub struct InspectorPlugin {
     filter_text: String,
     collapse_all: Handle<Button>,
     expand_all: Handle<Button>,
-    clipboard: Option<Box<dyn Reflect>>,
     type_editors: Vec<TypeEditorContainer>,
 }
 
@@ -366,7 +365,6 @@ impl InspectorPlugin {
             filter_text: String::default(),
             collapse_all,
             expand_all,
-            clipboard: None,
             footer,
             search_bar,
             type_editors,
@@ -626,7 +624,7 @@ impl EditorPlugin for InspectorPlugin {
                                 .entity
                                 .resolve_path(path, &mut |result| match result {
                                     Ok(result) => {
-                                        self.clipboard = result.try_clone_box();
+                                        editor.clipboard.replace_content(result.try_clone_box());
                                     }
                                     Err(err) => {
                                         err!(
@@ -639,10 +637,10 @@ impl EditorPlugin for InspectorPlugin {
                     );
                 }
                 InspectorMessage::PasteValue { dest } => {
-                    if let Some(value) = self.clipboard.as_ref() {
+                    if let Some(value) = editor.clipboard.content_ref_raw() {
                         entry
                             .selection
-                            .paste_property(dest, &**value, &editor.message_sender);
+                            .paste_property(dest, value, &editor.message_sender);
                     }
                 }
                 InspectorMessage::PropertyContextMenuOpened { path } => {
@@ -661,8 +659,8 @@ impl EditorPlugin for InspectorPlugin {
                                     Ok(property) => {
                                         can_clone = property.try_clone_box().is_some();
 
-                                        if let Some(value) = self.clipboard.as_ref() {
-                                            can_paste = property.type_id() == (**value).type_id();
+                                        if let Some(value) = editor.clipboard.content_ref_raw() {
+                                            can_paste = property.type_id() == value.type_id();
                                         }
                                     }
                                     Err(err) => {
