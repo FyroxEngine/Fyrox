@@ -27,6 +27,7 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::__private::bool;
 use syn::*;
+use uuid::Uuid;
 
 pub type Fields = ast::Fields<FieldArgs>;
 
@@ -74,11 +75,29 @@ pub struct TypeArgs {
     #[darling(default)]
     pub ignore_generics_type_uuid: bool,
 
+    #[darling(default)]
     pub type_uuid: String,
 }
 
 impl TypeArgs {
     pub fn validate(&mut self) {
+        if self.type_uuid.is_empty() {
+            panic!(
+                "Type UUID is not set, use #[reflect(type_uuid = \"some_uuid\")].\n\
+            A UUID can be generated using an IDE plugin, or online - https://www.uuidgenerator.net/\n\
+            You can also use a stub UUID, like so #[reflect(type_uuid = \"00000000-0000-0000-0000-000000000000\")],\n\
+            but it is strongly advised to use a truly unique id."
+            );
+        }
+
+        if let Err(err) = Uuid::try_parse(&self.type_uuid) {
+            panic!(
+                "Type UUID in #[reflect(type_uuid = \"{}\")] attribute is invalid!\n\
+            Reason: {err}.\nAn example of a valid UUID: f21566c8-fda7-4cef-bcbe-06f00c6fe8e9",
+                self.type_uuid
+            )
+        }
+
         match &mut self.data {
             ast::Data::Enum(vs) => {
                 vs.iter_mut()

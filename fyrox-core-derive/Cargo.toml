@@ -20,6 +20,7 @@ quote = "1.0.10"
 syn = "1.0.82"
 darling = "0.14.0"
 fxhash = "0.2.1"
+uuid = { version = "1.29.3", features = ["v4"] }
 
 [dev-dependencies]
 fyrox-core = { path = "../fyrox-core" }
