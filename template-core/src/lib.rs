@@ -523,7 +523,7 @@ dylib-engine = ["{name}/dylib-engine"]
             r#"//! Wrapper for hot-reloadable plugin.
 use {name}::{{fyrox::plugin::Plugin, Game}};
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub fn fyrox_plugin() -> Box<dyn Plugin> {{
     Box::new(Game::default())
 }}
@@ -585,7 +585,7 @@ use fyrox::{{
 }};
 use {name}::Game;
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 fn android_main(app: fyrox::platform::android::activity::AndroidApp) {{
     io::ANDROID_APP
         .set(app.clone())
