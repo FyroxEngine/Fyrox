@@ -403,6 +403,9 @@ impl From<PoolError> for GraphError {
 }
 
 impl Graph {
+    /// Default name of the root node.
+    pub const SCENE_ROOT_NAME: &'static str = "SceneRoot";
+
     /// Creates new graph instance with single root node.
     #[inline]
     pub fn new() -> Self {
@@ -412,7 +415,7 @@ impl Graph {
         // Create root node.
         let mut root_node = Pivot::default();
         let instance_id = root_node.instance_id;
-        root_node.set_name("SceneRoot");
+        root_node.set_name(Self::SCENE_ROOT_NAME);
 
         // Add it to the pool.
         let mut pool = Pool::new();

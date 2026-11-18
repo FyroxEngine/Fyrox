@@ -68,6 +68,7 @@ use crate::{
     settings::{Settings, scene::SceneSettings},
     ui_scene::{UiScene, commands::graph::AddWidgetCommand},
 };
+use fyrox::core::uuid::{Uuid, uuid};
 use std::{collections::BTreeMap, path::PathBuf};
 
 #[derive(Default, Eq, PartialEq, Copy, Clone, Debug)]
@@ -158,11 +159,16 @@ fn make_section(
 impl EntityCreator {
     const TITLE: &str = "Entity Creator";
 
+    pub const WINDOW: Uuid = uuid!("d0b56802-f63d-43e6-9c7d-d6da38111104");
+    pub const SEARCH_BAR: Uuid = uuid!("ffee97fa-8f13-4d70-9a3f-a53fc36da704");
+    pub const CREATE: Uuid = uuid!("d280acd2-fe1b-48ea-8422-f5e54cd47cd8");
+
     pub fn new(ctx: &mut BuildContext) -> Self {
         let search_bar = SearchBarBuilder::new(
             WidgetBuilder::new()
                 .with_tab_index(Some(0))
                 .on_row(0)
+                .with_id(Self::SEARCH_BAR)
                 .with_margin(Thickness::uniform(2.0)),
         )
         .with_empty_text_placeholder(EmptyTextPlaceholder::Text("Search for an Entity"))
@@ -183,6 +189,7 @@ impl EntityCreator {
 
         let create = ButtonBuilder::new(
             WidgetBuilder::new()
+                .with_id(Self::CREATE)
                 .with_tab_index(Some(1))
                 .with_enabled(false)
                 .with_width(100.0)
@@ -245,12 +252,17 @@ impl EntityCreator {
         .add_row(Row::auto())
         .build(ctx);
 
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(500.0).with_height(600.0))
-            .with_content(content)
-            .open(false)
-            .with_close_by_esc(true)
-            .with_title(WindowTitle::text(Self::TITLE))
-            .build(ctx);
+        let window = WindowBuilder::new(
+            WidgetBuilder::new()
+                .with_id(Self::WINDOW)
+                .with_width(500.0)
+                .with_height(600.0),
+        )
+        .with_content(content)
+        .open(false)
+        .with_close_by_esc(true)
+        .with_title(WindowTitle::text(Self::TITLE))
+        .build(ctx);
 
         Self {
             window,

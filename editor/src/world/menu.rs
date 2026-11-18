@@ -108,6 +108,7 @@ fn resource_path_of_first_selected_node(
 }
 
 impl SceneNodeContextMenu {
+    pub const MENU: Uuid = uuid!("0d5fe0b6-a704-4c3b-ac4e-c568e67c5f0c");
     pub const CREATE_CHILD: Uuid = uuid!("a5720895-4206-43aa-9dea-dcdccfcdd73a");
     pub const DELETE: Uuid = uuid!("fc272ecf-1c4f-44d0-bbf1-2e21c8d9ecd2");
     pub const COPY: Uuid = uuid!("50626c7b-b50f-4547-873c-a11b4125cdd5");
@@ -134,121 +135,127 @@ impl SceneNodeContextMenu {
         let create_child;
         let replace_with;
         let menu = ContextMenuBuilder::new(
-            PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
-                .with_content(
-                    StackPanelBuilder::new(
-                        WidgetBuilder::new()
-                            .with_child({
-                                create_child = MenuItemBuilder::new(
-                                    WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
-                                )
-                                .with_content(MenuItemContent::text("Create Child Node..."))
-                                .build(ctx);
-                                create_child
-                            })
-                            .with_child({
-                                delete_selection = create_menu_item_shortcut(
-                                    "Delete Node(s)",
-                                    None,
-                                    Self::DELETE,
-                                    "Del",
-                                    vec![],
-                                    ctx,
-                                );
-                                delete_selection
-                            })
-                            .with_child(menu::make_menu_splitter(ctx))
-                            .with_child({
-                                copy_selection = create_menu_item_shortcut(
-                                    "Copy Node(s)",
-                                    None,
-                                    Self::COPY,
-                                    "Ctrl+C",
-                                    vec![],
-                                    ctx,
-                                );
-                                copy_selection
-                            })
-                            .with_child({
-                                paste = create_menu_item(
-                                    "Paste As Child Node",
-                                    Self::PASTE_AS_CHILD,
-                                    vec![],
-                                    ctx,
-                                );
-                                paste
-                            })
-                            .with_child(menu::make_menu_splitter(ctx))
-                            .with_child({
-                                create_parent = MenuItemBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_id(Self::CREATE_PARENT)
-                                        .with_min_size(Vector2::new(120.0, 22.0)),
-                                )
-                                .with_content(MenuItemContent::text("Create Parent Node..."))
-                                .build(ctx);
-                                create_parent
-                            })
-                            .with_child({
-                                replace_with = MenuItemBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_id(Self::REPLACE_WITH)
-                                        .with_min_size(Vector2::new(120.0, 22.0)),
-                                )
-                                .with_content(MenuItemContent::text("Replace With Node..."))
-                                .build(ctx);
-                                replace_with
-                            })
-                            .with_child({
-                                make_root = create_menu_item(
-                                    "Set As Root Node",
-                                    Self::SET_AS_ROOT,
-                                    vec![],
-                                    ctx,
-                                );
-                                make_root
-                            })
-                            .with_child(menu::make_menu_splitter(ctx))
-                            .with_child({
-                                open_asset = create_menu_item(
-                                    "Open Parent Prefab",
-                                    Self::OPEN_PARENT_PREFAB,
-                                    vec![],
-                                    ctx,
-                                );
-                                open_asset
-                            })
-                            .with_child({
-                                show_asset = create_menu_item(
-                                    "Show Prefab In Asset Browser",
-                                    Self::SHOW_PREFAB,
-                                    vec![],
-                                    ctx,
-                                );
-                                show_asset
-                            })
-                            .with_child({
-                                save_as_prefab = create_menu_item(
-                                    "Save Node(s) As Prefab...",
-                                    Self::SAVE_AS_PREFAB,
-                                    vec![],
-                                    ctx,
-                                );
-                                save_as_prefab
-                            })
-                            .with_child({
-                                reset_inheritable_properties = create_menu_item(
-                                    "Reset Inheritable Properties",
-                                    Self::RESET_INHERITABLE,
-                                    vec![],
-                                    ctx,
-                                );
-                                reset_inheritable_properties
-                            }),
-                    )
-                    .build(ctx),
+            PopupBuilder::new(
+                WidgetBuilder::new()
+                    .with_id(Self::MENU)
+                    .with_visibility(false),
+            )
+            .with_content(
+                StackPanelBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child({
+                            create_child = MenuItemBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_id(Self::CREATE_CHILD)
+                                    .with_min_size(Vector2::new(120.0, 22.0)),
+                            )
+                            .with_content(MenuItemContent::text("Create Child Node..."))
+                            .build(ctx);
+                            create_child
+                        })
+                        .with_child({
+                            delete_selection = create_menu_item_shortcut(
+                                "Delete Node(s)",
+                                None,
+                                Self::DELETE,
+                                "Del",
+                                vec![],
+                                ctx,
+                            );
+                            delete_selection
+                        })
+                        .with_child(menu::make_menu_splitter(ctx))
+                        .with_child({
+                            copy_selection = create_menu_item_shortcut(
+                                "Copy Node(s)",
+                                None,
+                                Self::COPY,
+                                "Ctrl+C",
+                                vec![],
+                                ctx,
+                            );
+                            copy_selection
+                        })
+                        .with_child({
+                            paste = create_menu_item(
+                                "Paste As Child Node",
+                                Self::PASTE_AS_CHILD,
+                                vec![],
+                                ctx,
+                            );
+                            paste
+                        })
+                        .with_child(menu::make_menu_splitter(ctx))
+                        .with_child({
+                            create_parent = MenuItemBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_id(Self::CREATE_PARENT)
+                                    .with_min_size(Vector2::new(120.0, 22.0)),
+                            )
+                            .with_content(MenuItemContent::text("Create Parent Node..."))
+                            .build(ctx);
+                            create_parent
+                        })
+                        .with_child({
+                            replace_with = MenuItemBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_id(Self::REPLACE_WITH)
+                                    .with_min_size(Vector2::new(120.0, 22.0)),
+                            )
+                            .with_content(MenuItemContent::text("Replace With Node..."))
+                            .build(ctx);
+                            replace_with
+                        })
+                        .with_child({
+                            make_root = create_menu_item(
+                                "Set As Root Node",
+                                Self::SET_AS_ROOT,
+                                vec![],
+                                ctx,
+                            );
+                            make_root
+                        })
+                        .with_child(menu::make_menu_splitter(ctx))
+                        .with_child({
+                            open_asset = create_menu_item(
+                                "Open Parent Prefab",
+                                Self::OPEN_PARENT_PREFAB,
+                                vec![],
+                                ctx,
+                            );
+                            open_asset
+                        })
+                        .with_child({
+                            show_asset = create_menu_item(
+                                "Show Prefab In Asset Browser",
+                                Self::SHOW_PREFAB,
+                                vec![],
+                                ctx,
+                            );
+                            show_asset
+                        })
+                        .with_child({
+                            save_as_prefab = create_menu_item(
+                                "Save Node(s) As Prefab...",
+                                Self::SAVE_AS_PREFAB,
+                                vec![],
+                                ctx,
+                            );
+                            save_as_prefab
+                        })
+                        .with_child({
+                            reset_inheritable_properties = create_menu_item(
+                                "Reset Inheritable Properties",
+                                Self::RESET_INHERITABLE,
+                                vec![],
+                                ctx,
+                            );
+                            reset_inheritable_properties
+                        }),
                 )
-                .with_restrict_picking(false),
+                .build(ctx),
+            )
+            .with_restrict_picking(false),
         )
         .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());

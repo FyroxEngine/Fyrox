@@ -95,8 +95,12 @@ impl UserInterfaceTestingExtension for UserInterface {
             if self.visual_debug {
                 info!("{} - bounds {:?}", uuid, n.screen_bounds());
             }
-            assert!(is_enabled(handle, self));
-            assert!(n.is_globally_visible());
+            if !is_enabled(handle, self) {
+                panic!("The node at {uuid} must be enabled to be clickable!");
+            }
+            if !n.is_globally_visible() {
+                panic!("The node at {uuid} must be visible to be clickable!");
+            }
             let center = n.screen_bounds().center();
             self.click(center, button);
             if self.visual_debug {
@@ -124,7 +128,7 @@ impl UserInterfaceTestingExtension for UserInterface {
             assert!(start_node.is_globally_visible());
             if let Some((text_handle, text_node)) = self.find(start_handle, &mut |n| {
                 if let Some(text_widget) = n.self_or_field_ref::<Text>() {
-                    text_widget.text() == text
+                    text_widget.text().contains(text)
                 } else {
                     false
                 }
@@ -142,6 +146,8 @@ impl UserInterfaceTestingExtension for UserInterface {
                         center.y
                     );
                 }
+            } else {
+                panic!("There's no Text with {text} content!");
             }
         } else {
             panic!("There's no widget {uuid}!")

@@ -31,6 +31,7 @@ use crate::{
 };
 use fyrox::core::uuid::Uuid;
 use fyrox::gui::message::MouseButton;
+use fyrox::gui::window::Window;
 use std::path::PathBuf;
 
 /// Initializes the editor as is a user would open it, adds the specified plugin that runs the test
@@ -75,6 +76,10 @@ pub trait EditorTestingExtension {
 
     fn find_of<T: Control>(&self, uuid: Uuid) -> Option<&T>;
 
+    fn is_window_open(&self, uuid: Uuid) -> bool;
+
+    fn type_text(&mut self, text: &str);
+
     fn is_visible(&self, uuid: Uuid) -> bool {
         if let Some(node) = self.find(uuid) {
             node.is_globally_visible()
@@ -112,6 +117,14 @@ impl EditorTestingExtension for Editor {
 
     fn find_of<T: Control>(&self, uuid: Uuid) -> Option<&T> {
         self.engine.user_interfaces.first().find_by_uuid_of(uuid)
+    }
+
+    fn is_window_open(&self, uuid: Uuid) -> bool {
+        self.find_of::<Window>(uuid).is_some_and(|w| w.visibility())
+    }
+
+    fn type_text(&mut self, text: &str) {
+        self.engine.user_interfaces.first_mut().type_text(text)
     }
 }
 

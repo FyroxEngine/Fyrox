@@ -18,25 +18,33 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use fyrox::scene::graph::Graph;
+use fyrox::scene::mesh::Mesh;
 use fyroxed_base::menu::file::FileMenu;
-use fyroxed_base::save_dialog::SaveSceneConfirmationDialog;
 use fyroxed_base::test::macros::Macro;
 use fyroxed_base::test::utils;
 use fyroxed_base::test::utils::TestPlugin;
+use fyroxed_base::world::WorldViewer;
+use fyroxed_base::world::create::EntityCreator;
+use fyroxed_base::world::menu::SceneNodeContextMenu;
 
 #[test]
-fn test_close_no_save() {
+fn test_entity_creator_create() {
     utils::run_editor_test(
-        "CopyPaste",
+        "EntityCreator/Create",
         TestPlugin::new(
             Macro::begin()
                 .lmb_click_at(FileMenu::FILE)
                 .lmb_click_at(FileMenu::NEW_SCENE)
                 .then(|editor| assert_eq!(editor.scenes.len(), 1))
-                .lmb_click_at(FileMenu::FILE)
-                .lmb_click_at(FileMenu::CLOSE_SCENE)
-                .lmb_click_at_text(SaveSceneConfirmationDialog::DIALOG_ID, "No")
-                .then(|editor| assert_eq!(editor.scenes.len(), 0)),
+                .rmb_click_at_text(WorldViewer::WINDOW, Graph::SCENE_ROOT_NAME)
+                .assert_visible(SceneNodeContextMenu::MENU)
+                .lmb_click_at(SceneNodeContextMenu::CREATE_CHILD)
+                .assert_window_open(EntityCreator::WINDOW)
+                .lmb_click_at(EntityCreator::SEARCH_BAR)
+                .type_text("Cube")
+                .lmb_click_at(EntityCreator::CREATE)
+                .assert_has_scene_node::<Mesh>("Cube"),
         ),
     );
 }
