@@ -1,0 +1,42 @@
+// Copyright (c) 2019-present Dmitry Stepanov and Fyrox Engine contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+use fyroxed_base::menu::file::FileMenu;
+use fyroxed_base::save_dialog::SaveSceneConfirmationDialog;
+use fyroxed_base::test::macros::Macro;
+use fyroxed_base::test::utils;
+use fyroxed_base::test::utils::TestPlugin;
+
+#[test]
+fn test_close_no_save() {
+    utils::run_editor_test(
+        "CopyPaste",
+        TestPlugin::new(
+            Macro::begin()
+                .lmb_click_at(FileMenu::FILE)
+                .lmb_click_at(FileMenu::NEW_SCENE)
+                .then(|editor| assert_eq!(editor.scenes.len(), 1))
+                .lmb_click_at(FileMenu::FILE)
+                .lmb_click_at(FileMenu::CLOSE_SCENE)
+                .lmb_click_at_text(SaveSceneConfirmationDialog::DIALOG_ID, "No")
+                .then(|editor| assert_eq!(editor.scenes.len(), 0)),
+        ),
+    );
+}

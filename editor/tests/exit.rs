@@ -29,8 +29,8 @@ fn test_exit() {
         "Menu/File/Exit",
         TestPlugin::new(
             Macro::begin()
-                .click_at(FileMenu::FILE)
-                .click_at(FileMenu::EXIT),
+                .lmb_click_at(FileMenu::FILE)
+                .lmb_click_at(FileMenu::EXIT),
         ),
     );
 }

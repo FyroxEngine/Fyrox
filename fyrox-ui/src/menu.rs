@@ -1353,6 +1353,7 @@ pub fn make_menu_splitter(ctx: &mut BuildContext) -> Handle<UiNode> {
 
 #[cfg(test)]
 mod test {
+    use crate::message::MouseButton;
     use crate::{
         UserInterface,
         menu::{MenuBuilder, MenuItemBuilder, MenuItemContent, MenuItemMessage},
@@ -1391,23 +1392,23 @@ mod test {
             .build(ctx);
         ui.poll_all_messages();
         assert_eq!(
-            ui.click_at_count_response(file_id, MenuItemMessage::Click),
+            ui.click_at_count_response(file_id, MouseButton::Left, MenuItemMessage::Click),
             0
         );
         assert!(ui[menu].active);
         assert_eq!(
-            ui.click_at_count_response(exit_id, MenuItemMessage::Click),
+            ui.click_at_count_response(exit_id, MouseButton::Left, MenuItemMessage::Click),
             1
         );
         assert!(!ui[menu].active);
         // ====
         assert_eq!(
-            ui.click_at_count_response(file_id, MenuItemMessage::Click),
+            ui.click_at_count_response(file_id, MouseButton::Left, MenuItemMessage::Click),
             0
         );
         assert!(ui[menu].active);
         assert_eq!(
-            ui.click_at_count_response(save_id, MenuItemMessage::Click),
+            ui.click_at_count_response(save_id, MouseButton::Left, MenuItemMessage::Click),
             1
         );
         assert!(!ui[menu].active);

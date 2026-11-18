@@ -30,13 +30,13 @@ fn test_close_with_save() {
         "Menu/File/CloseWithSave",
         TestPlugin::new(
             Macro::begin()
-                .click_at(FileMenu::FILE)
-                .click_at(FileMenu::NEW_SCENE)
+                .lmb_click_at(FileMenu::FILE)
+                .lmb_click_at(FileMenu::NEW_SCENE)
                 .then(|editor| assert_eq!(editor.scenes.len(), 1))
-                .click_at(FileMenu::FILE)
-                .click_at(FileMenu::CLOSE_SCENE)
-                .click_at_text(SaveSceneConfirmationDialog::DIALOG_ID, "Yes")
-                .click_at_text(FileMenu::SAVE_FILE_SELECTOR, "Save")
+                .lmb_click_at(FileMenu::FILE)
+                .lmb_click_at(FileMenu::CLOSE_SCENE)
+                .lmb_click_at_text(SaveSceneConfirmationDialog::DIALOG_ID, "Yes")
+                .lmb_click_at_text(FileMenu::SAVE_FILE_SELECTOR, "Save")
                 .skip_frame()
                 .then(|editor| assert_eq!(editor.scenes.len(), 0)),
         ),

@@ -29,8 +29,8 @@ fn test_open() {
         "Menu/File/NewScene",
         TestPlugin::new(
             Macro::begin()
-                .click_at(FileMenu::FILE)
-                .click_at(FileMenu::NEW_SCENE)
+                .lmb_click_at(FileMenu::FILE)
+                .lmb_click_at(FileMenu::NEW_SCENE)
                 .then(|editor| assert_eq!(editor.scenes.len(), 1)),
         ),
     );

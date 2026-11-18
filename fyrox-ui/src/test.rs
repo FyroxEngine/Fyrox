@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::message::{ButtonState, KeyCode, OsEvent};
+use crate::message::{ButtonState, KeyCode, MouseButton, OsEvent};
 use crate::{
     BuildContext, Control, UiNode, UserInterface,
     core::{algebra::Vector2, info, pool::Handle, reflect::Reflect},
@@ -33,12 +33,12 @@ use uuid::Uuid;
 
 pub trait UserInterfaceTestingExtension {
     /// Clicks at the given position.
-    fn click(&mut self, position: Vector2<f32>);
+    fn click(&mut self, position: Vector2<f32>, button: MouseButton);
 
     /// Tries to find a widget with the given unique id and clicks at its center.
-    fn click_at(&mut self, uuid: Uuid) -> Handle<UiNode>;
+    fn click_at(&mut self, uuid: Uuid, button: MouseButton) -> Handle<UiNode>;
 
-    fn click_at_text(&mut self, uuid: Uuid, text: &str);
+    fn click_at_text(&mut self, uuid: Uuid, button: MouseButton, text: &str);
 
     fn find_by_uuid(&self, uuid: Uuid) -> Option<&UiNode>;
 
@@ -59,6 +59,7 @@ pub trait UserInterfaceTestingExtension {
     fn click_at_count_response<M: MessageData + PartialEq>(
         &mut self,
         name: Uuid,
+        button: MouseButton,
         response: M,
     ) -> usize;
 
@@ -76,19 +77,19 @@ fn is_enabled(mut handle: Handle<UiNode>, ui: &UserInterface) -> bool {
 }
 
 impl UserInterfaceTestingExtension for UserInterface {
-    fn click(&mut self, position: Vector2<f32>) {
-        self.process_os_event(&crate::message::OsEvent::CursorMoved { position });
-        self.process_os_event(&crate::message::OsEvent::MouseInput {
-            button: crate::message::MouseButton::Left,
-            state: crate::message::ButtonState::Pressed,
+    fn click(&mut self, position: Vector2<f32>, button: MouseButton) {
+        self.process_os_event(&OsEvent::CursorMoved { position });
+        self.process_os_event(&OsEvent::MouseInput {
+            button,
+            state: ButtonState::Pressed,
         });
-        self.process_os_event(&crate::message::OsEvent::MouseInput {
-            button: crate::message::MouseButton::Left,
-            state: crate::message::ButtonState::Released,
+        self.process_os_event(&OsEvent::MouseInput {
+            button,
+            state: ButtonState::Released,
         });
     }
 
-    fn click_at(&mut self, uuid: Uuid) -> Handle<UiNode> {
+    fn click_at(&mut self, uuid: Uuid, button: MouseButton) -> Handle<UiNode> {
         assert_ne!(uuid, Uuid::default());
         if let Some((handle, n)) = self.find_from_root(&mut |n| n.id == uuid) {
             if self.visual_debug {
@@ -97,10 +98,10 @@ impl UserInterfaceTestingExtension for UserInterface {
             assert!(is_enabled(handle, self));
             assert!(n.is_globally_visible());
             let center = n.screen_bounds().center();
-            self.click(center);
+            self.click(center, button);
             if self.visual_debug {
                 info!(
-                    "==== Clicked at {uuid}({}:{}) at [{};{}] coords. ====",
+                    "==== Clicked at {uuid}({}:{}) at [{};{}] coords with {button:?} button. ====",
                     handle.index(),
                     handle.generation(),
                     center.x,
@@ -113,7 +114,7 @@ impl UserInterfaceTestingExtension for UserInterface {
         }
     }
 
-    fn click_at_text(&mut self, uuid: Uuid, text: &str) {
+    fn click_at_text(&mut self, uuid: Uuid, button: MouseButton, text: &str) {
         assert_ne!(uuid, Uuid::default());
         if let Some((start_handle, start_node)) = self.find_from_root(&mut |n| n.id == uuid) {
             if self.visual_debug {
@@ -131,7 +132,7 @@ impl UserInterfaceTestingExtension for UserInterface {
                 assert!(is_enabled(text_handle, self));
                 assert!(text_node.is_globally_visible());
                 let center = text_node.screen_bounds().center();
-                self.click(center);
+                self.click(center, button);
                 if self.visual_debug {
                     info!(
                         "==== Clicked at {text}({}:{}) at [{};{}] coords. Found from {uuid} starting location. ====",
@@ -150,9 +151,10 @@ impl UserInterfaceTestingExtension for UserInterface {
     fn click_at_count_response<M: MessageData + PartialEq>(
         &mut self,
         uuid: Uuid,
+        button: MouseButton,
         response: M,
     ) -> usize {
-        let handle = self.click_at(uuid);
+        let handle = self.click_at(uuid, button);
         self.poll_and_count(move |msg| msg.data_from::<M>(handle) == Some(&response))
     }
 

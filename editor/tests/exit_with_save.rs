@@ -29,12 +29,12 @@ fn test_exit_with_save() {
         "Menu/File/ExitWithSave",
         TestPlugin::new(
             Macro::begin()
-                .click_at(FileMenu::FILE)
-                .click_at(FileMenu::NEW_SCENE)
+                .lmb_click_at(FileMenu::FILE)
+                .lmb_click_at(FileMenu::NEW_SCENE)
                 .then(|editor| assert_eq!(editor.scenes.len(), 1))
-                .click_at(FileMenu::FILE)
-                .click_at(FileMenu::SAVE_SCENE)
-                .click_at_text(FileMenu::SAVE_FILE_SELECTOR, "Save")
+                .lmb_click_at(FileMenu::FILE)
+                .lmb_click_at(FileMenu::SAVE_SCENE)
+                .lmb_click_at_text(FileMenu::SAVE_FILE_SELECTOR, "Save")
                 .then(|editor| assert_eq!(editor.scenes.len(), 1)),
         ),
     );

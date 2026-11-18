@@ -30,12 +30,12 @@ fn test_close_no_save() {
         "Menu/File/CloseNoSave",
         TestPlugin::new(
             Macro::begin()
-                .click_at(FileMenu::FILE)
-                .click_at(FileMenu::NEW_SCENE)
+                .lmb_click_at(FileMenu::FILE)
+                .lmb_click_at(FileMenu::NEW_SCENE)
                 .then(|editor| assert_eq!(editor.scenes.len(), 1))
-                .click_at(FileMenu::FILE)
-                .click_at(FileMenu::CLOSE_SCENE)
-                .click_at_text(SaveSceneConfirmationDialog::DIALOG_ID, "No")
+                .lmb_click_at(FileMenu::FILE)
+                .lmb_click_at(FileMenu::CLOSE_SCENE)
+                .lmb_click_at_text(SaveSceneConfirmationDialog::DIALOG_ID, "No")
                 .then(|editor| assert_eq!(editor.scenes.len(), 0)),
         ),
     );

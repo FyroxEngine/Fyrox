@@ -23,6 +23,7 @@ use crate::{
 };
 use fyrox::core::info;
 use fyrox::core::uuid::Uuid;
+use fyrox::gui::message::MouseButton;
 use std::collections::VecDeque;
 
 type Action = Box<dyn FnOnce(&mut Editor)>;
@@ -43,14 +44,29 @@ impl Macro {
         self
     }
 
-    pub fn click_at(self, uuid: Uuid) -> Self {
+    pub fn lmb_click_at(self, uuid: Uuid) -> Self {
         self.then(move |editor| {
-            editor.click_at(uuid);
+            editor.click_at(uuid, MouseButton::Left);
         })
     }
 
-    pub fn click_at_text(self, uuid: Uuid, text: impl AsRef<str> + 'static) -> Self {
-        self.then(move |editor| editor.click_at_text(uuid, text.as_ref()))
+    pub fn lmb_click_at_text(self, uuid: Uuid, text: impl AsRef<str> + 'static) -> Self {
+        self.then(move |editor| editor.click_at_text(uuid, MouseButton::Left, text.as_ref()))
+    }
+
+    pub fn click_at(self, uuid: Uuid, button: MouseButton) -> Self {
+        self.then(move |editor| {
+            editor.click_at(uuid, button);
+        })
+    }
+
+    pub fn click_at_text(
+        self,
+        uuid: Uuid,
+        button: MouseButton,
+        text: impl AsRef<str> + 'static,
+    ) -> Self {
+        self.then(move |editor| editor.click_at_text(uuid, button, text.as_ref()))
     }
 
     pub fn skip_frame(self) -> Self {

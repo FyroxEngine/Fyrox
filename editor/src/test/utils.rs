@@ -30,6 +30,7 @@ use crate::{
     test::macros::Macro,
 };
 use fyrox::core::uuid::Uuid;
+use fyrox::gui::message::MouseButton;
 use std::path::PathBuf;
 
 /// Initializes the editor as is a user would open it, adds the specified plugin that runs the test
@@ -63,12 +64,12 @@ pub fn run_editor_test(name: &str, plugin: impl EditorPlugin) {
 
 pub trait EditorTestingExtension {
     /// Clicks at the given position.
-    fn click(&mut self, position: Vector2<f32>);
+    fn click(&mut self, position: Vector2<f32>, button: MouseButton);
 
     /// Tries to find a widget with the given unique id and clicks at its center.
-    fn click_at(&mut self, name: Uuid) -> Handle<UiNode>;
+    fn click_at(&mut self, name: Uuid, button: MouseButton) -> Handle<UiNode>;
 
-    fn click_at_text(&mut self, uuid: Uuid, text: &str);
+    fn click_at_text(&mut self, uuid: Uuid, button: MouseButton, text: &str);
 
     fn find(&self, uuid: Uuid) -> Option<&UiNode>;
 
@@ -84,19 +85,25 @@ pub trait EditorTestingExtension {
 }
 
 impl EditorTestingExtension for Editor {
-    fn click(&mut self, position: Vector2<f32>) {
-        self.engine.user_interfaces.first_mut().click(position)
-    }
-
-    fn click_at(&mut self, uuid: Uuid) -> Handle<UiNode> {
-        self.engine.user_interfaces.first_mut().click_at(uuid)
-    }
-
-    fn click_at_text(&mut self, uuid: Uuid, text: &str) {
+    fn click(&mut self, position: Vector2<f32>, button: MouseButton) {
         self.engine
             .user_interfaces
             .first_mut()
-            .click_at_text(uuid, text)
+            .click(position, button)
+    }
+
+    fn click_at(&mut self, uuid: Uuid, button: MouseButton) -> Handle<UiNode> {
+        self.engine
+            .user_interfaces
+            .first_mut()
+            .click_at(uuid, button)
+    }
+
+    fn click_at_text(&mut self, uuid: Uuid, button: MouseButton, text: &str) {
+        self.engine
+            .user_interfaces
+            .first_mut()
+            .click_at_text(uuid, button, text)
     }
 
     fn find(&self, uuid: Uuid) -> Option<&UiNode> {
