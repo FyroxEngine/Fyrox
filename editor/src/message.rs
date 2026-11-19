@@ -115,7 +115,6 @@ pub enum Message {
         view: Handle<UiNode>,
     },
     ForceSync,
-    ShowDocumentation(String),
     SaveLayout,
     LoadLayout,
     ResetLayout,

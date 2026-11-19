@@ -23,6 +23,7 @@ pub mod animation;
 pub mod camera;
 pub mod collider;
 pub mod curve_editor;
+pub mod doc;
 pub mod export;
 pub mod inspector;
 pub mod light;

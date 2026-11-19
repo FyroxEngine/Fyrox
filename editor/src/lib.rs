@@ -55,6 +55,7 @@ pub mod world;
 pub use fyrox;
 
 use crate::plugins::camera::CameraPlugin;
+use crate::plugins::doc::DocPlugin;
 use crate::plugins::export::ExportPlugin;
 use crate::plugins::light::LightPlugin;
 use crate::plugins::mesh::MeshPlugin;
@@ -174,7 +175,6 @@ use crate::{
         UiScene, bbcode::BBCodePanel, menu::WidgetContextMenu,
         utils::UiSceneWorldViewerDataProvider,
     },
-    utils::doc::DocWindow,
     world::{WorldViewer, graph::EditorSceneWrapper, menu::SceneNodeContextMenu},
 };
 use fyrox::asset::event::ResourceEvent;
@@ -423,7 +423,6 @@ pub struct Editor {
     pub scene_settings: SceneSettingsWindow,
     pub bbcode_panel: BBCodePanel,
     pub audio_preview_panel: AudioPreviewPanel,
-    pub doc_window: DocWindow,
     pub docking_manager: Handle<DockingManager>,
     pub node_removal_dialog: NodeRemovalDialog,
     pub engine: Engine,
@@ -627,7 +626,6 @@ impl Editor {
         let inspector_plugin = InspectorPlugin::new(ctx);
         let bbcode_panel = BBCodePanel::new(inspector_plugin.head, ctx);
         let audio_preview_panel = AudioPreviewPanel::new(inspector_plugin.head, ctx);
-        let doc_window = DocWindow::new(ctx);
         let node_removal_dialog = NodeRemovalDialog::new(ctx);
         let scene_settings = SceneSettingsWindow::new(ctx, property_editors.clone());
 
@@ -730,11 +728,7 @@ impl Editor {
                                 })
                                 .build(ctx)
                         }))
-                        .with_floating_windows(vec![
-                            navmesh_panel.window,
-                            doc_window.window,
-                            scene_settings.window,
-                        ])
+                        .with_floating_windows(vec![navmesh_panel.window, scene_settings.window])
                         .build(ctx);
                     docking_manager
                 }),
@@ -800,7 +794,6 @@ impl Editor {
             bbcode_panel,
             audio_preview_panel,
             node_removal_dialog,
-            doc_window,
             plugins: EditorPluginsContainer::new()
                 .with(ColliderPlugin::default())
                 .with(TileMapEditorPlugin::default())
@@ -817,6 +810,7 @@ impl Editor {
                 .with(ParticleSystemPlugin::default())
                 .with(CameraPlugin::default())
                 .with(MeshPlugin::default())
+                .with(DocPlugin::default())
                 .with(inspector_plugin),
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread
@@ -2533,10 +2527,6 @@ impl Editor {
                                     .send(Message::SaveScene { id: scene.id, path })
                             }
                         }
-                    }
-                    Message::ShowDocumentation(doc) => {
-                        self.doc_window
-                            .open(doc, self.engine.user_interfaces.first_mut());
                     }
                     Message::SaveLayout => {
                         self.save_layout();

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::plugins::doc::ShowDocumentation;
 use crate::plugins::inspector::type_editor::{InspectorTypeEditorContext, ResourceTypeEditor};
 use crate::{
     Editor, Message, WidgetMessage, WrapMode,
@@ -700,7 +701,7 @@ impl EditorPlugin for InspectorPlugin {
                     .selection
                     .provide_docs(&*entry.controller, &editor.engine)
             {
-                editor.message_sender.send(Message::ShowDocumentation(doc));
+                editor.message_sender.send_any(ShowDocumentation(doc));
             }
 
             let ui = editor.engine.user_interfaces.first();

@@ -42,8 +42,6 @@ use fyrox::gui::button::Button;
 use fyrox::gui::file_browser::{FileSelector, FileSelectorMode, FileType};
 use std::{fs::File, path::Path};
 
-pub mod doc;
-
 pub fn make_pick_button(column: usize, ctx: &mut BuildContext) -> Handle<Button> {
     ButtonBuilder::new(
         WidgetBuilder::new()
@@ -60,7 +58,7 @@ pub fn make_pick_button(column: usize, ctx: &mut BuildContext) -> Handle<Button>
                 .with_margin(Thickness::uniform(3.0))
                 .with_background(Brush::Solid(Color::opaque(0, 180, 0)).into()),
         )
-        .with_opt_texture(load_image!("../../resources/pick.png").into())
+        .with_opt_texture(load_image!("../resources/pick.png").into())
         .build(ctx),
     )
     .build(ctx)
