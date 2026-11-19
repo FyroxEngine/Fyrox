@@ -26,6 +26,7 @@
 //! to be applied to other tiles by clicking in the tile palette.
 
 use commands::SetTileSetTilesCommand;
+use fyrox::core::some_or_return;
 use fyrox::gui::dropdown_list::DropdownList;
 use fyrox::gui::grid::Grid;
 use fyrox::gui::text::Text;
@@ -210,7 +211,7 @@ impl TilePropertyEditor {
     /// The property layer may have changed, so update our widgets to reflect the current
     /// state of the layer.
     fn apply_property_update(&mut self, state: &TileEditorState, ui: &mut UserInterface) {
-        let layer = state.find_property(self.property_id).unwrap();
+        let layer = some_or_return!(state.find_property(self.property_id));
         ui.send(self.name_field, TextMessage::Text(layer.name.to_string()));
         let list = make_named_value_list_items(layer, &mut ui.build_ctx());
         ui.send_sync(self.list, DropdownListMessage::Items(list));
@@ -264,8 +265,9 @@ impl TilePropertyEditor {
                 }
                 if let Some(layer) = state.find_property(self.property_id) {
                     let specs = create_nine_specs(&self.value, layer);
+                    let buttons = some_or_return!(self.nine_buttons.as_ref());
                     for (i, specs) in specs.iter().enumerate() {
-                        apply_specs_to_nine(specs, self.nine_buttons.as_ref().unwrap()[i], ui);
+                        apply_specs_to_nine(specs, buttons[i], ui);
                     }
                 }
             }
@@ -273,7 +275,7 @@ impl TilePropertyEditor {
     }
     /// Send a sync message to make the dropdown list selection match the current value.
     fn sync_list_index(&self, state: &TileEditorState, ui: &mut UserInterface) {
-        let layer = state.find_property(self.property_id).unwrap();
+        let layer = some_or_return!(state.find_property(self.property_id));
         if layer.prop_type == TileSetPropertyType::String {
             return;
         }
