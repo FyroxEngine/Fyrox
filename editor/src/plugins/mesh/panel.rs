@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::{
-    command::{Command, CommandGroup},
+    command::CommandGroup,
     fyrox::{
         core::pool::Handle,
         engine::Engine,
@@ -48,6 +48,7 @@ use crate::{
     },
     world::selection::GraphSelection,
 };
+use fyrox::core::some_or_continue;
 
 pub struct MeshControlPanel {
     pub root_widget: Handle<StackPanel>,
@@ -82,7 +83,7 @@ fn meshes_iter<'a>(
 }
 
 impl MeshControlPanel {
-    pub fn new(ctx: &mut BuildContext) -> Self {
+    pub fn new(selection: &GraphSelection, scene: &Scene, ctx: &mut BuildContext) -> Self {
         let create_trimesh_collider = make_button(
             "Create Trimesh Collider",
             "Creates a new trimesh collider and attaches it to the selected mesh(es)",
@@ -113,6 +114,12 @@ impl MeshControlPanel {
             rigid body.",
             ctx,
         );
+
+        if !Self::has_parent_rigid_body(selection, scene) {
+            ctx[add_convex_collider].set_enabled(false);
+            ctx[add_trimesh_collider].set_enabled(false);
+        }
+
         let root_widget = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .with_child(create_trimesh_collider)
@@ -147,103 +154,130 @@ impl MeshControlPanel {
 
         let scene = &engine.scenes[game_scene.scene];
 
-        let mut commands = Vec::new();
+        let mut group = CommandGroup::default();
 
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.create_trimesh_collider {
-                for (mesh_handle, _) in meshes_iter(selection, scene) {
-                    let collider =
-                        ColliderBuilder::new(BaseBuilder::new().with_name("TrimeshCollider"))
-                            .with_shape(ColliderShape::trimesh(vec![GeometrySource(mesh_handle)]))
-                            .build_node();
-                    commands.push(Command::new(AddNodeCommand::new(
-                        collider,
-                        mesh_handle,
-                        false,
-                    )))
-                }
+                Self::on_create_trimesh_collider_clicked(selection, scene, &mut group);
             } else if message.destination() == self.create_convex_collider {
-                for (mesh_handle, _) in meshes_iter(selection, scene) {
-                    let collider =
-                        ColliderBuilder::new(BaseBuilder::new().with_name("ConvexCollider"))
-                            .with_shape(ColliderShape::Polyhedron(ConvexPolyhedronShape {
-                                geometry_source: GeometrySource(mesh_handle),
-                            }))
-                            .build_node();
-                    commands.push(Command::new(AddNodeCommand::new(
-                        collider,
-                        mesh_handle,
-                        false,
-                    )))
-                }
+                Self::on_create_convex_collider_clicked(selection, scene, &mut group);
             } else if message.destination() == self.create_trimesh_rigid_body {
-                let handles = scene
-                    .graph
-                    .generate_free_handles(2 * meshes_iter(selection, scene).count());
-
-                for (rb_collider_handles, (mesh_handle, mesh)) in
-                    handles.chunks(2).zip(meshes_iter(selection, scene))
-                {
-                    let rigid_body_handle = rb_collider_handles[0];
-                    let collider_handle = rb_collider_handles[1];
-
-                    let rigid_body =
-                        RigidBodyBuilder::new(BaseBuilder::new().with_name("RigidBody"))
-                            .with_body_type(RigidBodyType::Static)
-                            .build_node();
-                    let collider =
-                        ColliderBuilder::new(BaseBuilder::new().with_name("TrimeshCollider"))
-                            .with_shape(ColliderShape::trimesh(vec![GeometrySource(mesh_handle)]))
-                            .build_node();
-                    commands.extend([
-                        Command::new(AddNodeCommand::new(rigid_body, mesh_handle, false)),
-                        Command::new(AddNodeCommand::new(collider, rigid_body_handle, false)),
-                        Command::new(LinkNodesCommand::new(rigid_body_handle, mesh.parent())),
-                        Command::new(LinkNodesCommand::new(mesh_handle, rigid_body_handle)),
-                        Command::new(LinkNodesCommand::new(collider_handle, rigid_body_handle)),
-                    ]);
-                }
+                Self::on_create_trimesh_rigid_body_clicked(selection, scene, &mut group);
             } else if message.destination() == self.add_convex_collider {
-                for (mesh_handle, _) in meshes_iter(selection, scene) {
-                    if let Some((ancestor_rigid_body, _)) =
-                        scene.graph.find_self_or_field_up::<RigidBody>(mesh_handle)
-                    {
-                        let collider =
-                            ColliderBuilder::new(BaseBuilder::new().with_name("ConvexCollider"))
-                                .with_shape(ColliderShape::Polyhedron(ConvexPolyhedronShape {
-                                    geometry_source: GeometrySource(mesh_handle),
-                                }))
-                                .build_node();
-                        commands.push(Command::new(AddNodeCommand::new(
-                            collider,
-                            ancestor_rigid_body,
-                            false,
-                        )))
-                    }
-                }
+                Self::on_add_convex_collider_clicked(selection, scene, &mut group);
             } else if message.destination() == self.add_trimesh_collider {
-                for (mesh_handle, _) in meshes_iter(selection, scene) {
-                    if let Some((ancestor_rigid_body, _)) =
-                        scene.graph.find_self_or_field_up::<RigidBody>(mesh_handle)
-                    {
-                        let collider =
-                            ColliderBuilder::new(BaseBuilder::new().with_name("TrimeshCollider"))
-                                .with_shape(ColliderShape::trimesh(vec![GeometrySource(
-                                    mesh_handle,
-                                )]))
-                                .build_node();
-                        commands.push(Command::new(AddNodeCommand::new(
-                            collider,
-                            ancestor_rigid_body,
-                            false,
-                        )))
-                    }
-                }
+                Self::on_add_trimesh_collider_clicked(selection, scene, &mut group);
             }
         }
 
-        if !commands.is_empty() {
-            sender.do_command(CommandGroup::from(commands));
+        if !group.is_empty() {
+            sender.do_command(group);
+        }
+    }
+
+    pub fn sync_to_model(&self, selection: &GraphSelection, scene: &Scene, ui: &UserInterface) {
+        let has_parent_rigid_body = Self::has_parent_rigid_body(selection, scene);
+        for button in [self.add_convex_collider, self.add_trimesh_collider] {
+            ui.send(button, WidgetMessage::Enabled(has_parent_rigid_body));
+        }
+    }
+
+    fn has_parent_rigid_body(selection: &GraphSelection, scene: &Scene) -> bool {
+        meshes_iter(selection, scene).any(|(mesh_handle, _)| {
+            scene
+                .graph
+                .find_self_or_field_up::<RigidBody>(mesh_handle)
+                .is_some()
+        })
+    }
+
+    fn on_add_trimesh_collider_clicked(
+        selection: &GraphSelection,
+        scene: &Scene,
+        commands: &mut CommandGroup,
+    ) {
+        for (mesh_handle, _) in meshes_iter(selection, scene) {
+            let (ancestor_rigid_body, _) =
+                some_or_continue!(scene.graph.find_self_or_field_up::<RigidBody>(mesh_handle));
+            let collider = ColliderBuilder::new(BaseBuilder::new().with_name("TrimeshCollider"))
+                .with_shape(ColliderShape::trimesh(vec![GeometrySource(mesh_handle)]))
+                .build_node();
+            commands.push(AddNodeCommand::new(collider, ancestor_rigid_body, false))
+        }
+    }
+
+    fn on_add_convex_collider_clicked(
+        selection: &GraphSelection,
+        scene: &Scene,
+        commands: &mut CommandGroup,
+    ) {
+        for (mesh_handle, _) in meshes_iter(selection, scene) {
+            let (ancestor_rigid_body, _) =
+                some_or_continue!(scene.graph.find_self_or_field_up::<RigidBody>(mesh_handle));
+            let collider = ColliderBuilder::new(BaseBuilder::new().with_name("ConvexCollider"))
+                .with_shape(ColliderShape::Polyhedron(ConvexPolyhedronShape {
+                    geometry_source: GeometrySource(mesh_handle),
+                }))
+                .build_node();
+            commands.push(AddNodeCommand::new(collider, ancestor_rigid_body, false))
+        }
+    }
+
+    fn on_create_trimesh_rigid_body_clicked(
+        selection: &GraphSelection,
+        scene: &Scene,
+        commands: &mut CommandGroup,
+    ) {
+        let handles = scene
+            .graph
+            .generate_free_handles(2 * meshes_iter(selection, scene).count());
+
+        for (rb_collider_handles, (mesh_handle, mesh)) in
+            handles.chunks(2).zip(meshes_iter(selection, scene))
+        {
+            let rigid_body_handle = rb_collider_handles[0];
+            let collider_handle = rb_collider_handles[1];
+
+            let rigid_body = RigidBodyBuilder::new(BaseBuilder::new().with_name("RigidBody"))
+                .with_body_type(RigidBodyType::Static)
+                .build_node();
+            let collider = ColliderBuilder::new(BaseBuilder::new().with_name("TrimeshCollider"))
+                .with_shape(ColliderShape::trimesh(vec![GeometrySource(mesh_handle)]))
+                .build_node();
+
+            commands.push(AddNodeCommand::new(rigid_body, mesh_handle, false));
+            commands.push(AddNodeCommand::new(collider, rigid_body_handle, false));
+            commands.push(LinkNodesCommand::new(rigid_body_handle, mesh.parent()));
+            commands.push(LinkNodesCommand::new(mesh_handle, rigid_body_handle));
+            commands.push(LinkNodesCommand::new(collider_handle, rigid_body_handle));
+        }
+    }
+
+    fn on_create_convex_collider_clicked(
+        selection: &GraphSelection,
+        scene: &Scene,
+        commands: &mut CommandGroup,
+    ) {
+        for (mesh_handle, _) in meshes_iter(selection, scene) {
+            let collider = ColliderBuilder::new(BaseBuilder::new().with_name("ConvexCollider"))
+                .with_shape(ColliderShape::Polyhedron(ConvexPolyhedronShape {
+                    geometry_source: GeometrySource(mesh_handle),
+                }))
+                .build_node();
+            commands.push(AddNodeCommand::new(collider, mesh_handle, false))
+        }
+    }
+
+    fn on_create_trimesh_collider_clicked(
+        selection: &GraphSelection,
+        scene: &Scene,
+        commands: &mut CommandGroup,
+    ) {
+        for (mesh_handle, _) in meshes_iter(selection, scene) {
+            let collider = ColliderBuilder::new(BaseBuilder::new().with_name("TrimeshCollider"))
+                .with_shape(ColliderShape::trimesh(vec![GeometrySource(mesh_handle)]))
+                .build_node();
+            commands.push(AddNodeCommand::new(collider, mesh_handle, false))
         }
     }
 

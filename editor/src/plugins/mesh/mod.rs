@@ -68,6 +68,17 @@ impl EditorPlugin for MeshPlugin {
             });
     }
 
+    fn on_sync_to_model(&mut self, editor: &mut Editor) {
+        let ui = editor.engine.user_interfaces.first_mut();
+        let entry = editor.scenes.current_scene_entry_ref();
+        let selection = some_or_return!(entry.selection.as_graph());
+        let game_scene = some_or_return!(entry.controller.downcast_ref::<GameScene>());
+        let scene = &editor.engine.scenes[game_scene.scene];
+        if let Some(panel) = self.panel.as_ref() {
+            panel.sync_to_model(selection, scene, ui);
+        }
+    }
+
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
         if let Some(surface_data_viewer) = self.surface_data_viewer.take() {
             self.surface_data_viewer =
@@ -87,15 +98,19 @@ impl EditorPlugin for MeshPlugin {
     }
 
     fn on_update(&mut self, editor: &mut Editor, _loop_controller: ApplicationLoopController) {
-        if let Some(surface_data_viewer) = self.surface_data_viewer.as_mut() {
-            surface_data_viewer.update(&mut editor.engine);
+        if let Some(viewer) = self.surface_data_viewer.as_mut() {
+            viewer.update(&mut editor.engine);
         }
     }
 
     fn on_message(&mut self, message: &Message, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first_mut();
         let entry = editor.scenes.current_scene_entry_mut();
-        let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() else {
+
+        let (Some(game_scene), Some(selection)) = (
+            entry.controller.downcast_mut::<GameScene>(),
+            entry.selection.as_graph(),
+        ) else {
             self.destroy_panel(ui);
             self.destroy_surface_viewer(&mut editor.engine);
             return;
@@ -104,14 +119,10 @@ impl EditorPlugin for MeshPlugin {
         let scene = &mut editor.engine.scenes[game_scene.scene];
 
         if let Message::SelectionChanged { .. } = message {
-            let is_mesh_selected = entry
-                .selection
-                .as_graph()
-                .is_some_and(|s| s.contains_type::<Mesh>(&scene.graph));
-            if is_mesh_selected {
+            if selection.contains_type::<Mesh>(&scene.graph) {
                 if self.panel.is_none() {
                     let inspector = editor.plugins.get::<InspectorPlugin>();
-                    let panel = MeshControlPanel::new(&mut ui.build_ctx());
+                    let panel = MeshControlPanel::new(selection, scene, &mut ui.build_ctx());
                     ui.send(panel.root_widget, WidgetMessage::link_with(inspector.head));
                     self.panel = Some(panel);
                 }
