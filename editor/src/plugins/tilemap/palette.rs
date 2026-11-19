@@ -674,7 +674,9 @@ impl PaletteWidget {
     }
     fn sync_to_state(&mut self, ui: &mut UserInterface) {
         let state = self.state.lock();
-        let drawing_mode = if self.editable {
+        // If this is not an editable palette, or this is a page select palette, then override
+        // the user's chosen drawing mode and allow the user to pick instead.
+        let drawing_mode = if self.editable && self.kind == TilePaletteStage::Tiles {
             state.drawing_mode
         } else {
             DrawingMode::Pick
@@ -718,7 +720,7 @@ impl PaletteWidget {
         if self.editable {
             self.overlay.clear();
             self.highlight.clear();
-            match state.drawing_mode {
+            match drawing_mode {
                 DrawingMode::Draw | DrawingMode::FloodFill => {
                     if let Some(tile_set) = state.tile_set.as_ref() {
                         self.overlay
@@ -895,7 +897,9 @@ impl PaletteWidget {
         }
     }
     fn send_tile_set_update(&mut self) {
-        assert_eq!(self.kind, TilePaletteStage::Tiles);
+        if self.kind != TilePaletteStage::Tiles {
+            return;
+        }
         if let TileBook::TileSet(resource) = &self.content {
             self.sender.do_command(SetTileSetTilesCommand {
                 tile_set: resource.clone(),
@@ -938,7 +942,7 @@ impl PaletteWidget {
         );
     }
     fn drawing_mode(&self) -> DrawingMode {
-        if self.editable {
+        if self.editable && self.kind == TilePaletteStage::Tiles {
             self.current_tool
         } else {
             DrawingMode::Pick
@@ -1146,6 +1150,7 @@ impl PaletteWidget {
         let Some(page) = self.page else {
             return;
         };
+        // We cannot drag an atlas tile, because the tiles are baked into the texture.
         if self.kind == TilePaletteStage::Tiles && self.content.is_atlas_page(page) {
             return;
         }
@@ -1229,6 +1234,10 @@ impl PaletteWidget {
         let Some(page) = self.page else {
             return;
         };
+        // We cannot drag an atlas tile, because the tiles are baked into the texture.
+        if self.content.is_atlas_page(page) {
+            return;
+        }
         let tiles = state.selection_positions().iter().copied();
         match self.content.clone() {
             TileBook::Empty => (),
