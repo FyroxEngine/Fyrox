@@ -162,7 +162,7 @@ fn calc_slice_coord(position: f32, step: f32) -> usize {
     (p.floor() as i32).clamp(0, 2) as usize
 }
 
-/// Displays a scrollable grid of till cells, with options to allow the tiles
+/// Displays a scrollable grid of tile cells, with options to allow the tiles
 /// to be selected, dragged, and edits in various ways.
 #[derive(Clone, Visit, Reflect)]
 #[reflect(
@@ -1964,6 +1964,7 @@ impl Control for PaletteWidget {
                         }
                     }
                 }
+                self.invalidate_visual();
             }
         } else if let Some(WidgetMessage::KeyDown(key)) = message.data()
             && *key == KeyCode::Delete
