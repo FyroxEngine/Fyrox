@@ -169,6 +169,11 @@ impl PartialEq for DynTypeWrapper {
 pub struct DynTypeContainer(pub Option<DynTypeWrapper>);
 
 impl DynTypeContainer {
+    /// Creates a new non-empty container.
+    pub fn new<T: DynType>(value: T) -> Self {
+        Self(Some(DynTypeWrapper(Box::new(value))))
+    }
+
     /// Tries to take and downcast the actual value in the container to the specified type and return it
     /// to the caller.
     pub fn try_take<T: DynType>(&mut self) -> Result<T, DynTypeError> {
