@@ -59,6 +59,7 @@ use crate::plugins::doc::DocPlugin;
 use crate::plugins::export::ExportPlugin;
 use crate::plugins::light::LightPlugin;
 use crate::plugins::mesh::MeshPlugin;
+use crate::plugins::navmesh::NavmeshPlugin;
 use crate::plugins::particle_system::ParticleSystemPlugin;
 use crate::world::create::EntityCreator;
 use crate::{
@@ -137,11 +138,8 @@ use crate::{
     },
     highlight::HighlightRenderPass,
     interaction::{
-        move_mode::MoveInteractionMode,
-        navmesh::{EditNavmeshMode, NavmeshPanel},
-        rotate_mode::RotateInteractionMode,
-        scale_mode::ScaleInteractionMode,
-        select_mode::SelectInteractionMode,
+        move_mode::MoveInteractionMode, rotate_mode::RotateInteractionMode,
+        scale_mode::ScaleInteractionMode, select_mode::SelectInteractionMode,
         terrain::TerrainInteractionMode,
     },
     menu::{Menu, MenuContext, Panels},
@@ -415,7 +413,6 @@ pub struct Editor {
     pub log: LogPanel,
     pub command_stack_viewer: CommandStackViewer,
     pub validation_message_box: Handle<MessageBox>,
-    pub navmesh_panel: NavmeshPanel,
     pub settings: Settings,
     pub audio_panel: AudioPanel,
     pub mode: Mode,
@@ -612,7 +609,6 @@ impl Editor {
             WidgetBuilder::new().with_child(BorderBuilder::new(WidgetBuilder::new()).build(ctx)),
         )
         .build(ctx);
-        let navmesh_panel = NavmeshPanel::new(scene_viewer.frame(), ctx, message_sender.clone());
         let scene_node_context_menu = Rc::new(RefCell::new(SceneNodeContextMenu::new(ctx)));
         let widget_context_menu = Rc::new(RefCell::new(WidgetContextMenu::new(ctx)));
         let world_outliner = WorldViewer::new(ctx, message_sender.clone(), &settings);
@@ -728,7 +724,7 @@ impl Editor {
                                 })
                                 .build(ctx)
                         }))
-                        .with_floating_windows(vec![navmesh_panel.window, scene_settings.window])
+                        .with_floating_windows(vec![scene_settings.window])
                         .build(ctx);
                     docking_manager
                 }),
@@ -767,7 +763,6 @@ impl Editor {
         let editor = Self {
             docking_manager,
             engine,
-            navmesh_panel,
             scene_viewer,
             scenes,
             message_sender,
@@ -811,6 +806,7 @@ impl Editor {
                 .with(CameraPlugin::default())
                 .with(MeshPlugin::default())
                 .with(DocPlugin::default())
+                .with(NavmeshPlugin::default())
                 .with(inspector_plugin),
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread
@@ -1000,10 +996,6 @@ impl Editor {
                     sender.send(Message::SetInteractionMode(
                         ScaleInteractionMode::type_info().type_uuid,
                     ));
-                } else if hot_key == key_bindings.enable_navmesh_mode {
-                    sender.send(Message::SetInteractionMode(
-                        EditNavmeshMode::type_info().type_uuid,
-                    ));
                 } else if hot_key == key_bindings.enable_terrain_mode {
                     sender.send(Message::SetInteractionMode(
                         TerrainInteractionMode::type_info().type_uuid,
@@ -1128,7 +1120,6 @@ impl Editor {
                     world_outliner_window: self.world_viewer.window,
                     asset_window: self.asset_browser.window,
                     log_panel: self.log.window,
-                    navmesh_panel: self.navmesh_panel.window,
                     audio_panel: self.audio_panel.window,
                     configurator_window: self.configurator.window,
                     command_stack_panel: self.command_stack_viewer.window,
@@ -1209,9 +1200,6 @@ impl Editor {
                 &self.message_sender,
                 engine,
             );
-
-            self.navmesh_panel
-                .handle_message(message, &current_scene_entry.selection);
 
             if let Some(interaction_mode) =
                 current_scene_entry
@@ -1488,7 +1476,6 @@ impl Editor {
         self.asset_browser.on_mode_changed(ui, &self.mode);
         self.command_stack_viewer.on_mode_changed(ui, &self.mode);
         self.audio_panel.on_mode_changed(ui, &self.mode);
-        self.navmesh_panel.on_mode_changed(ui, &self.mode);
         self.menu.on_mode_changed(ui, &self.mode);
     }
 
@@ -1543,8 +1530,6 @@ impl Editor {
 
             self.audio_panel
                 .sync_to_model(&current_scene_entry.selection, game_scene, engine);
-            self.navmesh_panel
-                .sync_to_model(engine, &current_scene_entry.selection, game_scene);
         } else if let Some(ui_scene) = current_scene_entry.controller.downcast_mut::<UiScene>() {
             self.bbcode_panel.sync_to_model(
                 &current_scene_entry.selection,

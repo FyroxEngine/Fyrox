@@ -18,21 +18,21 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::command::{Command, SetPropertyCommand};
-use crate::fyrox::{
-    core::{math::TriangleEdge, pool::Handle},
-    scene::node::Node,
+use crate::{
+    command::{Command, SetPropertyCommand},
+    fyrox::{
+        core::{math::TriangleEdge, pool::Handle, reflect::Reflect, some_or_return},
+        engine::Engine,
+        graph::SceneGraph,
+        gui::inspector::PropertyChanged,
+        scene::{SceneContainer, node::Node},
+    },
+    message::MessageSender,
+    scene::{
+        EntityInfo, GameScene, SelectionContainer, commands::GameSceneContext,
+        controller::SceneController,
+    },
 };
-use crate::message::MessageSender;
-use crate::scene::commands::GameSceneContext;
-use crate::scene::controller::SceneController;
-use crate::scene::{EntityInfo, GameScene, SelectionContainer};
-use fyrox::core::reflect::Reflect;
-use fyrox::core::some_or_return;
-use fyrox::engine::Engine;
-use fyrox::graph::SceneGraph;
-use fyrox::gui::inspector::PropertyChanged;
-use fyrox::scene::SceneContainer;
 use std::{
     cell::{Cell, Ref, RefCell},
     collections::BTreeSet,

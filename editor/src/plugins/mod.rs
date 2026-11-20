@@ -29,6 +29,7 @@ pub mod inspector;
 pub mod light;
 pub mod material;
 pub mod mesh;
+pub mod navmesh;
 pub mod particle_system;
 pub mod probe;
 pub mod ragdoll;

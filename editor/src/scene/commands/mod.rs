@@ -39,7 +39,6 @@ pub mod effect;
 pub mod graph;
 pub mod material;
 pub mod mesh;
-pub mod navmesh;
 pub mod sound_context;
 pub mod terrain;
 

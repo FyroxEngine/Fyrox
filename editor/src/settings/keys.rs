@@ -59,7 +59,6 @@ pub struct KeyBindings {
     pub enable_move_mode: HotKey,
     pub enable_rotate_mode: HotKey,
     pub enable_scale_mode: HotKey,
-    pub enable_navmesh_mode: HotKey,
     pub enable_terrain_mode: HotKey,
     pub save_scene: HotKey,
     pub save_scene_as: HotKey,
@@ -93,8 +92,7 @@ impl Default for KeyBindings {
             enable_move_mode: HotKey::from_key_code(KeyCode::Digit2),
             enable_rotate_mode: HotKey::from_key_code(KeyCode::Digit3),
             enable_scale_mode: HotKey::from_key_code(KeyCode::Digit4),
-            enable_navmesh_mode: HotKey::from_key_code(KeyCode::Digit5),
-            enable_terrain_mode: HotKey::from_key_code(KeyCode::Digit6),
+            enable_terrain_mode: HotKey::from_key_code(KeyCode::Digit5),
             save_scene: HotKey::ctrl_key(KeyCode::KeyS),
             save_scene_as: HotKey::Some {
                 code: KeyCode::KeyS,

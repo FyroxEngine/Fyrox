@@ -18,22 +18,22 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::command::CommandContext;
-use crate::fyrox::core::parking_lot::RwLockWriteGuard;
-use crate::fyrox::{
-    core::{
-        algebra::Vector3,
-        math::{TriangleDefinition, TriangleEdge},
-        pool::Handle,
-    },
-    scene::node::Node,
-    utils::navmesh::Navmesh,
-};
 use crate::{
-    command::CommandTrait,
-    interaction::navmesh::selection::{NavmeshEntity, NavmeshSelection},
+    command::{CommandContext, CommandTrait},
+    fyrox::{
+        core::{
+            algebra::Vector3,
+            math::{TriangleDefinition, TriangleEdge},
+            parking_lot::RwLockWriteGuard,
+            pool::Handle,
+        },
+        scene::node::Node,
+        utils::navmesh::Navmesh,
+    },
     scene::{Selection, commands::GameSceneContext},
 };
+
+use super::selection::{NavmeshEntity, NavmeshSelection};
 
 #[derive(Debug)]
 pub struct AddNavmeshEdgeCommand {

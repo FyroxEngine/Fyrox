@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::plugins::navmesh::selection::NavmeshSelection;
 use crate::scene::clipboard::GameSceneClipboardPayload;
 use crate::scene::commands::PasteCommand;
 use crate::{
@@ -76,7 +77,6 @@ use crate::{
         },
     },
     highlight::HighlightRenderPass,
-    interaction::navmesh::selection::NavmeshSelection,
     message::MessageSender,
     plugins::{
         absm::selection::AbsmSelection,

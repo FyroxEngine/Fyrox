@@ -32,7 +32,7 @@ use crate::scene::nullscene::NullSceneController;
 use crate::{
     highlight::HighlightRenderPass,
     interaction::{
-        InteractionModeContainer, move_mode::MoveInteractionMode, navmesh::EditNavmeshMode,
+        InteractionModeContainer, move_mode::MoveInteractionMode,
         rotate_mode::RotateInteractionMode, scale_mode::ScaleInteractionMode,
         select_mode::SelectInteractionMode, terrain::TerrainInteractionMode,
     },
@@ -122,11 +122,6 @@ impl EditorSceneEntry {
             message_sender.clone(),
         ));
         interaction_modes.add(ScaleInteractionMode::new(
-            &game_scene,
-            engine,
-            message_sender.clone(),
-        ));
-        interaction_modes.add(EditNavmeshMode::new(
             &game_scene,
             engine,
             message_sender.clone(),
