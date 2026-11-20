@@ -19,17 +19,16 @@
 // SOFTWARE.
 
 use directories::ProjectDirs;
-use fyrox::gui::Thickness;
-use fyrox::gui::clipboard::ClipboardContainer;
-use fyrox::gui::inspector::InspectorContextArgs;
-use fyrox::gui::window::{Window, WindowAlignment};
+use fyrox::core::futures::executor::block_on;
 use fyrox::{
-    core::{log::Log, pool::Handle, reflect::prelude::*},
+    core::{log::Log, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     fxhash::FxHashSet,
     gui::{
-        BuildContext, UserInterface,
+        BuildContext, Thickness, UserInterface,
+        clipboard::ClipboardContainer,
         inspector::{
-            Inspector, InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction,
+            Inspector, InspectorBuilder, InspectorContext, InspectorContextArgs, InspectorMessage,
+            PropertyAction,
             editors::{
                 PropertyEditorDefinitionContainer,
                 collection::VecCollectionPropertyEditorDefinition,
@@ -39,15 +38,11 @@ use fyrox::{
         message::UiMessage,
         scroll_viewer::ScrollViewerBuilder,
         widget::WidgetBuilder,
-        window::{WindowBuilder, WindowMessage, WindowTitle},
+        window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
     },
 };
 use fyrox_build_tools::{CommandDescriptor, EnvironmentVariable};
-use ron::ser::PrettyConfig;
-use serde::{Deserialize, Serialize};
 use std::{
-    fs::File,
-    io::Write,
     ops::{Deref, DerefMut},
     path::PathBuf,
     sync::{Arc, LazyLock},
@@ -93,33 +88,33 @@ pub static DATA_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
     data_dir
 });
 
-fn default_run_cargo_update() -> bool {
-    true
-}
-
-#[derive(Default, Serialize, Deserialize, PartialEq, Reflect, Clone, Debug)]
+#[derive(Visit, PartialEq, Reflect, Clone, Debug)]
 #[reflect(type_uuid = "fab68a7a-58ce-40f5-a354-a7789c43efd3")]
 pub struct SettingsData {
     /// Defines a command to run an IDE in a project folder. This command should use either
     /// %MANIFEST_PATH% or %MANIFEST_DIR% built-in variable to provide the selected project path to
     /// the chosen IDE. In case of Visual Studio Code you should use %MANIFEST_DIR% as the first
     /// argument.
-    #[serde(default = "default_open_ide_command")]
     pub open_ide_command: CommandDescriptor,
     #[reflect(hidden)]
     pub projects: Vec<Project>,
     /// Enables or disables `cargo update` command before running the selected project. In some
     /// cases `cargo update` can be excessive and lead to increased build times.
-    #[serde(default = "default_run_cargo_update")]
     pub run_cargo_update: bool,
 }
 
-fn default_open_ide_command() -> CommandDescriptor {
-    CommandDescriptor {
-        command: "rustrover64".to_string(),
-        args: vec![MANIFEST_PATH_VAR.to_string()],
-        environment_variables: vec![],
-        skip_passthrough_marker: false,
+impl Default for SettingsData {
+    fn default() -> Self {
+        Self {
+            open_ide_command: CommandDescriptor {
+                command: "rustrover64".to_string(),
+                args: vec![MANIFEST_PATH_VAR.to_string()],
+                environment_variables: vec![],
+                skip_passthrough_marker: false,
+            },
+            projects: vec![],
+            run_cargo_update: true,
+        }
     }
 }
 
@@ -131,9 +126,10 @@ impl SettingsData {
     }
 
     pub fn load() -> Self {
-        match File::open(Self::actual_path()) {
-            Ok(file) => {
-                let mut settings: SettingsData = ron::de::from_reader(file).unwrap_or_default();
+        match block_on(Visitor::load_from_file(Self::actual_path())) {
+            Ok(mut visitor) => {
+                let mut settings = SettingsData::default();
+                Log::verify(settings.visit("Settings", &mut visitor));
                 settings.remove_non_existent_projects();
                 settings.remove_duplicates();
                 settings
@@ -145,18 +141,11 @@ impl SettingsData {
         }
     }
 
-    pub fn save(&self) {
-        match File::create(Self::actual_path()) {
-            Ok(mut file) => {
-                let pretty_string =
-                    ron::ser::to_string_pretty(self, PrettyConfig::default()).unwrap_or_default();
-                if let Err(err) = file.write_all(pretty_string.as_bytes()) {
-                    eprintln!("Unable to save project manager settings! Reason: {err:?}");
-                }
-            }
-            Err(err) => {
-                eprintln!("Unable to create project manager settings file! Reason: {err:?}");
-            }
+    pub fn save(&mut self) {
+        let mut visitor = Visitor::new();
+        Log::verify(self.visit("Settings", &mut visitor));
+        if let Err(err) = visitor.save_ascii_to_file(Self::actual_path()) {
+            eprintln!("Unable to create project manager settings file! Reason: {err:?}");
         }
     }
 
@@ -214,7 +203,7 @@ impl Settings {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Clone, Debug)]
+#[derive(Visit, Default, PartialEq, Clone, Debug)]
 pub struct Project {
     pub manifest_path: PathBuf,
     pub name: String,

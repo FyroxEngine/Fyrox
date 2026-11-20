@@ -20,15 +20,15 @@
 
 use crate::fyrox::{
     core::reflect::prelude::*,
+    core::visitor::prelude::*,
     gui::{
         key::{HotKey, KeyBinding},
         message::KeyCode,
     },
 };
 use fyrox::gui::message::KeyboardModifiers;
-use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
+#[derive(Visit, PartialEq, Clone, Debug, Reflect)]
 #[reflect(type_uuid = "fbcdc91c-ba63-4d24-b604-c8ffd58834bf")]
 pub struct TerrainKeyBindings {
     pub modify_height_map_mode: HotKey,
@@ -42,7 +42,7 @@ pub struct TerrainKeyBindings {
     pub next_layer: HotKey,
 }
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
+#[derive(Visit, PartialEq, Clone, Debug, Reflect)]
 #[reflect(type_uuid = "82d67946-8b7b-41f0-9520-5d4a927aa68f")]
 pub struct KeyBindings {
     pub move_forward: KeyBinding,
@@ -53,7 +53,6 @@ pub struct KeyBindings {
     pub move_down: KeyBinding,
     pub speed_up: KeyBinding,
     pub slow_down: KeyBinding,
-
     pub undo: HotKey,
     pub redo: HotKey,
     pub enable_select_mode: HotKey,
@@ -63,9 +62,7 @@ pub struct KeyBindings {
     pub enable_navmesh_mode: HotKey,
     pub enable_terrain_mode: HotKey,
     pub save_scene: HotKey,
-    #[serde(default = "default_save_scene_as_hotkey")]
     pub save_scene_as: HotKey,
-    #[serde(default = "default_save_all_scenes_hotkey")]
     pub save_all_scenes: HotKey,
     pub load_scene: HotKey,
     pub copy_selection: HotKey,
@@ -73,56 +70,9 @@ pub struct KeyBindings {
     pub new_scene: HotKey,
     pub close_scene: HotKey,
     pub remove_selection: HotKey,
-    #[serde(default = "default_focus_hotkey")]
     pub focus: HotKey,
-    #[serde(default = "default_terrain_key_bindings")]
     pub terrain_key_bindings: TerrainKeyBindings,
-    #[serde(default = "default_run_hotkey")]
     pub run_game: HotKey,
-}
-
-fn default_save_scene_as_hotkey() -> HotKey {
-    HotKey::Some {
-        code: KeyCode::KeyS,
-        modifiers: KeyboardModifiers {
-            shift: true,
-            control: true,
-            ..Default::default()
-        },
-    }
-}
-
-fn default_save_all_scenes_hotkey() -> HotKey {
-    HotKey::Some {
-        code: KeyCode::KeyS,
-        modifiers: KeyboardModifiers {
-            alt: true,
-            control: true,
-            ..Default::default()
-        },
-    }
-}
-
-fn default_focus_hotkey() -> HotKey {
-    HotKey::from_key_code(KeyCode::KeyF)
-}
-
-fn default_run_hotkey() -> HotKey {
-    HotKey::from_key_code(KeyCode::F5)
-}
-
-fn default_terrain_key_bindings() -> TerrainKeyBindings {
-    TerrainKeyBindings {
-        modify_height_map_mode: HotKey::from_key_code(KeyCode::F1),
-        draw_on_mask_mode: HotKey::from_key_code(KeyCode::F2),
-        flatten_slopes_mode: HotKey::from_key_code(KeyCode::F3),
-        increase_brush_size: HotKey::from_key_code(KeyCode::BracketRight),
-        decrease_brush_size: HotKey::from_key_code(KeyCode::BracketLeft),
-        increase_brush_opacity: HotKey::from_key_code(KeyCode::Period),
-        decrease_brush_opacity: HotKey::from_key_code(KeyCode::Comma),
-        prev_layer: HotKey::from_key_code(KeyCode::Semicolon),
-        next_layer: HotKey::from_key_code(KeyCode::Quote),
-    }
 }
 
 impl Default for KeyBindings {
@@ -146,17 +96,41 @@ impl Default for KeyBindings {
             enable_navmesh_mode: HotKey::from_key_code(KeyCode::Digit5),
             enable_terrain_mode: HotKey::from_key_code(KeyCode::Digit6),
             save_scene: HotKey::ctrl_key(KeyCode::KeyS),
-            save_scene_as: default_save_scene_as_hotkey(),
-            save_all_scenes: default_save_all_scenes_hotkey(),
+            save_scene_as: HotKey::Some {
+                code: KeyCode::KeyS,
+                modifiers: KeyboardModifiers {
+                    shift: true,
+                    control: true,
+                    ..Default::default()
+                },
+            },
+            save_all_scenes: HotKey::Some {
+                code: KeyCode::KeyS,
+                modifiers: KeyboardModifiers {
+                    alt: true,
+                    control: true,
+                    ..Default::default()
+                },
+            },
             load_scene: HotKey::ctrl_key(KeyCode::KeyL),
             copy_selection: HotKey::ctrl_key(KeyCode::KeyC),
             paste: HotKey::ctrl_key(KeyCode::KeyV),
             new_scene: HotKey::ctrl_key(KeyCode::KeyN),
             close_scene: HotKey::ctrl_key(KeyCode::KeyQ),
             remove_selection: HotKey::from_key_code(KeyCode::Delete),
-            focus: default_focus_hotkey(),
-            terrain_key_bindings: default_terrain_key_bindings(),
-            run_game: default_run_hotkey(),
+            focus: HotKey::from_key_code(KeyCode::KeyF),
+            terrain_key_bindings: TerrainKeyBindings {
+                modify_height_map_mode: HotKey::from_key_code(KeyCode::F1),
+                draw_on_mask_mode: HotKey::from_key_code(KeyCode::F2),
+                flatten_slopes_mode: HotKey::from_key_code(KeyCode::F3),
+                increase_brush_size: HotKey::from_key_code(KeyCode::BracketRight),
+                decrease_brush_size: HotKey::from_key_code(KeyCode::BracketLeft),
+                increase_brush_opacity: HotKey::from_key_code(KeyCode::Period),
+                decrease_brush_opacity: HotKey::from_key_code(KeyCode::Comma),
+                prev_layer: HotKey::from_key_code(KeyCode::Semicolon),
+                next_layer: HotKey::from_key_code(KeyCode::Quote),
+            },
+            run_game: HotKey::from_key_code(KeyCode::F5),
         }
     }
 }

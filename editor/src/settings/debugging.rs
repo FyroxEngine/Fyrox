@@ -18,26 +18,20 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::core::reflect::prelude::*;
-use serde::{Deserialize, Serialize};
+use crate::fyrox::core::{reflect::prelude::*, visitor::prelude::*};
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
+#[derive(Visit, PartialEq, Clone, Debug, Reflect)]
 #[reflect(type_uuid = "7bfe6c22-7113-41df-b5d9-ec1215a724eb")]
 pub struct DebuggingSettings {
     pub show_physics: bool,
     pub show_bounds: bool,
     pub show_tbn: bool,
-    #[serde(default)]
     pub show_terrains: bool,
-    #[serde(default)]
     pub show_light_bounds: bool,
-    #[serde(default)]
     pub show_camera_bounds: bool,
     /// Size of pictograms in meters. It is used for objects like lights.
-    #[serde(default)]
     pub pictogram_size: f32,
     /// Forces the editor to save the scene in text form as well as standard binary.
-    #[serde(default)]
     pub save_scene_in_text_form: bool,
 }
 

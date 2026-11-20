@@ -18,10 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::core::reflect::prelude::*;
-use serde::{Deserialize, Serialize};
+use crate::fyrox::core::{reflect::prelude::*, visitor::prelude::*};
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
+#[derive(Visit, PartialEq, Clone, Debug, Reflect)]
 #[reflect(type_uuid = "e2432bfe-3204-48e3-9cab-607443246e10")]
 pub struct NavmeshSettings {
     /// Show all navigational meshes in scene. With this function turned off, only currently edited

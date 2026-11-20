@@ -18,10 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::core::{algebra::Vector3, math, reflect::prelude::*};
-use serde::{Deserialize, Serialize};
+use crate::fyrox::core::{algebra::Vector3, math, reflect::prelude::*, visitor::prelude::*};
 
-#[derive(Deserialize, Serialize, PartialEq, Debug, Clone, Reflect)]
+#[derive(Visit, PartialEq, Debug, Clone, Reflect)]
 #[reflect(type_uuid = "cb860a68-31ca-4327-8769-082b97a200c1")]
 pub struct MoveInteractionModeSettings {
     pub grid_snapping: bool,

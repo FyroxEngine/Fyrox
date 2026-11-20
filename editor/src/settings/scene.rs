@@ -18,16 +18,17 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::{core::algebra::Vector3, core::pool::ErasedHandle, scene::camera::Projection};
-use serde::{Deserialize, Serialize};
+use crate::fyrox::{
+    core::algebra::Vector3, core::pool::ErasedHandle, core::visitor::prelude::*,
+    scene::camera::Projection,
+};
 use std::collections::HashMap;
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug)]
+#[derive(Visit, PartialEq, Clone, Debug)]
 pub struct SceneCameraSettings {
     pub position: Vector3<f32>,
     pub yaw: f32,
     pub pitch: f32,
-    #[serde(default)]
     pub projection: Projection,
 }
 
@@ -42,7 +43,7 @@ impl Default for SceneCameraSettings {
     }
 }
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug)]
+#[derive(Visit, PartialEq, Clone, Debug)]
 pub struct NodeInfo {
     pub is_expanded: bool,
 }
@@ -53,7 +54,7 @@ impl Default for NodeInfo {
     }
 }
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Default)]
+#[derive(Visit, PartialEq, Clone, Debug, Default)]
 pub struct SceneSettings {
     pub camera_settings: SceneCameraSettings,
     pub node_infos: HashMap<ErasedHandle, NodeInfo>,

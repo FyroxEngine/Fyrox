@@ -18,10 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::core::reflect::prelude::*;
-use serde::{Deserialize, Serialize};
+use crate::fyrox::core::{reflect::prelude::*, visitor::prelude::*};
 
-#[derive(Deserialize, Serialize, PartialEq, Debug, Clone, Reflect)]
+#[derive(Visit, PartialEq, Debug, Clone, Reflect)]
 #[reflect(type_uuid = "e7c93c38-c6aa-4be3-ab9c-85666b976763")]
 pub struct LogSettings {
     pub log_info: bool,

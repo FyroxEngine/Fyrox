@@ -18,36 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::core::reflect::prelude::*;
+use crate::fyrox::core::{reflect::prelude::*, visitor::prelude::*};
 use fyrox::scene::camera::Exposure;
-use serde::{Deserialize, Serialize};
 use std::ops::Range;
 
-fn default_sensitivity() -> f32 {
-    1.0f32
-}
-
-fn default_zoom_speed() -> f32 {
-    0.5
-}
-
-fn default_zoom_range() -> Range<f32> {
-    0.0f32..100.0f32
-}
-
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
+#[derive(Visit, PartialEq, Clone, Debug, Reflect)]
 #[reflect(type_uuid = "f468bb97-6017-4b43-b369-94374ecc4239")]
 pub struct CameraSettings {
-    #[serde(default)]
     pub speed: f32,
-    #[serde(default = "default_sensitivity")]
     pub sensitivity: f32,
-    #[serde(default = "default_zoom_speed")]
     pub zoom_speed: f32,
     #[reflect(min_value = 0.0, max_value = 1000.0)]
-    #[serde(default = "default_zoom_range")]
     pub zoom_range: Range<f32>,
-    #[serde(default)]
     pub exposure: Exposure,
 }
 
@@ -55,9 +37,9 @@ impl Default for CameraSettings {
     fn default() -> Self {
         Self {
             speed: 10.0,
-            sensitivity: default_sensitivity(),
-            zoom_speed: default_zoom_speed(),
-            zoom_range: default_zoom_range(),
+            sensitivity: 1.0,
+            zoom_speed: 0.5,
+            zoom_range: 0.0..100.0,
             exposure: Default::default(),
         }
     }
