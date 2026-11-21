@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::inspector::FieldAction::InspectableAction;
 use crate::inspector::{HEADER_MARGIN, InspectorEnvironmentContainer, LAYER_OFFSET};
 use crate::{
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
@@ -669,21 +670,21 @@ where
                 ctx.message.data()
                 && let Some(definition) = ctx.definition_container.get::<T>()
             {
+                let item_action = definition.property_editor.translate_message(
+                    PropertyEditorTranslationContext {
+                        environment: ctx.environment.clone(),
+                        name: "",
+                        message,
+                        definition_container: ctx.definition_container.clone(),
+                    },
+                )?;
+
                 return Some(PropertyChanged {
                     name: ctx.name.to_string(),
-
                     action: FieldAction::CollectionAction(Box::new(
                         CollectionAction::ItemChanged {
                             index: *index,
-                            action: definition
-                                .property_editor
-                                .translate_message(PropertyEditorTranslationContext {
-                                    environment: ctx.environment.clone(),
-                                    name: "",
-                                    message,
-                                    definition_container: ctx.definition_container.clone(),
-                                })?
-                                .action,
+                            action: InspectableAction(Box::new(item_action)),
                         },
                     )),
                 });
