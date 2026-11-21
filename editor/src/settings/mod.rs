@@ -31,8 +31,9 @@ use crate::{
         selection::SelectionSettings, windows::WindowsSettings,
     },
 };
-use fyrox::core::dyntype::DynType;
+use fyrox::core::dyntype::{DynType, DynTypeConstructorContainer};
 use std::cell::{RefCell, RefMut};
+use std::sync::Arc;
 use std::{
     collections::HashMap,
     fmt::Display,
@@ -152,8 +153,10 @@ impl DerefMut for Settings {
 }
 
 impl Settings {
-    pub fn load() -> Result<Self, SettingsError> {
-        let settings = SettingsData::load()?;
+    pub fn load(
+        dyn_type_constructors: Arc<DynTypeConstructorContainer>,
+    ) -> Result<Self, SettingsError> {
+        let settings = SettingsData::load(dyn_type_constructors)?;
         Log::set_log_info(settings.log.log_info);
         Log::set_log_warning(settings.log.log_warning);
         Log::set_log_error(settings.log.log_error);
@@ -214,8 +217,11 @@ impl SettingsData {
         Self::FILE_NAME.into()
     }
 
-    pub fn load() -> Result<Self, SettingsError> {
+    pub fn load(
+        dyn_type_constructors: Arc<DynTypeConstructorContainer>,
+    ) -> Result<Self, SettingsError> {
         let mut visitor = block_on(Visitor::load_from_file(Self::full_path()))?;
+        visitor.blackboard.register(dyn_type_constructors);
         let mut data = Self::default();
         data.visit("Settings", &mut visitor)?;
         Ok(data)

@@ -177,6 +177,7 @@ use crate::{
 };
 use fyrox::asset::event::ResourceEvent;
 use fyrox::asset::{Resource, collect_used_resources};
+use fyrox::core::dyntype::DynTypeConstructorContainer;
 use fyrox::core::some_or_return;
 use fyrox::graph::dependency::ResourceDependencyGraph;
 use fyrox::gui::clipboard::ClipboardContainer;
@@ -518,9 +519,35 @@ impl Editor {
         .into_iter()
         .collect::<FxHashMap<_, _>>();
 
+        let dyn_type_constructors = Arc::new(DynTypeConstructorContainer::default());
+
+        // Register default plugins.
+        let mut plugins = EditorPluginsContainer::new()
+            .with(ColliderPlugin::default())
+            .with(TileMapEditorPlugin::default())
+            .with(MaterialPlugin::default())
+            .with(RagdollPlugin::default())
+            .with(SettingsPlugin::default())
+            .with(AnimationEditorPlugin::default())
+            .with(AbsmEditorPlugin::default())
+            .with(EditorStatisticsPlugin::default())
+            .with(CurveEditorPlugin::default())
+            .with(ReflectionProbePlugin::default())
+            .with(LightPlugin::default())
+            .with(ExportPlugin::default())
+            .with(ParticleSystemPlugin::default())
+            .with(CameraPlugin::default())
+            .with(MeshPlugin::default())
+            .with(DocPlugin::default())
+            .with(NavmeshPlugin::default());
+
+        for plugin in plugins.0.iter_mut().filter_map(|c| c.as_mut()) {
+            plugin.on_register(&dyn_type_constructors);
+        }
+
         let mut settings = settings;
 
-        match Settings::load() {
+        match Settings::load(dyn_type_constructors.clone()) {
             Ok(s) => {
                 settings = s;
 
@@ -567,7 +594,7 @@ impl Editor {
             serialization_context,
             task_pool,
             widget_constructors: Arc::new(new_widget_constructor_container()),
-            dyn_type_constructors: Arc::new(Default::default()),
+            dyn_type_constructors,
         })
         .unwrap();
 
@@ -789,25 +816,7 @@ impl Editor {
             bbcode_panel,
             audio_preview_panel,
             node_removal_dialog,
-            plugins: EditorPluginsContainer::new()
-                .with(ColliderPlugin::default())
-                .with(TileMapEditorPlugin::default())
-                .with(MaterialPlugin::default())
-                .with(RagdollPlugin::default())
-                .with(SettingsPlugin::default())
-                .with(AnimationEditorPlugin::default())
-                .with(AbsmEditorPlugin::default())
-                .with(EditorStatisticsPlugin::default())
-                .with(CurveEditorPlugin::default())
-                .with(ReflectionProbePlugin::default())
-                .with(LightPlugin::default())
-                .with(ExportPlugin::default())
-                .with(ParticleSystemPlugin::default())
-                .with(CameraPlugin::default())
-                .with(MeshPlugin::default())
-                .with(DocPlugin::default())
-                .with(NavmeshPlugin::default())
-                .with(inspector_plugin),
+            plugins: plugins.with(inspector_plugin),
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread
             // will sleep forever and the window won't come up.
@@ -883,7 +892,7 @@ impl Editor {
     fn reload_settings(&mut self) {
         let old_subscribers = std::mem::take(&mut self.settings.subscribers);
 
-        match Settings::load() {
+        match Settings::load(self.engine.dyn_type_constructors.clone()) {
             Ok(settings) => {
                 self.settings = settings;
                 self.settings.subscribers = old_subscribers;
@@ -1510,6 +1519,7 @@ impl Editor {
             engine,
             self.message_sender.clone(),
             self.asset_browser.preview_sender.clone(),
+            &self.settings,
         );
 
         if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
@@ -2679,10 +2689,12 @@ impl Editor {
         Ok(())
     }
 
-    pub fn add_editor_plugin<P>(&mut self, plugin: P)
+    pub fn add_editor_plugin<P>(&mut self, mut plugin: P)
     where
         P: EditorPlugin + 'static,
     {
+        plugin.on_register(&self.engine.dyn_type_constructors);
+
         self.plugins.add(plugin);
     }
 

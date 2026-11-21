@@ -360,6 +360,7 @@ impl FileMenu {
         engine: &mut Engine,
         panels: &mut Panels,
         icon_request_sender: Sender<IconRequest>,
+        settings: &Settings,
     ) {
         if let Some(FileSelectorMessage::Commit(path)) = message.data::<FileSelectorMessage>() {
             if message.destination() == self.save_file_selector {
@@ -446,6 +447,7 @@ impl FileMenu {
                         engine,
                         sender.clone(),
                         icon_request_sender,
+                        settings,
                     );
                 }
             } else if let Some(recent_file) = engine

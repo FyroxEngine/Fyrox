@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::settings::Settings;
 use crate::ui_scene::commands::UiSceneContext;
 use crate::{
     GameScene, Message,
@@ -111,6 +112,7 @@ impl SceneSettingsWindow {
         engine: &mut Engine,
         sender: MessageSender,
         icon_request_sender: Sender<IconRequest>,
+        settings: &Settings,
     ) {
         let ui = engine.user_interfaces.first();
         ui.send(
@@ -121,7 +123,14 @@ impl SceneSettingsWindow {
                 focus_content: true,
             },
         );
-        self.sync_to_model(true, controller, engine, sender, icon_request_sender);
+        self.sync_to_model(
+            true,
+            controller,
+            engine,
+            sender,
+            icon_request_sender,
+            settings,
+        );
     }
 
     pub fn sync_to_model(
@@ -131,6 +140,7 @@ impl SceneSettingsWindow {
         engine: &mut Engine,
         sender: MessageSender,
         icon_request_sender: Sender<IconRequest>,
+        settings: &Settings,
     ) {
         let ui = engine.user_interfaces.first_mut();
         if !force && !ui[self.window].is_globally_visible() {
@@ -152,6 +162,7 @@ impl SceneSettingsWindow {
             available_animations: Default::default(),
             sender,
             icon_request_sender,
+            script_editor: settings.general.script_editor,
         });
 
         let context = InspectorContext::from_object(InspectorContextArgs {

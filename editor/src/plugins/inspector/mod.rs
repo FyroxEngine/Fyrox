@@ -20,6 +20,8 @@
 
 use crate::plugins::doc::ShowDocumentation;
 use crate::plugins::inspector::type_editor::{InspectorTypeEditorContext, ResourceTypeEditor};
+use crate::settings::Settings;
+use crate::settings::general::ScriptEditor;
 use crate::{
     Editor, Message, WidgetMessage, WrapMode,
     asset::preview::cache::IconRequest,
@@ -99,6 +101,7 @@ pub struct EditorEnvironment {
     pub sender: MessageSender,
     #[reflect(hidden)]
     pub icon_request_sender: Sender<IconRequest>,
+    pub script_editor: ScriptEditor,
 }
 
 impl Clone for EditorEnvironment {
@@ -110,6 +113,7 @@ impl Clone for EditorEnvironment {
             available_animations: self.available_animations.clone(),
             sender: self.sender.clone(),
             icon_request_sender: self.icon_request_sender.clone(),
+            script_editor: self.script_editor,
         }
     }
 }
@@ -401,6 +405,7 @@ impl InspectorPlugin {
         icon_request_sender: Sender<IconRequest>,
         has_parent_object: bool,
         property_editors: Arc<PropertyEditorDefinitionContainer>,
+        settings: &Settings,
     ) {
         let environment = Arc::new(EditorEnvironment {
             resource_manager,
@@ -409,6 +414,7 @@ impl InspectorPlugin {
             sender: sender.clone(),
             icon_request_sender,
             dyn_type_constructors,
+            script_editor: settings.general.script_editor,
         });
 
         let context = InspectorContext::from_object(InspectorContextArgs {
@@ -499,6 +505,7 @@ impl EditorPlugin for InspectorPlugin {
                                 editor.asset_browser.preview_sender.clone(),
                                 has_inheritance_parent,
                                 editor.property_editors.clone(),
+                                &editor.settings,
                             );
 
                             need_clear = false;

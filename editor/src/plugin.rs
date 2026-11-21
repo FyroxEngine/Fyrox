@@ -20,6 +20,7 @@
 
 use crate::{Editor, Message, fyrox::gui::message::UiMessage};
 use fyrox::core::define_as_any_trait;
+use fyrox::core::dyntype::DynTypeConstructorContainer;
 use fyrox::engine::ApplicationLoopController;
 
 define_as_any_trait!(EditorPluginAsAny => EditorPlugin);
@@ -44,6 +45,15 @@ define_as_any_trait!(EditorPluginAsAny => EditorPlugin);
 /// their content **must** be done via _commands_. [Command](https://en.wikipedia.org/wiki/Command_pattern) is a standard
 /// pattern that encapsulates an action. Command pattern is used for undo/redo functionality.
 pub trait EditorPlugin: EditorPluginAsAny {
+    /// Called when the plugin was just added to the editor. At this point the editor is not fully
+    /// initialized yet. This method is typically used to register dynamic types that can be stored
+    /// in editor settings.
+    fn on_register(
+        &mut self,
+        #[allow(unused_variables)] dyn_type_constructors: &DynTypeConstructorContainer,
+    ) {
+    }
+
     /// This method is called right after the editor was fully initialized. It is guaranteed to be called only once.
     fn on_start(&mut self, #[allow(unused_variables)] editor: &mut Editor) {}
 

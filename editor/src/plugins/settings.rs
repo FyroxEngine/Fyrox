@@ -239,6 +239,7 @@ impl SettingsWindow {
             sender: sender.clone(),
             icon_request_sender,
             dyn_type_constructors,
+            script_editor: settings.general.script_editor,
         });
 
         let ctx = &mut ui.build_ctx();

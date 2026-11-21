@@ -18,44 +18,39 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::{
-    core::{log::Log, pool::Handle, reflect::prelude::*, visitor::prelude::*},
-    engine::SerializationContext,
-    graph::SceneGraph,
-    gui::{
-        BuildContext, Control, UiNode, UserInterface,
-        button::{ButtonBuilder, ButtonMessage},
-        dropdown_list::{DropdownList, DropdownListMessage},
-        grid::{GridBuilder, GridDimension},
-        inspector::{
-            FieldAction, Inspector, InspectorBuilder, InspectorContext, InspectorError,
-            InspectorMessage, PropertyChanged, PropertyFilter,
-            editors::{
-                PropertyEditorBuildContext, PropertyEditorDefinition,
-                PropertyEditorDefinitionContainer, PropertyEditorInstance,
-                PropertyEditorMessageContext, PropertyEditorTranslationContext,
-            },
-            make_expander_container,
-        },
-        message::{MessageDirection, UiMessage},
-        text::TextBuilder,
-        utils::make_simple_tooltip,
-        widget::{Widget, WidgetBuilder},
-    },
-    script::Script,
-};
-use crate::plugins::inspector::EditorEnvironment;
 use crate::{
     DropdownListBuilder,
-    settings::{SettingsData, general::ScriptEditor},
+    fyrox::{
+        core::{log::Log, pool::Handle, reflect::prelude::*, visitor::prelude::*},
+        engine::SerializationContext,
+        graph::SceneGraph,
+        gui::{
+            BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
+            button::{Button, ButtonBuilder, ButtonMessage},
+            dropdown_list::{DropdownList, DropdownListMessage},
+            grid::{GridBuilder, GridDimension},
+            inspector::{
+                FieldAction, Inspector, InspectorBuilder, InspectorContext, InspectorError,
+                InspectorMessage, PropertyChanged, PropertyFilter,
+                editors::{
+                    PropertyEditorBuildContext, PropertyEditorDefinition,
+                    PropertyEditorDefinitionContainer, PropertyEditorInstance,
+                    PropertyEditorMessageContext, PropertyEditorTranslationContext,
+                },
+                make_expander_container,
+            },
+            inspector::{InspectorContextArgs, InspectorEnvironmentContainer},
+            message::{MessageData, MessageDirection, UiMessage},
+            text::TextBuilder,
+            utils::{make_dropdown_list_option, make_simple_tooltip},
+            widget::{UserData, Widget, WidgetBuilder},
+        },
+        script::Script,
+    },
+    plugins::inspector::EditorEnvironment,
+    settings::general::ScriptEditor,
 };
 
-use fyrox::gui::button::Button;
-use fyrox::gui::inspector::{InspectorContextArgs, InspectorEnvironmentContainer};
-use fyrox::gui::message::MessageData;
-use fyrox::gui::utils::make_dropdown_list_option;
-use fyrox::gui::widget::UserData;
-use fyrox::gui::{Thickness, VerticalAlignment};
 use std::{
     any::TypeId,
     cell::Cell,
@@ -82,6 +77,9 @@ pub struct ScriptPropertyEditor {
     open_in_ide_button: Handle<Button>,
     selected_script_uuid: Option<Uuid>,
     need_context_update: Cell<bool>,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    environment: Option<InspectorEnvironmentContainer>,
 }
 
 impl Deref for ScriptPropertyEditor {
@@ -143,38 +141,33 @@ impl Control for ScriptPropertyEditor {
             {
                 let script_full_path = format!("{cd}/{script_path}");
 
-                let settings = SettingsData::load();
+                if let Ok(env) = EditorEnvironment::try_get_from(&self.environment) {
+                    let script_editor = match env.script_editor {
+                        ScriptEditor::VSCode => {
+                            #[cfg(target_os = "macos")]
+                            let app_name = "Visual Studio Code";
+                            #[cfg(not(target_os = "macos"))]
+                            let app_name = "code";
 
-                let script_editor = settings
-                    .expect("Must be editor settings data")
-                    .general
-                    .script_editor;
+                            Some(app_name)
+                        }
+                        ScriptEditor::XCode => Some("xcode"),
+                        ScriptEditor::Emacs => Some("emacs"),
+                        ScriptEditor::Zed => Some("zed"),
+                        ScriptEditor::SystemDefault => None,
+                    };
 
-                let script_editor = match &script_editor {
-                    ScriptEditor::VSCode => {
-                        #[cfg(target_os = "macos")]
-                        let app_name = "Visual Studio Code";
-                        #[cfg(not(target_os = "macos"))]
-                        let app_name = "code";
+                    let open_result = if let Some(editor) = script_editor {
+                        open::with(&script_full_path, editor)
+                    } else {
+                        open::that(&script_full_path)
+                    };
 
-                        Some(app_name)
+                    if let Err(e) = open_result {
+                        Log::err(format!(
+                            "Error opening script {script_full_path} in external editor: {e}"
+                        ))
                     }
-                    ScriptEditor::XCode => Some("xcode"),
-                    ScriptEditor::Emacs => Some("emacs"),
-                    ScriptEditor::Zed => Some("zed"),
-                    ScriptEditor::SystemDefault => None,
-                };
-
-                let open_result = if let Some(editor) = script_editor {
-                    open::with(&script_full_path, editor)
-                } else {
-                    open::that(&script_full_path)
-                };
-
-                if let Err(e) = open_result {
-                    Log::err(format!(
-                        "Error opening script {script_full_path} in external editor: {e}"
-                    ))
                 }
             }
         }
@@ -231,7 +224,7 @@ impl ScriptPropertyEditorBuilder {
                 object: script,
                 ctx,
                 definition_container,
-                environment,
+                environment: environment.clone(),
                 layer_index,
                 generate_property_string_values,
                 filter,
@@ -257,6 +250,7 @@ impl ScriptPropertyEditorBuilder {
             open_in_ide_button,
             inspector,
             need_context_update: Cell::new(false),
+            environment: environment,
         })
     }
 }

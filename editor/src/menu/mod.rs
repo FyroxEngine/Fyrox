@@ -232,6 +232,7 @@ impl Menu {
             ctx.engine,
             &mut ctx.panels,
             ctx.icon_request_sender.clone(),
+            ctx.settings,
         );
         self.view_menu.handle_ui_message(
             message,

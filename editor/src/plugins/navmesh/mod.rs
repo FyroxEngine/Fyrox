@@ -25,6 +25,7 @@ use crate::{
     plugin::EditorPlugin,
     scene::{GameScene, Selection},
 };
+use fyrox::core::dyntype::DynTypeConstructorContainer;
 use fyrox::gui::inspector::editors::inspectable::InspectablePropertyEditorDefinition;
 
 use interaction::NavmeshInteractionMode;
@@ -54,11 +55,11 @@ pub struct NavmeshPlugin {
 }
 
 impl EditorPlugin for NavmeshPlugin {
+    fn on_register(&mut self, dyn_type_constructors: &DynTypeConstructorContainer) {
+        dyn_type_constructors.add::<NavmeshSettings, ()>("Navmesh Settings");
+    }
+
     fn on_start(&mut self, editor: &mut Editor) {
-        editor
-            .engine
-            .dyn_type_constructors
-            .add::<NavmeshSettings, ()>("Navmesh Settings");
         editor
             .property_editors
             .insert(InspectablePropertyEditorDefinition::<NavmeshSettings>::new());
