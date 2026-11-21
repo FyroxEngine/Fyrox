@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::plugins::navmesh::selection::NavmeshSelection;
+use crate::plugins::navmesh::settings::NavmeshSettings;
 use crate::scene::clipboard::GameSceneClipboardPayload;
 use crate::scene::commands::PasteCommand;
 use crate::{
@@ -381,7 +382,8 @@ impl GameScene {
                     node.debug_draw(ctx);
                 }
             } else if let Some(navmesh) = node.self_or_field_ref::<NavigationalMesh>() {
-                if settings.navmesh.draw_all {
+                let navmesh_settings = settings.get::<NavmeshSettings>().unwrap();
+                if navmesh_settings.draw_all {
                     let selection = editor_selection.as_navmesh();
 
                     for (index, vertex) in navmesh.navmesh_ref().vertices().iter().enumerate() {
@@ -389,7 +391,7 @@ impl GameScene {
                             *vertex,
                             10,
                             10,
-                            settings.navmesh.vertex_radius,
+                            navmesh_settings.vertex_radius,
                             selection.map_or(Color::GREEN, |s| {
                                 if s.unique_vertices().contains(&index) {
                                     Color::RED

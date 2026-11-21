@@ -28,7 +28,7 @@ use crate::{
             BuildContext, HorizontalAlignment, Orientation, Thickness, UserInterface,
             VerticalAlignment,
             button::{Button, ButtonBuilder, ButtonMessage},
-            grid::{Column, GridBuilder, Row},
+            grid::{Column, GridBuilder},
             image::Image,
             message::UiMessage,
             stack_panel::StackPanelBuilder,

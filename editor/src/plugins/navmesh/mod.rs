@@ -25,14 +25,18 @@ use crate::{
     plugin::EditorPlugin,
     scene::{GameScene, Selection},
 };
+use fyrox::gui::inspector::editors::inspectable::InspectablePropertyEditorDefinition;
+
 use interaction::NavmeshInteractionMode;
 use panel::NavmeshPanel;
 use selection::NavmeshSelection;
+use settings::NavmeshSettings;
 
 mod command;
 mod interaction;
 mod panel;
 pub mod selection;
+pub mod settings;
 
 fn fetch_selection(editor_selection: &Selection) -> Option<NavmeshSelection> {
     if let Some(selection) = editor_selection.as_navmesh() {
@@ -50,6 +54,16 @@ pub struct NavmeshPlugin {
 }
 
 impl EditorPlugin for NavmeshPlugin {
+    fn on_start(&mut self, editor: &mut Editor) {
+        editor
+            .engine
+            .dyn_type_constructors
+            .add::<NavmeshSettings, ()>("Navmesh Settings");
+        editor
+            .property_editors
+            .insert(InspectablePropertyEditorDefinition::<NavmeshSettings>::new());
+    }
+
     fn on_sync_to_model(&mut self, editor: &mut Editor) {
         let entry = editor.scenes.current_scene_entry_mut();
         let game_scene = some_or_return!(entry.controller.downcast_mut::<GameScene>());

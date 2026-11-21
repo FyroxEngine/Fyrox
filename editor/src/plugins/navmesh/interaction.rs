@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::plugins::navmesh::settings::NavmeshSettings;
 use crate::{
     command::{Command, CommandGroup},
     fyrox::{
@@ -116,6 +117,7 @@ impl InteractionMode for NavmeshInteractionMode {
         let scene = &mut engine.scenes[game_scene.scene];
         let camera = &scene.graph[game_scene.camera_controller.camera];
         let ray = camera.make_ray(mouse_pos, frame_size);
+        let navmesh_settings = settings.get::<NavmeshSettings>().unwrap();
 
         let gizmo_origin = self.move_gizmo.origin;
         let editor_node = game_scene
@@ -168,7 +170,7 @@ impl InteractionMode for NavmeshInteractionMode {
                 let mut picked = false;
                 for (index, vertex) in navmesh.vertices().iter().enumerate() {
                     if ray
-                        .sphere_intersection(vertex, settings.navmesh.vertex_radius)
+                        .sphere_intersection(vertex, navmesh_settings.vertex_radius)
                         .is_some()
                     {
                         new_selection.add(NavmeshEntity::Vertex(index));
@@ -186,7 +188,7 @@ impl InteractionMode for NavmeshInteractionMode {
                                 .cylinder_intersection(
                                     &begin,
                                     &end,
-                                    settings.navmesh.vertex_radius,
+                                    navmesh_settings.vertex_radius,
                                     CylinderKind::Finite,
                                 )
                                 .is_some()
@@ -383,6 +385,8 @@ impl InteractionMode for NavmeshInteractionMode {
             self.move_gizmo.origin,
         );
 
+        let navmesh_settings = settings.get::<NavmeshSettings>().unwrap();
+
         if let Some(selection) = navmesh::fetch_selection(editor_selection) {
             let mut gizmo_visible = false;
             let mut gizmo_position = Default::default();
@@ -402,7 +406,7 @@ impl InteractionMode for NavmeshInteractionMode {
                             *vertex,
                             10,
                             10,
-                            settings.navmesh.vertex_radius,
+                            navmesh_settings.vertex_radius,
                             Color::RED,
                         );
                     }

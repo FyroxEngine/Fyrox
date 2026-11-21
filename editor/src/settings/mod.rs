@@ -19,16 +19,20 @@
 // SOFTWARE.
 
 use crate::{
-    fyrox::core::{log::Log, reflect::prelude::*, visitor::prelude::*},
+    fyrox::core::{
+        dyntype::DynTypeContainer, futures::executor::block_on, log::Log, reflect::prelude::*,
+        visitor::prelude::*,
+    },
     settings::{
         build::BuildSettings, camera::CameraSettings, debugging::DebuggingSettings,
         general::GeneralSettings, graphics::GraphicsSettings, keys::KeyBindings, log::LogSettings,
-        model::ModelSettings, move_mode::MoveInteractionModeSettings, navmesh::NavmeshSettings,
-        recent::RecentFiles, rotate_mode::RotateInteractionModeSettings, scene::SceneSettings,
+        model::ModelSettings, move_mode::MoveInteractionModeSettings, recent::RecentFiles,
+        rotate_mode::RotateInteractionModeSettings, scene::SceneSettings,
         selection::SelectionSettings, windows::WindowsSettings,
     },
 };
-use fyrox::core::futures::executor::block_on;
+use fyrox::core::dyntype::DynType;
+use std::cell::{RefCell, RefMut};
 use std::{
     collections::HashMap,
     fmt::Display,
@@ -46,7 +50,6 @@ pub mod keys;
 pub mod log;
 pub mod model;
 pub mod move_mode;
-pub mod navmesh;
 pub mod recent;
 pub mod rotate_mode;
 pub mod scene;
@@ -74,8 +77,6 @@ pub struct SettingsData {
     pub model: ModelSettings,
     #[reflect(tag = "Group.Camera")]
     pub camera: CameraSettings,
-    #[reflect(tag = "Group.Navmesh")]
-    pub navmesh: NavmeshSettings,
     #[reflect(tag = "Group.KeyBindings")]
     pub key_bindings: KeyBindings,
     #[reflect(tag = "Group.Log")]
@@ -87,6 +88,37 @@ pub struct SettingsData {
     pub recent: RecentFiles,
     #[reflect(hidden)]
     pub windows: WindowsSettings,
+    #[reflect(immutable_collection, tag = "Group.Plugins")]
+    #[visit(optional)]
+    plugin_settings: RefCell<Vec<DynTypeContainer>>,
+}
+
+impl SettingsData {
+    /// Tries to fetch arbitrary data type from the settings container. If the instance is not found,
+    /// then this method creates a new instance and adds it to the container. This method may fail
+    /// only on
+    pub fn get<T>(&self) -> Option<RefMut<'_, T>>
+    where
+        T: DynType + Default,
+    {
+        let settings = self.plugin_settings.try_borrow_mut().ok()?;
+        RefMut::filter_map(settings, |settings| {
+            // SAFETY: This is safe, because there's only one branch is used to return the value.
+            let settings2 = unsafe { &mut *(settings as *mut Vec<DynTypeContainer>) };
+            if let Some(ret) = settings
+                .iter_mut()
+                .find_map(|container| container.data_mut().ok())
+            {
+                Some(ret)
+            } else {
+                settings2.push(DynTypeContainer::new(T::default()));
+                settings2
+                    .last_mut()
+                    .and_then(|container| container.data_mut().ok())
+            }
+        })
+        .ok()
+    }
 }
 
 pub enum SettingsMessage {
@@ -166,12 +198,6 @@ impl Display for SettingsError {
             SettingsError::Io(error) => Display::fmt(error, f),
             SettingsError::Visit(error) => Display::fmt(error, f),
         }
-    }
-}
-
-impl From<std::io::Error> for SettingsError {
-    fn from(e: std::io::Error) -> Self {
-        Self::Io(e)
     }
 }
 
