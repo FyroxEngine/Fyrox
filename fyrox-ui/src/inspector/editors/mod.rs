@@ -656,6 +656,17 @@ impl PropertyEditorDefinitionContainer {
         container.register_inheritable_vec_collection::<Tab>();
 
         container.register_inheritable_vec_collection::<usize>();
+        container.register_inheritable_vec_collection::<isize>();
+        container.register_inheritable_vec_collection::<f64>();
+        container.register_inheritable_vec_collection::<f32>();
+        container.register_inheritable_vec_collection::<i64>();
+        container.register_inheritable_vec_collection::<u64>();
+        container.register_inheritable_vec_collection::<i32>();
+        container.register_inheritable_vec_collection::<u32>();
+        container.register_inheritable_vec_collection::<i16>();
+        container.register_inheritable_vec_collection::<u16>();
+        container.register_inheritable_vec_collection::<i8>();
+        container.register_inheritable_vec_collection::<u8>();
 
         container.insert(RefCellPropertyEditorDefinition::<FormattedText>::new());
 
