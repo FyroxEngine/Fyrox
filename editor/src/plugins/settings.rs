@@ -426,7 +426,7 @@ impl EditorPlugin for SettingsPlugin {
         );
         ui.send(
             editor.menu.file_menu.menu,
-            MenuItemMessage::AddItem(self.open_settings),
+            MenuItemMessage::AddItemAt(self.open_settings, 12),
         );
     }
 

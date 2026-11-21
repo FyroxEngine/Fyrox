@@ -562,7 +562,7 @@ impl EditorPlugin for ExportPlugin {
         );
         ui.send(
             editor.menu.file_menu.menu,
-            MenuItemMessage::AddItem(self.export_project),
+            MenuItemMessage::AddItemAt(self.export_project, 13),
         );
     }
 

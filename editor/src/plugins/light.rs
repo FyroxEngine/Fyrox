@@ -506,7 +506,7 @@ impl EditorPlugin for LightPlugin {
             create_menu_item_shortcut("Light Panel...", None, Self::LIGHT_PLUGIN, "", vec![], ctx);
         ui.send(
             editor.menu.view_menu.menu,
-            MenuItemMessage::AddItem(self.open_light_panel),
+            MenuItemMessage::AddItemAt(self.open_light_panel, 5),
         );
     }
 
