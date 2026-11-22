@@ -45,13 +45,7 @@ use crate::{
     plugins::inspector::editors::resource::{
         ResourceField, ResourceFieldBuilder, ResourceFieldMessage,
     },
-    scene::{
-        GameScene, Selection,
-        commands::{
-            ChangeSelectionCommand,
-            effect::{AddOrRemoveAudioBusCommand, LinkAudioBuses},
-        },
-    },
+    scene::{GameScene, Selection, commands::ChangeSelectionCommand},
     utils::window_content,
 };
 use std::cmp::Ordering;
@@ -60,7 +54,10 @@ use strum::VariantNames;
 
 use super::{
     bus::{AudioBusView, AudioBusViewBuilder, AudioBusViewMessage},
-    command::{SetDistanceModelCommand, SetHrtfRendererHrirSphereResource, SetRendererCommand},
+    command::{
+        AddOrRemoveAudioBusCommand, LinkAudioBuses, SetDistanceModelCommand,
+        SetHrtfRendererHrirSphereResource, SetRendererCommand,
+    },
     selection::AudioBusSelection,
 };
 

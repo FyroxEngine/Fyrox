@@ -35,7 +35,6 @@ use crate::{
 use fyrox::gui::clipboard::ClipboardContainer;
 use std::sync::Arc;
 
-pub mod effect;
 pub mod graph;
 pub mod material;
 pub mod mesh;
