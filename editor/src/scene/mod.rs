@@ -18,14 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::plugins::navmesh::selection::NavmeshSelection;
-use crate::plugins::navmesh::settings::NavmeshSettings;
-use crate::scene::clipboard::GameSceneClipboardPayload;
-use crate::scene::commands::PasteCommand;
 use crate::{
     Message, Settings,
     asset::item::AssetItem,
-    audio::AudioBusSelection,
     command::{Command, CommandGroup, CommandStack},
     fyrox::{
         asset::manager::ResourceManager,
@@ -86,10 +81,12 @@ use crate::{
             HandlePropertyEditorHierarchyMessage, HandlePropertyEditorNameMessage,
         },
         inspector::handlers::node::SceneNodePropertyChangedHandler,
+        navmesh::{selection::NavmeshSelection, settings::NavmeshSettings},
     },
     scene::{
+        clipboard::GameSceneClipboardPayload,
         commands::{
-            ChangeSelectionCommand, GameSceneContext, graph::AddModelCommand,
+            ChangeSelectionCommand, GameSceneContext, PasteCommand, graph::AddModelCommand,
             mesh::SetMeshTextureCommand,
         },
         controller::SceneController,
@@ -100,9 +97,11 @@ use crate::{
     world::selection::GraphSelection,
 };
 use camera::{CameraController, PickingOptions};
-use fyrox::core::{ok_or_continue, some_or_return};
-use fyrox::gui::clipboard::ClipboardContainer;
-use fyrox::scene::bitmask::BitMask;
+use fyrox::{
+    core::{ok_or_continue, some_or_return},
+    gui::clipboard::ClipboardContainer,
+    scene::bitmask::BitMask,
+};
 use std::{
     cell::RefCell,
     fmt::Debug,
@@ -1346,13 +1345,6 @@ impl Selection {
     define_downcast!(GraphSelection, as_graph, as_graph_mut, is_graph);
 
     define_downcast!(NavmeshSelection, as_navmesh, as_navmesh_mut, is_navmesh);
-
-    define_downcast!(
-        AudioBusSelection,
-        as_audio_bus,
-        as_audio_bus_mut,
-        is_audio_bus
-    );
 
     pub fn as_absm<N: Reflect>(&self) -> Option<&AbsmSelection<N>> {
         self.0.as_ref().and_then(|s| s.downcast_ref())

@@ -250,7 +250,7 @@ impl ScriptPropertyEditorBuilder {
             open_in_ide_button,
             inspector,
             need_context_update: Cell::new(false),
-            environment: environment,
+            environment,
         })
     }
 }

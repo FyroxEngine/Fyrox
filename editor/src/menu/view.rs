@@ -42,7 +42,6 @@ pub struct ViewMenu {
     pub world_viewer: Handle<MenuItem>,
     pub asset_browser: Handle<MenuItem>,
     pub log_panel: Handle<MenuItem>,
-    pub audio: Handle<MenuItem>,
     pub command_stack: Handle<MenuItem>,
     pub save_layout: Handle<MenuItem>,
     pub load_layout: Handle<MenuItem>,
@@ -75,7 +74,6 @@ impl ViewMenu {
     pub const ASSET_BROWSER: Uuid = uuid!("a2b8931e-2979-435b-9d72-00bf60a2d1b9");
     pub const WORLD_VIEWER: Uuid = uuid!("7b2dce51-9de4-4f35-9d5b-c8606607480f");
     pub const LOG_PANEL: Uuid = uuid!("105847a5-bd6d-4d12-8aaa-ba19c53a9c38");
-    pub const AUDIO: Uuid = uuid!("8b3eb8c5-eb9e-4d53-8fac-2b6e75b2e624");
     pub const COMMAND_STACK: Uuid = uuid!("a1542ff2-b5d6-4807-9fd7-f1aa970611ec");
     pub const SAVE_LAYOUT: Uuid = uuid!("ae126347-550a-4013-aaa5-423c609b0cfe");
     pub const LOAD_LAYOUT: Uuid = uuid!("6e3dbc5e-9012-4e8f-8026-77bd03a55a48");
@@ -86,7 +84,6 @@ impl ViewMenu {
         let asset_browser;
         let world_viewer;
         let log_panel;
-        let audio;
         let command_stack;
         let save_layout;
         let load_layout;
@@ -112,10 +109,6 @@ impl ViewMenu {
                 {
                     log_panel = create_menu_item("Log Panel", Self::LOG_PANEL, vec![], ctx);
                     log_panel
-                },
-                {
-                    audio = create_menu_item("Audio Panel", Self::AUDIO, vec![], ctx);
-                    audio
                 },
                 {
                     command_stack =
@@ -146,7 +139,6 @@ impl ViewMenu {
             world_viewer,
             asset_browser,
             log_panel,
-            audio,
             command_stack,
             save_layout,
             load_layout,
@@ -170,8 +162,6 @@ impl ViewMenu {
                 switch_window_state(panels.inspector_window, ui, false);
             } else if message.destination() == self.log_panel {
                 switch_window_state(panels.log_panel, ui, false);
-            } else if message.destination() == self.audio {
-                switch_window_state(panels.audio_panel, ui, false);
             } else if message.destination() == self.command_stack {
                 switch_window_state(panels.command_stack_panel, ui, false);
             } else if message.destination() == self.save_layout {

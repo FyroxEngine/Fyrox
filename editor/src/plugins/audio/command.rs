@@ -18,11 +18,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::command::CommandContext;
-use crate::fyrox::scene::sound::{
-    DistanceModel, HrirSphereResource, Renderer, context::SoundContext,
+use crate::{
+    CommandTrait, GameSceneContext,
+    command::CommandContext,
+    fyrox::scene::sound::{DistanceModel, HrirSphereResource, Renderer, context::SoundContext},
 };
-use crate::{CommandTrait, GameSceneContext};
 
 macro_rules! define_sound_context_command {
     ($($name:ident($human_readable_name:expr, $value_type:ty, $get:ident, $set:ident); )*) => {

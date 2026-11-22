@@ -19,7 +19,6 @@
 // SOFTWARE.
 
 use crate::{
-    Message,
     fyrox::{
         core::pool::Handle,
         engine::Engine,
@@ -31,7 +30,6 @@ use crate::{
             grid::{Column, Grid, GridBuilder, Row},
             message::UiMessage,
             scroll_bar::{ScrollBar, ScrollBarBuilder, ScrollBarMessage},
-            stack_panel::StackPanel,
             text::TextBuilder,
             widget::{WidgetBuilder, WidgetMessage},
         },
@@ -65,7 +63,7 @@ fn make_button(text: &str, column: usize, ctx: &mut BuildContext) -> Handle<Butt
 }
 
 impl AudioPreviewPanel {
-    pub fn new(inspector_head: Handle<StackPanel>, ctx: &mut BuildContext) -> Self {
+    pub fn new(ctx: &mut BuildContext) -> Self {
         let preview;
         let play;
         let pause;
@@ -74,7 +72,6 @@ impl AudioPreviewPanel {
         let time;
         let root_widget = GridBuilder::new(
             WidgetBuilder::new()
-                .with_visibility(false)
                 .with_child(
                     GridBuilder::new(
                         WidgetBuilder::new()
@@ -158,9 +155,6 @@ impl AudioPreviewPanel {
         .add_row(Row::strict(26.0))
         .build(ctx);
 
-        ctx.inner()
-            .send(root_widget, WidgetMessage::link_with(inspector_head));
-
         Self {
             root_widget,
             preview,
@@ -173,37 +167,8 @@ impl AudioPreviewPanel {
         }
     }
 
-    pub fn handle_message(
-        &mut self,
-        message: &Message,
-        editor_selection: &Selection,
-        mut game_scene: Option<&mut GameScene>,
-        engine: &mut Engine,
-    ) {
-        if let Some(game_scene) = game_scene.as_mut()
-            && let Message::DoCommand(_)
-            | Message::UndoCurrentSceneCommand
-            | Message::RedoCurrentSceneCommand = message
-        {
-            self.leave_preview_mode(game_scene, engine);
-        }
-
-        if let Message::SelectionChanged { .. } = message {
-            let any_sound_selected = if let Some(game_scene) = game_scene {
-                let scene = &engine.scenes[game_scene.scene];
-                editor_selection.as_graph().is_some_and(|s| {
-                    s.nodes()
-                        .iter()
-                        .any(|n| scene.graph.try_get_of_type::<Sound>(*n).is_ok())
-                })
-            } else {
-                false
-            };
-            engine.user_interfaces.first_mut().send(
-                self.root_widget,
-                WidgetMessage::Visibility(any_sound_selected),
-            );
-        }
+    pub fn destroy(self, ui: &UserInterface) {
+        ui.send(self.root_widget, WidgetMessage::Remove);
     }
 
     fn set_buttons_enabled(&self, ui: &UserInterface, enabled: bool) {

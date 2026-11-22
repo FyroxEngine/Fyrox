@@ -274,7 +274,7 @@ impl AudioBusViewBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::audio::bus::AudioBusViewBuilder;
+    use super::AudioBusViewBuilder;
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
 
     #[test]

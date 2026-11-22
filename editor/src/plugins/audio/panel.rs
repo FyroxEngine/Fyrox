@@ -18,151 +18,53 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::plugins::inspector::editors::resource::ResourceField;
-use crate::scene::EntityInfo;
 use crate::{
-    ChangeSelectionCommand, Command, GameScene, GridBuilder, MessageDirection, Mode, Selection,
-    UserInterface,
+    Mode,
     asset::preview::cache::IconRequest,
-    audio::bus::{AudioBusView, AudioBusViewBuilder, AudioBusViewMessage},
-    command::{CommandGroup, SetPropertyCommand, make_command},
+    command::{Command, CommandGroup},
     fyrox::{
-        core::{pool::Handle, reflect::Reflect, some_or_return},
+        core::pool::Handle,
         engine::Engine,
         graph::SceneGraph,
         gui::{
-            Orientation, Thickness, UiNode, VerticalAlignment,
-            button::{ButtonBuilder, ButtonMessage},
-            dropdown_list::{DropdownListBuilder, DropdownListMessage},
-            grid::{Column, Row},
-            inspector::PropertyChanged,
+            Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
+            button::{Button, ButtonBuilder, ButtonMessage},
+            dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
+            grid::{Column, GridBuilder, Row},
             list_view::{ListView, ListViewBuilder, ListViewMessage},
-            message::UiMessage,
+            message::{MessageDirection, UiMessage},
             stack_panel::StackPanelBuilder,
             text::TextBuilder,
             utils::{make_dropdown_list_option, make_simple_tooltip},
             widget::{WidgetBuilder, WidgetMessage},
-            window::{WindowBuilder, WindowTitle},
+            window::{Window, WindowBuilder, WindowTitle},
         },
-        scene::{
-            SceneContainer,
-            sound::{AudioBus, AudioBusGraph, DistanceModel, HrirSphereResourceData, Renderer},
-        },
+        scene::sound::{AudioBus, AudioBusGraph, DistanceModel, HrirSphereResourceData, Renderer},
     },
     message::MessageSender,
-    plugins::inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
+    plugins::inspector::editors::resource::{
+        ResourceField, ResourceFieldBuilder, ResourceFieldMessage,
+    },
     scene::{
-        SelectionContainer,
+        GameScene, Selection,
         commands::{
-            GameSceneContext,
+            ChangeSelectionCommand,
             effect::{AddOrRemoveAudioBusCommand, LinkAudioBuses},
-            sound_context::{
-                SetDistanceModelCommand, SetHrtfRendererHrirSphereResource, SetRendererCommand,
-            },
         },
-        controller::SceneController,
     },
     utils::window_content,
 };
-use fyrox::gui::button::Button;
-use fyrox::gui::dropdown_list::DropdownList;
-use fyrox::gui::window::Window;
-use std::{cmp::Ordering, sync::mpsc::Sender};
+use std::cmp::Ordering;
+use std::sync::mpsc::Sender;
 use strum::VariantNames;
 
-mod bus;
-pub mod preview;
+use super::{
+    bus::{AudioBusView, AudioBusViewBuilder, AudioBusViewMessage},
+    command::{SetDistanceModelCommand, SetHrtfRendererHrirSphereResource, SetRendererCommand},
+    selection::AudioBusSelection,
+};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AudioBusSelection {
-    pub buses: Vec<Handle<AudioBus>>,
-}
-
-impl SelectionContainer for AudioBusSelection {
-    fn len(&self) -> usize {
-        self.buses.len()
-    }
-
-    fn first_selected_entity(
-        &self,
-        controller: &dyn SceneController,
-        scenes: &SceneContainer,
-        callback: &mut dyn FnMut(EntityInfo),
-    ) {
-        let game_scene = some_or_return!(controller.downcast_ref::<GameScene>());
-        let scene = &scenes[game_scene.scene];
-        let state = scene.graph.sound_context.state();
-        if let Some(selected_bus) = self.buses.first()
-            && let Ok(effect) = state.bus_graph_ref().try_get_bus_ref(*selected_bus)
-        {
-            (callback)(EntityInfo::with_no_parent(effect, selected_bus));
-        }
-    }
-
-    fn on_property_changed(
-        &mut self,
-        _controller: &mut dyn SceneController,
-        args: &PropertyChanged,
-        _engine: &mut Engine,
-        sender: &MessageSender,
-    ) {
-        let group = self
-            .buses
-            .iter()
-            .filter_map(|&handle| {
-                make_command(args, move |ctx| {
-                    let mut state = ctx
-                        .get_mut::<GameSceneContext>()
-                        .scene
-                        .graph
-                        .sound_context
-                        .state();
-                    let bus = state.bus_graph_mut().try_get_bus_mut(handle).ok()?;
-                    // FIXME: HACK!
-                    unsafe {
-                        Some(std::mem::transmute::<&'_ mut AudioBus, &'static mut AudioBus>(bus))
-                    }
-                })
-            })
-            .collect::<Vec<_>>();
-
-        sender.do_command_group_with_inheritance(group, args);
-    }
-
-    fn paste_property(&mut self, path: &str, value: &dyn Reflect, sender: &MessageSender) {
-        let group =
-            self.buses
-                .iter()
-                .filter_map(|&handle| {
-                    value.try_clone_box().map(|value| {
-                        Command::new(SetPropertyCommand::new(
-                            path.to_string(),
-                            value,
-                            move |ctx| {
-                                let mut state = ctx
-                                    .get_mut::<GameSceneContext>()
-                                    .scene
-                                    .graph
-                                    .sound_context
-                                    .state();
-                                let bus = state.bus_graph_mut().try_get_bus_mut(handle).ok()?;
-                                // FIXME: HACK!
-                                unsafe {
-                                    Some(std::mem::transmute::<
-                                        &'_ mut AudioBus,
-                                        &'static mut AudioBus,
-                                    >(bus))
-                                }
-                            },
-                        ))
-                    })
-                })
-                .collect::<Vec<_>>();
-
-        sender.do_command_group(group);
-    }
-}
-
+#[derive(Default)]
 pub struct AudioPanel {
     pub window: Handle<Window>,
     add_bus: Handle<Button>,
@@ -378,7 +280,7 @@ impl AudioPanel {
                     "AudioBus".to_string(),
                 )))
             } else if message.destination() == self.remove_bus
-                && let Some(selection) = editor_selection.as_audio_bus()
+                && let Some(selection) = editor_selection.as_ref::<AudioBusSelection>()
             {
                 let mut commands = vec![Command::new(ChangeSelectionCommand::new(
                     Selection::new_empty(),
@@ -512,7 +414,7 @@ impl AudioPanel {
         let mut selected_buses = Vec::new();
         let mut is_primary_bus_selected = false;
 
-        if let Some(selection) = editor_selection.as_audio_bus() {
+        if let Some(selection) = editor_selection.as_ref::<AudioBusSelection>() {
             for (index, item) in items.into_iter().enumerate() {
                 let bus_handle = item_bus(item, ui);
 
