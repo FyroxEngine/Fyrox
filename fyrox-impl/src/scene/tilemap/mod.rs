@@ -154,6 +154,17 @@ impl TileMapRenderContext<'_, '_> {
     pub fn is_tile_visible(&self, position: Vector2<i32>) -> bool {
         !self.hidden_tiles.contains(&position)
     }
+    /// The handle of the tile that should be rendered when using the given alternate tile index.
+    /// Returns the given tile handle if the index is `None`.
+    pub fn get_alternate_version(
+        &self,
+        alternate_index: Option<usize>,
+        handle: TileDefinitionHandle,
+    ) -> TileDefinitionHandle {
+        alternate_index
+            .map(|index| self.tile_set.get_alternate_version(index, handle))
+            .unwrap_or(handle)
+    }
     /// The handle of the tile that should be rendered at the current time in order
     /// to animate the tile at the given handle.
     pub fn get_animated_version(&self, handle: TileDefinitionHandle) -> TileDefinitionHandle {
@@ -174,6 +185,23 @@ impl TileMapRenderContext<'_, '_> {
             return;
         };
         self.push_tile(position, &data);
+    }
+
+    /// Render the tile with the given handle at the given position, including alternate tiles and animation
+    /// if the given tile has an alternate or is animated.
+    /// Normally [`TileMapRenderContext::is_tile_visible`] should be checked before calling this method
+    /// to ensure that tiles are permitted to be rendered at this position,
+    /// and then [`TileMapRenderContext::set_tile_visible`] should be used to set the position to false
+    /// to prevent any future effects from rendering at this position.
+    pub fn draw_animated_tile(
+        &mut self,
+        position: Vector2<i32>,
+        alternate_index: Option<usize>,
+        handle: TileDefinitionHandle,
+    ) {
+        let handle = self.get_alternate_version(alternate_index, handle);
+        let handle = self.get_animated_version(handle);
+        self.draw_tile(position, handle)
     }
 
     /// Render the given tile data at the given cell position. This makes it possible to render
@@ -976,6 +1004,9 @@ pub struct TileMap {
     base: Base,
     /// The source of rendering data for tiles in this tile map.
     tile_set: InheritableVariable<Option<TileSetResource>>,
+    /// The index of the alternate tile to render for each tile,
+    /// or none if tiles should be rendered directly.
+    pub alternate: InheritableVariable<Option<u32>>,
     /// Tile container of the tile map.
     #[reflect(hidden)]
     pub tiles: InheritableVariable<Option<TileMapDataResource>>,
@@ -1339,6 +1370,7 @@ impl Default for TileMap {
         Self {
             base: Default::default(),
             tile_set: Default::default(),
+            alternate: Default::default(),
             tiles: Default::default(),
             tile_scale: Vector2::repeat(1.0).into(),
             active_brush: Default::default(),
@@ -1354,6 +1386,7 @@ impl Clone for TileMap {
         Self {
             base: self.base.clone(),
             tile_set: self.tile_set.clone(),
+            alternate: self.alternate.clone(),
             tiles: self.tiles.clone(),
             tile_scale: self.tile_scale.clone(),
             active_brush: self.active_brush.clone(),
@@ -1460,18 +1493,17 @@ impl NodeTrait for TileMap {
         let Some(tiles) = tiles.as_loaded_ref() else {
             return RdcControlFlow::Continue;
         };
+        let alternate_index = self.alternate.and_then(|i| i.try_into().ok());
         if bounds.is_some() {
             for (position, handle) in tiles.bounded_iter(bounds) {
                 if bounds.contains(position) && tile_render_context.is_tile_visible(position) {
-                    let handle = tile_render_context.get_animated_version(handle);
-                    tile_render_context.draw_tile(position, handle);
+                    tile_render_context.draw_animated_tile(position, alternate_index, handle);
                 }
             }
         } else {
             for (position, handle) in tiles.iter() {
                 if tile_render_context.is_tile_visible(position) {
-                    let handle = tile_render_context.get_animated_version(handle);
-                    tile_render_context.draw_tile(position, handle);
+                    tile_render_context.draw_animated_tile(position, alternate_index, handle);
                 }
             }
         }
@@ -1499,6 +1531,7 @@ impl NodeTrait for TileMap {
 pub struct TileMapBuilder {
     base_builder: BaseBuilder,
     tile_set: Option<TileSetResource>,
+    alternate: Option<u32>,
     tiles: TileMapData,
     tile_scale: Vector2<f32>,
     before_effects: Vec<TileMapEffectRefContainer>,
@@ -1511,6 +1544,7 @@ impl TileMapBuilder {
         Self {
             base_builder,
             tile_set: None,
+            alternate: None,
             tiles: TileMapData::default(),
             tile_scale: Vector2::repeat(1.0),
             before_effects: Default::default(),
@@ -1521,6 +1555,12 @@ impl TileMapBuilder {
     /// Sets the desired tile set.
     pub fn with_tile_set(mut self, tile_set: TileSetResource) -> Self {
         self.tile_set = Some(tile_set);
+        self
+    }
+
+    /// Set the index of alternate versions of tiles to render.
+    pub fn with_alternate(mut self, alternate_index: Option<u32>) -> Self {
+        self.alternate = alternate_index;
         self
     }
 
@@ -1555,6 +1595,7 @@ impl TileMapBuilder {
         Node::new(TileMap {
             base: self.base_builder.build_base(),
             tile_set: self.tile_set.into(),
+            alternate: self.alternate.into(),
             tiles: Some(Resource::new_ok(
                 Uuid::new_v4(),
                 ResourceKind::Embedded,

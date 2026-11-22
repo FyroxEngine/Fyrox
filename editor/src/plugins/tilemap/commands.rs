@@ -24,11 +24,10 @@ use crate::{
     command::{CommandContext, CommandTrait},
     scene::commands::GameSceneContext,
 };
-use fyrox::core::uuid::Uuid;
 use fyrox::{
     core::{
-        ImmutableString, algebra::Vector2, color::Color, log::Log, pool::Handle,
-        swap_hash_map_entry,
+        ImmutableString, algebra::Vector2, color::Color, log::Log, pool::Handle, some_or_continue,
+        swap_hash_map_entry, uuid::Uuid,
     },
     fxhash::FxHashMap,
     material::MaterialResource,
@@ -537,6 +536,180 @@ impl CommandTrait for RemovePropertyLayerCommand {
         tile_set.properties.insert(self.index, layer);
         tile_set.swap_all_values_for_property(uuid, &mut self.values);
         tile_set.change_flag.set();
+    }
+}
+
+#[derive(Debug)]
+pub struct AddAlternateCommand {
+    pub tile_set: TileSetResource,
+    pub index: usize,
+}
+
+impl CommandTrait for AddAlternateCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        "Add Tile Alternate".into()
+    }
+
+    fn execute(&mut self, _context: &mut dyn CommandContext) {
+        let mut tile_set = self.tile_set.data_ref();
+        tile_set.alternate_names.insert(self.index, "".into());
+        tile_set.change_flag.set();
+        tile_set.for_each_data_mut(|h, d| {
+            let alts = d.alternates_mut();
+            if self.index < alts.len() {
+                alts.insert(self.index, h);
+            }
+        });
+    }
+
+    fn revert(&mut self, _context: &mut dyn CommandContext) {
+        let mut tile_set = self.tile_set.data_ref();
+        tile_set.alternate_names.remove(self.index);
+        tile_set.change_flag.set();
+        tile_set.for_each_data_mut(|_, d| {
+            let alts = d.alternates_mut();
+            if self.index < alts.len() {
+                alts.remove(self.index);
+            }
+        });
+    }
+}
+
+#[derive(Debug)]
+pub struct MoveAlternateCommand {
+    pub tile_set: TileSetResource,
+    pub start: usize,
+    pub end: usize,
+}
+
+impl MoveAlternateCommand {
+    fn swap(&mut self) {
+        let mut tile_set = self.tile_set.data_ref();
+        tile_set.alternate_names.swap(self.start, self.end);
+        tile_set.change_flag.set();
+        let min = self.start.min(self.end);
+        let max = self.start.max(self.end);
+        tile_set.for_each_data_mut(|h, d| {
+            let alts = d.alternates_mut();
+            if min < alts.len() {
+                alts.fill_to_len(max + 1, h);
+                alts.swap(min, max);
+                alts.trim(h);
+            }
+        });
+    }
+}
+
+impl CommandTrait for MoveAlternateCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        "Move Tile Alternate".into()
+    }
+
+    fn execute(&mut self, _context: &mut dyn CommandContext) {
+        self.swap();
+    }
+
+    fn revert(&mut self, _context: &mut dyn CommandContext) {
+        self.swap();
+    }
+}
+
+#[derive(Debug)]
+pub struct RemoveAlternateCommand {
+    pub tile_set: TileSetResource,
+    pub index: usize,
+    pub name: ImmutableString,
+    pub values: FxHashMap<TileDefinitionHandle, TileDefinitionHandle>,
+}
+
+impl CommandTrait for RemoveAlternateCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        "Remove Tile Alternate".into()
+    }
+
+    fn execute(&mut self, _context: &mut dyn CommandContext) {
+        let mut tile_set = self.tile_set.data_ref();
+        self.name = tile_set.alternate_names.remove(self.index);
+        tile_set.change_flag.set();
+        tile_set.for_each_data_mut(|h, d| {
+            let alts = d.alternates_mut();
+            if self.index < alts.len() {
+                self.values.insert(h, alts.remove(self.index));
+            }
+        });
+    }
+
+    fn revert(&mut self, _context: &mut dyn CommandContext) {
+        let mut tile_set = self.tile_set.data_ref();
+        tile_set
+            .alternate_names
+            .insert(self.index, std::mem::take(&mut self.name));
+        tile_set.change_flag.set();
+        for (h, v) in self.values.drain() {
+            if let Some(data) = tile_set.tile_data_mut(h) {
+                data.alternates_mut().insert(self.index, v);
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct RenameAlternateCommand {
+    pub tile_set: TileSetResource,
+    pub index: usize,
+    pub name: ImmutableString,
+}
+
+impl CommandTrait for RenameAlternateCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        "Rename Tile Alternate".into()
+    }
+
+    fn execute(&mut self, _context: &mut dyn CommandContext) {
+        let mut tile_set = self.tile_set.data_ref();
+        std::mem::swap(&mut tile_set.alternate_names[self.index], &mut self.name);
+        tile_set.change_flag.set();
+    }
+
+    fn revert(&mut self, _context: &mut dyn CommandContext) {
+        let mut tile_set = self.tile_set.data_ref();
+        std::mem::swap(&mut tile_set.alternate_names[self.index], &mut self.name);
+        tile_set.change_flag.set();
+    }
+}
+
+#[derive(Debug)]
+pub struct SetAlternateCommand {
+    pub tile_set: TileSetResource,
+    pub index: usize,
+    pub modified_tiles: Vec<TileDefinitionHandle>,
+    pub value: Option<TileDefinitionHandle>,
+    pub old_values: FxHashMap<TileDefinitionHandle, TileDefinitionHandle>,
+}
+
+impl CommandTrait for SetAlternateCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        "Set Tile Alternate".into()
+    }
+
+    fn execute(&mut self, _context: &mut dyn CommandContext) {
+        let mut tile_set = self.tile_set.data_ref();
+        for h in &self.modified_tiles {
+            let data = some_or_continue!(tile_set.tile_data_mut(*h));
+            let old_value = data.alternates_mut().set(self.index, self.value, *h);
+            if Some(old_value) == self.value || self.value.is_none() && old_value == *h {
+                continue;
+            }
+            self.old_values.insert(*h, old_value);
+        }
+    }
+
+    fn revert(&mut self, _context: &mut dyn CommandContext) {
+        let mut tile_set = self.tile_set.data_ref();
+        for (h, value) in self.old_values.drain() {
+            let data = some_or_continue!(tile_set.tile_data_mut(h));
+            data.alternates_mut().set(self.index, Some(value), h);
+        }
     }
 }
 

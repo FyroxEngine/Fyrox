@@ -30,7 +30,10 @@ use crate::{
 };
 use fyrox::{
     asset::ResourceDataRef,
-    core::{SafeLock, algebra::Vector2, pool::Handle, reflect::prelude::*, visitor::prelude::*},
+    core::{
+        ImmutableString, SafeLock, algebra::Vector2, pool::Handle, reflect::prelude::*,
+        visitor::prelude::*,
+    },
     gui::{
         BuildContext, UiNode, UserInterface,
         button::{Button, ButtonMessage},
@@ -40,7 +43,8 @@ use fyrox::{
         message::UiMessage,
         numeric::{NumericUpDownBuilder, NumericUpDownMessage},
         stack_panel::StackPanelBuilder,
-        text::TextBuilder,
+        text::{TextBuilder, TextMessage},
+        text_box::{TextBox, TextBoxBuilder},
         vec::{Vec2EditorBuilder, Vec2EditorMessage},
         widget::WidgetBuilder,
     },
@@ -265,6 +269,10 @@ impl<'a> TileEditorState<'a> {
     /// Iterator over all the collider layers of the resource. The iterator will be empty for brushes.
     pub fn colliders(&self) -> impl Iterator<Item = &TileSetColliderLayer> {
         OptionIterator(self.tile_set().map(|d| d.colliders.iter()))
+    }
+    /// Iterator over the alternate tile names.
+    pub fn alternates(&self) -> impl Iterator<Item = &ImmutableString> {
+        OptionIterator(self.tile_set().map(|d| d.alternate_names.iter()))
     }
     pub fn page_positions(&self) -> impl Iterator<Item = Vector2<i32>> + '_ {
         if self.state().selection_palette() == self.pages_palette {
@@ -758,6 +766,9 @@ pub struct TileInspector {
     create_transform: Handle<Button>,
     /// Button for creating a animation page in a tile set.
     create_animation: Handle<Button>,
+    /// Text field showing the handle of the current tile, so that the handle can
+    /// be copied to the clipboard.
+    handle_field: Handle<TextBox>,
     /// A list of tile editors.
     #[visit(skip)]
     #[reflect(hidden)]
@@ -801,6 +812,7 @@ impl TileInspector {
         let create_transform;
         let create_animation;
 
+        let handle_field = TextBoxBuilder::new(WidgetBuilder::new()).build(ctx);
         let tile_editors: Vec<TileEditorRef> = vec![
             Arc::new(Mutex::new(TileMaterialEditor::new(
                 ctx,
@@ -810,6 +822,7 @@ impl TileInspector {
             ))) as TileEditorRef,
             Arc::new(Mutex::new(TileColorEditor::new(ctx))) as TileEditorRef,
             Arc::new(Mutex::new(TileHandleEditor::new(None, ctx))) as TileEditorRef,
+            Arc::new(Mutex::new(AlternatesEditor::new(&[], ctx))) as TileEditorRef,
         ];
 
         let creator_label_0 = make_label("Create New Page", ctx);
@@ -907,6 +920,7 @@ impl TileInspector {
                 .with_child(tile_size_inspector.handle)
                 .with_child(animation_speed_inspector.handle)
                 .with_child(create_tile)
+                .with_child(handle_field)
                 .with_children(tile_editors.iter().map(|e| e.safe_lock().handle()))
                 .with_child(property_editors.handle)
                 .with_child(collider_editors.handle)
@@ -922,6 +936,7 @@ impl TileInspector {
             tiles_palette,
             tile_book,
             tile_editors,
+            handle_field,
             brush_page_creator,
             tile_set_page_creator,
             page_material_inspector,
@@ -963,6 +978,9 @@ impl TileInspector {
     pub fn sync_to_model(&mut self, ui: &mut UserInterface) {
         let tile_editor_state = self.tile_editor_state(ui);
         let tile_editor_state = tile_editor_state.lock();
+        for editor in &self.tile_editors {
+            editor.lock().sync_to_model(&tile_editor_state, ui);
+        }
         self.property_editors.sync_to_model(&tile_editor_state, ui);
         self.collider_editors.sync_to_model(&tile_editor_state, ui);
         drop(tile_editor_state);
@@ -1005,6 +1023,7 @@ impl TileInspector {
         );
         send_visibility(ui, self.property_editors.handle, tile_data_selected);
         send_visibility(ui, self.collider_editors.handle, tile_data_selected);
+        self.sync_handle_field(&state, ui);
         self.sync_to_page(&state, ui);
         let page_icon = self.find_page_icon(&state);
         ui.send_sync(
@@ -1048,6 +1067,18 @@ impl TileInspector {
         } else {
             None
         }
+    }
+    fn sync_handle_field(&self, state: &TileEditorState, ui: &mut UserInterface) {
+        let mut handles = state.tile_handles();
+        let mut handle = handles.next();
+        if handles.next().is_some() {
+            handle = None;
+        }
+        let text = handle
+            .map(|h| h.to_string())
+            .unwrap_or_else(|| "?".to_string());
+        ui.send_sync(self.handle_field, TextMessage::Text(text));
+        send_visibility(ui, self.handle_field, state.page().is_some());
     }
     fn sync_to_page(&mut self, state: &TileEditorState, ui: &mut UserInterface) {
         if let Some((_, mat)) = state.material_page() {

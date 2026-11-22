@@ -23,6 +23,8 @@
 #![allow(clippy::collapsible_match)] // STFU
 #![warn(missing_docs)]
 
+mod alternates_editor;
+mod alternates_tab;
 mod autotile;
 mod brush_macro;
 mod collider_editor;
@@ -45,6 +47,8 @@ mod tile_prop_editor;
 pub mod tileset;
 mod wfc;
 
+use alternates_editor::*;
+use alternates_tab::*;
 use autotile::*;
 pub use brush_macro::*;
 use collider_editor::*;
