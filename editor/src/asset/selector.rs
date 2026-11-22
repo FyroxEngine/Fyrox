@@ -72,6 +72,8 @@ use std::{
     sync::mpsc::Sender,
 };
 
+pub const ASSET_SELECTOR_ITEM: Uuid = uuid!("e049f00a-de76-42be-9dfe-576d59c98f32");
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AssetSelectorMessage {
     Select(UntypedResource),
@@ -206,6 +208,7 @@ impl ItemBuilder {
         let item = Item {
             widget: self
                 .widget_builder
+                .with_id(ASSET_SELECTOR_ITEM)
                 .with_need_update(true)
                 .with_child(
                     DecoratorBuilder::new(
@@ -397,6 +400,11 @@ pub struct AssetSelectorWindow {
     search_bar: Handle<SearchBar>,
 }
 
+impl AssetSelectorWindow {
+    pub const WINDOW_ID: Uuid = uuid!("9d4023bd-55f2-42e8-a09f-39b9fb855afc");
+    pub const OK_ID: Uuid = uuid!("f003a3b4-6541-42ab-9b50-5b80f3473920");
+}
+
 impl Deref for AssetSelectorWindow {
     type Target = Widget;
 
@@ -506,6 +514,7 @@ impl<'a> AssetSelectorWindowBuilder<'a> {
                 .with_child({
                     ok = ButtonBuilder::new(
                         WidgetBuilder::new()
+                            .with_id(AssetSelectorWindow::OK_ID)
                             .with_width(100.0)
                             .with_height(22.0)
                             .with_margin(Thickness::uniform(1.0))
@@ -562,10 +571,15 @@ impl<'a> AssetSelectorWindowBuilder<'a> {
         ui: &mut UserInterface,
     ) -> Handle<AssetSelectorWindow> {
         let selector = AssetSelectorWindowBuilder::new(
-            WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
-                .with_title(WindowTitle::text("Select a Resource"))
-                .with_remove_on_close(true)
-                .open(false),
+            WindowBuilder::new(
+                WidgetBuilder::new()
+                    .with_id(AssetSelectorWindow::WINDOW_ID)
+                    .with_width(300.0)
+                    .with_height(400.0),
+            )
+            .with_title(WindowTitle::text("Select a Resource"))
+            .with_remove_on_close(true)
+            .open(false),
         )
         .with_selected_asset_path(
             resource

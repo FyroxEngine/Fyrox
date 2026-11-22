@@ -19,12 +19,15 @@
 // SOFTWARE.
 
 use crate::game_scene::GameScene;
+use crate::plugins::inspector::InspectorPlugin;
 use crate::{
     Editor, fyrox::engine::ApplicationLoopController, test::utils::EditorTestingExtension,
 };
 use fyrox::core::info;
+use fyrox::core::pool::Handle;
 use fyrox::core::uuid::Uuid;
 use fyrox::graph::SceneGraph;
+use fyrox::gui::UiNode;
 use fyrox::gui::message::MouseButton;
 use fyrox::scene::node::NodeTrait;
 use std::collections::VecDeque;
@@ -107,6 +110,35 @@ impl Macro {
         })
     }
 
+    pub fn scroll_inspector_to_property(self, name: impl AsRef<str>) -> Self {
+        let name = name.as_ref().to_owned();
+        self.then(move |editor| {
+            let ui = editor.engine.user_interfaces.first();
+            editor
+                .plugins
+                .get::<InspectorPlugin>()
+                .scroll_to_property(&name, ui)
+        })
+    }
+
+    pub fn then_with_property<F>(self, name: impl AsRef<str>, func: F) -> Self
+    where
+        F: FnOnce(&mut Editor, Handle<UiNode>) + 'static,
+    {
+        let name = name.as_ref().to_owned();
+        self.then(move |editor| {
+            let ui = editor.engine.user_interfaces.first();
+            let property_editor = editor
+                .plugins
+                .get::<InspectorPlugin>()
+                .find_property_editor(&name, ui);
+            if property_editor.is_none() {
+                panic!("Property editor for {name} property does not exist!");
+            }
+            func(editor, property_editor)
+        })
+    }
+
     pub fn assert_has_scene_node<T: NodeTrait>(self, name: impl AsRef<str>) -> Self {
         let name = name.as_ref().to_owned();
         self.then(move |editor| {
@@ -182,6 +214,10 @@ impl Macro {
                 }
             }
         })
+    }
+
+    pub fn assert_in_preview_mode(self) -> Self {
+        self.then(|editor| assert!(editor.is_in_preview_mode()))
     }
 
     pub fn execute_next(

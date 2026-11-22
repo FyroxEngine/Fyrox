@@ -40,6 +40,7 @@ use crate::{
     },
     game_scene::{GameScene, Selection},
 };
+use fyrox::core::uuid::{Uuid, uuid};
 
 pub struct AudioPreviewPanel {
     pub root_widget: Handle<Grid>,
@@ -52,9 +53,10 @@ pub struct AudioPreviewPanel {
     sounds_state: Vec<(Handle<Node>, Node)>,
 }
 
-fn make_button(text: &str, column: usize, ctx: &mut BuildContext) -> Handle<Button> {
+fn make_button(text: &str, column: usize, uuid: Uuid, ctx: &mut BuildContext) -> Handle<Button> {
     ButtonBuilder::new(
         WidgetBuilder::new()
+            .with_id(uuid)
             .on_column(column)
             .with_margin(Thickness::uniform(1.0)),
     )
@@ -63,6 +65,12 @@ fn make_button(text: &str, column: usize, ctx: &mut BuildContext) -> Handle<Butt
 }
 
 impl AudioPreviewPanel {
+    pub const PREVIEW: Uuid = uuid!("0bf43ccf-bcdb-4d4d-8522-2098da6bc393");
+    pub const PLAY: Uuid = uuid!("d32cf9fa-69f2-4340-b81b-5eae20fe5124");
+    pub const STOP: Uuid = uuid!("466bc0de-4a95-43ce-add3-854b8fc09186");
+    pub const REWIND: Uuid = uuid!("155b6de0-1b2d-4254-a9f9-8c8d14e26dbf");
+    pub const PAUSE: Uuid = uuid!("b28b99ad-60a8-452a-afd1-1add8377cc70");
+
     pub fn new(ctx: &mut BuildContext) -> Self {
         let preview;
         let play;
@@ -79,6 +87,7 @@ impl AudioPreviewPanel {
                             .with_child({
                                 preview = CheckBoxBuilder::new(
                                     WidgetBuilder::new()
+                                        .with_id(Self::PREVIEW)
                                         .with_vertical_alignment(VerticalAlignment::Center)
                                         .with_margin(Thickness::uniform(1.0)),
                                 )
@@ -95,19 +104,19 @@ impl AudioPreviewPanel {
                                 preview
                             })
                             .with_child({
-                                play = make_button("Play", 1, ctx);
+                                play = make_button("Play", 1, Self::PLAY, ctx);
                                 play
                             })
                             .with_child({
-                                pause = make_button("Pause", 2, ctx);
+                                pause = make_button("Pause", 2, Self::PAUSE, ctx);
                                 pause
                             })
                             .with_child({
-                                stop = make_button("Stop", 3, ctx);
+                                stop = make_button("Stop", 3, Self::STOP, ctx);
                                 stop
                             })
                             .with_child({
-                                rewind = make_button("Rewind", 4, ctx);
+                                rewind = make_button("Rewind", 4, Self::REWIND, ctx);
                                 rewind
                             }),
                     )

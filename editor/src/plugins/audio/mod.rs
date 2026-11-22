@@ -36,7 +36,7 @@ use preview::AudioPreviewPanel;
 mod bus;
 mod command;
 mod panel;
-mod preview;
+pub mod preview;
 mod selection;
 
 #[derive(Default)]

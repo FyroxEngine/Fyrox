@@ -68,6 +68,7 @@ use crate::{
     ui_scene::UiScene,
     utils::window_content,
 };
+use fyrox::gui::scroll_viewer::{ScrollViewer, ScrollViewerMessage};
 use fyrox::material::Material;
 use fyrox::resource::model::Model;
 use std::{any::Any, sync::Arc, sync::mpsc::Sender};
@@ -170,6 +171,7 @@ pub struct InspectorPlugin {
     collapse_all: Handle<Button>,
     expand_all: Handle<Button>,
     type_editors: Vec<TypeEditorContainer>,
+    scroll_viewer: Handle<ScrollViewer>,
 }
 
 fn fetch_available_animations(
@@ -237,6 +239,8 @@ fn is_out_of_sync(sync_errors: &[InspectorError]) -> bool {
 }
 
 impl InspectorPlugin {
+    pub const SCROLL_VIEWER: Uuid = uuid!("10988aaf-32ce-4899-87c0-f5a2e62ba037");
+
     pub fn new(ctx: &mut BuildContext) -> Self {
         let warning_text_str = "Multiple objects are selected, showing properties of the first object only!\
             Only common properties will be editable!";
@@ -315,6 +319,7 @@ impl InspectorPlugin {
             .with_tab_index(Some(0))
             .build_button(ctx);
 
+        let scroll_viewer;
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("Inspector"))
             .with_title(WindowTitle::text("Inspector"))
             .with_tab_label("Inspector")
@@ -336,11 +341,14 @@ impl InspectorPlugin {
                         )
                         .with_child(navigation_block)
                         .with_child(head)
-                        .with_child(
-                            ScrollViewerBuilder::new(WidgetBuilder::new().on_row(4))
-                                .with_content(inspector)
-                                .build(ctx),
-                        )
+                        .with_child({
+                            scroll_viewer = ScrollViewerBuilder::new(
+                                WidgetBuilder::new().with_id(Self::SCROLL_VIEWER).on_row(4),
+                            )
+                            .with_content(inspector)
+                            .build(ctx);
+                            scroll_viewer
+                        })
                         .with_child(footer),
                 )
                 .add_row(Row::auto())
@@ -373,6 +381,7 @@ impl InspectorPlugin {
             footer,
             search_bar,
             type_editors,
+            scroll_viewer,
         }
     }
 
@@ -437,6 +446,46 @@ impl InspectorPlugin {
             self.type_name_text,
             TextMessage::Text(format!("Type Name: {}", obj.type_info_ref().type_name)),
         );
+    }
+
+    // TODO. This method will search for the first property with given name. Add support for
+    // full property path.
+    pub fn find_property_editor(&self, name: &str, ui: &UserInterface) -> Handle<UiNode> {
+        fn find_property_editor_recursive(
+            from: Handle<UiNode>,
+            name: &str,
+            ui: &UserInterface,
+        ) -> Handle<UiNode> {
+            let Ok(inspector) = &ui.try_get_of_type::<gui::inspector::Inspector>(from) else {
+                return Handle::NONE;
+            };
+            for prop in inspector.context.entries.iter() {
+                if prop.property_name == name {
+                    return prop.property_editor;
+                } else {
+                    if let Some((h, _)) =
+                        ui.find_from_root(&mut |v| v.cast::<gui::inspector::Inspector>().is_some())
+                    {
+                        let editor = find_property_editor_recursive(h, name, ui);
+                        if editor.is_some() {
+                            return editor;
+                        }
+                    }
+                }
+            }
+            Handle::NONE
+        }
+        find_property_editor_recursive(self.inspector.to_base(), name, ui)
+    }
+
+    pub fn scroll_to_property(&self, name: &str, ui: &UserInterface) {
+        let property_editor = self.find_property_editor(name, ui);
+        if property_editor.is_some() {
+            ui.send(
+                self.scroll_viewer,
+                ScrollViewerMessage::BringIntoView(property_editor),
+            );
+        }
     }
 
     fn clear(&self, ui: &UserInterface) {

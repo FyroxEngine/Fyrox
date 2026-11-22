@@ -52,15 +52,6 @@ pub mod world;
 
 pub use fyrox;
 
-use crate::plugins::audio::AudioPlugin;
-use crate::plugins::camera::CameraPlugin;
-use crate::plugins::doc::DocPlugin;
-use crate::plugins::export::ExportPlugin;
-use crate::plugins::light::LightPlugin;
-use crate::plugins::mesh::MeshPlugin;
-use crate::plugins::navmesh::NavmeshPlugin;
-use crate::plugins::particle_system::ParticleSystemPlugin;
-use crate::world::create::EntityCreator;
 use crate::{
     asset::{AssetBrowser, item::AssetItem},
     command::{Command, CommandTrait, panel::CommandStackViewer},
@@ -154,10 +145,18 @@ use crate::{
     plugins::{
         absm::{AbsmEditor, AbsmEditorPlugin},
         animation::AnimationEditorPlugin,
+        audio::AudioPlugin,
+        camera::CameraPlugin,
         collider::ColliderPlugin,
         curve_editor::CurveEditorPlugin,
+        doc::DocPlugin,
+        export::ExportPlugin,
         inspector::editors::make_property_editors_container,
+        light::LightPlugin,
         material::MaterialPlugin,
+        mesh::MeshPlugin,
+        navmesh::NavmeshPlugin,
+        particle_system::ParticleSystemPlugin,
         probe::ReflectionProbePlugin,
         ragdoll::RagdollPlugin,
         settings::SettingsPlugin,
@@ -171,25 +170,24 @@ use crate::{
         UiScene, bbcode::BBCodePanel, menu::WidgetContextMenu,
         utils::UiSceneWorldViewerDataProvider,
     },
+    world::create::EntityCreator,
     world::{WorldViewer, graph::EditorSceneWrapper, menu::SceneNodeContextMenu},
 };
-use fyrox::asset::event::ResourceEvent;
-use fyrox::asset::{Resource, collect_used_resources};
-use fyrox::core::dyntype::DynTypeConstructorContainer;
-use fyrox::core::some_or_return;
-use fyrox::graph::dependency::ResourceDependencyGraph;
-use fyrox::gui::clipboard::ClipboardContainer;
-use fyrox::gui::dock::Tile;
-use fyrox::resource::model::Model;
+use fyrox::{
+    asset::{Resource, collect_used_resources, event::ResourceEvent},
+    core::{dyntype::DynTypeConstructorContainer, some_or_return},
+    graph::dependency::ResourceDependencyGraph,
+    gui::clipboard::ClipboardContainer,
+    gui::dock::Tile,
+    resource::model::Model,
+};
 use fyrox_build_tools::{CommandDescriptor, build::BuildWindow};
 use loading_window::SceneLoadingWindow;
 pub use message::Message;
-use plugins::export::ExportWindow;
-use plugins::inspector::InspectorPlugin;
+use plugins::{export::ExportWindow, inspector::InspectorPlugin};
 use save_dialog::SaveSceneConfirmationDialog;
-use std::cell::Cell;
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     collections::VecDeque,
     io::{BufRead, BufReader, Cursor, Read},
     path::{Path, PathBuf},

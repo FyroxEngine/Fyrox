@@ -38,6 +38,13 @@ pub trait UserInterfaceTestingExtension {
     /// Tries to find a widget with the given unique id and clicks at its center.
     fn click_at(&mut self, uuid: Uuid, button: MouseButton) -> Handle<UiNode>;
 
+    fn click_at_from(
+        &mut self,
+        uuid: Uuid,
+        from: Handle<UiNode>,
+        button: MouseButton,
+    ) -> Handle<UiNode>;
+
     fn click_at_text(&mut self, uuid: Uuid, button: MouseButton, text: &str);
 
     fn find_by_uuid(&self, uuid: Uuid) -> Option<&UiNode>;
@@ -90,8 +97,17 @@ impl UserInterfaceTestingExtension for UserInterface {
     }
 
     fn click_at(&mut self, uuid: Uuid, button: MouseButton) -> Handle<UiNode> {
+        self.click_at_from(uuid, self.root_canvas, button)
+    }
+
+    fn click_at_from(
+        &mut self,
+        uuid: Uuid,
+        from: Handle<UiNode>,
+        button: MouseButton,
+    ) -> Handle<UiNode> {
         assert_ne!(uuid, Uuid::default());
-        if let Some((handle, n)) = self.find_from_root(&mut |n| n.id == uuid) {
+        if let Some((handle, n)) = self.find(from, &mut |n| n.id == uuid) {
             if self.visual_debug {
                 info!("{} - bounds {:?}", uuid, n.screen_bounds());
             }
@@ -154,16 +170,6 @@ impl UserInterfaceTestingExtension for UserInterface {
         }
     }
 
-    fn click_at_count_response<M: MessageData + PartialEq>(
-        &mut self,
-        uuid: Uuid,
-        button: MouseButton,
-        response: M,
-    ) -> usize {
-        let handle = self.click_at(uuid, button);
-        self.poll_and_count(move |msg| msg.data_from::<M>(handle) == Some(&response))
-    }
-
     fn find_by_uuid(&self, uuid: Uuid) -> Option<&UiNode> {
         self.find_from_root(&mut |n| n.id == uuid).map(|(_, n)| n)
     }
@@ -203,6 +209,16 @@ impl UserInterfaceTestingExtension for UserInterface {
         let screen_size = self.screen_size();
         self.update(screen_size, 1.0 / 60.0, &Default::default());
         num
+    }
+
+    fn click_at_count_response<M: MessageData + PartialEq>(
+        &mut self,
+        uuid: Uuid,
+        button: MouseButton,
+        response: M,
+    ) -> usize {
+        let handle = self.click_at(uuid, button);
+        self.poll_and_count(move |msg| msg.data_from::<M>(handle) == Some(&response))
     }
 
     fn type_text(&mut self, text: &str) {

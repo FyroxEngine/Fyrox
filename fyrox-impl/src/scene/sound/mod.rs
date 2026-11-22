@@ -192,6 +192,9 @@ impl Clone for Sound {
 }
 
 impl Sound {
+    /// The default name of the sound source node.
+    pub const DEFAULT_NAME: &'static str = "Sound Source";
+
     /// Changes buffer of source. Source will continue playing from beginning, old
     /// position will be discarded.
     pub fn set_buffer(
@@ -386,8 +389,8 @@ impl Sound {
 impl ConstructorProvider<Node, Graph> for Sound {
     fn constructor() -> NodeConstructor {
         NodeConstructor::new::<Self>()
-            .with_variant("Sound Source", |_| {
-                SoundBuilder::new(BaseBuilder::new().with_name("Sound Source"))
+            .with_variant(Sound::DEFAULT_NAME, |_| {
+                SoundBuilder::new(BaseBuilder::new().with_name(Sound::DEFAULT_NAME))
                     .build_node()
                     .into()
             })

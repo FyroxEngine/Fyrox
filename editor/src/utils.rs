@@ -38,13 +38,17 @@ use crate::{
 };
 use fyrox::core::log::Log;
 use fyrox::core::pool::ObjectOrVariant;
+use fyrox::core::uuid::{Uuid, uuid};
 use fyrox::gui::button::Button;
 use fyrox::gui::file_browser::{FileSelector, FileSelectorMode, FileType};
 use std::{fs::File, path::Path};
 
+pub const PICK_BUTTON: Uuid = uuid!("219f8275-e387-49dd-89e0-cd7795dcbf39");
+
 pub fn make_pick_button(column: usize, ctx: &mut BuildContext) -> Handle<Button> {
     ButtonBuilder::new(
         WidgetBuilder::new()
+            .with_id(PICK_BUTTON)
             .with_width(22.0)
             .with_height(22.0)
             .with_vertical_alignment(VerticalAlignment::Center)
