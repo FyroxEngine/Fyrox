@@ -7,5 +7,5 @@
 *.rgs
 /data
 history.bin
-/settings.ron
+/settings.cfg
 /AutomatedTests

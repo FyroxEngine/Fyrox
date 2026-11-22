@@ -30,16 +30,17 @@ use crate::{
         engine::Engine,
         gui::{BuildContext, UiNode, widget::WidgetMessage},
     },
-    interaction::{InteractionMode, make_interaction_mode_button},
+    fyrox::{gui::border::Border, gui::button::Button, gui::image::Image},
+    game_scene::{
+        Selection,
+        commands::ChangeSelectionCommand,
+        controller::SceneController,
+        interaction::{InteractionMode, make_interaction_mode_button},
+    },
     message::MessageSender,
-    scene::commands::ChangeSelectionCommand,
-    scene::{Selection, controller::SceneController},
     settings::Settings,
     ui_scene::{UiScene, UiSelection},
 };
-use fyrox::gui::border::Border;
-use fyrox::gui::button::Button;
-use fyrox::gui::image::Image;
 
 pub mod move_mode;
 

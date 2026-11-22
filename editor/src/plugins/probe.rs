@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::scene::camera::PickingOptions;
+use crate::game_scene::camera::PickingOptions;
 use crate::{
     Editor, Message,
     command::SetPropertyCommand,
@@ -40,14 +40,14 @@ use crate::{
         },
         scene::{Scene, probe::ReflectionProbe},
     },
-    interaction::{
+    game_scene::interaction::{
         InteractionMode, calculate_gizmo_distance_scaling, gizmo::move_gizmo::MoveGizmo,
         make_interaction_mode_button, plane::PlaneKind,
     },
+    game_scene::{GameScene, Selection, commands::GameSceneContext, controller::SceneController},
     message::MessageSender,
     plugin::EditorPlugin,
     plugins::inspector::InspectorPlugin,
-    scene::{GameScene, Selection, commands::GameSceneContext, controller::SceneController},
     settings::Settings,
 };
 use fyrox::core::reflect::Reflect;

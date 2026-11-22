@@ -36,7 +36,7 @@ use crate::{
             tilemap::{brush::TileMapBrushResource, tileset::TileSetResource},
         },
     },
-    scene::Selection,
+    game_scene::Selection,
     world::create::EntityCreatorMode,
 };
 use std::{path::PathBuf, sync::mpsc::Sender, sync::mpsc::channel};
@@ -115,7 +115,6 @@ pub enum Message {
         view: Handle<UiNode>,
     },
     ForceSync,
-    ShowDocumentation(String),
     SaveLayout,
     LoadLayout,
     ResetLayout,

@@ -1,0 +1,284 @@
+// Copyright (c) 2019-present Dmitry Stepanov and Fyrox Engine contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+use crate::fyrox::{
+    core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
+    gui::{
+        BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
+        VerticalAlignment,
+        border::BorderBuilder,
+        decorator::DecoratorBuilder,
+        define_widget_deref,
+        dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
+        grid::{Column, GridBuilder, Row},
+        list_view::{ListView, ListViewBuilder, ListViewMessage},
+        message::{MessageData, UiMessage},
+        style::{Style, resource::StyleResourceExt},
+        text::{Text, TextBuilder, TextMessage},
+        utils::{make_dropdown_list_option, make_simple_tooltip},
+        widget::{Widget, WidgetBuilder},
+    },
+    scene::sound::{AudioBus, AudioBusGraph},
+};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum AudioBusViewMessage {
+    ChangeParent(Handle<AudioBus>),
+    PossibleParentBuses(Vec<(Handle<AudioBus>, String)>),
+    EffectNames(Vec<String>),
+    Name(String),
+}
+impl MessageData for AudioBusViewMessage {}
+
+#[derive(Clone, Visit, PartialEq, Reflect, Debug)]
+#[reflect(
+    derived_type = "UiNode",
+    type_uuid = "5439e3a9-096a-4155-922c-ed57a76a46f3"
+)]
+pub struct AudioBusView {
+    widget: Widget,
+    pub bus: Handle<AudioBus>,
+    parent_bus_selector: Handle<DropdownList>,
+    possible_parent_buses: Vec<Handle<AudioBus>>,
+    effect_names_list: Handle<ListView>,
+    name: Handle<Text>,
+}
+
+define_widget_deref!(AudioBusView);
+
+impl Control for AudioBusView {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
+        self.widget.handle_routed_message(ui, message);
+
+        if let Some(msg) = message.data_for::<AudioBusViewMessage>(self.handle) {
+            match msg {
+                AudioBusViewMessage::ChangeParent(_) => {
+                    // Do nothing.
+                }
+                AudioBusViewMessage::PossibleParentBuses(buses) => {
+                    self.possible_parent_buses =
+                        buses.iter().map(|(handle, _)| *handle).collect::<Vec<_>>();
+
+                    let items = make_items(buses, &mut ui.build_ctx());
+
+                    ui.send(self.parent_bus_selector, DropdownListMessage::Items(items))
+                }
+                AudioBusViewMessage::EffectNames(names) => {
+                    let items = make_effect_names(names, &mut ui.build_ctx());
+                    ui.send(self.effect_names_list, ListViewMessage::Items(items));
+                }
+                AudioBusViewMessage::Name(new_name) => {
+                    ui.send(self.name, TextMessage::Text(new_name.clone()))
+                }
+            }
+        }
+
+        if let Some(DropdownListMessage::Selection(Some(selection))) =
+            message.data_from(self.parent_bus_selector)
+        {
+            let parent = self.possible_parent_buses[*selection];
+            ui.post(self.handle, AudioBusViewMessage::ChangeParent(parent));
+        }
+    }
+}
+
+fn make_items(buses: &[(Handle<AudioBus>, String)], ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
+    buses
+        .iter()
+        .map(|(_, name)| make_dropdown_list_option(ctx, name))
+        .collect::<Vec<_>>()
+}
+
+fn make_effect_names(names: &[String], ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
+    if names.is_empty() {
+        vec![
+            TextBuilder::new(
+                WidgetBuilder::new().with_foreground(ctx.style.property(Style::BRUSH_LIGHTER)),
+            )
+            .with_text("No Effects")
+            .with_horizontal_text_alignment(HorizontalAlignment::Center)
+            .build(ctx)
+            .to_base(),
+        ]
+    } else {
+        names
+            .iter()
+            .map(|n| {
+                TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                    .with_text(n)
+                    .with_horizontal_text_alignment(HorizontalAlignment::Center)
+                    .build(ctx)
+                    .to_base()
+            })
+            .collect::<Vec<_>>()
+    }
+}
+
+pub struct AudioBusViewBuilder {
+    widget_builder: WidgetBuilder,
+    name: String,
+    effect_names: Vec<String>,
+    bus: Handle<AudioBus>,
+    parent_bus: Handle<AudioBus>,
+    possible_parent_buses: Vec<(Handle<AudioBus>, String)>,
+}
+
+impl AudioBusViewBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
+        Self {
+            widget_builder,
+            name: AudioBusGraph::PRIMARY_BUS.to_string(),
+            effect_names: Default::default(),
+            bus: Default::default(),
+            parent_bus: Default::default(),
+            possible_parent_buses: Default::default(),
+        }
+    }
+
+    pub fn with_name<S: AsRef<str>>(mut self, name: S) -> Self {
+        name.as_ref().clone_into(&mut self.name);
+        self
+    }
+
+    pub fn with_audio_bus(mut self, bus: Handle<AudioBus>) -> Self {
+        self.bus = bus;
+        self
+    }
+
+    pub fn with_effect_names(mut self, names: Vec<String>) -> Self {
+        self.effect_names = names;
+        self
+    }
+
+    pub fn with_parent_bus(mut self, parent_bus: Handle<AudioBus>) -> Self {
+        self.parent_bus = parent_bus;
+        self
+    }
+
+    pub fn with_possible_parent_buses(
+        mut self,
+        possible_parent_buses: Vec<(Handle<AudioBus>, String)>,
+    ) -> Self {
+        self.possible_parent_buses = possible_parent_buses;
+        self
+    }
+
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<AudioBusView> {
+        let effect_names_list;
+        let name;
+        let parent_bus_selector;
+        let grid = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(
+                    BorderBuilder::new(WidgetBuilder::new().on_row(0).on_column(0).with_child({
+                        name = TextBuilder::new(
+                            WidgetBuilder::new()
+                                .with_horizontal_alignment(HorizontalAlignment::Center)
+                                .with_vertical_alignment(VerticalAlignment::Center),
+                        )
+                        .with_text(self.name)
+                        .build(ctx);
+                        name
+                    }))
+                    .build(ctx),
+                )
+                .with_child(
+                    BorderBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(1)
+                            .on_column(0)
+                            .with_margin(Thickness::uniform(1.0))
+                            .with_tooltip(make_simple_tooltip(
+                                ctx,
+                                "A list of effects applied to the audio bus.",
+                            ))
+                            .with_child({
+                                effect_names_list = ListViewBuilder::new(
+                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_items(make_effect_names(&self.effect_names, ctx))
+                                .build(ctx);
+                                effect_names_list
+                            }),
+                    )
+                    .build(ctx),
+                )
+                .with_child({
+                    parent_bus_selector = DropdownListBuilder::new(
+                        WidgetBuilder::new()
+                            .with_visibility(self.parent_bus.is_some())
+                            .on_row(2)
+                            .on_column(0)
+                            .with_margin(Thickness::uniform(1.0))
+                            .with_tooltip(make_simple_tooltip(
+                                ctx,
+                                "A parent audio bus to which this audio bus will send its data.",
+                            )),
+                    )
+                    .with_opt_selected(
+                        self.possible_parent_buses
+                            .iter()
+                            .position(|(h, _)| *h == self.parent_bus),
+                    )
+                    .with_items(make_items(&self.possible_parent_buses, ctx))
+                    .build(ctx);
+                    parent_bus_selector
+                }),
+        )
+        .add_row(Row::strict(25.0))
+        .add_row(Row::stretch())
+        .add_row(Row::strict(25.0))
+        .add_column(Column::stretch())
+        .build(ctx);
+
+        let view = AudioBusView {
+            widget: self
+                .widget_builder
+                .with_child(
+                    DecoratorBuilder::new(BorderBuilder::new(
+                        WidgetBuilder::new().with_child(grid),
+                    ))
+                    .build(ctx),
+                )
+                .build(ctx),
+            bus: self.bus,
+            parent_bus_selector,
+            possible_parent_buses: self
+                .possible_parent_buses
+                .into_iter()
+                .map(|(handle, _)| handle)
+                .collect::<Vec<_>>(),
+            effect_names_list,
+            name,
+        };
+        ctx.add(view)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::AudioBusViewBuilder;
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| AudioBusViewBuilder::new(WidgetBuilder::new()).build(ctx));
+    }
+}

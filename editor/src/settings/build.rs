@@ -18,11 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::core::reflect::prelude::*;
+use crate::fyrox::core::{reflect::prelude::*, visitor::prelude::*};
 use fyrox_build_tools::BuildProfile;
-use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
+#[derive(Visit, PartialEq, Clone, Debug, Reflect)]
 #[reflect(type_uuid = "09af1ddc-e918-47a9-af8a-0261927ff022")]
 pub struct BuildSettings {
     #[reflect(hidden)]

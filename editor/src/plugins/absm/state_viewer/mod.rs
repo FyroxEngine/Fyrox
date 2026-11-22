@@ -37,6 +37,7 @@ use crate::fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
     },
 };
+use crate::game_scene::{Selection, commands::ChangeSelectionCommand};
 use crate::message::MessageSender;
 use crate::plugins::absm::{
     AbsmEditor,
@@ -54,7 +55,6 @@ use crate::plugins::absm::{
     socket::{Socket, SocketBuilder, SocketDirection},
     state_viewer::context::{CanvasContextMenu, ConnectionContextMenu, NodeContextMenu},
 };
-use crate::scene::{Selection, commands::ChangeSelectionCommand};
 
 use crate::plugins::absm::canvas::AbsmCanvas;
 use fyrox::core::reflect::Reflect;

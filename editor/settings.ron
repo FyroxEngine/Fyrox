@@ -1,0 +1,513 @@
+(
+    selection: (
+        ignore_back_faces: false,
+        hull_less_object_selection_radius: 0.33,
+        track_selection: true,
+    ),
+    graphics: (
+        quality: (
+            point_shadow_map_size: 1024,
+            point_soft_shadows: true,
+            point_shadows_enabled: true,
+            point_shadows_distance: 15.0,
+            point_shadow_map_precision: Full,
+            point_shadows_fade_out_range: 1.0,
+            spot_shadow_map_size: 1024,
+            spot_soft_shadows: true,
+            spot_shadows_enabled: true,
+            spot_shadows_distance: 15.0,
+            spot_shadow_map_precision: Full,
+            spot_shadows_fade_out_range: 1.0,
+            csm_settings: (
+                enabled: true,
+                size: 2048,
+                precision: Full,
+                pcf: true,
+            ),
+            use_ssao: true,
+            ssao_radius: 0.5,
+            light_scatter_enabled: true,
+            fxaa: true,
+            use_parallax_mapping: true,
+            use_occlusion_culling: false,
+            use_light_occlusion_culling: false,
+            hdr_settings: (
+                use_hdr: true,
+                luminance_calculation_method: DownSampling,
+                bloom_settings: (
+                    use_bloom: true,
+                    threshold: 1.01,
+                ),
+            ),
+        ),
+        z_near: 0.025,
+        z_far: 128.0,
+        draw_grid: true,
+        gizmo_scale: 1.0,
+    ),
+    build: (
+        selected_profile: 0,
+        profiles: [
+            (
+                name: "Debug",
+                build_commands: [
+                    (
+                        command: "cargo",
+                        args: [
+                            "build",
+                            "--package",
+                            "executor",
+                        ],
+                        environment_variables: [],
+                    ),
+                ],
+                run_command: (
+                    command: "cargo",
+                    args: [
+                        "run",
+                        "--package",
+                        "executor",
+                    ],
+                    environment_variables: [],
+                ),
+            ),
+            (
+                name: "Debug (HR)",
+                build_commands: [
+                    (
+                        command: "cargo",
+                        args: [
+                            "build",
+                            "--package",
+                            "game_dylib",
+                            "--no-default-features",
+                            "--features",
+                            "dylib-engine",
+                            "--profile",
+                            "dev-hot-reload",
+                        ],
+                        environment_variables: [
+                            (
+                                name: "RUSTFLAGS",
+                                value: "-C prefer-dynamic=yes",
+                            ),
+                        ],
+                    ),
+                    (
+                        command: "cargo",
+                        args: [
+                            "build",
+                            "--package",
+                            "executor",
+                            "--no-default-features",
+                            "--features",
+                            "dylib",
+                            "--profile",
+                            "dev-hot-reload",
+                        ],
+                        environment_variables: [
+                            (
+                                name: "RUSTFLAGS",
+                                value: "-C prefer-dynamic=yes",
+                            ),
+                        ],
+                    ),
+                ],
+                run_command: (
+                    command: "cargo",
+                    args: [
+                        "run",
+                        "--package",
+                        "executor",
+                        "--no-default-features",
+                        "--features",
+                        "dylib",
+                        "--profile",
+                        "dev-hot-reload",
+                    ],
+                    environment_variables: [
+                        (
+                            name: "RUSTFLAGS",
+                            value: "-C prefer-dynamic=yes",
+                        ),
+                    ],
+                ),
+            ),
+            (
+                name: "Release",
+                build_commands: [
+                    (
+                        command: "cargo",
+                        args: [
+                            "build",
+                            "--package",
+                            "executor",
+                            "--release",
+                        ],
+                        environment_variables: [],
+                    ),
+                ],
+                run_command: (
+                    command: "cargo",
+                    args: [
+                        "run",
+                        "--package",
+                        "executor",
+                        "--release",
+                    ],
+                    environment_variables: [],
+                ),
+            ),
+            (
+                name: "Release (HR)",
+                build_commands: [
+                    (
+                        command: "cargo",
+                        args: [
+                            "build",
+                            "--package",
+                            "executor",
+                            "--release",
+                            "--release",
+                        ],
+                        environment_variables: [],
+                    ),
+                ],
+                run_command: (
+                    command: "cargo",
+                    args: [
+                        "run",
+                        "--package",
+                        "executor",
+                        "--release",
+                        "--release",
+                    ],
+                    environment_variables: [],
+                ),
+            ),
+        ],
+    ),
+    general: (
+        show_node_removal_dialog: true,
+        suspend_unfocused_editor: true,
+        keep_editor_active: false,
+        script_editor: SystemDefault,
+        max_history_entries: 512,
+        generate_previews: true,
+        max_log_entries: 256,
+        style: Dark,
+    ),
+    debugging: (
+        show_physics: true,
+        show_bounds: true,
+        show_tbn: false,
+        show_terrains: false,
+        show_light_bounds: true,
+        show_camera_bounds: true,
+        pictogram_size: 0.33,
+        save_scene_in_text_form: false,
+    ),
+    move_mode_settings: (
+        grid_snapping: false,
+        x_snap_step: 0.05,
+        y_snap_step: 0.05,
+        z_snap_step: 0.05,
+    ),
+    rotate_mode_settings: (
+        angle_snapping: false,
+        x_snap_step: 2.5,
+        y_snap_step: 2.5,
+        z_snap_step: 2.5,
+    ),
+    model: (
+        instantiation_scale: (1.0, 1.0, 1.0),
+    ),
+    camera: (
+        speed: 10.0,
+        sensitivity: 1.0,
+        zoom_speed: 0.5,
+        zoom_range: (
+            start: 0.0,
+            end: 100.0,
+        ),
+        exposure: Manual(1.0),
+    ),
+    navmesh: (
+        draw_all: true,
+        vertex_radius: 0.2,
+    ),
+    key_bindings: (
+        move_forward: r#Some(KeyW),
+        move_back: r#Some(KeyS),
+        move_left: r#Some(KeyA),
+        move_right: r#Some(KeyD),
+        move_up: r#Some(KeyE),
+        move_down: r#Some(KeyQ),
+        speed_up: r#Some(ControlLeft),
+        slow_down: r#Some(ShiftLeft),
+        undo: r#Some(
+            code: KeyZ,
+            modifiers: (
+                alt: false,
+                shift: false,
+                control: true,
+                system: false,
+            ),
+        ),
+        redo: r#Some(
+            code: KeyY,
+            modifiers: (
+                alt: false,
+                shift: false,
+                control: true,
+                system: false,
+            ),
+        ),
+        enable_select_mode: r#Some(
+            code: Digit1,
+            modifiers: (
+                alt: false,
+                shift: false,
+                control: false,
+                system: false,
+            ),
+        ),
+        enable_move_mode: r#Some(
+            code: Digit2,
+            modifiers: (
+                alt: false,
+                shift: false,
+                control: false,
+                system: false,
+            ),
+        ),
+        enable_rotate_mode: r#Some(
+            code: Digit3,
+            modifiers: (
+                alt: false,
+                shift: false,
+                control: false,
+                system: false,
+            ),
+        ),
+        enable_scale_mode: r#Some(
+            code: Digit4,
+            modifiers: (
+                alt: false,
+                shift: false,
+                control: false,
+                system: false,
+            ),
+        ),
+        enable_navmesh_mode: r#Some(
+            code: Digit5,
+            modifiers: (
+                alt: false,
+                shift: false,
+                control: false,
+                system: false,
+            ),
+        ),
+        enable_terrain_mode: r#Some(
+            code: Digit6,
+            modifiers: (
+                alt: false,
+                shift: false,
+                control: false,
+                system: false,
+            ),
+        ),
+        save_scene: r#Some(
+            code: KeyS,
+            modifiers: (
+                alt: false,
+                shift: false,
+                control: true,
+                system: false,
+            ),
+        ),
+        save_scene_as: r#Some(
+            code: KeyS,
+            modifiers: (
+                alt: false,
+                shift: true,
+                control: true,
+                system: false,
+            ),
+        ),
+        save_all_scenes: r#Some(
+            code: KeyS,
+            modifiers: (
+                alt: true,
+                shift: false,
+                control: true,
+                system: false,
+            ),
+        ),
+        load_scene: r#Some(
+            code: KeyL,
+            modifiers: (
+                alt: false,
+                shift: false,
+                control: true,
+                system: false,
+            ),
+        ),
+        copy_selection: r#Some(
+            code: KeyC,
+            modifiers: (
+                alt: false,
+                shift: false,
+                control: true,
+                system: false,
+            ),
+        ),
+        paste: r#Some(
+            code: KeyV,
+            modifiers: (
+                alt: false,
+                shift: false,
+                control: true,
+                system: false,
+            ),
+        ),
+        new_scene: r#Some(
+            code: KeyN,
+            modifiers: (
+                alt: false,
+                shift: false,
+                control: true,
+                system: false,
+            ),
+        ),
+        close_scene: r#Some(
+            code: KeyQ,
+            modifiers: (
+                alt: false,
+                shift: false,
+                control: true,
+                system: false,
+            ),
+        ),
+        remove_selection: r#Some(
+            code: Delete,
+            modifiers: (
+                alt: false,
+                shift: false,
+                control: false,
+                system: false,
+            ),
+        ),
+        focus: r#Some(
+            code: KeyF,
+            modifiers: (
+                alt: false,
+                shift: false,
+                control: false,
+                system: false,
+            ),
+        ),
+        terrain_key_bindings: (
+            modify_height_map_mode: r#Some(
+                code: F1,
+                modifiers: (
+                    alt: false,
+                    shift: false,
+                    control: false,
+                    system: false,
+                ),
+            ),
+            draw_on_mask_mode: r#Some(
+                code: F2,
+                modifiers: (
+                    alt: false,
+                    shift: false,
+                    control: false,
+                    system: false,
+                ),
+            ),
+            flatten_slopes_mode: r#Some(
+                code: F3,
+                modifiers: (
+                    alt: false,
+                    shift: false,
+                    control: false,
+                    system: false,
+                ),
+            ),
+            increase_brush_size: r#Some(
+                code: BracketRight,
+                modifiers: (
+                    alt: false,
+                    shift: false,
+                    control: false,
+                    system: false,
+                ),
+            ),
+            decrease_brush_size: r#Some(
+                code: BracketLeft,
+                modifiers: (
+                    alt: false,
+                    shift: false,
+                    control: false,
+                    system: false,
+                ),
+            ),
+            increase_brush_opacity: r#Some(
+                code: Period,
+                modifiers: (
+                    alt: false,
+                    shift: false,
+                    control: false,
+                    system: false,
+                ),
+            ),
+            decrease_brush_opacity: r#Some(
+                code: Comma,
+                modifiers: (
+                    alt: false,
+                    shift: false,
+                    control: false,
+                    system: false,
+                ),
+            ),
+            prev_layer: r#Some(
+                code: Semicolon,
+                modifiers: (
+                    alt: false,
+                    shift: false,
+                    control: false,
+                    system: false,
+                ),
+            ),
+            next_layer: r#Some(
+                code: Quote,
+                modifiers: (
+                    alt: false,
+                    shift: false,
+                    control: false,
+                    system: false,
+                ),
+            ),
+        ),
+        run_game: r#Some(
+            code: F5,
+            modifiers: (
+                alt: false,
+                shift: false,
+                control: false,
+                system: false,
+            ),
+        ),
+    ),
+    scene_settings: {},
+    recent: (
+        scenes: [],
+    ),
+    windows: (
+        window_position: (0.0, 0.0),
+        window_size: (1024.0, 768.0),
+        window_maximized: true,
+        layout: None,
+    ),
+)

@@ -75,18 +75,7 @@ use crate::{
             sound::Samples,
         },
     },
-    load_image,
-    menu::create_menu_item,
-    message::MessageSender,
-    plugins::animation::{
-        TransformProvider, animation_container_ref,
-        command::{
-            AddTrackCommand, RemoveTrackCommand, ReplaceTrackCurveCommand, SetTrackEnabledCommand,
-            SetTrackTargetCommand, SetTrackValueBindingCommand,
-        },
-        selection::{AnimationSelection, SelectedEntity},
-    },
-    scene::{
+    game_scene::{
         Selection,
         commands::ChangeSelectionCommand,
         property::{
@@ -97,6 +86,17 @@ use crate::{
             AllowedType, HierarchyNode, NodeSelectorMessage, NodeSelectorWindow,
             NodeSelectorWindowBuilder,
         },
+    },
+    load_image,
+    menu::create_menu_item,
+    message::MessageSender,
+    plugins::animation::{
+        TransformProvider, animation_container_ref,
+        command::{
+            AddTrackCommand, RemoveTrackCommand, ReplaceTrackCurveCommand, SetTrackEnabledCommand,
+            SetTrackTargetCommand, SetTrackValueBindingCommand,
+        },
+        selection::{AnimationSelection, SelectedEntity},
     },
     utils::{self},
 };

@@ -18,15 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::core::reflect::prelude::*;
-use serde::{Deserialize, Serialize};
+use crate::fyrox::core::{reflect::prelude::*, visitor::prelude::*};
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
+#[derive(Visit, PartialEq, Clone, Debug, Reflect)]
 #[reflect(type_uuid = "1c251ee7-f805-4051-90c0-0d80aa57eebe")]
 pub struct SelectionSettings {
     pub ignore_back_faces: bool,
 
-    #[serde(default = "default_hull_less_object_selection_radius")]
     pub hull_less_object_selection_radius: f32,
 
     // Hidden because there's a separate switch in world viewer for this.
@@ -34,15 +32,11 @@ pub struct SelectionSettings {
     pub track_selection: bool,
 }
 
-fn default_hull_less_object_selection_radius() -> f32 {
-    0.33
-}
-
 impl Default for SelectionSettings {
     fn default() -> Self {
         Self {
             ignore_back_faces: false,
-            hull_less_object_selection_radius: default_hull_less_object_selection_radius(),
+            hull_less_object_selection_radius: 0.33,
             track_selection: true,
         }
     }

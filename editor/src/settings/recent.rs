@@ -19,10 +19,10 @@
 // SOFTWARE.
 
 use crate::fyrox::core::make_relative_path;
-use serde::{Deserialize, Serialize};
+use crate::fyrox::core::visitor::prelude::*;
 use std::{collections::BTreeSet, path::PathBuf};
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Default, Eq)]
+#[derive(Visit, PartialEq, Clone, Debug, Default, Eq)]
 pub struct RecentFiles {
     pub scenes: Vec<PathBuf>,
 }

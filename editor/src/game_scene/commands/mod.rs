@@ -1,0 +1,304 @@
+// Copyright (c) 2019-present Dmitry Stepanov and Fyrox Engine contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+use crate::fyrox::{
+    asset::manager::ResourceManager,
+    core::{log::Log, pool::Handle, reflect::prelude::*},
+    engine::SerializationContext,
+    graph::{NodeWrapper, SceneGraph},
+    scene::{Scene, graph::SubGraph, node::Node},
+};
+use crate::game_scene::clipboard::GameSceneClipboardPayload;
+use crate::{
+    Message,
+    command::{CommandContext, CommandTrait},
+    game_scene::{GraphSelection, Selection, clipboard::DeepCloneResult},
+    message::MessageSender,
+};
+use fyrox::gui::clipboard::ClipboardContainer;
+use std::sync::Arc;
+
+pub mod graph;
+pub mod material;
+pub mod mesh;
+pub mod terrain;
+
+#[derive(Reflect, Debug)]
+#[reflect(
+    type_uuid = "4dd03d8c-b0c9-43a2-871c-55e5fd603afd",
+    non_cloneable,
+    non_comparable
+)]
+pub struct GameSceneContext {
+    pub selection: &'static mut Selection,
+    pub scene: &'static mut Scene,
+    #[reflect(hidden)]
+    pub scene_content_root: &'static mut Handle<Node>,
+    pub clipboard: &'static mut ClipboardContainer,
+    pub message_sender: MessageSender,
+    pub resource_manager: ResourceManager,
+    #[reflect(hidden)]
+    pub serialization_context: Arc<SerializationContext>,
+}
+
+impl GameSceneContext {
+    pub fn exec<'a, F>(
+        selection: &'a mut Selection,
+        scene: &'a mut Scene,
+        scene_content_root: &'a mut Handle<Node>,
+        clipboard: &'a mut ClipboardContainer,
+        message_sender: MessageSender,
+        resource_manager: ResourceManager,
+        serialization_context: Arc<SerializationContext>,
+        func: F,
+    ) where
+        F: FnOnce(&mut GameSceneContext),
+    {
+        // SAFETY: Temporarily extend lifetime to 'static and execute external closure with it.
+        // The closure accepts this extended context by reference, so there's no way it escapes to
+        // outer world. The initial lifetime is still preserved by this function call.
+        let mut ctx = unsafe {
+            Self {
+                selection: std::mem::transmute::<&'a mut _, &'static mut _>(selection),
+                scene: std::mem::transmute::<&'a mut _, &'static mut _>(scene),
+                scene_content_root: std::mem::transmute::<&'a mut _, &'static mut _>(
+                    scene_content_root,
+                ),
+                clipboard: std::mem::transmute::<&'a mut _, &'static mut _>(clipboard),
+                message_sender,
+                resource_manager,
+                serialization_context,
+            }
+        };
+
+        func(&mut ctx);
+    }
+}
+
+impl CommandContext for GameSceneContext {}
+
+#[derive(Debug)]
+pub struct ChangeSelectionCommand {
+    new_selection: Selection,
+}
+
+impl ChangeSelectionCommand {
+    pub fn new(new_selection: Selection) -> Self {
+        Self { new_selection }
+    }
+
+    fn exec(&mut self, context: &mut dyn CommandContext) {
+        let current_selection = context.get_mut::<&mut Selection>();
+
+        if &self.new_selection != *current_selection {
+            let old_selection = current_selection.clone();
+
+            std::mem::swap(*current_selection, &mut self.new_selection);
+
+            context
+                .get::<MessageSender>()
+                .send(Message::SelectionChanged { old_selection });
+        }
+    }
+}
+
+impl CommandTrait for ChangeSelectionCommand {
+    fn is_significant(&self) -> bool {
+        false
+    }
+
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        "Change Selection".to_string()
+    }
+
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        self.exec(context);
+    }
+
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        self.exec(context);
+    }
+}
+
+#[derive(Debug)]
+enum PasteCommandState {
+    Undefined,
+    NonExecuted,
+    Reverted {
+        subgraphs: Vec<SubGraph>,
+        selection: Selection,
+    },
+    Executed {
+        paste_result: DeepCloneResult,
+        last_selection: Selection,
+    },
+}
+
+#[derive(Debug)]
+pub struct PasteCommand {
+    parent: Handle<Node>,
+    state: PasteCommandState,
+}
+
+impl PasteCommand {
+    pub fn new(parent: Handle<Node>) -> Self {
+        Self {
+            parent,
+            state: PasteCommandState::NonExecuted,
+        }
+    }
+}
+
+impl CommandTrait for PasteCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        "Paste".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
+        match std::mem::replace(&mut self.state, PasteCommandState::Undefined) {
+            PasteCommandState::NonExecuted => {
+                if let Some(data) = context.clipboard.content_ref::<GameSceneClipboardPayload>() {
+                    let paste_result = data.paste(&mut context.scene.graph);
+
+                    for &handle in paste_result.root_nodes.iter() {
+                        context.scene.graph.link_nodes(handle, self.parent);
+                    }
+
+                    let mut selection =
+                        Selection::new(GraphSelection::from_list(paste_result.root_nodes.clone()));
+                    std::mem::swap(context.selection, &mut selection);
+
+                    self.state = PasteCommandState::Executed {
+                        paste_result,
+                        last_selection: selection,
+                    };
+                }
+            }
+            PasteCommandState::Reverted {
+                subgraphs,
+                mut selection,
+            } => {
+                let mut paste_result = DeepCloneResult {
+                    ..Default::default()
+                };
+
+                for subgraph in subgraphs {
+                    paste_result
+                        .root_nodes
+                        .push(context.scene.graph.put_sub_graph_back(subgraph));
+                }
+
+                for &handle in paste_result.root_nodes.iter() {
+                    context.scene.graph.link_nodes(handle, self.parent);
+                }
+
+                std::mem::swap(context.selection, &mut selection);
+                self.state = PasteCommandState::Executed {
+                    paste_result,
+                    last_selection: selection,
+                };
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
+        if let PasteCommandState::Executed {
+            paste_result,
+            mut last_selection,
+        } = std::mem::replace(&mut self.state, PasteCommandState::Undefined)
+        {
+            let mut subgraphs = Vec::new();
+            for root_node in paste_result.root_nodes {
+                subgraphs.push(context.scene.graph.take_reserve_sub_graph(root_node));
+            }
+
+            std::mem::swap(context.selection, &mut last_selection);
+
+            self.state = PasteCommandState::Reverted {
+                subgraphs,
+                selection: last_selection,
+            };
+        }
+    }
+
+    fn finalize(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
+        if let PasteCommandState::Reverted { subgraphs, .. } =
+            std::mem::replace(&mut self.state, PasteCommandState::Undefined)
+        {
+            for subgraph in subgraphs {
+                context.scene.graph.forget_sub_graph(subgraph);
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct RevertSceneNodePropertyCommand {
+    path: String,
+    handle: Handle<Node>,
+    value: Option<Box<dyn Reflect>>,
+}
+
+impl RevertSceneNodePropertyCommand {
+    pub fn new(path: String, handle: Handle<Node>) -> Self {
+        Self {
+            path,
+            handle,
+            value: None,
+        }
+    }
+}
+
+impl CommandTrait for RevertSceneNodePropertyCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
+        format!("Revert {} Property", self.path)
+    }
+
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
+        let child = &mut context.scene.graph[self.handle];
+        self.value = child.revert_inheritable_property(&self.path);
+    }
+
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
+        // If the property was modified, then simply set it to previous value to make it modified again.
+        if let Some(old_value) = self.value.take() {
+            let mut old_value = Some(old_value);
+            let node = &mut context.scene.graph[self.handle];
+            node.inner_mut().set_field_by_path(
+                &self.path,
+                old_value.take().unwrap(),
+                &mut |result| {
+                    if result.is_err() {
+                        Log::err(format!(
+                            "Failed to revert property {}. Reason: no such property!",
+                            self.path
+                        ))
+                    }
+                },
+            );
+        }
+    }
+}

@@ -42,10 +42,10 @@ use crate::{
         gui::messagebox::MessageBox,
         gui::widget::UserData,
     },
+    game_scene::container::EditorSceneEntry,
     load_image, make_save_file_selector,
     menu::{create_menu_item, create_menu_item_shortcut, create_root_menu_item},
     message::MessageSender,
-    scene::container::EditorSceneEntry,
     settings::{Settings, recent::RecentFiles},
 };
 use std::{path::PathBuf, sync::mpsc::Sender};
@@ -360,6 +360,7 @@ impl FileMenu {
         engine: &mut Engine,
         panels: &mut Panels,
         icon_request_sender: Sender<IconRequest>,
+        settings: &Settings,
     ) {
         if let Some(FileSelectorMessage::Commit(path)) = message.data::<FileSelectorMessage>() {
             if message.destination() == self.save_file_selector {
@@ -446,6 +447,7 @@ impl FileMenu {
                         engine,
                         sender.clone(),
                         icon_request_sender,
+                        settings,
                     );
                 }
             } else if let Some(recent_file) = engine

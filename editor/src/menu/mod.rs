@@ -36,9 +36,9 @@ use crate::{
             window::Window,
         },
     },
+    game_scene::container::EditorSceneEntry,
     menu::{edit::EditMenu, file::FileMenu, help::HelpMenu, utils::UtilsMenu, view::ViewMenu},
     message::MessageSender,
-    scene::container::EditorSceneEntry,
     settings::Settings,
     stats::StatisticsWindow,
 };
@@ -65,8 +65,6 @@ pub struct Menu {
 pub struct Panels<'b> {
     pub scene_frame: Handle<Image>,
     pub log_panel: Handle<Window>,
-    pub navmesh_panel: Handle<Window>,
-    pub audio_panel: Handle<Window>,
     pub command_stack_panel: Handle<Window>,
     pub inspector_window: Handle<Window>,
     pub world_outliner_window: Handle<Window>,
@@ -233,6 +231,7 @@ impl Menu {
             ctx.engine,
             &mut ctx.panels,
             ctx.icon_request_sender.clone(),
+            ctx.settings,
         );
         self.view_menu.handle_ui_message(
             message,

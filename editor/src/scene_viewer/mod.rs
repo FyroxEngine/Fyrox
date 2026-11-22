@@ -56,9 +56,9 @@ use crate::{
         resource::texture::TextureResource,
         scene::camera::Projection,
     },
+    game_scene::container::EditorSceneEntry,
     load_image,
     message::MessageSender,
-    scene::container::EditorSceneEntry,
     scene_viewer::{
         gizmo::{SceneGizmo, SceneGizmoAction},
         menu::{SceneItemAction, SceneItemMenu},

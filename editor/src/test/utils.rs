@@ -32,11 +32,11 @@ use crate::{
 use fyrox::core::uuid::Uuid;
 use fyrox::gui::message::MouseButton;
 use fyrox::gui::window::Window;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Initializes the editor as is a user would open it, adds the specified plugin that runs the test
 /// logic.
-pub fn run_editor_test(name: &str, plugin: impl EditorPlugin) {
+pub fn run_editor_test_ex<F: FnOnce(&Path)>(name: &str, before_run: F, plugin: impl EditorPlugin) {
     let path = PathBuf::from(format!("./AutomatedTests/{name}TestData"));
     if path.exists() {
         std::fs::remove_dir_all(&path).unwrap();
@@ -45,6 +45,8 @@ pub fn run_editor_test(name: &str, plugin: impl EditorPlugin) {
 
     let path = path.canonicalize().unwrap();
     info!("Running {name}. Working dir: {}", path.display());
+
+    before_run(&path);
 
     let mut settings = Settings::default();
     settings.windows.window_position = Default::default();
@@ -63,12 +65,25 @@ pub fn run_editor_test(name: &str, plugin: impl EditorPlugin) {
     editor.run_headless()
 }
 
+/// Initializes the editor as is a user would open it, adds the specified plugin that runs the test
+/// logic.
+pub fn run_editor_test(name: &str, plugin: impl EditorPlugin) {
+    run_editor_test_ex(name, |_| {}, plugin)
+}
+
 pub trait EditorTestingExtension {
     /// Clicks at the given position.
     fn click(&mut self, position: Vector2<f32>, button: MouseButton);
 
     /// Tries to find a widget with the given unique id and clicks at its center.
     fn click_at(&mut self, name: Uuid, button: MouseButton) -> Handle<UiNode>;
+
+    fn click_at_from(
+        &mut self,
+        uuid: Uuid,
+        from: Handle<UiNode>,
+        button: MouseButton,
+    ) -> Handle<UiNode>;
 
     fn click_at_text(&mut self, uuid: Uuid, button: MouseButton, text: &str);
 
@@ -102,6 +117,18 @@ impl EditorTestingExtension for Editor {
             .user_interfaces
             .first_mut()
             .click_at(uuid, button)
+    }
+
+    fn click_at_from(
+        &mut self,
+        uuid: Uuid,
+        from: Handle<UiNode>,
+        button: MouseButton,
+    ) -> Handle<UiNode> {
+        self.engine
+            .user_interfaces
+            .first_mut()
+            .click_at_from(uuid, from, button)
     }
 
     fn click_at_text(&mut self, uuid: Uuid, button: MouseButton, text: &str) {

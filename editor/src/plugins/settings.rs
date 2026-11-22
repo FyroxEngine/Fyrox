@@ -20,7 +20,10 @@
 
 //! Settings window plugin.
 
+use crate::asset::preview::cache::IconRequest;
 use crate::menu::create_menu_item_shortcut;
+use crate::message::MessageSender;
+use crate::plugins::inspector::EditorEnvironment;
 use crate::{
     Editor,
     fyrox::{
@@ -49,11 +52,14 @@ use crate::{
     plugin::EditorPlugin,
     settings::Settings,
 };
+use fyrox::asset::manager::ResourceManager;
+use fyrox::core::dyntype::DynTypeConstructorContainer;
 use fyrox::core::uuid::{Uuid, uuid};
-use fyrox::engine::GraphicsContext;
+use fyrox::engine::{GraphicsContext, SerializationContext};
 use fyrox::gui::button::Button;
 use fyrox::gui::clipboard::ClipboardContainer;
 use fyrox::gui::dock::DockingManager;
+use fyrox::gui::inspector::InspectorEnvironmentContainer;
 use fyrox::gui::menu::MenuItem;
 use fyrox::gui::scroll_viewer::ScrollViewer;
 use fyrox::gui::searchbar::SearchBar;
@@ -62,6 +68,7 @@ use fyrox::gui::text_box::EmptyTextPlaceholder;
 use fyrox::gui::widget::UserData;
 use fyrox::gui::window::{Window, WindowAlignment};
 use std::sync::Arc;
+use std::sync::mpsc::Sender;
 
 #[derive(Clone, PartialEq)]
 struct GroupName(String);
@@ -186,6 +193,11 @@ impl SettingsWindow {
         &self,
         ui: &mut UserInterface,
         settings: &Settings,
+        resource_manager: ResourceManager,
+        serialization_context: Arc<SerializationContext>,
+        dyn_type_constructors: Arc<DynTypeConstructorContainer>,
+        sender: &MessageSender,
+        icon_request_sender: Sender<IconRequest>,
         property_editors: Arc<PropertyEditorDefinitionContainer>,
     ) {
         ui.send(
@@ -197,22 +209,46 @@ impl SettingsWindow {
             },
         );
 
-        self.sync_to_model(ui, settings, property_editors);
+        self.sync_to_model(
+            ui,
+            settings,
+            resource_manager,
+            serialization_context,
+            dyn_type_constructors,
+            sender,
+            icon_request_sender,
+            property_editors,
+        );
     }
 
     fn sync_to_model(
         &self,
         ui: &mut UserInterface,
         settings: &Settings,
+        resource_manager: ResourceManager,
+        serialization_context: Arc<SerializationContext>,
+        dyn_type_constructors: Arc<DynTypeConstructorContainer>,
+        sender: &MessageSender,
+        icon_request_sender: Sender<IconRequest>,
         property_editors: Arc<PropertyEditorDefinitionContainer>,
     ) {
+        let environment = Arc::new(EditorEnvironment {
+            resource_manager,
+            serialization_context,
+            available_animations: Default::default(),
+            sender: sender.clone(),
+            icon_request_sender,
+            dyn_type_constructors,
+            script_editor: settings.general.script_editor,
+        });
+
         let ctx = &mut ui.build_ctx();
         let context = InspectorContext::from_object(InspectorContextArgs {
             root_object: &**settings,
             object: &**settings,
             ctx,
             definition_container: property_editors,
-            environment: None,
+            environment: Some(InspectorEnvironmentContainer(environment)),
             layer_index: 0,
             generate_property_string_values: true,
             filter: Default::default(),
@@ -244,6 +280,8 @@ impl SettingsWindow {
         engine: &mut Engine,
         settings: &mut Settings,
         docking_manager: Handle<DockingManager>,
+        sender: &MessageSender,
+        icon_request_sender: Sender<IconRequest>,
         property_editors: Arc<PropertyEditorDefinitionContainer>,
         clipboard: &mut ClipboardContainer,
     ) -> Option<Self> {
@@ -268,7 +306,16 @@ impl SettingsWindow {
             } else if message.destination() == self.default {
                 **settings = Default::default();
 
-                self.sync_to_model(ui, settings, property_editors);
+                self.sync_to_model(
+                    ui,
+                    settings,
+                    engine.resource_manager.clone(),
+                    engine.serialization_context.clone(),
+                    engine.dyn_type_constructors.clone(),
+                    sender,
+                    icon_request_sender,
+                    property_editors,
+                );
             }
 
             if let Ok(node) = ui.try_get_node(message.destination())
@@ -289,7 +336,16 @@ impl SettingsWindow {
                     &mut **settings,
                     &mut Log::verify,
                 );
-                self.sync_to_model(ui, settings, property_editors);
+                self.sync_to_model(
+                    ui,
+                    settings,
+                    engine.resource_manager.clone(),
+                    engine.serialization_context.clone(),
+                    engine.dyn_type_constructors.clone(),
+                    sender,
+                    icon_request_sender,
+                    property_editors,
+                );
             }
         } else if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.window {
@@ -339,7 +395,16 @@ impl SettingsPlugin {
             .window
             .get_or_insert_with(|| SettingsWindow::new(&mut editor.engine));
         let ui = editor.engine.user_interfaces.first_mut();
-        window.open(ui, &editor.settings, editor.property_editors.clone());
+        window.open(
+            ui,
+            &editor.settings,
+            editor.engine.resource_manager.clone(),
+            editor.engine.serialization_context.clone(),
+            editor.engine.dyn_type_constructors.clone(),
+            &editor.message_sender,
+            editor.asset_browser.preview_sender.clone(),
+            editor.property_editors.clone(),
+        );
         ui.send(
             editor.docking_manager,
             DockingManagerMessage::AddFloatingWindow(window.window),
@@ -361,7 +426,7 @@ impl EditorPlugin for SettingsPlugin {
         );
         ui.send(
             editor.menu.file_menu.menu,
-            MenuItemMessage::AddItem(self.open_settings),
+            MenuItemMessage::AddItemAt(self.open_settings, 12),
         );
     }
 
@@ -378,6 +443,8 @@ impl EditorPlugin for SettingsPlugin {
             &mut editor.engine,
             &mut editor.settings,
             editor.docking_manager,
+            &editor.message_sender,
+            editor.asset_browser.preview_sender.clone(),
             editor.property_editors.clone(),
             &mut editor.clipboard,
         );

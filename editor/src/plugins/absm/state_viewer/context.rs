@@ -50,9 +50,9 @@ use crate::plugins::absm::{
 };
 use crate::{
     command::{Command, CommandGroup},
+    game_scene::{Selection, commands::ChangeSelectionCommand},
     menu::create_menu_item,
     message::MessageSender,
-    scene::{Selection, commands::ChangeSelectionCommand},
 };
 use fyrox::core::uuid::{Uuid, uuid};
 use fyrox::gui::menu::{ContextMenuBuilder, MenuItem};

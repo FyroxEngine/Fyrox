@@ -38,9 +38,9 @@ use crate::{
             node::Node,
         },
     },
+    game_scene::{GameScene, Selection, commands::GameSceneContext},
     message::MessageSender,
     plugins::collider::ColliderShapeInteractionMode,
-    scene::{GameScene, Selection, commands::GameSceneContext},
 };
 use fyrox::gui::button::Button;
 use fyrox::gui::stack_panel::StackPanel;

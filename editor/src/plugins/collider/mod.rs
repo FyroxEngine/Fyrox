@@ -36,10 +36,13 @@ mod triangle;
 mod triangle2d;
 
 use super::inspector::InspectorPlugin;
-use crate::scene::camera::PickingOptions;
 use crate::{
     Editor, Message,
     command::SetPropertyCommand,
+    fyrox::{
+        core::uuid::Uuid, gui::button::Button, gui::widget::WidgetMessage, scene::camera::Camera,
+        scene::pivot::Pivot,
+    },
     fyrox::{
         core::{
             algebra::{UnitQuaternion, Vector2, Vector3},
@@ -66,10 +69,12 @@ use crate::{
             sprite::SpriteBuilder,
         },
     },
-    interaction::{
+    game_scene::camera::PickingOptions,
+    game_scene::interaction::{
         InteractionMode, calculate_gizmo_distance_scaling, gizmo::move_gizmo::MoveGizmo,
         make_interaction_mode_button, plane::PlaneKind,
     },
+    game_scene::{GameScene, Selection, commands::GameSceneContext, controller::SceneController},
     load_texture,
     message::MessageSender,
     plugin::EditorPlugin,
@@ -80,14 +85,8 @@ use crate::{
         panel::ColliderControlPanel, segment::SegmentShapeGizmo, segment2d::Segment2DShapeGizmo,
         triangle::TriangleShapeGizmo, triangle2d::Triangle2DShapeGizmo,
     },
-    scene::{GameScene, Selection, commands::GameSceneContext, controller::SceneController},
     settings::Settings,
 };
-use fyrox::core::uuid::Uuid;
-use fyrox::gui::button::Button;
-use fyrox::gui::widget::WidgetMessage;
-use fyrox::scene::camera::Camera;
-use fyrox::scene::pivot::Pivot;
 use std::fmt::{Debug, Formatter};
 use std::sync::LazyLock;
 

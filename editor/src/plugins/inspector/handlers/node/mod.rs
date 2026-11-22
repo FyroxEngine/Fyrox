@@ -27,7 +27,7 @@ use crate::{
         gui::inspector::{CollectionAction, FieldAction, PropertyChanged},
         scene::{node::Node, terrain::Terrain},
     },
-    scene::commands::{
+    game_scene::commands::{
         GameSceneContext, RevertSceneNodePropertyCommand,
         terrain::{AddTerrainLayerCommand, DeleteTerrainLayerCommand},
     },

@@ -189,11 +189,12 @@ use crate::{
         keys::{KeyBindings, TerrainKeyBindings},
         model::ModelSettings,
         move_mode::MoveInteractionModeSettings,
-        navmesh::NavmeshSettings,
         rotate_mode::RotateInteractionModeSettings,
         selection::SelectionSettings,
     },
 };
+use fyrox::core::dyntype::DynTypeContainer;
+use fyrox::gui::inspector::editors::refcell::RefCellPropertyEditorDefinition;
 use fyrox::gui::message::{ButtonState, KeyboardModifiers};
 use fyrox::gui::{MouseState, RenderMode, RestrictionEntry};
 use fyrox::scene::bitmask::BitMask;
@@ -660,6 +661,8 @@ pub fn make_property_editors_container(
     container.insert(EnumPropertyEditorDefinition::<TextureKind>::new());
 
     container.insert(DynTypePropertyEditorDefinition {});
+    container.insert(VecCollectionPropertyEditorDefinition::<DynTypeContainer>::new());
+    container.insert(RefCellPropertyEditorDefinition::<Vec<DynTypeContainer>>::new());
 
     container.insert(InspectablePropertyEditorDefinition::<GeneralSettings>::new());
     container.insert(InspectablePropertyEditorDefinition::<GraphicsSettings>::new());
@@ -678,7 +681,6 @@ pub fn make_property_editors_container(
         RotateInteractionModeSettings,
     >::new());
     container.insert(InspectablePropertyEditorDefinition::<ModelSettings>::new());
-    container.insert(InspectablePropertyEditorDefinition::<NavmeshSettings>::new());
     container.insert(InspectablePropertyEditorDefinition::<KeyBindings>::new());
     container.insert(InspectablePropertyEditorDefinition::<TerrainKeyBindings>::new());
     container.insert(InspectablePropertyEditorDefinition::<BuildSettings>::new());

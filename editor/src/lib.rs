@@ -30,11 +30,10 @@
 #![allow(mismatched_lifetime_syntaxes)]
 
 pub mod asset;
-pub mod audio;
 pub mod command;
 pub mod configurator;
+pub mod game_scene;
 pub mod highlight;
-pub mod interaction;
 pub mod loading_window;
 pub mod menu;
 pub mod message;
@@ -43,7 +42,6 @@ pub mod plugin;
 pub mod plugins;
 pub mod preview;
 pub mod save_dialog;
-pub mod scene;
 pub mod scene_viewer;
 pub mod settings;
 pub mod stats;
@@ -54,15 +52,8 @@ pub mod world;
 
 pub use fyrox;
 
-use crate::plugins::camera::CameraPlugin;
-use crate::plugins::export::ExportPlugin;
-use crate::plugins::light::LightPlugin;
-use crate::plugins::mesh::MeshPlugin;
-use crate::plugins::particle_system::ParticleSystemPlugin;
-use crate::world::create::EntityCreator;
 use crate::{
     asset::{AssetBrowser, item::AssetItem},
-    audio::{AudioPanel, preview::AudioPreviewPanel},
     command::{Command, CommandTrait, panel::CommandStackViewer},
     configurator::Configurator,
     fyrox::{
@@ -134,15 +125,19 @@ use crate::{
         utils::{translate_cursor_icon, translate_event},
         window::WindowAttributes,
     },
-    highlight::HighlightRenderPass,
-    interaction::{
-        move_mode::MoveInteractionMode,
-        navmesh::{EditNavmeshMode, NavmeshPanel},
-        rotate_mode::RotateInteractionMode,
-        scale_mode::ScaleInteractionMode,
-        select_mode::SelectInteractionMode,
+    game_scene::interaction::{
+        move_mode::MoveInteractionMode, rotate_mode::RotateInteractionMode,
+        scale_mode::ScaleInteractionMode, select_mode::SelectInteractionMode,
         terrain::TerrainInteractionMode,
     },
+    game_scene::{
+        GameScene, Selection,
+        commands::GameSceneContext,
+        container::{EditorSceneEntry, SceneContainer},
+        dialog::NodeRemovalDialog,
+        settings::SceneSettingsWindow,
+    },
+    highlight::HighlightRenderPass,
     menu::{Menu, MenuContext, Panels},
     message::MessageSender,
     overlay::OverlayRenderPass,
@@ -150,22 +145,23 @@ use crate::{
     plugins::{
         absm::{AbsmEditor, AbsmEditorPlugin},
         animation::AnimationEditorPlugin,
+        audio::AudioPlugin,
+        camera::CameraPlugin,
         collider::ColliderPlugin,
         curve_editor::CurveEditorPlugin,
+        doc::DocPlugin,
+        export::ExportPlugin,
         inspector::editors::make_property_editors_container,
+        light::LightPlugin,
         material::MaterialPlugin,
+        mesh::MeshPlugin,
+        navmesh::NavmeshPlugin,
+        particle_system::ParticleSystemPlugin,
         probe::ReflectionProbePlugin,
         ragdoll::RagdollPlugin,
         settings::SettingsPlugin,
         stats::EditorStatisticsPlugin,
         tilemap::TileMapEditorPlugin,
-    },
-    scene::{
-        GameScene, Selection,
-        commands::{ChangeSelectionCommand, GameSceneContext},
-        container::{EditorSceneEntry, SceneContainer},
-        dialog::NodeRemovalDialog,
-        settings::SceneSettingsWindow,
     },
     scene_viewer::SceneViewer,
     settings::{Settings, general::EditorStyle},
@@ -174,24 +170,24 @@ use crate::{
         UiScene, bbcode::BBCodePanel, menu::WidgetContextMenu,
         utils::UiSceneWorldViewerDataProvider,
     },
-    utils::doc::DocWindow,
+    world::create::EntityCreator,
     world::{WorldViewer, graph::EditorSceneWrapper, menu::SceneNodeContextMenu},
 };
-use fyrox::asset::event::ResourceEvent;
-use fyrox::asset::{Resource, collect_used_resources};
-use fyrox::core::some_or_return;
-use fyrox::graph::dependency::ResourceDependencyGraph;
-use fyrox::gui::clipboard::ClipboardContainer;
-use fyrox::resource::model::Model;
+use fyrox::{
+    asset::{Resource, collect_used_resources, event::ResourceEvent},
+    core::{dyntype::DynTypeConstructorContainer, some_or_return},
+    graph::dependency::ResourceDependencyGraph,
+    gui::clipboard::ClipboardContainer,
+    gui::dock::Tile,
+    resource::model::Model,
+};
 use fyrox_build_tools::{CommandDescriptor, build::BuildWindow};
 use loading_window::SceneLoadingWindow;
 pub use message::Message;
-use plugins::export::ExportWindow;
-use plugins::inspector::InspectorPlugin;
+use plugins::{export::ExportWindow, inspector::InspectorPlugin};
 use save_dialog::SaveSceneConfirmationDialog;
-use std::cell::Cell;
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     collections::VecDeque,
     io::{BufRead, BufReader, Cursor, Read},
     path::{Path, PathBuf},
@@ -399,6 +395,10 @@ impl UpdateLoopState {
     }
 }
 
+pub struct DefaultDockingManagerTiles {
+    pub audio_tile: Handle<Tile>,
+}
+
 pub struct Editor {
     pub game_loop_data: GameLoopData,
     pub scenes: SceneContainer,
@@ -415,16 +415,13 @@ pub struct Editor {
     pub log: LogPanel,
     pub command_stack_viewer: CommandStackViewer,
     pub validation_message_box: Handle<MessageBox>,
-    pub navmesh_panel: NavmeshPanel,
     pub settings: Settings,
-    pub audio_panel: AudioPanel,
     pub mode: Mode,
     pub build_window: Option<BuildWindow>,
     pub scene_settings: SceneSettingsWindow,
     pub bbcode_panel: BBCodePanel,
-    pub audio_preview_panel: AudioPreviewPanel,
-    pub doc_window: DocWindow,
     pub docking_manager: Handle<DockingManager>,
+    pub default_tiles: DefaultDockingManagerTiles,
     pub node_removal_dialog: NodeRemovalDialog,
     pub engine: Engine,
     pub plugins: EditorPluginsContainer,
@@ -522,9 +519,36 @@ impl Editor {
         .into_iter()
         .collect::<FxHashMap<_, _>>();
 
+        let dyn_type_constructors = Arc::new(DynTypeConstructorContainer::default());
+
+        // Register default plugins.
+        let mut plugins = EditorPluginsContainer::new()
+            .with(ColliderPlugin::default())
+            .with(TileMapEditorPlugin::default())
+            .with(MaterialPlugin::default())
+            .with(RagdollPlugin::default())
+            .with(SettingsPlugin::default())
+            .with(AnimationEditorPlugin::default())
+            .with(AbsmEditorPlugin::default())
+            .with(EditorStatisticsPlugin::default())
+            .with(CurveEditorPlugin::default())
+            .with(ReflectionProbePlugin::default())
+            .with(LightPlugin::default())
+            .with(ExportPlugin::default())
+            .with(ParticleSystemPlugin::default())
+            .with(CameraPlugin::default())
+            .with(MeshPlugin::default())
+            .with(DocPlugin::default())
+            .with(NavmeshPlugin::default())
+            .with(AudioPlugin::default());
+
+        for plugin in plugins.0.iter_mut().filter_map(|c| c.as_mut()) {
+            plugin.on_register(&dyn_type_constructors);
+        }
+
         let mut settings = settings;
 
-        match Settings::load() {
+        match Settings::load(dyn_type_constructors.clone()) {
             Ok(s) => {
                 settings = s;
 
@@ -571,7 +595,7 @@ impl Editor {
             serialization_context,
             task_pool,
             widget_constructors: Arc::new(new_widget_constructor_container()),
-            dyn_type_constructors: Arc::new(Default::default()),
+            dyn_type_constructors,
         })
         .unwrap();
 
@@ -603,17 +627,12 @@ impl Editor {
         let scene_viewer = SceneViewer::new(&mut engine, message_sender.clone(), &mut settings);
         let asset_browser = AssetBrowser::new(&mut engine);
         let menu = Menu::new(&mut engine, message_sender.clone(), &settings);
-        let audio_panel = AudioPanel::new(
-            &mut engine,
-            message_sender.clone(),
-            asset_browser.preview_sender.clone(),
-        );
+
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
         ScreenBuilder::new(
             WidgetBuilder::new().with_child(BorderBuilder::new(WidgetBuilder::new()).build(ctx)),
         )
         .build(ctx);
-        let navmesh_panel = NavmeshPanel::new(scene_viewer.frame(), ctx, message_sender.clone());
         let scene_node_context_menu = Rc::new(RefCell::new(SceneNodeContextMenu::new(ctx)));
         let widget_context_menu = Rc::new(RefCell::new(WidgetContextMenu::new(ctx)));
         let world_outliner = WorldViewer::new(ctx, message_sender.clone(), &settings);
@@ -626,12 +645,11 @@ impl Editor {
         );
         let inspector_plugin = InspectorPlugin::new(ctx);
         let bbcode_panel = BBCodePanel::new(inspector_plugin.head, ctx);
-        let audio_preview_panel = AudioPreviewPanel::new(inspector_plugin.head, ctx);
-        let doc_window = DocWindow::new(ctx);
         let node_removal_dialog = NodeRemovalDialog::new(ctx);
         let scene_settings = SceneSettingsWindow::new(ctx, property_editors.clone());
 
         let docking_manager;
+        let audio_tile;
         let root_grid = GridBuilder::new(
             WidgetBuilder::new()
                 .with_width(inner_size.width)
@@ -714,11 +732,15 @@ impl Editor {
                                                                     )
                                                                     .with_window(log.window)
                                                                     .build(ctx),
-                                                                    TileBuilder::new(
-                                                                        WidgetBuilder::new(),
-                                                                    )
-                                                                    .with_window(audio_panel.window)
-                                                                    .build(ctx),
+                                                                    {
+                                                                        audio_tile =
+                                                                            TileBuilder::new(
+                                                                                WidgetBuilder::new(
+                                                                                ),
+                                                                            )
+                                                                            .build(ctx);
+                                                                        audio_tile
+                                                                    },
                                                                 ],
                                                             },
                                                         )
@@ -730,11 +752,7 @@ impl Editor {
                                 })
                                 .build(ctx)
                         }))
-                        .with_floating_windows(vec![
-                            navmesh_panel.window,
-                            doc_window.window,
-                            scene_settings.window,
-                        ])
+                        .with_floating_windows(vec![scene_settings.window])
                         .build(ctx);
                     docking_manager
                 }),
@@ -773,7 +791,6 @@ impl Editor {
         let editor = Self {
             docking_manager,
             engine,
-            navmesh_panel,
             scene_viewer,
             scenes,
             message_sender,
@@ -785,10 +802,10 @@ impl Editor {
             exit_message_box: Handle::NONE,
             configurator,
             log,
+            default_tiles: DefaultDockingManagerTiles { audio_tile },
             command_stack_viewer,
             validation_message_box,
             settings,
-            audio_panel,
             save_scene_dialog: None,
             mode: Mode::Edit,
             game_loop_data: GameLoopData {
@@ -798,26 +815,8 @@ impl Editor {
             build_window: None,
             scene_settings,
             bbcode_panel,
-            audio_preview_panel,
             node_removal_dialog,
-            doc_window,
-            plugins: EditorPluginsContainer::new()
-                .with(ColliderPlugin::default())
-                .with(TileMapEditorPlugin::default())
-                .with(MaterialPlugin::default())
-                .with(RagdollPlugin::default())
-                .with(SettingsPlugin::default())
-                .with(AnimationEditorPlugin::default())
-                .with(AbsmEditorPlugin::default())
-                .with(EditorStatisticsPlugin::default())
-                .with(CurveEditorPlugin::default())
-                .with(ReflectionProbePlugin::default())
-                .with(LightPlugin::default())
-                .with(ExportPlugin::default())
-                .with(ParticleSystemPlugin::default())
-                .with(CameraPlugin::default())
-                .with(MeshPlugin::default())
-                .with(inspector_plugin),
+            plugins: plugins.with(inspector_plugin),
             // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
             // was created. So we must assume that the editor is focused by default, otherwise editor's thread
             // will sleep forever and the window won't come up.
@@ -893,7 +892,7 @@ impl Editor {
     fn reload_settings(&mut self) {
         let old_subscribers = std::mem::take(&mut self.settings.subscribers);
 
-        match Settings::load() {
+        match Settings::load(self.engine.dyn_type_constructors.clone()) {
             Ok(settings) => {
                 self.settings = settings;
                 self.settings.subscribers = old_subscribers;
@@ -1005,10 +1004,6 @@ impl Editor {
                 } else if hot_key == key_bindings.enable_scale_mode {
                     sender.send(Message::SetInteractionMode(
                         ScaleInteractionMode::type_info().type_uuid,
-                    ));
-                } else if hot_key == key_bindings.enable_navmesh_mode {
-                    sender.send(Message::SetInteractionMode(
-                        EditNavmeshMode::type_info().type_uuid,
                     ));
                 } else if hot_key == key_bindings.enable_terrain_mode {
                     sender.send(Message::SetInteractionMode(
@@ -1134,8 +1129,6 @@ impl Editor {
                     world_outliner_window: self.world_viewer.window,
                     asset_window: self.asset_browser.window,
                     log_panel: self.log.window,
-                    navmesh_panel: self.navmesh_panel.window,
-                    audio_panel: self.audio_panel.window,
                     configurator_window: self.configurator.window,
                     command_stack_panel: self.command_stack_viewer.window,
                     scene_settings: &self.scene_settings,
@@ -1202,22 +1195,6 @@ impl Editor {
                 &mut self.settings,
                 current_scene_entry.path.as_ref(),
             );
-            self.audio_preview_panel.handle_ui_message(
-                message,
-                &current_scene_entry.selection,
-                game_scene,
-                engine,
-            );
-
-            self.audio_panel.handle_ui_message(
-                message,
-                &current_scene_entry.selection,
-                &self.message_sender,
-                engine,
-            );
-
-            self.navmesh_panel
-                .handle_message(message, &current_scene_entry.selection);
 
             if let Some(interaction_mode) =
                 current_scene_entry
@@ -1493,8 +1470,6 @@ impl Editor {
         self.world_viewer.on_mode_changed(ui, &self.mode);
         self.asset_browser.on_mode_changed(ui, &self.mode);
         self.command_stack_viewer.on_mode_changed(ui, &self.mode);
-        self.audio_panel.on_mode_changed(ui, &self.mode);
-        self.navmesh_panel.on_mode_changed(ui, &self.mode);
         self.menu.on_mode_changed(ui, &self.mode);
     }
 
@@ -1529,6 +1504,7 @@ impl Editor {
             engine,
             self.message_sender.clone(),
             self.asset_browser.preview_sender.clone(),
+            &self.settings,
         );
 
         if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
@@ -1546,11 +1522,6 @@ impl Editor {
                 engine.user_interfaces.first_mut(),
                 &self.settings,
             );
-
-            self.audio_panel
-                .sync_to_model(&current_scene_entry.selection, game_scene, engine);
-            self.navmesh_panel
-                .sync_to_model(engine, &current_scene_entry.selection, game_scene);
         } else if let Some(ui_scene) = current_scene_entry.controller.downcast_mut::<UiScene>() {
             self.bbcode_panel.sync_to_model(
                 &current_scene_entry.selection,
@@ -1669,13 +1640,6 @@ impl Editor {
     }
 
     fn try_leave_preview_mode(&mut self) {
-        let entry = self.scenes.current_scene_entry_mut();
-        if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
-            let engine = &mut self.engine;
-            self.audio_preview_panel
-                .leave_preview_mode(game_scene, engine);
-        }
-
         for_each_plugin!(self.plugins => on_leave_preview_mode(self));
     }
 
@@ -1700,8 +1664,7 @@ impl Editor {
             Mode::Play { .. } => false,
         };
 
-        self.audio_preview_panel.is_in_preview_mode()
-            || is_any_plugin_in_preview_mode
+        is_any_plugin_in_preview_mode
             || self.scenes.current_scene_controller_ref().is_interacting()
             || stays_active
     }
@@ -2346,9 +2309,6 @@ impl Editor {
             if let Some(stats) = self.statistics_window.as_ref() {
                 stats.update(game_scene.scene, &self.engine);
             }
-
-            self.audio_preview_panel
-                .update(&entry.selection, game_scene, &self.engine);
             self.scene_viewer.update(game_scene, &mut self.engine);
         }
 
@@ -2380,12 +2340,6 @@ impl Editor {
                 let entry = self.scenes.current_scene_entry_mut();
                 self.asset_browser
                     .on_message(&mut self.engine, entry, &message, &self.plugins);
-                self.audio_preview_panel.handle_message(
-                    &message,
-                    &entry.selection,
-                    entry.controller.downcast_mut::<GameScene>(),
-                    &mut self.engine,
-                );
                 self.bbcode_panel.handle_message(
                     &message,
                     &entry.selection,
@@ -2533,10 +2487,6 @@ impl Editor {
                                     .send(Message::SaveScene { id: scene.id, path })
                             }
                         }
-                    }
-                    Message::ShowDocumentation(doc) => {
-                        self.doc_window
-                            .open(doc, self.engine.user_interfaces.first_mut());
                     }
                     Message::SaveLayout => {
                         self.save_layout();
@@ -2704,10 +2654,12 @@ impl Editor {
         Ok(())
     }
 
-    pub fn add_editor_plugin<P>(&mut self, plugin: P)
+    pub fn add_editor_plugin<P>(&mut self, mut plugin: P)
     where
         P: EditorPlugin + 'static,
     {
+        plugin.on_register(&self.engine.dyn_type_constructors);
+
         self.plugins.add(plugin);
     }
 

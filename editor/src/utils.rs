@@ -1,0 +1,243 @@
+// Copyright (c) 2019-present Dmitry Stepanov and Fyrox Engine contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+use crate::{
+    fyrox::{
+        core::{
+            algebra::Vector2, color::Color, pool::ErasedHandle, pool::Handle, visitor::Visitor,
+        },
+        graph::SceneGraph,
+        gui::{
+            BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
+            brush::Brush,
+            button::ButtonBuilder,
+            file_browser::{FileSelectorBuilder, PathFilter},
+            image::ImageBuilder,
+            widget::{WidgetBuilder, WidgetMessage},
+            window::{Window, WindowBuilder},
+        },
+    },
+    load_image,
+};
+use fyrox::core::log::Log;
+use fyrox::core::pool::ObjectOrVariant;
+use fyrox::core::uuid::{Uuid, uuid};
+use fyrox::gui::button::Button;
+use fyrox::gui::file_browser::{FileSelector, FileSelectorMode, FileType};
+use std::{fs::File, path::Path};
+
+pub const PICK_BUTTON: Uuid = uuid!("219f8275-e387-49dd-89e0-cd7795dcbf39");
+
+pub fn make_pick_button(column: usize, ctx: &mut BuildContext) -> Handle<Button> {
+    ButtonBuilder::new(
+        WidgetBuilder::new()
+            .with_id(PICK_BUTTON)
+            .with_width(22.0)
+            .with_height(22.0)
+            .with_vertical_alignment(VerticalAlignment::Center)
+            .with_horizontal_alignment(HorizontalAlignment::Center)
+            .on_column(column)
+            .with_margin(Thickness::uniform(1.0)),
+    )
+    .with_content(
+        ImageBuilder::new(
+            WidgetBuilder::new()
+                .with_margin(Thickness::uniform(3.0))
+                .with_background(Brush::Solid(Color::opaque(0, 180, 0)).into()),
+        )
+        .with_opt_texture(load_image!("../resources/pick.png").into())
+        .build(ctx),
+    )
+    .build(ctx)
+}
+
+/// True if `a` and `b` have the same length, and every element of `a` is equal to some element of `b`
+/// and every element of `b` is equal to some element of `a`.
+pub fn is_slice_equal_permutation<T: PartialEq>(a: &[T], b: &[T]) -> bool {
+    a.len() == b.len() && is_slice_subset_permutation(a, b) && is_slice_subset_permutation(b, a)
+}
+
+/// True if every element of `a` is equal to some element of `b`.
+pub fn is_slice_subset_permutation<T: PartialEq>(a: &[T], b: &[T]) -> bool {
+    for source in a.iter() {
+        let mut found = false;
+        for other in b.iter() {
+            if other == source {
+                found = true;
+                break;
+            }
+        }
+        if !found {
+            return false;
+        }
+    }
+    true
+}
+
+pub fn window_content(window: Handle<Window>, ui: &UserInterface) -> Handle<UiNode> {
+    ui.try_get(window)
+        .ok()
+        .map(|w| w.content)
+        .unwrap_or_default()
+}
+
+pub fn enable_widget(
+    handle: Handle<impl ObjectOrVariant<UiNode>>,
+    state: bool,
+    ui: &UserInterface,
+) {
+    ui.send(handle, WidgetMessage::Enabled(state));
+}
+
+pub fn create_file_selector(
+    ctx: &mut BuildContext,
+    file_type: FileType,
+    mode: FileSelectorMode,
+) -> Handle<FileSelector> {
+    FileSelectorBuilder::new(
+        WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0)).open(false),
+    )
+    .with_filter(PathFilter::new().with_file_type(file_type))
+    .with_mode(mode)
+    .build(ctx)
+}
+
+pub fn fetch_node_center(handle: Handle<UiNode>, ctx: &BuildContext) -> Vector2<f32> {
+    ctx.try_get_node(handle)
+        .map(|node| node.center())
+        .unwrap_or_default()
+}
+
+pub fn fetch_node_screen_center(
+    handle: Handle<impl ObjectOrVariant<UiNode>>,
+    ctx: &BuildContext,
+) -> Vector2<f32> {
+    ctx.try_get_node(handle.to_base())
+        .map(|node| node.screen_bounds().center())
+        .unwrap_or_default()
+}
+
+pub fn fetch_node_screen_center_ui(handle: Handle<UiNode>, ui: &UserInterface) -> Vector2<f32> {
+    ui.try_get_node(handle)
+        .map(|node| node.screen_bounds().center())
+        .unwrap_or_default()
+}
+
+pub fn make_node_name(name: &str, handle: ErasedHandle) -> String {
+    format!("{} ({}:{})", name, handle.index(), handle.generation())
+}
+
+pub fn apply_visibility_filter<F>(root: Handle<UiNode>, ui: &UserInterface, filter: F)
+where
+    F: Fn(&UiNode) -> Option<bool>,
+{
+    fn apply_filter_recursive<F>(node: Handle<UiNode>, ui: &UserInterface, filter: &F) -> bool
+    where
+        F: Fn(&UiNode) -> Option<bool>,
+    {
+        let node_ref = ui.node(node);
+
+        let mut is_any_match = false;
+        for &child in node_ref.children() {
+            is_any_match |= apply_filter_recursive(child, ui, filter)
+        }
+
+        if let Some(has_match) = filter(node_ref) {
+            is_any_match |= has_match;
+
+            ui.send(node, WidgetMessage::Visibility(is_any_match));
+        }
+
+        is_any_match
+    }
+
+    apply_filter_recursive(root, ui, &filter);
+}
+
+pub fn is_native_scene(path: &Path) -> bool {
+    if let Ok(mut file) = File::open(path) {
+        Visitor::is_supported(&mut file)
+    } else {
+        false
+    }
+}
+
+pub fn show_in_explorer<P: AsRef<Path>>(path: P) {
+    // opener crate is bugged on Windows, so using explorer's command directly.
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+
+        fn execute_command(command: &mut Command) {
+            match command.spawn() {
+                Ok(mut process) => Log::verify(process.wait()),
+                Err(err) => Log::err(format!(
+                    "Failed to show asset item in explorer. Reason: {err:?}"
+                )),
+            }
+        }
+
+        execute_command(Command::new("explorer").arg("/select,").arg(path.as_ref()))
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        if let Err(err) = opener::reveal(path) {
+            Log::err(format!(
+                "Failed to show asset item in explorer. Reason: {err:?}"
+            ))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_subset() {
+        assert!(is_slice_subset_permutation(&[], &[1, 2, 3]));
+    }
+    #[test]
+    fn subset() {
+        assert!(is_slice_subset_permutation(&[2, 3], &[1, 2, 3]));
+    }
+    #[test]
+    fn not_subset() {
+        assert!(!is_slice_subset_permutation(&[1, 2, 3], &[1, 2]));
+    }
+    #[test]
+    fn not_empty() {
+        assert!(!is_slice_subset_permutation(&[1, 2], &[]));
+    }
+    #[test]
+    fn equal() {
+        assert!(is_slice_equal_permutation(&[1, 2], &[1, 2]));
+        assert!(is_slice_equal_permutation(&[1, 2], &[2, 1]));
+    }
+    #[test]
+    fn not_equal() {
+        assert!(!is_slice_equal_permutation(&[1, 2], &[1]));
+        assert!(!is_slice_equal_permutation(&[1], &[2, 1]));
+        assert!(!is_slice_equal_permutation(&[1, 2], &[2, 3]));
+        assert!(!is_slice_equal_permutation(&[1, 1], &[1, 2]));
+        assert!(!is_slice_equal_permutation(&[1, 2], &[2, 2]));
+    }
+}

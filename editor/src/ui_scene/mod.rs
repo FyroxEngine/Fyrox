@@ -56,13 +56,13 @@ use crate::{
         resource::texture::{TextureKind, TextureResource, TextureResourceExtension},
         scene::SceneContainer,
     },
+    game_scene::{
+        Selection, commands::ChangeSelectionCommand, controller::SceneController,
+        selector::HierarchyNode,
+    },
     message::MessageSender,
     plugins::inspector::editors::handle::{
         HandlePropertyEditorHierarchyMessage, HandlePropertyEditorNameMessage,
-    },
-    scene::{
-        Selection, commands::ChangeSelectionCommand, controller::SceneController,
-        selector::HierarchyNode,
     },
     settings::{Settings, keys::KeyBindings},
     ui_scene::{

@@ -19,22 +19,24 @@
 // SOFTWARE.
 
 use crate::{
-    fyrox::core::{log::Log, reflect::prelude::*},
+    fyrox::core::{
+        dyntype::DynTypeContainer, futures::executor::block_on, log::Log, reflect::prelude::*,
+        visitor::prelude::*,
+    },
     settings::{
         build::BuildSettings, camera::CameraSettings, debugging::DebuggingSettings,
         general::GeneralSettings, graphics::GraphicsSettings, keys::KeyBindings, log::LogSettings,
-        model::ModelSettings, move_mode::MoveInteractionModeSettings, navmesh::NavmeshSettings,
-        recent::RecentFiles, rotate_mode::RotateInteractionModeSettings, scene::SceneSettings,
+        model::ModelSettings, move_mode::MoveInteractionModeSettings, recent::RecentFiles,
+        rotate_mode::RotateInteractionModeSettings, scene::SceneSettings,
         selection::SelectionSettings, windows::WindowsSettings,
     },
 };
-use ron::ser::PrettyConfig;
-use serde::{Deserialize, Serialize};
+use fyrox::core::dyntype::{DynType, DynTypeConstructorContainer};
+use std::cell::{RefCell, RefMut};
+use std::sync::Arc;
 use std::{
     collections::HashMap,
     fmt::Display,
-    fs::File,
-    io::Write,
     ops::{Deref, DerefMut},
     path::PathBuf,
     sync::mpsc::Sender,
@@ -49,14 +51,13 @@ pub mod keys;
 pub mod log;
 pub mod model;
 pub mod move_mode;
-pub mod navmesh;
 pub mod recent;
 pub mod rotate_mode;
 pub mod scene;
 pub mod selection;
 pub mod windows;
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Default, Debug, Reflect)]
+#[derive(PartialEq, Clone, Default, Debug, Reflect, Visit)]
 #[reflect(type_uuid = "8b5064fc-e25b-442c-af34-67b12b6f9e66")]
 pub struct SettingsData {
     #[reflect(tag = "Group.Selection")]
@@ -64,10 +65,8 @@ pub struct SettingsData {
     #[reflect(tag = "Group.Graphics")]
     pub graphics: GraphicsSettings,
     #[reflect(tag = "Group.Build")]
-    #[serde(default)]
     pub build: BuildSettings,
     #[reflect(tag = "Group.General")]
-    #[serde(default)]
     pub general: GeneralSettings,
     #[reflect(tag = "Group.Debugging")]
     pub debugging: DebuggingSettings,
@@ -79,21 +78,48 @@ pub struct SettingsData {
     pub model: ModelSettings,
     #[reflect(tag = "Group.Camera")]
     pub camera: CameraSettings,
-    #[reflect(tag = "Group.Navmesh")]
-    pub navmesh: NavmeshSettings,
     #[reflect(tag = "Group.KeyBindings")]
     pub key_bindings: KeyBindings,
     #[reflect(tag = "Group.Log")]
     #[reflect(hidden)]
-    #[serde(default)]
     pub log: LogSettings,
     #[reflect(hidden)]
     pub scene_settings: HashMap<PathBuf, SceneSettings>,
     #[reflect(hidden)]
     pub recent: RecentFiles,
-    #[serde(default)]
     #[reflect(hidden)]
     pub windows: WindowsSettings,
+    #[reflect(immutable_collection, tag = "Group.Plugins")]
+    #[visit(optional)]
+    plugin_settings: RefCell<Vec<DynTypeContainer>>,
+}
+
+impl SettingsData {
+    /// Tries to fetch arbitrary data type from the settings container. If the instance is not found,
+    /// then this method creates a new instance and adds it to the container. This method may fail
+    /// only on
+    pub fn get<T>(&self) -> Option<RefMut<'_, T>>
+    where
+        T: DynType + Default,
+    {
+        let settings = self.plugin_settings.try_borrow_mut().ok()?;
+        RefMut::filter_map(settings, |settings| {
+            // SAFETY: This is safe, because there's only one branch is used to return the value.
+            let settings2 = unsafe { &mut *(settings as *mut Vec<DynTypeContainer>) };
+            if let Some(ret) = settings
+                .iter_mut()
+                .find_map(|container| container.data_mut().ok())
+            {
+                Some(ret)
+            } else {
+                settings2.push(DynTypeContainer::new(T::default()));
+                settings2
+                    .last_mut()
+                    .and_then(|container| container.data_mut().ok())
+            }
+        })
+        .ok()
+    }
 }
 
 pub enum SettingsMessage {
@@ -127,8 +153,10 @@ impl DerefMut for Settings {
 }
 
 impl Settings {
-    pub fn load() -> Result<Self, SettingsError> {
-        let settings = SettingsData::load()?;
+    pub fn load(
+        dyn_type_constructors: Arc<DynTypeConstructorContainer>,
+    ) -> Result<Self, SettingsError> {
+        let settings = SettingsData::load(dyn_type_constructors)?;
         Log::set_log_info(settings.log.log_info);
         Log::set_log_warning(settings.log.log_warning);
         Log::set_log_error(settings.log.log_error);
@@ -162,8 +190,7 @@ impl Settings {
 #[derive(Debug)]
 pub enum SettingsError {
     Io(std::io::Error),
-    RonSpanned(ron::error::SpannedError),
-    Ron(ron::Error),
+    Visit(VisitError),
 }
 
 impl std::error::Error for SettingsError {}
@@ -172,48 +199,39 @@ impl Display for SettingsError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SettingsError::Io(error) => Display::fmt(error, f),
-            SettingsError::RonSpanned(error) => Display::fmt(error, f),
-            SettingsError::Ron(error) => Display::fmt(error, f),
+            SettingsError::Visit(error) => Display::fmt(error, f),
         }
     }
 }
 
-impl From<std::io::Error> for SettingsError {
-    fn from(e: std::io::Error) -> Self {
-        Self::Io(e)
-    }
-}
-
-impl From<ron::error::SpannedError> for SettingsError {
-    fn from(e: ron::error::SpannedError) -> Self {
-        Self::RonSpanned(e)
-    }
-}
-
-impl From<ron::Error> for SettingsError {
-    fn from(e: ron::Error) -> Self {
-        Self::Ron(e)
+impl From<VisitError> for SettingsError {
+    fn from(e: VisitError) -> Self {
+        Self::Visit(e)
     }
 }
 
 impl SettingsData {
-    const FILE_NAME: &'static str = "settings.ron";
+    const FILE_NAME: &'static str = "settings.cfg";
 
     fn full_path() -> PathBuf {
         Self::FILE_NAME.into()
     }
 
-    pub fn load() -> Result<Self, SettingsError> {
-        let file = File::open(Self::full_path())?;
-        Ok(ron::de::from_reader(file)?)
+    pub fn load(
+        dyn_type_constructors: Arc<DynTypeConstructorContainer>,
+    ) -> Result<Self, SettingsError> {
+        let mut visitor = block_on(Visitor::load_from_file(Self::full_path()))?;
+        visitor.blackboard.register(dyn_type_constructors);
+        let mut data = Self::default();
+        data.visit("Settings", &mut visitor)?;
+        Ok(data)
     }
 
     fn save(&mut self) -> Result<(), SettingsError> {
-        let mut file = File::create(Self::full_path())?;
         self.recent.deduplicate_and_refresh();
-
-        file.write_all(ron::ser::to_string_pretty(self, PrettyConfig::default())?.as_bytes())?;
-
+        let mut visitor = Visitor::new();
+        self.visit("Settings", &mut visitor)?;
+        visitor.save_ascii_to_file(Self::full_path())?;
         Ok(())
     }
 }

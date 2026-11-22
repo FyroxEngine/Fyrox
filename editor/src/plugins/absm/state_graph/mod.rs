@@ -42,8 +42,8 @@ use crate::plugins::absm::{
 };
 use crate::{
     command::{Command, CommandGroup},
+    game_scene::{Selection, commands::ChangeSelectionCommand},
     message::MessageSender,
-    scene::{Selection, commands::ChangeSelectionCommand},
 };
 
 use fyrox::core::reflect::Reflect;

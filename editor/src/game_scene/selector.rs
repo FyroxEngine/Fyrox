@@ -1,0 +1,666 @@
+// Copyright (c) 2019-present Dmitry Stepanov and Fyrox Engine contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+use crate::{
+    fyrox::{
+        core::{pool::ErasedHandle, pool::Handle, reflect::prelude::*, visitor::prelude::*},
+        fxhash::FxHashSet,
+        graph::{NodeWrapper, SceneGraph},
+        gui::{
+            BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode,
+            UserInterface,
+            border::BorderBuilder,
+            button::{ButtonBuilder, ButtonMessage},
+            define_widget_deref,
+            grid::{Column, GridBuilder, Row},
+            message::{KeyCode, MessageDirection, UiMessage},
+            scroll_viewer::ScrollViewerBuilder,
+            scroll_viewer::ScrollViewerMessage,
+            searchbar::{SearchBarBuilder, SearchBarMessage},
+            stack_panel::StackPanelBuilder,
+            style::{Style, resource::StyleResourceExt},
+            text::TextBuilder,
+            tree::{Tree, TreeBuilder, TreeRootBuilder, TreeRootMessage},
+            widget::{Widget, WidgetBuilder, WidgetMessage},
+            window::{Window, WindowBuilder, WindowMessage},
+        },
+    },
+    utils::make_node_name,
+};
+use fyrox::gui::button::Button;
+use fyrox::gui::control_trait_proxy_impls;
+use fyrox::gui::formatted_text::WrapMode;
+use fyrox::gui::message::{DeliveryMode, MessageData};
+use fyrox::gui::scroll_viewer::ScrollViewer;
+use fyrox::gui::searchbar::SearchBar;
+use fyrox::gui::text_box::EmptyTextPlaceholder;
+use fyrox::gui::tree::TreeRoot;
+use fyrox::gui::widget::UserData;
+use std::hash::{Hash, Hasher};
+use std::{
+    any::{Any, TypeId},
+    fmt::Debug,
+    ops::{Deref, DerefMut},
+};
+
+#[derive(Eq, Clone, Debug, PartialEq)]
+pub struct HierarchyNode {
+    pub name: String,
+    pub inner_type_name: String,
+    pub handle: ErasedHandle,
+    pub inner_type_id: TypeId,
+    pub derived_type_ids: Vec<TypeId>,
+    pub children: Vec<HierarchyNode>,
+}
+
+impl HierarchyNode {
+    pub fn from_scene_node<G, N>(node_handle: Handle<N>, ignored_node: Handle<N>, graph: &G) -> Self
+    where
+        G: SceneGraph<NodeWrapper = N>,
+        N: NodeWrapper<SceneGraph = G>,
+    {
+        let node = graph.node(node_handle);
+        let node_data_ref = node.inner_ref();
+        Self {
+            name: node.name().to_string(),
+            inner_type_name: node_data_ref.type_info_ref().type_name.to_string(),
+            handle: node_handle.into(),
+            children: node
+                .children()
+                .iter()
+                .filter_map(|c| {
+                    if *c == ignored_node {
+                        None
+                    } else {
+                        Some(HierarchyNode::from_scene_node(*c, ignored_node, graph))
+                    }
+                })
+                .collect(),
+            inner_type_id: node_data_ref.type_id(),
+            derived_type_ids: node_data_ref.type_info_ref().derived_types.to_vec(),
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn find_node(&mut self, node_handle: ErasedHandle) -> Option<&mut HierarchyNode> {
+        if self.handle == node_handle {
+            return Some(self);
+        }
+
+        for child in self.children.iter_mut() {
+            if let Some(node) = child.find_node(node_handle) {
+                return Some(node);
+            }
+        }
+
+        None
+    }
+
+    fn make_view(
+        &self,
+        allowed_types: &FxHashSet<AllowedType>,
+        ctx: &mut BuildContext,
+    ) -> Handle<Tree> {
+        let brush = if allowed_types.contains(&AllowedType::unnamed(self.inner_type_id))
+            || self
+                .derived_type_ids
+                .iter()
+                .any(|derived| allowed_types.contains(&AllowedType::unnamed(*derived)))
+        {
+            ctx.style.property(Style::BRUSH_TEXT)
+        } else {
+            ctx.style.property(Style::BRUSH_LIGHT)
+        };
+
+        TreeBuilder::new(WidgetBuilder::new().with_user_data(UserData::new(TreeData {
+            name: self.name.clone(),
+            handle: self.handle,
+            inner_type_id: self.inner_type_id,
+            derived_type_ids: self.derived_type_ids.clone(),
+        })))
+        .with_items(
+            self.children
+                .iter()
+                .map(|c| c.make_view(allowed_types, ctx))
+                .collect(),
+        )
+        .with_content(
+            TextBuilder::new(WidgetBuilder::new().with_foreground(brush))
+                .with_text(make_node_name(&self.name, self.handle) + " - " + &self.inner_type_name)
+                .build(ctx),
+        )
+        .build(ctx)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Visit, Reflect)]
+#[reflect(type_uuid = "760fdb9d-45f6-4fc1-9fa0-86a802a40a1f")]
+pub struct SelectedHandle {
+    #[visit(skip)]
+    #[reflect(hidden)]
+    pub inner_type_id: TypeId,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    pub derived_type_ids: Vec<TypeId>,
+    pub handle: ErasedHandle,
+}
+
+impl<T: Reflect> From<Handle<T>> for SelectedHandle {
+    fn from(value: Handle<T>) -> Self {
+        Self {
+            inner_type_id: TypeId::of::<T>(),
+            derived_type_ids: T::type_info().derived_types.to_vec(),
+            handle: value.into(),
+        }
+    }
+}
+
+impl Default for SelectedHandle {
+    fn default() -> Self {
+        Self {
+            inner_type_id: ().type_id(),
+            derived_type_ids: Default::default(),
+            handle: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NodeSelectorMessage {
+    #[allow(dead_code)] // Might be used in the future.
+    Hierarchy(HierarchyNode),
+    Selection(Vec<SelectedHandle>),
+    ChooseFocus,
+}
+impl MessageData for NodeSelectorMessage {}
+
+#[derive(Clone)]
+struct TreeData {
+    name: String,
+    handle: ErasedHandle,
+    inner_type_id: TypeId,
+    pub derived_type_ids: Vec<TypeId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Visit, Reflect)]
+#[reflect(derived_type = "UiNode")]
+#[reflect(type_uuid = "1d718f90-323c-492d-b057-98d47495900a")]
+pub struct NodeSelector {
+    widget: Widget,
+    tree_root: Handle<TreeRoot>,
+    search_bar: Handle<SearchBar>,
+    selected: Vec<SelectedHandle>,
+    scroll_viewer: Handle<ScrollViewer>,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    allowed_types: FxHashSet<AllowedType>,
+}
+
+define_widget_deref!(NodeSelector);
+
+fn apply_filter_recursive(node: Handle<UiNode>, filter: &str, ui: &UserInterface) -> bool {
+    let node_ref = ui.node(node);
+
+    let mut is_any_match = false;
+    for &child in node_ref.children() {
+        is_any_match |= apply_filter_recursive(child, filter, ui)
+    }
+
+    if let Some(data) = node_ref
+        .self_or_field_ref::<Tree>()
+        .and_then(|n| n.user_data_cloned::<TreeData>())
+    {
+        is_any_match |= data.name.to_lowercase().contains(filter);
+
+        ui.send(node, WidgetMessage::Visibility(is_any_match));
+    }
+
+    is_any_match
+}
+
+impl Control for NodeSelector {
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
+        self.widget.handle_routed_message(ui, message);
+
+        if let Some(msg) = message.data_for::<NodeSelectorMessage>(self.handle) {
+            match msg {
+                NodeSelectorMessage::Hierarchy(hierarchy) => {
+                    let items = vec![hierarchy.make_view(&self.allowed_types, &mut ui.build_ctx())];
+                    ui.send(self.tree_root, TreeRootMessage::Items(items));
+                }
+                NodeSelectorMessage::Selection(selection) => {
+                    if &self.selected != selection {
+                        self.selected.clone_from(selection);
+                        self.sync_selection(ui);
+                        ui.try_send_response(message);
+                    }
+                }
+                NodeSelectorMessage::ChooseFocus => {
+                    ui.send(self.search_bar, WidgetMessage::Focus);
+                    self.sync_selection(ui);
+                }
+            }
+        } else if let Some(SearchBarMessage::Text(filter_text)) = message.data_from(self.search_bar)
+        {
+            apply_filter_recursive(self.tree_root.to_base(), &filter_text.to_lowercase(), ui);
+
+            // Bring first item of current selection in the view when clearing the filter.
+            if filter_text.is_empty() {
+                let selected_trees = self.find_selected_tree_items(ui);
+
+                if let Some(first) = selected_trees.first() {
+                    ui.send(
+                        self.scroll_viewer,
+                        ScrollViewerMessage::BringIntoView(first.to_base()),
+                    );
+                }
+            }
+        } else if let Some(TreeRootMessage::Select(selection)) = message.data_from(self.tree_root) {
+            if message.delivery_mode != DeliveryMode::SyncOnly {
+                ui.send(
+                    self.handle,
+                    NodeSelectorMessage::Selection(
+                        selection
+                            .iter()
+                            .filter_map(|s| {
+                                let tree_data =
+                                    ui.try_get(*s).ok()?.user_data_cloned::<TreeData>()?;
+
+                                Some(SelectedHandle {
+                                    handle: tree_data.handle,
+                                    inner_type_id: tree_data.inner_type_id,
+                                    derived_type_ids: tree_data.derived_type_ids,
+                                })
+                            })
+                            .collect(),
+                    ),
+                );
+            }
+        } else if let Some(TreeRootMessage::ItemsChanged) = message.data_from(self.tree_root) {
+            self.sync_selection(ui);
+        }
+    }
+}
+
+impl NodeSelector {
+    fn find_selected_tree_items(&self, ui: &UserInterface) -> Vec<Handle<Tree>> {
+        let mut stack = vec![self.tree_root.to_base()];
+        let mut selected_trees = Vec::new();
+
+        while let Some(node_handle) = stack.pop() {
+            let node = ui.node(node_handle);
+
+            if let Some(tree) = node.self_or_field_ref::<Tree>()
+                && self.selected.iter().any(|selected| {
+                    let tree_data = tree.user_data_cloned::<TreeData>().unwrap();
+                    tree_data.handle == selected.handle
+                        && (tree_data.inner_type_id == selected.inner_type_id
+                            || tree_data.derived_type_ids.contains(&selected.inner_type_id))
+                })
+            {
+                selected_trees.push(node_handle.to_variant());
+            }
+
+            stack.extend_from_slice(node.children());
+        }
+
+        selected_trees
+    }
+
+    fn sync_selection(&self, ui: &UserInterface) {
+        let selected_trees = self.find_selected_tree_items(ui);
+
+        if let Some(first) = selected_trees.first() {
+            ui.send(
+                self.scroll_viewer,
+                ScrollViewerMessage::BringIntoView(first.to_base()),
+            )
+        }
+
+        ui.send_sync(self.tree_root, TreeRootMessage::Select(selected_trees));
+    }
+}
+
+pub struct NodeSelectorBuilder {
+    widget_builder: WidgetBuilder,
+    hierarchy: Option<HierarchyNode>,
+    allowed_types: FxHashSet<AllowedType>,
+}
+
+impl NodeSelectorBuilder {
+    pub fn new(widget_builder: WidgetBuilder) -> Self {
+        Self {
+            widget_builder,
+            hierarchy: None,
+            allowed_types: Default::default(),
+        }
+    }
+
+    pub fn with_hierarchy(mut self, hierarchy: Option<HierarchyNode>) -> Self {
+        self.hierarchy = hierarchy;
+        self
+    }
+
+    pub fn with_allowed_types(mut self, allowed_types: FxHashSet<AllowedType>) -> Self {
+        self.allowed_types = allowed_types;
+        self
+    }
+
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<NodeSelector> {
+        let items = self
+            .hierarchy
+            .map(|h| vec![h.make_view(&self.allowed_types, ctx)])
+            .unwrap_or_default();
+
+        let tree_root = TreeRootBuilder::new(WidgetBuilder::new().with_tab_index(Some(1)))
+            .with_items(items)
+            .build(ctx);
+        let search_bar;
+        let scroll_viewer;
+        let content = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child({
+                    search_bar =
+                        SearchBarBuilder::new(WidgetBuilder::new().with_tab_index(Some(0)))
+                            .with_empty_text_placeholder(EmptyTextPlaceholder::Text(
+                                "Search for a scene node",
+                            ))
+                            .build(ctx);
+                    search_bar
+                })
+                .with_child(
+                    BorderBuilder::new(
+                        WidgetBuilder::new()
+                            .with_background(ctx.style.property(Style::BRUSH_DARK))
+                            .on_row(1)
+                            .on_column(0)
+                            .with_child({
+                                scroll_viewer = ScrollViewerBuilder::new(
+                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_content(tree_root)
+                                .build(ctx);
+                                scroll_viewer
+                            }),
+                    )
+                    .build(ctx),
+                ),
+        )
+        .add_row(Row::strict(22.0))
+        .add_row(Row::stretch())
+        .add_column(Column::stretch())
+        .build(ctx);
+
+        let selector = NodeSelector {
+            widget: self.widget_builder.with_child(content).build(ctx),
+            tree_root,
+            search_bar,
+            selected: Default::default(),
+            scroll_viewer,
+            allowed_types: self.allowed_types,
+        };
+
+        ctx.add(selector)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Visit, Reflect)]
+#[reflect(type_uuid = "5bb00f15-d6ec-4f0e-af7e-9472b0e290b4")]
+#[reflect(derived_type = "UiNode")]
+pub struct NodeSelectorWindow {
+    window: Window,
+    selector: Handle<NodeSelector>,
+    ok: Handle<Button>,
+    cancel: Handle<Button>,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    allowed_types: FxHashSet<AllowedType>,
+}
+
+impl Deref for NodeSelectorWindow {
+    type Target = Widget;
+
+    fn deref(&self) -> &Self::Target {
+        &self.window.widget
+    }
+}
+
+impl DerefMut for NodeSelectorWindow {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.window.widget
+    }
+}
+
+impl NodeSelectorWindow {
+    fn confirm(&self, ui: &UserInterface) {
+        ui.post(
+            self.handle,
+            NodeSelectorMessage::Selection(ui[self.selector].selected.clone()),
+        );
+
+        ui.send(self.handle, WindowMessage::Close);
+    }
+}
+
+impl Control for NodeSelectorWindow {
+    control_trait_proxy_impls!(window);
+
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
+        self.window.handle_routed_message(ui, message);
+
+        if let Some(ButtonMessage::Click) = message.data() {
+            if message.destination() == self.ok {
+                self.confirm(ui);
+            } else if message.destination() == self.cancel {
+                ui.send(self.handle, WindowMessage::Close);
+            }
+        } else if let Some(msg) = message.data::<NodeSelectorMessage>() {
+            if message.is_for(self.handle) {
+                // Dispatch to inner selector.
+                let mut msg = message.clone();
+                msg.destination = self.selector.to_base();
+                ui.send_message(msg);
+            } else if message.destination() == self.selector
+                && message.direction() == MessageDirection::FromWidget
+            {
+                // Enable "ok" button if selection is valid.
+                if let NodeSelectorMessage::Selection(selection) = msg {
+                    ui.send(
+                        self.ok,
+                        WidgetMessage::Enabled(
+                            !selection.is_empty()
+                                && selection.iter().all(|h| {
+                                    self.allowed_types
+                                        .contains(&AllowedType::unnamed(h.inner_type_id))
+                                        || h.derived_type_ids.iter().any(|derived| {
+                                            self.allowed_types
+                                                .contains(&AllowedType::unnamed(*derived))
+                                        })
+                                }),
+                        ),
+                    );
+                }
+            }
+        } else if let Some(WindowMessage::Open { .. }) = message.data() {
+            ui.send(self.selector, NodeSelectorMessage::ChooseFocus);
+        } else if let Some(WidgetMessage::KeyDown(KeyCode::Enter | KeyCode::NumpadEnter)) =
+            message.data()
+            && !message.handled()
+        {
+            self.confirm(ui);
+            message.set_handled(true);
+        }
+    }
+}
+
+#[derive(Clone, Eq, Debug)]
+pub struct AllowedType {
+    pub id: TypeId,
+    pub name: String,
+}
+
+impl AllowedType {
+    pub fn unnamed(id: TypeId) -> Self {
+        Self {
+            id,
+            name: Default::default(),
+        }
+    }
+}
+
+impl Hash for AllowedType {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state)
+    }
+}
+
+impl PartialEq for AllowedType {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+pub struct NodeSelectorWindowBuilder {
+    window_builder: WindowBuilder,
+    hierarchy: Option<HierarchyNode>,
+    allowed_types: FxHashSet<AllowedType>,
+}
+
+impl NodeSelectorWindowBuilder {
+    pub fn new(window_builder: WindowBuilder) -> Self {
+        Self {
+            window_builder,
+            hierarchy: None,
+            allowed_types: Default::default(),
+        }
+    }
+
+    pub fn with_hierarchy(mut self, hierarchy: HierarchyNode) -> Self {
+        self.hierarchy = Some(hierarchy);
+        self
+    }
+
+    pub fn with_allowed_types(mut self, allowed_types: FxHashSet<AllowedType>) -> Self {
+        self.allowed_types = allowed_types;
+        self
+    }
+
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<NodeSelectorWindow> {
+        let ok;
+        let cancel;
+        let selector;
+        let content = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child(
+                    TextBuilder::new(
+                        WidgetBuilder::new()
+                            .with_visibility(!self.allowed_types.is_empty())
+                            .with_margin(Thickness::uniform(2.0)),
+                    )
+                    .with_text(
+                        "Select a node of the following type(s):\n".to_string()
+                            + &self
+                                .allowed_types
+                                .iter()
+                                .map(|ty| ty.name.clone())
+                                .collect::<Vec<_>>()
+                                .join("\n"),
+                    )
+                    .with_wrap(WrapMode::Letter)
+                    .build(ctx),
+                )
+                .with_child({
+                    selector = NodeSelectorBuilder::new(WidgetBuilder::new().on_row(1))
+                        .with_hierarchy(self.hierarchy)
+                        .with_allowed_types(self.allowed_types.clone())
+                        .build(ctx);
+                    selector
+                })
+                .with_child(
+                    StackPanelBuilder::new(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(2.0))
+                            .on_row(2)
+                            .on_column(0)
+                            .with_horizontal_alignment(HorizontalAlignment::Right)
+                            .with_child({
+                                ok = ButtonBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_enabled(false)
+                                        .with_width(100.0)
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_tab_index(Some(2)),
+                                )
+                                .with_text("OK")
+                                .build(ctx);
+                                ok
+                            })
+                            .with_child({
+                                cancel = ButtonBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_width(100.0)
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_tab_index(Some(3)),
+                                )
+                                .with_text("Cancel")
+                                .build(ctx);
+                                cancel
+                            }),
+                    )
+                    .with_orientation(Orientation::Horizontal)
+                    .build(ctx),
+                ),
+        )
+        .add_column(Column::stretch())
+        .add_row(Row::auto())
+        .add_row(Row::stretch())
+        .add_row(Row::strict(27.0))
+        .build(ctx);
+
+        let window = NodeSelectorWindow {
+            window: self
+                .window_builder
+                .with_content(content)
+                .open(false)
+                .build_window(ctx),
+            ok,
+            cancel,
+            selector,
+            allowed_types: self.allowed_types,
+        };
+
+        ctx.add(window)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::game_scene::selector::{NodeSelectorBuilder, NodeSelectorWindowBuilder};
+    use fyrox::gui::window::WindowBuilder;
+    use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
+
+    #[test]
+    fn test_deletion() {
+        test_widget_deletion(|ctx| NodeSelectorBuilder::new(WidgetBuilder::new()).build(ctx));
+        test_widget_deletion(|ctx| {
+            NodeSelectorWindowBuilder::new(WindowBuilder::new(WidgetBuilder::new())).build(ctx)
+        });
+    }
+}

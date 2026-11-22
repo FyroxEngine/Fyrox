@@ -16,8 +16,6 @@ rust-version = "1.94"
 fyrox = { version = "2.0.0-rc.1", path = "../fyrox", default-features = false }
 fyrox-template-core = { version = "2.0.0-rc.1", path = "../template-core" }
 fyrox-build-tools = { version = "2.0.0-rc.1", path = "../fyrox-build-tools" }
-serde = { version = "1", features = ["derive"] }
-ron = "0.11.0"
 open = "5.0.1"
 cargo_metadata = "0.22.0"
 serde_json = "1.0.133"

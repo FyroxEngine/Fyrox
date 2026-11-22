@@ -19,21 +19,17 @@
 // SOFTWARE.
 
 use crate::fyrox::{
+    core::visitor::prelude::*,
     core::{algebra::Vector2, reflect::prelude::*},
     gui::dock::config::DockingManagerLayoutDescriptor,
 };
-use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Serialize, PartialEq, Debug, Clone, Reflect)]
+#[derive(Visit, PartialEq, Debug, Clone, Reflect)]
 #[reflect(type_uuid = "80cc6a63-e128-4a74-8c79-987ee5fee6e2")]
 pub struct WindowsSettings {
-    #[serde(default)]
     pub window_position: Vector2<f32>,
-    #[serde(default)]
     pub window_size: Vector2<f32>,
-    #[serde(default)]
     pub window_maximized: bool,
-    #[serde(default)]
     #[reflect(hidden)]
     pub layout: Option<DockingManagerLayoutDescriptor>,
 }

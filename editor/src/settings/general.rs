@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::fyrox::core::reflect::prelude::*;
-use serde::{Deserialize, Serialize};
+use crate::fyrox::core::visitor::prelude::*;
 use std::path::PathBuf;
 use strum_macros::{AsRefStr, EnumString, VariantNames};
 
@@ -32,8 +32,7 @@ use strum_macros::{AsRefStr, EnumString, VariantNames};
     Eq,
     Ord,
     Debug,
-    Serialize,
-    Deserialize,
+    Visit,
     Reflect,
     AsRefStr,
     EnumString,
@@ -45,7 +44,7 @@ pub enum EditorStyle {
     Light,
 }
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
+#[derive(Visit, PartialEq, Clone, Debug, Reflect)]
 #[reflect(type_uuid = "9f97ae95-85bd-4fe8-9b80-7d45417df7c8")]
 pub struct GeneralSettings {
     /// Defines whether the editor checks for references to an object that is about to be deleted or not.
@@ -53,38 +52,31 @@ pub struct GeneralSettings {
 
     /// When set, suspends the editor execution if its main window is unfocused. Use this option to reduce \
     /// CPU/GPU resources consumption when you don't need the editor to run in the background.
-    #[serde(default = "default_suspension_state")]
     pub suspend_unfocused_editor: bool,
 
     /// When set, suspends the editor will update and render itself on every frame. By default, this
     /// option is disabled.
     pub keep_editor_active: bool,
 
-    #[serde(default = "default_script_editor")]
     pub script_editor: ScriptEditor,
 
     /// Maximum capacity of actions history stack stored by the editor. Default is 512. Large numbers
     /// will increase maximum amount of memory needed for the editor.
-    #[serde(default = "default_max_history_entries")]
     pub max_history_entries: usize,
 
     /// Enables or disables preview generation for assets in the asset browser. This feature could
     /// be disabled, if you're getting performance issues when there's a lot of assets in a folder.
     /// Due to technical difficulties, preview generation will be done on main thread, which could
     /// cause lag spikes.
-    #[serde(default = "default_generate_previews")]
     pub generate_previews: bool,
 
     /// Maximum amount of log entries. Large values could harm performance and increase memory usage.
     /// Typical values are 200-500
-    #[serde(default = "default_max_log_entries")]
     pub max_log_entries: usize,
 
-    #[serde(default = "default_style")]
     pub style: EditorStyle,
 
     /// A list of scenes that will be loaded at the editor start.
-    #[serde(default)]
     pub startup_scenes: Vec<PathBuf>,
 }
 
@@ -103,30 +95,6 @@ impl GeneralSettings {
     }
 }
 
-fn default_style() -> EditorStyle {
-    EditorStyle::Dark
-}
-
-fn default_max_log_entries() -> usize {
-    256
-}
-
-fn default_suspension_state() -> bool {
-    true
-}
-
-fn default_script_editor() -> ScriptEditor {
-    ScriptEditor::SystemDefault
-}
-
-fn default_max_history_entries() -> usize {
-    512
-}
-
-fn default_generate_previews() -> bool {
-    true
-}
-
 #[derive(
     Copy,
     Clone,
@@ -136,8 +104,7 @@ fn default_generate_previews() -> bool {
     Eq,
     Ord,
     Debug,
-    Serialize,
-    Deserialize,
+    Visit,
     Reflect,
     AsRefStr,
     EnumString,
@@ -156,12 +123,12 @@ impl Default for GeneralSettings {
     fn default() -> Self {
         Self {
             show_node_removal_dialog: true,
-            suspend_unfocused_editor: default_suspension_state(),
+            suspend_unfocused_editor: true,
             keep_editor_active: false,
-            script_editor: default_script_editor(),
-            max_history_entries: default_max_history_entries(),
-            generate_previews: default_generate_previews(),
-            max_log_entries: default_max_log_entries(),
+            script_editor: ScriptEditor::SystemDefault,
+            max_history_entries: 512,
+            generate_previews: true,
+            max_log_entries: 256,
             style: EditorStyle::Dark,
             startup_scenes: Default::default(),
         }

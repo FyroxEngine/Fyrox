@@ -18,22 +18,19 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::{core::reflect::prelude::*, renderer::QualitySettings};
-use serde::{Deserialize, Serialize};
+use crate::fyrox::{
+    core::{reflect::prelude::*, visitor::prelude::*},
+    renderer::QualitySettings,
+};
 
-#[derive(Deserialize, Serialize, PartialEq, Debug, Clone, Reflect)]
+#[derive(PartialEq, Debug, Clone, Reflect, Visit)]
 #[reflect(type_uuid = "e748b2e7-9d51-4c9b-bb88-ada78bcfa447")]
 pub struct GraphicsSettings {
     pub quality: QualitySettings,
     pub z_near: f32,
     pub z_far: f32,
-    #[serde(default = "default_draw_grid")]
     pub draw_grid: bool,
     pub gizmo_scale: f32,
-}
-
-fn default_draw_grid() -> bool {
-    true
 }
 
 impl Default for GraphicsSettings {
@@ -42,7 +39,7 @@ impl Default for GraphicsSettings {
             quality: Default::default(),
             z_near: 0.025,
             z_far: 128.0,
-            draw_grid: default_draw_grid(),
+            draw_grid: true,
             gizmo_scale: 1.0,
         }
     }

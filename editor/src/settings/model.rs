@@ -18,10 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::fyrox::core::{algebra::Vector3, reflect::prelude::*};
-use serde::{Deserialize, Serialize};
+use crate::fyrox::core::{algebra::Vector3, reflect::prelude::*, visitor::prelude::*};
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
+#[derive(Visit, PartialEq, Clone, Debug, Reflect)]
 #[reflect(type_uuid = "126ee9c2-3b75-4fcf-ba25-dcb6c3a0d158")]
 pub struct ModelSettings {
     /// Initial scale the root of the instance will have after instantiation. Useful when you have

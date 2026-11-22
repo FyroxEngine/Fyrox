@@ -142,7 +142,7 @@ impl FieldAction {
                 {
                     match property {
                         FieldAction::InspectableAction(inspectable) => {
-                            return format!("[{}].{}", index, inspectable.path());
+                            return format!("[{}]{}", index, inspectable.path());
                         }
                         _ => return format!("[{index}]"),
                     }

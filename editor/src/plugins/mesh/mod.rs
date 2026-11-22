@@ -20,371 +20,24 @@
 
 use crate::{
     Editor, Message,
-    command::{Command, CommandGroup},
     fyrox::{
-        core::{math::TriangleDefinition, pool::Handle, some_or_return},
+        core::some_or_return,
         engine::{ApplicationLoopController, Engine},
-        graph::SceneGraph,
-        gui::{
-            BuildContext, Thickness, UserInterface, VerticalAlignment,
-            button::{Button, ButtonBuilder, ButtonMessage},
-            grid::{Column, GridBuilder, Row},
-            message::UiMessage,
-            scroll_viewer::ScrollViewerBuilder,
-            stack_panel::{StackPanel, StackPanelBuilder},
-            text::{Text, TextBuilder, TextMessage},
-            utils::make_simple_tooltip,
-            widget::{WidgetBuilder, WidgetMessage},
-            window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
-        },
-        scene::{
-            Scene,
-            base::BaseBuilder,
-            collider::{ColliderBuilder, ColliderShape, ConvexPolyhedronShape, GeometrySource},
-            mesh::{
-                Mesh, MeshBuilder,
-                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
-            },
-            node::Node,
-            rigidbody::{RigidBody, RigidBodyBuilder, RigidBodyType},
-        },
+        gui::{UserInterface, message::UiMessage, widget::WidgetMessage},
+        scene::mesh::{Mesh, surface::SurfaceResource},
     },
-    message::MessageSender,
+    game_scene::GameScene,
     plugin::EditorPlugin,
     plugins::{inspector::InspectorPlugin, mesh::surface::SurfaceDataPropertyEditorDefinition},
-    preview::PreviewPanel,
-    scene::{
-        GameScene, Selection,
-        commands::graph::{AddNodeCommand, LinkNodesCommand},
-    },
-    world::selection::GraphSelection,
 };
+use data_viewer::SurfaceDataViewer;
+use panel::MeshControlPanel;
 
+mod data_viewer;
+mod panel;
 mod surface;
 
 struct ViewSurfaceDataMessage(pub SurfaceResource);
-
-pub struct MeshControlPanel {
-    pub root_widget: Handle<StackPanel>,
-    create_trimesh_collider: Handle<Button>,
-    create_convex_collider: Handle<Button>,
-    create_trimesh_rigid_body: Handle<Button>,
-    add_convex_collider: Handle<Button>,
-    add_trimesh_collider: Handle<Button>,
-}
-
-fn make_button(text: &str, tooltip: &str, ctx: &mut BuildContext) -> Handle<Button> {
-    ButtonBuilder::new(
-        WidgetBuilder::new()
-            .with_margin(Thickness::uniform(1.0))
-            .with_tooltip(make_simple_tooltip(ctx, tooltip)),
-    )
-    .with_text(text)
-    .build(ctx)
-}
-
-fn meshes_iter<'a>(
-    selection: &'a GraphSelection,
-    scene: &'a Scene,
-) -> impl Iterator<Item = (Handle<Node>, &'a Mesh)> + 'a {
-    selection.nodes.iter().filter_map(|handle| {
-        scene
-            .graph
-            .try_get_of_type::<Mesh>(*handle)
-            .ok()
-            .map(|mesh| (*handle, mesh))
-    })
-}
-
-impl MeshControlPanel {
-    fn new(ctx: &mut BuildContext) -> Self {
-        let create_trimesh_collider = make_button(
-            "Create Trimesh Collider",
-            "Creates a new trimesh collider and attaches it to the selected mesh(es)",
-            ctx,
-        );
-        let create_convex_collider = make_button(
-            "Create Convex Collider",
-            "Creates a new convex (polyhedron) collider and attaches it to the selected mesh(es).",
-            ctx,
-        );
-        let create_trimesh_rigid_body = make_button(
-            "Create Trimesh Rigid Body",
-            "Creates a new static rigid body with trimesh collider and attaches the selected \
-            mesh(es) to it.",
-            ctx,
-        );
-        let add_convex_collider = make_button(
-            "Add Convex Collider",
-            "Creates a new convex (polyhedron) collider and attaches it to an ancestor rigid \
-            body. This option could be useful if you have multiple meshes and want to put them into \
-            a single rigid body.",
-            ctx,
-        );
-        let add_trimesh_collider = make_button(
-            "Add Trimesh Collider",
-            "Creates a new trimesh collider and attaches it to an ancestor rigid body. This \
-            option could be useful if you have multiple meshes and want to put them into a single \
-            rigid body.",
-            ctx,
-        );
-        let root_widget = StackPanelBuilder::new(
-            WidgetBuilder::new()
-                .with_child(create_trimesh_collider)
-                .with_child(create_convex_collider)
-                .with_child(create_trimesh_rigid_body)
-                .with_child(add_convex_collider)
-                .with_child(add_trimesh_collider),
-        )
-        .build(ctx);
-
-        Self {
-            root_widget,
-            create_trimesh_collider,
-            create_convex_collider,
-            create_trimesh_rigid_body,
-            add_convex_collider,
-            add_trimesh_collider,
-        }
-    }
-
-    fn handle_ui_message(
-        &mut self,
-        message: &UiMessage,
-        editor_selection: &Selection,
-        game_scene: &mut GameScene,
-        engine: &mut Engine,
-        sender: &MessageSender,
-    ) {
-        let Some(selection) = editor_selection.as_graph() else {
-            return;
-        };
-
-        let scene = &engine.scenes[game_scene.scene];
-
-        let mut commands = Vec::new();
-
-        if let Some(ButtonMessage::Click) = message.data() {
-            if message.destination() == self.create_trimesh_collider {
-                for (mesh_handle, _) in meshes_iter(selection, scene) {
-                    let collider =
-                        ColliderBuilder::new(BaseBuilder::new().with_name("TrimeshCollider"))
-                            .with_shape(ColliderShape::trimesh(vec![GeometrySource(mesh_handle)]))
-                            .build_node();
-                    commands.push(Command::new(AddNodeCommand::new(
-                        collider,
-                        mesh_handle,
-                        false,
-                    )))
-                }
-            } else if message.destination() == self.create_convex_collider {
-                for (mesh_handle, _) in meshes_iter(selection, scene) {
-                    let collider =
-                        ColliderBuilder::new(BaseBuilder::new().with_name("ConvexCollider"))
-                            .with_shape(ColliderShape::Polyhedron(ConvexPolyhedronShape {
-                                geometry_source: GeometrySource(mesh_handle),
-                            }))
-                            .build_node();
-                    commands.push(Command::new(AddNodeCommand::new(
-                        collider,
-                        mesh_handle,
-                        false,
-                    )))
-                }
-            } else if message.destination() == self.create_trimesh_rigid_body {
-                let handles = scene
-                    .graph
-                    .generate_free_handles(2 * meshes_iter(selection, scene).count());
-
-                for (rb_collider_handles, (mesh_handle, mesh)) in
-                    handles.chunks(2).zip(meshes_iter(selection, scene))
-                {
-                    let rigid_body_handle = rb_collider_handles[0];
-                    let collider_handle = rb_collider_handles[1];
-
-                    let rigid_body =
-                        RigidBodyBuilder::new(BaseBuilder::new().with_name("RigidBody"))
-                            .with_body_type(RigidBodyType::Static)
-                            .build_node();
-                    let collider =
-                        ColliderBuilder::new(BaseBuilder::new().with_name("TrimeshCollider"))
-                            .with_shape(ColliderShape::trimesh(vec![GeometrySource(mesh_handle)]))
-                            .build_node();
-                    commands.extend([
-                        Command::new(AddNodeCommand::new(rigid_body, mesh_handle, false)),
-                        Command::new(AddNodeCommand::new(collider, rigid_body_handle, false)),
-                        Command::new(LinkNodesCommand::new(rigid_body_handle, mesh.parent())),
-                        Command::new(LinkNodesCommand::new(mesh_handle, rigid_body_handle)),
-                        Command::new(LinkNodesCommand::new(collider_handle, rigid_body_handle)),
-                    ]);
-                }
-            } else if message.destination() == self.add_convex_collider {
-                for (mesh_handle, _) in meshes_iter(selection, scene) {
-                    if let Some((ancestor_rigid_body, _)) =
-                        scene.graph.find_self_or_field_up::<RigidBody>(mesh_handle)
-                    {
-                        let collider =
-                            ColliderBuilder::new(BaseBuilder::new().with_name("ConvexCollider"))
-                                .with_shape(ColliderShape::Polyhedron(ConvexPolyhedronShape {
-                                    geometry_source: GeometrySource(mesh_handle),
-                                }))
-                                .build_node();
-                        commands.push(Command::new(AddNodeCommand::new(
-                            collider,
-                            ancestor_rigid_body,
-                            false,
-                        )))
-                    }
-                }
-            } else if message.destination() == self.add_trimesh_collider {
-                for (mesh_handle, _) in meshes_iter(selection, scene) {
-                    if let Some((ancestor_rigid_body, _)) =
-                        scene.graph.find_self_or_field_up::<RigidBody>(mesh_handle)
-                    {
-                        let collider =
-                            ColliderBuilder::new(BaseBuilder::new().with_name("TrimeshCollider"))
-                                .with_shape(ColliderShape::trimesh(vec![GeometrySource(
-                                    mesh_handle,
-                                )]))
-                                .build_node();
-                        commands.push(Command::new(AddNodeCommand::new(
-                            collider,
-                            ancestor_rigid_body,
-                            false,
-                        )))
-                    }
-                }
-            }
-        }
-
-        if !commands.is_empty() {
-            sender.do_command(CommandGroup::from(commands));
-        }
-    }
-
-    fn destroy(self, ui: &UserInterface) {
-        ui.send(self.root_widget, WidgetMessage::Remove);
-    }
-}
-
-pub struct SurfaceDataViewer {
-    pub window: Handle<Window>,
-    info: Handle<Text>,
-    preview_panel: PreviewPanel,
-}
-
-fn surface_data_statistics(surface_data: &SurfaceData) -> Result<String, std::fmt::Error> {
-    use std::fmt::Write;
-    let mut stats = String::new();
-    writeln!(
-        &mut stats,
-        "Vertices: {}\nVertex Size: {} bytes\nVertex Buffer Size: {} bytes",
-        surface_data.vertex_buffer.vertex_count(),
-        surface_data.vertex_buffer.vertex_size(),
-        surface_data.vertex_buffer.raw_data().len()
-    )?;
-    for (i, attribute) in surface_data.vertex_buffer.layout().iter().enumerate() {
-        writeln!(&mut stats, "[{i}]{attribute}")?;
-    }
-    let triangle_size = size_of::<TriangleDefinition>();
-    writeln!(
-        &mut stats,
-        "Triangles: {}\nTriangle Size: {} bytes\nTriangle Buffer Size: {} bytes",
-        surface_data.geometry_buffer.len(),
-        triangle_size,
-        surface_data.geometry_buffer.len() * triangle_size
-    )?;
-    Ok(stats)
-}
-
-impl SurfaceDataViewer {
-    fn new(engine: &mut Engine) -> Self {
-        let preview_panel = PreviewPanel::new(engine, 386, 386);
-
-        let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
-
-        let info =
-            TextBuilder::new(WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Top))
-                .build(ctx);
-
-        let content = GridBuilder::new(
-            WidgetBuilder::new()
-                .with_child(preview_panel.root)
-                .with_child(
-                    ScrollViewerBuilder::new(WidgetBuilder::new().on_row(0).on_column(1))
-                        .with_content(info)
-                        .build(ctx),
-                ),
-        )
-        .add_row(Row::stretch())
-        .add_column(Column::stretch())
-        .add_column(Column::strict(220.0))
-        .build(ctx);
-
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(650.0).with_height(400.0))
-            .open(false)
-            .with_remove_on_close(true)
-            .with_title(WindowTitle::text("Surface Data"))
-            .with_content(content)
-            .build(ctx);
-
-        Self {
-            window,
-            info,
-            preview_panel,
-        }
-    }
-
-    fn open(&mut self, surface_data: SurfaceResource, engine: &mut Engine) {
-        let guard = surface_data.data_ref();
-        let ui = engine.user_interfaces.first();
-        ui.send(
-            self.info,
-            TextMessage::Text(surface_data_statistics(&guard).unwrap_or_default()),
-        );
-        ui.send(
-            self.window,
-            WindowMessage::Open {
-                alignment: WindowAlignment::Center,
-                modal: true,
-                focus_content: true,
-            },
-        );
-        drop(guard);
-
-        let graph = &mut engine.scenes[self.preview_panel.scene()].graph;
-        let mesh = MeshBuilder::new(BaseBuilder::new())
-            .with_surfaces(vec![SurfaceBuilder::new(surface_data).build()])
-            .build(graph);
-
-        self.preview_panel.set_model(mesh, engine);
-    }
-
-    fn destroy(self, engine: &mut Engine) {
-        engine
-            .user_interfaces
-            .first()
-            .send(self.window, WidgetMessage::Remove);
-        self.preview_panel.destroy(engine);
-    }
-
-    fn handle_ui_message(mut self, message: &UiMessage, engine: &mut Engine) -> Option<Self> {
-        self.preview_panel.handle_message(message, engine);
-
-        if let Some(WindowMessage::Close) = message.data()
-            && message.destination() == self.window
-        {
-            self.destroy(engine);
-            return None;
-        }
-
-        Some(self)
-    }
-
-    fn update(&mut self, engine: &mut Engine) {
-        self.preview_panel.update(engine)
-    }
-}
 
 #[derive(Default)]
 pub struct MeshPlugin {
@@ -415,6 +68,17 @@ impl EditorPlugin for MeshPlugin {
             });
     }
 
+    fn on_sync_to_model(&mut self, editor: &mut Editor) {
+        let ui = editor.engine.user_interfaces.first_mut();
+        let entry = editor.scenes.current_scene_entry_ref();
+        let selection = some_or_return!(entry.selection.as_graph());
+        let game_scene = some_or_return!(entry.controller.downcast_ref::<GameScene>());
+        let scene = &editor.engine.scenes[game_scene.scene];
+        if let Some(panel) = self.panel.as_ref() {
+            panel.sync_to_model(selection, scene, ui);
+        }
+    }
+
     fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor) {
         if let Some(surface_data_viewer) = self.surface_data_viewer.take() {
             self.surface_data_viewer =
@@ -434,15 +98,19 @@ impl EditorPlugin for MeshPlugin {
     }
 
     fn on_update(&mut self, editor: &mut Editor, _loop_controller: ApplicationLoopController) {
-        if let Some(surface_data_viewer) = self.surface_data_viewer.as_mut() {
-            surface_data_viewer.update(&mut editor.engine);
+        if let Some(viewer) = self.surface_data_viewer.as_mut() {
+            viewer.update(&mut editor.engine);
         }
     }
 
     fn on_message(&mut self, message: &Message, editor: &mut Editor) {
         let ui = editor.engine.user_interfaces.first_mut();
         let entry = editor.scenes.current_scene_entry_mut();
-        let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() else {
+
+        let (Some(game_scene), Some(selection)) = (
+            entry.controller.downcast_mut::<GameScene>(),
+            entry.selection.as_graph(),
+        ) else {
             self.destroy_panel(ui);
             self.destroy_surface_viewer(&mut editor.engine);
             return;
@@ -451,14 +119,10 @@ impl EditorPlugin for MeshPlugin {
         let scene = &mut editor.engine.scenes[game_scene.scene];
 
         if let Message::SelectionChanged { .. } = message {
-            let is_mesh_selected = entry
-                .selection
-                .as_graph()
-                .is_some_and(|s| s.contains_type::<Mesh>(&scene.graph));
-            if is_mesh_selected {
+            if selection.contains_type::<Mesh>(&scene.graph) {
                 if self.panel.is_none() {
                     let inspector = editor.plugins.get::<InspectorPlugin>();
-                    let panel = MeshControlPanel::new(&mut ui.build_ctx());
+                    let panel = MeshControlPanel::new(selection, scene, &mut ui.build_ctx());
                     ui.send(panel.root_widget, WidgetMessage::link_with(inspector.head));
                     self.panel = Some(panel);
                 }

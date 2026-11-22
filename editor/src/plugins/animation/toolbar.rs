@@ -51,6 +51,12 @@ use crate::{
         },
         resource::model::AnimationSource,
     },
+    game_scene::{
+        Selection,
+        commands::ChangeSelectionCommand,
+        selector::NodeSelectorWindow,
+        selector::{AllowedType, HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
+    },
     load_image,
     message::MessageSender,
     plugins::animation::{
@@ -61,12 +67,6 @@ use crate::{
             SetAnimationTimeSliceCommand,
         },
         selection::AnimationSelection,
-    },
-    scene::{
-        Selection,
-        commands::ChangeSelectionCommand,
-        selector::NodeSelectorWindow,
-        selector::{AllowedType, HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
     },
 };
 use fyrox::core::color::Color;

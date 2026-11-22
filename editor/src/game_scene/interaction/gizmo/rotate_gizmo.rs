@@ -1,0 +1,250 @@
+// Copyright (c) 2019-present Dmitry Stepanov and Fyrox Engine contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+use crate::{
+    Engine,
+    fyrox::{
+        core::{
+            algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
+            color::Color,
+            math::{Matrix4Ext, plane::Plane},
+            pool::Handle,
+            reflect::prelude::*,
+        },
+        graph::SceneGraph,
+        scene::{
+            base::BaseBuilder,
+            camera::Camera,
+            graph::Graph,
+            mesh::Mesh,
+            mesh::{
+                MeshBuilder, RenderPath,
+                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
+            },
+            node::Node,
+            pivot::Pivot,
+            pivot::PivotBuilder,
+            transform::TransformBuilder,
+        },
+    },
+    game_scene::{GameScene, Selection, interaction::gizmo::utils},
+    make_color_material, set_mesh_diffuse_color,
+    settings::Settings,
+};
+
+#[derive(PartialEq, Reflect, Debug)]
+#[reflect(non_cloneable, type_uuid = "5ef2c27b-18af-458d-9549-1395f0869551")]
+pub enum RotateGizmoMode {
+    Pitch,
+    Yaw,
+    Roll,
+}
+
+#[derive(PartialEq, Reflect, Debug)]
+#[reflect(non_cloneable, type_uuid = "36fc1ea4-33cd-4108-ae61-bab544f8ac02")]
+pub struct RotationGizmo {
+    mode: RotateGizmoMode,
+    pub origin: Handle<Pivot>,
+    x_axis: Handle<Mesh>,
+    y_axis: Handle<Mesh>,
+    z_axis: Handle<Mesh>,
+}
+
+fn make_rotation_ribbon(
+    graph: &mut Graph,
+    rotation: UnitQuaternion<f32>,
+    color: Color,
+    name: &str,
+) -> Handle<Mesh> {
+    const RIBBON_THICKNESS: f32 = 0.015;
+
+    MeshBuilder::new(
+        BaseBuilder::new()
+            .with_cast_shadows(false)
+            .with_name(name)
+            .with_local_transform(
+                TransformBuilder::new()
+                    .with_local_rotation(rotation)
+                    .build(),
+            ),
+    )
+    .with_render_path(RenderPath::Forward)
+    .with_surfaces(vec![
+        SurfaceBuilder::new(SurfaceResource::new_embedded(SurfaceData::make_torus(
+            0.5,
+            RIBBON_THICKNESS,
+            16,
+            32,
+            &Matrix4::identity(),
+        )))
+        .with_material(make_color_material(color))
+        .build(),
+    ])
+    .build(graph)
+}
+
+impl RotationGizmo {
+    pub fn new(game_scene: &GameScene, engine: &mut Engine) -> Self {
+        let scene = &mut engine.scenes[game_scene.scene];
+        let graph = &mut scene.graph;
+
+        let origin = PivotBuilder::new(
+            BaseBuilder::new()
+                .with_name("Origin")
+                .with_visibility(false),
+        )
+        .build(graph);
+
+        graph.link_nodes(origin, game_scene.editor_objects_root);
+
+        let x_axis = make_rotation_ribbon(
+            graph,
+            UnitQuaternion::from_axis_angle(&Vector3::z_axis(), 90.0f32.to_radians()),
+            Color::RED,
+            "X",
+        );
+        graph.link_nodes(x_axis, origin);
+        let y_axis = make_rotation_ribbon(
+            graph,
+            UnitQuaternion::from_axis_angle(&Vector3::z_axis(), 0.0f32.to_radians()),
+            Color::GREEN,
+            "Y",
+        );
+        graph.link_nodes(y_axis, origin);
+        let z_axis = make_rotation_ribbon(
+            graph,
+            UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 90.0f32.to_radians()),
+            Color::BLUE,
+            "Z",
+        );
+        graph.link_nodes(z_axis, origin);
+
+        Self {
+            mode: RotateGizmoMode::Pitch,
+            origin,
+            x_axis,
+            y_axis,
+            z_axis,
+        }
+    }
+
+    pub fn reset_state(&self, graph: &mut Graph) {
+        set_mesh_diffuse_color(&mut graph[self.x_axis], Color::RED);
+        set_mesh_diffuse_color(&mut graph[self.y_axis], Color::GREEN);
+        set_mesh_diffuse_color(&mut graph[self.z_axis], Color::BLUE);
+    }
+
+    pub fn set_mode(&mut self, mode: RotateGizmoMode, graph: &mut Graph) {
+        self.mode = mode;
+
+        // Restore initial colors first.
+        self.reset_state(graph);
+
+        let yellow = Color::opaque(255, 255, 0);
+        match self.mode {
+            RotateGizmoMode::Pitch => {
+                set_mesh_diffuse_color(&mut graph[self.x_axis], yellow);
+            }
+            RotateGizmoMode::Yaw => {
+                set_mesh_diffuse_color(&mut graph[self.y_axis], yellow);
+            }
+            RotateGizmoMode::Roll => {
+                set_mesh_diffuse_color(&mut graph[self.z_axis], yellow);
+            }
+        }
+    }
+
+    pub fn handle_pick(&mut self, picked: Handle<Node>, graph: &mut Graph) -> bool {
+        if picked == self.x_axis {
+            self.set_mode(RotateGizmoMode::Pitch, graph);
+            true
+        } else if picked == self.y_axis {
+            self.set_mode(RotateGizmoMode::Yaw, graph);
+            true
+        } else if picked == self.z_axis {
+            self.set_mode(RotateGizmoMode::Roll, graph);
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn calculate_rotation_delta(
+        &self,
+        camera: Handle<Camera>,
+        mouse_offset: Vector2<f32>,
+        mouse_position: Vector2<f32>,
+        graph: &Graph,
+        frame_size: Vector2<f32>,
+    ) -> UnitQuaternion<f32> {
+        let camera = &graph[camera];
+        let transform = graph[self.origin].global_transform();
+
+        let initial_ray = camera.make_ray(mouse_position, frame_size);
+        let offset_ray = camera.make_ray(mouse_position + mouse_offset, frame_size);
+
+        let oriented_axis = match self.mode {
+            RotateGizmoMode::Pitch => transform.side(),
+            RotateGizmoMode::Yaw => transform.up(),
+            RotateGizmoMode::Roll => transform.look(),
+        };
+
+        let plane =
+            Plane::from_normal_and_point(&oriented_axis, &transform.position()).unwrap_or_default();
+
+        if let Some(old_pos) = initial_ray.plane_intersection_point(&plane)
+            && let Some(new_pos) = offset_ray.plane_intersection_point(&plane)
+        {
+            let center = transform.position();
+            let old = (old_pos - center)
+                .try_normalize(f32::EPSILON)
+                .unwrap_or_default();
+            let new = (new_pos - center)
+                .try_normalize(f32::EPSILON)
+                .unwrap_or_default();
+
+            let angle_delta = old.dot(&new).clamp(-1.0, 1.0).acos();
+            let sign = old.cross(&new).dot(&oriented_axis).signum();
+
+            let static_axis = match self.mode {
+                RotateGizmoMode::Pitch => Vector3::x_axis(),
+                RotateGizmoMode::Yaw => Vector3::y_axis(),
+                RotateGizmoMode::Roll => Vector3::z_axis(),
+            };
+            return UnitQuaternion::from_axis_angle(&static_axis, sign * angle_delta);
+        }
+
+        UnitQuaternion::default()
+    }
+
+    pub fn sync_with_selection(
+        &self,
+        graph: &mut Graph,
+        camera: Handle<Camera>,
+        settings: &Settings,
+        selection: &Selection,
+    ) {
+        utils::sync_gizmo_with_selection(self.origin.to_base(), graph, camera, settings, selection)
+    }
+
+    pub fn set_visible(&self, graph: &mut Graph, visible: bool) {
+        graph[self.origin].set_visibility(visible);
+    }
+}

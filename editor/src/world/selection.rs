@@ -31,12 +31,12 @@ use crate::{
         gui::inspector::PropertyChanged,
         scene::{SceneContainer, graph::Graph, node::Node},
     },
-    message::MessageSender,
-    scene::{
+    game_scene::{
         EntityInfo, GameScene, SelectionContainer,
         commands::{ChangeSelectionCommand, GameSceneContext, graph::DeleteSubGraphCommand},
         controller::SceneController,
     },
+    message::MessageSender,
     utils,
 };
 use fyrox::scene::node::NodeTrait;

@@ -1,0 +1,398 @@
+// Copyright (c) 2019-present Dmitry Stepanov and Fyrox Engine contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+use crate::{
+    Engine,
+    fyrox::{
+        core::{
+            algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
+            color::Color,
+            math::Matrix4Ext,
+            pool::Handle,
+        },
+        graph::SceneGraph,
+        scene::{
+            Scene,
+            base::BaseBuilder,
+            graph::Graph,
+            mesh::{
+                MeshBuilder, RenderPath,
+                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
+            },
+            node::Node,
+            pivot::PivotBuilder,
+            transform::{Transform, TransformBuilder},
+        },
+    },
+    game_scene::interaction::{gizmo::utils, plane::PlaneKind},
+    game_scene::{GameScene, Selection},
+    make_color_material, set_mesh_diffuse_color,
+    settings::Settings,
+};
+use fyrox::core::reflect::prelude::*;
+use fyrox::scene::camera::Camera;
+use fyrox::scene::mesh::Mesh;
+use fyrox::scene::pivot::Pivot;
+
+#[derive(PartialEq, Reflect, Debug, Clone)]
+#[reflect(type_uuid = "060abe31-ce96-4696-aa5d-e44e9639df0e")]
+pub struct MoveGizmo {
+    pub origin: Handle<Pivot>,
+    smart_dot: Handle<Mesh>,
+    x_arrow: Handle<Mesh>,
+    y_arrow: Handle<Mesh>,
+    z_arrow: Handle<Mesh>,
+    x_axis: Handle<Mesh>,
+    y_axis: Handle<Mesh>,
+    z_axis: Handle<Mesh>,
+    xy_plane: Handle<Mesh>,
+    yz_plane: Handle<Mesh>,
+    zx_plane: Handle<Mesh>,
+}
+
+fn make_smart_dot(graph: &mut Graph) -> Handle<Mesh> {
+    let scale = 0.075;
+    MeshBuilder::new(
+        BaseBuilder::new()
+            .with_cast_shadows(false)
+            .with_name("smart_dot"),
+    )
+    .with_render_path(RenderPath::Forward)
+    .with_surfaces(vec![{
+        SurfaceBuilder::new(SurfaceResource::new_embedded(SurfaceData::make_sphere(
+            8,
+            8,
+            scale,
+            &Matrix4::identity(),
+        )))
+        .with_material(make_color_material(Color::WHITE))
+        .build()
+    }])
+    .build(graph)
+}
+
+fn make_move_axis(
+    graph: &mut Graph,
+    rotation: UnitQuaternion<f32>,
+    color: Color,
+    name_prefix: &str,
+) -> (Handle<Mesh>, Handle<Mesh>) {
+    const ARROW_LENGTH: f32 = 0.5;
+    const ARROW_THICKNESS: f32 = 0.015;
+
+    let arrow;
+    let axis =
+        MeshBuilder::new(
+            BaseBuilder::new()
+                .with_cast_shadows(false)
+                .with_child({
+                    arrow =
+                        MeshBuilder::new(
+                            BaseBuilder::new()
+                                .with_cast_shadows(false)
+                                .with_name(name_prefix.to_owned() + "Arrow")
+                                .with_local_transform(
+                                    TransformBuilder::new()
+                                        .with_local_position(Vector3::new(0.0, ARROW_LENGTH, 0.0))
+                                        .build(),
+                                ),
+                        )
+                        .with_render_path(RenderPath::Forward)
+                        .with_surfaces(vec![
+                            SurfaceBuilder::new(SurfaceResource::new_embedded(
+                                SurfaceData::make_cone(10, 0.05, 0.1, &Matrix4::identity()),
+                            ))
+                            .with_material(make_color_material(color))
+                            .build(),
+                        ])
+                        .build(graph);
+                    arrow
+                })
+                .with_name(name_prefix.to_owned() + "Axis")
+                .with_local_transform(
+                    TransformBuilder::new()
+                        .with_local_rotation(rotation)
+                        .build(),
+                ),
+        )
+        .with_render_path(RenderPath::Forward)
+        .with_surfaces(vec![
+            SurfaceBuilder::new(SurfaceResource::new_embedded(SurfaceData::make_cylinder(
+                10,
+                ARROW_THICKNESS,
+                ARROW_LENGTH,
+                true,
+                &Matrix4::identity(),
+            )))
+            .with_material(make_color_material(color))
+            .build(),
+        ])
+        .build(graph);
+
+    (axis, arrow)
+}
+
+fn create_quad_plane(
+    graph: &mut Graph,
+    transform: Matrix4<f32>,
+    color: Color,
+    name: &str,
+) -> Handle<Mesh> {
+    let scale = 0.2;
+    MeshBuilder::new(
+        BaseBuilder::new()
+            .with_cast_shadows(false)
+            .with_name(name)
+            .with_local_transform(
+                TransformBuilder::new()
+                    .with_local_scale(Vector3::new(scale, scale, scale))
+                    .build(),
+            ),
+    )
+    .with_render_path(RenderPath::Forward)
+    .with_surfaces(vec![{
+        SurfaceBuilder::new(SurfaceResource::new_embedded(SurfaceData::make_quad(
+            &(transform
+                * UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 90.0f32.to_radians())
+                    .to_homogeneous()),
+        )))
+        .with_material(make_color_material(color))
+        .build()
+    }])
+    .build(graph)
+}
+
+impl MoveGizmo {
+    pub fn new(game_scene: &GameScene, engine: &mut Engine) -> Self {
+        let scene = &mut engine.scenes[game_scene.scene];
+        let graph = &mut scene.graph;
+
+        let origin = PivotBuilder::new(
+            BaseBuilder::new()
+                .with_name("Origin")
+                .with_visibility(false),
+        )
+        .build(graph);
+
+        graph.link_nodes(origin, game_scene.editor_objects_root);
+
+        let smart_dot = make_smart_dot(graph);
+        graph.link_nodes(smart_dot, origin);
+        let (x_axis, x_arrow) = make_move_axis(
+            graph,
+            UnitQuaternion::from_axis_angle(&Vector3::z_axis(), (-90.0f32).to_radians()),
+            Color::RED,
+            "X",
+        );
+        graph.link_nodes(x_axis, origin);
+        let (y_axis, y_arrow) = make_move_axis(
+            graph,
+            UnitQuaternion::from_axis_angle(&Vector3::z_axis(), 0.0f32.to_radians()),
+            Color::GREEN,
+            "Y",
+        );
+        graph.link_nodes(y_axis, origin);
+        let (z_axis, z_arrow) = make_move_axis(
+            graph,
+            UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 90.0f32.to_radians()),
+            Color::BLUE,
+            "Z",
+        );
+        graph.link_nodes(z_axis, origin);
+
+        let xy_transform = Matrix4::new_translation(&Vector3::new(1.5, 1.5, 0.0))
+            * UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 90.0f32.to_radians())
+                .to_homogeneous();
+        let xy_plane = create_quad_plane(graph, xy_transform, Color::BLUE, "XYPlane");
+        graph.link_nodes(xy_plane, origin);
+
+        let yz_transform = Matrix4::new_translation(&Vector3::new(0.0, 1.5, 1.5))
+            * UnitQuaternion::from_axis_angle(&Vector3::z_axis(), 90.0f32.to_radians())
+                .to_homogeneous();
+        let yz_plane = create_quad_plane(graph, yz_transform, Color::RED, "YZPlane");
+        graph.link_nodes(yz_plane, origin);
+
+        let zx_plane = create_quad_plane(
+            graph,
+            Matrix4::new_translation(&Vector3::new(1.5, 0.0, 1.5)),
+            Color::GREEN,
+            "ZXPlane",
+        );
+        graph.link_nodes(zx_plane, origin);
+
+        Self {
+            origin,
+            smart_dot,
+            x_arrow,
+            y_arrow,
+            z_arrow,
+            x_axis,
+            y_axis,
+            z_axis,
+            xy_plane,
+            yz_plane,
+            zx_plane,
+        }
+    }
+
+    pub fn reset_state(&self, graph: &mut Graph) {
+        set_mesh_diffuse_color(&mut graph[self.x_axis], Color::RED);
+        set_mesh_diffuse_color(&mut graph[self.x_arrow], Color::RED);
+        set_mesh_diffuse_color(&mut graph[self.y_axis], Color::GREEN);
+        set_mesh_diffuse_color(&mut graph[self.y_arrow], Color::GREEN);
+        set_mesh_diffuse_color(&mut graph[self.z_axis], Color::BLUE);
+        set_mesh_diffuse_color(&mut graph[self.z_arrow], Color::BLUE);
+        set_mesh_diffuse_color(&mut graph[self.zx_plane], Color::GREEN);
+        set_mesh_diffuse_color(&mut graph[self.yz_plane], Color::RED);
+        set_mesh_diffuse_color(&mut graph[self.xy_plane], Color::BLUE);
+        set_mesh_diffuse_color(&mut graph[self.smart_dot], Color::WHITE);
+    }
+
+    pub fn apply_mode(&self, mode: Option<PlaneKind>, graph: &mut Graph) {
+        // Restore initial colors first.
+        self.reset_state(graph);
+
+        if let Some(mode) = mode {
+            let yellow = Color::opaque(255, 255, 0);
+            match mode {
+                PlaneKind::SMART => {
+                    set_mesh_diffuse_color(&mut graph[self.smart_dot], yellow);
+                }
+                PlaneKind::X => {
+                    set_mesh_diffuse_color(&mut graph[self.x_axis], yellow);
+                    set_mesh_diffuse_color(&mut graph[self.x_arrow], yellow);
+                }
+                PlaneKind::Y => {
+                    set_mesh_diffuse_color(&mut graph[self.y_axis], yellow);
+                    set_mesh_diffuse_color(&mut graph[self.y_arrow], yellow);
+                }
+                PlaneKind::Z => {
+                    set_mesh_diffuse_color(&mut graph[self.z_axis], yellow);
+                    set_mesh_diffuse_color(&mut graph[self.z_arrow], yellow);
+                }
+                PlaneKind::XY => {
+                    set_mesh_diffuse_color(&mut graph[self.xy_plane], yellow);
+                }
+                PlaneKind::YZ => {
+                    set_mesh_diffuse_color(&mut graph[self.yz_plane], yellow);
+                }
+                PlaneKind::ZX => {
+                    set_mesh_diffuse_color(&mut graph[self.zx_plane], yellow);
+                }
+            }
+        }
+    }
+
+    pub fn handle_pick(&mut self, picked: Handle<Node>, graph: &mut Graph) -> Option<PlaneKind> {
+        let mode = if picked == self.x_axis || picked == self.x_arrow {
+            Some(PlaneKind::X)
+        } else if picked == self.y_axis || picked == self.y_arrow {
+            Some(PlaneKind::Y)
+        } else if picked == self.z_axis || picked == self.z_arrow {
+            Some(PlaneKind::Z)
+        } else if picked == self.zx_plane {
+            Some(PlaneKind::ZX)
+        } else if picked == self.xy_plane {
+            Some(PlaneKind::XY)
+        } else if picked == self.yz_plane {
+            Some(PlaneKind::YZ)
+        } else if picked == self.smart_dot {
+            Some(PlaneKind::SMART)
+        } else {
+            None
+        };
+
+        self.apply_mode(mode, graph);
+
+        mode
+    }
+
+    pub fn transform<'a>(&self, graph: &'a mut Graph) -> &'a mut Transform {
+        graph[self.origin].local_transform_mut()
+    }
+
+    pub fn calculate_offset(
+        &self,
+        graph: &Graph,
+        camera: Handle<Camera>,
+        mouse_offset: Vector2<f32>,
+        mouse_position: Vector2<f32>,
+        frame_size: Vector2<f32>,
+        plane_kind: PlaneKind,
+    ) -> Vector3<f32> {
+        let node_global_transform = graph[self.origin].global_transform();
+        let node_local_transform = graph[self.origin].local_transform().matrix();
+
+        let camera = &graph[camera];
+        let inv_node_transform = node_global_transform
+            .try_inverse()
+            .unwrap_or_else(Matrix4::identity);
+
+        // Create two rays in object space.
+        let initial_ray = camera
+            .make_ray(mouse_position, frame_size)
+            .transform(inv_node_transform);
+        let offset_ray = camera
+            .make_ray(mouse_position + mouse_offset, frame_size)
+            .transform(inv_node_transform);
+
+        let dlook = inv_node_transform
+            .transform_vector(&(node_global_transform.position() - camera.global_position()));
+
+        // Select plane by current active mode.
+        let plane = plane_kind.make_plane_from_view(dlook);
+        if let Some(plane) = plane {
+            // Get two intersection points with plane and use delta between them to calculate offset.
+            if let Some(initial_point) = initial_ray.plane_intersection_point(&plane)
+                && let Some(next_point) = offset_ray.plane_intersection_point(&plane)
+            {
+                let delta = next_point - initial_point;
+                let offset = plane_kind.project_point(delta);
+                // Make sure offset will be in local coordinates.
+                return node_local_transform.transform_vector(&offset);
+            }
+        }
+        Vector3::default()
+    }
+
+    pub fn set_position(&self, scene: &mut Scene, position: Vector3<f32>) {
+        let graph = &mut scene.graph;
+        let node = &mut graph[self.origin];
+        node.local_transform_mut().set_position(position);
+    }
+
+    pub fn sync_with_selection(
+        &self,
+        graph: &mut Graph,
+        camera: Handle<Camera>,
+        settings: &Settings,
+        selection: &Selection,
+    ) {
+        utils::sync_gizmo_with_selection(self.origin.to_base(), graph, camera, settings, selection)
+    }
+
+    pub fn set_visible(&self, graph: &mut Graph, visible: bool) {
+        graph[self.origin].set_visibility(visible);
+    }
+
+    pub fn destroy(self, graph: &mut Graph) {
+        graph.remove_node(self.origin)
+    }
+}

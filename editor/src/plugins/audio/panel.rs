@@ -1,0 +1,495 @@
+// Copyright (c) 2019-present Dmitry Stepanov and Fyrox Engine contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+use crate::{
+    Mode,
+    asset::preview::cache::IconRequest,
+    command::{Command, CommandGroup},
+    fyrox::{
+        core::pool::Handle,
+        engine::Engine,
+        graph::SceneGraph,
+        gui::{
+            Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
+            button::{Button, ButtonBuilder, ButtonMessage},
+            dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
+            grid::{Column, GridBuilder, Row},
+            list_view::{ListView, ListViewBuilder, ListViewMessage},
+            message::{MessageDirection, UiMessage},
+            stack_panel::StackPanelBuilder,
+            text::TextBuilder,
+            utils::{make_dropdown_list_option, make_simple_tooltip},
+            widget::{WidgetBuilder, WidgetMessage},
+            window::{Window, WindowBuilder, WindowTitle},
+        },
+        scene::sound::{AudioBus, AudioBusGraph, DistanceModel, HrirSphereResourceData, Renderer},
+    },
+    game_scene::{GameScene, Selection, commands::ChangeSelectionCommand},
+    message::MessageSender,
+    plugins::inspector::editors::resource::{
+        ResourceField, ResourceFieldBuilder, ResourceFieldMessage,
+    },
+    utils::window_content,
+};
+use std::cmp::Ordering;
+use std::sync::mpsc::Sender;
+use strum::VariantNames;
+
+use super::{
+    bus::{AudioBusView, AudioBusViewBuilder, AudioBusViewMessage},
+    command::{
+        AddOrRemoveAudioBusCommand, LinkAudioBuses, SetDistanceModelCommand,
+        SetHrtfRendererHrirSphereResource, SetRendererCommand,
+    },
+    selection::AudioBusSelection,
+};
+
+#[derive(Default)]
+pub struct AudioPanel {
+    pub window: Handle<Window>,
+    add_bus: Handle<Button>,
+    remove_bus: Handle<Button>,
+    audio_buses: Handle<ListView>,
+    distance_model: Handle<DropdownList>,
+    renderer: Handle<DropdownList>,
+    hrir_resource: Handle<ResourceField<HrirSphereResourceData>>,
+}
+
+fn item_bus(item: Handle<UiNode>, ui: &UserInterface) -> Handle<AudioBus> {
+    ui.node(item)
+        .self_or_field_ref::<AudioBusView>()
+        .unwrap()
+        .bus
+}
+
+fn fetch_possible_parent_buses(
+    bus: Handle<AudioBus>,
+    graph: &AudioBusGraph,
+) -> Vec<(Handle<AudioBus>, String)> {
+    let mut stack = vec![graph.primary_bus_handle()];
+    let mut result = Vec::new();
+    while let Some(other_bus) = stack.pop() {
+        if let Ok(other_bus_ref) = graph.try_get_bus_ref(other_bus)
+            && other_bus != bus
+        {
+            result.push((other_bus, other_bus_ref.name().to_owned()));
+            stack.extend_from_slice(other_bus_ref.children());
+        }
+    }
+    result
+}
+
+fn audio_bus_effect_names(audio_bus: &AudioBus) -> Vec<String> {
+    audio_bus
+        .effects()
+        .map(|e| AsRef::<str>::as_ref(e).to_owned())
+        .collect::<Vec<_>>()
+}
+
+impl AudioPanel {
+    pub fn new(
+        engine: &mut Engine,
+        sender: MessageSender,
+        icon_request_sender: Sender<IconRequest>,
+    ) -> Self {
+        let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
+
+        let add_bus;
+        let remove_bus;
+        let buses;
+        let distance_model;
+        let renderer;
+        let hrir_resource;
+        let window = WindowBuilder::new(WidgetBuilder::new().with_name("AudioPanel"))
+            .with_content(
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child(
+                            StackPanelBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(0)
+                                    .with_child(
+                                        TextBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                                        .with_text("DM")
+                                        .build(ctx),
+                                    )
+                                    .with_child({
+                                        distance_model = DropdownListBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_tab_index(Some(0))
+                                                .with_margin(Thickness::uniform(1.0))
+                                                .with_width(130.0)
+                                                .with_tooltip(make_simple_tooltip(
+                                                    ctx,
+                                                    "Distance Model. Defines the method of \
+                                                    calculating distance attenuation for sound \
+                                                    sources.",
+                                                )),
+                                        )
+                                        .with_items(
+                                            DistanceModel::VARIANTS
+                                                .iter()
+                                                .map(|v| make_dropdown_list_option(ctx, v))
+                                                .collect::<Vec<_>>(),
+                                        )
+                                        .build(ctx);
+                                        distance_model
+                                    })
+                                    .with_child(
+                                        TextBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                                        .with_text("Renderer")
+                                        .build(ctx),
+                                    )
+                                    .with_child({
+                                        renderer = DropdownListBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_tab_index(Some(1))
+                                                .with_margin(Thickness::uniform(1.0))
+                                                .with_width(100.0)
+                                                .with_tooltip(make_simple_tooltip(ctx, "Renderer")),
+                                        )
+                                        .with_items(
+                                            Renderer::VARIANTS
+                                                .iter()
+                                                .map(|v| make_dropdown_list_option(ctx, v))
+                                                .collect::<Vec<_>>(),
+                                        )
+                                        .build(ctx);
+                                        renderer
+                                    })
+                                    .with_child({
+                                        hrir_resource =
+                                            ResourceFieldBuilder::<HrirSphereResourceData>::new(
+                                                WidgetBuilder::new().with_tab_index(Some(2)),
+                                                sender,
+                                            )
+                                            .build(
+                                                ctx,
+                                                icon_request_sender,
+                                                engine.resource_manager.clone(),
+                                            );
+                                        hrir_resource
+                                    }),
+                            )
+                            .with_orientation(Orientation::Horizontal)
+                            .build(ctx),
+                        )
+                        .with_child({
+                            buses = ListViewBuilder::new(
+                                WidgetBuilder::new().on_row(1).with_tab_index(Some(3)),
+                            )
+                            .with_items_panel(
+                                StackPanelBuilder::new(WidgetBuilder::new())
+                                    .with_orientation(Orientation::Horizontal)
+                                    .build(ctx),
+                            )
+                            .build(ctx);
+                            buses
+                        })
+                        .with_child(
+                            StackPanelBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(2)
+                                    .with_child({
+                                        add_bus = ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_tab_index(Some(4))
+                                                .with_width(100.0)
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_text("Add Bus")
+                                        .build(ctx);
+                                        add_bus
+                                    })
+                                    .with_child({
+                                        remove_bus = ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_tab_index(Some(5))
+                                                .with_width(100.0)
+                                                .with_enabled(false)
+                                                .with_margin(Thickness::uniform(1.0)),
+                                        )
+                                        .with_text("Remove Bus")
+                                        .build(ctx);
+                                        remove_bus
+                                    }),
+                            )
+                            .with_orientation(Orientation::Horizontal)
+                            .build(ctx),
+                        ),
+                )
+                .add_column(Column::stretch())
+                .add_row(Row::strict(25.0))
+                .add_row(Row::stretch())
+                .add_row(Row::strict(25.0))
+                .build(ctx),
+            )
+            .with_title(WindowTitle::text("Audio Context"))
+            .with_tab_label("Audio")
+            .build(ctx);
+
+        Self {
+            window,
+            audio_buses: buses,
+            distance_model,
+            add_bus,
+            remove_bus,
+            renderer,
+            hrir_resource,
+        }
+    }
+
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        editor_selection: &Selection,
+        sender: &MessageSender,
+        engine: &Engine,
+    ) {
+        if let Some(ButtonMessage::Click) = message.data() {
+            if message.destination() == self.add_bus {
+                sender.do_command(AddOrRemoveAudioBusCommand::new_add(AudioBus::new(
+                    "AudioBus".to_string(),
+                )))
+            } else if message.destination() == self.remove_bus
+                && let Some(selection) = editor_selection.as_ref::<AudioBusSelection>()
+            {
+                let mut commands = vec![Command::new(ChangeSelectionCommand::new(
+                    Selection::new_empty(),
+                ))];
+
+                for &bus in &selection.buses {
+                    commands.push(Command::new(AddOrRemoveAudioBusCommand::new_remove(bus)));
+                }
+
+                sender.do_command(CommandGroup::from(commands));
+            }
+        } else if let Some(ListViewMessage::Selection(selected_indices)) =
+            message.data_from(self.audio_buses)
+        {
+            let ui = &engine.user_interfaces.first();
+
+            let mut selection = Vec::new();
+
+            for bus_index in selected_indices {
+                if let Some(bus_item) = ui[self.audio_buses].items().get(*bus_index) {
+                    let bus = item_bus(*bus_item, ui);
+
+                    selection.push(bus);
+                }
+            }
+
+            sender.do_command(ChangeSelectionCommand::new(Selection::new(
+                AudioBusSelection { buses: selection },
+            )))
+        } else if let Some(AudioBusViewMessage::ChangeParent(new_parent)) = message.data() {
+            if message.direction() == MessageDirection::FromWidget {
+                let audio_bus_view_ref = engine
+                    .user_interfaces
+                    .first()
+                    .node(message.destination())
+                    .self_or_field_ref::<AudioBusView>()
+                    .unwrap();
+
+                let child = audio_bus_view_ref.bus;
+
+                sender.do_command(LinkAudioBuses {
+                    child,
+                    parent: *new_parent,
+                });
+            }
+        } else if let Some(DropdownListMessage::Selection(Some(index))) = message.data() {
+            if message.direction() == MessageDirection::FromWidget {
+                if message.destination() == self.renderer {
+                    let renderer = match index {
+                        0 => Renderer::Default,
+                        1 => Renderer::HrtfRenderer(Default::default()),
+                        _ => unreachable!(),
+                    };
+
+                    sender.do_command(SetRendererCommand::new(renderer));
+                } else if message.destination() == self.distance_model {
+                    let distance_model = match index {
+                        0 => DistanceModel::None,
+                        1 => DistanceModel::InverseDistance,
+                        2 => DistanceModel::LinearDistance,
+                        3 => DistanceModel::ExponentDistance,
+                        _ => unreachable!(),
+                    };
+
+                    sender.do_command(SetDistanceModelCommand::new(distance_model));
+                }
+            }
+        } else if let Some(ResourceFieldMessage::Value(resource)) =
+            message.data_from::<ResourceFieldMessage<HrirSphereResourceData>>(self.hrir_resource)
+        {
+            sender.do_command(SetHrtfRendererHrirSphereResource::new(resource.clone()));
+        }
+    }
+
+    pub fn sync_to_model(
+        &mut self,
+        editor_selection: &Selection,
+        game_scene: &GameScene,
+        engine: &mut Engine,
+    ) {
+        let context_state = engine.scenes[game_scene.scene].graph.sound_context.state();
+        let ui = &mut engine.user_interfaces.first_mut();
+
+        let items = ui[self.audio_buses].items().to_vec();
+
+        match (context_state.bus_graph_ref().len()).cmp(&items.len()) {
+            Ordering::Less => {
+                for &item in &items {
+                    let bus_handle = item_bus(item, ui);
+                    if context_state
+                        .bus_graph_ref()
+                        .buses_pair_iter()
+                        .all(|(other_bus_handle, _)| other_bus_handle != bus_handle)
+                    {
+                        ui.send_sync(self.audio_buses, ListViewMessage::RemoveItem(item));
+                    }
+                }
+            }
+            Ordering::Greater => {
+                for (audio_bus_handle, audio_bus) in context_state.bus_graph_ref().buses_pair_iter()
+                {
+                    if items.iter().all(|i| item_bus(*i, ui) != audio_bus_handle) {
+                        let item = AudioBusViewBuilder::new(
+                            WidgetBuilder::new()
+                                .with_width(100.0)
+                                .with_margin(Thickness::uniform(1.0)),
+                        )
+                        .with_name(audio_bus.name())
+                        .with_effect_names(audio_bus_effect_names(audio_bus))
+                        .with_parent_bus(audio_bus.parent())
+                        .with_possible_parent_buses(fetch_possible_parent_buses(
+                            audio_bus_handle,
+                            context_state.bus_graph_ref(),
+                        ))
+                        .with_audio_bus(audio_bus_handle)
+                        .build(&mut ui.build_ctx());
+
+                        ui.send_sync(
+                            self.audio_buses,
+                            ListViewMessage::AddItem {
+                                node: item.to_base(),
+                                in_front: false,
+                            },
+                        );
+                    }
+                }
+            }
+            _ => (),
+        }
+
+        let mut selected_buses = Vec::new();
+        let mut is_primary_bus_selected = false;
+
+        if let Some(selection) = editor_selection.as_ref::<AudioBusSelection>() {
+            for (index, item) in items.into_iter().enumerate() {
+                let bus_handle = item_bus(item, ui);
+
+                if selection.buses.contains(&bus_handle) {
+                    selected_buses.push(index);
+
+                    if context_state.bus_graph_ref().primary_bus_handle() == bus_handle {
+                        is_primary_bus_selected = true;
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        ui.send_sync(
+            self.remove_bus,
+            WidgetMessage::Enabled(!selected_buses.is_empty() && !is_primary_bus_selected),
+        );
+
+        ui.send_sync(self.audio_buses, ListViewMessage::Selection(selected_buses));
+
+        for audio_bus_view in ui[self.audio_buses].items() {
+            let audio_bus_view_ref = ui
+                .node(*audio_bus_view)
+                .self_or_field_ref::<AudioBusView>()
+                .unwrap();
+
+            ui.send_sync(
+                *audio_bus_view,
+                AudioBusViewMessage::PossibleParentBuses(fetch_possible_parent_buses(
+                    audio_bus_view_ref.bus,
+                    context_state.bus_graph_ref(),
+                )),
+            );
+            if let Ok(audio_bus_ref) = context_state
+                .bus_graph_ref()
+                .try_get_bus_ref(audio_bus_view_ref.bus)
+            {
+                ui.send_sync(
+                    *audio_bus_view,
+                    AudioBusViewMessage::EffectNames(audio_bus_effect_names(audio_bus_ref)),
+                );
+
+                ui.send_sync(
+                    *audio_bus_view,
+                    AudioBusViewMessage::Name(audio_bus_ref.name().to_owned()),
+                );
+            }
+        }
+
+        ui.send_sync(
+            self.distance_model,
+            DropdownListMessage::Selection(Some(context_state.distance_model() as usize)),
+        );
+        ui.send_sync(
+            self.renderer,
+            DropdownListMessage::Selection(Some(match context_state.renderer_ref() {
+                Renderer::Default => 0,
+                Renderer::HrtfRenderer(_) => 1,
+            })),
+        );
+
+        if let Renderer::HrtfRenderer(hrtf) = context_state.renderer_ref() {
+            ui.send_sync(self.hrir_resource, WidgetMessage::Visibility(true));
+            ui.send_sync(
+                self.hrir_resource,
+                ResourceFieldMessage::Value(hrtf.hrir_sphere_resource()),
+            );
+        } else {
+            ui.send_sync(self.hrir_resource, WidgetMessage::Visibility(false));
+        }
+    }
+
+    pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
+        ui.send(
+            window_content(self.window, ui),
+            WidgetMessage::Enabled(mode.is_edit()),
+        );
+    }
+}

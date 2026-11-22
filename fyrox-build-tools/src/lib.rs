@@ -18,29 +18,26 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox_core::reflect::prelude::*;
-use serde::{Deserialize, Serialize};
+use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
 use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
 
 pub mod build;
 pub mod export;
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Default, Reflect)]
+#[derive(Visit, PartialEq, Clone, Debug, Default, Reflect)]
 #[reflect(type_uuid = "55e7651e-8840-4c81-aa93-3f01348855e6")]
 pub struct EnvironmentVariable {
     pub name: String,
     pub value: String,
 }
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Default, Reflect)]
+#[derive(Visit, PartialEq, Clone, Debug, Default, Reflect)]
 #[reflect(type_uuid = "67b93136-17fe-4776-b5f0-f4a9ef3d8972")]
 pub struct CommandDescriptor {
     pub command: String,
     pub args: Vec<String>,
     pub environment_variables: Vec<EnvironmentVariable>,
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
-    #[serde(default)]
     pub skip_passthrough_marker: bool,
 }
 
@@ -74,7 +71,7 @@ impl Display for CommandDescriptor {
     }
 }
 
-#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Default, Reflect)]
+#[derive(Visit, PartialEq, Clone, Debug, Default, Reflect)]
 #[reflect(type_uuid = "1a9443df-bf75-42fb-93d3-860a0249168a")]
 pub struct BuildProfile {
     pub name: String,
