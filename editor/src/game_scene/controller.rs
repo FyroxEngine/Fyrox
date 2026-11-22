@@ -33,7 +33,7 @@ use crate::{
         resource::texture::TextureResource,
         scene::SceneContainer,
     },
-    scene::Selection,
+    game_scene::Selection,
     settings::{Settings, keys::KeyBindings},
 };
 use fyrox::gui::clipboard::ClipboardContainer;

@@ -48,9 +48,9 @@ use crate::{
             ProgressIndicator,
         },
     },
+    game_scene::GameScene,
     menu::create_menu_item_shortcut,
     plugin::EditorPlugin,
-    scene::GameScene,
 };
 use fyrox::gui::clipboard::ClipboardContainer;
 use std::{

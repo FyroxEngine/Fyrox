@@ -35,8 +35,8 @@ use crate::{
             text::Text, window::Window,
         },
     },
+    game_scene::{Selection, commands::ChangeSelectionCommand},
     message::MessageSender,
-    scene::{Selection, commands::ChangeSelectionCommand},
     scene_item_icon,
     ui_scene::{
         commands::graph::{AddUiPrefabCommand, LinkWidgetsCommand, SetWidgetChildPosition},

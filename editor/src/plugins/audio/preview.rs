@@ -38,7 +38,7 @@ use crate::{
             sound::{Sound, Status},
         },
     },
-    scene::{GameScene, Selection},
+    game_scene::{GameScene, Selection},
 };
 
 pub struct AudioPreviewPanel {

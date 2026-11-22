@@ -50,9 +50,9 @@ use crate::{
         },
         utils::lightmap::Lightmap,
     },
+    game_scene::{commands::GameSceneContext, controller::SceneController},
     message::MessageSender,
     plugins::inspector::EditorEnvironment,
-    scene::{commands::GameSceneContext, controller::SceneController},
     ui_scene::UiScene,
 };
 use fyrox::gui::inspector::editors::inspectable::InspectablePropertyEditorDefinition;

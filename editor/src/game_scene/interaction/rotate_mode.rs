@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::scene::camera::PickingOptions;
+use crate::game_scene::camera::PickingOptions;
 use crate::{
     Engine,
     command::{Command, CommandGroup},
@@ -33,15 +33,15 @@ use crate::{
         },
         gui::BuildContext,
     },
-    interaction::{
-        InteractionMode, gizmo::rotate_gizmo::RotationGizmo, make_interaction_mode_button,
-    },
-    message::MessageSender,
-    scene::{
+    game_scene::{
         GameScene, Selection, SelectionContainer,
         commands::{ChangeSelectionCommand, graph::RotateNodeCommand},
         controller::SceneController,
+        interaction::{
+            InteractionMode, gizmo::rotate_gizmo::RotationGizmo, make_interaction_mode_button,
+        },
     },
+    message::MessageSender,
     settings::Settings,
     world::selection::GraphSelection,
 };
@@ -291,7 +291,7 @@ impl InteractionMode for RotateInteractionMode {
 
         make_interaction_mode_button(
             ctx,
-            include_bytes!("../../resources/rotate_arrow.png"),
+            include_bytes!("../../../resources/rotate_arrow.png"),
             rotate_mode_tooltip,
             selected,
         )

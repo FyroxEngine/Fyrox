@@ -22,7 +22,7 @@ pub mod graph;
 pub mod widget;
 
 use crate::fyrox::{core::reflect::prelude::*, gui::UserInterface};
-use crate::{command::CommandContext, message::MessageSender, scene::Selection};
+use crate::{command::CommandContext, game_scene::Selection, message::MessageSender};
 use fyrox::core::pool::Handle;
 use fyrox::graph::NodeWrapper;
 use fyrox::gui::UiNode;

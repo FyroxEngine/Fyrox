@@ -27,11 +27,11 @@ use crate::{
         gui::inspector::PropertyChanged,
         scene::{SceneContainer, node::Node},
     },
-    message::MessageSender,
-    scene::{
+    game_scene::{
         EntityInfo, GameScene, SelectionContainer, commands::GameSceneContext,
         controller::SceneController,
     },
+    message::MessageSender,
 };
 use std::{
     cell::{Cell, Ref, RefCell},

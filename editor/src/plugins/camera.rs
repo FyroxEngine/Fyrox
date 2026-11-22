@@ -35,8 +35,8 @@ use crate::{
         },
         scene::{bitmask::BitMask, camera::Camera},
     },
+    game_scene::{GameScene, Selection},
     plugin::EditorPlugin,
-    scene::{GameScene, Selection},
 };
 use fyrox::gui::UserInterface;
 

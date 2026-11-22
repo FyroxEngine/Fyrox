@@ -23,7 +23,7 @@ use crate::fyrox::{
     core::reflect::prelude::*,
     scene::{Scene, graph::Graph, node::Node},
 };
-use crate::{Engine, scene::GraphSelection};
+use crate::{Engine, game_scene::GraphSelection};
 use fyrox::core::blank_reflect_ref;
 use fyrox::graph::SceneGraph;
 use std::collections::HashMap;

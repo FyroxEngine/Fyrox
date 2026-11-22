@@ -48,6 +48,7 @@ use crate::{
         },
         resource::model::AnimationSource,
     },
+    game_scene::{GameScene, Selection, commands::ChangeSelectionCommand},
     menu::create_menu_item,
     message::MessageSender,
     plugin::EditorPlugin,
@@ -62,7 +63,6 @@ use crate::{
         toolbar::{Toolbar, ToolbarAction},
         track::TrackList,
     },
-    scene::{GameScene, Selection, commands::ChangeSelectionCommand},
     ui_scene::UiScene,
 };
 use fyrox::core::uuid::uuid;

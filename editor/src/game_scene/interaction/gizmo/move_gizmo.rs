@@ -41,10 +41,9 @@ use crate::{
             transform::{Transform, TransformBuilder},
         },
     },
-    interaction::{gizmo::utils, plane::PlaneKind},
-    make_color_material,
-    scene::{GameScene, Selection},
-    set_mesh_diffuse_color,
+    game_scene::interaction::{gizmo::utils, plane::PlaneKind},
+    game_scene::{GameScene, Selection},
+    make_color_material, set_mesh_diffuse_color,
     settings::Settings,
 };
 use fyrox::core::reflect::prelude::*;

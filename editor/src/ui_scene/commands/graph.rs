@@ -29,7 +29,7 @@ use crate::fyrox::{
 use crate::ui_scene::clipboard::{DeepCloneResult, UiSceneClipboardPayload};
 use crate::{
     Message,
-    scene::Selection,
+    game_scene::Selection,
     ui_scene::{UiSelection, commands::UiSceneContext},
 };
 

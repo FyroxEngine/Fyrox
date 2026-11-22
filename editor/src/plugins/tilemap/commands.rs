@@ -22,7 +22,7 @@
 
 use crate::{
     command::{CommandContext, CommandTrait},
-    scene::commands::GameSceneContext,
+    game_scene::commands::GameSceneContext,
 };
 use fyrox::core::uuid::Uuid;
 use fyrox::{

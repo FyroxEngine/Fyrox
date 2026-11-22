@@ -24,7 +24,7 @@ use crate::fyrox::{
     resource::texture::TextureResource,
     scene::{mesh::Mesh, node::Node},
 };
-use crate::{command::CommandTrait, scene::commands::GameSceneContext};
+use crate::{command::CommandTrait, game_scene::commands::GameSceneContext};
 use fyrox::material::{MaterialResourceBinding, MaterialTextureBinding};
 
 #[derive(Debug)]

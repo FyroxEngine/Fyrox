@@ -25,12 +25,12 @@ use crate::fyrox::{
     graph::{NodeWrapper, SceneGraph},
     scene::{Scene, graph::SubGraph, node::Node},
 };
-use crate::scene::clipboard::GameSceneClipboardPayload;
+use crate::game_scene::clipboard::GameSceneClipboardPayload;
 use crate::{
     Message,
     command::{CommandContext, CommandTrait},
+    game_scene::{GraphSelection, Selection, clipboard::DeepCloneResult},
     message::MessageSender,
-    scene::{GraphSelection, Selection, clipboard::DeepCloneResult},
 };
 use fyrox::gui::clipboard::ClipboardContainer;
 use std::sync::Arc;

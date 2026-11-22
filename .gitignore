@@ -12,7 +12,7 @@
 /fyrox-impl/test_output
 /fyrox-impl/test_restore_integrity
 history.bin
-settings.ron
+settings.cfg
 /template-core/*.version
 
 # Nix/NixOS

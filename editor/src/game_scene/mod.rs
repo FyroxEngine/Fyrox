@@ -72,6 +72,15 @@ use crate::{
             terrain::Terrain,
         },
     },
+    game_scene::{
+        clipboard::GameSceneClipboardPayload,
+        commands::{
+            ChangeSelectionCommand, GameSceneContext, PasteCommand, graph::AddModelCommand,
+            mesh::SetMeshTextureCommand,
+        },
+        controller::SceneController,
+        selector::HierarchyNode,
+    },
     highlight::HighlightRenderPass,
     message::MessageSender,
     plugins::{
@@ -82,15 +91,6 @@ use crate::{
         },
         inspector::handlers::node::SceneNodePropertyChangedHandler,
         navmesh::{selection::NavmeshSelection, settings::NavmeshSettings},
-    },
-    scene::{
-        clipboard::GameSceneClipboardPayload,
-        commands::{
-            ChangeSelectionCommand, GameSceneContext, PasteCommand, graph::AddModelCommand,
-            mesh::SetMeshTextureCommand,
-        },
-        controller::SceneController,
-        selector::HierarchyNode,
     },
     settings::{SettingsMessage, keys::KeyBindings},
     ui_scene::selection::UiSelection,
@@ -117,6 +117,7 @@ use std::{
 
 pub mod clipboard;
 pub mod dialog;
+pub mod interaction;
 mod nullscene;
 pub mod property;
 pub mod selector;

@@ -41,11 +41,11 @@ use crate::{
         },
         scene::sound::{AudioBus, AudioBusGraph, DistanceModel, HrirSphereResourceData, Renderer},
     },
+    game_scene::{GameScene, Selection, commands::ChangeSelectionCommand},
     message::MessageSender,
     plugins::inspector::editors::resource::{
         ResourceField, ResourceFieldBuilder, ResourceFieldMessage,
     },
-    scene::{GameScene, Selection, commands::ChangeSelectionCommand},
     utils::window_content,
 };
 use std::cmp::Ordering;

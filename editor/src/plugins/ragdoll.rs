@@ -58,13 +58,13 @@ use crate::{
             transform::TransformBuilder,
         },
     },
-    menu::create_menu_item,
-    message::MessageSender,
-    plugin::EditorPlugin,
-    scene::{
+    game_scene::{
         GameScene, Selection,
         commands::{ChangeSelectionCommand, graph::AddModelCommand},
     },
+    menu::create_menu_item,
+    message::MessageSender,
+    plugin::EditorPlugin,
     world::selection::GraphSelection,
 };
 use fyrox::gui::button::Button;

@@ -24,9 +24,9 @@ use crate::{
         core::some_or_return, engine::ApplicationLoopController, gui::UserInterface,
         gui::message::UiMessage, gui::widget::WidgetMessage, scene::sound::Sound,
     },
+    game_scene::GameScene,
     plugin::EditorPlugin,
     plugins::inspector::InspectorPlugin,
-    scene::GameScene,
 };
 use fyrox::gui::dock::{TileContent, TileMessage};
 

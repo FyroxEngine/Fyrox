@@ -23,8 +23,8 @@ use crate::{
         core::{pool::Handle, some_or_return},
         scene::{graph::Graph, node::Node},
     },
-    interaction::calculate_gizmo_distance_scaling,
-    scene::{Selection, SelectionContainer},
+    game_scene::interaction::calculate_gizmo_distance_scaling,
+    game_scene::{Selection, SelectionContainer},
     settings::Settings,
 };
 use fyrox::scene::camera::Camera;

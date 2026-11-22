@@ -1,8 +1,8 @@
 use crate::{
     Message,
     command::{CommandContext, CommandTrait},
+    game_scene::Selection,
     message::MessageSender,
-    scene::Selection,
     ui_scene::{UiScene, commands::UiSceneContext},
 };
 use fyrox::gui::Thickness;

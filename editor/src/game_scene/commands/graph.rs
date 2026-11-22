@@ -34,7 +34,7 @@ use crate::{
             transform::Transform,
         },
     },
-    scene::{Selection, commands::GameSceneContext},
+    game_scene::{Selection, commands::GameSceneContext},
     world::selection::GraphSelection,
 };
 use fyrox::core::err;

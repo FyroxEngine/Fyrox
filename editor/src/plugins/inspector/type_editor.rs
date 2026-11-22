@@ -31,8 +31,8 @@ use crate::{
             widget::{WidgetBuilder, WidgetMessage},
         },
     },
+    game_scene::EntityInfo,
     message::MessageSender,
-    scene::EntityInfo,
 };
 use fyrox::gui::Thickness;
 use std::{any::TypeId, marker::PhantomData};

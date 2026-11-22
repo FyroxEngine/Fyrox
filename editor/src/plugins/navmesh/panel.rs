@@ -37,12 +37,12 @@ use crate::{
         },
         scene::navmesh::NavigationalMesh,
     },
+    game_scene::{GameScene, Selection},
     message::MessageSender,
     plugins::navmesh::{
         self, command::ConnectNavmeshEdgesCommand, interaction::NavmeshInteractionMode,
         selection::NavmeshEntity,
     },
-    scene::{GameScene, Selection},
     utils::window_content,
 };
 

@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::scene::GameScene;
+use crate::game_scene::GameScene;
 use crate::{
     Editor, fyrox::engine::ApplicationLoopController, test::utils::EditorTestingExtension,
 };

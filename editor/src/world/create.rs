@@ -57,14 +57,14 @@ use crate::{
         },
         scene::{graph::Graph, node::Node},
     },
-    message::MessageSender,
-    scene::{
+    game_scene::{
         GameScene, Selection,
         commands::graph::{
             AddNodeCommand, LinkNodesCommand, MoveNodeCommand, ReplaceNodeCommand,
             SetGraphRootCommand,
         },
     },
+    message::MessageSender,
     settings::{Settings, scene::SceneSettings},
     ui_scene::{UiScene, commands::graph::AddWidgetCommand},
 };

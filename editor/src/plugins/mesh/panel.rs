@@ -41,11 +41,11 @@ use crate::{
             rigidbody::{RigidBody, RigidBodyBuilder, RigidBodyType},
         },
     },
-    message::MessageSender,
-    scene::{
+    game_scene::{
         GameScene, Selection,
         commands::graph::{AddNodeCommand, LinkNodesCommand},
     },
+    message::MessageSender,
     world::selection::GraphSelection,
 };
 use fyrox::core::some_or_continue;

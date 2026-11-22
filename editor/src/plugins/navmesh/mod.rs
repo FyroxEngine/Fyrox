@@ -22,8 +22,8 @@ use crate::{
     Editor, Message,
     fyrox::core::some_or_return,
     fyrox::{graph::SceneGraph, gui::message::UiMessage, scene::navmesh::NavigationalMesh},
+    game_scene::{GameScene, Selection},
     plugin::EditorPlugin,
-    scene::{GameScene, Selection},
 };
 use fyrox::core::dyntype::DynTypeConstructorContainer;
 use fyrox::gui::inspector::editors::inspectable::InspectablePropertyEditorDefinition;

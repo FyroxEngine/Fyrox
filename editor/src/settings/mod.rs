@@ -211,7 +211,7 @@ impl From<VisitError> for SettingsError {
 }
 
 impl SettingsData {
-    const FILE_NAME: &'static str = "settings.ron";
+    const FILE_NAME: &'static str = "settings.cfg";
 
     fn full_path() -> PathBuf {
         Self::FILE_NAME.into()

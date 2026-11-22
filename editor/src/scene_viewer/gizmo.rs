@@ -41,8 +41,8 @@ use crate::fyrox::{
         transform::TransformBuilder,
     },
 };
-use crate::scene::GameScene;
-use crate::scene::camera::CameraController;
+use crate::game_scene::GameScene;
+use crate::game_scene::camera::CameraController;
 use fyrox::scene::camera::Camera;
 use fyrox::scene::mesh::Mesh;
 use fyrox::scene::pivot::Pivot;

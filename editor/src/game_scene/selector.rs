@@ -652,7 +652,7 @@ impl NodeSelectorWindowBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::scene::selector::{NodeSelectorBuilder, NodeSelectorWindowBuilder};
+    use crate::game_scene::selector::{NodeSelectorBuilder, NodeSelectorWindowBuilder};
     use fyrox::gui::window::WindowBuilder;
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
 

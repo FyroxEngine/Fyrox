@@ -35,19 +35,19 @@ use crate::{
         gui::{BuildContext, button::Button, message::KeyCode},
         scene::{Scene, navmesh::NavigationalMesh},
     },
-    interaction::{
+    game_scene::interaction::{
         InteractionMode, calculate_gizmo_distance_scaling, gizmo::move_gizmo::MoveGizmo,
         make_interaction_mode_button, plane::PlaneKind,
+    },
+    game_scene::{
+        GameScene, Selection, SelectionContainer, camera::PickingOptions,
+        commands::ChangeSelectionCommand, controller::SceneController,
     },
     message::MessageSender,
     plugins::navmesh::{
         self,
         command::{AddNavmeshEdgeCommand, DeleteNavmeshVertexCommand, MoveNavmeshVertexCommand},
         selection::{NavmeshEntity, NavmeshSelection},
-    },
-    scene::{
-        GameScene, Selection, SelectionContainer, camera::PickingOptions,
-        commands::ChangeSelectionCommand, controller::SceneController,
     },
     settings::Settings,
 };

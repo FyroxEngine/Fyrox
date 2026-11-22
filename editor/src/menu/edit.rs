@@ -30,10 +30,10 @@ use crate::{
             menu::MenuItemMessage, message::UiMessage, widget::WidgetMessage,
         },
     },
+    game_scene::{Selection, controller::SceneController},
     load_image,
     menu::{create_menu_item_shortcut, create_root_menu_item},
     message::MessageSender,
-    scene::{Selection, controller::SceneController},
 };
 
 pub struct EditMenu {

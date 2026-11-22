@@ -30,7 +30,7 @@ use crate::{
         scene::node::Node,
         utils::navmesh::Navmesh,
     },
-    scene::{Selection, commands::GameSceneContext},
+    game_scene::{Selection, commands::GameSceneContext},
 };
 
 use super::selection::{NavmeshEntity, NavmeshSelection};

@@ -32,7 +32,7 @@ use crate::fyrox::{
 };
 use crate::{
     command::{CommandContext, CommandTrait},
-    scene::commands::GameSceneContext,
+    game_scene::commands::GameSceneContext,
     ui_scene::commands::UiSceneContext,
 };
 

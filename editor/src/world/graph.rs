@@ -33,8 +33,7 @@ use crate::{
         resource::model::{Model, ModelResourceExtension},
         scene::{Scene, node::Node},
     },
-    message::MessageSender,
-    scene::{
+    game_scene::{
         GameScene, Selection,
         commands::{
             ChangeSelectionCommand,
@@ -42,6 +41,7 @@ use crate::{
             graph::{AddModelCommand, LinkNodesCommand},
         },
     },
+    message::MessageSender,
     scene_item_icon,
     world::{WorldViewerDataProvider, item::DropAnchor, selection::GraphSelection},
 };

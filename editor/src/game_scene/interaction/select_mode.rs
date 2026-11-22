@@ -27,19 +27,17 @@ use crate::{
             reflect::prelude::*,
             uuid::{Uuid, uuid},
         },
-        gui::BuildContext,
+        gui::{BuildContext, border::Border, button::Button, image::Image, widget::WidgetMessage},
         scene::node::Node,
     },
-    interaction::{InteractionMode, make_interaction_mode_button},
+    game_scene::interaction::{InteractionMode, make_interaction_mode_button},
+    game_scene::{
+        GameScene, Selection, commands::ChangeSelectionCommand, controller::SceneController,
+    },
     message::MessageSender,
-    scene::{GameScene, Selection, commands::ChangeSelectionCommand, controller::SceneController},
     settings::Settings,
     world::selection::GraphSelection,
 };
-use fyrox::gui::border::Border;
-use fyrox::gui::button::Button;
-use fyrox::gui::image::Image;
-use fyrox::gui::widget::WidgetMessage;
 
 #[derive(PartialEq, Reflect, Debug)]
 #[reflect(non_cloneable, type_uuid = "bab9ce8c-d679-4c49-beb9-f5a8482e0678")]
@@ -198,7 +196,7 @@ impl InteractionMode for SelectInteractionMode {
 
         make_interaction_mode_button(
             ctx,
-            include_bytes!("../../resources/select.png"),
+            include_bytes!("../../../resources/select.png"),
             select_mode_tooltip,
             selected,
         )

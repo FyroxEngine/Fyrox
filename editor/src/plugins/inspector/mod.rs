@@ -60,11 +60,11 @@ use crate::{
         },
         scene::{self, SceneContainer, graph::Graph, node::Node},
     },
+    game_scene::{EntityInfo, GameScene, Selection, controller::SceneController},
     load_image,
     message::MessageSender,
     plugin::EditorPlugin,
     plugins::{absm::animation_container_ref, inspector::type_editor::InspectorTypeEditor},
-    scene::{EntityInfo, GameScene, Selection, controller::SceneController},
     ui_scene::UiScene,
     utils::window_content,
 };

@@ -18,26 +18,30 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::command::CommandStack;
-use crate::fyrox::{
-    core::{algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, uuid::Uuid},
-    engine::Engine,
-    gui::{
-        UiNode, UserInterface,
-        message::{KeyCode, MouseButton},
-    },
-    scene::Scene,
-};
-use crate::scene::nullscene::NullSceneController;
 use crate::{
-    highlight::HighlightRenderPass,
-    interaction::{
-        InteractionModeContainer, move_mode::MoveInteractionMode,
-        rotate_mode::RotateInteractionMode, scale_mode::ScaleInteractionMode,
-        select_mode::SelectInteractionMode, terrain::TerrainInteractionMode,
+    command::CommandStack,
+    fyrox::{
+        core::{algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, uuid::Uuid},
+        engine::Engine,
+        gui::{
+            UiNode, UserInterface,
+            file_browser::FileType,
+            message::{KeyCode, MouseButton},
+        },
+        scene::Scene,
     },
+    game_scene::{
+        GameScene, Selection,
+        controller::SceneController,
+        interaction::{
+            InteractionModeContainer, move_mode::MoveInteractionMode,
+            rotate_mode::RotateInteractionMode, scale_mode::ScaleInteractionMode,
+            select_mode::SelectInteractionMode, terrain::TerrainInteractionMode,
+        },
+        nullscene::NullSceneController,
+    },
+    highlight::HighlightRenderPass,
     message::MessageSender,
-    scene::{GameScene, Selection, controller::SceneController},
     scene_viewer::SceneViewer,
     settings::{Settings, keys::KeyBindings},
     ui_scene::{
@@ -45,7 +49,6 @@ use crate::{
         interaction::move_mode::MoveWidgetsInteractionMode,
     },
 };
-use fyrox::gui::file_browser::FileType;
 use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
 pub struct EditorSceneEntry {

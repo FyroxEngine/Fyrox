@@ -26,9 +26,9 @@ use crate::{
         gui::{UserInterface, message::UiMessage, widget::WidgetMessage},
         scene::mesh::{Mesh, surface::SurfaceResource},
     },
+    game_scene::GameScene,
     plugin::EditorPlugin,
     plugins::{inspector::InspectorPlugin, mesh::surface::SurfaceDataPropertyEditorDefinition},
-    scene::GameScene,
 };
 use data_viewer::SurfaceDataViewer;
 use panel::MeshControlPanel;

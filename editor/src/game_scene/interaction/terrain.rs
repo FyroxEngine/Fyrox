@@ -18,9 +18,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use fyrox::scene::terrain::brushstroke::{BrushSender, BrushThreadMessage, UndoData};
-use std::fmt::{Debug, Formatter};
-
 use crate::{
     fyrox::{
         core::{
@@ -36,9 +33,12 @@ use crate::{
         engine::Engine,
         graph::SceneGraph,
         gui::{
-            BuildContext, UserInterface,
+            BuildContext, HorizontalAlignment, Thickness, UserInterface, VerticalAlignment,
+            button::Button,
+            image::Image,
             inspector::{
-                Inspector, InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction,
+                Inspector, InspectorBuilder, InspectorContext, InspectorContextArgs,
+                InspectorMessage, PropertyAction,
                 editors::{
                     PropertyEditorDefinitionContainer, enumeration::EnumPropertyEditorDefinition,
                 },
@@ -46,43 +46,40 @@ use crate::{
             key::HotKey,
             message::UiMessage,
             widget::{WidgetBuilder, WidgetMessage},
-            window::{WindowBuilder, WindowMessage, WindowTitle},
+            window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
         },
-        gui::{HorizontalAlignment, Thickness, VerticalAlignment},
         scene::{
             base::BaseBuilder,
             graph::Graph,
             mesh::{
-                MeshBuilder, RenderPath,
+                Mesh, MeshBuilder, RenderPath,
                 surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
             },
             node::Node,
             terrain::{
                 Terrain, TerrainRayCastResult,
                 brushstroke::{Brush, BrushMode, BrushShape, BrushStroke, BrushTarget},
+                brushstroke::{BrushSender, BrushThreadMessage, UndoData},
             },
         },
     },
-    interaction::{InteractionMode, make_interaction_mode_button},
-    make_color_material,
-    message::MessageSender,
-    scene::{
+    game_scene::{
         GameScene, Selection, SelectionContainer,
         commands::terrain::{
             ModifyTerrainHeightCommand, ModifyTerrainHolesCommand, ModifyTerrainLayerMaskCommand,
         },
         controller::SceneController,
+        interaction::{InteractionMode, make_interaction_mode_button},
     },
+    make_color_material,
+    message::MessageSender,
     settings::Settings,
 };
-
-use fyrox::gui::button::Button;
-use fyrox::gui::image::Image;
-use fyrox::gui::inspector::InspectorContextArgs;
-use fyrox::gui::window::{Window, WindowAlignment};
-use fyrox::scene::mesh::Mesh;
-use std::sync::Arc;
-use std::sync::mpsc::channel;
+use std::{
+    fmt::{Debug, Formatter},
+    sync::Arc,
+    sync::mpsc::channel,
+};
 
 fn modify_clamp(x: &mut f32, delta: f32, min: f32, max: f32) {
     *x = (*x + delta).clamp(min, max)
@@ -545,7 +542,7 @@ impl InteractionMode for TerrainInteractionMode {
 
         make_interaction_mode_button(
             ctx,
-            include_bytes!("../../resources/terrain.png"),
+            include_bytes!("../../../resources/terrain.png"),
             terrain_mode_tooltip,
             selected,
         )

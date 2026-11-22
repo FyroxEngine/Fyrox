@@ -26,28 +26,26 @@ use crate::{
             color::Color,
             math::{Matrix4Ext, plane::Plane},
             pool::Handle,
+            reflect::prelude::*,
         },
         graph::SceneGraph,
         scene::{
             base::BaseBuilder,
+            camera::Camera,
             graph::Graph,
             mesh::{
-                MeshBuilder, RenderPath,
+                Mesh, MeshBuilder, RenderPath,
                 surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
             },
             node::Node,
             transform::TransformBuilder,
         },
     },
-    interaction::gizmo::utils,
-    make_color_material,
-    scene::{GameScene, Selection},
-    set_mesh_diffuse_color,
+    game_scene::interaction::gizmo::utils,
+    game_scene::{GameScene, Selection},
+    make_color_material, set_mesh_diffuse_color,
     settings::Settings,
 };
-use fyrox::core::reflect::prelude::*;
-use fyrox::scene::camera::Camera;
-use fyrox::scene::mesh::Mesh;
 
 #[derive(PartialEq, Reflect, Debug)]
 #[reflect(non_cloneable, type_uuid = "0555e074-bbd8-4753-a2ab-56d7092251c1")]

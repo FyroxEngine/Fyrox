@@ -27,7 +27,7 @@ use crate::fyrox::{
     scene::{node::Node, terrain::Layer},
 };
 use crate::{
-    command::CommandTrait, create_terrain_layer_material, scene::commands::GameSceneContext,
+    command::CommandTrait, create_terrain_layer_material, game_scene::commands::GameSceneContext,
 };
 
 #[derive(Debug)]

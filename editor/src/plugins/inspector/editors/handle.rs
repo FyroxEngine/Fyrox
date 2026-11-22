@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::scene::selector::{AllowedType, NodeSelectorWindow, SelectedHandle};
+use crate::game_scene::selector::{AllowedType, NodeSelectorWindow, SelectedHandle};
 use crate::{
     Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
     fyrox::{
@@ -49,9 +49,9 @@ use crate::{
             window::{WindowBuilder, WindowMessage, WindowTitle},
         },
     },
+    game_scene::selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
     load_image_internal,
     message::MessageSender,
-    scene::selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
     world::item::SceneItem,
 };
 use fyrox::core::PhantomDataSendSync;

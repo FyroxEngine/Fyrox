@@ -52,6 +52,7 @@ use crate::{
             window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
         },
     },
+    game_scene::{GameScene, Selection},
     menu::create_menu_item,
     message::MessageSender,
     plugin::EditorPlugin,
@@ -65,7 +66,6 @@ use crate::{
         state_viewer::StateViewer,
         toolbar::{Toolbar, ToolbarAction},
     },
-    scene::{GameScene, Selection},
     ui_scene::UiScene,
 };
 use fyrox::core::err;

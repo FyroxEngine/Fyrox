@@ -38,6 +38,14 @@ use crate::{
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
         },
     },
+    game_scene::{
+        Selection,
+        commands::ChangeSelectionCommand,
+        selector::{
+            AllowedType, HierarchyNode, NodeSelectorMessage, NodeSelectorWindow,
+            NodeSelectorWindowBuilder, SelectedHandle,
+        },
+    },
     load_image,
     message::MessageSender,
     plugins::absm::{
@@ -45,14 +53,6 @@ use crate::{
         command::{AddLayerCommand, RemoveLayerCommand, SetLayerMaskCommand, SetLayerNameCommand},
         machine_container_ref,
         selection::AbsmSelection,
-    },
-    scene::{
-        Selection,
-        commands::ChangeSelectionCommand,
-        selector::{
-            AllowedType, HierarchyNode, NodeSelectorMessage, NodeSelectorWindow,
-            NodeSelectorWindowBuilder, SelectedHandle,
-        },
     },
 };
 use std::{any::TypeId, marker::PhantomData};

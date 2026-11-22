@@ -36,9 +36,9 @@ use crate::{
         },
         scene::{node::Node, particle_system::ParticleSystem},
     },
+    game_scene::{GameScene, Selection},
     plugin::EditorPlugin,
     plugins::inspector::InspectorPlugin,
-    scene::{GameScene, Selection},
 };
 
 pub struct ParticleSystemPreviewControlPanel {

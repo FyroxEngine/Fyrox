@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::scene::camera::PickMethod;
-use crate::scene::camera::{CameraController, PickingOptions};
+use crate::game_scene::camera::PickMethod;
+use crate::game_scene::camera::{CameraController, PickingOptions};
 use crate::{
     Engine, Message,
     command::{Command, CommandGroup},
@@ -36,16 +36,16 @@ use crate::{
         gui::BuildContext,
         scene::{Scene, camera::Projection, graph::Graph, node::Node},
     },
-    interaction::{
+    game_scene::interaction::{
         InteractionMode, gizmo::move_gizmo::MoveGizmo, make_interaction_mode_button,
         plane::PlaneKind,
     },
-    message::MessageSender,
-    scene::{
+    game_scene::{
         GameScene, Selection,
         commands::{ChangeSelectionCommand, graph::MoveNodeCommand},
         controller::SceneController,
     },
+    message::MessageSender,
     settings::Settings,
     world::selection::GraphSelection,
 };
@@ -508,7 +508,7 @@ impl InteractionMode for MoveInteractionMode {
 
         make_interaction_mode_button(
             ctx,
-            include_bytes!("../../resources/move_arrow.png"),
+            include_bytes!("../../../resources/move_arrow.png"),
             move_mode_tooltip,
             selected,
         )

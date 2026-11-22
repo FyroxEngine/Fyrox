@@ -39,9 +39,9 @@ use crate::{
             widget::{WidgetBuilder, WidgetMessage},
         },
     },
+    game_scene::{Selection, controller::SceneController},
     menu::{create_menu_item, create_menu_item_shortcut},
     message::MessageSender,
-    scene::{Selection, controller::SceneController},
     ui_scene::{
         UiScene,
         commands::graph::{PasteWidgetCommand, SetUiRootCommand},

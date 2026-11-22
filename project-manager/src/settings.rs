@@ -119,7 +119,7 @@ impl Default for SettingsData {
 }
 
 impl SettingsData {
-    pub const FILE_NAME: &'static str = "pm_settings.ron";
+    pub const FILE_NAME: &'static str = "pm_settings.cfg";
 
     fn actual_path() -> PathBuf {
         CONFIG_DIR.join(Self::FILE_NAME)

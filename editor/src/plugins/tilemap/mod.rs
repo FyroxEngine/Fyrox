@@ -112,12 +112,12 @@ use crate::fyrox::{
 };
 use crate::{
     Editor, Message,
-    interaction::{InteractionMode, make_interaction_mode_button},
+    game_scene::interaction::{InteractionMode, make_interaction_mode_button},
+    game_scene::{GameScene, Selection, controller::SceneController},
     load_image,
     message::MessageSender,
     plugin::EditorPlugin,
     plugins::tilemap::{palette::PaletteMessage, preview::TileSetPreview, tileset::TileSetEditor},
-    scene::{GameScene, Selection, controller::SceneController},
     settings::Settings,
 };
 use fyrox::asset::manager::ResourceManager;

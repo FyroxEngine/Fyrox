@@ -37,8 +37,8 @@ use crate::{
             window::{WindowBuilder, WindowTitle},
         },
     },
+    game_scene::container::SceneContainer,
     message::MessageSender,
-    scene::container::SceneContainer,
 };
 
 pub struct SaveSceneConfirmationDialog {

@@ -35,7 +35,7 @@ use crate::fyrox::{
 use crate::plugins::animation::selection::AnimationSelection;
 use crate::{
     command::{CommandContext, CommandTrait},
-    scene::{Selection, commands::GameSceneContext},
+    game_scene::{Selection, commands::GameSceneContext},
     ui_scene::commands::UiSceneContext,
 };
 

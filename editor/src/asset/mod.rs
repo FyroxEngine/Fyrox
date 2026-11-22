@@ -57,12 +57,12 @@ use crate::{
             wrap_panel::{WrapPanel, WrapPanelBuilder},
         },
     },
+    game_scene::{Selection, commands::ChangeSelectionCommand, container::EditorSceneEntry},
     load_image,
     message::MessageSender,
     plugin::EditorPluginsContainer,
     plugins::inspector::InspectorPlugin,
     preview::PreviewPanel,
-    scene::{Selection, commands::ChangeSelectionCommand, container::EditorSceneEntry},
     utils::window_content,
 };
 use menu::AssetItemContextMenu;

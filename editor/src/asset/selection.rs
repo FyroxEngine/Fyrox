@@ -30,8 +30,8 @@ use crate::{
         gui::inspector::PropertyChanged,
         scene::SceneContainer,
     },
+    game_scene::{EntityInfo, SelectionContainer, controller::SceneController},
     message::MessageSender,
-    scene::{EntityInfo, SelectionContainer, controller::SceneController},
 };
 use fyrox::core::some_or_continue;
 use std::{

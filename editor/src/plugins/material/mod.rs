@@ -75,6 +75,10 @@ use crate::{
             },
         },
     },
+    game_scene::commands::material::{
+        SetMaterialBindingCommand, SetMaterialPropertyGroupPropertyValueCommand,
+        SetMaterialShaderCommand,
+    },
     message::MessageSender,
     plugin::EditorPlugin,
     plugins::{
@@ -85,10 +89,6 @@ use crate::{
         material::editor::MaterialPropertyEditorDefinition,
     },
     preview::PreviewPanel,
-    scene::commands::material::{
-        SetMaterialBindingCommand, SetMaterialPropertyGroupPropertyValueCommand,
-        SetMaterialShaderCommand,
-    },
 };
 use fyrox::gui::dock::DockingManager;
 use fyrox::gui::stack_panel::StackPanel;

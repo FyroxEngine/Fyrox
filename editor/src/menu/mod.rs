@@ -36,9 +36,9 @@ use crate::{
             window::Window,
         },
     },
+    game_scene::container::EditorSceneEntry,
     menu::{edit::EditMenu, file::FileMenu, help::HelpMenu, utils::UtilsMenu, view::ViewMenu},
     message::MessageSender,
-    scene::container::EditorSceneEntry,
     settings::Settings,
     stats::StatisticsWindow,
 };

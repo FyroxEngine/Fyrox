@@ -32,8 +32,8 @@
 pub mod asset;
 pub mod command;
 pub mod configurator;
+pub mod game_scene;
 pub mod highlight;
-pub mod interaction;
 pub mod loading_window;
 pub mod menu;
 pub mod message;
@@ -42,7 +42,6 @@ pub mod plugin;
 pub mod plugins;
 pub mod preview;
 pub mod save_dialog;
-pub mod scene;
 pub mod scene_viewer;
 pub mod settings;
 pub mod stats;
@@ -135,12 +134,19 @@ use crate::{
         utils::{translate_cursor_icon, translate_event},
         window::WindowAttributes,
     },
-    highlight::HighlightRenderPass,
-    interaction::{
+    game_scene::interaction::{
         move_mode::MoveInteractionMode, rotate_mode::RotateInteractionMode,
         scale_mode::ScaleInteractionMode, select_mode::SelectInteractionMode,
         terrain::TerrainInteractionMode,
     },
+    game_scene::{
+        GameScene, Selection,
+        commands::GameSceneContext,
+        container::{EditorSceneEntry, SceneContainer},
+        dialog::NodeRemovalDialog,
+        settings::SceneSettingsWindow,
+    },
+    highlight::HighlightRenderPass,
     menu::{Menu, MenuContext, Panels},
     message::MessageSender,
     overlay::OverlayRenderPass,
@@ -157,13 +163,6 @@ use crate::{
         settings::SettingsPlugin,
         stats::EditorStatisticsPlugin,
         tilemap::TileMapEditorPlugin,
-    },
-    scene::{
-        GameScene, Selection,
-        commands::GameSceneContext,
-        container::{EditorSceneEntry, SceneContainer},
-        dialog::NodeRemovalDialog,
-        settings::SceneSettingsWindow,
     },
     scene_viewer::SceneViewer,
     settings::{Settings, general::EditorStyle},

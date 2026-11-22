@@ -34,6 +34,7 @@ use crate::{
             widget::WidgetBuilder,
         },
     },
+    game_scene::{Selection, commands::ChangeSelectionCommand},
     menu::create_menu_item,
     message::MessageSender,
     plugins::absm::{
@@ -46,7 +47,6 @@ use crate::{
         selection::SelectedEntity,
         transition::TransitionView,
     },
-    scene::{Selection, commands::ChangeSelectionCommand},
 };
 
 use fyrox::core::pool::HandlesArrayExtension;

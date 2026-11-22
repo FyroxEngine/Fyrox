@@ -45,10 +45,7 @@ use crate::{
             window::{WindowAlignment, WindowMessage},
         },
     },
-    make_save_file_selector,
-    menu::{create_menu_item, create_menu_item_shortcut},
-    message::MessageSender,
-    scene::{
+    game_scene::{
         GameScene, Selection,
         commands::{
             RevertSceneNodePropertyCommand,
@@ -56,6 +53,9 @@ use crate::{
         },
         controller::SceneController,
     },
+    make_save_file_selector,
+    menu::{create_menu_item, create_menu_item_shortcut},
+    message::MessageSender,
     settings::Settings,
     utils,
     world::WorldViewerItemContextMenu,

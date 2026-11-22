@@ -41,9 +41,9 @@ use crate::{
         },
         scene::{camera::Projection, graph::Graph, node::Node},
     },
+    game_scene::{Selection, controller::SceneController},
     load_image_internal,
     message::MessageSender,
-    scene::{Selection, controller::SceneController},
     settings::Settings,
 };
 use fyrox::core::define_as_any_trait;

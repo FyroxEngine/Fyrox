@@ -26,9 +26,13 @@ use crate::fyrox::{
 };
 use crate::{
     command::{Command, CommandGroup},
-    interaction::{InteractionMode, make_interaction_mode_button},
+    game_scene::{
+        Selection,
+        commands::ChangeSelectionCommand,
+        controller::SceneController,
+        interaction::{InteractionMode, make_interaction_mode_button},
+    },
     message::MessageSender,
-    scene::{Selection, commands::ChangeSelectionCommand, controller::SceneController},
     settings::Settings,
     ui_scene::{UiScene, commands::widget::MoveWidgetCommand},
 };

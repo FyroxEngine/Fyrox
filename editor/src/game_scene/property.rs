@@ -656,7 +656,7 @@ impl PropertySelectorWindowBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::scene::property::{PropertySelectorBuilder, PropertySelectorWindowBuilder};
+    use crate::game_scene::property::{PropertySelectorBuilder, PropertySelectorWindowBuilder};
     use fyrox::gui::window::WindowBuilder;
     use fyrox::{gui::test::test_widget_deletion, gui::widget::WidgetBuilder};
 
