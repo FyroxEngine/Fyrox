@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//! This is the tab of the tile set editor that allows the user to modify the property
-//! layers stored within the tile set. Layers can be created, deleted, renamed
-//! and pre-defined values can be edited.
+//! This is the tab of the tile set editor that allows the user to modify the alternate
+//! tiles stored within the tile set. Alternates can be created, deleted, renamed
+//! and re-ordered.
 
 use fyrox::{
     core::ImmutableString,
