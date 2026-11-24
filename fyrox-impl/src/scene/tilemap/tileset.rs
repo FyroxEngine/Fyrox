@@ -184,6 +184,201 @@ pub struct TileData {
     /// tiles, such surface type (for example, lava, ice, dirt, etc.), physics properties and so
     /// on.
     pub properties: FxHashMap<Uuid, TileSetPropertyValue>,
+    /// A set of handles to tiles that may be used to replace this tile when rendering,
+    /// if the tilemap is set to use an alternate.
+    alternates: TileAlternateSet,
+}
+
+impl TileData {
+    /// The colliders of the tile. Each uuid represents a collision layer, and this tile may
+    /// have a collision shape for each collision layer.
+    pub fn colliders(&self) -> &FxHashMap<Uuid, TileCollider> {
+        &self.colliders
+    }
+    /// The color that is used to tint this tile.
+    pub fn color(&self) -> Color {
+        self.color
+    }
+    /// The value of each property for this tile. Each uuid represents a property,
+    /// and the map associates the property with the value.
+    pub fn properties(&self) -> &FxHashMap<Uuid, TileSetPropertyValue> {
+        &self.properties
+    }
+    /// The set of alternate tile handles for this tile. The tileset can be set to use
+    /// alternate handles when rendering.
+    pub fn alternates(&self) -> &TileAlternateSet {
+        &self.alternates
+    }
+    /// The colliders of the tile. Each uuid represents a collision layer, and this tile may
+    /// have a collision shape for each collision layer.
+    pub fn colliders_mut(&mut self) -> &FxHashMap<Uuid, TileCollider> {
+        &self.colliders
+    }
+    /// The color that is used to tint this tile.
+    pub fn color_mut(&mut self) -> Color {
+        self.color
+    }
+    /// The value of each property for this tile. Each uuid represents a property,
+    /// and the map associates the property with the value.
+    pub fn properties_mut(&mut self) -> &FxHashMap<Uuid, TileSetPropertyValue> {
+        &self.properties
+    }
+    /// The set of alternate tile handles for this tile. The tileset can be set to use
+    /// alternate handles when rendering.
+    pub fn alternates_mut(&mut self) -> &mut TileAlternateSet {
+        &mut self.alternates
+    }
+}
+
+/// A builder for [`TileData`].
+#[derive(Clone, Default, Debug)]
+pub struct TileDataBuilder {
+    colliders: FxHashMap<Uuid, TileCollider>,
+    color: Color,
+    properties: FxHashMap<Uuid, TileSetPropertyValue>,
+    alternates: TileAlternateSet,
+}
+
+impl TileDataBuilder {
+    /// Create a new `TileDataBuilder` containing default tile data.
+    pub fn new() -> Self {
+        Self::default()
+    }
+    /// Set the collision shape for the tile on the collision layer with the given uuid.
+    pub fn with_collider(mut self, uuid: Uuid, collider: TileCollider) -> Self {
+        self.colliders.insert(uuid, collider);
+        self
+    }
+    /// Set the value for the tile for the property with the given uuid.
+    pub fn with_property(mut self, uuid: Uuid, value: TileSetPropertyValue) -> Self {
+        self.properties.insert(uuid, value);
+        self
+    }
+    /// Set the color for the tile. The default color is white.
+    pub fn with_color(mut self, color: Color) -> Self {
+        self.color = color;
+        self
+    }
+    /// Set the list of alternate tile handles for the tile. The default is to have no alternate handles.
+    pub fn with_alternates<A: Into<TileAlternateSet>>(mut self, alternates: A) -> Self {
+        self.alternates = alternates.into();
+        self
+    }
+    /// Construct a `TileData` from the data in this builder.
+    pub fn build(self) -> TileData {
+        TileData {
+            properties: self.properties,
+            color: self.color,
+            colliders: self.colliders,
+            alternates: self.alternates,
+        }
+    }
+}
+
+/// An array containing the alternate tile handles for some tile in a tileset.
+/// Alternate tile handles are used to redirect the renderer to a different tile
+/// when a tilemap is set to use alternate tiles.
+#[derive(Clone, Default, PartialEq, Debug, Visit, Reflect)]
+#[reflect(type_uuid = "2a9b4e3d-db09-4e2a-af18-bb3c3bb0b056")]
+pub struct TileAlternateSet(Vec<TileDefinitionHandle>);
+
+impl TileAlternateSet {
+    /// Get the tile handle for the given index.
+    /// When the tilemap is set to render alternate tiles, this is how
+    /// the tilemap determines which tile it should render.
+    /// The tilemap contains an alternate index, and it calls this method
+    /// for each tile that it wants to render. If a handle is returned,
+    /// then the tilemap renders the tile for that handle. If `None` is returned,
+    /// then the tilemap renders the original tile.
+    pub fn get(&self, index: usize) -> Option<TileDefinitionHandle> {
+        self.0.get(index).copied()
+    }
+    /// Set the tile handle for the given index.
+    /// If necessary, the list grows until it contains the index,
+    /// and any newly created elements are filled with `default`.
+    /// If the end of the list contains `default` elements after setting the index,
+    /// then the list is trimmed to remove those elements.
+    pub fn set(
+        &mut self,
+        index: usize,
+        value: Option<TileDefinitionHandle>,
+        default: TileDefinitionHandle,
+    ) -> TileDefinitionHandle {
+        let h = value.unwrap_or(default);
+        if self.len() <= index {
+            if h != default {
+                self.fill_to_len(index + 1, default);
+                self.0[index] = h;
+            }
+            default
+        } else {
+            let old_value = std::mem::replace(&mut self.0[index], h);
+            self.trim(default);
+            old_value
+        }
+    }
+    /// Inserts an element into the list at the given position.
+    pub fn insert(&mut self, index: usize, value: TileDefinitionHandle) {
+        self.0.insert(index, value);
+    }
+    /// Remove an element from the list at the given position, and returns the element.
+    pub fn remove(&mut self, index: usize) -> TileDefinitionHandle {
+        self.0.remove(index)
+    }
+    /// Swaps the position of two alternates.
+    pub fn swap(&mut self, a: usize, b: usize) {
+        self.0.swap(a, b)
+    }
+    /// Extends the length of the list to the given minimum length.
+    /// If the list is already that length or longer, nothing happens.
+    /// If any new elements will have the given default value.
+    pub fn fill_to_len(&mut self, len: usize, value: TileDefinitionHandle) {
+        let count = len.saturating_sub(self.0.len());
+        if count == 0 {
+            return;
+        }
+        self.0.extend(std::iter::repeat_n(value, count));
+    }
+    /// Remove elements from the end of the list that match the given element.
+    pub fn trim(&mut self, value: TileDefinitionHandle) {
+        if let Some(index) = self.0.iter().rposition(|h| *h != value) {
+            self.0.truncate(index + 1);
+        }
+    }
+    /// The number of alternates in this list.
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+    /// True if there are no alternates in this list.
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+    /// Create a list that is a copy of the handles in this set.
+    pub fn to_vec(&self) -> Vec<TileDefinitionHandle> {
+        self.0.clone()
+    }
+    /// Swap the content of this set with the content of the given `Vec`.
+    pub fn swap_with_vec(&mut self, other: &mut Vec<TileDefinitionHandle>) {
+        std::mem::swap(&mut self.0, other);
+    }
+}
+
+impl From<TileDefinitionHandle> for TileAlternateSet {
+    fn from(value: TileDefinitionHandle) -> Self {
+        Self(vec![value])
+    }
+}
+
+impl From<&[TileDefinitionHandle]> for TileAlternateSet {
+    fn from(value: &[TileDefinitionHandle]) -> Self {
+        Self(value.to_vec())
+    }
+}
+
+impl From<Vec<TileDefinitionHandle>> for TileAlternateSet {
+    fn from(value: Vec<TileDefinitionHandle>) -> Self {
+        Self(value)
+    }
 }
 
 impl OrthoTransform for TileData {
@@ -440,7 +635,57 @@ impl TileSetPage {
                     );
                 }
             }
-            _ => panic!(),
+            _ => (),
+        }
+    }
+    /// Call the given callback function for the data of every tile on this page.
+    pub fn for_each_data<F>(&self, page: Vector2<i32>, mut f: F)
+    where
+        F: FnMut(TileDefinitionHandle, &TileData),
+    {
+        match &self.source {
+            TileSetPageSource::Atlas(map0) => {
+                for (tile, data) in map0.tiles.iter() {
+                    let Some(handle) = TileDefinitionHandle::try_new(page, *tile) else {
+                        continue;
+                    };
+                    f(handle, data);
+                }
+            }
+            TileSetPageSource::Freeform(tiles) => {
+                for (tile, tile_def) in tiles.iter() {
+                    let Some(handle) = TileDefinitionHandle::try_new(page, *tile) else {
+                        continue;
+                    };
+                    f(handle, &tile_def.data);
+                }
+            }
+            _ => (),
+        }
+    }
+    /// Call the given callback function for the data of every tile on this page.
+    pub fn for_each_data_mut<F>(&mut self, page: Vector2<i32>, mut f: F)
+    where
+        F: FnMut(TileDefinitionHandle, &mut TileData),
+    {
+        match &mut self.source {
+            TileSetPageSource::Atlas(map0) => {
+                for (tile, data) in map0.tiles.iter_mut() {
+                    let Some(handle) = TileDefinitionHandle::try_new(page, *tile) else {
+                        continue;
+                    };
+                    f(handle, data);
+                }
+            }
+            TileSetPageSource::Freeform(tiles) => {
+                for (tile, tile_def) in tiles.iter_mut() {
+                    let Some(handle) = TileDefinitionHandle::try_new(page, *tile) else {
+                        continue;
+                    };
+                    f(handle, &mut tile_def.data);
+                }
+            }
+            _ => (),
         }
     }
 }
@@ -943,6 +1188,12 @@ impl<'a> OptionTileSet<'a> {
             .map(|t| t.colliders.deref())
             .unwrap_or_default()
     }
+    /// Slice containing the names of the alternate tiles of this tile set, or an empty slice if the tile set is not loaded.
+    pub fn alternates(&self) -> &[ImmutableString] {
+        self.as_ref()
+            .map(|t| t.alternate_names.deref())
+            .unwrap_or_default()
+    }
     /// The color of the collider layer with the given uuid.
     pub fn collider_color(&self, uuid: Uuid) -> Option<Color> {
         self.as_ref()
@@ -1211,6 +1462,18 @@ impl<'a> OptionTileSet<'a> {
             .unwrap_or_default()
     }
 
+    /// The alternate handle of the given tile for the given index, or else it returns
+    /// the given handle if there is no alternate handle for the given index.
+    pub fn get_alternate_version(
+        &self,
+        index: usize,
+        handle: TileDefinitionHandle,
+    ) -> TileDefinitionHandle {
+        self.as_ref()
+            .map(|t| t.get_alternate_version(index, handle))
+            .unwrap_or_default()
+    }
+
     /// The handle of the tile in the animation sequence starting from the given tile handle
     /// at the given time, or none if the given handle is not part of any animation sequence.
     pub fn get_animated_version(
@@ -1344,14 +1607,22 @@ pub struct TileSet {
     #[visit(skip)]
     transform_map: FxHashMap<TileDefinitionHandle, TileDefinitionHandle>,
     /// The set of pages, organized by position.
+    #[reflect(hidden)]
     pub pages: FxHashMap<Vector2<i32>, TileSetPage>,
     /// Collider layers, in the order in which the layers should be presented in the editor.
+    #[reflect(hidden)]
     pub colliders: Vec<TileSetColliderLayer>,
     /// Property types in the order in which the layers should be presented in the editor.
+    #[reflect(hidden)]
     pub properties: Vec<TileSetPropertyLayer>,
-    /// A count of changes since last save. New changes add +1. Reverting to previous
-    /// states add -1. Reverting to a state before the last save can result in negative
-    /// values. Saving is unnecessary whenever this value is 0.
+    /// The name of each alternate tile index.
+    /// Tile may have a list of tile definition handles that represent a substitute tile to use
+    /// when rendering. These handles are accessed by the tilemap renderer based on their index,
+    /// and each index can have a name to represent the purpose of that alternate tile.
+    #[reflect(hidden)]
+    #[visit(optional)]
+    pub alternate_names: Vec<ImmutableString>,
+    /// A record of whether this tileset has been changed since the last time it was saved.
     #[reflect(hidden)]
     #[visit(skip)]
     pub change_flag: ChangeFlag,
@@ -1439,6 +1710,16 @@ impl TileSet {
         match page_source {
             TileSetPageSource::Atlas(m) => m.get(&handle.tile()),
             TileSetPageSource::Freeform(m) => m.get(&handle.tile()).map(|def| &def.data),
+            TileSetPageSource::Transform(_) => None,
+            TileSetPageSource::Animation(_) => None,
+        }
+    }
+    /// The data of the given tile.
+    pub fn tile_data_mut(&mut self, handle: TileDefinitionHandle) -> Option<&mut TileData> {
+        let page_source = self.pages.get_mut(&handle.page()).map(|p| &mut p.source)?;
+        match page_source {
+            TileSetPageSource::Atlas(m) => m.get_mut(&handle.tile()),
+            TileSetPageSource::Freeform(m) => m.get_mut(&handle.tile()).map(|def| &mut def.data),
             TileSetPageSource::Transform(_) => None,
             TileSetPageSource::Animation(_) => None,
         }
@@ -1970,6 +2251,18 @@ impl TileSet {
         tiles.get(&frame).copied()
     }
 
+    /// The alternate handle of the given tile for the given index, or else it returns
+    /// the given handle if there is no alternate handle for the given index.
+    pub fn get_alternate_version(
+        &self,
+        index: usize,
+        handle: TileDefinitionHandle,
+    ) -> TileDefinitionHandle {
+        self.get_tile_data(handle.into())
+            .and_then(|d| d.alternates.get(index))
+            .unwrap_or(handle)
+    }
+
     /// Finds the handle of the tile that represents a transformed version of the tile at the given handle, if such a tile exists.
     /// The given tile needs to have a `transform_tile` in its data, that handle needs to point to a transform set page,
     /// and that page needs to have a tile in the position corresponding to the desired transform relative to the `transform_tile` position.
@@ -2107,6 +2400,24 @@ impl TileSet {
     ) {
         for (page_pos, page) in self.pages.iter_mut() {
             page.swap_all_values_for_collider(*page_pos, collider_id, values);
+        }
+    }
+    /// Runs the given callback function for each `TileData` in the tileset.
+    pub fn for_each_data<F>(&self, mut f: F)
+    where
+        F: FnMut(TileDefinitionHandle, &TileData),
+    {
+        for (page_pos, page) in self.pages.iter() {
+            page.for_each_data(*page_pos, &mut f);
+        }
+    }
+    /// Runs the given callback function for each `TileData` in the tileset.
+    pub fn for_each_data_mut<F>(&mut self, mut f: F)
+    where
+        F: FnMut(TileDefinitionHandle, &mut TileData),
+    {
+        for (page_pos, page) in self.pages.iter_mut() {
+            page.for_each_data_mut(*page_pos, &mut f);
         }
     }
 }

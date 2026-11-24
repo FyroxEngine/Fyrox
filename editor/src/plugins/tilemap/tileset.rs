@@ -67,6 +67,7 @@ const TAB_MARGIN: Thickness = Thickness {
 const TILES_TAB_UUID: Uuid = uuid!("63e4038a-be27-40cf-8140-88e5de36203d");
 const PROPERTIES_TAB_UUID: Uuid = uuid!("504d0f49-1ce3-48dd-9714-5cf369b9634e");
 const COLLISION_TAB_UUID: Uuid = uuid!("80558bb3-ffca-44c4-b424-1d2c21acae7d");
+const ALTERNATES_TAB_UUID: Uuid = uuid!("91287b6f-089f-454f-a214-873bca3e650b");
 const MACROS_TAB_UUID: Uuid = uuid!("67cb5962-a1c9-446b-b3cb-c112e2ca2f62");
 const DEFAULT_PAGE: Vector2<i32> = Vector2::new(0, 0);
 
@@ -116,6 +117,8 @@ pub struct TileSetEditor {
     properties_tab: PropertiesTab,
     /// The tab that allows users to add, remove, and edit collider layers.
     colliders_tab: CollidersTab,
+    /// The tab that allows users to add and remove alternate tiles.
+    alternates_tab: AlternatesTab,
     /// The tab that allows users to add, remove, and edit brush macros.
     macros_tab: MacroTab,
     /// The set of cells associated with each macro instance in order.
@@ -417,6 +420,7 @@ impl TileSetEditor {
 
         let properties_tab = PropertiesTab::new(tile_book.clone(), ctx);
         let colliders_tab = CollidersTab::new(tile_book.clone(), ctx);
+        let alternates_tab = AlternatesTab::new(tile_book.clone(), ctx);
         let macros_tab = MacroTab::new(macro_list.clone(), tile_book.clone(), ctx);
         let tab_control = TabControlBuilder::new(WidgetBuilder::new())
             .with_tab(make_tab(TILES_TAB_UUID, "Tiles", tile_tab.to_base(), ctx))
@@ -430,6 +434,12 @@ impl TileSetEditor {
                 COLLISION_TAB_UUID,
                 "Collision",
                 colliders_tab.handle(),
+                ctx,
+            ))
+            .with_tab(make_tab(
+                ALTERNATES_TAB_UUID,
+                "Alternates",
+                alternates_tab.handle(),
                 ctx,
             ))
             .with_tab(make_tab(
@@ -462,6 +472,7 @@ impl TileSetEditor {
             window,
             properties_tab,
             colliders_tab,
+            alternates_tab,
             macros_tab,
             state,
             macro_list,
@@ -551,10 +562,10 @@ impl TileSetEditor {
         let tab_control = &ui[self.tab_control];
         let tabs = tab_control.headers_container;
         let children = ui[tabs].children();
-        for &tab in &children[1..3] {
+        for &tab in &children[1..4] {
             ui.send(tab, WidgetMessage::Visibility(is_tile_set));
         }
-        ui.send(children[3], WidgetMessage::Visibility(!is_tile_set));
+        ui.send(children[4], WidgetMessage::Visibility(!is_tile_set));
     }
 
     /// Focus the editor on a particular tile and select that tile.
@@ -615,6 +626,7 @@ impl TileSetEditor {
             let tile_set = tile_set.as_loaded();
             self.properties_tab.sync_to_model(&tile_set, ui);
             self.colliders_tab.sync_to_model(&tile_set, ui);
+            self.alternates_tab.sync_to_model(&tile_set, ui);
             self.brush_macro_cell_sets.lock().clear();
         } else if let Some(brush) = self.tile_book.brush_ref() {
             build_brush_macro_cell_sets(
@@ -647,6 +659,8 @@ impl TileSetEditor {
             self.properties_tab
                 .handle_ui_message(r.clone(), message, ui, sender);
             self.colliders_tab
+                .handle_ui_message(r.clone(), message, ui, sender);
+            self.alternates_tab
                 .handle_ui_message(r.clone(), message, ui, sender);
         } else if let Some(r) = self.tile_book.brush_ref() {
             self.macros_tab.handle_ui_message(r, message, editor);

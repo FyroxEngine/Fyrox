@@ -56,10 +56,29 @@ use fyrox::{
 pub enum TileDefinitionHandleEditorMessage {
     /// The value of the handle has changed.
     Value(Option<TileDefinitionHandle>),
+    /// The editor has multiple values.
+    Multiple,
     /// The user has clicked the go-to button beside the handle.
     Goto(TileDefinitionHandle),
 }
 impl MessageData for TileDefinitionHandleEditorMessage {}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Reflect, Visit)]
+#[reflect(type_uuid = "61bb54d8-0bf7-4d3b-8d90-cffe7422348e")]
+enum Value {
+    One(TileDefinitionHandle),
+    None,
+    Multiple,
+}
+
+impl From<Option<TileDefinitionHandle>> for Value {
+    fn from(value: Option<TileDefinitionHandle>) -> Self {
+        match value {
+            Some(h) => Self::One(h),
+            None => Self::None,
+        }
+    }
+}
 
 /// The widget for editing a [`TileDefinitionHandle`].
 /// It has a button that can be used to focus the tile map control panel on the tile
@@ -83,16 +102,18 @@ pub struct TileDefinitionHandleEditor {
     widget: Widget,
     field: Handle<TextBox>,
     button: Handle<Button>,
-    value: Option<TileDefinitionHandle>,
+    value: Value,
     allow_none: bool,
 }
 
 define_widget_deref!(TileDefinitionHandleEditor);
 
-fn value_to_string(value: Option<TileDefinitionHandle>) -> String {
-    value
-        .map(|handle| handle.to_string())
-        .unwrap_or_else(|| "None".into())
+fn value_to_string(value: Value) -> String {
+    match value {
+        Value::One(h) => h.to_string(),
+        Value::None => "None".into(),
+        Value::Multiple => "?".into(),
+    }
 }
 
 impl TileDefinitionHandleEditor {
@@ -106,21 +127,27 @@ impl Control for TileDefinitionHandleEditor {
         if let Some(&TileDefinitionHandleEditorMessage::Value(handle)) =
             message.data_for(self.handle())
         {
-            self.value = handle;
+            self.value = handle.into();
+            ui.send_sync(self.field, TextMessage::Text(self.text()));
+            ui.try_send_response(message);
+        } else if let Some(&TileDefinitionHandleEditorMessage::Multiple) =
+            message.data_for(self.handle())
+        {
+            self.value = Value::Multiple;
             ui.send_sync(self.field, TextMessage::Text(self.text()));
             ui.try_send_response(message);
         } else if let Some(TextMessage::Text(text)) = message.data_from(self.field) {
             let value = TileDefinitionHandle::parse(text);
             if self.allow_none || value.is_some() {
-                self.value = value;
+                self.value = value.into();
             }
             ui.post(
                 self.handle(),
-                TileDefinitionHandleEditorMessage::Value(self.value),
+                TileDefinitionHandleEditorMessage::Value(value),
             );
             ui.send_sync(self.field, TextMessage::Text(self.text()));
         } else if let Some(ButtonMessage::Click) = message.data_from(self.button)
-            && let Some(handle) = self.value
+            && let Value::One(handle) = self.value
         {
             ui.post(
                 self.handle(),
@@ -133,7 +160,7 @@ impl Control for TileDefinitionHandleEditor {
 /// A builder for creating instances of [`TileDefinitionHandleEditor`].
 pub struct TileDefinitionHandleEditorBuilder {
     widget_builder: WidgetBuilder,
-    value: Option<TileDefinitionHandle>,
+    value: Value,
     allow_none: bool,
 }
 
@@ -142,7 +169,7 @@ impl TileDefinitionHandleEditorBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
-            value: None,
+            value: Value::None,
             allow_none: true,
         }
     }
@@ -153,7 +180,7 @@ impl TileDefinitionHandleEditorBuilder {
     }
     /// Set the initial value of the handle.
     pub fn with_value(mut self, value: Option<TileDefinitionHandle>) -> Self {
-        self.value = value;
+        self.value = value.into();
         self
     }
     /// Build the widgets for the [`TileDefinitionHandleEditor`].
