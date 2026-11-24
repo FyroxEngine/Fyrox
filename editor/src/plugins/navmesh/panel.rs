@@ -41,7 +41,6 @@ use crate::{
     message::MessageSender,
     plugins::navmesh::{
         self, command::ConnectNavmeshEdgesCommand, interaction::NavmeshInteractionMode,
-        selection::NavmeshEntity,
     },
     utils::window_content,
 };
