@@ -117,22 +117,13 @@ impl NavmeshPanel {
     ) {
         if let Some(ButtonMessage::Click) = message.data_from(self.connect_edges) {
             if let Some(selection) = navmesh::fetch_selection(editor_selection) {
-                let vertices = selection
-                    .entities()
-                    .iter()
-                    .filter_map(|entity| {
-                        if let NavmeshEntity::Edge(v) = *entity {
-                            Some(v)
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Vec<_>>();
-
-                self.sender.do_command(ConnectNavmeshEdgesCommand::new(
-                    selection.navmesh_node(),
-                    [vertices[0], vertices[1]],
-                ));
+                let mut edges = selection.edges();
+                if let (Some(first_edge), Some(second_edge)) = (edges.next(), edges.next()) {
+                    self.sender.do_command(ConnectNavmeshEdgesCommand::new(
+                        selection.navmesh_node(),
+                        [*first_edge, *second_edge],
+                    ));
+                }
             }
         } else if let Some(ButtonMessage::Click) = message.data_from(self.edit) {
             message_sender.send(Message::SetInteractionMode(
@@ -157,7 +148,16 @@ impl NavmeshPanel {
         }
 
         if navmesh_selected {
-            engine.user_interfaces.first().send(
+            let ui = engine.user_interfaces.first();
+
+            ui.send(
+                self.connect_edges,
+                WidgetMessage::Enabled(
+                    navmesh::fetch_selection(editor_selection)
+                        .is_some_and(|s| s.edges().count() >= 2),
+                ),
+            );
+            ui.send(
                 self.window,
                 WindowMessage::Open {
                     alignment: WindowAlignment::Relative {

@@ -179,4 +179,14 @@ impl NavmeshSelection {
     pub fn contains_edge(&self, edge: TriangleEdge) -> bool {
         self.entities.contains(&NavmeshEntity::Edge(edge))
     }
+
+    pub fn edges(&self) -> impl Iterator<Item = &TriangleEdge> {
+        self.entities().iter().filter_map(|entity| {
+            if let NavmeshEntity::Edge(v) = entity {
+                Some(v)
+            } else {
+                None
+            }
+        })
+    }
 }
