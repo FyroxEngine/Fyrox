@@ -371,19 +371,17 @@ impl InteractionMode for MoveInteractionMode {
             }
 
             if changed {
-                let commands = CommandGroup::from(
-                    move_context
-                        .objects
-                        .iter()
-                        .map(|initial_state| {
-                            Command::new(MoveNodeCommand::new(
-                                initial_state.node,
-                                initial_state.initial_local_position,
-                                **scene.graph[initial_state.node].local_transform().position(),
-                            ))
-                        })
-                        .collect::<Vec<_>>(),
-                );
+                let commands = move_context
+                    .objects
+                    .iter()
+                    .map(|initial_state| {
+                        MoveNodeCommand::new(
+                            initial_state.node,
+                            initial_state.initial_local_position,
+                            **scene.graph[initial_state.node].local_transform().position(),
+                        )
+                    })
+                    .collect::<CommandGroup>();
 
                 // Commit changes.
                 self.message_sender

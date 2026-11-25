@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::{
-    command::{Command, CommandGroup},
+    command::CommandGroup,
     fyrox::{
         core::{
             ImmutableString,
@@ -580,13 +580,12 @@ impl EntityCreator {
                     };
 
                     let new_parent_handle = graph.generate_free_handles(1)[0];
-                    let mut commands = CommandGroup::from(vec![
-                        Command::new(AddNodeCommand::new(node, parent, true)),
-                        Command::new(LinkNodesCommand::new(
+                    let mut commands = CommandGroup::new()
+                        .with(AddNodeCommand::new(node, parent, true))
+                        .with(LinkNodesCommand::new(
                             first_selected_node,
                             new_parent_handle,
-                        )),
-                    ]);
+                        ));
 
                     if parent == game_scene.scene_content_root {
                         commands.push(MoveNodeCommand::new(

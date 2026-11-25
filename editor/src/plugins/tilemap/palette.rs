@@ -412,7 +412,7 @@ fn send_copy_tile_set_pages(
         }
     }
     if !commands.is_empty() {
-        sender.do_command(CommandGroup::from(commands).with_custom_name("Edit Tile Set Pages"));
+        sender.do_command(CommandGroup::from_vec(commands).with_custom_name("Edit Tile Set Pages"));
     }
 }
 
@@ -446,7 +446,7 @@ fn send_update_tile_set_icons(
         )));
     }
     if !commands.is_empty() {
-        sender.do_command(CommandGroup::from(commands).with_custom_name("Edit Tile Set Pages"));
+        sender.do_command(CommandGroup::from_vec(commands).with_custom_name("Edit Tile Set Pages"));
     }
 }
 

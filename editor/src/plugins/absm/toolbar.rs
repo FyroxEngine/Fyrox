@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::{
-    command::{Command, CommandGroup},
+    command::CommandGroup,
     fyrox::{
         core::{color::Color, pool::Handle, pool::ObjectOrVariantHelper, reflect::Reflect},
         fxhash::FxHashSet,
@@ -299,10 +299,8 @@ impl Toolbar {
                 && let Some(machine) = machine_container_ref(graph, selection.absm_node_handle)
                 && let Some(layer_index) = selection.layer
             {
-                let mut commands = Vec::new();
-
-                commands.push(Command::new(ChangeSelectionCommand::new(Selection::new(
-                    AbsmSelection {
+                let commands = CommandGroup::new()
+                    .with(ChangeSelectionCommand::new(Selection::new(AbsmSelection {
                         absm_node_handle: selection.absm_node_handle,
                         layer: if machine.layers().len() > 1 {
                             Some(0)
@@ -310,15 +308,12 @@ impl Toolbar {
                             None
                         },
                         entities: vec![],
-                    },
-                ))));
-
-                commands.push(Command::new(RemoveLayerCommand::new(
-                    selection.absm_node_handle,
-                    layer_index,
-                )));
-
-                sender.do_command(CommandGroup::from(commands));
+                    })))
+                    .with(RemoveLayerCommand::new(
+                        selection.absm_node_handle,
+                        layer_index,
+                    ));
+                sender.do_command(commands);
             }
         } else if let Some(NodeSelectorMessage::Selection(mask_selection)) =
             message.data_from(self.node_selector)

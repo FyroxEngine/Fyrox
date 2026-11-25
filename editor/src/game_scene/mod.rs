@@ -691,15 +691,14 @@ impl SceneController for GameScene {
                     // the rule of one place of execution, only commands allowed to modify the scene.
                     let sub_graph = scene.graph.take_reserve_sub_graph(preview.instance);
 
-                    let group = vec![
-                        Command::new(AddModelCommand::new(sub_graph)),
-                        // We also want to select newly instantiated model.
-                        Command::new(ChangeSelectionCommand::new(Selection::new(
-                            GraphSelection::single_or_empty(preview.instance),
-                        ))),
-                    ];
-
-                    self.sender.do_command(CommandGroup::from(group));
+                    self.sender.do_command(
+                        CommandGroup::new()
+                            .with(AddModelCommand::new(sub_graph))
+                            // We also want to select newly instantiated model.
+                            .with(ChangeSelectionCommand::new(Selection::new(
+                                GraphSelection::single_or_empty(preview.instance),
+                            ))),
+                    );
                 } else if let Some(tex) = engine
                     .resource_manager
                     .try_request::<Texture>(relative_path)

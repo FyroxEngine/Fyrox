@@ -665,7 +665,7 @@ impl InteractionMode for TileMapInteractionMode {
                     if !commands.is_empty() {
                         commands.push(Command::new(command));
                         self.sender.do_command(
-                            CommandGroup::from(commands).with_custom_name("Draw Tiles"),
+                            CommandGroup::from_vec(commands).with_custom_name("Draw Tiles"),
                         );
                     } else {
                         self.sender.do_command(command);

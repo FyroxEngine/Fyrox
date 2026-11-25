@@ -20,7 +20,7 @@
 
 use crate::{
     Editor,
-    command::{Command, CommandGroup},
+    command::CommandGroup,
     fyrox::{
         core::{
             algebra::{UnitQuaternion, Vector3},
@@ -999,15 +999,14 @@ impl RagdollPreset {
         let ragdoll = ragdoll.to_base();
         let sub_graph = graph.take_reserve_sub_graph(ragdoll);
 
-        let group = vec![
-            Command::new(AddModelCommand::new(sub_graph)),
+        let group = CommandGroup::new()
+            .with(AddModelCommand::new(sub_graph))
             // We also want to select newly instantiated model.
-            Command::new(ChangeSelectionCommand::new(Selection::new(
+            .with(ChangeSelectionCommand::new(Selection::new(
                 GraphSelection::single_or_empty(ragdoll),
-            ))),
-        ];
+            )));
 
-        sender.do_command(CommandGroup::from(group).with_custom_name("Generate Ragdoll"));
+        sender.do_command(group.with_custom_name("Generate Ragdoll"));
     }
 }
 

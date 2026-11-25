@@ -41,7 +41,7 @@ use crate::plugins::absm::{
     transition::{TransitionBuilder, TransitionMessage, TransitionView},
 };
 use crate::{
-    command::{Command, CommandGroup},
+    command::CommandGroup,
     game_scene::{Selection, commands::ChangeSelectionCommand},
     message::MessageSender,
 };
@@ -197,18 +197,16 @@ impl StateGraphViewer {
                         .map(|e| {
                             let state_handle = fetch_state_node_model_handle(e.node, ui);
                             let new_position = ui.node(e.node).actual_local_position();
-
-                            Command::new(MoveStateNodeCommand::new(
+                            MoveStateNodeCommand::new(
                                 absm_node_handle,
                                 state_handle,
                                 layer_index,
                                 e.initial_position,
                                 new_position,
-                            ))
+                            )
                         })
-                        .collect::<Vec<_>>();
-
-                    sender.do_command(CommandGroup::from(commands));
+                        .collect::<CommandGroup>();
+                    sender.do_command(commands);
                 }
                 AbsmCanvasMessage::SelectionChanged(selection)
                     if message.direction() == MessageDirection::FromWidget =>
@@ -251,15 +249,14 @@ impl StateGraphViewer {
                         .iter()
                         .map(|node| {
                             let dest_state = fetch_state_node_model_handle(*node, ui);
-                            Command::new(AddTransitionCommand::new(
+                            AddTransitionCommand::new(
                                 absm_node_handle,
                                 layer_index,
                                 Transition::new("Transition", source, dest_state, 1.0, ""),
-                            ))
+                            )
                         })
-                        .collect::<Vec<_>>();
-
-                    sender.do_command(CommandGroup::from(commands));
+                        .collect::<CommandGroup>();
+                    sender.do_command(commands);
                 }
                 _ => (),
             }

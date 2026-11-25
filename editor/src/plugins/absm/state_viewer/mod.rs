@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::command::{Command, CommandGroup};
+use crate::command::CommandGroup;
 use crate::fyrox::generic_animation::AnimationContainer;
 use crate::fyrox::generic_animation::machine::Machine;
 use crate::fyrox::graph::{NodeWrapper, PrefabData};
@@ -293,18 +293,16 @@ impl StateViewer {
                             .map(|e| {
                                 let pose_handle = fetch_pose_node_model_handle(e.node, ui);
                                 let new_position = ui.node(e.node).actual_local_position();
-
-                                Command::new(MovePoseNodeCommand::new(
+                                MovePoseNodeCommand::new(
                                     absm_node_handle,
                                     pose_handle,
                                     layer_index,
                                     e.initial_position,
                                     new_position,
-                                ))
+                                )
                             })
-                            .collect::<Vec<_>>();
-
-                        sender.do_command(CommandGroup::from(commands));
+                            .collect::<CommandGroup>();
+                        sender.do_command(commands);
                     }
                     AbsmCanvasMessage::SelectionChanged(selection)
                         if message.direction() == MessageDirection::FromWidget =>

@@ -1081,20 +1081,23 @@ impl TrackList {
             } else if message.destination() == self.context_menu.target_node_selector
                 && let Some(first) = node_selection.first()
             {
-                let mut commands = Vec::new();
-
-                for entity in selection.entities.iter() {
-                    if let SelectedEntity::Track(id) = entity {
-                        commands.push(Command::new(SetTrackTargetCommand {
-                            animation_player_handle: selection.animation_player,
-                            animation_handle: selection.animation,
-                            track: *id,
-                            target: first.handle.into(),
-                        }));
-                    }
-                }
-
-                sender.do_command(CommandGroup::from(commands));
+                let commands = selection
+                    .entities
+                    .iter()
+                    .filter_map(|entity| {
+                        if let SelectedEntity::Track(id) = entity {
+                            Some(SetTrackTargetCommand {
+                                animation_player_handle: selection.animation_player,
+                                animation_handle: selection.animation,
+                                track: *id,
+                                target: first.handle.into(),
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<CommandGroup>();
+                sender.do_command(commands);
             }
         } else if let Some(PropertySelectorMessage::Selection(selected_properties)) = message.data()
         {
@@ -1167,26 +1170,27 @@ impl TrackList {
         } else if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.context_menu.remove_track {
                 if selected_animation.is_some() {
-                    let mut commands = vec![Command::new(ChangeSelectionCommand::new(
-                        Selection::new(AnimationSelection {
-                            animation_player: selection.animation_player,
-                            animation: selection.animation,
-                            // Just reset inner selection.
-                            entities: vec![],
-                        }),
-                    ))];
-
-                    for entity in selection.entities.iter() {
-                        if let SelectedEntity::Track(id) = entity {
-                            commands.push(Command::new(RemoveTrackCommand::new(
-                                selection.animation_player,
-                                selection.animation,
-                                *id,
-                            )));
-                        }
-                    }
-
-                    sender.do_command(CommandGroup::from(commands));
+                    let commands = CommandGroup::new()
+                        .with(ChangeSelectionCommand::new(Selection::new(
+                            AnimationSelection {
+                                animation_player: selection.animation_player,
+                                animation: selection.animation,
+                                // Just reset inner selection.
+                                entities: vec![],
+                            },
+                        )))
+                        .with_many(selection.entities.iter().filter_map(|entity| {
+                            if let SelectedEntity::Track(id) = entity {
+                                Some(RemoveTrackCommand::new(
+                                    selection.animation_player,
+                                    selection.animation,
+                                    *id,
+                                ))
+                            } else {
+                                None
+                            }
+                        }));
+                    sender.do_command(commands);
                 }
             } else if message.destination() == self.context_menu.set_target {
                 self.context_menu.target_node_selector = NodeSelectorWindowBuilder::new(
@@ -1230,18 +1234,17 @@ impl TrackList {
 
                             track.set_id(Uuid::new_v4());
 
-                            Some(Command::new(AddTrackCommand::new(
+                            Some(AddTrackCommand::new(
                                 selection.animation_player,
                                 selection.animation,
                                 track,
                                 TrackBinding::new(binding.target),
-                            )))
+                            ))
                         }
                         _ => None,
                     })
-                    .collect::<Vec<_>>();
-
-                sender.do_command(CommandGroup::from(commands));
+                    .collect::<CommandGroup>();
+                sender.do_command(commands);
             }
         } else if let Some(TrackViewMessage::TrackEnabled(enabled)) = message.data()
             && message.direction() == MessageDirection::FromWidget

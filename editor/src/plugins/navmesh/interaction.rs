@@ -20,7 +20,7 @@
 
 use crate::plugins::navmesh::settings::NavmeshSettings;
 use crate::{
-    command::{Command, CommandGroup},
+    command::CommandGroup,
     fyrox::{
         core::{
             algebra::{Vector2, Vector3},
@@ -233,17 +233,17 @@ impl InteractionMode for NavmeshInteractionMode {
                 .map(|n| n.navmesh_ref())
             && let Some(drag_context) = self.drag_context.take()
         {
-            let mut commands = Vec::new();
+            let mut commands = CommandGroup::default();
 
             match drag_context {
                 DragContext::MoveSelection { initial_positions } => {
                     for vertex in selection.unique_vertices().iter() {
-                        commands.push(Command::new(MoveNavmeshVertexCommand::new(
+                        commands.push(MoveNavmeshVertexCommand::new(
                             selection.navmesh_node(),
                             *vertex,
                             *initial_positions.get(vertex).unwrap(),
                             navmesh.vertices()[*vertex],
-                        )));
+                        ));
                     }
                 }
                 DragContext::EdgeDuplication {
@@ -253,16 +253,16 @@ impl InteractionMode for NavmeshInteractionMode {
                     let va = vertices[0];
                     let vb = vertices[1];
 
-                    commands.push(Command::new(AddNavmeshEdgeCommand::new(
+                    commands.push(AddNavmeshEdgeCommand::new(
                         selection.navmesh_node(),
                         (va, vb),
                         opposite_edge,
                         true,
-                    )));
+                    ));
                 }
             }
 
-            self.message_sender.do_command(CommandGroup::from(commands));
+            self.message_sender.do_command(commands);
         }
     }
 
@@ -487,20 +487,14 @@ impl InteractionMode for NavmeshInteractionMode {
                         .is_ok()
                         && !selection.is_empty()
                     {
-                        let mut commands = Vec::new();
-
-                        for vertex in selection.unique_vertices().iter().rev().cloned() {
-                            commands.push(Command::new(DeleteNavmeshVertexCommand::new(
-                                selection.navmesh_node(),
-                                vertex,
+                        let commands = CommandGroup::new()
+                            .with_many(selection.unique_vertices().iter().rev().map(|vertex| {
+                                DeleteNavmeshVertexCommand::new(selection.navmesh_node(), *vertex)
+                            }))
+                            .with(ChangeSelectionCommand::new(Selection::new(
+                                NavmeshSelection::empty(selection.navmesh_node()),
                             )));
-                        }
-
-                        commands.push(Command::new(ChangeSelectionCommand::new(Selection::new(
-                            NavmeshSelection::empty(selection.navmesh_node()),
-                        ))));
-
-                        self.message_sender.do_command(CommandGroup::from(commands));
+                        self.message_sender.do_command(commands);
                     }
 
                     true

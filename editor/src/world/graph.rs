@@ -20,7 +20,7 @@
 
 use crate::world::SceneItemIcon;
 use crate::{
-    command::{Command, CommandGroup},
+    command::CommandGroup,
     fyrox::{
         asset::manager::ResourceManager,
         core::{
@@ -240,15 +240,13 @@ impl WorldViewerDataProvider for EditorSceneWrapper<'_> {
 
             let sub_graph = self.scene.graph.take_reserve_sub_graph(instance);
 
-            let group = vec![
-                Command::new(AddModelCommand::new(sub_graph)),
-                Command::new(LinkNodesCommand::new(instance, node.into())),
-                Command::new(ChangeSelectionCommand::new(Selection::new(
+            let group = CommandGroup::new()
+                .with(AddModelCommand::new(sub_graph))
+                .with(LinkNodesCommand::new(instance, node.into()))
+                .with(ChangeSelectionCommand::new(Selection::new(
                     GraphSelection::single_or_empty(instance),
-                ))),
-            ];
-
-            self.sender.do_command(CommandGroup::from(group));
+                )));
+            self.sender.do_command(group);
         }
     }
 

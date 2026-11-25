@@ -144,15 +144,14 @@ impl SelectionContainer for UiSelection {
         }
 
         // Change selection first.
-        let mut command_group = CommandGroup::from(vec![Command::new(
-            ChangeSelectionCommand::new(Default::default()),
-        )]);
-
         let root_nodes = ui_scene.ui.root_nodes(&selection.widgets);
-        for root_node in root_nodes {
-            command_group.push(DeleteWidgetsSubGraphCommand::new(root_node));
-        }
-
+        let command_group = CommandGroup::new()
+            .with(ChangeSelectionCommand::new(Default::default()))
+            .with_many(
+                root_nodes
+                    .into_iter()
+                    .map(DeleteWidgetsSubGraphCommand::new),
+            );
         Some(Command::new(command_group))
     }
 }

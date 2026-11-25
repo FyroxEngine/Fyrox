@@ -178,7 +178,7 @@ impl MessageSender {
         if group.len() == 1 {
             self.send(Message::DoCommand(group.into_iter().next().unwrap()))
         } else {
-            self.do_command(CommandGroup::from(group));
+            self.do_command(CommandGroup::from_vec(group));
         }
     }
 

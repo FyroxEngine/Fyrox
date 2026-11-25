@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::{
-    command::{Command, CommandGroup},
+    command::CommandGroup,
     fyrox::{
         asset::manager::ResourceManager,
         core::{futures::executor::block_on, log::Log, pool::ErasedHandle, pool::Handle},
@@ -779,21 +779,19 @@ impl Toolbar {
                 ui.send(self.root_motion_dropdown_area.popup, PopupMessage::Open);
             } else if message.destination() == self.remove_current_animation {
                 if animations.try_get(selection.animation).is_ok() {
-                    let group = vec![
-                        Command::new(ChangeSelectionCommand::new(Selection::new(
+                    let group = CommandGroup::new()
+                        .with(ChangeSelectionCommand::new(Selection::new(
                             AnimationSelection {
                                 animation_player: animation_player_handle,
                                 animation: Default::default(),
                                 entities: vec![],
                             },
-                        ))),
-                        Command::new(RemoveAnimationCommand::new(
+                        )))
+                        .with(RemoveAnimationCommand::new(
                             animation_player_handle,
                             selection.animation,
-                        )),
-                    ];
-
-                    sender.do_command(CommandGroup::from(group));
+                        ));
+                    sender.do_command(group);
                 }
             } else if message.destination() == self.rename_current_animation {
                 self.rename_animation_input_box = InputBoxBuilder::new(
@@ -1013,18 +1011,10 @@ impl Toolbar {
 
                     match self.import_mode {
                         ImportMode::Import => {
-                            let group = CommandGroup::from(
-                                animations
-                                    .into_iter()
-                                    .map(|a| {
-                                        Command::new(AddAnimationCommand::new(
-                                            animation_player_handle,
-                                            a,
-                                        ))
-                                    })
-                                    .collect::<Vec<_>>(),
-                            );
-
+                            let group = animations
+                                .into_iter()
+                                .map(|a| AddAnimationCommand::new(animation_player_handle, a))
+                                .collect::<CommandGroup>();
                             sender.do_command(group);
                         }
                         ImportMode::Reimport => {

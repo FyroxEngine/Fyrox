@@ -21,7 +21,7 @@
 use crate::world::create::EntityCreatorMode;
 use crate::{
     Engine, Message,
-    command::{Command, CommandGroup},
+    command::CommandGroup,
     fyrox::{
         asset::untyped::UntypedResource,
         core::{
@@ -346,20 +346,18 @@ impl SceneNodeContextMenu {
                     if let Some(graph_selection) = editor_selection.as_graph()
                         && let Some(first) = graph_selection.nodes.first()
                     {
-                        let commands = CommandGroup::from(vec![
-                            Command::new(SetNodeTransformCommand::new(
+                        let commands = CommandGroup::new()
+                            .with(SetNodeTransformCommand::new(
                                 *first,
                                 engine.scenes[game_scene.scene].graph[*first]
                                     .local_transform()
                                     .clone(),
                                 Default::default(),
-                            )),
-                            Command::new(SetGraphRootCommand {
+                            ))
+                            .with(SetGraphRootCommand {
                                 root: *first,
                                 link_scheme: Default::default(),
-                            }),
-                        ]);
-
+                            });
                         sender.do_command(commands);
                     }
                 } else if message.destination() == self.open_asset {
@@ -378,17 +376,15 @@ impl SceneNodeContextMenu {
                 } else if message.destination() == self.reset_inheritable_properties {
                     if let Some(graph_selection) = editor_selection.as_graph() {
                         let scene = &engine.scenes[game_scene.scene];
-                        let mut commands = Vec::new();
+                        let mut commands = CommandGroup::new();
                         for node_handle in graph_selection.nodes.iter() {
                             if let Ok(node) = scene.graph.try_get_node(*node_handle) {
                                 (node as &dyn Reflect).enumerate_fields_recursively(
                                     &mut |path, _, val| {
                                         if val.as_inheritable_variable().is_some() {
-                                            commands.push(Command::new(
-                                                RevertSceneNodePropertyCommand::new(
-                                                    path.to_string(),
-                                                    *node_handle,
-                                                ),
+                                            commands.push(RevertSceneNodePropertyCommand::new(
+                                                path.to_string(),
+                                                *node_handle,
                                             ));
                                         }
                                     },
@@ -396,7 +392,7 @@ impl SceneNodeContextMenu {
                                 )
                             }
                         }
-                        sender.do_command(CommandGroup::from(commands));
+                        sender.do_command(commands);
                     }
                 } else if message.destination() == self.create_child_menu {
                     sender.send(Message::OpenEntityCreator(EntityCreatorMode::CreateChild));

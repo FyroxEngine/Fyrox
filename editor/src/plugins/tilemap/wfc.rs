@@ -476,26 +476,25 @@ impl BrushMacro for WfcMacro {
             .filter_map(|handle| {
                 if Some(handle.page()) == source {
                     let cell = TileDefinitionHandle::try_new(destination, handle.tile())?;
-                    Some(Command::new(SetCellCommand {
+                    Some(SetCellCommand {
                         brush: context.brush.clone(),
                         cell,
                         instance: instance.clone(),
                         included: true,
-                    }))
+                    })
                 } else if handle.page() == destination && !used.contains(&handle.tile()) {
-                    Some(Command::new(SetCellCommand {
+                    Some(SetCellCommand {
                         brush: context.brush.clone(),
                         cell: *handle,
                         instance: instance.clone(),
                         included: false,
-                    }))
+                    })
                 } else {
                     None
                 }
             })
-            .collect::<Vec<_>>();
-        (!commands.is_empty())
-            .then(|| Command::new(CommandGroup::from(commands).with_custom_name("Set Page Macros")))
+            .collect::<CommandGroup>();
+        (!commands.is_empty()).then(|| Command::new(commands.with_custom_name("Set Page Macros")))
     }
 
     fn build_instance_editor(

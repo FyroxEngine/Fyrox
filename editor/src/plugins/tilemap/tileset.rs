@@ -743,7 +743,7 @@ impl TileSetEditor {
                 .iter()
                 .filter_map(|p| self.delete_page(*p))
                 .collect::<Vec<_>>();
-            sender.do_command(CommandGroup::from(commands).with_custom_name("Delete Pages"));
+            sender.do_command(CommandGroup::from_vec(commands).with_custom_name("Delete Pages"));
         } else if palette == self.tiles_palette {
             ui.send(self.tiles_palette, PaletteMessage::Delete);
         }

@@ -20,7 +20,7 @@
 
 use crate::{
     Message,
-    command::{Command, CommandGroup, SetPropertyCommand},
+    command::{CommandGroup, SetPropertyCommand},
     fyrox::{
         core::{algebra::Vector3, pool::Handle, reflect::Reflect},
         engine::Engine,
@@ -54,10 +54,10 @@ pub struct ColliderControlPanel {
 fn set_property<T: Reflect>(
     name: &str,
     value: T,
-    commands: &mut Vec<Command>,
+    commands: &mut CommandGroup,
     selected_collider: Handle<Node>,
 ) {
-    commands.push(Command::new(SetPropertyCommand::new(
+    commands.push(SetPropertyCommand::new(
         name.into(),
         Box::new(value) as Box<dyn Reflect>,
         move |ctx| {
@@ -68,7 +68,7 @@ fn set_property<T: Reflect>(
                 .ok()
                 .map(|n| n as &mut dyn Reflect)
         },
-    )));
+    ));
 }
 
 impl ColliderControlPanel {
@@ -140,7 +140,7 @@ impl ColliderControlPanel {
 
             let scene = &engine.scenes[game_scene.scene];
 
-            let mut commands = Vec::new();
+            let mut commands = CommandGroup::new();
 
             for collider in selection.nodes() {
                 let Ok(collider_ref) = scene.graph.try_get_of_type::<Collider>(*collider) else {
@@ -233,7 +233,7 @@ impl ColliderControlPanel {
                 }
             }
             if !commands.is_empty() {
-                sender.do_command(CommandGroup::from(commands));
+                sender.do_command(commands);
             }
         } else if message.destination() == self.edit {
             sender.send(Message::SetInteractionMode(

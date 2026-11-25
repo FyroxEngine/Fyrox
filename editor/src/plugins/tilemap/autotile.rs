@@ -440,26 +440,25 @@ impl BrushMacro for AutoTileMacro {
             .filter_map(|(handle, data)| {
                 if Some(handle.page()) == source {
                     let cell = TileDefinitionHandle::try_new(destination, handle.tile())?;
-                    Some(Command::new(SetCellCommand {
+                    Some(SetCellCommand {
                         brush: context.brush.clone(),
                         cell,
                         instance: instance.clone(),
                         data: Some(data.clone()),
-                    }))
+                    })
                 } else if handle.page() == destination && !used.contains(&handle.tile()) {
-                    Some(Command::new(SetCellCommand {
+                    Some(SetCellCommand {
                         brush: context.brush.clone(),
                         cell: *handle,
                         instance: instance.clone(),
                         data: None,
-                    }))
+                    })
                 } else {
                     None
                 }
             })
-            .collect::<Vec<_>>();
-        (!commands.is_empty())
-            .then(|| Command::new(CommandGroup::from(commands).with_custom_name("Set Page Macros")))
+            .collect::<CommandGroup>();
+        (!commands.is_empty()).then(|| Command::new(commands.with_custom_name("Set Page Macros")))
     }
 
     fn build_instance_editor(

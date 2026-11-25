@@ -21,7 +21,7 @@
 use crate::{
     Mode,
     asset::preview::cache::IconRequest,
-    command::{Command, CommandGroup},
+    command::CommandGroup,
     fyrox::{
         core::pool::Handle,
         engine::Engine,
@@ -279,15 +279,15 @@ impl AudioPanel {
             } else if message.destination() == self.remove_bus
                 && let Some(selection) = editor_selection.as_ref::<AudioBusSelection>()
             {
-                let mut commands = vec![Command::new(ChangeSelectionCommand::new(
-                    Selection::new_empty(),
-                ))];
-
-                for &bus in &selection.buses {
-                    commands.push(Command::new(AddOrRemoveAudioBusCommand::new_remove(bus)));
-                }
-
-                sender.do_command(CommandGroup::from(commands));
+                let commands = CommandGroup::new()
+                    .with(ChangeSelectionCommand::new(Selection::new_empty()))
+                    .with_many(
+                        selection
+                            .buses
+                            .iter()
+                            .map(|bus| AddOrRemoveAudioBusCommand::new_remove(*bus)),
+                    );
+                sender.do_command(commands);
             }
         } else if let Some(ListViewMessage::Selection(selected_indices)) =
             message.data_from(self.audio_buses)

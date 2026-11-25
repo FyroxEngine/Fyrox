@@ -25,7 +25,7 @@
 //! `TileInspector` is just responsible for managing the `TileEditor` objects.
 
 use crate::{
-    command::{Command, CommandGroup},
+    command::CommandGroup,
     plugins::material::editor::{MaterialFieldEditorBuilder, MaterialFieldMessage},
 };
 use fyrox::{
@@ -1208,15 +1208,13 @@ impl TileInspector {
             TileBook::TileSet(tile_set) => state
                 .page_positions()
                 .map(|position| ModifyPageIconCommand::new(tile_set.clone(), position, icon))
-                .map(Command::new)
-                .collect::<Vec<_>>(),
+                .collect::<CommandGroup>(),
             TileBook::Brush(brush) => state
                 .page_positions()
                 .map(|position| ModifyBrushPageIconCommand::new(brush.clone(), position, icon))
-                .map(Command::new)
-                .collect::<Vec<_>>(),
+                .collect::<CommandGroup>(),
         };
-        sender.do_command(CommandGroup::from(cmds).with_custom_name("Modify Tile Page Icon"));
+        sender.do_command(cmds.with_custom_name("Modify Tile Page Icon"));
     }
     /// Create default tiles at any empty tile positions in the current selection.
     fn create_tile(&self, state: &TileEditorState, sender: &MessageSender) {
@@ -1279,9 +1277,8 @@ impl TileInspector {
                     tiles: Tiles::default(),
                 }),
             })
-            .map(Command::new)
-            .collect::<Vec<_>>();
-        sender.do_command(CommandGroup::from(cmds).with_custom_name("Create Brush Page"));
+            .collect::<CommandGroup>();
+        sender.do_command(cmds.with_custom_name("Create Brush Page"));
     }
     fn create_tile_set_page(
         &self,
@@ -1304,9 +1301,8 @@ impl TileInspector {
                     }),
                 })
             })
-            .map(Command::new)
-            .collect::<Vec<_>>();
-        sender.do_command(CommandGroup::from(cmds).with_custom_name("Create Tile Set Page"));
+            .collect::<CommandGroup>();
+        sender.do_command(cmds.with_custom_name("Create Tile Set Page"));
     }
     fn set_page_material(
         &self,

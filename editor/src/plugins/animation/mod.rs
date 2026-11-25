@@ -20,7 +20,7 @@
 
 use crate::{
     Editor, Message,
-    command::{Command, CommandGroup},
+    command::CommandGroup,
     fyrox::{
         asset::manager::ResourceManager,
         core::{
@@ -397,20 +397,15 @@ impl AnimationEditor {
             if let Some(msg) = message.data_from::<CurveEditorMessage>(self.curve_editor) {
                 match msg {
                     CurveEditorMessage::Sync(curves) => {
-                        let group = CommandGroup::from(
-                            curves
-                                .iter()
-                                .cloned()
-                                .map(|curve| {
-                                    Command::new(ReplaceTrackCurveCommand {
-                                        animation_player: selection.animation_player,
-                                        animation: selection.animation,
-                                        curve,
-                                    })
-                                })
-                                .collect::<Vec<_>>(),
-                        );
-
+                        let group = curves
+                            .iter()
+                            .cloned()
+                            .map(|curve| ReplaceTrackCurveCommand {
+                                animation_player: selection.animation_player,
+                                animation: selection.animation,
+                                curve,
+                            })
+                            .collect::<CommandGroup>();
                         sender.do_command(group);
                     }
                     CurveEditorMessage::ViewPosition(position) => {

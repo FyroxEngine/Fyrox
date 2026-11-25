@@ -21,7 +21,7 @@
 use crate::game_scene::camera::PickingOptions;
 use crate::{
     Engine,
-    command::{Command, CommandGroup},
+    command::CommandGroup,
     fyrox::{
         core::{
             algebra::{Vector2, Vector3},
@@ -128,16 +128,15 @@ impl InteractionMode for ScaleInteractionMode {
                 let current_scales = selection.local_scales(graph);
                 if current_scales != self.initial_scales {
                     // Commit changes.
-                    let commands = CommandGroup::from(
-                        selection
-                            .nodes()
-                            .iter()
-                            .zip(self.initial_scales.iter().zip(current_scales.iter()))
-                            .map(|(&node, (&old_scale, &new_scale))| {
-                                Command::new(ScaleNodeCommand::new(node, old_scale, new_scale))
-                            })
-                            .collect::<Vec<_>>(),
-                    );
+                    let commands = selection
+                        .nodes()
+                        .iter()
+                        .zip(self.initial_scales.iter().zip(current_scales.iter()))
+                        .map(|(&node, (&old_scale, &new_scale))| {
+                            ScaleNodeCommand::new(node, old_scale, new_scale)
+                        })
+                        .collect::<CommandGroup>();
+
                     self.message_sender.do_command(commands);
                 }
             }

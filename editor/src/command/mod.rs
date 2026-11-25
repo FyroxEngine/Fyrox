@@ -137,16 +137,55 @@ pub struct CommandGroup {
     custom_name: String,
 }
 
-impl From<Vec<Command>> for CommandGroup {
-    fn from(commands: Vec<Command>) -> Self {
+impl<T> FromIterator<T> for CommandGroup
+where
+    T: CommandTrait + 'static,
+{
+    #[inline]
+    fn from_iter<C: IntoIterator<Item = T>>(iter: C) -> Self {
         Self {
-            commands,
+            commands: Vec::from_iter(iter.into_iter().map(|c| Command::new(c))),
             custom_name: Default::default(),
         }
     }
 }
 
 impl CommandGroup {
+    /// Creates a new empty command group.
+    pub fn new() -> Self {
+        Self {
+            commands: Default::default(),
+            custom_name: Default::default(),
+        }
+    }
+
+    /// Create a new command group from the given set of commands.
+    pub fn from_vec(group: Vec<Command>) -> Self {
+        Self {
+            commands: group,
+            custom_name: Default::default(),
+        }
+    }
+
+    /// Extends the group with one command.
+    pub fn with<C>(mut self, command: C) -> Self
+    where
+        C: CommandTrait,
+    {
+        self.push(command);
+        self
+    }
+
+    /// Extends the group with an iterator that yields commands.
+    pub fn with_many<I, C>(mut self, iter: I) -> Self
+    where
+        I: Iterator<Item = C>,
+        C: CommandTrait,
+    {
+        self.commands.extend(iter.map(|c| Command::new(c)));
+        self
+    }
+
     /// Add an object of the `CommandTriat` to the group.
     pub fn push<C: CommandTrait>(&mut self, command: C) {
         self.commands.push(Command::new(command))

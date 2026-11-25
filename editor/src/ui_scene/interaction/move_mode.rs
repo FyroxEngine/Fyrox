@@ -25,7 +25,7 @@ use crate::fyrox::{
     gui::{BuildContext, UiNode},
 };
 use crate::{
-    command::{Command, CommandGroup},
+    command::CommandGroup,
     game_scene::{
         Selection,
         commands::ChangeSelectionCommand,
@@ -135,14 +135,14 @@ impl InteractionMode for MoveWidgetsInteractionMode {
                     .entries
                     .into_iter()
                     .map(|e| {
-                        Command::new(MoveWidgetCommand::new(
+                        MoveWidgetCommand::new(
                             e.widget,
                             e.initial_local_position,
                             e.new_local_position,
-                        ))
+                        )
                     })
-                    .collect::<Vec<_>>();
-                self.sender.do_command(CommandGroup::from(commands));
+                    .collect::<CommandGroup>();
+                self.sender.do_command(commands);
             }
         } else {
             let picked = ui_scene.ui.hit_test(mouse_pos);

@@ -19,7 +19,7 @@
 // SOFTWARE.
 
 use crate::{
-    command::{Command, CommandGroup},
+    command::CommandGroup,
     fyrox::{
         asset::manager::ResourceManager,
         core::{
@@ -263,16 +263,14 @@ impl WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'_> {
 
                 let sub_graph = self.ui.take_reserve_sub_graph(instance);
 
-                let group = vec![
-                    Command::new(AddUiPrefabCommand::new(sub_graph)),
-                    Command::new(LinkWidgetsCommand::new(instance, node.into())),
+                let group = CommandGroup::new()
+                    .with(AddUiPrefabCommand::new(sub_graph))
+                    .with(LinkWidgetsCommand::new(instance, node.into()))
                     // We also want to select newly instantiated model.
-                    Command::new(ChangeSelectionCommand::new(Selection::new(
+                    .with(ChangeSelectionCommand::new(Selection::new(
                         UiSelection::single_or_empty(instance),
-                    ))),
-                ];
-
-                self.sender.do_command(CommandGroup::from(group));
+                    )));
+                self.sender.do_command(group);
             }
         }
     }

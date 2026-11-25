@@ -49,7 +49,7 @@ use crate::plugins::absm::{
     selection::SelectedEntity,
 };
 use crate::{
-    command::{Command, CommandGroup},
+    command::CommandGroup,
     game_scene::{Selection, commands::ChangeSelectionCommand},
     menu::create_menu_item,
     message::MessageSender,
@@ -283,23 +283,20 @@ impl NodeContextMenu {
                     let mut new_selection = selection.clone();
                     new_selection.entities.clear();
 
-                    let mut group = vec![Command::new(ChangeSelectionCommand::new(
-                        Selection::new(new_selection),
-                    ))];
-
-                    group.extend(selection.entities.iter().filter_map(|entry| {
-                        if let SelectedEntity::PoseNode(pose_node) = entry {
-                            Some(Command::new(DeletePoseNodeCommand::new(
-                                absm_node_handle,
-                                layer_index,
-                                *pose_node,
-                            )))
-                        } else {
-                            None
-                        }
-                    }));
-
-                    sender.do_command(CommandGroup::from(group));
+                    let group = CommandGroup::new()
+                        .with(ChangeSelectionCommand::new(Selection::new(new_selection)))
+                        .with_many(selection.entities.iter().filter_map(|entry| {
+                            if let SelectedEntity::PoseNode(pose_node) = entry {
+                                Some(DeletePoseNodeCommand::new(
+                                    absm_node_handle,
+                                    layer_index,
+                                    *pose_node,
+                                ))
+                            } else {
+                                None
+                            }
+                        }));
+                    sender.do_command(group);
                 }
             } else if message.destination() == self.set_as_root {
                 let root = ui

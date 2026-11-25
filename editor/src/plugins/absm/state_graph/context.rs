@@ -20,7 +20,7 @@
 
 use super::fetch_state_node_model_handle;
 use crate::{
-    command::{Command, CommandGroup},
+    command::CommandGroup,
     fyrox::{
         core::pool::Handle,
         generic_animation::machine::{Machine, State, Transition},
@@ -155,14 +155,14 @@ impl CanvasContextMenu {
                             fetch_state_node_model_handle(**source_node, ui),
                             fetch_state_node_model_handle(**dest_node, ui),
                         );
-                        Command::new(AddTransitionCommand::new(
+                        AddTransitionCommand::new(
                             absm_node_handle,
                             layer_index,
                             Transition::new("Transition", source, dest, 1.0, ""),
-                        ))
+                        )
                     })
-                    .collect::<Vec<_>>();
-                sender.do_command(CommandGroup::from(commands));
+                    .collect::<CommandGroup>();
+                sender.do_command(commands);
             }
         }
     }
@@ -306,27 +306,15 @@ impl NodeContextMenu {
                     let mut new_selection = selection.clone();
                     new_selection.entities.clear();
 
-                    let mut group = vec![Command::new(ChangeSelectionCommand::new(
-                        Selection::new(new_selection),
-                    ))];
-
-                    group.extend(transitions_to_remove.map(|transition| {
-                        Command::new(DeleteTransitionCommand::new(
-                            absm_node_handle,
-                            layer_index,
-                            transition,
-                        ))
-                    }));
-
-                    group.extend(states_to_remove.into_iter().map(|state| {
-                        Command::new(DeleteStateCommand::new(
-                            absm_node_handle,
-                            layer_index,
-                            state,
-                        ))
-                    }));
-
-                    sender.do_command(CommandGroup::from(group));
+                    let group = CommandGroup::new()
+                        .with(ChangeSelectionCommand::new(Selection::new(new_selection)))
+                        .with_many(transitions_to_remove.map(|transition| {
+                            DeleteTransitionCommand::new(absm_node_handle, layer_index, transition)
+                        }))
+                        .with_many(states_to_remove.into_iter().map(|state| {
+                            DeleteStateCommand::new(absm_node_handle, layer_index, state)
+                        }));
+                    sender.do_command(group);
                 }
             } else if message.destination() == self.set_as_entry_state {
                 sender.do_command(SetMachineEntryStateCommand {
@@ -422,16 +410,14 @@ impl TransitionContextMenu {
                     .self_or_field_ref::<TransitionView>()
                     .unwrap();
 
-                let group = vec![
-                    Command::new(ChangeSelectionCommand::new(Selection::new(new_selection))),
-                    Command::new(DeleteTransitionCommand::new(
+                let group = CommandGroup::new()
+                    .with(ChangeSelectionCommand::new(Selection::new(new_selection)))
+                    .with(DeleteTransitionCommand::new(
                         absm_node_handle,
                         layer_index,
                         transition_ref.model_handle.into(),
-                    )),
-                ];
-
-                sender.do_command(CommandGroup::from(group));
+                    ));
+                sender.do_command(group);
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data()
             && message.destination() == self.menu.handle()

@@ -21,7 +21,7 @@
 use crate::game_scene::camera::PickingOptions;
 use crate::{
     Engine,
-    command::{Command, CommandGroup},
+    command::CommandGroup,
     fyrox::{
         core::{
             algebra::{UnitQuaternion, Vector2},
@@ -129,20 +129,15 @@ impl InteractionMode for RotateInteractionMode {
                 self.interacting = false;
                 let current_rotation = selection.local_rotations(graph);
                 if current_rotation != self.initial_rotations {
-                    let commands = CommandGroup::from(
-                        selection
-                            .nodes()
-                            .iter()
-                            .zip(self.initial_rotations.iter().zip(current_rotation.iter()))
-                            .map(|(&node, (&old_rotation, &new_rotation))| {
-                                Command::new(RotateNodeCommand::new(
-                                    node,
-                                    old_rotation,
-                                    new_rotation,
-                                ))
-                            })
-                            .collect::<Vec<Command>>(),
-                    );
+                    let commands = selection
+                        .nodes()
+                        .iter()
+                        .zip(self.initial_rotations.iter().zip(current_rotation.iter()))
+                        .map(|(&node, (&old_rotation, &new_rotation))| {
+                            RotateNodeCommand::new(node, old_rotation, new_rotation)
+                        })
+                        .collect::<CommandGroup>();
+
                     // Commit changes.
                     self.message_sender.do_command(commands);
                 }

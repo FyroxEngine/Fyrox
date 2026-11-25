@@ -246,15 +246,15 @@ impl SceneController for UiScene {
             // the rule of one place of execution, only commands allowed to modify the scene.
             let sub_graph = self.ui.take_reserve_sub_graph(preview.instance);
 
-            let group = vec![
-                Command::new(AddUiPrefabCommand::new(sub_graph)),
-                // We also want to select newly instantiated model.
-                Command::new(ChangeSelectionCommand::new(Selection::new(
-                    UiSelection::single_or_empty(preview.instance),
-                ))),
-            ];
-
-            self.message_sender.do_command(CommandGroup::from(group));
+            let group = CommandGroup::new()
+                .with(AddUiPrefabCommand::new(sub_graph))
+                .with(
+                    // We also want to select newly instantiated model.
+                    ChangeSelectionCommand::new(Selection::new(UiSelection::single_or_empty(
+                        preview.instance,
+                    ))),
+                );
+            self.message_sender.do_command(group);
         }
     }
 

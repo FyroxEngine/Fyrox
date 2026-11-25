@@ -143,15 +143,10 @@ impl SelectionContainer for GraphSelection {
         }
 
         // Change selection first.
-        let mut command_group = CommandGroup::from(vec![Command::new(
-            ChangeSelectionCommand::new(Default::default()),
-        )]);
-
         let root_nodes = graph.root_nodes(selection.nodes());
-        for root_node in root_nodes {
-            command_group.push(DeleteSubGraphCommand::new(root_node));
-        }
-
+        let command_group = CommandGroup::new()
+            .with(ChangeSelectionCommand::new(Default::default()))
+            .with_many(root_nodes.into_iter().map(DeleteSubGraphCommand::new));
         Some(Command::new(command_group))
     }
 }
