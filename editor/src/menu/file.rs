@@ -18,29 +18,28 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::game_scene::nullscene::NullSceneController;
 use crate::{
     Engine, Message, Mode, Panels,
     asset::preview::cache::IconRequest,
     fyrox::{
         asset::manager::ResourceManager,
-        core::pool::Handle,
+        core::{
+            pool::Handle,
+            uuid::{Uuid, uuid},
+        },
+        graph::SceneGraph,
         gui::{
             BuildContext, UserInterface,
-            file_browser::{FileSelectorBuilder, FileSelectorMessage, FileType, PathFilter},
-            menu::{self, MenuItemMessage},
+            file_browser::{
+                FileSelector, FileSelectorBuilder, FileSelectorMessage, FileType, PathFilter,
+            },
+            menu::{self, MenuItem, MenuItemMessage},
             message::UiMessage,
             messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage},
-            widget::{WidgetBuilder, WidgetMessage},
+            widget::{UserData, WidgetBuilder, WidgetMessage},
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
         },
-    },
-    fyrox::{
-        core::uuid::{Uuid, uuid},
-        graph::SceneGraph,
-        gui::file_browser::FileSelector,
-        gui::menu::MenuItem,
-        gui::messagebox::MessageBox,
-        gui::widget::UserData,
     },
     game_scene::container::EditorSceneEntry,
     load_image, make_save_file_selector,
@@ -63,7 +62,6 @@ pub struct FileMenu {
     pub configure: Handle<MenuItem>,
     pub save_file_selector: Handle<FileSelector>,
     pub load_file_selector: Handle<FileSelector>,
-    pub configure_message: Handle<MessageBox>,
     pub recent_files_container: Handle<MenuItem>,
     pub recent_files: Vec<Handle<MenuItem>>,
     pub open_scene_settings: Handle<MenuItem>,
@@ -116,15 +114,6 @@ impl FileMenu {
         let recent_files_container;
 
         let ctx = &mut engine.user_interfaces.first_mut().build_ctx();
-
-        let configure_message = MessageBoxBuilder::new(
-            WindowBuilder::new(WidgetBuilder::new().with_width(250.0).with_height(150.0))
-                .open(false)
-                .with_title(WindowTitle::text("Warning")),
-        )
-        .with_text("Cannot reconfigure editor while scene is open! Close scene first and retry.")
-        .with_buttons(MessageBoxButtons::Ok)
-        .build(ctx);
 
         let recent_files = make_recent_files_items(ctx, &settings.recent);
 
@@ -248,29 +237,9 @@ impl FileMenu {
             ctx,
         );
 
-        let load_file_selector = FileSelectorBuilder::new(
-            WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
-                .open(false)
-                .with_title(WindowTitle::text("Select a Scene To Load")),
-        )
-        .with_filter(
-            PathFilter::new()
-                .with_file_type(
-                    FileType::new()
-                        .with_extension("rgs")
-                        .with_description("Game Scene"),
-                )
-                .with_file_type(
-                    FileType::new()
-                        .with_extension("ui")
-                        .with_description("User Interface"),
-                ),
-        )
-        .build(ctx);
-
         Self {
             save_file_selector: Handle::NONE,
-            load_file_selector,
+            load_file_selector: Handle::NONE,
             menu,
             new_scene,
             new_ui_scene,
@@ -280,7 +249,6 @@ impl FileMenu {
             load,
             exit,
             configure,
-            configure_message,
             recent_files_container,
             recent_files,
             open_scene_settings,
@@ -297,10 +265,30 @@ impl FileMenu {
     }
 
     pub fn open_load_file_selector(
-        &self,
+        &mut self,
         resource_manager: &ResourceManager,
         ui: &mut UserInterface,
     ) {
+        self.load_file_selector = FileSelectorBuilder::new(
+            WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
+                .open(false)
+                .with_remove_on_close(true)
+                .with_title(WindowTitle::text("Select a Scene To Load")),
+        )
+        .with_filter(
+            PathFilter::new()
+                .with_file_type(
+                    FileType::new()
+                        .with_extension("rgs")
+                        .with_description("Game Scene"),
+                )
+                .with_file_type(
+                    FileType::new()
+                        .with_extension("ui")
+                        .with_description("User Interface"),
+                ),
+        )
+        .build(&mut ui.build_ctx());
         ui.send(
             self.load_file_selector,
             WindowMessage::Open {
@@ -356,7 +344,7 @@ impl FileMenu {
         &mut self,
         message: &UiMessage,
         sender: &MessageSender,
-        entry: Option<&mut EditorSceneEntry>,
+        entry: &mut EditorSceneEntry,
         engine: &mut Engine,
         panels: &mut Panels,
         icon_request_sender: Sender<IconRequest>,
@@ -364,41 +352,36 @@ impl FileMenu {
     ) {
         if let Some(FileSelectorMessage::Commit(path)) = message.data::<FileSelectorMessage>() {
             if message.destination() == self.save_file_selector {
-                if let Some(game_scene) = entry {
-                    sender.send(Message::SaveScene {
-                        id: game_scene.id,
-                        path: path.to_owned(),
-                    });
-                }
+                sender.send(Message::SaveScene {
+                    id: entry.id,
+                    path: path.to_owned(),
+                });
                 self.save_file_selector = Handle::NONE;
             } else if message.destination() == self.load_file_selector {
                 sender.send(Message::LoadScene(path.to_owned()));
+                self.load_file_selector = Handle::NONE;
             }
         } else if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.save {
-                if let Some(entry) = entry {
-                    if let Some(scene_path) = entry.path.as_ref() {
-                        sender.send(Message::SaveScene {
-                            id: entry.id,
-                            path: scene_path.clone(),
-                        });
-                    } else {
-                        // If scene wasn't saved yet - open Save As window.
-                        self.open_save_file_selector(
-                            engine.user_interfaces.first_mut(),
-                            &engine.resource_manager,
-                            entry.default_file_info(),
-                        );
-                    }
-                }
-            } else if message.destination() == self.save_as {
-                if let Some(entry) = entry {
+                if let Some(scene_path) = entry.path.as_ref() {
+                    sender.send(Message::SaveScene {
+                        id: entry.id,
+                        path: scene_path.clone(),
+                    });
+                } else {
+                    // If scene wasn't saved yet - open Save As window.
                     self.open_save_file_selector(
                         engine.user_interfaces.first_mut(),
                         &engine.resource_manager,
                         entry.default_file_info(),
                     );
                 }
+            } else if message.destination() == self.save_as {
+                self.open_save_file_selector(
+                    engine.user_interfaces.first_mut(),
+                    &engine.resource_manager,
+                    entry.default_file_info(),
+                );
             } else if message.destination() == self.save_all {
                 sender.send(Message::SaveAllScenes);
             } else if message.destination() == self.load {
@@ -407,13 +390,10 @@ impl FileMenu {
                     engine.user_interfaces.first_mut(),
                 );
             } else if message.destination() == self.close_scene {
-                if let Some(entry) = entry.as_ref() {
-                    if entry.need_save() {
-                        sender
-                            .send(Message::OpenSaveSceneConfirmationDialog { scene_id: entry.id });
-                    } else {
-                        sender.send(Message::CloseScene(entry.id));
-                    }
+                if entry.need_save() {
+                    sender.send(Message::OpenSaveSceneConfirmationDialog { scene_id: entry.id });
+                } else {
+                    sender.send(Message::CloseScene(entry.id));
                 }
             } else if message.destination() == self.exit {
                 sender.send(Message::Exit { force: false });
@@ -422,7 +402,11 @@ impl FileMenu {
             } else if message.destination() == self.new_ui_scene {
                 sender.send(Message::NewUiScene);
             } else if message.destination() == self.configure {
-                if entry.is_none() {
+                if entry
+                    .controller
+                    .downcast_ref::<NullSceneController>()
+                    .is_some()
+                {
                     engine.user_interfaces.first().send(
                         panels.configurator_window,
                         WindowMessage::Open {
@@ -432,8 +416,25 @@ impl FileMenu {
                         },
                     );
                 } else {
-                    engine.user_interfaces.first_mut().send(
-                        self.configure_message,
+                    let ui = engine.user_interfaces.first_mut();
+
+                    let configure_message = MessageBoxBuilder::new(
+                        WindowBuilder::new(
+                            WidgetBuilder::new().with_width(250.0).with_height(150.0),
+                        )
+                        .open(false)
+                        .with_remove_on_close(true)
+                        .with_title(WindowTitle::text("Warning")),
+                    )
+                    .with_text(
+                        "Cannot reconfigure editor while scene is open! \
+                        Close scene first and retry.",
+                    )
+                    .with_buttons(MessageBoxButtons::Ok)
+                    .build(&mut ui.build_ctx());
+
+                    ui.send(
+                        configure_message,
                         MessageBoxMessage::Open {
                             title: None,
                             text: None,
@@ -441,15 +442,13 @@ impl FileMenu {
                     );
                 }
             } else if message.destination() == self.open_scene_settings {
-                if let Some(game_scene) = entry {
-                    panels.scene_settings.open(
-                        &*game_scene.controller,
-                        engine,
-                        sender.clone(),
-                        icon_request_sender,
-                        settings,
-                    );
-                }
+                panels.scene_settings.open(
+                    &*entry.controller,
+                    engine,
+                    sender.clone(),
+                    icon_request_sender,
+                    settings,
+                );
             } else if let Some(recent_file) = engine
                 .user_interfaces
                 .first()

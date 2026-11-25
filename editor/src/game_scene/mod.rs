@@ -118,7 +118,7 @@ use std::{
 pub mod clipboard;
 pub mod dialog;
 pub mod interaction;
-mod nullscene;
+pub mod nullscene;
 pub mod property;
 pub mod selector;
 pub mod settings;

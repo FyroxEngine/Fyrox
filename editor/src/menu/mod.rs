@@ -177,7 +177,7 @@ impl Menu {
     }
 
     pub fn open_load_file_selector(
-        &self,
+        &mut self,
         resource_manager: &ResourceManager,
         ui: &mut UserInterface,
     ) {
@@ -227,7 +227,7 @@ impl Menu {
         self.file_menu.handle_ui_message(
             message,
             &self.message_sender,
-            Some(entry),
+            entry,
             ctx.engine,
             &mut ctx.panels,
             ctx.icon_request_sender.clone(),

@@ -25,29 +25,22 @@ use crate::{
         gui::{
             BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, VerticalAlignment,
             border::BorderBuilder,
-            button::{ButtonBuilder, ButtonMessage},
+            button::{Button, ButtonBuilder, ButtonMessage},
             decorator::DecoratorBuilder,
-            file_browser::{FileSelectorBuilder, FileSelectorMessage, PathFilter},
+            file_browser::{FileSelector, FileSelectorBuilder, FileSelectorMessage, PathFilter},
             formatted_text::WrapMode,
             grid::{Column, GridBuilder, Row},
-            list_view::{ListViewBuilder, ListViewMessage},
+            list_view::{ListView, ListViewBuilder, ListViewMessage},
             message::UiMessage,
             stack_panel::StackPanelBuilder,
-            text::TextBuilder,
-            text::TextMessage,
-            text_box::TextBoxBuilder,
+            text::{TextBuilder, TextMessage},
+            text_box::{TextBox, TextBoxBuilder},
             widget::{WidgetBuilder, WidgetMessage},
-            window::WindowAlignment,
-            window::{WindowBuilder, WindowMessage, WindowTitle},
+            window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
         },
     },
     message::MessageSender,
 };
-use fyrox::gui::button::Button;
-use fyrox::gui::file_browser::FileSelector;
-use fyrox::gui::list_view::ListView;
-use fyrox::gui::text_box::TextBox;
-use fyrox::gui::window::Window;
 use std::{env, path::PathBuf};
 
 #[derive(Default, Eq, PartialEq, Visit)]
@@ -97,14 +90,6 @@ impl Configurator {
         let tb_work_dir;
 
         let current_path = env::current_dir().unwrap();
-
-        let work_dir_selector = FileSelectorBuilder::new(
-            WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
-                .open(false)
-                .with_title(WindowTitle::text("Select Working Directory")),
-        )
-        .with_filter(PathFilter::folder())
-        .build(ctx);
 
         // Load history.
         let mut history: Vec<HistoryEntry> = Vec::new();
@@ -255,7 +240,7 @@ impl Configurator {
 
         Self {
             window,
-            work_dir_selector,
+            work_dir_selector: Handle::NONE,
             select_work_dir,
             ok,
             sender,
@@ -296,12 +281,11 @@ impl Configurator {
 
                 self.validate(engine);
             }
-        } else if let Some(FileSelectorMessage::Commit(path)) =
-            message.data::<FileSelectorMessage>()
-        {
+        } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
             if message.destination() == self.work_dir_selector
                 && let Ok(work_dir) = path.clone().canonicalize()
             {
+                self.work_dir_selector = Handle::NONE;
                 self.work_dir = work_dir;
                 engine.user_interfaces.first().send(
                     self.tb_work_dir,
@@ -341,7 +325,18 @@ impl Configurator {
                     .first()
                     .send(self.window, WindowMessage::Close);
             } else if message.destination() == self.select_work_dir {
-                engine.user_interfaces.first().send(
+                let ui = engine.user_interfaces.first_mut();
+
+                self.work_dir_selector = FileSelectorBuilder::new(
+                    WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
+                        .open(false)
+                        .with_remove_on_close(true)
+                        .with_title(WindowTitle::text("Select Working Directory")),
+                )
+                .with_filter(PathFilter::folder())
+                .build(&mut ui.build_ctx());
+
+                ui.send(
                     self.work_dir_selector,
                     WindowMessage::Open {
                         alignment: WindowAlignment::Center,
