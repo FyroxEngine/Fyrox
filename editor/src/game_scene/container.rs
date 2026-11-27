@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::interaction::container::InteractionModeContainer;
 use crate::{
     command::CommandStack,
     fyrox::{
@@ -34,9 +35,8 @@ use crate::{
         GameScene, Selection,
         controller::SceneController,
         interaction::{
-            InteractionModeContainer, move_mode::MoveInteractionMode,
-            rotate_mode::RotateInteractionMode, scale_mode::ScaleInteractionMode,
-            select_mode::SelectInteractionMode,
+            move_mode::MoveInteractionMode, rotate_mode::RotateInteractionMode,
+            scale_mode::ScaleInteractionMode, select_mode::SelectInteractionMode,
         },
         nullscene::NullSceneController,
     },

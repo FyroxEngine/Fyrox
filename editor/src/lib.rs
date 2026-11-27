@@ -34,6 +34,7 @@ pub mod command;
 pub mod configurator;
 pub mod game_scene;
 pub mod highlight;
+pub mod interaction;
 pub mod loading_window;
 pub mod menu;
 pub mod message;

@@ -20,6 +20,7 @@
 
 use crate::game_scene::camera::PickMethod;
 use crate::game_scene::camera::{CameraController, PickingOptions};
+use crate::interaction::{InteractionMode, make_interaction_mode_button};
 use crate::{
     Engine, Message,
     command::{Command, CommandGroup},
@@ -36,10 +37,7 @@ use crate::{
         gui::BuildContext,
         scene::{Scene, camera::Projection, graph::Graph, node::Node},
     },
-    game_scene::interaction::{
-        InteractionMode, gizmo::move_gizmo::MoveGizmo, make_interaction_mode_button,
-        plane::PlaneKind,
-    },
+    game_scene::interaction::{gizmo::move_gizmo::MoveGizmo, plane::PlaneKind},
     game_scene::{
         GameScene, Selection,
         commands::{ChangeSelectionCommand, graph::MoveNodeCommand},

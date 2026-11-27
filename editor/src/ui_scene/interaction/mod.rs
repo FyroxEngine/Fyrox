@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::interaction::{InteractionMode, make_interaction_mode_button};
 use crate::{
     fyrox::graph::SceneGraph,
     fyrox::{
@@ -31,12 +32,7 @@ use crate::{
         gui::{BuildContext, UiNode, widget::WidgetMessage},
     },
     fyrox::{gui::border::Border, gui::button::Button, gui::image::Image},
-    game_scene::{
-        Selection,
-        commands::ChangeSelectionCommand,
-        controller::SceneController,
-        interaction::{InteractionMode, make_interaction_mode_button},
-    },
+    game_scene::{Selection, commands::ChangeSelectionCommand, controller::SceneController},
     message::MessageSender,
     settings::Settings,
     ui_scene::{UiScene, UiSelection},

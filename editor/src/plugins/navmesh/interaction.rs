@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::interaction::{InteractionMode, make_interaction_mode_button};
 use crate::plugins::navmesh::settings::NavmeshSettings;
 use crate::{
     command::CommandGroup,
@@ -36,8 +37,7 @@ use crate::{
         scene::{Scene, navmesh::NavigationalMesh},
     },
     game_scene::interaction::{
-        InteractionMode, calculate_gizmo_distance_scaling, gizmo::move_gizmo::MoveGizmo,
-        make_interaction_mode_button, plane::PlaneKind,
+        calculate_gizmo_distance_scaling, gizmo::move_gizmo::MoveGizmo, plane::PlaneKind,
     },
     game_scene::{
         GameScene, Selection, SelectionContainer, camera::PickingOptions,

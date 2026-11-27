@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::game_scene::camera::PickingOptions;
+use crate::interaction::{InteractionMode, make_interaction_mode_button};
 use crate::{
     Editor, Message,
     command::SetPropertyCommand,
@@ -41,8 +42,7 @@ use crate::{
         scene::{Scene, probe::ReflectionProbe},
     },
     game_scene::interaction::{
-        InteractionMode, calculate_gizmo_distance_scaling, gizmo::move_gizmo::MoveGizmo,
-        make_interaction_mode_button, plane::PlaneKind,
+        calculate_gizmo_distance_scaling, gizmo::move_gizmo::MoveGizmo, plane::PlaneKind,
     },
     game_scene::{GameScene, Selection, commands::GameSceneContext, controller::SceneController},
     message::MessageSender,

@@ -24,14 +24,10 @@ use crate::fyrox::{
     graph::SceneGraph,
     gui::{BuildContext, UiNode},
 };
+use crate::interaction::{InteractionMode, make_interaction_mode_button};
 use crate::{
     command::CommandGroup,
-    game_scene::{
-        Selection,
-        commands::ChangeSelectionCommand,
-        controller::SceneController,
-        interaction::{InteractionMode, make_interaction_mode_button},
-    },
+    game_scene::{Selection, commands::ChangeSelectionCommand, controller::SceneController},
     message::MessageSender,
     settings::Settings,
     ui_scene::{UiScene, commands::widget::MoveWidgetCommand},

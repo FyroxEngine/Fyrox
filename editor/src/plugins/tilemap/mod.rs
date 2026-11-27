@@ -114,9 +114,9 @@ use crate::fyrox::{
         },
     },
 };
+use crate::interaction::{InteractionMode, make_interaction_mode_button};
 use crate::{
     Editor, Message,
-    game_scene::interaction::{InteractionMode, make_interaction_mode_button},
     game_scene::{GameScene, Selection, controller::SceneController},
     load_image,
     message::MessageSender,

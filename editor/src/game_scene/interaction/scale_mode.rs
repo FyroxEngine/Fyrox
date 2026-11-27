@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::game_scene::camera::PickingOptions;
+use crate::interaction::{InteractionMode, make_interaction_mode_button};
 use crate::{
     Engine,
     command::CommandGroup,
@@ -32,9 +33,7 @@ use crate::{
         },
         gui::BuildContext,
     },
-    game_scene::interaction::{
-        InteractionMode, gizmo::scale_gizmo::ScaleGizmo, make_interaction_mode_button,
-    },
+    game_scene::interaction::gizmo::scale_gizmo::ScaleGizmo,
     game_scene::{
         GameScene, Selection, SelectionContainer,
         commands::{ChangeSelectionCommand, graph::ScaleNodeCommand},

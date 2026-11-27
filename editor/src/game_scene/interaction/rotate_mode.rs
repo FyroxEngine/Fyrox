@@ -19,6 +19,7 @@
 // SOFTWARE.
 
 use crate::game_scene::camera::PickingOptions;
+use crate::interaction::{InteractionMode, make_interaction_mode_button};
 use crate::{
     Engine,
     command::CommandGroup,
@@ -37,9 +38,7 @@ use crate::{
         GameScene, Selection, SelectionContainer,
         commands::{ChangeSelectionCommand, graph::RotateNodeCommand},
         controller::SceneController,
-        interaction::{
-            InteractionMode, gizmo::rotate_gizmo::RotationGizmo, make_interaction_mode_button,
-        },
+        interaction::gizmo::rotate_gizmo::RotationGizmo,
     },
     message::MessageSender,
     settings::Settings,
