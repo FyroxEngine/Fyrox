@@ -18,13 +18,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::controller::SceneController;
 use crate::interaction::{InteractionMode, make_interaction_mode_button};
 use crate::plugins::terrain::command::{
     ModifyTerrainHeightCommand, ModifyTerrainHolesCommand, ModifyTerrainLayerMaskCommand,
 };
 use crate::plugins::terrain::gizmo::BrushGizmo;
 use crate::plugins::terrain::panel::BrushPanel;
+use crate::scene::controller::SceneController;
 use crate::{
     fyrox::{
         core::{
@@ -61,7 +61,6 @@ use crate::{
     settings::Settings,
 };
 use std::{
-
     fmt::{Debug, Formatter},
     sync::mpsc::channel,
 };

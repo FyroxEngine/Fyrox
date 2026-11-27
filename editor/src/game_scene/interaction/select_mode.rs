@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::controller::SceneController;
 use crate::interaction::{InteractionMode, make_interaction_mode_button};
+use crate::scene::controller::SceneController;
 use crate::{
     Engine,
     fyrox::{
@@ -32,9 +32,7 @@ use crate::{
         gui::{BuildContext, border::Border, button::Button, image::Image, widget::WidgetMessage},
         scene::node::Node,
     },
-    game_scene::{
-        GameScene, Selection, commands::ChangeSelectionCommand,
-    },
+    game_scene::{GameScene, Selection, commands::ChangeSelectionCommand},
     message::MessageSender,
     settings::Settings,
     world::selection::GraphSelection,

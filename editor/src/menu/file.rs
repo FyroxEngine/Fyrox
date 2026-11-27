@@ -18,7 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::game_scene::nullscene::NullSceneController;
+use crate::scene::entry::EditorSceneEntry;
+use crate::scene::nullscene::NullSceneController;
 use crate::{
     Engine, Message, Mode, Panels,
     asset::preview::cache::IconRequest,
@@ -41,7 +42,6 @@ use crate::{
             window::{WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
         },
     },
-    game_scene::container::EditorSceneEntry,
     load_image, make_save_file_selector,
     menu::{create_menu_item, create_menu_item_shortcut, create_root_menu_item},
     message::MessageSender,

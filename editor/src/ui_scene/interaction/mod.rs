@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::controller::SceneController;
 use crate::interaction::{InteractionMode, make_interaction_mode_button};
+use crate::scene::controller::SceneController;
 use crate::{
     fyrox::graph::SceneGraph,
     fyrox::{

@@ -36,8 +36,8 @@ mod triangle;
 mod triangle2d;
 
 use super::inspector::InspectorPlugin;
-use crate::controller::SceneController;
 use crate::interaction::{InteractionMode, make_interaction_mode_button};
+use crate::scene::controller::SceneController;
 use crate::{
     Editor, Message,
     command::SetPropertyCommand,

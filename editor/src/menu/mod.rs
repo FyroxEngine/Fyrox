@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::scene::entry::EditorSceneEntry;
 use crate::{
     Engine, Mode, SceneSettingsWindow,
     asset::preview::cache::IconRequest,
@@ -36,7 +37,6 @@ use crate::{
             window::Window,
         },
     },
-    game_scene::container::EditorSceneEntry,
     menu::{edit::EditMenu, file::FileMenu, help::HelpMenu, utils::UtilsMenu, view::ViewMenu},
     message::MessageSender,
     settings::Settings,

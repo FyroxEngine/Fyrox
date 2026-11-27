@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::controller::SceneController;
+use crate::scene::controller::SceneController;
 use crate::settings::Settings;
 use crate::ui_scene::commands::UiSceneContext;
 use crate::{

@@ -18,8 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::controller::SceneController;
 use crate::game_scene::EntityInfo;
+use crate::scene::controller::SceneController;
 use crate::{
     command::{Command, CommandGroup, SetPropertyCommand, make_command},
     fyrox::{

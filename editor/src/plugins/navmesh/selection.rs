@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::controller::SceneController;
+use crate::scene::controller::SceneController;
 use crate::{
     command::{Command, SetPropertyCommand},
     fyrox::{
@@ -28,9 +28,7 @@ use crate::{
         gui::inspector::PropertyChanged,
         scene::{SceneContainer, node::Node},
     },
-    game_scene::{
-        EntityInfo, GameScene, SelectionContainer, commands::GameSceneContext,
-    },
+    game_scene::{EntityInfo, GameScene, SelectionContainer, commands::GameSceneContext},
     message::MessageSender,
 };
 use std::{

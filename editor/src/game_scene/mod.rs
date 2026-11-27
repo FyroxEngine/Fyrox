@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::controller::SceneController;
+use crate::scene::controller::SceneController;
 use crate::{
     Message, Settings,
     asset::item::AssetItem,
@@ -103,7 +103,6 @@ use fyrox::{
     scene::bitmask::BitMask,
 };
 use std::{
-
     cell::RefCell,
     fmt::Debug,
     fs::File,
@@ -111,7 +110,6 @@ use std::{
     path::Path,
     rc::Rc,
     sync::{
-
         Arc, LazyLock,
         mpsc::{self, Receiver},
     },
@@ -120,7 +118,6 @@ use std::{
 pub mod clipboard;
 pub mod dialog;
 pub mod interaction;
-pub mod nullscene;
 pub mod property;
 pub mod selector;
 pub mod settings;
@@ -128,7 +125,6 @@ pub mod settings;
 #[macro_use]
 pub mod commands;
 pub mod camera;
-pub mod container;
 
 pub struct PreviewInstance {
     pub instance: Handle<Node>,

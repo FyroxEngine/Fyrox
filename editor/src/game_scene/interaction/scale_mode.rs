@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::controller::SceneController;
 use crate::game_scene::camera::PickingOptions;
 use crate::interaction::{InteractionMode, make_interaction_mode_button};
+use crate::scene::controller::SceneController;
 use crate::{
     Engine,
     command::CommandGroup,

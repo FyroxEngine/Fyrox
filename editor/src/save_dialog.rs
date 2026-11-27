@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::scene::SceneContainer;
 use crate::{
     Message,
     fyrox::{
@@ -37,7 +38,6 @@ use crate::{
             window::{WindowBuilder, WindowTitle},
         },
     },
-    game_scene::container::SceneContainer,
     message::MessageSender,
 };
 

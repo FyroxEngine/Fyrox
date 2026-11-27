@@ -26,7 +26,7 @@ pub mod menu;
 pub mod selection;
 pub mod utils;
 
-use crate::controller::SceneController;
+use crate::scene::controller::SceneController;
 use crate::{
     Message,
     asset::item::AssetItem,
@@ -57,10 +57,7 @@ use crate::{
         resource::texture::{TextureKind, TextureResource, TextureResourceExtension},
         scene::SceneContainer,
     },
-    game_scene::{
-        Selection, commands::ChangeSelectionCommand,
-        selector::HierarchyNode,
-    },
+    game_scene::{Selection, commands::ChangeSelectionCommand, selector::HierarchyNode},
     message::MessageSender,
     plugins::inspector::editors::handle::{
         HandlePropertyEditorHierarchyMessage, HandlePropertyEditorNameMessage,

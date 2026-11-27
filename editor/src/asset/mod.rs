@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::scene::entry::EditorSceneEntry;
 use crate::{
     Message, Mode,
     asset::{
@@ -57,7 +58,7 @@ use crate::{
             wrap_panel::{WrapPanel, WrapPanelBuilder},
         },
     },
-    game_scene::{Selection, commands::ChangeSelectionCommand, container::EditorSceneEntry},
+    game_scene::{Selection, commands::ChangeSelectionCommand},
     load_image,
     message::MessageSender,
     plugin::EditorPluginsContainer,

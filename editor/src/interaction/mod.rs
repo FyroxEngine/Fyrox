@@ -20,7 +20,7 @@
 
 pub mod container;
 
-use crate::controller::SceneController;
+use crate::scene::controller::SceneController;
 use crate::{
     fyrox::{
         core::{algebra::Vector2, define_as_any_trait, pool::Handle, reflect::Reflect, uuid::Uuid},

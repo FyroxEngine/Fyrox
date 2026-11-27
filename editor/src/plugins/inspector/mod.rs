@@ -18,9 +18,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::controller::SceneController;
 use crate::plugins::doc::ShowDocumentation;
 use crate::plugins::inspector::type_editor::{InspectorTypeEditorContext, ResourceTypeEditor};
+use crate::scene::controller::SceneController;
 use crate::settings::Settings;
 use crate::settings::general::ScriptEditor;
 use crate::{

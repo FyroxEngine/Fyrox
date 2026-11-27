@@ -18,8 +18,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::scene::SceneContainer;
+use crate::scene::entry::EditorSceneEntry;
 use crate::{
-    DropdownListBuilder, GameScene, Message, Mode, SceneContainer, Settings,
+    DropdownListBuilder, GameScene, Message, Mode, Settings,
     fyrox::{
         core::{algebra::Vector2, color::Color, math::Rect, pool::Handle, uuid::Uuid},
         engine::Engine,
@@ -56,7 +58,6 @@ use crate::{
         resource::texture::TextureResource,
         scene::camera::Projection,
     },
-    game_scene::container::EditorSceneEntry,
     load_image,
     message::MessageSender,
     scene_viewer::{

@@ -32,7 +32,6 @@
 pub mod asset;
 pub mod command;
 pub mod configurator;
-pub mod controller;
 pub mod game_scene;
 pub mod highlight;
 pub mod interaction;
@@ -44,6 +43,7 @@ pub mod plugin;
 pub mod plugins;
 pub mod preview;
 pub mod save_dialog;
+pub mod scene;
 pub mod scene_viewer;
 pub mod settings;
 pub mod stats;
@@ -133,10 +133,7 @@ use crate::{
         scale_mode::ScaleInteractionMode, select_mode::SelectInteractionMode,
     },
     game_scene::{
-        GameScene, Selection,
-        commands::GameSceneContext,
-        container::{EditorSceneEntry, SceneContainer},
-        dialog::NodeRemovalDialog,
+        GameScene, Selection, commands::GameSceneContext, dialog::NodeRemovalDialog,
         settings::SceneSettingsWindow,
     },
     highlight::HighlightRenderPass,
@@ -188,6 +185,8 @@ use loading_window::SceneLoadingWindow;
 pub use message::Message;
 use plugins::{export::ExportWindow, inspector::InspectorPlugin};
 use save_dialog::SaveSceneConfirmationDialog;
+use scene::SceneContainer;
+use scene::entry::EditorSceneEntry;
 use std::{
     cell::{Cell, RefCell},
     collections::VecDeque,
