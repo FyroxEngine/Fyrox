@@ -52,6 +52,7 @@ pub mod world;
 
 pub use fyrox;
 
+use crate::plugins::terrain::TerrainPlugin;
 use crate::{
     asset::{AssetBrowser, item::AssetItem},
     command::{Command, CommandTrait, panel::CommandStackViewer},
@@ -128,7 +129,6 @@ use crate::{
     game_scene::interaction::{
         move_mode::MoveInteractionMode, rotate_mode::RotateInteractionMode,
         scale_mode::ScaleInteractionMode, select_mode::SelectInteractionMode,
-        terrain::TerrainInteractionMode,
     },
     game_scene::{
         GameScene, Selection,
@@ -540,7 +540,8 @@ impl Editor {
             .with(MeshPlugin::default())
             .with(DocPlugin::default())
             .with(NavmeshPlugin::default())
-            .with(AudioPlugin::default());
+            .with(AudioPlugin::default())
+            .with(TerrainPlugin::default());
 
         for plugin in plugins.0.iter_mut().filter_map(|c| c.as_mut()) {
             plugin.on_register(&dyn_type_constructors);
@@ -1004,10 +1005,6 @@ impl Editor {
                 } else if hot_key == key_bindings.enable_scale_mode {
                     sender.send(Message::SetInteractionMode(
                         ScaleInteractionMode::type_info().type_uuid,
-                    ));
-                } else if hot_key == key_bindings.enable_terrain_mode {
-                    sender.send(Message::SetInteractionMode(
-                        TerrainInteractionMode::type_info().type_uuid,
                     ));
                 } else if hot_key == key_bindings.load_scene {
                     sender.send(Message::OpenLoadSceneDialog);

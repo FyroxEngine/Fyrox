@@ -36,7 +36,7 @@ use crate::{
         interaction::{
             InteractionModeContainer, move_mode::MoveInteractionMode,
             rotate_mode::RotateInteractionMode, scale_mode::ScaleInteractionMode,
-            select_mode::SelectInteractionMode, terrain::TerrainInteractionMode,
+            select_mode::SelectInteractionMode,
         },
         nullscene::NullSceneController,
     },
@@ -128,12 +128,6 @@ impl EditorSceneEntry {
             &game_scene,
             engine,
             message_sender.clone(),
-        ));
-        interaction_modes.add(TerrainInteractionMode::new(
-            &game_scene,
-            engine,
-            message_sender.clone(),
-            scene_viewer.frame(),
         ));
         interaction_modes.sender = Some(message_sender.clone());
 

@@ -18,6 +18,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+// TODO: Remove explicit dependency on this plugin here.
+use crate::plugins::terrain::command::{AddTerrainLayerCommand, DeleteTerrainLayerCommand};
 use crate::{
     Command,
     command::make_command,
@@ -27,10 +29,7 @@ use crate::{
         gui::inspector::{CollectionAction, FieldAction, PropertyChanged},
         scene::{node::Node, terrain::Terrain},
     },
-    game_scene::commands::{
-        GameSceneContext, RevertSceneNodePropertyCommand,
-        terrain::{AddTerrainLayerCommand, DeleteTerrainLayerCommand},
-    },
+    game_scene::commands::{GameSceneContext, RevertSceneNodePropertyCommand},
 };
 
 pub struct SceneNodePropertyChangedHandler;

@@ -38,7 +38,6 @@ use std::sync::Arc;
 pub mod graph;
 pub mod material;
 pub mod mesh;
-pub mod terrain;
 
 #[derive(Reflect, Debug)]
 #[reflect(

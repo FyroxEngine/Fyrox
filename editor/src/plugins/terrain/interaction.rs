@@ -18,43 +18,34 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::plugins::terrain::command::{
+    ModifyTerrainHeightCommand, ModifyTerrainHolesCommand, ModifyTerrainLayerMaskCommand,
+};
+use crate::plugins::terrain::gizmo::BrushGizmo;
+use crate::plugins::terrain::panel::BrushPanel;
 use crate::{
     fyrox::{
         core::{
-            algebra::{Matrix2, Matrix4, Vector2, Vector3},
+            algebra::{Matrix2, Vector2, Vector3},
             arrayvec::ArrayVec,
-            color::Color,
-            log::{Log, MessageKind},
+            log::Log,
             math::vector_to_quat,
             pool::Handle,
             reflect::prelude::*,
             uuid::{Uuid, uuid},
         },
         engine::Engine,
-        graph::SceneGraph,
         gui::{
             BuildContext, HorizontalAlignment, Thickness, UserInterface, VerticalAlignment,
             button::Button,
             image::Image,
-            inspector::{
-                Inspector, InspectorBuilder, InspectorContext, InspectorContextArgs,
-                InspectorMessage, PropertyAction,
-                editors::{
-                    PropertyEditorDefinitionContainer, enumeration::EnumPropertyEditorDefinition,
-                },
-            },
             key::HotKey,
             message::UiMessage,
-            widget::{WidgetBuilder, WidgetMessage},
-            window::{Window, WindowAlignment, WindowBuilder, WindowMessage, WindowTitle},
+            widget::WidgetMessage,
+            window::{WindowAlignment, WindowMessage},
         },
         scene::{
-            base::BaseBuilder,
             graph::Graph,
-            mesh::{
-                Mesh, MeshBuilder, RenderPath,
-                surface::{SurfaceBuilder, SurfaceData, SurfaceResource},
-            },
             node::Node,
             terrain::{
                 Terrain, TerrainRayCastResult,
@@ -65,19 +56,14 @@ use crate::{
     },
     game_scene::{
         GameScene, Selection, SelectionContainer,
-        commands::terrain::{
-            ModifyTerrainHeightCommand, ModifyTerrainHolesCommand, ModifyTerrainLayerMaskCommand,
-        },
         controller::SceneController,
         interaction::{InteractionMode, make_interaction_mode_button},
     },
-    make_color_material,
     message::MessageSender,
     settings::Settings,
 };
 use std::{
     fmt::{Debug, Formatter},
-    sync::Arc,
     sync::mpsc::channel,
 };
 
@@ -160,9 +146,17 @@ impl TerrainInteractionMode {
             scene_viewer_frame,
         }
     }
+
+    pub fn destroy(mut self, graph: &mut Graph, ui: &UserInterface) {
+        self.end_background_thread();
+        self.brush_gizmo.destroy(graph);
+        self.brush_panel.destroy(ui);
+    }
+
     fn modify_brush_opacity(&mut self, direction: f32) {
         modify_clamp(&mut self.brush.alpha, 0.01 * direction, 0.0, 1.0);
     }
+
     fn start_background_thread(&mut self) {
         let (sender, receiver) = channel::<BrushThreadMessage>();
         self.brush_sender = Some(BrushSender::new(sender));
@@ -237,42 +231,6 @@ impl TerrainInteractionMode {
             }
             self.prev_brush_position = Some(position);
         }
-    }
-}
-
-#[derive(PartialEq)]
-pub struct BrushGizmo {
-    brush: Handle<Mesh>,
-}
-
-impl BrushGizmo {
-    pub fn new(game_scene: &GameScene, engine: &mut Engine) -> Self {
-        let scene = &mut engine.scenes[game_scene.scene];
-        let graph = &mut scene.graph;
-
-        let brush = MeshBuilder::new(
-            BaseBuilder::new()
-                .with_cast_shadows(false)
-                .with_name("Brush")
-                .with_visibility(false),
-        )
-        .with_render_path(RenderPath::Forward)
-        .with_surfaces(vec![
-            SurfaceBuilder::new(SurfaceResource::new_embedded(SurfaceData::make_quad(
-                &Matrix4::identity(),
-            )))
-            .with_material(make_color_material(Color::from_rgba(0, 255, 0, 130)))
-            .build(),
-        ])
-        .build(graph);
-
-        graph.link_nodes(brush, game_scene.editor_objects_root);
-
-        Self { brush }
-    }
-
-    pub fn set_visible(&self, graph: &mut Graph, visibility: bool) {
-        graph[self.brush].set_visibility(visibility);
     }
 }
 
@@ -550,152 +508,5 @@ impl InteractionMode for TerrainInteractionMode {
 
     fn uuid(&self) -> Uuid {
         Self::type_info().type_uuid
-    }
-}
-
-#[derive(PartialEq)]
-struct BrushPanel {
-    window: Handle<Window>,
-    inspector: Handle<Inspector>,
-}
-
-fn make_brush_mode_enum_property_editor_definition() -> EnumPropertyEditorDefinition<BrushMode> {
-    EnumPropertyEditorDefinition {
-        variant_generator: |i| match i {
-            0 => BrushMode::Raise { amount: 0.1 },
-            1 => BrushMode::Assign { value: 0.0 },
-            2 => BrushMode::Flatten,
-            3 => BrushMode::Smooth { kernel_radius: 5 },
-            _ => unreachable!(),
-        },
-        index_generator: |v| match v {
-            BrushMode::Raise { .. } => 0,
-            BrushMode::Assign { .. } => 1,
-            BrushMode::Flatten => 2,
-            BrushMode::Smooth { .. } => 3,
-        },
-        names_generator: || {
-            vec![
-                "Raise or Lower".to_string(),
-                "Assign Value".to_string(),
-                "Flatten".to_string(),
-                "Smooth".to_string(),
-            ]
-        },
-    }
-}
-
-fn make_brush_target_enum_property_editor_definition() -> EnumPropertyEditorDefinition<BrushTarget>
-{
-    EnumPropertyEditorDefinition {
-        variant_generator: |i| match i {
-            0 => BrushTarget::HeightMap,
-            1 => BrushTarget::LayerMask { layer: 0 },
-            2 => BrushTarget::HoleMask,
-            _ => unreachable!(),
-        },
-        index_generator: |v| match v {
-            BrushTarget::HeightMap => 0,
-            BrushTarget::LayerMask { .. } => 1,
-            BrushTarget::HoleMask => 2,
-        },
-        names_generator: || {
-            vec![
-                "Height Map".to_string(),
-                "Layer Mask".to_string(),
-                "Holes".to_string(),
-            ]
-        },
-    }
-}
-
-fn make_brush_shape_enum_property_editor_definition() -> EnumPropertyEditorDefinition<BrushShape> {
-    EnumPropertyEditorDefinition {
-        variant_generator: |i| match i {
-            0 => BrushShape::Circle { radius: 0.5 },
-            1 => BrushShape::Rectangle {
-                width: 0.5,
-                length: 0.5,
-            },
-            _ => unreachable!(),
-        },
-        index_generator: |v| match v {
-            BrushShape::Circle { .. } => 0,
-            BrushShape::Rectangle { .. } => 1,
-        },
-        names_generator: || vec!["Circle".to_string(), "Rectangle".to_string()],
-    }
-}
-
-impl BrushPanel {
-    fn new(ctx: &mut BuildContext, brush: &Brush) -> Self {
-        let property_editors = PropertyEditorDefinitionContainer::with_default_editors();
-        property_editors.insert(make_brush_mode_enum_property_editor_definition());
-        property_editors.insert(make_brush_target_enum_property_editor_definition());
-        property_editors.insert(make_brush_shape_enum_property_editor_definition());
-
-        let context = InspectorContext::from_object(InspectorContextArgs {
-            root_object: brush,
-            object: brush,
-            ctx,
-            definition_container: Arc::new(property_editors),
-            environment: None,
-            layer_index: 0,
-            generate_property_string_values: true,
-            filter: Default::default(),
-            name_column_width: 150.0,
-            hide_name_column: false,
-            base_path: Default::default(),
-            has_parent_object: false,
-        });
-
-        let inspector;
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(250.0))
-            .can_minimize(false)
-            .can_maximize(false)
-            .with_content({
-                inspector = InspectorBuilder::new(WidgetBuilder::new())
-                    .with_context(context)
-                    .build(ctx);
-                inspector
-            })
-            .open(false)
-            .with_title(WindowTitle::text("Brush Options"))
-            .build(ctx);
-
-        Self { window, inspector }
-    }
-
-    fn sync_to_model(&self, ui: &mut UserInterface, brush: &Brush) {
-        let ctx = ui[self.inspector].context().clone();
-        if let Err(e) = ctx.sync(
-            brush,
-            ui,
-            brush,
-            0,
-            true,
-            Default::default(),
-            Default::default(),
-        ) {
-            Log::writeln(
-                MessageKind::Error,
-                format!("Failed to sync BrushPanel's inspector. Reason: {e:?}"),
-            )
-        }
-    }
-
-    fn handle_ui_message(&self, message: &UiMessage, brush: &mut Brush) -> Option<()> {
-        if let Some(InspectorMessage::PropertyChanged(msg)) =
-            message.data_from::<InspectorMessage>(self.inspector)
-        {
-            PropertyAction::from_field_action(&msg.action).apply(
-                &msg.path(),
-                brush,
-                &mut |result| {
-                    Log::verify(result);
-                },
-            );
-        }
-        Some(())
     }
 }

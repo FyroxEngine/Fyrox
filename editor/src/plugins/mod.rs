@@ -36,4 +36,5 @@ pub mod probe;
 pub mod ragdoll;
 pub mod settings;
 pub mod stats;
+pub mod terrain;
 pub mod tilemap;

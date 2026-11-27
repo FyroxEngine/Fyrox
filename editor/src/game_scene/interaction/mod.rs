@@ -57,7 +57,6 @@ pub mod plane;
 pub mod rotate_mode;
 pub mod scale_mode;
 pub mod select_mode;
-pub mod terrain;
 
 define_as_any_trait!(InteractionModeAsAny => InteractionMode);
 
