@@ -36,6 +36,7 @@ mod triangle;
 mod triangle2d;
 
 use super::inspector::InspectorPlugin;
+use crate::controller::SceneController;
 use crate::interaction::{InteractionMode, make_interaction_mode_button};
 use crate::{
     Editor, Message,
@@ -74,7 +75,7 @@ use crate::{
     game_scene::interaction::{
         calculate_gizmo_distance_scaling, gizmo::move_gizmo::MoveGizmo, plane::PlaneKind,
     },
-    game_scene::{GameScene, Selection, commands::GameSceneContext, controller::SceneController},
+    game_scene::{GameScene, Selection, commands::GameSceneContext},
     load_texture,
     message::MessageSender,
     plugin::EditorPlugin,

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::controller::SceneController;
 use crate::interaction::{InteractionMode, make_interaction_mode_button};
 use crate::plugins::terrain::command::{
     ModifyTerrainHeightCommand, ModifyTerrainHolesCommand, ModifyTerrainLayerMaskCommand,
@@ -55,11 +56,12 @@ use crate::{
             },
         },
     },
-    game_scene::{GameScene, Selection, SelectionContainer, controller::SceneController},
+    game_scene::{GameScene, Selection, SelectionContainer},
     message::MessageSender,
     settings::Settings,
 };
 use std::{
+
     fmt::{Debug, Formatter},
     sync::mpsc::channel,
 };

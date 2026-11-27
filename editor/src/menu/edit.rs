@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::controller::SceneController;
 use crate::{
     Engine, Message, Mode,
     fyrox::{
@@ -30,7 +31,7 @@ use crate::{
             menu::MenuItemMessage, message::UiMessage, widget::WidgetMessage,
         },
     },
-    game_scene::{Selection, controller::SceneController},
+    game_scene::Selection,
     load_image,
     menu::{create_menu_item_shortcut, create_root_menu_item},
     message::MessageSender,

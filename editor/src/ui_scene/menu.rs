@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::controller::SceneController;
 use crate::ui_scene::clipboard::UiSceneClipboardPayload;
 use crate::{
     Engine, Message,
@@ -39,7 +40,7 @@ use crate::{
             widget::{WidgetBuilder, WidgetMessage},
         },
     },
-    game_scene::{Selection, controller::SceneController},
+    game_scene::Selection,
     menu::{create_menu_item, create_menu_item_shortcut},
     message::MessageSender,
     ui_scene::{

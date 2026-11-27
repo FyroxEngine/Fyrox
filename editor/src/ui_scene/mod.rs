@@ -26,6 +26,7 @@ pub mod menu;
 pub mod selection;
 pub mod utils;
 
+use crate::controller::SceneController;
 use crate::{
     Message,
     asset::item::AssetItem,
@@ -57,7 +58,7 @@ use crate::{
         scene::SceneContainer,
     },
     game_scene::{
-        Selection, commands::ChangeSelectionCommand, controller::SceneController,
+        Selection, commands::ChangeSelectionCommand,
         selector::HierarchyNode,
     },
     message::MessageSender,

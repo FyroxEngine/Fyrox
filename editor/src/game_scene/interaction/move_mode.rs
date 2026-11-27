@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::controller::SceneController;
 use crate::game_scene::camera::PickMethod;
 use crate::game_scene::camera::{CameraController, PickingOptions};
 use crate::interaction::{InteractionMode, make_interaction_mode_button};
@@ -41,7 +42,6 @@ use crate::{
     game_scene::{
         GameScene, Selection,
         commands::{ChangeSelectionCommand, graph::MoveNodeCommand},
-        controller::SceneController,
     },
     message::MessageSender,
     settings::Settings,

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::controller::SceneController;
 use crate::{
     command::{Command, SetPropertyCommand},
     fyrox::{
@@ -29,7 +30,6 @@ use crate::{
     },
     game_scene::{
         EntityInfo, GameScene, SelectionContainer, commands::GameSceneContext,
-        controller::SceneController,
     },
     message::MessageSender,
 };

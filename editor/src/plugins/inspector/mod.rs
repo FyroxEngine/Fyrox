@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::controller::SceneController;
 use crate::plugins::doc::ShowDocumentation;
 use crate::plugins::inspector::type_editor::{InspectorTypeEditorContext, ResourceTypeEditor};
 use crate::settings::Settings;
@@ -60,7 +61,7 @@ use crate::{
         },
         scene::{self, SceneContainer, graph::Graph, node::Node},
     },
-    game_scene::{EntityInfo, GameScene, Selection, controller::SceneController},
+    game_scene::{EntityInfo, GameScene, Selection},
     load_image,
     message::MessageSender,
     plugin::EditorPlugin,

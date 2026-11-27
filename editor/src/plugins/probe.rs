@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::controller::SceneController;
 use crate::game_scene::camera::PickingOptions;
 use crate::interaction::{InteractionMode, make_interaction_mode_button};
 use crate::{
@@ -44,7 +45,7 @@ use crate::{
     game_scene::interaction::{
         calculate_gizmo_distance_scaling, gizmo::move_gizmo::MoveGizmo, plane::PlaneKind,
     },
-    game_scene::{GameScene, Selection, commands::GameSceneContext, controller::SceneController},
+    game_scene::{GameScene, Selection, commands::GameSceneContext},
     message::MessageSender,
     plugin::EditorPlugin,
     plugins::inspector::InspectorPlugin,

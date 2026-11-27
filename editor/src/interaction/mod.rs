@@ -20,6 +20,7 @@
 
 pub mod container;
 
+use crate::controller::SceneController;
 use crate::{
     fyrox::{
         core::{algebra::Vector2, define_as_any_trait, pool::Handle, reflect::Reflect, uuid::Uuid},
@@ -37,7 +38,7 @@ use crate::{
             widget::WidgetBuilder,
         },
     },
-    game_scene::{Selection, controller::SceneController},
+    game_scene::Selection,
     load_image_internal,
     settings::Settings,
 };

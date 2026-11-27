@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::controller::SceneController;
 use crate::{
     Message, Settings,
     asset::item::AssetItem,
@@ -78,7 +79,6 @@ use crate::{
             ChangeSelectionCommand, GameSceneContext, PasteCommand, graph::AddModelCommand,
             mesh::SetMeshTextureCommand,
         },
-        controller::SceneController,
         selector::HierarchyNode,
     },
     highlight::HighlightRenderPass,
@@ -103,6 +103,7 @@ use fyrox::{
     scene::bitmask::BitMask,
 };
 use std::{
+
     cell::RefCell,
     fmt::Debug,
     fs::File,
@@ -110,6 +111,7 @@ use std::{
     path::Path,
     rc::Rc,
     sync::{
+
         Arc, LazyLock,
         mpsc::{self, Receiver},
     },
@@ -127,7 +129,6 @@ pub mod settings;
 pub mod commands;
 pub mod camera;
 pub mod container;
-pub mod controller;
 
 pub struct PreviewInstance {
     pub instance: Handle<Node>,

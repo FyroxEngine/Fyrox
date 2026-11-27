@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::controller::SceneController;
 use crate::settings::Settings;
 use crate::ui_scene::commands::UiSceneContext;
 use crate::{
@@ -50,7 +51,7 @@ use crate::{
         },
         utils::lightmap::Lightmap,
     },
-    game_scene::{commands::GameSceneContext, controller::SceneController},
+    game_scene::commands::GameSceneContext,
     message::MessageSender,
     plugins::inspector::EditorEnvironment,
     ui_scene::UiScene,

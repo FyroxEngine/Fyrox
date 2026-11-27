@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::controller::SceneController;
 use crate::game_scene::EntityInfo;
 use crate::{
     command::{Command, SetPropertyCommand, make_command},
@@ -36,7 +37,6 @@ use crate::{
     },
     game_scene::GameScene,
     game_scene::SelectionContainer,
-    game_scene::controller::SceneController,
     message::MessageSender,
     plugins::absm::command::fetch_machine,
     ui_scene::UiScene,

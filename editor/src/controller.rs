@@ -18,25 +18,23 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::Message;
+use crate::command::{Command, CommandStack};
+use crate::game_scene::Selection;
 use crate::message::MessageSender;
-use crate::{
-    Message,
-    command::{Command, CommandStack},
-    fyrox::{
-        core::{algebra::Vector2, define_as_any_trait, math::Rect, pool::Handle},
-        engine::Engine,
-        gui::{
-            UiNode,
-            file_browser::FileType,
-            message::{KeyCode, MouseButton},
-        },
-        resource::texture::TextureResource,
-        scene::SceneContainer,
-    },
-    game_scene::Selection,
-    settings::{Settings, keys::KeyBindings},
-};
+use crate::settings::Settings;
+use crate::settings::keys::KeyBindings;
+use fyrox::core::algebra::Vector2;
+use fyrox::core::define_as_any_trait;
+use fyrox::core::math::Rect;
+use fyrox::core::pool::Handle;
+use fyrox::engine::Engine;
+use fyrox::gui::UiNode;
 use fyrox::gui::clipboard::ClipboardContainer;
+use fyrox::gui::file_browser::FileType;
+use fyrox::gui::message::{KeyCode, MouseButton};
+use fyrox::gui::texture::TextureResource;
+use fyrox::scene::SceneContainer;
 use std::path::Path;
 
 define_as_any_trait!(SceneControllerAsAny => SceneController);

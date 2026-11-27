@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::controller::SceneController;
 use crate::fyrox::{
     core::{algebra::Point2, algebra::Vector2, pool::Handle, reflect::prelude::*, uuid::Uuid},
     engine::Engine,
@@ -27,7 +28,7 @@ use crate::fyrox::{
 use crate::interaction::{InteractionMode, make_interaction_mode_button};
 use crate::{
     command::CommandGroup,
-    game_scene::{Selection, commands::ChangeSelectionCommand, controller::SceneController},
+    game_scene::{Selection, commands::ChangeSelectionCommand},
     message::MessageSender,
     settings::Settings,
     ui_scene::{UiScene, commands::widget::MoveWidgetCommand},

@@ -78,6 +78,7 @@ use tile_inspector::*;
 use tile_prop_editor::*;
 use wfc::*;
 
+use crate::controller::SceneController;
 use crate::fyrox::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -117,7 +118,7 @@ use crate::fyrox::{
 use crate::interaction::{InteractionMode, make_interaction_mode_button};
 use crate::{
     Editor, Message,
-    game_scene::{GameScene, Selection, controller::SceneController},
+    game_scene::{GameScene, Selection},
     load_image,
     message::MessageSender,
     plugin::EditorPlugin,
@@ -130,6 +131,7 @@ use fyrox::gui::button::Button;
 use fyrox::gui::message::MessageData;
 use std::sync::LazyLock;
 use std::{
+
     fmt::Debug,
     ops::{Deref, DerefMut},
     sync::Arc,

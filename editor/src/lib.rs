@@ -32,6 +32,7 @@
 pub mod asset;
 pub mod command;
 pub mod configurator;
+pub mod controller;
 pub mod game_scene;
 pub mod highlight;
 pub mod interaction;

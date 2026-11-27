@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::controller::SceneController;
 use crate::world::create::EntityCreatorMode;
 use crate::{
     Engine, Message,
@@ -51,7 +52,6 @@ use crate::{
             RevertSceneNodePropertyCommand,
             graph::{SetGraphRootCommand, SetNodeTransformCommand},
         },
-        controller::SceneController,
     },
     make_save_file_selector,
     menu::{create_menu_item, create_menu_item_shortcut},

@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::controller::SceneController;
 use crate::interaction::{InteractionMode, make_interaction_mode_button};
 use crate::plugins::navmesh::settings::NavmeshSettings;
 use crate::{
@@ -41,7 +42,7 @@ use crate::{
     },
     game_scene::{
         GameScene, Selection, SelectionContainer, camera::PickingOptions,
-        commands::ChangeSelectionCommand, controller::SceneController,
+        commands::ChangeSelectionCommand,
     },
     message::MessageSender,
     plugins::navmesh::{

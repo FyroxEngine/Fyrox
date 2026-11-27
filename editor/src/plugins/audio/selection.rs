@@ -19,8 +19,8 @@
 // SOFTWARE.
 
 use crate::command::{Command, SetPropertyCommand, make_command};
+use crate::controller::SceneController;
 use crate::game_scene::commands::GameSceneContext;
-use crate::game_scene::controller::SceneController;
 use crate::game_scene::{EntityInfo, GameScene, SelectionContainer};
 use crate::message::MessageSender;
 use fyrox::core::pool::Handle;

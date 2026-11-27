@@ -18,6 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+use crate::controller::SceneController;
 use crate::game_scene::EntityInfo;
 use crate::{
     command::{Command, CommandGroup, SetPropertyCommand, make_command},
@@ -28,9 +29,7 @@ use crate::{
         gui::{UiNode, inspector::PropertyChanged},
         scene::SceneContainer,
     },
-    game_scene::{
-        SelectionContainer, commands::ChangeSelectionCommand, controller::SceneController,
-    },
+    game_scene::{SelectionContainer, commands::ChangeSelectionCommand},
     message::MessageSender,
     ui_scene::{
         UiScene,
